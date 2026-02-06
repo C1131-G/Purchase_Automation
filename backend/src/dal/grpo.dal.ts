@@ -1,0 +1,235 @@
+﻿// GRPO DAL: Handles HTTP requests for Goods Receipt Purchase Order (GRPO) operations.
+
+import type { NextFunction, Request, Response } from "express";
+import formidable from "formidable";
+
+import AppError from "@/core/errors/app-error";
+// Core
+import { logger } from "@/core/logger/pino-logger";
+import type { AuthenticatedRequest } from "@/dal/types/express.types";
+// Services
+import { grpoService } from "@/services/grpo.service";
+// Validation
+import {
+  CreateGRPOInputSchema,
+  GRPOQuerySchema,
+  UpdateGRPOInputSchema,
+} from "@/validation/schemas/inputs/grpo.input";
+
+// Retrieves a list of GRPOs filtered by status, dates, and vendor information.
+export const getGRPOs = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    // Validate search filters using Zod for robust input handling.
+    const filters = GRPOQuerySchema.parse(req.query);
+
+    logger.info({ msg: "Fetching GRPOs", dbName, filters });
+
+    const result = await grpoService.getGRPOs(dbName, filters);
+
+    logger.info({ msg: "Fetched GRPOs", count: result.data.length, total: result.total });
+
+    res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Fetches detailed information for a single GRPO, including line items.
+export const getGRPO = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+
+    logger.info({ msg: "Fetching GRPO detail", id });
+
+    const data = await grpoService.getGRPO(sessionId, id as string);
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: "GRPO not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Fetches the original Purchase Order details to facilitate GRPO creation based on a PO.
+export const getPODetail = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+
+    logger.info({ msg: "Fetching PO detail for GRPO", id });
+
+    const data = await grpoService.getPODetail(sessionId, id as string);
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Lists all open Purchase Orders for a specific vendor that can be converted into a GRPO.
+export const getAvailablePOs = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { vendorCode?: string }
+  >;
+  try {
+    const { sessionId } = authReq.session;
+    const { vendorCode } = authReq.query;
+
+    if (!vendorCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Vendor code is required",
+      });
+    }
+
+    logger.info({ msg: "Fetching available POs", vendorCode });
+
+    const data = await grpoService.getAvailablePOs(sessionId, vendorCode as string);
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Creates a new GRPO in SAP B1. Uses formidable to handle the JSON payload and file attachments (e.g., packing slips).
+export const createGRPO = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  const form = formidable({
+    multiples: true,
+    keepExtensions: true,
+  });
+
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      logger.error({ msg: "Form parsing failed", error: err.message });
+      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
+    }
+
+    try {
+      const { sessionId } = authReq.session;
+
+      const payloadRaw = fields.Payload?.[0];
+      if (!payloadRaw) {
+        return next(new AppError("Missing Payload field", 400, "BAD_REQUEST"));
+      }
+
+      const payload = JSON.parse(payloadRaw);
+
+      // Validate the payload to ensure all required fields for document creation are present.
+      const validatedPayload = CreateGRPOInputSchema.parse(payload);
+
+      logger.info({ msg: "Creating GRPO", vendor: validatedPayload.CardCode });
+
+      const result = await grpoService.createGRPO(sessionId, validatedPayload, files);
+
+      logger.info({ msg: "GRPO Created", docNum: result.DocNum });
+
+      res.status(201).json({
+        success: true,
+        message: result.message,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+};
+
+// Updates metadata (e.g., comments) for an existing GRPO via Service Layer PATCH.
+export const updateGRPO = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  const form = formidable({
+    multiples: true,
+    keepExtensions: true,
+  });
+
+  form.parse(req, async (err, fields, _files) => {
+    if (err) {
+      logger.error({ msg: "Form parsing failed", error: err.message });
+      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
+    }
+
+    try {
+      const { sessionId } = authReq.session;
+      const { id } = authReq.params;
+
+      const payloadRaw = fields.Payload?.[0] || fields.grpoData?.[0];
+      if (!payloadRaw) {
+        return next(new AppError("Missing payload field", 400, "BAD_REQUEST"));
+      }
+
+      const payload = JSON.parse(payloadRaw);
+
+      // Validate the update payload to prevent unauthorized or invalid field modifications.
+      const validatedPayload = UpdateGRPOInputSchema.parse(payload);
+
+      logger.info({ msg: "Updating GRPO", id });
+
+      const result = await grpoService.updateGRPO(sessionId, id as string, validatedPayload);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+};
+
+// Marks a GRPO as cancelled in the SAP system.
+export const cancelGRPO = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+
+    logger.info({ msg: "Cancelling GRPO", id });
+
+    const result = await grpoService.cancelGRPO(sessionId, id as string);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const grpoDal = {
+  getGRPOs,
+  getGRPO,
+  getPODetail,
+  getAvailablePOs,
+  createGRPO,
+  updateGRPO,
+  cancelGRPO,
+};

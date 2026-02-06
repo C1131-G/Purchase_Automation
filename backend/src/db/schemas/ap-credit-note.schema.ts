@@ -1,0 +1,38 @@
+﻿// AP Credit Note Schema: Maps to the native SAP B1 'ORPC' table (Accounts Payable Credit Memo).
+// Used to track vendor credits and returns.
+
+import { EntitySchema } from "typeorm";
+
+import type { HANAColumnType } from "@/db/schemas/types/base.types";
+
+export type APCreditNote = {
+  docEntry: number; // Internal SAP key (Primary).
+  docNum: number; // Visible SAP document number.
+  docDate: Date;
+  cardCode: string; // Vendor code.
+  cardName: string; // Vendor name.
+  docTotal: number;
+  docStatus: string; // 'O' = Open, 'C' = Closed.
+  canceled: string; // 'Y' = Yes, 'N' = No.
+};
+
+export const APCreditNoteSchema = new EntitySchema<APCreditNote>({
+  name: "APCreditNote",
+  tableName: "ORPC",
+  columns: {
+    docEntry: { primary: true, type: "int" as HANAColumnType, name: "DocEntry" },
+    docNum: { type: "int" as HANAColumnType, name: "DocNum" },
+    docDate: { type: "date" as HANAColumnType, name: "DocDate" },
+    cardCode: { type: "nvarchar" as HANAColumnType, length: 15, name: "CardCode" },
+    cardName: { type: "nvarchar" as HANAColumnType, length: 100, name: "CardName" },
+    docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
+    docStatus: { type: "nvarchar" as HANAColumnType, length: 1, name: "DocStatus" },
+    canceled: { type: "nvarchar" as HANAColumnType, length: 1, name: "CANCELED" },
+  },
+  indices: [
+    { name: "IDX_ORPC_DOCNUM", columns: ["docNum"] },
+    { name: "IDX_ORPC_DOCDATE", columns: ["docDate"] },
+    { name: "IDX_ORPC_CARDCODE", columns: ["cardCode"] },
+    { name: "IDX_ORPC_CARDNAME", columns: ["cardName"] },
+  ],
+});
