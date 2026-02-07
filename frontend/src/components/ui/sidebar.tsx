@@ -2,12 +2,8 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight, PanelLeftIcon } from 'lucide-react'
 import React from 'react'
 
+import { useSetSidebarAction, useSidebarOpen, useToggleSidebarAction } from '@/store/sidebar.store'
 import { cn } from '@/utils/cn'
-import {
-  useSidebarOpen,
-  useSetSidebarAction,
-  useToggleSidebarAction
-} from '@/store/sidebar.store'
 
 const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
@@ -104,8 +100,8 @@ export function Sidebar({
           'fixed inset-y-0 z-10 flex h-screen w-[var(--sidebar-width)] transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] bg-white border-zinc-100',
           side === 'left' ? 'left-0 border-r' : 'right-0 border-l',
           state === 'collapsed' &&
-          collapsible === 'offcanvas' &&
-          (side === 'left' ? '-translate-x-full' : 'translate-x-full'),
+            collapsible === 'offcanvas' &&
+            (side === 'left' ? '-translate-x-full' : 'translate-x-full'),
           state === 'collapsed' && collapsible === 'icon' && 'w-[var(--sidebar-width-icon)]',
           variant === 'floating' && 'p-2',
           className,
@@ -138,7 +134,9 @@ export function SidebarTrigger({
       }}
       {...props}
     >
-      {children || <PanelLeftIcon className="size-5 transition-transform duration-300 group-hover:-translate-x-0.5 group-active:scale-95" />}
+      {children || (
+        <PanelLeftIcon className="size-5 transition-transform duration-300 group-hover:-translate-x-0.5 group-active:scale-95" />
+      )}
       <span className="sr-only">Toggle Sidebar</span>
     </button>
   )

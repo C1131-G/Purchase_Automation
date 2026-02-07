@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 
+import {
+  SelectContext,
+  type SelectContextType,
+  useSelect,
+} from '@/components/ui/context/select-context'
 import { cn } from '@/utils/cn'
-
-import { SelectContext, type SelectContextType, useSelect } from '@/components/ui/context/select-context'
 
 import type { SelectRootProps } from './types/select.types'
 
@@ -12,7 +15,13 @@ import type { SelectRootProps } from './types/select.types'
  * - XL Rounded Corners.
  * - Precise Industrial Focus.
  */
-export function SelectRoot({ children, value: controlledValue, defaultValue, onValueChange, disabled }: SelectRootProps) {
+export function SelectRoot({
+  children,
+  value: controlledValue,
+  defaultValue,
+  onValueChange,
+  disabled,
+}: SelectRootProps) {
   const [open, setOpen] = useState(false)
   const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue)
   const [labelMap, setLabelMap] = useState<Record<string, string | React.ReactNode>>({})

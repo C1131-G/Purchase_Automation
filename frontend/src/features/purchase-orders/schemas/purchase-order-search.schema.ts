@@ -1,43 +1,49 @@
 import { z } from 'zod'
 
 export const purchaseOrderSearchSchema = z.object({
-    // Pagination (syncs with table state)
-    page: z.coerce.number().int().min(1).catch(1), // page
-    limit: z.coerce.number().int().min(1).catch(10), // limit
+  // Pagination (syncs with table state)
+  page: z.coerce.number().int().min(1).catch(1), // page
+  limit: z.coerce.number().int().min(1).catch(10), // limit
 
-    // Table State
-    sorting: z.array(z.object({ id: z.string(), desc: z.boolean() })).optional(), // sorting
-    columnVisibility: z.record(z.string(), z.boolean()).optional(), // visibility
-    columnOrder: z.array(z.string()).optional(), // order
-    columnFilters: z.array(
-        z.object({
-            id: z.string(),
-            value: z.union([
-                z.string(),
-                z.number(),
-                z.boolean(),
-                z.array(z.string()),
-                z.object({
-                    from: z.string().optional(),
-                    to: z.string().optional(),
-                }).strict(),
-                z.object({
-                    operator: z.enum(['eq', 'lt', 'gt']),
-                    value: z.coerce.number(),
-                }).strict(),
-            ]),
-        }),
-    ).optional(), // column filters
-    filter: z.string().optional(), // search filter
+  // Table State
+  sorting: z.array(z.object({ id: z.string(), desc: z.boolean() })).optional(), // sorting
+  columnVisibility: z.record(z.string(), z.boolean()).optional(), // visibility
+  columnOrder: z.array(z.string()).optional(), // order
+  columnFilters: z
+    .array(
+      z.object({
+        id: z.string(),
+        value: z.union([
+          z.string(),
+          z.number(),
+          z.boolean(),
+          z.array(z.string()),
+          z
+            .object({
+              from: z.string().optional(),
+              to: z.string().optional(),
+            })
+            .strict(),
+          z
+            .object({
+              operator: z.enum(['eq', 'lt', 'gt']),
+              value: z.coerce.number(),
+            })
+            .strict(),
+        ]),
+      }),
+    )
+    .optional(), // column filters
+  filter: z.string().optional(), // search filter
 
-    // Backend Filters (aligned with PurchaseOrderQuerySchema)
-    DocNum: z.string().optional(),
-    CardCode: z.string().optional(),
-    CardName: z.string().optional(),
-    DocStatus: z.string().optional(),
-    DocDateStart: z.string().optional(),
-    DocDateEnd: z.string().optional(),
-    Canceled: z.string().optional(),
+  // Backend Filters (aligned with PurchaseOrderQuerySchema)
+  DocNum: z.string().optional(),
+  CardCode: z.string().optional(),
+  CardName: z.string().optional(),
+  DocStatus: z.string().optional(),
+  DocDateStart: z.string().optional(),
+  DocDateEnd: z.string().optional(),
+  Canceled: z.string().optional(),
 })
 
 export type PurchaseOrderSearch = z.infer<typeof purchaseOrderSearchSchema>

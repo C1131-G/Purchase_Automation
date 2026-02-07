@@ -13,7 +13,7 @@ import {
   SidebarMenuCollapsible,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarProvider
+  SidebarProvider,
 } from '@/components/ui/sidebar'
 
 /**
@@ -203,4 +203,3 @@ export function ShellLayout() {
     </SidebarProvider>
   )
 }
-

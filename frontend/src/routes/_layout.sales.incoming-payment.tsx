@@ -8,7 +8,9 @@ export const Route = createFileRoute('/_layout/sales/incoming-payment')({
       </h1>
       <div className="p-20 rounded-[2rem] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
         <p className="font-bold underline uppercase tracking-widest text-xs">Module Ready</p>
-        <p className="text-sm mt-2 font-medium">Incoming Payment module will be implemented here.</p>
+        <p className="text-sm mt-2 font-medium">
+          Incoming Payment module will be implemented here.
+        </p>
       </div>
     </div>
   ),

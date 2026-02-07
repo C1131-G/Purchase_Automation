@@ -1,5 +1,5 @@
 import React from 'react'
 
 export interface FormProps extends React.FormHTMLAttributes<HTMLFormElement> {
-    errors?: Record<string, string>
+  errors?: Record<string, string>
 }
