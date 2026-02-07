@@ -3,8 +3,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ShellLayout } from '@/features/layout/components/ShellLayout'
 
 /**
- * Shell Layout Route.
- * This route wraps all ERP module pages with the persistent Sidebar & Header.
+ * Shell: The persistent ERP frame.
+ * 
+ * ARCHITECTURE: Wraps all module routes in `ShellLayout` (Sidebar + Header).
+ * NAVIGATION: Ensures layout-specific UI remains stable during cross-module navigation.
  */
 export const Route = createFileRoute('/_layout')({
   component: ShellLayout,

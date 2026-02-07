@@ -20,6 +20,10 @@ const MONTHS = [
 ]
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const MIN_YEAR = 1900
+const PICKER_ITEM_HEIGHT = 40
+const PICKER_ITEM_GAP = 8
+const PICKER_CONTAINER_HEIGHT = 228
+const PICKER_VERTICAL_PADDING = 120
 
 type CalendarMode = 'single' | 'range'
 export type CalendarDateRange = { from?: Date | undefined; to?: Date | undefined }
@@ -130,7 +134,14 @@ function Calendar({
     }
 
     const current = internalRange
-    if (!current.from || (current.from && current.to)) {
+    if (current.from && current.to) {
+      const next: CalendarDateRange = { from: clicked }
+      setInternalRange(next)
+      onSelect?.(next)
+      return
+    }
+
+    if (!current.from) {
       const next: CalendarDateRange = { from: clicked }
       setInternalRange(next)
       onSelect?.(next)
@@ -155,20 +166,29 @@ function Calendar({
 
   const monthScrollRef = useRef<HTMLDivElement>(null)
   const yearScrollRef = useRef<HTMLDivElement>(null)
+  const monthScrollRafRef = useRef<number | null>(null)
+  const yearScrollRafRef = useRef<number | null>(null)
+  const monthScrollEndTimerRef = useRef<number | null>(null)
+  const yearScrollEndTimerRef = useRef<number | null>(null)
+  const hasSyncedPickerOpenRef = useRef(false)
+  const [isPickerScrolling, setIsPickerScrolling] = useState(false)
 
   // Handle center-snapping when picker opens or selection changes
   useEffect(() => {
-    if (view !== 'picker') return
-
-    const ITEM_HEIGHT = 40 // h-10
-    const GAP = 8 // gap-2
-    const CONTAINER_HEIGHT = 228
-    const PADDING = 120 // py-[120px]
+    if (view !== 'picker') {
+      hasSyncedPickerOpenRef.current = false
+      return
+    }
+    if (hasSyncedPickerOpenRef.current) return
+    hasSyncedPickerOpenRef.current = true
 
     const scrollToItem = (ref: React.RefObject<HTMLDivElement | null>, index: number) => {
       if (!ref.current) return
-      const itemCenter = PADDING + index * (ITEM_HEIGHT + GAP) + ITEM_HEIGHT / 2
-      const scrollTop = itemCenter - CONTAINER_HEIGHT / 2
+      const itemCenter =
+        PICKER_VERTICAL_PADDING +
+        index * (PICKER_ITEM_HEIGHT + PICKER_ITEM_GAP) +
+        PICKER_ITEM_HEIGHT / 2
+      const scrollTop = itemCenter - PICKER_CONTAINER_HEIGHT / 2
       ref.current.scrollTo({ top: scrollTop, behavior: 'smooth' })
     }
 
@@ -182,10 +202,27 @@ function Calendar({
     return () => clearTimeout(timer)
   }, [view, month, year, years])
 
+  useEffect(() => {
+    return () => {
+      if (monthScrollRafRef.current !== null) {
+        cancelAnimationFrame(monthScrollRafRef.current)
+      }
+      if (yearScrollRafRef.current !== null) {
+        cancelAnimationFrame(yearScrollRafRef.current)
+      }
+      if (monthScrollEndTimerRef.current !== null) {
+        window.clearTimeout(monthScrollEndTimerRef.current)
+      }
+      if (yearScrollEndTimerRef.current !== null) {
+        window.clearTimeout(yearScrollEndTimerRef.current)
+      }
+    }
+  }, [])
+
   return (
     <div
       className={cn(
-        'relative w-[272px] bg-white text-zinc-900 rounded-2xl p-2.5 shadow-[0_14px_30px_-20px_rgba(59,130,246,0.35)] border border-blue-100 font-sans select-none overflow-hidden',
+        'relative w-[272px] bg-white text-zinc-900 rounded-2xl p-2.5 shadow-[0_14px_30px_-20px_rgba(59,130,246,0.35)] border border-blue-100 font-sans select-none overflow-hidden [-webkit-tap-highlight-color:transparent] [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus]:ring-0 [&_button:focus-visible]:ring-0 [&_button:focus]:shadow-none [&_button:focus-visible]:shadow-none',
         className,
       )}
       {...props}
@@ -194,7 +231,7 @@ function Calendar({
         <button
           type="button"
           onClick={handlePrevMonth}
-          className="p-2 rounded-full hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer"
+          className="p-2 rounded-full hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
           disabled={view === 'picker'}
         >
           <ChevronLeft size={20} className={cn(view === 'picker' && 'opacity-0')} />
@@ -203,7 +240,7 @@ function Calendar({
         <button
           type="button"
           onClick={handleToggleView}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-all text-sm font-semibold bg-blue-50 border border-blue-100 text-blue-700 cursor-pointer"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-all text-sm font-semibold bg-blue-50 border border-blue-100 text-blue-700 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
         >
           <span>
             {MONTHS[month]} {year}
@@ -218,7 +255,7 @@ function Calendar({
         <button
           type="button"
           onClick={handleNextMonth}
-          className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer"
+          className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
           disabled={
             view === 'picker' || normalizeDate(new Date(year, month, 1)) >= currentMonthBoundary
           }
@@ -283,13 +320,13 @@ function Calendar({
                       onClick={() => handleSelectDate(day)}
                       disabled={isFuture}
                       className={cn(
-                        'w-9 h-9 flex items-center justify-center rounded-xl text-sm transition-all',
+                        'w-9 h-9 flex items-center justify-center rounded-xl text-sm appearance-none transition-colors duration-150 focus:outline-none focus-visible:outline-none focus:ring-0',
                         isFuture
                           ? 'text-zinc-300 cursor-not-allowed'
                           : 'hover:bg-blue-50 hover:text-blue-700 active:scale-95 cursor-pointer',
-                        isToday && 'border border-blue-200',
+                        isToday && 'ring-1 ring-blue-200',
                         (isSelectedSingle || isRangeStartOnly || isRangeEdge) &&
-                          'bg-blue-50 border border-blue-200 text-blue-700 font-bold shadow-sm',
+                          'bg-blue-50 ring-1 ring-blue-200 text-blue-700 font-bold shadow-sm',
                         isRangeMiddle && 'bg-blue-50/50 text-blue-500 font-semibold',
                         !isFuture &&
                           !isSelectedSingle &&
@@ -329,6 +366,33 @@ function Calendar({
 
             <div
               ref={monthScrollRef}
+              onScroll={() => {
+                setIsPickerScrolling(true)
+                if (monthScrollEndTimerRef.current !== null) {
+                  window.clearTimeout(monthScrollEndTimerRef.current)
+                }
+                monthScrollEndTimerRef.current = window.setTimeout(() => {
+                  setIsPickerScrolling(false)
+                }, 140)
+                if (monthScrollRafRef.current !== null) return
+                monthScrollRafRef.current = requestAnimationFrame(() => {
+                  monthScrollRafRef.current = null
+                  const container = monthScrollRef.current
+                  if (!container) return
+
+                  const step = PICKER_ITEM_HEIGHT + PICKER_ITEM_GAP
+                  const centerOffset =
+                    container.scrollTop + PICKER_CONTAINER_HEIGHT / 2 - PICKER_VERTICAL_PADDING
+                  const monthIndex = Math.round((centerOffset - PICKER_ITEM_HEIGHT / 2) / step)
+                  const clampedMonth = Math.max(0, Math.min(11, monthIndex))
+                  const maxMonthForYear = year === today.getFullYear() ? today.getMonth() : 11
+                  const nextMonth = Math.min(clampedMonth, maxMonthForYear)
+
+                  if (nextMonth !== month) {
+                    setCurrentDate(new Date(year, nextMonth, 1))
+                  }
+                })
+              }}
               className="flex-1 overflow-y-auto py-[120px] scroll-smooth"
               style={{ scrollbarWidth: 'none' }}
             >
@@ -343,14 +407,14 @@ function Calendar({
                     }}
                     disabled={year === today.getFullYear() && index > today.getMonth()}
                     className={cn(
-                      'h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer',
+                      'h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0',
                       year === today.getFullYear() &&
                         index > today.getMonth() &&
                         'text-zinc-300 cursor-not-allowed',
                       index === month ? 'text-blue-700 font-bold text-lg' : 'text-blue-300',
                     )}
                     style={{
-                      transitionDuration: `${MOTION_MS.calendarList}ms`,
+                      transitionDuration: isPickerScrolling ? '0ms' : `${MOTION_MS.calendarList}ms`,
                       transitionTimingFunction: MOTION_EASING.smoothOut,
                     }}
                   >
@@ -362,6 +426,36 @@ function Calendar({
 
             <div
               ref={yearScrollRef}
+              onScroll={() => {
+                setIsPickerScrolling(true)
+                if (yearScrollEndTimerRef.current !== null) {
+                  window.clearTimeout(yearScrollEndTimerRef.current)
+                }
+                yearScrollEndTimerRef.current = window.setTimeout(() => {
+                  setIsPickerScrolling(false)
+                }, 140)
+                if (yearScrollRafRef.current !== null) return
+                yearScrollRafRef.current = requestAnimationFrame(() => {
+                  yearScrollRafRef.current = null
+                  const container = yearScrollRef.current
+                  if (!container) return
+
+                  const step = PICKER_ITEM_HEIGHT + PICKER_ITEM_GAP
+                  const centerOffset =
+                    container.scrollTop + PICKER_CONTAINER_HEIGHT / 2 - PICKER_VERTICAL_PADDING
+                  const yearIndex = Math.round((centerOffset - PICKER_ITEM_HEIGHT / 2) / step)
+                  const clampedIndex = Math.max(0, Math.min(years.length - 1, yearIndex))
+                  const nextYear = years[clampedIndex]
+                  if (!nextYear) return
+
+                  const maxMonthForYear = nextYear === today.getFullYear() ? today.getMonth() : 11
+                  const nextMonth = Math.min(month, maxMonthForYear)
+
+                  if (nextYear !== year || nextMonth !== month) {
+                    setCurrentDate(new Date(nextYear, nextMonth, 1))
+                  }
+                })
+              }}
               className="flex-1 overflow-y-auto py-[120px] scroll-smooth"
               style={{ scrollbarWidth: 'none' }}
             >
@@ -375,11 +469,11 @@ function Calendar({
                       setView('grid')
                     }}
                     className={cn(
-                      'h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer',
+                      'h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0',
                       y === year ? 'text-blue-700 font-bold text-lg' : 'text-blue-300',
                     )}
                     style={{
-                      transitionDuration: `${MOTION_MS.calendarList}ms`,
+                      transitionDuration: isPickerScrolling ? '0ms' : `${MOTION_MS.calendarList}ms`,
                       transitionTimingFunction: MOTION_EASING.smoothOut,
                     }}
                   >

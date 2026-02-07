@@ -16,16 +16,9 @@ import { cn } from '@/utils/cn'
 interface TableFilterOptionsProps<TData> {
   tableId: string
   table: Table<TData>
-  activeFilterId: string | null
-  setActiveFilterId: (id: string | null) => void
 }
 
-export function TableFilterOptions<TData>({
-  tableId,
-  table,
-  activeFilterId: _activeFilterId,
-  setActiveFilterId: _setActiveFilterId,
-}: TableFilterOptionsProps<TData>) {
+export function TableFilterOptions<TData>({ tableId, table }: TableFilterOptionsProps<TData>) {
   const activeFilterId = useTableActiveFilter(tableId)
   const storeColumnFilters = useTableColumnFilters(tableId)
   const setActiveFilter = useSetActiveFilterAction()
@@ -102,9 +95,11 @@ function FilterContent<TData>({
     if (activeFilter === columnId) {
       const column = table.getColumn(columnId)
       column?.setFilterValue(undefined)
-      setColumnFilters(rawColumnFilters.filter((filter) => filter.id !== columnId))
+      const remainingFilters = rawColumnFilters.filter((filter) => filter.id !== columnId)
+      setColumnFilters(remainingFilters)
       clearDateFilterDraft(tableId, columnId)
-      setActiveFilter(null)
+      const nextActiveFilter = remainingFilters.find((filter) => hasFilterValue(filter.value))?.id
+      setActiveFilter(nextActiveFilter ?? null)
     } else {
       setActiveFilter(columnId)
     }
@@ -126,7 +121,7 @@ function FilterContent<TData>({
               const hasValue = columnFilters.some(
                 (f) => f.id === columnId && hasFilterValue(f.value),
               )
-              const isChecked = isActive || hasValue
+              const isChecked = hasValue
               const columnName = getColumnTitle(column, table)
 
               return (
@@ -139,11 +134,9 @@ function FilterContent<TData>({
                     onClick={() => handleFilterChange(columnId)}
                     className={cn(
                       'truncate transition-colors cursor-pointer text-left flex-1',
-                      isActive
-                        ? 'text-blue-600 font-semibold'
-                        : hasValue
-                          ? 'text-blue-500 font-medium'
-                          : 'text-zinc-700 font-medium hover:text-blue-600',
+                      hasValue
+                        ? 'text-blue-500 font-medium'
+                        : 'text-zinc-700 font-medium hover:text-blue-600',
                     )}
                   >
                     {columnName}

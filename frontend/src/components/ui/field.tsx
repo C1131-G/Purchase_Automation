@@ -8,9 +8,11 @@ import {
 import { cn } from '@/utils/cn'
 
 /**
- * Standardized Field Components.
- * - Sapphire & White Theme.
- * - Industrial Bold Labels.
+ * Field: Accessible wrapper for form controls.
+ * 
+ * ARCHITECTURE: Uses `FieldContext` to sync IDs between Labels, Controls, and Errors.
+ * DESIGN: Industrial bold labels (size 11, tracking-widest) for ERP clarity.
+ * UX: Handles ARIA associations automatically via `FieldControl`.
  */
 export function FieldRoot({
   children,
@@ -22,6 +24,7 @@ export function FieldRoot({
   className?: string
 }) {
   const id = useId()
+  // LINKAGE: IDs derived from a single root for screen-reader consistency
   const errorId = `${id}-error`
   const descriptionId = `${id}-description`
 

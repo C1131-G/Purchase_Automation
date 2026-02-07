@@ -5,10 +5,11 @@ import { cn } from '@/utils/cn'
 import type { InputProps } from './types/input.types'
 
 /**
- * Standardized Input Component.
- * - Sapphire & White Theme.
- * - XL Rounded Corners.
- * - Precise Industrial Focus.
+ * Input: High-precision data entry field.
+ * 
+ * DESIGN: Subdued zinc-50 background with sapphire-600 focus ring.
+ * ARCHITECTURE: Forwards refs for TanStack Form / react-hook-form integration.
+ * ACCESSIBILITY: Automatic ID generation handles label/input pairing if `id` is omitted.
  */
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, id, name, ...props }, ref) => {

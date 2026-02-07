@@ -9,6 +9,13 @@ const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 
+/**
+ * Sidebar: Persistent application navigation architecture.
+ * 
+ * DESIGN: Multi-state (expanded/collapsed/offcanvas) with industrial fluid transitions.
+ * UX: Modern "Control+B" keyboard shortcut and interactive hover highlights.
+ * ARCHITECTURE: Composite structure (Header, Content, Menu, Footer) for scalable ERP navigation.
+ */
 export function SidebarProvider({
   className,
   style,
@@ -100,8 +107,8 @@ export function Sidebar({
           'fixed inset-y-0 z-10 flex h-screen w-[var(--sidebar-width)] transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] bg-white border-zinc-100',
           side === 'left' ? 'left-0 border-r' : 'right-0 border-l',
           state === 'collapsed' &&
-            collapsible === 'offcanvas' &&
-            (side === 'left' ? '-translate-x-full' : 'translate-x-full'),
+          collapsible === 'offcanvas' &&
+          (side === 'left' ? '-translate-x-full' : 'translate-x-full'),
           state === 'collapsed' && collapsible === 'icon' && 'w-[var(--sidebar-width-icon)]',
           variant === 'floating' && 'p-2',
           className,

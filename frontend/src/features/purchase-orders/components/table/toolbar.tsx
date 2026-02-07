@@ -8,6 +8,7 @@ import { TableFilterOptions } from '@/components/table/filters/filter-options'
 import { TableSearch } from '@/components/table/filters/table-search'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+import { hasFilterValue } from '@/components/ui/types/filter-utils'
 import { useSetActiveFilterAction, useTableActiveFilter } from '@/store/table/table-filter.store'
 
 interface TableToolbarProps<TData> {
@@ -29,28 +30,12 @@ export function TableToolbar<TData>({ tableId, table, onReset }: TableToolbarPro
         .map((column) => column.id),
     [table],
   )
-  const firstAppliedFilterId = useMemo(() => {
-    const isNonEmptyFilterValue = (value: unknown) => {
-      if (Array.isArray(value)) return value.length > 0
-      if (value && typeof value === 'object') {
-        const candidate = value as {
-          from?: unknown
-          to?: unknown
-          operator?: unknown
-          value?: unknown
-        }
-        if ('from' in candidate || 'to' in candidate) return Boolean(candidate.from || candidate.to)
-        if ('operator' in candidate || 'value' in candidate)
-          return candidate.value !== undefined && candidate.value !== null
-        return false
-      }
-      return value !== '' && value !== null && value !== undefined
-    }
-
-    const first = tableColumnFilters.find(
-      (filter) => filterableColumnIds.includes(filter.id) && isNonEmptyFilterValue(filter.value),
+  const lastAppliedFilterId = useMemo(() => {
+    const applied = tableColumnFilters.filter(
+      (filter) => filterableColumnIds.includes(filter.id) && hasFilterValue(filter.value),
     )
-    return first?.id ?? null
+    const last = applied[applied.length - 1]
+    return last?.id ?? null
   }, [tableColumnFilters, filterableColumnIds])
 
   useEffect(() => {
@@ -59,11 +44,11 @@ export function TableToolbar<TData>({ tableId, table, onReset }: TableToolbarPro
       hasRestoredInitialFilter.current = true
       return
     }
-    if (firstAppliedFilterId) {
-      setActiveFilter(tableId, firstAppliedFilterId)
+    if (lastAppliedFilterId) {
+      setActiveFilter(tableId, lastAppliedFilterId)
     }
     hasRestoredInitialFilter.current = true
-  }, [tableId, activeFilterId, firstAppliedFilterId, setActiveFilter])
+  }, [tableId, activeFilterId, lastAppliedFilterId, setActiveFilter])
 
   useEffect(() => {
     if (!activeFilterId) return
@@ -83,8 +68,6 @@ export function TableToolbar<TData>({ tableId, table, onReset }: TableToolbarPro
         <TableFilterOptions
           tableId={tableId}
           table={table}
-          activeFilterId={activeFilterId}
-          setActiveFilterId={(id) => setActiveFilter(tableId, id)}
         />
         <Separator orientation="vertical" className="h-6" />
         <TableViewOptions tableId={tableId} table={table} onReset={onReset} />

@@ -3,29 +3,37 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-r
 
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
+import { useTablePagination } from '@/store/table/table-pagination.store'
 import { cn } from '@/utils/cn'
 
 interface TableControlsProps<TData> {
+  tableId: string
   table: Table<TData>
-  currentPage: number
-  currentLimit: number
   totalRows: number
 }
 
 /**
- * TablePagination: Consolidated component matching the requested design.
- * Includes "Rows per page", "Page X of Y", and all navigation buttons.
+ * TablePagination: Industrial-grade pagination controller.
+ * 
+ * DESIGN: SAP B1 / Vercel-style sapphire aesthetic.
+ * LOGIC: Bridges TanStack 0-indexed state with human-friendly 1-indexed UI.
+ * BACKEND: Aligns with `PaginationInputSchema` (page/limit).
  */
 export function TablePagination<TData>({
+  tableId,
   table,
-  currentPage,
-  currentLimit,
   totalRows,
 }: TableControlsProps<TData>) {
-  const pageSize = Math.max(currentLimit, 1)
-  const pageIndex = Math.max(currentPage - 1, 0)
+  const pagination = useTablePagination(tableId)
+
+  // METRICS: Ensure non-negative/positive values for calculations
+  const pageSize = Math.max(pagination.pageSize || table.getState().pagination.pageSize, 1)
+  const pageIndex = Math.max(pagination.pageIndex ?? table.getState().pagination.pageIndex, 0)
+
   const hasData = totalRows > 0
   const pageCount = hasData ? Math.ceil(totalRows / pageSize) : 1
+
+  // INDEXING: `safePageIndex` prevents OOB (Out of Bounds) access
   const safePageIndex = hasData ? Math.min(pageIndex, pageCount - 1) : 0
   const hasMultiplePages = hasData && pageCount > 1
 
@@ -50,7 +58,11 @@ export function TablePagination<TData>({
             disabled={!hasData}
             onValueChange={(value) => {
               const nextPageSize = Number(value)
-              table.setPagination({ pageIndex: 0, pageSize: nextPageSize })
+              // RESET: Always return to first page on size change to avoid OOB
+              table.setPagination({
+                pageIndex: 0,
+                pageSize: nextPageSize,
+              })
             }}
           >
             <Select.Trigger className="h-9 px-3 py-1 rounded-lg border-zinc-200 bg-white text-[10px] font-bold uppercase tracking-[0.15em] hover:text-blue-600 hover:border-blue-600 transition-all focus:border-blue-600 focus:outline-none ring-offset-0">

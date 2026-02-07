@@ -1,5 +1,12 @@
 import { create } from 'zustand'
 
+/**
+ * Order Store Contract:
+ * - UI PERSISTENCE: Categorizes the display sequence of table columns.
+ * - ARCHITECTURE: Uses tableId keying for multi-table support without collision.
+ * - CANONICAL: Syncs with `columnOrder` in TanStack / URL params.
+ */
+
 interface OrderStore {
   tables: Record<string, string[]>
   initOrder: (tableId: string, order: string[]) => void

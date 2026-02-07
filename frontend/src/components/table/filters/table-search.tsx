@@ -106,6 +106,9 @@ const normalizeRange = (range: DateRangeFilter): DateRangeFilter => {
     : { from: range.to, to: range.from }
 }
 
+const hasDateRangeValue = (range: DateRangeFilter | null | undefined) =>
+  Boolean(range?.from || range?.to)
+
 const toNumberComparisonFilter = (
   operator: NumberComparisonOperator,
   rawValue: string,
@@ -113,6 +116,26 @@ const toNumberComparisonFilter = (
   const parsed = parseDocTotalFilterValue(rawValue.trim())
   if (parsed === null) return null
   return { operator, value: parsed }
+}
+
+const applyNumberComparisonFilter = <TData,>(
+  table: Table<TData>,
+  columnId: string,
+  operator: NumberComparisonOperator,
+  rawValue: string,
+) => {
+  const column = table.getColumn(columnId)
+  if (!column) return
+  const trimmed = rawValue.trim()
+  if (trimmed === '') {
+    if (column.getFilterValue() !== undefined) {
+      column.setFilterValue(undefined)
+    }
+    return
+  }
+  const nextFilter = toNumberComparisonFilter(operator, trimmed)
+  if (!nextFilter) return
+  column.setFilterValue(nextFilter)
 }
 
 function DateCalendarPanel({
@@ -168,6 +191,8 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
     value: '',
   })
   const lastNumberColumnIdRef = useRef<string | null>(null)
+  const isClearingNumberInputRef = useRef(false)
+  const isEditingNumberInputRef = useRef(false)
 
   const zustandDraft = useTableDateFilterDraft(tableId, activeFilterId ?? '')
   const setZustandDraft = useSetDateFilterDraftAction()
@@ -178,6 +203,7 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
 
   // Get config from TanStack metadata
   const meta = activeColumn?.columnDef.meta
+  const activeColumnId = activeColumn?.id
   const filterType = meta?.filterType
   const filterOptions = meta?.filterOptions
   const activeFilterValue = activeColumn?.getFilterValue()
@@ -195,14 +221,20 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
       const currentFilterValue = activeColumn.getFilterValue()
       if (filterType === 'date') {
         setSearchValue('')
-        const parsed = isDateRangeFilter(currentFilterValue) ? currentFilterValue : {}
+        const parsed = isDateRangeFilter(currentFilterValue)
+          ? normalizeRange(currentFilterValue)
+          : {}
+        const hasAppliedDate = hasDateRangeValue(parsed)
+        const hasDraftDate = hasDateRangeValue(zustandDraft)
+        const isDraftSameAsApplied =
+          parsed.from === zustandDraft?.from && parsed.to === zustandDraft?.to
 
-        if (currentFilterValue !== undefined) {
-          if (!zustandDraft || (zustandDraft.from === undefined && zustandDraft.to === undefined)) {
-            if (parsed.from !== zustandDraft?.from || parsed.to !== zustandDraft?.to) {
-              setZustandDraft(tableId, activeFilterId!, toDateRangeFilter(parsed.from, parsed.to))
-            }
-          }
+        // Only hydrate draft from applied value when there is no local draft in progress.
+        if (hasAppliedDate && !hasDraftDate && !isDraftSameAsApplied && activeFilterId) {
+          setZustandDraft(tableId, activeFilterId, toDateRangeFilter(parsed.from, parsed.to))
+        }
+        if (!hasAppliedDate && !hasDraftDate && activeFilterId) {
+          setZustandDraft(tableId, activeFilterId, {})
         }
         return
       }
@@ -212,11 +244,26 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
         const hasSwitchedNumberColumn = lastNumberColumnIdRef.current !== activeColumn.id
         if (hasSwitchedNumberColumn) {
           lastNumberColumnIdRef.current = activeColumn.id
+          isClearingNumberInputRef.current = false
           setDraftNumberFilter(
             parsed
               ? { operator: parsed.operator, value: String(parsed.value) }
               : { operator: 'eq', value: '' },
           )
+          return
+        }
+
+        if (isClearingNumberInputRef.current) {
+          if (parsed) {
+            return
+          }
+          isClearingNumberInputRef.current = false
+          setDraftNumberFilter((prev) => (prev.value === '' ? prev : { ...prev, value: '' }))
+          return
+        }
+
+        // While user is typing/backspacing, keep local draft untouched.
+        if (isEditingNumberInputRef.current) {
           return
         }
 
@@ -226,6 +273,17 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
           draftNumberFilter.value.trim() !== '' &&
           Number(draftNumberFilter.value) === parsed.value &&
           draftNumberFilter.operator !== parsed.operator
+        ) {
+          return
+        }
+
+        // Keep local in-progress numeric typing (e.g. "50." -> "50.2") from being
+        // overwritten by the parsed applied value ("50") during debounce cycles.
+        if (
+          parsed &&
+          draftNumberFilter.value.trim() !== '' &&
+          Number(draftNumberFilter.value) === parsed.value &&
+          draftNumberFilter.operator === parsed.operator
         ) {
           return
         }
@@ -244,6 +302,8 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
         return
       }
       lastNumberColumnIdRef.current = null
+      isClearingNumberInputRef.current = false
+      isEditingNumberInputRef.current = false
       setSearchValue(
         currentFilterValue === undefined || currentFilterValue === null
           ? ''
@@ -251,6 +311,8 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
       )
     } else {
       lastNumberColumnIdRef.current = null
+      isClearingNumberInputRef.current = false
+      isEditingNumberInputRef.current = false
       setSearchValue('')
       setDraftNumberFilter({ operator: 'eq', value: '' })
     }
@@ -274,28 +336,20 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
   }
 
   useEffect(() => {
-    if (!activeColumn || filterType !== 'number-comparison') return
+    if (!activeColumnId || filterType !== 'number-comparison') return
 
     const timeout = window.setTimeout(() => {
-      const raw = draftNumberFilter.value.trim()
-      if (raw === '') {
-        if (activeColumn.getFilterValue() !== undefined) {
-          activeColumn.setFilterValue(undefined)
-        }
-        return
-      }
-
-      const nextFilter = toNumberComparisonFilter(draftNumberFilter.operator, raw)
-      if (nextFilter === null) {
-        // Keep previous valid filter while user is typing incomplete/invalid input.
-        return
-      }
-
-      activeColumn.setFilterValue(nextFilter)
+      applyNumberComparisonFilter(
+        table,
+        activeColumnId,
+        draftNumberFilter.operator,
+        draftNumberFilter.value,
+      )
+      isEditingNumberInputRef.current = false
     }, 350)
 
     return () => window.clearTimeout(timeout)
-  }, [activeColumn, filterType, draftNumberFilter.operator, draftNumberFilter.value])
+  }, [table, activeColumnId, filterType, draftNumberFilter.operator, draftNumberFilter.value])
 
   const { selectedRange, previewRange, label } = useMemo(() => {
     if (filterType !== 'date') return { selectedRange: {}, previewRange: {}, label: '' }
@@ -329,7 +383,14 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
           value={draftNumberFilter.operator}
           onValueChange={(value) => {
             if (value === 'eq' || value === 'lt' || value === 'gt') {
-              setDraftNumberFilter((prev) => ({ ...prev, operator: value }))
+              isEditingNumberInputRef.current = true
+              setDraftNumberFilter((prev) => {
+                const next = { ...prev, operator: value }
+                if (activeColumnId) {
+                  applyNumberComparisonFilter(table, activeColumnId, next.operator, next.value)
+                }
+                return next
+              })
             }
           }}
         >
@@ -374,9 +435,11 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
           value={draftNumberFilter.value}
           onChange={(e) => {
             const nextValue = normalizeDocTotalInput(e.target.value)
+            isClearingNumberInputRef.current = nextValue.trim() === ''
+            isEditingNumberInputRef.current = true
             setDraftNumberFilter((prev) => ({ ...prev, value: nextValue }))
-            if (nextValue.trim() === '') {
-              activeColumn.setFilterValue(undefined)
+            if (nextValue.trim() === '' && activeColumnId) {
+              applyNumberComparisonFilter(table, activeColumnId, draftNumberFilter.operator, '')
             }
           }}
           placeholder={`Filter ${activeTitle}...`}
@@ -404,7 +467,8 @@ export function TableSearch<TData>({ table, activeFilterId, className }: TableSe
             <DateCalendarPanel
               selectedRange={selectedRange}
               onRangeChange={(next) => {
-                setZustandDraft(tableId, activeFilterId!, next)
+                if (!activeFilterId) return
+                setZustandDraft(tableId, activeFilterId, next)
                 const normalized = normalizeRange(next)
                 if (normalized.from && normalized.to) {
                   activeColumn.setFilterValue({

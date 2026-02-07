@@ -4,6 +4,13 @@ import { PopoverContext, usePopover } from '@/components/ui/context/popover-cont
 import { cn } from '@/utils/cn'
 import { MOTION_EASING, MOTION_MS } from '@/utils/motion'
 
+/**
+ * Popover: Floating industrial utility container.
+ * 
+ * DESIGN: High-elevation shadow (XL) with a subtle zinc-100 border.
+ * LOGIC: Context-driven visibility with dedicated entry/exit animation timings.
+ * UX: Automatic "click outside" dismissal and precise alignment (start/center/end).
+ */
 export function PopoverRoot({
   children,
   defaultOpen = false,

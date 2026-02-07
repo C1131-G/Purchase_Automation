@@ -2,6 +2,14 @@ import React from 'react'
 
 import { cn } from '@/utils/cn'
 
+/**
+ * Table Components: Industrial data grid primitives.
+ * 
+ * DESIGN: SAP B1 aesthetic with zinc-100 borders and sapphire-50 hover highlights.
+ * TYPOGRAPHY: Specialized sizes (10px uppercase for headers, 13px for data).
+ * LAYOUT: Border-collapse with precise padding for ERP readability.
+ */
+
 export const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full">
@@ -61,6 +69,7 @@ export const TableHead = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <th
     ref={ref}
+    // CONTRACT: Upper-case tracking-wider style matching FieldLabel for visual cohesion
     className={cn(
       'h-12 px-6 text-left align-middle font-bold text-zinc-500 font-sans text-[10px] uppercase tracking-wider border-b border-zinc-100 transition-all hover:text-blue-600 group cursor-pointer',
       className,

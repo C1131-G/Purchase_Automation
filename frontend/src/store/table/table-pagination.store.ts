@@ -1,5 +1,11 @@
 import { create } from 'zustand'
 
+/**
+ * Pagination Store Contract:
+ * - UI CACHE: Mirror of TanStack table state and URL params.
+ * - BACKEND SYNC: Bridges frontend (0-indexed `pageIndex`) with backend (1-indexed `page`).
+ * - PERSISTENCE: Canonical state resides in URL; this store handles reactive UI updates.
+ */
 export interface TablePagination {
   pageIndex: number
   pageSize: number

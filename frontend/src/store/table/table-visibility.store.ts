@@ -1,5 +1,12 @@
 import { create } from 'zustand'
 
+/**
+ * Visibility Store Contract:
+ * - UI CACHE: Tracks which columns are toggled 'off' by the user.
+ * - SYNC: Bridges TanStack `columnVisibility` state with persistent URL storage.
+ * - ARCHITECTURE: Atomic updates per tableId prevent global side-effects.
+ */
+
 interface VisibilityStore {
   tables: Record<string, Record<string, boolean>>
   initVisibility: (tableId: string, visibility: Record<string, boolean>) => void

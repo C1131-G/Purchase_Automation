@@ -1,6 +1,13 @@
 import { type SortingState } from '@tanstack/react-table'
 import { create } from 'zustand'
 
+/**
+ * Sorting Store Contract:
+ * - UI SYNC: Mirror of active column sorting states (ID + Direction).
+ * - BACKEND: Critical for translating UI sort clicks into API `sorting` parameters.
+ * - CANONICAL: Real state resides in URL; this store enables instant UI feedback.
+ */
+
 interface SortingStore {
   tables: Record<string, SortingState>
   setSorting: (

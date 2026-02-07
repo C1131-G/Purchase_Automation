@@ -33,6 +33,14 @@ import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
+/**
+ * PurchaseOrderTable: Operational grid for procurement management.
+ * 
+ * DESIGN: SAP B1 Industrial style with integrated toolbar/pagination.
+ * ARCHITECTURE: Headless (TanStack Table) logic combined with custom Sapphire UI.
+ * DATA: Bridges normalized URL search params with reactive Zustand UI mirrors.
+ * SYNC: Every state change (Filter/Sort/Page) triggers a URL navigation for deep-linking.
+ */
 const routeApi = getRouteApi('/_layout/purchase/orders')
 const TABLE_ID = 'purchase-orders'
 
@@ -100,6 +108,7 @@ export function PurchaseOrderTable() {
 
   const pagination = useMemo(
     () => ({
+      // INDEXING: Translate human-friendly 1-indexed URL `page` to developer-friendly 0-indexed state
       pageIndex: Math.max((searchParams.page ?? 1) - 1, 0),
       pageSize: Math.max(searchParams.limit ?? 10, 1),
     }),
@@ -206,6 +215,10 @@ export function PurchaseOrderTable() {
   const maxPageIndex = Math.max(effectivePageCount - 1, 0)
 
   useEffect(() => {
+    setColumnFilters(TABLE_ID, columnFilters)
+  }, [setColumnFilters, columnFilters])
+
+  useEffect(() => {
     setPagination(TABLE_ID, {
       pageIndex: pagination.pageIndex,
       pageSize: pagination.pageSize,
@@ -298,9 +311,8 @@ export function PurchaseOrderTable() {
       </div>
 
       <TablePagination
+        tableId={TABLE_ID}
         table={table}
-        currentPage={searchParams.page ?? 1}
-        currentLimit={searchParams.limit ?? 10}
         totalRows={filteredTotalRows}
       />
     </div>

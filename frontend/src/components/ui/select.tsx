@@ -10,10 +10,11 @@ import { cn } from '@/utils/cn'
 import type { SelectRootProps } from './types/select.types'
 
 /**
- * Standardized Select Component.
- * - Sapphire & White Theme.
- * - XL Rounded Corners.
- * - Precise Industrial Focus.
+ * Select: High-precision dropdown selector.
+ * 
+ * DESIGN: SAP B1 / Vercel-style aesthetic with XL radius and zinc-50 surface.
+ * ARCHITECTURE: Context-based compound components for synchronized state (open/value/labels).
+ * UX: Optimized with "clipping-preventing" portals and slide micro-animations.
  */
 export function SelectRoot({
   children,
