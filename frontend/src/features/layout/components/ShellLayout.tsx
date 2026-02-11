@@ -1,16 +1,20 @@
 import { Outlet, useLocation } from '@tanstack/react-router'
-import { BadgePercent, Building2, LayoutDashboard, ShoppingCart } from 'lucide-react'
+import { BadgePercent, Building2, LayoutDashboard, LogOut, ShoppingCart } from 'lucide-react'
 import React from 'react'
 
+import { useLogoutAction } from '@/store/auth.store'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuCollapsible,
+  SidebarMenuItem,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
@@ -25,6 +29,7 @@ import {
  */
 export function ShellLayout() {
   const location = useLocation()
+  const logout = useLogoutAction()
 
   // Accordion Logic: Sync open section with current URL
   const getInitialSection = () => {
@@ -186,6 +191,19 @@ export function ShellLayout() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+        <SidebarFooter className="p-4 border-t border-zinc-50">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => logout()}
+                className="w-full justify-start gap-3 text-zinc-600 hover:text-red-600 hover:bg-red-50 transition-colors group"
+              >
+                <LogOut className="size-4 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold">Logout</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
       </Sidebar>
 
       {/* Sapphire Light Workspace */}

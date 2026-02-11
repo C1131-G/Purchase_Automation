@@ -13,7 +13,6 @@ import { apCreditNoteService } from "@/services/ap-credit-note.service";
 // Validation
 import {
   CreateCreditNoteInputSchema,
-  CreditNoteQuerySchema,
   UpdateCreditNoteInputSchema,
 } from "@/validation/schemas/inputs/credit-note.input";
 
@@ -27,8 +26,8 @@ export const getCreditNotes = async (req: Request, res: Response, next: NextFunc
   >;
   try {
     const { dbName } = authReq.user;
-    // Validate query parameters using Zod.
-    const filters = CreditNoteQuerySchema.parse(req.query);
+    // Query is already validated/sanitized by validateQuery(CreditNoteQuerySchema) middleware.
+    const filters = authReq.query;
 
     logger.info({ msg: "Fetching A/P Credit Notes", dbName, filters });
 

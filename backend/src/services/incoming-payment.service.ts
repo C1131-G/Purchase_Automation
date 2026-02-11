@@ -50,20 +50,44 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
         endDate: filters.DocDateEnd,
       });
     }
-
-    // Dynamic Filter: Cancellation status ('Y'/'N').
-    if (filters.Canceled) {
-      queryBuilder.andWhere("p.canceled = :canceled", {
-        canceled: filters.Canceled,
+    // Dynamic Filter: Total amount comparison.
+    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+      if (filters.DocTotalOperator === "eq") {
+        queryBuilder.andWhere("p.docTotal = :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "lt") {
+        queryBuilder.andWhere("p.docTotal < :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "gt") {
+        queryBuilder.andWhere("p.docTotal > :docTotal", { docTotal: filters.DocTotal });
+      }
+    }
+    // Dynamic Filter: Counter reference.
+    if (filters.CounterRef) {
+      queryBuilder.andWhere("LOWER(p.counterRef) LIKE LOWER(:counterRef)", {
+        counterRef: `%${filters.CounterRef}%`,
       });
     }
+
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "p.docNum",
+      DocDate: "p.docDate",
+      CardCode: "p.cardCode",
+      CardName: "p.cardName",
+      DocTotal: "p.docTotal",
+    };
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "p.docDate": "DESC", "p.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Executes paginated query and sorts by descending date/number by default.
     const result = await PageService.getPagedData<IncomingPayment>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
-      sort: { "p.docDate": "DESC", "p.docNum": "DESC" },
+      sort,
       entityName: "IncomingPayments",
       dbName,
     });
@@ -73,14 +97,13 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       ...result,
       data: result.data.map((data) => ({
         id: data.docEntry,
-        DocEntry: data.docEntry,
         DocNum: data.docNum,
         DocDate: data.docDate,
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
+        DocCurr: data.docCurr,
         CounterRef: data.counterRef,
-        Canceled: data.canceled,
       })),
     };
   } catch (err: unknown) {
@@ -106,10 +129,8 @@ export const getPayment = async (sessionId: string, id: string) => {
       DocDate: result.DocDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
-      CashSum: result.CashSum,
-      TrsfrSum: (result as unknown as Record<string, unknown>).TransferSum as number,
       DocTotal: result.DocTotal,
-      Canceled: result.Cancelled === "tYES" ? "Y" : "N",
+      DocCurr: result.DocCurrency,
       Comments: result.Remarks,
       // maps the list of invoices settled by this payment.
       PaymentInvoices:

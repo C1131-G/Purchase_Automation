@@ -6,23 +6,28 @@ import formidable from "formidable";
 import AppError from "@/core/errors/app-error";
 // Core
 import { logger } from "@/core/logger/pino-logger";
+import type { InvoiceQuery } from "@/dal/types/ap-invoice.types";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
 // Services
 import { apInvoiceService } from "@/services/ap-invoice.service";
 // Validation
 import {
   CreateInvoiceInputSchema,
-  InvoiceQuerySchema,
   UpdateInvoiceInputSchema,
 } from "@/validation/schemas/inputs/invoice.input";
 
 // Fetches all A/P Invoices based on user-provided filters and pagination settings.
 export const getInvoices = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    InvoiceQuery
+  >;
   try {
     const { dbName } = authReq.user;
-    // Validate and coerce query parameters using Zod to ensure type safety.
-    const filters = InvoiceQuerySchema.parse(req.query);
+    // Query is already validated/sanitized by validateQuery(InvoiceQuerySchema) middleware.
+    const filters = authReq.query;
 
     logger.info({ msg: "Fetching A/P Invoices", dbName, filters });
 

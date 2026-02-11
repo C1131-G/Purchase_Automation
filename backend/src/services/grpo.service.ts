@@ -64,19 +64,39 @@ export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
       });
     }
 
-    // Dynamic Filter: Cancellation status.
-    if (filters.Canceled) {
-      queryBuilder.andWhere("grpo.canceled = :canceled", {
-        canceled: filters.Canceled,
-      });
+    // Dynamic Filter: Total amount comparison.
+    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+      if (filters.DocTotalOperator === "eq") {
+        queryBuilder.andWhere("grpo.docTotal = :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "lt") {
+        queryBuilder.andWhere("grpo.docTotal < :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "gt") {
+        queryBuilder.andWhere("grpo.docTotal > :docTotal", { docTotal: filters.DocTotal });
+      }
     }
+
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "grpo.docNum",
+      DocDate: "grpo.docDate",
+      CardCode: "grpo.cardCode",
+      CardName: "grpo.cardName",
+      DocTotal: "grpo.docTotal",
+      DocStatus: "grpo.docStatus",
+    };
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "grpo.docDate": "DESC", "grpo.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Executes the query with centralized pagination and sorting logic.
     const result = await PageService.getPagedData<GRPO>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
-      sort: { "grpo.docDate": "DESC", "grpo.docNum": "DESC" },
+      sort,
       entityName: "GRPOs",
       dbName,
     });
@@ -86,14 +106,13 @@ export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
       ...result,
       data: result.data.map((data) => ({
         id: data.docEntry,
-        DocEntry: data.docEntry,
         DocNum: data.docNum,
         DocDate: data.docDate,
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
-        DocStatus: data.docStatus,
-        Canceled: data.canceled,
+        DocCurr: data.docCurr,
+        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
       })),
     };
   } catch (err: unknown) {
@@ -206,8 +225,8 @@ export const getGRPO = async (sessionId: string, id: string) => {
       Address: result.Address,
       Comments: result.Comments,
       DocTotal: result.DocTotal,
+      DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
-      Canceled: result.Cancelled === "tYES" ? "Y" : "N",
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,

@@ -35,21 +35,27 @@ export const PaymentQuerySchema = z
       .optional()
       .openapi({ example: "2023-12-31", description: "Filter by DocDate End" }),
 
-    Canceled: z.string().optional().openapi({ example: "N", description: "Canceled status (Y/N)" }),
+    DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
+    DocTotal: z.coerce.number().optional(),
+    CounterRef: z
+      .string()
+      .optional()
+      .openapi({ example: "COUNTER-001", description: "Customer Counter Reference" }),
 
     page: z.coerce.number().int().positive().default(1).optional(),
     limit: z.coerce.number().int().positive().max(100).default(10).optional(),
+    sortBy: z
+      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal"])
+      .optional()
+      .openapi({ example: "DocDate", description: "Column to sort by" }),
+    sortOrder: z
+      .enum(["asc", "desc"])
+      .optional()
+      .openapi({ example: "desc", description: "Sort direction" }),
   })
   .transform((data) => {
     // Normalize Aliases to Standard Keys
     const normalized = { ...data };
-
-    // Smart Canceled Mapping: Convert "Yes"/"No" to "Y"/"N" (Case-Insensitive)
-    if (normalized.Canceled) {
-      const canceledUpper = normalized.Canceled.toUpperCase();
-      if (canceledUpper === "YES") normalized.Canceled = "Y";
-      if (canceledUpper === "NO") normalized.Canceled = "N";
-    }
 
     return normalized;
   });
@@ -62,8 +68,6 @@ export const CreatePaymentInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
-  CashSum: z.number().nonnegative().optional(),
-  TransferSum: z.number().nonnegative().optional(),
   Reference: z.string().optional(),
   Remarks: z.string().optional(),
   // PaymentInvoices: Array of documents to which this payment is applied.

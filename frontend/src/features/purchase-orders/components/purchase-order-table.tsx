@@ -25,6 +25,10 @@ import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
 import { purchaseOrdersSampleData as sampleData } from '@/features/purchase-orders/api/purchase-orders.api'
 import { createColumns } from '@/features/purchase-orders/components/table/columns'
 import { TableToolbar } from '@/features/purchase-orders/components/table/toolbar'
+import {
+  purchaseOrderColumnFilterSchema,
+  type PurchaseOrderColumnFilter,
+} from '@/features/purchase-orders/schemas/purchase-order-search.schema'
 import { type PurchaseOrderSearch } from '@/features/purchase-orders/schemas/purchase-order-search.schema'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
@@ -59,6 +63,18 @@ const cloneFilters = (filters: ColumnFiltersState): ColumnFiltersState =>
     id: filter.id,
     value: Array.isArray(filter.value) ? [...filter.value] : filter.value,
   }))
+
+const toPurchaseOrderColumnFilters = (
+  filters: ColumnFiltersState,
+): PurchaseOrderColumnFilter[] => {
+  const typedFilters: PurchaseOrderColumnFilter[] = []
+  for (const filter of filters) {
+    const parsed = purchaseOrderColumnFilterSchema.safeParse(filter)
+    if (!parsed.success) continue
+    typedFilters.push(parsed.data)
+  }
+  return typedFilters
+}
 
 export function PurchaseOrderTable() {
   const searchParams = routeApi.useSearch()
@@ -188,11 +204,12 @@ export function PurchaseOrderTable() {
       const nextFilters = cloneFilters(normalized)
       setColumnFilters(TABLE_ID, nextFilters)
       setPagination(TABLE_ID, { pageIndex: 0 })
+      const nextSearchColumnFilters = toPurchaseOrderColumnFilters(nextFilters)
       navigate({
         search: (prev: PurchaseOrderSearch) => ({
           ...prev,
           page: 1,
-          columnFilters: nextFilters as PurchaseOrderSearch['columnFilters'],
+          columnFilters: nextSearchColumnFilters,
         }),
         replace: true,
       })

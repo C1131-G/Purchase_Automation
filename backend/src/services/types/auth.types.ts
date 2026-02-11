@@ -1,6 +1,4 @@
-/**
- * Auth Service Types
- */
+// Auth Service Types
 
 export interface AuthSession {
   sessionId: string;

@@ -38,7 +38,22 @@ export const PurchaseOrderQuerySchema = z
       .optional()
       .openapi({ example: "2023-12-31", description: "Filter by DocDate End" }),
 
-    Canceled: z.string().optional().openapi({ example: "N", description: "Canceled status (Y/N)" }),
+    DocTotalOperator: z
+      .enum(["eq", "lt", "gt"])
+      .optional()
+      .openapi({ example: "eq", description: "DocTotal comparison operator" }),
+    DocTotal: z.coerce
+      .number()
+      .optional()
+      .openapi({ example: 1500.25, description: "DocTotal comparison value" }),
+    sortBy: z
+      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"])
+      .optional()
+      .openapi({ example: "DocDate", description: "Sort field" }),
+    sortOrder: z
+      .enum(["asc", "desc"])
+      .optional()
+      .openapi({ example: "desc", description: "Sort direction" }),
 
     page: z.coerce
       .number()
@@ -56,6 +71,15 @@ export const PurchaseOrderQuerySchema = z
       .openapi({ example: 10, description: "Items per page" })
       .optional(),
   })
+  .refine(
+    (data) =>
+      (data.DocTotalOperator === undefined && data.DocTotal === undefined) ||
+      (data.DocTotalOperator !== undefined && data.DocTotal !== undefined),
+    {
+      message: "DocTotal and DocTotalOperator must be provided together",
+      path: ["DocTotal"],
+    },
+  )
   .transform((data) => {
     // Normalize Aliases to Standard Keys
     const normalized = { ...data };
@@ -67,11 +91,8 @@ export const PurchaseOrderQuerySchema = z
       if (statusUpper === "CLOSED") normalized.DocStatus = "C";
     }
 
-    // Smart Canceled Mapping: Convert "Yes"/"No" to "Y"/"N" (Case-Insensitive)
-    if (normalized.Canceled) {
-      const canceledUpper = normalized.Canceled.toUpperCase();
-      if (canceledUpper === "YES") normalized.Canceled = "Y";
-      if (canceledUpper === "NO") normalized.Canceled = "N";
+    if (normalized.sortOrder) {
+      normalized.sortOrder = normalized.sortOrder.toLowerCase() as "asc" | "desc";
     }
 
     return normalized;

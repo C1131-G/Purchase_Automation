@@ -14,13 +14,6 @@ class ServiceLayerClient {
   private client: AxiosInstance | null = null;
   // Maps application-internal session IDs to SAP-native cookies and metadata.
   private sessions: Map<string, SLSessionInfo> = new Map();
-  // Default inactivity window before an internal session is purged (30 minutes).
-  private timeoutLimit: number = 30 * 60 * 1000;
-
-  constructor() {
-    // Background worker to prevent memory leaks from abandoned sessions.
-    setInterval(() => this.cleanupInactiveSessions(), 30 * 60 * 1000);
-  }
 
   // Configures the underlying Axios client. In development, SSL verification is often disabled for self-signed SAP containers.
   initialize(serviceLayerURL: string, rejectUnauthorized: boolean = false) {
@@ -215,23 +208,6 @@ class ServiceLayerClient {
       sessionInfo.cookieString = null;
       this.sessions.delete(sessionId);
       logger.info({ msg: "Service Layer session destroyed", sessionId, reason });
-    }
-  }
-
-  // Scans the session registry and purges items that haven't sent a request within the timeoutLimit.
-  cleanupInactiveSessions() {
-    const now = Date.now();
-    let count = 0;
-
-    for (const [sessionId, info] of this.sessions.entries()) {
-      if (now - info.lastSapCall > this.timeoutLimit) {
-        this.destroyLocalSession(sessionId, "Inactivity Checkout (30m)");
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      logger.info({ msg: "Cleanup task finished", destroyedCount: count });
     }
   }
 

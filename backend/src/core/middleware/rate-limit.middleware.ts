@@ -2,10 +2,10 @@
 
 import rateLimit from "express-rate-limit";
 
-// Login Limiter: Strict policy for authentication attempts. Restricts a single IP to 5 login attempts every 15 minutes to prevent password guessing.
+// Login Limiter: Strict policy for authentication attempts. Restricts a single IP to 10 login attempts every 15 minutes to prevent password guessing.
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 10,
   message: {
     success: false,
     message: "Too many login attempts. Please try again after 15 minutes.",

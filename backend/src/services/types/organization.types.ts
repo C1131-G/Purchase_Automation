@@ -1,6 +1,4 @@
-/**
- * Organization Service Types
- */
+// Organization Service Types
 
 export interface OrganizationDetail {
   id: number;

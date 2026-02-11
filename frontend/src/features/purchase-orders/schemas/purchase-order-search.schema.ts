@@ -1,5 +1,29 @@
 import { z } from 'zod'
 
+export const purchaseOrderColumnFilterValueSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.string()),
+  z
+    .object({
+      from: z.string().optional(),
+      to: z.string().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      operator: z.enum(['eq', 'lt', 'gt']),
+      value: z.coerce.number(),
+    })
+    .strict(),
+])
+
+export const purchaseOrderColumnFilterSchema = z.object({
+  id: z.string(),
+  value: purchaseOrderColumnFilterValueSchema,
+})
+
 export const purchaseOrderSearchSchema = z.object({
   // Pagination (syncs with table state)
   page: z.coerce.number().int().min(1).catch(1), // page
@@ -10,29 +34,7 @@ export const purchaseOrderSearchSchema = z.object({
   columnVisibility: z.record(z.string(), z.boolean()).optional(), // visibility
   columnOrder: z.array(z.string()).optional(), // order
   columnFilters: z
-    .array(
-      z.object({
-        id: z.string(),
-        value: z.union([
-          z.string(),
-          z.number(),
-          z.boolean(),
-          z.array(z.string()),
-          z
-            .object({
-              from: z.string().optional(),
-              to: z.string().optional(),
-            })
-            .strict(),
-          z
-            .object({
-              operator: z.enum(['eq', 'lt', 'gt']),
-              value: z.coerce.number(),
-            })
-            .strict(),
-        ]),
-      }),
-    )
+    .array(purchaseOrderColumnFilterSchema)
     .optional(), // column filters
   filter: z.string().optional(), // search filter
 
@@ -47,3 +49,5 @@ export const purchaseOrderSearchSchema = z.object({
 })
 
 export type PurchaseOrderSearch = z.infer<typeof purchaseOrderSearchSchema>
+export type PurchaseOrderColumnFilter = z.infer<typeof purchaseOrderColumnFilterSchema>
+export type PurchaseOrderColumnFilterValue = z.infer<typeof purchaseOrderColumnFilterValueSchema>

@@ -65,19 +65,39 @@ export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFi
       });
     }
 
-    // Dynamic Filter: Cancellation status.
-    if (filters.Canceled) {
-      queryBuilder.andWhere("po.canceled = :canceled", {
-        canceled: filters.Canceled,
-      });
+    // Dynamic Filter: Total amount comparison.
+    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+      if (filters.DocTotalOperator === "eq") {
+        queryBuilder.andWhere("po.docTotal = :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "lt") {
+        queryBuilder.andWhere("po.docTotal < :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "gt") {
+        queryBuilder.andWhere("po.docTotal > :docTotal", { docTotal: filters.DocTotal });
+      }
     }
+
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "po.docNum",
+      DocDate: "po.docDate",
+      CardCode: "po.cardCode",
+      CardName: "po.cardName",
+      DocTotal: "po.docTotal",
+      DocStatus: "po.docStatus",
+    };
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "po.docDate": "DESC", "po.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Executes the query with centralized pagination and sorting.
     const result = await PageService.getPagedData<PurchaseOrder>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
-      sort: { "po.docDate": "DESC", "po.docNum": "DESC" },
+      sort,
       entityName: "PurchaseOrders",
       dbName,
     });
@@ -87,14 +107,13 @@ export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFi
       ...result,
       data: result.data.map((data) => ({
         id: data.docEntry,
-        DocEntry: data.docEntry,
         DocNum: data.docNum,
         DocDate: data.docDate,
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
-        DocStatus: data.docStatus,
-        Canceled: data.canceled,
+        DocCurr: data.docCurr,
+        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
       })),
     };
   } catch (err: unknown) {
@@ -123,8 +142,8 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       CardName: result.CardName,
       Address: result.Address,
       DocTotal: result.DocTotal,
+      DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
-      Canceled: result.Cancelled === "tYES" ? "Y" : "N",
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,

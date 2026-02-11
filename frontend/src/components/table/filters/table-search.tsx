@@ -181,7 +181,7 @@ const formatDateDisplay = (dateStr?: string) => {
 }
 
 export function TableSearch<TData>({ table, activeFilterId, className }: TableSearchProps<TData>) {
-  const tableId = (table.options.meta as any)?.tableId ?? 'default'
+  const tableId = table.options.meta?.tableId ?? 'default'
   const [searchValue, setSearchValue] = useState('')
   const [draftNumberFilter, setDraftNumberFilter] = useState<{
     operator: NumberComparisonOperator

@@ -13,7 +13,6 @@ import { purchaseOrderService } from "@/services/purchase-order.service";
 // Validation Schemas
 import {
   CreatePurchaseOrderInputSchema,
-  PurchaseOrderQuerySchema,
   UpdatePurchaseOrderInputSchema,
 } from "@/validation/schemas/inputs/purchase-order.input";
 
@@ -27,8 +26,8 @@ export const getPurchaseOrders = async (req: Request, res: Response, next: NextF
   >;
   try {
     const { dbName } = authReq.user;
-    // Validate and coerce query parameters using Zod to ensure type safety and full filter support.
-    const filters = PurchaseOrderQuerySchema.parse(req.query);
+    // Query is already validated/sanitized by validateQuery(PurchaseOrderQuerySchema) middleware.
+    const filters = authReq.query;
 
     logger.info({ msg: "Fetching POs", dbName, filters });
 

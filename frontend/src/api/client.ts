@@ -36,7 +36,12 @@ export async function apiClient<T>(path: string, options: RequestInit = {}): Pro
   if (response.status === 401) {
     // Only redirect to login if we aren't already there to prevent loops
     if (!window.location.pathname.includes('/login')) {
-      window.location.href = '/login'
+      // Clear local state without calling backend (API client already handled the 401)
+      // We use a simplified cleanup here to avoid circular dependencies if possible, 
+      // but since we are using Zustand, we can just call it.
+      import('@/store/auth.store').then((module) => {
+        module.useAuthStore.getState().logout()
+      })
     }
     throw new Error('Session expired. Please login again.')
   }

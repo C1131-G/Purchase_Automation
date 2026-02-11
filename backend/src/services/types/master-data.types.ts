@@ -1,6 +1,4 @@
-/**
- * Master Data Service Types
- */
+// Master Data Service Types
 
 export interface MasterDataItem {
   Code: string;

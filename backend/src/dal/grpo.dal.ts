@@ -7,22 +7,27 @@ import AppError from "@/core/errors/app-error";
 // Core
 import { logger } from "@/core/logger/pino-logger";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
+import type { GRPOQuery } from "@/dal/types/grpo.types";
 // Services
 import { grpoService } from "@/services/grpo.service";
 // Validation
 import {
   CreateGRPOInputSchema,
-  GRPOQuerySchema,
   UpdateGRPOInputSchema,
 } from "@/validation/schemas/inputs/grpo.input";
 
 // Retrieves a list of GRPOs filtered by status, dates, and vendor information.
 export const getGRPOs = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    GRPOQuery
+  >;
   try {
     const { dbName } = authReq.user;
-    // Validate search filters using Zod for robust input handling.
-    const filters = GRPOQuerySchema.parse(req.query);
+    // Query is already validated/sanitized by validateQuery(GRPOQuerySchema) middleware.
+    const filters = authReq.query;
 
     logger.info({ msg: "Fetching GRPOs", dbName, filters });
 

@@ -11,8 +11,8 @@ export type SalesOrder = {
   cardCode: string; // Customer code.
   cardName: string; // Customer name.
   docTotal: number;
+  docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
-  canceled: string; // 'Y' = Yes, 'N' = No.
 };
 
 export const SalesOrderSchema = new EntitySchema<SalesOrder>({
@@ -25,8 +25,8 @@ export const SalesOrderSchema = new EntitySchema<SalesOrder>({
     cardCode: { type: "nvarchar" as HANAColumnType, length: 15, name: "CardCode" },
     cardName: { type: "nvarchar" as HANAColumnType, length: 100, name: "CardName" },
     docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
+    docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCur" },
     docStatus: { type: "nvarchar" as HANAColumnType, length: 1, name: "DocStatus" },
-    canceled: { type: "nvarchar" as HANAColumnType, length: 1, name: "CANCELED" },
   },
   indices: [
     { name: "IDX_ORDR_DOCNUM", columns: ["docNum"] },

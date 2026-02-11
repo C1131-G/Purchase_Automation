@@ -12,7 +12,6 @@ import { arInvoiceService } from "@/services/ar-invoice.service";
 // Validation
 import {
   CreateInvoiceInputSchema,
-  InvoiceQuerySchema,
   UpdateInvoiceInputSchema,
 } from "@/validation/schemas/inputs/invoice.input";
 
@@ -26,8 +25,8 @@ export const getInvoices = async (req: Request, res: Response, next: NextFunctio
   >;
   try {
     const { dbName } = authReq.user;
-    // Validate query parameters using Zod.
-    const filters = InvoiceQuerySchema.parse(req.query);
+    // Query is already validated/sanitized by validateQuery(InvoiceQuerySchema) middleware.
+    const filters = authReq.query;
 
     logger.info({ msg: "Fetching A/R Invoices", dbName, filters });
 

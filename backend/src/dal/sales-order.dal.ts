@@ -11,7 +11,6 @@ import { salesOrderService } from "@/services/sales-order.service";
 // Validation
 import {
   CreateSalesOrderInputSchema,
-  SalesOrderQuerySchema,
   UpdateSalesOrderInputSchema,
 } from "@/validation/schemas/inputs/sales-order.input";
 
@@ -25,8 +24,8 @@ export const getSalesOrders = async (req: Request, res: Response, next: NextFunc
   >;
   try {
     const { dbName } = authReq.user;
-    // Validate query parameters using Zod for robust input handling.
-    const filters = SalesOrderQuerySchema.parse(req.query);
+    // Query is already validated/sanitized by validateQuery(SalesOrderQuerySchema) middleware.
+    const filters = authReq.query;
 
     logger.info({ msg: "Fetching Sales Orders", dbName, filters });
 

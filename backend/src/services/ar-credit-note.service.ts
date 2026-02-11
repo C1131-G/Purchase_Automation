@@ -61,20 +61,39 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
         status: filters.DocStatus,
       });
     }
-
-    // Dynamic Filter: Cancellation status ('Y'/'N').
-    if (filters.Canceled) {
-      queryBuilder.andWhere("cn.canceled = :canceled", {
-        canceled: filters.Canceled,
-      });
+    // Dynamic Filter: Total amount comparison.
+    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+      if (filters.DocTotalOperator === "eq") {
+        queryBuilder.andWhere("cn.docTotal = :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "lt") {
+        queryBuilder.andWhere("cn.docTotal < :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "gt") {
+        queryBuilder.andWhere("cn.docTotal > :docTotal", { docTotal: filters.DocTotal });
+      }
     }
+
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "cn.docNum",
+      DocDate: "cn.docDate",
+      CardCode: "cn.cardCode",
+      CardName: "cn.cardName",
+      DocTotal: "cn.docTotal",
+      DocStatus: "cn.docStatus",
+    };
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "cn.docDate": "DESC", "cn.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Handles pagination and sorting logic via unified PageService.
     const result = await PageService.getPagedData<ARCreditNote>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
-      sort: { "cn.docDate": "DESC", "cn.docNum": "DESC" },
+      sort,
       entityName: "ARCreditNotes",
       dbName,
     });
@@ -84,14 +103,13 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
       ...result,
       data: result.data.map((data) => ({
         id: data.docEntry,
-        DocEntry: data.docEntry,
         DocNum: data.docNum,
         DocDate: data.docDate,
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
+        DocCurr: data.docCurr,
         DocStatus: data.docStatus,
-        Canceled: data.canceled,
       })),
     };
   } catch (err: unknown) {
@@ -113,15 +131,14 @@ export const getCreditNote = async (sessionId: string, id: string) => {
     // Normalize SAP internal status (bost_Open) to a single character code.
     return {
       id: result.DocEntry,
-      DocEntry: result.DocEntry,
       DocNum: result.DocNum,
       DocDate: result.DocDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
       DocTotal: result.DocTotal,
+      DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
-      Canceled: result.Cancelled === "tYES" ? "Y" : "N",
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,

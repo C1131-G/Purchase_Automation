@@ -11,10 +11,7 @@ import type {
 import { logger } from "@/core/logger/pino-logger";
 import type { PagedResult, PagingOptions } from "@/services/types/page-service.types";
 
-/**
- * Executes a paged data retrieval operation. Supports both TypeORM Repositories (for simple find)
- * and SelectQueryBuilder (for complex multi-join queries).
- */
+// Executes a paged retrieval operation, supporting both TypeORM Repository and SelectQueryBuilder.
 export const getPagedData = async <T extends ObjectLiteral>({
   query,
   filters = {},

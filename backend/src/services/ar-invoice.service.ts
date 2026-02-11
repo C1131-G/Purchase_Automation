@@ -61,20 +61,47 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
         status: filters.DocStatus,
       });
     }
-
-    // Dynamic Filter: Cancellation status ('Y'/'N').
-    if (filters.Canceled) {
-      queryBuilder.andWhere("inv.canceled = :canceled", {
-        canceled: filters.Canceled,
+    // Dynamic Filter: Customer reference (NumAtCard).
+    if (filters.NumAtCard) {
+      queryBuilder.andWhere("LOWER(inv.numAtCard) LIKE LOWER(:numAtCard)", {
+        numAtCard: `%${filters.NumAtCard}%`,
       });
     }
+    // Dynamic Filter: Total amount comparison.
+    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+      if (filters.DocTotalOperator === "eq") {
+        queryBuilder.andWhere("inv.docTotal = :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "lt") {
+        queryBuilder.andWhere("inv.docTotal < :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "gt") {
+        queryBuilder.andWhere("inv.docTotal > :docTotal", { docTotal: filters.DocTotal });
+      }
+    }
+
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "inv.docNum",
+      DocDate: "inv.docDate",
+      CardCode: "inv.cardCode",
+      CardName: "inv.cardName",
+      DocTotal: "inv.docTotal",
+      NumAtCard: "inv.numAtCard",
+      DocStatus: "inv.docStatus",
+      paidSum: "inv.paidSum",
+    };
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "inv.docDate": "DESC", "inv.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Handles pagination and sorting logic via unified PageService.
     const result = await PageService.getPagedData<ARInvoice>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
-      sort: { "inv.docDate": "DESC", "inv.docNum": "DESC" },
+      sort,
       entityName: "ARInvoices",
       dbName,
     });
@@ -84,15 +111,14 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
       ...result,
       data: result.data.map((data) => ({
         id: data.docEntry,
-        DocEntry: data.docEntry,
         DocNum: data.docNum,
         DocDate: data.docDate,
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
+        DocCurr: data.docCurr,
         NumAtCard: data.numAtCard,
         DocStatus: data.docStatus,
-        Canceled: data.canceled,
         // Include paid amount for AR invoices to calculate outstanding balances on frontend.
         paidSum: ((data as Record<string, unknown>).paidSum as number) || 0,
       })),
@@ -116,15 +142,14 @@ export const getInvoice = async (sessionId: string, id: string) => {
     // Normalize SAP internal status (bost_Open) to a single character code.
     return {
       id: result.DocEntry,
-      DocEntry: result.DocEntry,
       DocNum: result.DocNum,
       DocDate: result.DocDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
       DocTotal: result.DocTotal,
+      DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
-      Canceled: result.Cancelled === "tYES" ? "Y" : "N",
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,

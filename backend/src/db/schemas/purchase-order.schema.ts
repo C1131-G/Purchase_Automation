@@ -11,8 +11,8 @@ export type PurchaseOrder = {
   cardCode: string; // Vendor code.
   cardName: string; // Vendor name.
   docTotal: number;
+  docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
-  canceled: string; // 'Y' = Yes, 'N' = No.
 };
 
 export const PurchaseOrderSchema = new EntitySchema<PurchaseOrder>({
@@ -48,15 +48,11 @@ export const PurchaseOrderSchema = new EntitySchema<PurchaseOrder>({
       scale: 6,
       name: "DocTotal",
     },
+    docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCur" },
     docStatus: {
       type: "nvarchar" as HANAColumnType,
       length: 1,
       name: "DocStatus",
-    },
-    canceled: {
-      type: "nvarchar" as HANAColumnType,
-      length: 1,
-      name: "CANCELED",
     },
   },
   indices: [

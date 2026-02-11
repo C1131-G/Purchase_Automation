@@ -11,9 +11,8 @@ export type OutgoingPayment = {
   docDate: Date;
   cardCode: string; // Vendor code.
   cardName: string; // Vendor name.
-  cashSum?: number; // Total portion paid in cash.
-  transferSum?: number; // Total portion paid via bank transfer.
-  canceled: string; // 'Y' = Yes, 'N' = No.
+  docTotal: number;
+  docCurr: string;
 };
 
 export const OutgoingPaymentSchema = new EntitySchema<OutgoingPayment>({
@@ -25,21 +24,8 @@ export const OutgoingPaymentSchema = new EntitySchema<OutgoingPayment>({
     docDate: { type: "date" as HANAColumnType, name: "DocDate" },
     cardCode: { type: "nvarchar" as HANAColumnType, length: 15, name: "CardCode" },
     cardName: { type: "nvarchar" as HANAColumnType, length: 100, name: "CardName" },
-    cashSum: {
-      type: "decimal" as HANAColumnType,
-      precision: 19,
-      scale: 6,
-      name: "CashSum",
-      nullable: true,
-    },
-    transferSum: {
-      type: "decimal" as HANAColumnType,
-      precision: 19,
-      scale: 6,
-      name: "TrsfrSum",
-      nullable: true,
-    },
-    canceled: { type: "nvarchar" as HANAColumnType, length: 1, name: "Canceled" },
+    docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
+    docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCurr" },
   },
   indices: [
     { name: "IDX_OVPM_DOCNUM", columns: ["docNum"] },

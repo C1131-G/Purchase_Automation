@@ -51,19 +51,34 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       });
     }
 
-    // Dynamic Filter: Includes or excludes canceled payments.
-    if (filters.Canceled) {
-      queryBuilder.andWhere("payment.canceled = :canceled", {
-        canceled: filters.Canceled,
+    // Dynamic Filter: Filter by document total.
+    if (filters.DocTotal !== undefined && filters.DocTotalOperator) {
+      const operatorMap = { eq: "=", lt: "<", gt: ">" };
+      const sqlOp = operatorMap[filters.DocTotalOperator];
+      queryBuilder.andWhere(`payment.docTotal ${sqlOp} :docTotal`, {
+        docTotal: filters.DocTotal,
       });
     }
+
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "payment.docNum",
+      DocDate: "payment.docDate",
+      CardCode: "payment.cardCode",
+      CardName: "payment.cardName",
+      DocTotal: "payment.docTotal",
+    };
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "payment.docDate": "DESC", "payment.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Executes the query with centralized pagination logic.
     const result = await PageService.getPagedData<OutgoingPayment>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
-      sort: { "payment.docDate": "DESC", "payment.docNum": "DESC" },
+      sort,
       entityName: "OutgoingPayments",
       dbName,
     });
@@ -72,14 +87,12 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       ...result,
       data: result.data.map((data) => ({
         id: data.docEntry,
-        DocEntry: data.docEntry,
         DocNum: data.docNum,
         DocDate: data.docDate,
         CardCode: data.cardCode,
         CardName: data.cardName,
-        CashSum: data.cashSum,
-        TrsfrSum: data.transferSum,
-        Canceled: data.canceled,
+        DocTotal: data.docTotal,
+        DocCurr: data.docCurr,
       })),
     };
   } catch (err: unknown) {
@@ -103,11 +116,8 @@ export const getPayment = async (sessionId: string, id: string) => {
       DocDate: result.DocDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
-      CashSum: result.CashSum,
-      // TransferSum is often returned as a raw object property in Service Layer results.
-      TrsfrSum: (result as unknown as Record<string, unknown>).TransferSum as number,
       DocTotal: result.DocTotal,
-      Canceled: result.Cancelled === "tYES" ? "Y" : "N",
+      DocCurr: result.DocCurrency,
       Comments: result.Remarks,
       PaymentInvoices:
         (

@@ -1,20 +1,12 @@
-﻿/**
- * Validation Middleware
- *
- * Higher-order middleware to validate request data using Zod schemas.
- * Integrates with the existing AppError class for consistent error handling.
- *
- * @module validation/middleware
- */
+﻿// Validation Middleware: Higher-order middleware to validate request data using Zod schemas.
+// Integrates with AppError for consistent error handling across the application.
 
 import type { NextFunction, Request, Response } from "express";
 import { ZodError, type ZodTypeAny } from "zod";
 
 import AppError from "@/core/errors/app-error";
 
-/**
- * Generic validation middleware factory
- */
+// Generic validation middleware factory
 export const validate = (schema: ZodTypeAny, source: "body" | "query" | "params" = "body") => {
   return (req: Request, _res: Response, next: NextFunction) => {
     try {
@@ -43,17 +35,11 @@ export const validate = (schema: ZodTypeAny, source: "body" | "query" | "params"
   };
 };
 
-/**
- * Validate request body
- */
+// Validate request body
 export const validateBody = (schema: ZodTypeAny) => validate(schema, "body");
 
-/**
- * Validate query parameters
- */
+// Validate query parameters
 export const validateQuery = (schema: ZodTypeAny) => validate(schema, "query");
 
-/**
- * Validate route parameters
- */
+// Validate route parameters
 export const validateParams = (schema: ZodTypeAny) => validate(schema, "params");

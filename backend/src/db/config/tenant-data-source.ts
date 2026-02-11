@@ -1,10 +1,4 @@
-﻿/**
- * Tenant Data Source Configuration
- *
- * Manages dynamic TypeORM connections for multi-tenancy.
- *
- * @module db/config/tenant-data-source
- */
+﻿// Tenant Data Source: Manages dynamic TypeORM connections for multi-tenancy.
 
 import { DataSource } from "typeorm";
 
@@ -31,19 +25,10 @@ import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema
 import { UserSchema } from "@/db/schemas/user.schema";
 import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
 
-/**
- * Cache of tenant DataSource instances
- * Key: dbName (e.g., "AJAX_POS_DB")
- * Value: Initialized DataSource instance
- */
+// Cache: Map of dbName to initialized tenant DataSource instances.
 const tenantDataSources = new Map<string, DataSource>();
 
-/**
- * Get or create a DataSource for a specific tenant
- *
- * @param {string} dbName - Tenant database name (e.g., "AJAX_POS_DB")
- * @returns {Promise<DataSource>} Initialized DataSource for the tenant
- */
+// Get or create DataSource for a specific tenant DB.
 export const getTenantDataSource = async (dbName: string): Promise<DataSource> => {
   // Return cached DataSource if already initialized
   const cached = tenantDataSources.get(dbName);
@@ -118,12 +103,7 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
   return dataSource;
 };
 
-/**
- * Close all tenant DataSource connections
- * Called during graceful shutdown
- *
- * @returns {Promise<void>}
- */
+// Graceful Shutdown: Closes all active tenant DataSource connections.
 export const closeAllTenantDataSources = async (): Promise<void> => {
   logger.info({ msg: "Closing all tenant DataSources", count: tenantDataSources.size });
 
@@ -140,11 +120,7 @@ export const closeAllTenantDataSources = async (): Promise<void> => {
   tenantDataSources.clear();
 };
 
-/**
- * Get statistics about active tenant connections
- *
- * @returns {Object} Connection statistics
- */
+// Statistics: Provides data on active tenant connections.
 export const getTenantDataSourceStats = () => {
   return {
     activeTenants: tenantDataSources.size,

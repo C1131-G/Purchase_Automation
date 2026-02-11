@@ -63,20 +63,39 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
         status: filters.DocStatus,
       });
     }
-
-    // Dynamic Filter: Cancellation status ('Y'/'N').
-    if (filters.Canceled) {
-      queryBuilder.andWhere("invoice.canceled = :canceled", {
-        canceled: filters.Canceled,
-      });
+    // Dynamic Filter: Total amount comparison.
+    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+      if (filters.DocTotalOperator === "eq") {
+        queryBuilder.andWhere("invoice.docTotal = :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "lt") {
+        queryBuilder.andWhere("invoice.docTotal < :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "gt") {
+        queryBuilder.andWhere("invoice.docTotal > :docTotal", { docTotal: filters.DocTotal });
+      }
     }
+
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "invoice.docNum",
+      DocDate: "invoice.docDate",
+      CardCode: "invoice.cardCode",
+      CardName: "invoice.cardName",
+      DocTotal: "invoice.docTotal",
+      DocStatus: "invoice.docStatus",
+    };
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "invoice.docDate": "DESC", "invoice.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Delegate pagination and HANA-specific row-limiting logic to PageService.
     const result = await PageService.getPagedData<APInvoice>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
-      sort: { "invoice.docDate": "DESC", "invoice.docNum": "DESC" },
+      sort,
       entityName: "APInvoices",
       dbName,
     });
@@ -86,14 +105,13 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
       ...result,
       data: result.data.map((data) => ({
         id: data.docEntry,
-        DocEntry: data.docEntry,
         DocNum: data.docNum,
         DocDate: data.docDate,
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
+        DocCurr: data.docCurr,
         DocStatus: data.docStatus,
-        Canceled: data.canceled,
       })),
     };
   } catch (err: unknown) {
@@ -115,15 +133,14 @@ export const getInvoice = async (sessionId: string, id: string) => {
     // Normalizing SAP's internal status representation (bost_Open -> 'O') for the frontend.
     return {
       id: result.DocEntry,
-      DocEntry: result.DocEntry,
       DocNum: result.DocNum,
       DocDate: result.DocDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
       DocTotal: result.DocTotal,
+      DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
-      Canceled: result.Cancelled === "tYES" ? "Y" : "N",
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,

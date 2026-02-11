@@ -12,8 +12,8 @@ export type APInvoice = {
   cardCode: string; // Vendor code.
   cardName: string; // Vendor name.
   docTotal: number;
+  docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
-  canceled: string; // 'Y' = Yes, 'N' = No.
 };
 
 export const APInvoiceSchema = new EntitySchema<APInvoice>({
@@ -26,8 +26,8 @@ export const APInvoiceSchema = new EntitySchema<APInvoice>({
     cardCode: { type: "nvarchar" as HANAColumnType, length: 15, name: "CardCode" },
     cardName: { type: "nvarchar" as HANAColumnType, length: 100, name: "CardName" },
     docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
+    docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCur" },
     docStatus: { type: "nvarchar" as HANAColumnType, length: 1, name: "DocStatus" },
-    canceled: { type: "nvarchar" as HANAColumnType, length: 1, name: "CANCELED" },
   },
   indices: [
     { name: "IDX_OPCH_DOCNUM", columns: ["docNum"] },

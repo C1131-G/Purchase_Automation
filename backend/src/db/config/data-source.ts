@@ -1,10 +1,4 @@
-﻿/**
- * Global Data Source Configuration
- *
- * Configures the primary TypeORM connection to SAP HANA.
- *
- * @module db/config/data-source
- */
+﻿// Global Data Source: Configures primary TypeORM connection to SAP HANA.
 
 import "reflect-metadata";
 
@@ -33,10 +27,7 @@ import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema
 import { UserSchema } from "@/db/schemas/user.schema";
 import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
 
-/**
- * TypeORM Data Source instance
- * Configured with connection pooling and caching for optimal performance
- */
+// TypeORM Data Source: Instance configured with connection pooling and caching.
 export const AppDataSource = new DataSource({
   type: "sap",
   host: config.hana.host,
@@ -86,15 +77,7 @@ export const AppDataSource = new DataSource({
   migrations: [],
 });
 
-/**
- * Initialize TypeORM Data Source
- *
- * Establishes connection to SAP HANA and initializes the connection pool.
- * Idempotent - safe to call multiple times.
- *
- * @returns {Promise<void>}
- * @throws {Error} If initialization fails
- */
+// Initialize Database: Establishes idempotent SAP HANA connection and pool initialization.
 export const initializeDatabase = async (): Promise<void> => {
   try {
     if (!AppDataSource.isInitialized) {

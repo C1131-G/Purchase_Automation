@@ -1,6 +1,4 @@
-/**
- * Shared SAP Service Layer Types
- */
+// Shared SAP Service Layer Types
 
 export interface SAPDocumentLine {
   ItemCode: string;
@@ -18,38 +16,30 @@ export interface SAPAttachmentResult {
 }
 
 export interface SAPDocumentResponse {
-  DocEntry: number;
   DocNum: number;
   CardCode: string;
   CardName: string;
   DocDate: string;
   DocTotal: number;
   DocumentStatus: string;
-  Cancelled: string;
   Comments?: string;
   DocumentLines: SAPDocumentLine[];
   AttachmentEntry?: number;
   [key: string]: unknown; // For other dynamic fields
 }
 
-/**
- * Base List Item for Marketing Documents
- */
+// Base List Item for Marketing Documents
 export interface SAPMarketingDocumentBase {
   id: number;
-  DocEntry: number;
   DocNum: number;
   DocDate: string | Date;
   CardCode: string;
   CardName: string;
   DocTotal: number;
   DocStatus: string;
-  Canceled: string;
 }
 
-/**
- * Base Detail for Marketing Documents
- */
+// Base Detail for Marketing Documents
 export interface SAPMarketingDocumentDetail extends SAPMarketingDocumentBase {
   Address?: string;
   Comments?: string;
@@ -64,27 +54,20 @@ export interface SAPMarketingDocumentDetail extends SAPMarketingDocumentBase {
   }>;
 }
 
-/**
- * Base List Item for Payments
- */
+// Base List Item for Payments
 export interface SAPPaymentBase {
   id: number;
-  DocEntry: number;
   DocNum: number;
   DocDate: string | Date;
   CardCode: string;
   CardName: string;
-  Canceled: string;
   DocTotal?: number;
 }
 
-/**
- * Base Detail for Payments
- */
+// Base Detail for Payments
 export interface SAPPaymentDetail extends SAPPaymentBase {
   Comments?: string;
   PaymentInvoices: Array<{
-    DocEntry: number;
     SumApplied: number;
     InvoiceType: string;
   }>;

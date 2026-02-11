@@ -42,36 +42,9 @@ export const validateSession: RequestHandler = (
 
     return res.status(401).json({
       success: false,
-      message: "Session has expired (Inactive for 30 minutes)",
+      message: "Session has expired",
     });
   }
-
-  // Idle Timeout Enforcement: Secondary check to ensure sessions that remain open but inactive are pruned after 30 minutes.
-  const now = Date.now();
-  const lastActivity = session.lastActivity || now;
-  const idleTime = now - lastActivity;
-  const MAX_IDLE_TIME = 30 * 60 * 1000;
-
-  if (idleTime > MAX_IDLE_TIME) {
-    logger.warn({
-      event: "session_idle_timeout",
-      username: session.user.userName,
-    });
-
-    // Proactively notify SAP to terminate the upstream session.
-    serviceLayerClient.logout(session.sessionId).catch(() => {});
-
-    session.destroy(() => {});
-    res.clearCookie("vendorportal.sid");
-
-    return res.status(401).json({
-      success: false,
-      message: "Session expired due to inactivity",
-    });
-  }
-
-  // Update activity heartbeat for sliding window expiration.
-  session.lastActivity = now;
 
   // Hydrate the Request object with user metadata for downstream business logic (permission checks, tenant identification).
   req.user = {

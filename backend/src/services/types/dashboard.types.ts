@@ -1,6 +1,4 @@
-/**
- * Dashboard Service Types
- */
+// Dashboard Service Types
 
 export interface DashboardStats {
   openInvoices: number;

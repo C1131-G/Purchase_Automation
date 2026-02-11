@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import { authAPI } from '@/api/auth.service'
+
 /**
  * Represents the authenticated user's profile information.
  */
@@ -21,7 +23,7 @@ interface AuthState {
 
   // Actions
   login: (userData: User) => void
-  logout: () => void
+  logout: () => Promise<void>
   setError: (error: string | null) => void
   clearError: () => void
 }
@@ -30,33 +32,65 @@ interface AuthState {
  * Global Authentication Store managed by Zustand.
  * Handles user session state and authentication-related UI messages.
  */
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  error: null,
+export const useAuthStore = create<AuthState>((set) => {
+  // Create a broadcast channel for cross-tab synchronization
+  const authChannel = new BroadcastChannel('auth_channel')
 
-  /** Updates state with user data and marks as authenticated */
-  login: (userData) =>
-    set({
-      user: userData,
-      isAuthenticated: true,
-      error: null,
-    }),
+  // Listen for logout events from other tabs
+  authChannel.onmessage = (event) => {
+    if (event.data.type === 'LOGOUT') {
+      set({ user: null, isAuthenticated: false })
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?reason=session_ended'
+      }
+    }
+  }
 
-  /** Resets authentication state and clears user data */
-  logout: () =>
-    set({
-      user: null,
-      isAuthenticated: false,
-    }),
+  return {
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    error: null,
 
-  /** Sets a global authentication error message */
-  setError: (error) => set({ error }),
+    /** Updates state with user data and marks as authenticated */
+    login: (userData) =>
+      set({
+        user: userData,
+        isAuthenticated: true,
+        error: null,
+      }),
 
-  /** Clears any existing authentication error messages */
-  clearError: () => set({ error: null }),
-}))
+    /** Resets authentication state and clears user data */
+    logout: async () => {
+      // 1. Notify other tabs first
+      authChannel.postMessage({ type: 'LOGOUT' })
+
+      // 2. Clear local state
+      set({
+        user: null,
+        isAuthenticated: false,
+      })
+
+      // 3. Attempt to notify the backend (fire and forget)
+      try {
+        await authAPI.logout()
+      } catch (error) {
+        console.error('Logout API failed:', error)
+      }
+
+      // 4. Redirect to login
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
+    },
+
+    /** Sets a global authentication error message */
+    setError: (error) => set({ error }),
+
+    /** Clears any existing authentication error messages */
+    clearError: () => set({ error: null }),
+  }
+})
 
 // --- State Selectors ---
 

@@ -12,10 +12,8 @@ export type IncomingPayment = {
   cardCode: string; // Customer code.
   cardName: string; // Customer name.
   docTotal: number;
+  docCurr: string;
   counterRef?: string; // Reference number for tracking external payments.
-  cashSum: number;
-  transferSum: number;
-  canceled: string; // 'Y' = Yes, 'N' = No.
 };
 
 export const IncomingPaymentSchema = new EntitySchema<IncomingPayment>({
@@ -28,15 +26,13 @@ export const IncomingPaymentSchema = new EntitySchema<IncomingPayment>({
     cardCode: { type: "nvarchar" as HANAColumnType, length: 15, name: "CardCode" },
     cardName: { type: "nvarchar" as HANAColumnType, length: 100, name: "CardName" },
     docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
+    docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCurr" },
     counterRef: {
       type: "nvarchar" as HANAColumnType,
       length: 30,
       name: "CounterRef",
       nullable: true,
     },
-    cashSum: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "CashSum" },
-    transferSum: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "TrsfrSum" },
-    canceled: { type: "nvarchar" as HANAColumnType, length: 1, name: "Canceled" },
   },
   indices: [
     { name: "IDX_ORCT_DOCNUM", columns: ["docNum"] },

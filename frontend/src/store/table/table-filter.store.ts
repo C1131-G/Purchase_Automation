@@ -15,7 +15,7 @@ interface FilterState {
   dateFilterDraft: Record<string, DateRangeFilter | null>
 }
 
-const EMPTY_ARRAY: any[] = []
+const EMPTY_ARRAY: ColumnFiltersState = []
 
 interface FilterStore {
   tables: Record<string, FilterState>

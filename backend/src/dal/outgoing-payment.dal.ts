@@ -11,7 +11,6 @@ import { outgoingPaymentService } from "@/services/outgoing-payment.service";
 // Validation
 import {
   CreatePaymentInputSchema,
-  PaymentQuerySchema,
   UpdatePaymentInputSchema,
 } from "@/validation/schemas/inputs/payments.input";
 
@@ -25,8 +24,8 @@ export const getPayments = async (req: Request, res: Response, next: NextFunctio
   >;
   try {
     const { dbName } = authReq.user;
-    // Validate query parameters using Zod.
-    const filters = PaymentQuerySchema.parse(req.query);
+    // Query is already validated/sanitized by validateQuery(PaymentQuerySchema) middleware.
+    const filters = authReq.query;
 
     logger.info({ msg: "Fetching Outgoing Payments", dbName, filters });
 

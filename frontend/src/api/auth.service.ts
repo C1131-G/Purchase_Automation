@@ -56,4 +56,12 @@ export const authAPI = {
    * Retrieves the current authenticated user's profile based on the session cookie.
    */
   getMe: () => apiClient<{ success: boolean; data: { user: User } }>('/api/v1/auth/me'),
+
+  /**
+   * Terminates the user session on the backend.
+   */
+  logout: () =>
+    apiClient<{ success: boolean; message: string }>('/api/v1/auth/logout', {
+      method: 'POST',
+    }),
 }

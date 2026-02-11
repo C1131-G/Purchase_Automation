@@ -20,7 +20,9 @@ export const configureSession = (app: Application) => {
     session({
       store: new SessionFileStore({
         path: "./sessions",
-        ttl: 30 * 60, // 30 minutes of inactivity before session is purged.
+        // Keep server-side session records longer to prevent unintended auto-expiry
+        // during active business usage. Session still ends on explicit logout.
+        ttl: 60 * 60 * 24 * 30, // 30 days
         retries: 0,
       }),
       secret: config.session.secret,
