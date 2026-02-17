@@ -1,28 +1,26 @@
 import { type Table } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
+import { cn } from '@/shared/utils/cn'
 import { useTablePagination } from '@/store/table/table-pagination.store'
-import { cn } from '@/utils/cn'
 
-interface TableControlsProps<TData> {
+type TableControlsProps<TData> = {
   tableId: string
   table: Table<TData>
   totalRows: number
+  onPrefetchPage?: (pageIndex: number, pageSize: number) => void
+  onPrefetchPageSize?: (pageSize: number) => void
 }
 
-/**
- * TablePagination: Industrial-grade pagination controller.
- * 
- * DESIGN: SAP B1 / Vercel-style sapphire aesthetic.
- * LOGIC: Bridges TanStack 0-indexed state with human-friendly 1-indexed UI.
- * BACKEND: Aligns with `PaginationInputSchema` (page/limit).
- */
+// TablePagination: Industrial pagination controller bridging TanStack index states with human-friendly UI.
 export function TablePagination<TData>({
   tableId,
   table,
   totalRows,
+  onPrefetchPage,
+  onPrefetchPageSize,
 }: TableControlsProps<TData>) {
   const pagination = useTablePagination(tableId)
 
@@ -52,8 +50,8 @@ export function TablePagination<TData>({
         >
           Rows per page
         </p>
-        <div className="w-[80px]">
-          <Select.Root
+        <div className="w-20">
+          <Select
             value={`${pageSize}`}
             disabled={!hasData}
             onValueChange={(value) => {
@@ -65,30 +63,23 @@ export function TablePagination<TData>({
               })
             }}
           >
-            <Select.Trigger className="h-9 px-3 py-1 rounded-lg border-zinc-200 bg-white text-[10px] font-bold uppercase tracking-[0.15em] hover:text-blue-600 hover:border-blue-600 transition-all focus:border-blue-600 focus:outline-none ring-offset-0">
+            <Select.Trigger className="group h-9 px-3 py-1 rounded-lg border-zinc-200 bg-white text-[10px] font-bold uppercase tracking-[0.15em] hover:text-blue-600 hover:border-blue-600 transition-all focus:border-blue-600 focus:outline-none ring-offset-0">
               <Select.Value />
               <Select.Icon>
-                <svg
-                  className="size-3.5 text-zinc-400 ml-1"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
+                <ChevronDown className="size-3.5 text-zinc-400 ml-1 transition-all duration-200 group-hover:translate-y-0.5 group-hover:text-blue-600 group-data-[state=open]:rotate-180" />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Positioner className="w-[70px]" side="top">
+              <Select.Positioner className="w-17.5" side="top">
                 <Select.Popup>
                   <Select.List>
                     {[10, 20, 30, 40, 50].map((pageSize) => (
-                      <Select.Item key={pageSize} value={`${pageSize}`} className="text-xs">
+                      <Select.Item
+                        key={pageSize}
+                        value={`${pageSize}`}
+                        className="text-xs"
+                        onMouseEnter={() => onPrefetchPageSize?.(pageSize)}
+                      >
                         {pageSize}
                       </Select.Item>
                     ))}
@@ -96,7 +87,7 @@ export function TablePagination<TData>({
                 </Select.Popup>
               </Select.Positioner>
             </Select.Portal>
-          </Select.Root>
+          </Select>
         </div>
       </div>
 
@@ -115,10 +106,11 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-transparent hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             table.setPageIndex(0)
           }}
+          onMouseEnter={() => onPrefetchPage?.(0, pageSize)}
           disabled={!hasMultiplePages || !canPrevious}
         >
           <ChevronsLeft className="size-4 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -126,11 +118,12 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-transparent hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             const nextPage = Math.max(safePageIndex - 1, 0)
             table.setPageIndex(nextPage)
           }}
+          onMouseEnter={() => onPrefetchPage?.(Math.max(safePageIndex - 1, 0), pageSize)}
           disabled={!hasMultiplePages || !canPrevious}
         >
           <ChevronLeft className="size-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
@@ -138,11 +131,14 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-transparent hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             const nextPage = Math.min(safePageIndex + 1, pageCount - 1)
             table.setPageIndex(nextPage)
           }}
+          onMouseEnter={() =>
+            onPrefetchPage?.(Math.min(safePageIndex + 1, pageCount - 1), pageSize)
+          }
           disabled={!hasMultiplePages || !canNext}
         >
           <ChevronRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
@@ -150,11 +146,12 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-transparent hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             const lastPage = pageCount - 1
             table.setPageIndex(lastPage)
           }}
+          onMouseEnter={() => onPrefetchPage?.(pageCount - 1, pageSize)}
           disabled={!hasMultiplePages || !canNext}
         >
           <ChevronsRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />

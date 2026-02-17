@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const NUMBER_ONLY_COLUMN_IDS = new Set(['DocEntry', 'DocNum'])
+export const NUMBER_ONLY_COLUMN_IDS = new Set(['DocNum'])
 export const ALPHANUMERIC_COLUMN_IDS = new Set(['CardCode'])
 export const LETTERS_SYMBOLS_COLUMN_IDS = new Set(['CardName'])
 

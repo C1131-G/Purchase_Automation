@@ -1,17 +1,19 @@
 import { type Column, type ColumnFiltersState, type Table } from '@tanstack/react-table'
-import { Check, Filter } from 'lucide-react'
-import { useMemo } from 'react'
+import { Check, Filter, RotateCcw } from 'lucide-react'
+import { useId, useMemo } from 'react'
 
+import { resolveFilterToggleAction } from '@/components/table/filters/filter-options.logic'
 import { usePopover } from '@/components/ui/context/popover-context'
 import { Popover } from '@/components/ui/popover'
 import { hasFilterValue } from '@/components/ui/types/filter-utils'
 import { getColumnTitle } from '@/components/ui/types/table-utils'
+import { cn } from '@/shared/utils/cn'
 import { useClearDateFilterDraftAction } from '@/store/table/table-filter.store'
+import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetActiveFilterAction } from '@/store/table/table-filter.store'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useTableActiveFilter } from '@/store/table/table-filter.store'
 import { useTableColumnFilters } from '@/store/table/table-filter.store'
-import { cn } from '@/utils/cn'
 
 interface TableFilterOptionsProps<TData> {
   tableId: string
@@ -19,10 +21,12 @@ interface TableFilterOptionsProps<TData> {
 }
 
 export function TableFilterOptions<TData>({ tableId, table }: TableFilterOptionsProps<TData>) {
+  const popoverId = useId()
   const activeFilterId = useTableActiveFilter(tableId)
   const storeColumnFilters = useTableColumnFilters(tableId)
   const setActiveFilter = useSetActiveFilterAction()
   const setColumnFilters = useSetColumnFiltersAction()
+  const clearAllFilters = useClearAllFiltersAction()
 
   const columnFilters = useMemo(() => {
     const normalized = storeColumnFilters.filter((filter) => hasFilterValue(filter.value))
@@ -37,14 +41,19 @@ export function TableFilterOptions<TData>({ tableId, table }: TableFilterOptions
 
   const allColumns = table
     .getAllLeafColumns()
-    .filter((column) => column.getCanFilter() && !!column.columnDef.header)
+    .filter(
+      (column) =>
+        (!!column.columnDef.meta?.filterType || column.getCanFilter()) && !!column.columnDef.header,
+    )
 
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all active:scale-[0.98] normal-case tracking-normal group focus:outline-none cursor-pointer hover:bg-zinc-50 hover:text-blue-600"
+          aria-label="Open table filters"
+          aria-controls={popoverId}
+          className="flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all active:scale-[0.98] normal-case tracking-normal group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:border-blue-300 cursor-pointer hover:bg-zinc-50 hover:text-blue-600"
         >
           <span>Filter</span>
           <Filter className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1 text-zinc-400 group-hover:text-blue-500" />
@@ -59,6 +68,8 @@ export function TableFilterOptions<TData>({ tableId, table }: TableFilterOptions
         rawColumnFilters={storeColumnFilters}
         setActiveFilter={(id) => setActiveFilter(tableId, id)}
         setColumnFilters={(filters) => setColumnFilters(tableId, filters)}
+        clearAllFilters={() => clearAllFilters(tableId)}
+        popoverId={popoverId}
       />
     </Popover.Root>
   )
@@ -74,6 +85,8 @@ function FilterContent<TData>({
   rawColumnFilters,
   setActiveFilter,
   setColumnFilters,
+  clearAllFilters,
+  popoverId,
 }: {
   tableId: string
   table: Table<TData>
@@ -83,6 +96,8 @@ function FilterContent<TData>({
   rawColumnFilters: ColumnFiltersState
   setActiveFilter: (filter: string | null) => void
   setColumnFilters: (filters: ColumnFiltersState) => void
+  clearAllFilters: () => void
+  popoverId: string
 }) {
   const { setOpen } = usePopover()
   const clearDateFilterDraft = useClearDateFilterDraftAction()
@@ -91,24 +106,37 @@ function FilterContent<TData>({
   }
 
   const handleFilterChange = (columnId: string) => {
-    // Toggle: if already active, deactivate; otherwise activate
-    if (activeFilter === columnId) {
+    const action = resolveFilterToggleAction(columnId, activeFilter, rawColumnFilters)
+
+    if (action.type === 'clear') {
       const column = table.getColumn(columnId)
       column?.setFilterValue(undefined)
-      const remainingFilters = rawColumnFilters.filter((filter) => filter.id !== columnId)
-      setColumnFilters(remainingFilters)
+      setColumnFilters(action.remainingFilters)
       clearDateFilterDraft(tableId, columnId)
-      const nextActiveFilter = remainingFilters.find((filter) => hasFilterValue(filter.value))?.id
-      setActiveFilter(nextActiveFilter ?? null)
-    } else {
-      setActiveFilter(columnId)
+      setActiveFilter(action.nextActiveFilter)
     }
+
+    if (action.type === 'deactivate') {
+      setActiveFilter(null)
+    }
+
+    if (action.type === 'activate') {
+      setActiveFilter(action.nextActiveFilter)
+    }
+    closeSmooth()
+  }
+
+  const resetToDefault = () => {
+    table.setColumnFilters([])
+    clearAllFilters()
+    setActiveFilter(null)
     closeSmooth()
   }
 
   return (
     <Popover.Content
-      className="w-[230px] p-0 overflow-hidden border border-zinc-200 rounded-xl shadow-xl"
+      id={popoverId}
+      className="w-57.5 p-0 overflow-hidden border border-zinc-200 rounded-xl shadow-xl"
       align="start"
     >
       <div className="flex flex-col bg-white/95 backdrop-blur-xl">
@@ -121,17 +149,19 @@ function FilterContent<TData>({
               const hasValue = columnFilters.some(
                 (f) => f.id === columnId && hasFilterValue(f.value),
               )
-              const isChecked = hasValue
+              const isChecked = hasValue || isActive
               const columnName = getColumnTitle(column, table)
 
               return (
                 <div
                   key={columnId}
-                  className="group flex items-center justify-between rounded-md px-2 py-[10px] text-[12px] select-none border border-transparent transition-colors hover:bg-zinc-50 text-zinc-900"
+                  className="group flex items-center justify-between rounded-md px-2 py-2 text-[12px] select-none border border-transparent transition-colors hover:bg-zinc-50 text-zinc-900"
                 >
                   <button
                     type="button"
                     onClick={() => handleFilterChange(columnId)}
+                    aria-pressed={isChecked}
+                    aria-label={`Toggle filter ${columnName}`}
                     className={cn(
                       'truncate transition-colors cursor-pointer text-left flex-1',
                       hasValue
@@ -145,6 +175,8 @@ function FilterContent<TData>({
                   <button
                     type="button"
                     onClick={() => handleFilterChange(columnId)}
+                    aria-pressed={isChecked}
+                    aria-label={`${isChecked ? 'Disable' : 'Enable'} filter ${columnName}`}
                     className={cn(
                       'ml-2 flex items-center justify-center size-4 rounded border transition-all cursor-pointer shrink-0',
                       isChecked
@@ -158,6 +190,17 @@ function FilterContent<TData>({
               )
             })}
           </div>
+        </div>
+
+        <div className="border-t border-zinc-100/80 bg-zinc-50/30">
+          <button
+            type="button"
+            onClick={resetToDefault}
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 transition-all active:scale-[0.98] cursor-pointer"
+          >
+            <RotateCcw className="size-3" />
+            <span>Reset to Default</span>
+          </button>
         </div>
       </div>
     </Popover.Content>

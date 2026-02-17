@@ -1,16 +1,11 @@
 ﻿// GRPO DAL: Handles HTTP requests for Goods Receipt Purchase Order (GRPO) operations.
 
 import type { NextFunction, Request, Response } from "express";
-import formidable from "formidable";
 
-import AppError from "@/core/errors/app-error";
-// Core
 import { logger } from "@/core/logger/pino-logger";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
 import type { GRPOQuery } from "@/dal/types/grpo.types";
-// Services
 import { grpoService } from "@/services/grpo.service";
-// Validation
 import {
   CreateGRPOInputSchema,
   UpdateGRPOInputSchema,
@@ -123,90 +118,54 @@ export const getAvailablePOs = async (req: Request, res: Response, next: NextFun
   }
 };
 
-// Creates a new GRPO in SAP B1. Uses formidable to handle the JSON payload and file attachments (e.g., packing slips).
+// Creates a new GRPO in SAP B1.
 export const createGRPO = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
-  const form = formidable({
-    multiples: true,
-    keepExtensions: true,
-  });
+  try {
+    const { sessionId } = authReq.session;
+    const payload = req.body;
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
+    // Validate the payload to ensure all required fields for document creation are present.
+    const validatedPayload = CreateGRPOInputSchema.parse(payload);
 
-    try {
-      const { sessionId } = authReq.session;
+    logger.info({ msg: "Creating GRPO", vendor: validatedPayload.CardCode });
 
-      const payloadRaw = fields.Payload?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing Payload field", 400, "BAD_REQUEST"));
-      }
+    const result = await grpoService.createGRPO(sessionId, validatedPayload);
 
-      const payload = JSON.parse(payloadRaw);
+    logger.info({ msg: "GRPO Created", docNum: result.DocNum });
 
-      // Validate the payload to ensure all required fields for document creation are present.
-      const validatedPayload = CreateGRPOInputSchema.parse(payload);
-
-      logger.info({ msg: "Creating GRPO", vendor: validatedPayload.CardCode });
-
-      const result = await grpoService.createGRPO(sessionId, validatedPayload, files);
-
-      logger.info({ msg: "GRPO Created", docNum: result.DocNum });
-
-      res.status(201).json({
-        success: true,
-        message: result.message,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(201).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Updates metadata (e.g., comments) for an existing GRPO via Service Layer PATCH.
 export const updateGRPO = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
-  const form = formidable({
-    multiples: true,
-    keepExtensions: true,
-  });
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+    const payload = req.body;
 
-  form.parse(req, async (err, fields, _files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
+    // Validate the update payload to prevent unauthorized or invalid field modifications.
+    const validatedPayload = UpdateGRPOInputSchema.parse(payload);
 
-    try {
-      const { sessionId } = authReq.session;
-      const { id } = authReq.params;
+    logger.info({ msg: "Updating GRPO", id });
 
-      const payloadRaw = fields.Payload?.[0] || fields.grpoData?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing payload field", 400, "BAD_REQUEST"));
-      }
+    const result = await grpoService.updateGRPO(sessionId, id as string, validatedPayload);
 
-      const payload = JSON.parse(payloadRaw);
-
-      // Validate the update payload to prevent unauthorized or invalid field modifications.
-      const validatedPayload = UpdateGRPOInputSchema.parse(payload);
-
-      logger.info({ msg: "Updating GRPO", id });
-
-      const result = await grpoService.updateGRPO(sessionId, id as string, validatedPayload);
-
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Marks a GRPO as cancelled in the SAP system.

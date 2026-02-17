@@ -1,7 +1,5 @@
 ﻿// API Path Documentation: Registers all endpoint metadata (methods, paths, tags, and schemas) with the OpenAPI registry.
 
-import { z } from "zod";
-
 import { registry } from "@/config/swagger-registry";
 import { LoginInputSchema } from "@/validation/schemas/inputs/auth.input";
 import { CreditNoteQuerySchema } from "@/validation/schemas/inputs/credit-note.input";
@@ -81,16 +79,7 @@ registry.registerPath({
   tags: ["Purchase Orders"],
   security: [{ SessionCookie: [] }],
   request: {
-    body: {
-      content: {
-        "multipart/form-data": {
-          schema: z.object({
-            Payload: CreatePurchaseOrderInputSchema, // JSON data part.
-            Attachment: z.string().openapi({ type: "string", format: "binary" }).optional(), // File upload part.
-          }),
-        },
-      },
-    },
+    body: { content: { "application/json": { schema: CreatePurchaseOrderInputSchema } } },
   },
   responses: {
     201: {
@@ -124,16 +113,7 @@ registry.registerPath({
   tags: ["Goods Receipt PO"],
   security: [{ SessionCookie: [] }],
   request: {
-    body: {
-      content: {
-        "multipart/form-data": {
-          schema: z.object({
-            Payload: CreateGRPOInputSchema,
-            Attachment: z.string().openapi({ type: "string", format: "binary" }).optional(),
-          }),
-        },
-      },
-    },
+    body: { content: { "application/json": { schema: CreateGRPOInputSchema } } },
   },
   responses: {
     201: {
@@ -182,11 +162,7 @@ registry.registerPath({
   tags: ["Invoices"],
   security: [{ SessionCookie: [] }],
   request: {
-    body: {
-      content: {
-        "multipart/form-data": { schema: z.object({ Payload: CreateInvoiceInputSchema }) },
-      },
-    },
+    body: { content: { "application/json": { schema: CreateInvoiceInputSchema } } },
   },
   responses: {
     201: {

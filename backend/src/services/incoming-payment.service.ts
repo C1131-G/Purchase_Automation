@@ -7,7 +7,7 @@ import type { PaymentFilters } from "@/dal/types/incoming-payment.types";
 import { type IncomingPayment, IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
-import type { SAPAttachmentResult, SAPDocumentResponse } from "@/services/types/sap.types";
+import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Fetches a paginated list of Incoming Payments from HANA.
 export const getPayments = async (dbName: string, filters: PaymentFilters) => {
@@ -157,11 +157,7 @@ export const getPayment = async (sessionId: string, id: string) => {
 };
 
 // Posts a new payment to SAP. Handles multi-invoice reconciliation if details are provided.
-export const createPayment = async (
-  sessionId: string,
-  payload: Record<string, unknown>,
-  files: Record<string, unknown> = {},
-) => {
+export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     // Construct SAP payload. CashSum and TrsfrSum define the payment split.
     const sapPayload: Record<string, unknown> = {
@@ -185,32 +181,6 @@ export const createPayment = async (
         4,
         6,
       )}-${docDate.substring(6, 8)}`;
-    }
-
-    // Process file attachments through SAP's dedicated Attachment service.
-    const uploadedFilesRaw = files?.UploadedFiles;
-    if (uploadedFilesRaw) {
-      const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : [uploadedFilesRaw];
-      logger.info({ msg: "Processing attachments", count: uploadedFiles.length });
-
-      if (uploadedFiles.length > 0) {
-        try {
-          const attachmentResult = (await serviceLayerClient.uploadAttachment(
-            sessionId,
-            uploadedFiles[0],
-          )) as unknown as SAPAttachmentResult;
-          if (attachmentResult?.AbsoluteEntry) {
-            sapPayload.AttachmentEntry = attachmentResult.AbsoluteEntry;
-            logger.info({ msg: "Attachment linked", attachmentEntry: sapPayload.AttachmentEntry });
-          }
-        } catch (attachErr: unknown) {
-          const attachError = attachErr instanceof Error ? attachErr : new Error(String(attachErr));
-          logger.error({
-            msg: "Attachment upload failed, proceeding without attachment",
-            error: attachError.message,
-          });
-        }
-      }
     }
 
     // Execute POST request to create the payment record.

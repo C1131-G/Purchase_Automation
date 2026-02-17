@@ -9,6 +9,7 @@ export default defineConfig({
     TanStackRouterVite({
       routesDirectory: './src/routes',
       generatedRouteTree: './src/routeTree.gen.ts',
+      routeFileIgnorePattern: '^_require-active-session\\.ts$',
     }),
     react({
       babel: {

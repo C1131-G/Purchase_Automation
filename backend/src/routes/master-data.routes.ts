@@ -15,6 +15,13 @@ router.use(validateSession);
 // GET /products: Searchable list of items from the OITM table.
 router.get("/products", validateQuery(MasterDataQuerySchema), masterDataDal.getProducts);
 
+// GET /product-warehouse-stocks: Stock for selected product across all warehouses.
+router.get(
+  "/product-warehouse-stocks",
+  validateQuery(MasterDataQuerySchema),
+  masterDataDal.getProductWarehouseStocks,
+);
+
 // GET /vendors: Filtered list of Vendors ('S') from the OCRD table.
 router.get("/vendors", validateQuery(MasterDataQuerySchema), masterDataDal.getVendors);
 

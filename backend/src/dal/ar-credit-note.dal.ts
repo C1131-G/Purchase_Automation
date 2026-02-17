@@ -61,7 +61,7 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-// Creates a new A/R Credit Note in SAP B1. Uses raw body as input (no formidable for A/R so far).
+// Creates a new A/R Credit Note in SAP B1 using JSON request body.
 export const createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {

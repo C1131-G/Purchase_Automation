@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, Building2, ChevronRight, Eye, EyeOff } from 'lucide-react'
+import { Building2, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import React from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
@@ -11,16 +11,10 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { authQueries } from '@/features/auth/api/auth.queries'
 import { useLogin } from '@/features/auth/hooks/use-login'
-import { type LoginFormData, loginSchema } from '@/schemas/auth.schema'
-import { useAuthError } from '@/store/auth.store'
+import { type LoginFormData, loginSchema } from '@/features/auth/schemas/auth.schema'
+import { useAuthError } from '@/store/auth/auth.store'
 
-/**
- * LoginForm Component.
- *
- * Cleanly integrated with the standardized Design System.
- * - Inherits Sapphire highlights and Industrial typography.
- * - Centered viewport presence.
- */
+// LoginForm: Authenticated entryway utilizing standardized Sapphire and Industrial design patterns.
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
 
@@ -43,7 +37,7 @@ export function LoginForm() {
     },
   })
 
-  /** Submission handler */
+  // onSubmit: Manages login form submission and state synchronization.
   const onSubmit = (data: LoginFormData) => {
     loginMutation({
       username: data.username,
@@ -69,9 +63,9 @@ export function LoginForm() {
           name="organization"
           control={control}
           render={({ field }) => (
-            <Field.Root error={errors.organization?.message || ''}>
+            <Field error={errors.organization?.message || ''}>
               <Field.Label>Access Gateway</Field.Label>
-              <Select.Root
+              <Select
                 defaultValue={field.value}
                 onValueChange={field.onChange}
                 disabled={isLoadingOrgs || isLoggingIn}
@@ -107,14 +101,14 @@ export function LoginForm() {
                     </Select.Popup>
                   </Select.Positioner>
                 </Select.Portal>
-              </Select.Root>
+              </Select>
               <Field.Error />
-            </Field.Root>
+            </Field>
           )}
         />
 
         {/* --- Username --- */}
-        <Field.Root error={errors.username?.message || ''}>
+        <Field error={errors.username?.message || ''}>
           <Field.Label>Username</Field.Label>
           <Input
             {...register('username')}
@@ -123,10 +117,10 @@ export function LoginForm() {
             disabled={isLoggingIn}
           />
           <Field.Error />
-        </Field.Root>
+        </Field>
 
         {/* --- Password --- */}
-        <Field.Root error={errors.password?.message || ''}>
+        <Field error={errors.password?.message || ''}>
           <Field.Label>Password</Field.Label>
           <div className="relative w-full">
             <Input
@@ -147,16 +141,13 @@ export function LoginForm() {
             </button>
           </div>
           <Field.Error />
-        </Field.Root>
+        </Field>
 
         {/* --- Error Display --- */}
         {authError && (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 text-red-800 border border-red-100 animate-in zoom-in-95">
-            <AlertCircle size={18} className="shrink-0" />
-            <p className="text-[11px] font-bold uppercase tracking-wide leading-relaxed">
-              {authError}
-            </p>
-          </div>
+          <p className="text-red-600 text-[11px] font-bold uppercase text-center animate-in fade-in slide-in-from-top-1">
+            {authError}
+          </p>
         )}
 
         {/* --- Submit --- */}

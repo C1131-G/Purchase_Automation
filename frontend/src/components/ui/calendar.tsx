@@ -1,8 +1,8 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
-import { cn } from '@/utils/cn'
-import { MOTION_EASING, MOTION_MS } from '@/utils/motion'
+import { cn } from '@/shared/utils/cn'
+import { MOTION_EASING, MOTION_MS } from '@/shared/utils/motion'
 
 const MONTHS = [
   'January',
@@ -34,6 +34,8 @@ export interface CalendarProps {
   mode?: CalendarMode
   selected?: Date | CalendarDateRange | DateRange
   onSelect?: (value: Date | CalendarDateRange | DateRange | undefined) => void
+  minDate?: Date | undefined
+  maxDate?: Date | undefined
   numberOfMonths?: number
   showMonthAndYearPickers?: boolean
   'aria-label'?: string
@@ -62,11 +64,17 @@ function Calendar({
   mode = 'single',
   selected,
   onSelect,
-  numberOfMonths: _numberOfMonths = 1,
+  minDate,
+  maxDate,
   showMonthAndYearPickers = true,
   ...props
 }: CalendarProps) {
   const today = normalizeDate(new Date())
+  const minBoundary = minDate ? normalizeDate(minDate) : undefined
+  const maxBoundary = maxDate ? normalizeDate(maxDate) : undefined
+  const isOutsideBounds = (date: Date) =>
+    (minBoundary ? normalizeDate(date) < minBoundary : false) ||
+    (maxBoundary ? normalizeDate(date) > maxBoundary : false)
   const initialDate =
     selected instanceof Date
       ? selected
@@ -83,22 +91,8 @@ function Calendar({
     isCalendarDateRange(selected) ? selected : {},
   )
 
-  useEffect(() => {
-    if (!selected) {
-      setInternalSingle(undefined)
-      setInternalRange({})
-      return
-    }
-    if (selected instanceof Date) {
-      setInternalSingle(selected)
-      setCurrentDate(selected)
-      return
-    }
-    if (isCalendarDateRange(selected)) {
-      setInternalRange(selected)
-      if (selected.from) setCurrentDate(selected.from)
-    }
-  }, [selected])
+  const effectiveSingle = selected instanceof Date ? selected : internalSingle
+  const effectiveRange = isCalendarDateRange(selected) ? selected : internalRange
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -112,11 +106,21 @@ function Calendar({
     return grid
   }, [year, month])
 
-  const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
+  const canGoPrevMonth = minBoundary
+    ? normalizeDate(new Date(year, month - 1, 1)) >=
+      new Date(minBoundary.getFullYear(), minBoundary.getMonth(), 1)
+    : true
+  const canGoNextMonth = maxBoundary
+    ? normalizeDate(new Date(year, month + 1, 1)) <=
+      new Date(maxBoundary.getFullYear(), maxBoundary.getMonth(), 1)
+    : true
+  const handlePrevMonth = () => {
+    if (!canGoPrevMonth) return
+    setCurrentDate(new Date(year, month - 1, 1))
+  }
   const handleNextMonth = () => {
-    const nextMonthDate = new Date(year, month + 1, 1)
-    if (normalizeDate(nextMonthDate) > new Date(today.getFullYear(), today.getMonth(), 1)) return
-    setCurrentDate(nextMonthDate)
+    if (!canGoNextMonth) return
+    setCurrentDate(new Date(year, month + 1, 1))
   }
   const handleToggleView = () => {
     if (!showMonthAndYearPickers) return
@@ -125,25 +129,24 @@ function Calendar({
 
   const handleSelectDate = (day: number) => {
     const clicked = normalizeDate(new Date(year, month, day))
-    if (clicked > today) return
-
+    if (isOutsideBounds(clicked)) return
     if (mode === 'single') {
-      setInternalSingle(clicked)
+      if (!selected) setInternalSingle(clicked)
       onSelect?.(clicked)
       return
     }
 
-    const current = internalRange
+    const current = effectiveRange
     if (current.from && current.to) {
       const next: CalendarDateRange = { from: clicked }
-      setInternalRange(next)
+      if (!selected) setInternalRange(next)
       onSelect?.(next)
       return
     }
 
     if (!current.from) {
       const next: CalendarDateRange = { from: clicked }
-      setInternalRange(next)
+      if (!selected) setInternalRange(next)
       onSelect?.(next)
       return
     }
@@ -152,17 +155,15 @@ function Calendar({
       const from = normalizeDate(current.from)
       const to = clicked
       const next = from <= to ? { from, to } : { from: to, to: from }
-      setInternalRange(next)
+      if (!selected) setInternalRange(next)
       onSelect?.(next)
       return
     }
   }
 
-  const years = Array.from(
-    { length: today.getFullYear() - MIN_YEAR + 1 },
-    (_, i) => today.getFullYear() - i,
-  )
-  const currentMonthBoundary = new Date(today.getFullYear(), today.getMonth(), 1)
+  const maxYear = maxBoundary ? maxBoundary.getFullYear() : today.getFullYear() + 20
+  const minYear = minBoundary ? Math.max(MIN_YEAR, minBoundary.getFullYear()) : MIN_YEAR
+  const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => maxYear - i)
 
   const monthScrollRef = useRef<HTMLDivElement>(null)
   const yearScrollRef = useRef<HTMLDivElement>(null)
@@ -222,7 +223,7 @@ function Calendar({
   return (
     <div
       className={cn(
-        'relative w-[272px] bg-white text-zinc-900 rounded-2xl p-2.5 shadow-[0_14px_30px_-20px_rgba(59,130,246,0.35)] border border-blue-100 font-sans select-none overflow-hidden [-webkit-tap-highlight-color:transparent] [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus]:ring-0 [&_button:focus-visible]:ring-0 [&_button:focus]:shadow-none [&_button:focus-visible]:shadow-none',
+        'relative w-68 bg-white text-zinc-900 rounded-2xl p-2.5 shadow-[0_14px_30px_-20px_rgba(59,130,246,0.35)] border border-blue-100 font-sans select-none overflow-hidden [-webkit-tap-highlight-color:transparent] [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus]:ring-0 [&_button:focus-visible]:ring-0 [&_button:focus]:shadow-none [&_button:focus-visible]:shadow-none',
         className,
       )}
       {...props}
@@ -232,9 +233,12 @@ function Calendar({
           type="button"
           onClick={handlePrevMonth}
           className="p-2 rounded-full hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
-          disabled={view === 'picker'}
+          disabled={view === 'picker' || !canGoPrevMonth}
         >
-          <ChevronLeft size={20} className={cn(view === 'picker' && 'opacity-0')} />
+          <ChevronLeft
+            size={20}
+            className={cn((view === 'picker' || !canGoPrevMonth) && 'opacity-30')}
+          />
         </button>
 
         <button
@@ -256,22 +260,16 @@ function Calendar({
           type="button"
           onClick={handleNextMonth}
           className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
-          disabled={
-            view === 'picker' || normalizeDate(new Date(year, month, 1)) >= currentMonthBoundary
-          }
+          disabled={view === 'picker' || !canGoNextMonth}
         >
           <ChevronRight
             size={20}
-            className={cn(
-              (view === 'picker' ||
-                normalizeDate(new Date(year, month, 1)) >= currentMonthBoundary) &&
-                'opacity-30',
-            )}
+            className={cn((view === 'picker' || !canGoNextMonth) && 'opacity-30')}
           />
         </button>
       </div>
 
-      <div className="h-[228px] relative">
+      <div className="h-57 relative">
         <div
           className={cn(
             'absolute inset-0 transition-all transform',
@@ -286,8 +284,11 @@ function Calendar({
         >
           <div className="flex flex-col h-full">
             <div className="grid grid-cols-7 mb-2">
-              {DAYS.map((day) => (
-                <div key={day} className="text-center text-xs font-semibold text-blue-300 py-1">
+              {DAYS.map((day, index) => (
+                <div
+                  key={`${day}-${index}`}
+                  className="text-center text-xs font-semibold text-blue-300 py-1"
+                >
                   {day}
                 </div>
               ))}
@@ -298,12 +299,12 @@ function Calendar({
                 if (!day) return <div key={`empty-${i}`} />
 
                 const d = new Date(year, month, day)
-                const isFuture = normalizeDate(d) > today
+                const isDisabledDate = isOutsideBounds(d)
                 const isToday = sameDay(d, today)
                 const isSelectedSingle =
-                  mode === 'single' && internalSingle ? sameDay(d, internalSingle) : false
-                const from = mode === 'range' ? internalRange.from : undefined
-                const to = mode === 'range' ? internalRange.to : undefined
+                  mode === 'single' && effectiveSingle ? sameDay(d, effectiveSingle) : false
+                const from = mode === 'range' ? effectiveRange.from : undefined
+                const to = mode === 'range' ? effectiveRange.to : undefined
                 const isRangeStartOnly = Boolean(from && !to && sameDay(d, from))
                 const isRangeEdge = Boolean(from && to && (sameDay(d, from) || sameDay(d, to)))
                 const isRangeMiddle = Boolean(
@@ -318,17 +319,17 @@ function Calendar({
                     <button
                       type="button"
                       onClick={() => handleSelectDate(day)}
-                      disabled={isFuture}
+                      disabled={isDisabledDate}
                       className={cn(
                         'w-9 h-9 flex items-center justify-center rounded-xl text-sm appearance-none transition-colors duration-150 focus:outline-none focus-visible:outline-none focus:ring-0',
-                        isFuture
+                        isDisabledDate
                           ? 'text-zinc-300 cursor-not-allowed'
                           : 'hover:bg-blue-50 hover:text-blue-700 active:scale-95 cursor-pointer',
                         isToday && 'ring-1 ring-blue-200',
                         (isSelectedSingle || isRangeStartOnly || isRangeEdge) &&
                           'bg-blue-50 ring-1 ring-blue-200 text-blue-700 font-bold shadow-sm',
                         isRangeMiddle && 'bg-blue-50/50 text-blue-500 font-semibold',
-                        !isFuture &&
+                        !isDisabledDate &&
                           !isSelectedSingle &&
                           !isRangeStartOnly &&
                           !isRangeEdge &&
@@ -385,42 +386,60 @@ function Calendar({
                     container.scrollTop + PICKER_CONTAINER_HEIGHT / 2 - PICKER_VERTICAL_PADDING
                   const monthIndex = Math.round((centerOffset - PICKER_ITEM_HEIGHT / 2) / step)
                   const clampedMonth = Math.max(0, Math.min(11, monthIndex))
-                  const maxMonthForYear = year === today.getFullYear() ? today.getMonth() : 11
-                  const nextMonth = Math.min(clampedMonth, maxMonthForYear)
+                  const minMonthForYear =
+                    minBoundary && year === minBoundary.getFullYear() ? minBoundary.getMonth() : 0
+                  const maxMonthForYear =
+                    maxBoundary && year === maxBoundary.getFullYear() ? maxBoundary.getMonth() : 11
+                  const nextMonth = Math.max(
+                    minMonthForYear,
+                    Math.min(clampedMonth, maxMonthForYear),
+                  )
 
                   if (nextMonth !== month) {
                     setCurrentDate(new Date(year, nextMonth, 1))
                   }
                 })
               }}
-              className="flex-1 overflow-y-auto py-[120px] scroll-smooth"
+              className="flex-1 overflow-y-auto py-30 scroll-smooth"
               style={{ scrollbarWidth: 'none' }}
             >
               <div className="flex flex-col items-center gap-2">
-                {MONTHS.map((m, index) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setCurrentDate(new Date(year, index, 1))
-                      setView('grid')
-                    }}
-                    disabled={year === today.getFullYear() && index > today.getMonth()}
-                    className={cn(
-                      'h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0',
-                      year === today.getFullYear() &&
-                        index > today.getMonth() &&
-                        'text-zinc-300 cursor-not-allowed',
-                      index === month ? 'text-blue-700 font-bold text-lg' : 'text-blue-300',
-                    )}
-                    style={{
-                      transitionDuration: isPickerScrolling ? '0ms' : `${MOTION_MS.calendarList}ms`,
-                      transitionTimingFunction: MOTION_EASING.smoothOut,
-                    }}
-                  >
-                    {m}
-                  </button>
-                ))}
+                {MONTHS.map((m, index) => {
+                  const beforeMin =
+                    minBoundary &&
+                    (year < minBoundary.getFullYear() ||
+                      (year === minBoundary.getFullYear() && index < minBoundary.getMonth()))
+                  const afterMax =
+                    maxBoundary &&
+                    (year > maxBoundary.getFullYear() ||
+                      (year === maxBoundary.getFullYear() && index > maxBoundary.getMonth()))
+                  const isMonthDisabled = Boolean(beforeMin || afterMax)
+
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setCurrentDate(new Date(year, index, 1))
+                        setView('grid')
+                      }}
+                      disabled={isMonthDisabled}
+                      className={cn(
+                        'h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0',
+                        isMonthDisabled && 'text-zinc-300 cursor-not-allowed',
+                        index === month ? 'text-blue-700 font-bold text-lg' : 'text-blue-300',
+                      )}
+                      style={{
+                        transitionDuration: isPickerScrolling
+                          ? '0ms'
+                          : `${MOTION_MS.calendarList}ms`,
+                        transitionTimingFunction: MOTION_EASING.smoothOut,
+                      }}
+                    >
+                      {m}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -448,19 +467,26 @@ function Calendar({
                   const nextYear = years[clampedIndex]
                   if (!nextYear) return
 
-                  const maxMonthForYear = nextYear === today.getFullYear() ? today.getMonth() : 11
-                  const nextMonth = Math.min(month, maxMonthForYear)
+                  const minMonthForYear =
+                    minBoundary && nextYear === minBoundary.getFullYear()
+                      ? minBoundary.getMonth()
+                      : 0
+                  const maxMonthForYear =
+                    maxBoundary && nextYear === maxBoundary.getFullYear()
+                      ? maxBoundary.getMonth()
+                      : 11
+                  const nextMonth = Math.max(minMonthForYear, Math.min(month, maxMonthForYear))
 
                   if (nextYear !== year || nextMonth !== month) {
                     setCurrentDate(new Date(nextYear, nextMonth, 1))
                   }
                 })
               }}
-              className="flex-1 overflow-y-auto py-[120px] scroll-smooth"
+              className="flex-1 overflow-y-auto py-30 scroll-smooth"
               style={{ scrollbarWidth: 'none' }}
             >
               <div className="flex flex-col items-center gap-2">
-                {years.map((y, _index) => (
+                {years.map((y) => (
                   <button
                     key={y}
                     type="button"

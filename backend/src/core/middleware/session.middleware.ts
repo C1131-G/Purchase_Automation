@@ -15,11 +15,13 @@ export const validateSession: RequestHandler = (
 
   // Basic check: Is there a signed session cookie and does it contain vendor-specific metadata?
   if (!session || !session.sessionId || !session.user) {
-    logger.warn({
-      event: "session_validation_failed",
-      reason: "no_session_or_user",
-      path: req.path,
-    });
+    if (req.path !== "/me") {
+      logger.warn({
+        event: "session_validation_failed",
+        reason: "no_session_or_user",
+        path: req.path,
+      });
+    }
 
     return res.status(401).json({
       success: false,

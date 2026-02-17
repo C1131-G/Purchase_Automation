@@ -1,16 +1,23 @@
-import { type Column, type Table } from '@tanstack/react-table'
+import { type Column, type HeaderContext, type Table } from '@tanstack/react-table'
 
-/**
- * Extracts a human-readable title from a column definition.
- * Handles both string headers and function headers with props.
- */
+// getColumnTitle: Extracts human-readable header text from TanStack Table column definitions.
 export function getColumnTitle<TData>(column: Column<TData, unknown>, table: Table<TData>): string {
   const header = column.columnDef.header
   if (typeof header === 'function') {
     try {
-      const headerElement = header({ column, header: column.columnDef.header, table } as any)
-      if (headerElement && typeof headerElement === 'object' && 'props' in (headerElement as any)) {
-        return (headerElement as any).props.title || column.id
+      const headerRenderer = header as (ctx: Partial<HeaderContext<TData, unknown>>) => unknown
+      const headerElement = headerRenderer({
+        column,
+        table,
+      })
+      if (
+        headerElement &&
+        typeof headerElement === 'object' &&
+        'props' in headerElement &&
+        headerElement.props
+      ) {
+        const props = headerElement.props as { title?: string }
+        return props.title || column.id
       }
     } catch {
       return column.id

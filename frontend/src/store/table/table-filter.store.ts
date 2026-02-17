@@ -1,15 +1,10 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 import { create } from 'zustand'
 
-import { type DateRangeFilter } from '@/components/ui/types/table-filter-types'
+import { type DateRangeFilter } from '@/components/ui/types/table-filter-values'
 
-/**
- * Filter Store Contract:
- * - UI STATE: Manages active filter selection (popovers) and ephemeral drafts.
- * - SYNC: `columnFilters` is a reactive mirror for UI updates (e.g. badges).
- * - CANONICAL: Real filtering logic persists in TanStack/URL params for deep linking.
- */
-interface FilterState {
+// Filter Store: Manages active filter selection (popovers) and ephemeral drafts synchronized with TanStack table state.
+type FilterState = {
   activeFilter: string | null
   columnFilters: ColumnFiltersState
   dateFilterDraft: Record<string, DateRangeFilter | null>
@@ -17,7 +12,7 @@ interface FilterState {
 
 const EMPTY_ARRAY: ColumnFiltersState = []
 
-interface FilterStore {
+type FilterStore = {
   tables: Record<string, FilterState>
   setActiveFilter: (tableId: string, filter: string | null) => void
   setColumnFilters: (tableId: string, filters: ColumnFiltersState) => void

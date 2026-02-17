@@ -1,20 +1,23 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
+import { authQueries } from '@/features/auth/api/auth.queries'
 import { LoginForm } from '@/features/auth/components/LoginForm'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore } from '@/store/auth/auth.store'
 
-/**
- * Login Route Definition.
- *
- * Renders a full-screen, centered authentication page.
- * - Vertical and horizontal centering via Flexbox.
- * - Minimalist slate background for focus.
- */
+// Login Route: Authenticated entryway with flex-centered layout and minimalist slate background.
 export const Route = createFileRoute('/login')({
-  beforeLoad: () => {
+  beforeLoad: async ({ context }) => {
     const { isAuthenticated } = useAuthStore.getState()
     if (isAuthenticated) {
       throw redirect({ to: '/' })
+    }
+
+    try {
+      const user = await context.queryClient.ensureQueryData(authQueries.user())
+      useAuthStore.getState().login(user)
+      throw redirect({ to: '/' })
+    } catch {
+      // no active session; stay on login
     }
   },
   component: LoginComponent,

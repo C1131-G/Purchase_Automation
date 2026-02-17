@@ -1,19 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
+
+import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
+import { arInvoiceSearchSchema } from '@/features/table-pages/ar-invoices/schemas/ar-invoice-search.schema'
+
+const ARInvoiceTable = lazy(() =>
+  import('@/features/table-pages/ar-invoices/components/ar-invoice-table').then((module) => ({
+    default: module.ARInvoiceTable,
+  })),
+)
 
 export const Route = createFileRoute('/_layout/sales/ar-invoice')({
+  validateSearch: (search) => arInvoiceSearchSchema.parse(search),
   component: RouteComponent,
 })
 
 function RouteComponent() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight text-zinc-950 uppercase font-outfit">
-        AR Invoice
-      </h1>
-      <div className="p-20 rounded-[2rem] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-        <p className="font-bold underline uppercase tracking-widest text-xs">Module Ready</p>
-        <p className="text-sm mt-2 font-medium">AR Invoice module will be implemented here.</p>
-      </div>
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <ARInvoiceTable />
+      </Suspense>
     </div>
   )
 }

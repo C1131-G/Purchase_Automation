@@ -43,7 +43,7 @@ export const normalizeColumnFilters = (
       return {
         id: filter.id,
         value: normalizedValue,
-      }
+      } as ColumnFiltersState[number]
     })
     .filter((filter): filter is ColumnFiltersState[number] => filter !== null)
 }

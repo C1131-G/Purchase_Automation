@@ -1,17 +1,10 @@
 import { Loader2 } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '@/utils/cn'
+import type { ButtonProps } from '@/components/ui/types/button.types'
+import { cn } from '@/shared/utils/cn'
 
-import type { ButtonProps } from './types/button.types'
-
-/**
- * Button: Industrial-grade action component.
- * 
- * DESIGN: SAP B1 / Vercel-style sapphire aesthetic with XL radius (2rem/12px).
- * ARCHITECTURE: Compound component pattern with variants/sizes mapping.
- * UI/UX: Integrated loading state with spin micro-animation and active scale feedback.
- */
+// Button: Industrial-grade action component with premium sapphire aesthetics.
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
     { className, variant = 'primary', size = 'md', isLoading, loadingText, children, ...props },

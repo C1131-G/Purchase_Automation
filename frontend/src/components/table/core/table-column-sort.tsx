@@ -1,10 +1,10 @@
 import type { Column, SortingState } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
+import { ArrowUp, ChevronsUpDown } from 'lucide-react'
 import React from 'react'
 
-import { cn } from '@/utils/cn'
+import { cn } from '@/shared/utils/cn'
 
-interface TableColumnSortProps<TData, TValue> extends React.HTMLAttributes<HTMLDivElement> {
+type TableColumnSortProps<TData, TValue> = React.HTMLAttributes<HTMLDivElement> & {
   column: Column<TData, TValue>
   title: string
   sortingState?: SortingState
@@ -24,7 +24,7 @@ export function TableColumnSort<TData, TValue>({
     return (
       <div
         className={cn(
-          'text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-sans',
+          'px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-sans',
           className,
         )}
       >
@@ -36,19 +36,26 @@ export function TableColumnSort<TData, TValue>({
   return (
     <button
       type="button"
-      onClick={column.getToggleSortingHandler()}
+      onClick={() => {
+        const current = column.getIsSorted()
+        if (current === 'asc') {
+          column.clearSorting()
+          return
+        }
+        // Simplified toggle: NONE -> ASC -> NONE
+        column.toggleSorting(false) // false argument ensures 'asc'
+      }}
       className={cn(
-        'group/sort flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer outline-none select-none py-1.5 rounded-lg px-2 -ml-2 hover:text-blue-600 group-hover:text-blue-600',
+        'group/sort inline-flex items-center justify-start gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer outline-none select-none py-1.5 rounded-lg px-2 hover:text-blue-600',
         isSorted ? 'text-blue-600 bg-blue-50/30' : 'text-zinc-600',
         className,
       )}
     >
-      <span className="font-sans whitespace-nowrap">{title}</span>
+      <span className="font-sans whitespace-nowrap truncate">{title}</span>
       <div className="flex items-center justify-center shrink-0">
         {isSorted === 'asc' && <ArrowUp className="size-3.5 stroke-[2.5px]" />}
-        {isSorted === 'desc' && <ArrowDown className="size-3.5 stroke-[2.5px]" />}
         {!isSorted && (
-          <ChevronsUpDown className="size-3.5 text-zinc-300 group-hover/sort:text-blue-500 group-hover:text-blue-400 transition-colors stroke-[2px]" />
+          <ChevronsUpDown className="size-3.5 text-zinc-300 group-hover/sort:text-blue-500 transition-colors stroke-[2px]" />
         )}
       </div>
     </button>

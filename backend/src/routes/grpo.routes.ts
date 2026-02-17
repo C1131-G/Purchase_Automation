@@ -24,7 +24,7 @@ router.get("/po-detail/:id", grpoDal.getPODetail);
 // GET /:id: Fetches full details for a single completed GRPO.
 router.get("/:id", grpoDal.getGRPO);
 
-// POST /: Entry point for creating a new GRPO from a PO. Handles file uploads for proof of delivery.
+// POST /: Entry point for creating a new GRPO from a PO.
 router.post("/", grpoDal.createGRPO);
 
 // PATCH /:id: Updates non-locked fields of an existing GRPO.

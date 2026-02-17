@@ -1,19 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
+
+import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
+import { salesOrderSearchSchema } from '@/features/table-pages/sales-orders/schemas/sales-order-search.schema'
+
+const SalesOrderTable = lazy(() =>
+  import('@/features/table-pages/sales-orders/components/sales-order-table').then((module) => ({
+    default: module.SalesOrderTable,
+  })),
+)
 
 export const Route = createFileRoute('/_layout/sales/orders')({
+  validateSearch: (search) => salesOrderSearchSchema.parse(search),
   component: RouteComponent,
 })
 
 function RouteComponent() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight text-zinc-950 uppercase font-outfit">
-        Sales Orders
-      </h1>
-      <div className="p-20 rounded-[2rem] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-        <p className="font-bold underline uppercase tracking-widest text-xs">Module Ready</p>
-        <p className="text-sm mt-2 font-medium">Sales Orders module will be implemented here.</p>
-      </div>
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <SalesOrderTable />
+      </Suspense>
     </div>
   )
 }

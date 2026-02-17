@@ -2,8 +2,12 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight, PanelLeftIcon } from 'lucide-react'
 import React from 'react'
 
-import { useSetSidebarAction, useSidebarOpen, useToggleSidebarAction } from '@/store/sidebar.store'
-import { cn } from '@/utils/cn'
+import { cn } from '@/shared/utils/cn'
+import {
+  useSetSidebarAction,
+  useSidebarOpen,
+  useToggleSidebarAction,
+} from '@/store/sidebar/sidebar.store'
 
 const SIDEBAR_WIDTH = '16rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
@@ -11,7 +15,7 @@ const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 
 /**
  * Sidebar: Persistent application navigation architecture.
- * 
+ *
  * DESIGN: Multi-state (expanded/collapsed/offcanvas) with industrial fluid transitions.
  * UX: Modern "Control+B" keyboard shortcut and interactive hover highlights.
  * ARCHITECTURE: Composite structure (Header, Content, Menu, Footer) for scalable ERP navigation.
@@ -46,7 +50,7 @@ export function SidebarProvider({
         } as React.CSSProperties
       }
       className={cn(
-        'group/sidebar-wrapper flex min-h-screen w-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]',
+        'group/sidebar-wrapper flex min-h-screen w-full transition-all duration-500 ease-in-out',
         className,
       )}
       {...props}
@@ -70,12 +74,20 @@ export function Sidebar({
 }) {
   const open = useSidebarOpen()
   const state = open ? 'expanded' : 'collapsed'
+  const resolvedWidth =
+    state === 'collapsed'
+      ? collapsible === 'offcanvas'
+        ? '0'
+        : collapsible === 'icon'
+          ? 'var(--sidebar-width-icon)'
+          : 'var(--sidebar-width)'
+      : 'var(--sidebar-width)'
 
   if (collapsible === 'none') {
     return (
       <div
         className={cn(
-          'bg-white border-r border-zinc-100 flex h-full w-[var(--sidebar-width)] flex-col',
+          'bg-white border-r border-zinc-100 flex h-full w-(--sidebar-width) flex-col',
           className,
         )}
         {...props}
@@ -87,35 +99,36 @@ export function Sidebar({
 
   return (
     <div
-      className="group peer hidden md:block"
+      style={
+        {
+          transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          width: resolvedWidth,
+        } as React.CSSProperties
+      }
+      className={cn(
+        'group hidden md:block fixed left-0 top-0 transition-all duration-500 bg-white border-zinc-100 border-r overflow-hidden h-screen z-[120]',
+        state === 'collapsed' && collapsible === 'offcanvas' && 'border-r-0!',
+        className,
+      )}
       data-state={state}
-      data-collapsible={state === 'collapsed' ? collapsible : ''}
+      data-collapsible={collapsible}
       data-variant={variant}
       data-side={side}
+      {...props}
     >
       <div
+        style={
+          {
+            transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            width: 'var(--sidebar-width)',
+          } as React.CSSProperties
+        }
         className={cn(
-          'transition-[width] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] relative w-[var(--sidebar-width)] bg-transparent',
-          'group-data-[collapsible=offcanvas]:w-0',
-          variant === 'floating' || variant === 'inset'
-            ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+1rem)]'
-            : 'group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)]',
+          'flex h-full flex-col transition-opacity duration-200',
+          state === 'collapsed' && collapsible === 'offcanvas' ? 'opacity-0' : 'opacity-100',
         )}
-      />
-      <div
-        className={cn(
-          'fixed inset-y-0 z-10 flex h-screen w-[var(--sidebar-width)] transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] bg-white border-zinc-100',
-          side === 'left' ? 'left-0 border-r' : 'right-0 border-l',
-          state === 'collapsed' &&
-          collapsible === 'offcanvas' &&
-          (side === 'left' ? '-translate-x-full' : 'translate-x-full'),
-          state === 'collapsed' && collapsible === 'icon' && 'w-[var(--sidebar-width-icon)]',
-          variant === 'floating' && 'p-2',
-          className,
-        )}
-        {...props}
       >
-        <div className="flex size-full flex-col">{children}</div>
+        {children}
       </div>
     </div>
   )
@@ -153,7 +166,7 @@ export function SidebarInset({ className, ...props }: React.ComponentProps<'main
   return (
     <main
       className={cn(
-        'bg-zinc-50 relative flex w-full flex-1 flex-col transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]',
+        'bg-zinc-50 relative z-0 flex min-w-0 flex-1 flex-col transition-all duration-500 ease-in-out',
         className,
       )}
       {...props}
@@ -170,7 +183,7 @@ export function SidebarHeader({ className, ...props }: React.ComponentProps<'div
 export function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn('gap-2 p-4 flex flex-col border-t border-zinc-50 mt-auto', className)}
+      className={cn('gap-2 p-4 flex flex-col border-t border-zinc-50 mt-auto w-full', className)}
       {...props}
     />
   )
@@ -315,6 +328,7 @@ export function SidebarMenuSubButton({
 
   return (
     <Link
+      preload="intent"
       className={cn(
         'relative flex w-full items-center text-[13px] py-1.5 text-zinc-400 hover:text-blue-600 transition-all duration-300 text-left cursor-pointer bg-transparent',
         isActive && 'text-blue-600 font-bold',
@@ -326,7 +340,7 @@ export function SidebarMenuSubButton({
       {...props}
     >
       {isActive && (
-        <div className="absolute -left-[17px] top-1/2 -translate-y-1/2 w-[2px] h-4 bg-blue-600 rounded-full animate-in slide-in-from-left-1 duration-300" />
+        <div className="absolute -left-4.25 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-full animate-in slide-in-from-left-1 duration-300" />
       )}
       {children}
     </Link>

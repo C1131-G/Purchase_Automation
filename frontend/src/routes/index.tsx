@@ -1,25 +1,35 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { useAuthStore } from '@/store/auth.store'
+import { authQueries } from '@/features/auth/api/auth.queries'
+import { useAuthStore } from '@/store/auth/auth.store'
 
-/**
- * Root Route Receptionist.
- *
- * Logic:
- * 1. Checks if the user is authenticated.
- * 2. If NO: Redirects to /login (Default Page).
- * 3. If YES: Redirects to /purchase/orders (Dashboard).
- */
+// Entry Receptionist: Analyzes auth state to route users to /login or the /purchase orders dashboard.
 export const Route = createFileRoute('/')({
-  beforeLoad: () => {
+  beforeLoad: async ({ context }) => {
     const { isAuthenticated } = useAuthStore.getState()
 
-    if (!isAuthenticated) {
-      throw redirect({ to: '/login' })
+    if (isAuthenticated) {
+      throw redirect({
+        to: '/purchase/orders',
+        search: {
+          page: 1,
+          limit: 10,
+        },
+      })
     }
 
-    throw redirect({
-      to: '/purchase/orders',
-    })
+    try {
+      const user = await context.queryClient.ensureQueryData(authQueries.user())
+      useAuthStore.getState().login(user)
+      throw redirect({
+        to: '/purchase/orders',
+        search: {
+          page: 1,
+          limit: 10,
+        },
+      })
+    } catch {
+      throw redirect({ to: '/login' })
+    }
   },
 })

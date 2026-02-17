@@ -11,10 +11,6 @@ export interface SAPDocumentLine {
   LineTotal?: number;
 }
 
-export interface SAPAttachmentResult {
-  AbsoluteEntry: number;
-}
-
 export interface SAPDocumentResponse {
   DocNum: number;
   CardCode: string;
@@ -24,7 +20,6 @@ export interface SAPDocumentResponse {
   DocumentStatus: string;
   Comments?: string;
   DocumentLines: SAPDocumentLine[];
-  AttachmentEntry?: number;
   [key: string]: unknown; // For other dynamic fields
 }
 

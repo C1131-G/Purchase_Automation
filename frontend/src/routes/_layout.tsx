@@ -1,13 +1,22 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+import { authQueries } from '@/features/auth/api/auth.queries'
 import { ShellLayout } from '@/features/layout/components/ShellLayout'
+import { useAuthStore } from '@/store/auth/auth.store'
 
-/**
- * Shell: The persistent ERP frame.
- * 
- * ARCHITECTURE: Wraps all module routes in `ShellLayout` (Sidebar + Header).
- * NAVIGATION: Ensures layout-specific UI remains stable during cross-module navigation.
- */
+// Shell Layout: Persistent ERP frame managing stable Sidebar/Header navigation state.
 export const Route = createFileRoute('/_layout')({
+  beforeLoad: async ({ context }) => {
+    const authState = useAuthStore.getState()
+    if (authState.isAuthenticated) return
+
+    try {
+      const user = await context.queryClient.ensureQueryData(authQueries.user())
+      useAuthStore.getState().login(user)
+      return
+    } catch {
+      throw redirect({ to: '/login' })
+    }
+  },
   component: ShellLayout,
 })

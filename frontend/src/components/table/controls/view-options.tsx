@@ -1,5 +1,6 @@
 import { type Table } from '@tanstack/react-table'
 import { RotateCcw, Settings2 } from 'lucide-react'
+import { useId } from 'react'
 
 import { TableColumnOrder } from '@/components/table/controls/column-order'
 import { usePopover } from '@/components/ui/context/popover-context'
@@ -14,13 +15,18 @@ interface TableViewOptionsProps<TData> {
 }
 
 export function TableViewOptions<TData>({ tableId, table, onReset }: TableViewOptionsProps<TData>) {
+  const popoverId = useId()
   return (
     <Popover.Root>
-      <Popover.Trigger className="flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 active:scale-[0.98] normal-case tracking-normal group focus:outline-none cursor-pointer">
+      <Popover.Trigger
+        aria-label="Open table view options"
+        aria-controls={popoverId}
+        className="flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 active:scale-[0.98] normal-case tracking-normal group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:border-blue-300 cursor-pointer"
+      >
         <span>View</span>
         <Settings2 className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1" />
       </Popover.Trigger>
-      <ViewContent tableId={tableId} table={table} onReset={onReset} />
+      <ViewContent tableId={tableId} table={table} onReset={onReset} popoverId={popoverId} />
     </Popover.Root>
   )
 }
@@ -29,10 +35,12 @@ export function TableViewOptions<TData>({ tableId, table, onReset }: TableViewOp
 function ViewContent<TData>({
   tableId,
   table,
+  popoverId,
 }: {
   tableId: string
   table: Table<TData>
   onReset?: (() => void) | undefined
+  popoverId: string
 }) {
   const { setOpen } = usePopover()
   const setOrder = useSetOrderAction()
@@ -62,7 +70,8 @@ function ViewContent<TData>({
 
   return (
     <Popover.Content
-      className="w-[230px] p-0 overflow-hidden border border-zinc-200 rounded-xl shadow-xl"
+      id={popoverId}
+      className="w-57.5 p-0 overflow-hidden border border-zinc-200 rounded-xl shadow-xl"
       align="end"
     >
       <div className="flex flex-col bg-white/95 backdrop-blur-xl">

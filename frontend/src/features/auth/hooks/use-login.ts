@@ -1,16 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
-import { authAPI, type LoginRequest } from '@/api/auth.service'
 import { authKeys } from '@/features/auth/api/auth.queries'
-import { useClearAuthError, useLoginAction, useSetAuthError } from '@/store/auth.store'
+import { authAPI, type LoginRequest } from '@/features/auth/api/auth.service'
+import { useClearAuthError, useLoginAction, useSetAuthError } from '@/store/auth/auth.store'
 
-/**
- * Custom hook to manage the user login mutation.
- *
- * This hook bridges the UI, the backend service, and global state.
- * It uses individual atomic selectors from the auth store for maximum performance.
- */
+// useLogin: Custom hook bridging UI, backend auth API, and global store state.
 export function useLogin() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -21,15 +16,15 @@ export function useLogin() {
   const clearError = useClearAuthError()
 
   return useMutation({
-    /** Triggers the login API call */
+    // mutationFn: Triggers the login API call with credentials.
     mutationFn: (credentials: LoginRequest) => authAPI.login(credentials),
 
-    /** Resets local/global errors when a new attempt begins */
+    // onMutate: Resets local/global errors before new attempt.
     onMutate: () => {
       clearError()
     },
 
-    /** Success Handler: Synchronizes global store, cache, and navigation */
+    // onSuccess: Synchronizes global store, cache, and navigation on success.
     onSuccess: (response) => {
       if (response.success && response.data?.user) {
         // Sync the Zustand store
@@ -45,7 +40,7 @@ export function useLogin() {
       }
     },
 
-    /** Failure Handler: Maps backend errors to the UI state */
+    // onError: Maps backend errors to UI state for user feedback.
     onError: (error: Error) => {
       setError(error.message || 'Authentication failed. Please check your credentials.')
     },

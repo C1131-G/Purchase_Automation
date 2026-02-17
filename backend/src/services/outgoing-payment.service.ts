@@ -7,7 +7,7 @@ import type { PaymentFilters } from "@/dal/types/outgoing-payment.types";
 import { type OutgoingPayment, OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
-import type { SAPAttachmentResult, SAPDocumentResponse } from "@/services/types/sap.types";
+import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Fetches a paginated list of Outgoing Payments from the tenant's HANA database.
 export const getPayments = async (dbName: string, filters: PaymentFilters) => {
@@ -143,11 +143,7 @@ export const getPayment = async (sessionId: string, id: string) => {
 };
 
 // Submits a new vendor payment to SAP. Handles allocation across multiple A/P invoices.
-export const createPayment = async (
-  sessionId: string,
-  payload: Record<string, unknown>,
-  files: Record<string, unknown> = {},
-) => {
+export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
@@ -171,32 +167,6 @@ export const createPayment = async (
         4,
         6,
       )}-${docDate.substring(6, 8)}`;
-    }
-
-    // Process and link payment proof attachments.
-    const uploadedFilesRaw = files?.UploadedFiles;
-    if (uploadedFilesRaw) {
-      const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : [uploadedFilesRaw];
-      logger.info({ msg: "Processing attachments", count: uploadedFiles.length });
-
-      if (uploadedFiles.length > 0) {
-        try {
-          const attachmentResult = (await serviceLayerClient.uploadAttachment(
-            sessionId,
-            uploadedFiles[0],
-          )) as unknown as SAPAttachmentResult;
-          if (attachmentResult?.AbsoluteEntry) {
-            sapPayload.AttachmentEntry = attachmentResult.AbsoluteEntry;
-            logger.info({ msg: "Attachment linked", attachmentEntry: sapPayload.AttachmentEntry });
-          }
-        } catch (attachErr: unknown) {
-          const attachError = attachErr instanceof Error ? attachErr : new Error(String(attachErr));
-          logger.error({
-            msg: "Attachment upload failed, proceeding without attachment",
-            error: attachError.message,
-          });
-        }
-      }
     }
 
     // Execute payment post to VendorPayments endpoint.

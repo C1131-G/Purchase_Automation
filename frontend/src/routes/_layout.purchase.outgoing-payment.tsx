@@ -1,21 +1,28 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
+
+import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
+import { outgoingPaymentSearchSchema } from '@/features/table-pages/outgoing-payment/schemas/outgoing-payment-search.schema'
+
+const OutgoingPaymentTable = lazy(() =>
+  import('@/features/table-pages/outgoing-payment/components/outgoing-payment-table').then(
+    (module) => ({
+      default: module.OutgoingPaymentTable,
+    }),
+  ),
+)
 
 export const Route = createFileRoute('/_layout/purchase/outgoing-payment')({
+  validateSearch: (search) => outgoingPaymentSearchSchema.parse(search),
   component: RouteComponent,
 })
 
 function RouteComponent() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight text-zinc-950 uppercase font-outfit">
-        Outgoing Payment
-      </h1>
-      <div className="p-20 rounded-[2rem] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-        <p className="font-bold underline uppercase tracking-widest text-xs">Module Ready</p>
-        <p className="text-sm mt-2 font-medium">
-          Outgoing Payment module will be implemented here.
-        </p>
-      </div>
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <OutgoingPaymentTable />
+      </Suspense>
     </div>
   )
 }

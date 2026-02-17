@@ -8,6 +8,9 @@ import { logger } from "@/core/logger/pino-logger";
 // It ensures that the client always receives a standardized JSON response and that errors are recorded in the central log.
 export const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const error = err instanceof Error ? err : new Error(String(err));
+  if (res.headersSent) {
+    return _next(error);
+  }
   const statusCode = (error as Error & { statusCode?: number }).statusCode || 500;
   const message = error.message || "Internal Server Error";
   const errorCode = (error as Error & { errorCode?: string }).errorCode || "UNKNOWN_ERROR";
@@ -27,9 +30,25 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
     userId: reqWithSession.session?.user?.id,
   });
 
-  // Security: If a 401 Unauthorized is detected, we explicitly destroy the local Express session to force a clean logout flow on the client side.
+  const isMissingSessionFile =
+    message.includes("ENOENT") &&
+    message.includes("sessions") &&
+    (message.includes(".json") || req.path.startsWith("/api/v1"));
+  if (isMissingSessionFile) {
+    res.clearCookie("vendorportal.sid");
+    return res.status(401).json({
+      success: false,
+      status: 401,
+      message: "Session expired",
+      errorCode: "SESSION_EXPIRED",
+    });
+  }
+
+  // Strict mode: destroy local session immediately on unauthorized responses.
   if (statusCode === 401 && reqWithSession.session) {
     reqWithSession.session.destroy(() => {
+      if (res.headersSent) return;
+      res.clearCookie("vendorportal.sid");
       return res.status(401).json({
         success: false,
         status: 401,

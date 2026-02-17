@@ -1,15 +1,11 @@
 ﻿// A/R Invoice DAL: Handles HTTP requests for A/R Invoice operations.
 
 import type { NextFunction, Request, Response } from "express";
-import formidable from "formidable";
 
-import AppError from "@/core/errors/app-error";
-// Core
 import { logger } from "@/core/logger/pino-logger";
 import type { InvoiceQuery } from "@/dal/types/ar-invoice.types";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
 import { arInvoiceService } from "@/services/ar-invoice.service";
-// Validation
 import {
   CreateInvoiceInputSchema,
   UpdateInvoiceInputSchema,
@@ -57,36 +53,25 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-// Creates a new A/R Invoice in SAP B1. Parses multi-part form data to handle both the JSON payload and any attached files.
+// Creates a new A/R Invoice in SAP B1.
 export const createInvoice = async (req: Request, res: Response, next: NextFunction) => {
-  const form = formidable({ multiples: true, keepExtensions: true });
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
-    try {
-      const { sessionId } = req.session;
-      const payloadRaw = fields.Payload?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing Payload field", 400, "BAD_REQUEST"));
-      }
-      const payload = JSON.parse(payloadRaw);
+  try {
+    const { sessionId } = req.session;
+    const payload = req.body;
 
-      // Zod validation ensures the payload adheres to the required SAP format for A/R Invoices.
-      const validatedPayload = CreateInvoiceInputSchema.parse(payload);
+    // Zod validation ensures the payload adheres to the required SAP format for A/R Invoices.
+    const validatedPayload = CreateInvoiceInputSchema.parse(payload);
 
-      logger.info({ msg: "Creating AR Invoice", customer: validatedPayload.CardCode });
+    logger.info({ msg: "Creating AR Invoice", customer: validatedPayload.CardCode });
 
-      const result = await arInvoiceService.createInvoice(sessionId, validatedPayload, files);
+    const result = await arInvoiceService.createInvoice(sessionId, validatedPayload);
 
-      logger.info({ msg: "A/R Invoice Created", docNum: result.DocNum });
+    logger.info({ msg: "A/R Invoice Created", docNum: result.DocNum });
 
-      res.status(201).json({ success: true, message: result.message, data: result });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(201).json({ success: true, message: result.message, data: result });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Updates an existing A/R Invoice's metadata (primarily comments) via Service Layer PATCH.

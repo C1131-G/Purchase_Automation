@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export interface FieldContextValue {
+export type FieldContextValue = {
   id: string
   errorId: string
   descriptionId: string

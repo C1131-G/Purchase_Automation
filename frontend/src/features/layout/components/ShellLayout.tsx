@@ -1,8 +1,8 @@
 import { Outlet, useLocation } from '@tanstack/react-router'
-import { BadgePercent, Building2, LayoutDashboard, LogOut, ShoppingCart } from 'lucide-react'
+import { BadgePercent, Building2, LayoutDashboard, ShoppingCart } from 'lucide-react'
 import React from 'react'
 
-import { useLogoutAction } from '@/store/auth.store'
+import { Button } from '@/components/ui/button'
 import {
   Sidebar,
   SidebarContent,
@@ -12,24 +12,23 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuCollapsible,
   SidebarMenuItem,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
 } from '@/components/ui/sidebar'
+import { useLogout } from '@/features/auth/hooks/use-logout'
+import { useAuthStore } from '@/store/auth/auth.store'
+import { useSetSidebarAction } from '@/store/sidebar/sidebar.store'
 
-/**
- * ShellLayout Component.
- *
- * Persistent Sidebar & Header Layout.
- * - Manages Accordion Navigation.
- * - Sapphire & White Theme.
- */
+// ShellLayout: Persistent Sidebar & Header Layout with Sapphire & White theme.
 export function ShellLayout() {
   const location = useLocation()
-  const logout = useLogoutAction()
+  const { mutate: logout, isPending: isLoggingOut } = useLogout()
+  const isAuthLoading = useAuthStore((state) => state.isLoading)
+  const setSidebarOpen = useSetSidebarAction()
+  const logoutBusy = isLoggingOut || isAuthLoading
 
   // Accordion Logic: Sync open section with current URL
   const getInitialSection = () => {
@@ -41,8 +40,9 @@ export function ShellLayout() {
 
   const [openSection, setOpenSection] = React.useState<string | null>(getInitialSection())
 
-  /** Toggle logic for unique open state */
+  // handleToggle: Manages unique open state for sidebar sections.
   const handleToggle = (section: string) => {
+    setSidebarOpen(true)
     setOpenSection((prev) => (prev === section ? null : section))
   }
 
@@ -51,17 +51,19 @@ export function ShellLayout() {
       {/* Premium Sapphire White Sidebar */}
       <Sidebar className="border-r border-zinc-100 bg-white" collapsible="offcanvas">
         <SidebarHeader className="p-5 border-zinc-50">
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] cursor-pointer">
-              <Building2 className="size-5" />
-            </div>
-            <div className="flex flex-col group-data-[collapsible=icon]:hidden animate-in fade-in duration-1000">
-              <span className="text-sm font-black uppercase tracking-tight text-zinc-950 leading-tight">
-                Vendor Portal
-              </span>
-              <span className="text-[9px] text-blue-600 font-bold uppercase tracking-[0.2em] leading-none mt-0.5">
-                Industrial Cloud
-              </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)] cursor-pointer">
+                <Building2 className="size-5" />
+              </div>
+              <div className="flex flex-col group-data-[collapsible=icon]:hidden animate-in fade-in duration-1000">
+                <span className="text-sm font-black uppercase tracking-tight text-zinc-950 leading-tight">
+                  Vendor Portal
+                </span>
+                <span className="text-[9px] text-blue-600 font-bold uppercase tracking-[0.2em] leading-none mt-0.5">
+                  Industrial Cloud
+                </span>
+              </div>
             </div>
           </div>
         </SidebarHeader>
@@ -194,13 +196,16 @@ export function ShellLayout() {
         <SidebarFooter className="p-4 border-t border-zinc-50">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
+              <Button
+                type="button"
                 onClick={() => logout()}
-                className="w-full justify-start gap-3 text-zinc-600 hover:text-red-600 hover:bg-red-50 transition-colors group"
+                isLoading={logoutBusy}
+                loadingText="Logging out..."
+                variant="danger"
+                className="h-11 w-full rounded-xl border border-red-200 bg-red-50 text-red-700 normal-case tracking-normal shadow-[0_4px_10px_rgba(248,113,113,0.18)] hover:bg-red-100 focus:ring-red-300/40"
               >
-                <LogOut className="size-4 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-semibold">Logout</span>
-              </SidebarMenuButton>
+                Log out
+              </Button>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>

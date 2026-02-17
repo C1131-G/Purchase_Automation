@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/_layout/purchase/create-order')({
-  component: RouteComponent,
-})
+import { PurchaseOrderCreate } from '@/features/create-pages/purchase-order-create/components/purchase-order-create'
+import { requireActiveSession } from '@/routes/_require-active-session'
 
-function RouteComponent() {
-  return <div>Hello "/_layout/purchase/create-order"!</div>
-}
+export const Route = createFileRoute('/_layout/purchase/create-order')({
+  beforeLoad: async () => {
+    await requireActiveSession()
+  },
+  component: PurchaseOrderCreate,
+})

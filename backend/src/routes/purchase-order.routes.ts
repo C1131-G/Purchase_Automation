@@ -18,7 +18,7 @@ router.get("/", validateQuery(PurchaseOrderQuerySchema), purchaseOrderDal.getPur
 // GET /:id: Fetches full details for a single PO, including line items.
 router.get("/:id", purchaseOrderDal.getPurchaseOrder);
 
-// POST /: Entry point for creating a new PO. Note: Handles form-data for attachments via internal formidable logic in the DAL.
+// POST /: Entry point for creating a new PO.
 router.post("/", purchaseOrderDal.createPurchaseOrder);
 
 // PATCH /:id: Updates an existing draft or open PO.

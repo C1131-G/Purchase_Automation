@@ -1,17 +1,28 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
+
+import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
+import { incomingPaymentSearchSchema } from '@/features/table-pages/incoming-payment/schemas/incoming-payment-search.schema'
+
+const IncomingPaymentTable = lazy(() =>
+  import('@/features/table-pages/incoming-payment/components/incoming-payment-table').then(
+    (module) => ({
+      default: module.IncomingPaymentTable,
+    }),
+  ),
+)
 
 export const Route = createFileRoute('/_layout/sales/incoming-payment')({
-  component: () => (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight text-zinc-950 uppercase font-outfit">
-        Incoming Payment
-      </h1>
-      <div className="p-20 rounded-[2rem] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-        <p className="font-bold underline uppercase tracking-widest text-xs">Module Ready</p>
-        <p className="text-sm mt-2 font-medium">
-          Incoming Payment module will be implemented here.
-        </p>
-      </div>
-    </div>
-  ),
+  validateSearch: (search) => incomingPaymentSearchSchema.parse(search),
+  component: RouteComponent,
 })
+
+function RouteComponent() {
+  return (
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <IncomingPaymentTable />
+      </Suspense>
+    </div>
+  )
+}

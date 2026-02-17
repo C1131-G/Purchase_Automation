@@ -20,11 +20,11 @@ import { Check, GripVertical } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { getColumnTitle } from '@/components/ui/types/table-utils'
+import { cn } from '@/shared/utils/cn'
 import { useSetOrderAction } from '@/store/table/table-order.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
-import { cn } from '@/utils/cn'
 
-interface TableColumnOrderProps<TData> {
+type TableColumnOrderProps<TData> = {
   tableId: string
   table: Table<TData>
   search: string
@@ -139,7 +139,7 @@ export function TableColumnOrder<TData>({
   )
 }
 
-interface SortableItemProps {
+type SortableItemProps = {
   id: string
   title: string
   isVisible: boolean
@@ -158,9 +158,9 @@ function SortableItem({ id, title, isVisible, onToggleVisibility }: SortableItem
     position: 'relative' as const,
   }
 
-  const handleToggleVisibility = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const handleToggleVisibility = (event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
     onToggleVisibility(id)
   }
 

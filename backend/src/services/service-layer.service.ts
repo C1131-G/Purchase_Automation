@@ -14,6 +14,40 @@ class ServiceLayerClient {
   private client: AxiosInstance | null = null;
   // Maps application-internal session IDs to SAP-native cookies and metadata.
   private sessions: Map<string, SLSessionInfo> = new Map();
+  // Stores credentials required for silent SAP re-login on 401.
+  private sessionCredentials: Map<
+    string,
+    { companyDB: string; username: string; password: string }
+  > = new Map();
+  // Prevents concurrent 401 bursts from triggering multiple SAP logins for the same app session.
+  private refreshLocks: Map<string, Promise<void>> = new Map();
+
+  private async loginToSap(companyDB: string, username: string, password: string) {
+    if (!this.client) throw new Error("Service Layer client not initialized");
+
+    const response = await this.client.post("/Login", {
+      CompanyDB: companyDB,
+      UserName: username,
+      Password: password,
+    });
+
+    const cookies: string[] = response.headers["set-cookie"] || [];
+    const sapSessionId = extractSessionId(cookies);
+
+    if (!sapSessionId) {
+      throw new Error("No session ID received from Service Layer");
+    }
+
+    const cookieString = cookies.map((cookie) => cookie.split(";")[0]).join("; ");
+
+    return {
+      sapSessionId,
+      cookies,
+      cookieString,
+      version: (response.data as Record<string, unknown>).Version as string,
+      sessionTimeout: (response.data as Record<string, unknown>).SessionTimeout as number,
+    };
+  }
 
   // Configures the underlying Axios client. In development, SSL verification is often disabled for self-signed SAP containers.
   initialize(serviceLayerURL: string, rejectUnauthorized: boolean = false) {
@@ -29,7 +63,7 @@ class ServiceLayerClient {
 
     // Implements resilient communication. Retries 5xx errors which are common during high-load SAP transactions.
     axiosRetry(this.client, {
-      retries: 3,
+      retries: 2,
       retryDelay: axiosRetry.exponentialDelay,
       retryCondition: (error) => {
         const shouldRetry =
@@ -63,41 +97,36 @@ class ServiceLayerClient {
     if (!this.client) throw new Error("Service Layer client not initialized");
 
     try {
-      const response = await this.client.post("/Login", {
-        CompanyDB: companyDB,
-        UserName: username,
-        Password: password,
-      });
-
-      // Captures the raw set-cookie headers from SAP.
-      const cookies: string[] = response.headers["set-cookie"] || [];
-      const sessionId = extractSessionId(cookies);
-
-      if (!sessionId) {
-        throw new Error("No session ID received from Service Layer");
-      }
-
-      // Concatenates all provided cookies into a single string for subsequent Authorization headers.
-      const cookieString = cookies.map((cookie) => cookie.split(";")[0]).join("; ");
+      const sapLogin = await this.loginToSap(companyDB, username, password);
 
       const sessionInfo: SLSessionInfo = {
-        sessionId,
+        sessionId: sapLogin.sapSessionId,
         companyDB,
         username,
         loginTime: Date.now(),
         lastSapCall: Date.now(),
-        cookies,
-        cookieString,
+        cookies: sapLogin.cookies,
+        cookieString: sapLogin.cookieString,
       };
 
-      this.sessions.set(sessionId, sessionInfo);
+      this.sessions.set(sapLogin.sapSessionId, sessionInfo);
+      this.sessionCredentials.set(sapLogin.sapSessionId, {
+        companyDB,
+        username,
+        password,
+      });
 
-      logger.info({ msg: "Service Layer session created", sessionId, companyDB, username });
+      logger.info({
+        msg: "Service Layer session created",
+        sessionId: sapLogin.sapSessionId,
+        companyDB,
+        username,
+      });
 
       return {
-        sessionId,
-        version: (response.data as Record<string, unknown>).Version as string,
-        sessionTimeout: (response.data as Record<string, unknown>).SessionTimeout as number,
+        sessionId: sapLogin.sapSessionId,
+        version: sapLogin.version,
+        sessionTimeout: sapLogin.sessionTimeout,
       };
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
@@ -118,6 +147,7 @@ class ServiceLayerClient {
     method: string,
     endpoint: string,
     data: unknown = null,
+    allowUnauthorizedRetry: boolean = true,
   ): Promise<T> {
     if (!this.client) throw new Error("Service Layer client not initialized");
 
@@ -132,37 +162,48 @@ class ServiceLayerClient {
     // Slide the inactivity window.
     sessionInfo.lastSapCall = Date.now();
 
+    const requestConfig: AxiosRequestConfig = {
+      method,
+      url: endpoint,
+      headers: {
+        Cookie: sessionInfo.cookieString,
+        "Content-Type": "application/json",
+      },
+    };
+
+    if (data) {
+      requestConfig.data = data;
+    }
+
     try {
-      const config: AxiosRequestConfig = {
-        method,
-        url: endpoint,
-        headers: {
-          Cookie: sessionInfo.cookieString,
-          "Content-Type": "application/json",
-        },
-      };
-
-      if (data) {
-        config.data = data;
-      }
-
-      const response = await this.client(config);
+      const response = await this.client(requestConfig);
       return response.data as T;
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const statusCode = err.response?.status;
         const message = err.response?.data?.error?.message?.value || err.message;
 
-        logger.error({
-          msg: "Service Layer request failed",
-          method,
-          endpoint,
-          status: statusCode,
-          error: message,
-        });
-
-        // If SAP explicitly rejects the session, purge the local cache to force a re-login flow on the next attempt.
+        // 401 recovery mode: one silent re-login + one retry.
         if (statusCode === 401) {
+          if (allowUnauthorizedRetry) {
+            try {
+              await this.refreshSessionAfterUnauthorized(sessionId);
+              const refreshedSession = this.sessions.get(sessionId);
+              if (refreshedSession?.cookieString) {
+                return await this.request<T>(sessionId, method, endpoint, data, false);
+              }
+            } catch (refreshError: unknown) {
+              const refreshMessage =
+                refreshError instanceof Error ? refreshError.message : String(refreshError);
+              logger.warn({
+                msg: "Service Layer silent re-login failed after 401",
+                sessionId,
+                endpoint,
+                error: refreshMessage,
+              });
+            }
+          }
+
           this.destroyLocalSession(sessionId, "SAP 401 Unauthorized");
           const sessionError = new Error("SAP session expired") as SLError;
           sessionError.statusCode = 401;
@@ -209,6 +250,49 @@ class ServiceLayerClient {
       this.sessions.delete(sessionId);
       logger.info({ msg: "Service Layer session destroyed", sessionId, reason });
     }
+    this.sessionCredentials.delete(sessionId);
+  }
+
+  private async refreshSessionAfterUnauthorized(sessionId: string): Promise<void> {
+    const existingRefresh = this.refreshLocks.get(sessionId);
+    if (existingRefresh) {
+      await existingRefresh;
+      return;
+    }
+
+    const refreshPromise = (async () => {
+      const sessionInfo = this.sessions.get(sessionId);
+      const credentials = this.sessionCredentials.get(sessionId);
+
+      if (!sessionInfo || !credentials) {
+        throw new Error("Cannot refresh SAP session: missing local session or credentials");
+      }
+
+      const sapLogin = await this.loginToSap(
+        credentials.companyDB,
+        credentials.username,
+        credentials.password,
+      );
+
+      sessionInfo.sessionId = sapLogin.sapSessionId;
+      sessionInfo.cookies = sapLogin.cookies;
+      sessionInfo.cookieString = sapLogin.cookieString;
+      sessionInfo.loginTime = Date.now();
+      sessionInfo.lastSapCall = Date.now();
+
+      logger.info({
+        msg: "Service Layer session refreshed after 401",
+        sessionId,
+      });
+    })();
+
+    this.refreshLocks.set(sessionId, refreshPromise);
+
+    try {
+      await refreshPromise;
+    } finally {
+      this.refreshLocks.delete(sessionId);
+    }
   }
 
   // Returns the technical details of a managed session.
@@ -219,86 +303,6 @@ class ServiceLayerClient {
   // Verifies if the internal session tracker still contains the provided ID.
   isSessionValid(sessionId: string): boolean {
     return this.sessions.has(sessionId);
-  }
-
-  // Handles binary file uploads. SAP requires a specific multipart/form-data boundary and binary-string encoding.
-  async uploadAttachment(
-    sessionId: string,
-    file: { filepath: string; originalFilename: string; mimetype: string },
-  ): Promise<Record<string, unknown>> {
-    if (!this.client) throw new Error("Service Layer client not initialized");
-
-    const sessionInfo = this.sessions.get(sessionId);
-
-    if (!sessionInfo || !sessionInfo.cookieString) {
-      const error = new Error("Invalid or expired session") as SLError;
-      error.statusCode = 401;
-      throw error;
-    }
-
-    sessionInfo.lastSapCall = Date.now();
-
-    try {
-      const fs = await import("node:fs");
-      const fileBuffer = await fs.promises.readFile(file.filepath);
-
-      // Custom boundary generation to avoid collision with binary content.
-      const boundary = `----WebKitFormBoundary${Math.random().toString(36).substring(2)}`;
-
-      // Constructing raw multipart preamble.
-      const lines = [
-        `--${boundary}`,
-        `Content-Disposition: form-data; name="files"; filename="${file.originalFilename}"`,
-        `Content-Type: ${file.mimetype}`,
-        "",
-        fileBuffer.toString("binary"),
-        `--${boundary}--`,
-        "",
-      ];
-
-      const payloadKey = lines.join("\r\n");
-      // Converts the constructed string back to a Buffer using 'binary' encoding to preserve non-UTF8 characters.
-      const payloadBuffer = Buffer.from(payloadKey, "binary");
-
-      const config: AxiosRequestConfig = {
-        method: "POST",
-        url: "/Attachments2",
-        headers: {
-          Cookie: sessionInfo.cookieString,
-          "Content-Type": `multipart/form-data; boundary=${boundary}`,
-          "Content-Length": payloadBuffer.length,
-        },
-        data: payloadBuffer,
-      };
-
-      const response = await this.client(config);
-      return response.data as Record<string, unknown>;
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const statusCode = err.response?.status;
-        const message = err.response?.data?.error?.message?.value || err.message;
-
-        logger.error({
-          msg: "Attachment upload failed",
-          filename: file.originalFilename,
-          status: statusCode,
-          error: message,
-        });
-
-        if (statusCode === 401) {
-          this.destroyLocalSession(sessionId, "SAP 401 (Upload)");
-          const sessionError = new Error("SAP session expired") as SLError;
-          sessionError.statusCode = 401;
-          sessionError.isSessionExpired = true;
-          throw sessionError;
-        }
-
-        const customErr = new Error(`Failed to upload attachment: ${message}`) as SLError;
-        customErr.statusCode = statusCode || 500;
-        throw customErr;
-      }
-      throw err instanceof Error ? err : new Error(String(err));
-    }
   }
 }
 

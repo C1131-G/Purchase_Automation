@@ -1,0 +1,25 @@
+import { z } from 'zod'
+
+import {
+  grpoListItemSchema,
+  grpoListParamsSchema,
+  grpoListResponseSchema,
+} from '@/features/table-pages/grpo/schemas/grpo-api.schema'
+import { apiClient } from '@/shared/api/client'
+import { toQueryString } from '@/shared/api/query-string'
+
+export type GRPOStatus = z.infer<typeof grpoListItemSchema>['DocStatus']
+
+export type GRPOListItem = z.infer<typeof grpoListItemSchema>
+
+export type GRPOListParams = z.infer<typeof grpoListParamsSchema>
+
+export type GRPOListResponse = z.infer<typeof grpoListResponseSchema>
+
+export const grpoAPI = {
+  getGRPOs: async (params: GRPOListParams) => {
+    const query = toQueryString(params)
+    const path = query ? `/api/v1/grpos?${query}` : '/api/v1/grpos'
+    return apiClient<GRPOListResponse>(path)
+  },
+}

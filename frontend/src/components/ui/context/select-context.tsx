@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react'
 
-export interface SelectContextType {
+export type SelectContextType = {
   open: boolean
   setOpen: (open: boolean) => void
   value: string | undefined

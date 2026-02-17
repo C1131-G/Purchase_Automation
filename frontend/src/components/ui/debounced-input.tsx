@@ -1,9 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 
-interface DebouncedInputProps extends Omit<
-  React.InputHTMLAttributes<HTMLInputElement>,
-  'onChange'
-> {
+type DebouncedInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
   value: string | number
   onChange: (value: string | number) => void
   debounce?: number

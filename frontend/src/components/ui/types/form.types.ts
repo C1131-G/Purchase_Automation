@@ -1,5 +1,5 @@
 import React from 'react'
 
-export interface FormProps extends React.FormHTMLAttributes<HTMLFormElement> {
+export type FormProps = React.FormHTMLAttributes<HTMLFormElement> & {
   errors?: Record<string, string>
 }

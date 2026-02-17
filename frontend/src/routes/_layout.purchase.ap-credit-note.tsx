@@ -1,19 +1,28 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
+
+import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
+import { apCreditNoteSearchSchema } from '@/features/table-pages/ap-credit-note/schemas/ap-credit-note-search.schema'
+
+const APCreditNoteTable = lazy(() =>
+  import('@/features/table-pages/ap-credit-note/components/ap-credit-note-table').then(
+    (module) => ({
+      default: module.APCreditNoteTable,
+    }),
+  ),
+)
 
 export const Route = createFileRoute('/_layout/purchase/ap-credit-note')({
+  validateSearch: (search) => apCreditNoteSearchSchema.parse(search),
   component: RouteComponent,
 })
 
 function RouteComponent() {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight text-zinc-950 uppercase font-outfit">
-        AP Credit Note
-      </h1>
-      <div className="p-20 rounded-[2rem] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-        <p className="font-bold underline uppercase tracking-widest text-xs">Module Ready</p>
-        <p className="text-sm mt-2 font-medium">AP Credit Note module will be implemented here.</p>
-      </div>
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <APCreditNoteTable />
+      </Suspense>
     </div>
   )
 }

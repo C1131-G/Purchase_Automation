@@ -1,5 +1,8 @@
 ﻿// Session Configuration: Persistent login state management using secure, signed cookies.
 
+import fs from "node:fs";
+import path from "node:path";
+
 import type { Application } from "express";
 import session from "express-session";
 import FileStore from "session-file-store";
@@ -15,11 +18,15 @@ export const configureSession = (app: Application) => {
   }
 
   const SessionFileStore = FileStore(session);
+  const sessionPath = path.resolve(process.cwd(), "sessions");
+  if (!fs.existsSync(sessionPath)) {
+    fs.mkdirSync(sessionPath, { recursive: true });
+  }
 
   app.use(
     session({
       store: new SessionFileStore({
-        path: "./sessions",
+        path: sessionPath,
         // Keep server-side session records longer to prevent unintended auto-expiry
         // during active business usage. Session still ends on explicit logout.
         ttl: 60 * 60 * 24 * 30, // 30 days

@@ -1,16 +1,11 @@
 ﻿// Purchase Order DAL: Handles HTTP requests for Purchase Order (PO) operations.
 
 import type { NextFunction, Request, Response } from "express";
-import formidable from "formidable";
 
-import AppError from "@/core/errors/app-error";
-// Core & Utils
 import { logger } from "@/core/logger/pino-logger";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
 import type { PurchaseOrderQuery } from "@/dal/types/purchase-order.types";
-// Services
 import { purchaseOrderService } from "@/services/purchase-order.service";
-// Validation Schemas
 import {
   CreatePurchaseOrderInputSchema,
   UpdatePurchaseOrderInputSchema,
@@ -71,100 +66,58 @@ export const getPurchaseOrder = async (req: Request, res: Response, next: NextFu
   }
 };
 
-// Submits a new Purchase Order to SAP. Handles multi-part forms for the JSON payload and file attachments.
+// Submits a new Purchase Order to SAP.
 export const createPurchaseOrder = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
-  const form = formidable({
-    multiples: true,
-    keepExtensions: true,
-  });
+  try {
+    const { sessionId } = authReq.session;
+    const payload = req.body;
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
+    // Validate the deep object structure against the SAP-compliant Zod schema.
+    const validatedPayload = CreatePurchaseOrderInputSchema.parse(payload);
 
-    try {
-      const { sessionId } = authReq.session;
+    logger.info({ msg: "Creating PO", vendor: validatedPayload.CardCode });
 
-      // formidable v3 wraps all fields in arrays. We extract the first element of 'Payload'.
-      const payloadRaw = fields.Payload?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing Payload field", 400, "BAD_REQUEST"));
-      }
+    const result = await purchaseOrderService.createPurchaseOrder(sessionId, validatedPayload);
 
-      const payload = JSON.parse(payloadRaw);
+    logger.info({ msg: "PO Created", docNum: result.DocNum });
 
-      // Validate the deep object structure against the SAP-compliant Zod schema.
-      const validatedPayload = CreatePurchaseOrderInputSchema.parse(payload);
-
-      logger.info({ msg: "Creating PO", vendor: validatedPayload.CardCode });
-
-      const result = await purchaseOrderService.createPurchaseOrder(
-        sessionId,
-        validatedPayload,
-        files,
-      );
-
-      logger.info({ msg: "PO Created", docNum: result.DocNum });
-
-      res.status(201).json({
-        success: true,
-        message: result.message,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(201).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Updates an existing Purchase Order's non-transactional fields (e.g., Comments).
 export const updatePurchaseOrder = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
-  const form = formidable({
-    multiples: true,
-    keepExtensions: true,
-  });
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+    const payload = req.body;
 
-  form.parse(req, async (err, fields, _files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
+    // Zod validation filters out any fields that SAP doesn't allow in a PATCH request.
+    const validatedPayload = UpdatePurchaseOrderInputSchema.parse(payload);
 
-    try {
-      const { sessionId } = authReq.session;
-      const { id } = authReq.params;
+    logger.info({ msg: "Updating Purchase Order", id });
 
-      // Supports multiple payload field names used historically by different UI versions.
-      const payloadRaw = fields.Payload?.[0] || fields.purchaseOrderData?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing payload field", 400, "BAD_REQUEST"));
-      }
+    const result = await purchaseOrderService.updatePurchaseOrder(
+      sessionId,
+      id as string,
+      validatedPayload,
+    );
 
-      const payload = JSON.parse(payloadRaw);
-
-      // Zod validation filters out any fields that SAP doesn't allow in a PATCH request.
-      const validatedPayload = UpdatePurchaseOrderInputSchema.parse(payload);
-
-      logger.info({ msg: "Updating Purchase Order", id });
-
-      const result = await purchaseOrderService.updatePurchaseOrder(
-        sessionId,
-        id as string,
-        validatedPayload,
-      );
-
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Performs a cancellation operation on the Purchase Order in the SAP Service Layer.

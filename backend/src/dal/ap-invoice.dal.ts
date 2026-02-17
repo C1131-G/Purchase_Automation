@@ -1,16 +1,11 @@
 ﻿// A/P Invoice DAL: Handles HTTP requests for A/P Invoice operations.
 
 import type { NextFunction, Request, Response } from "express";
-import formidable from "formidable";
 
-import AppError from "@/core/errors/app-error";
-// Core
 import { logger } from "@/core/logger/pino-logger";
 import type { InvoiceQuery } from "@/dal/types/ap-invoice.types";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
-// Services
 import { apInvoiceService } from "@/services/ap-invoice.service";
-// Validation
 import {
   CreateInvoiceInputSchema,
   UpdateInvoiceInputSchema,
@@ -60,74 +55,46 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-// Creates a new A/P Invoice in SAP B1. Parses multi-part form data to handle both payload and attachments.
+// Creates a new A/P Invoice in SAP B1.
 export const createInvoice = async (req: Request, res: Response, next: NextFunction) => {
-  const form = formidable({ multiples: true, keepExtensions: true });
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
-    try {
-      const { sessionId } = req.session;
-      const payloadRaw = fields.Payload?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing Payload field", 400, "BAD_REQUEST"));
-      }
-      // Parse the JSON payload from the form field.
-      const payload = JSON.parse(payloadRaw);
+  try {
+    const { sessionId } = req.session;
+    const payload = req.body;
 
-      // Validate the payload against the creation schema.
-      const validatedPayload = CreateInvoiceInputSchema.parse(payload);
+    // Validate the payload against the creation schema.
+    const validatedPayload = CreateInvoiceInputSchema.parse(payload);
 
-      logger.info({ msg: "Creating AP Invoice", vendor: validatedPayload.CardCode });
+    logger.info({ msg: "Creating AP Invoice", vendor: validatedPayload.CardCode });
 
-      // Pass the validated data and file objects to the service for processing.
-      const result = await apInvoiceService.createInvoice(sessionId, validatedPayload, files);
+    const result = await apInvoiceService.createInvoice(sessionId, validatedPayload);
 
-      logger.info({ msg: "A/P Invoice Created", docNum: result.DocNum });
+    logger.info({ msg: "A/P Invoice Created", docNum: result.DocNum });
 
-      res.status(201).json({ success: true, message: result.message, data: result });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(201).json({ success: true, message: result.message, data: result });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Updates an existing A/P Invoice (typically comments). Handled via Service Layer PATCH.
 export const updateInvoice = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
-  const form = formidable({ multiples: true, keepExtensions: true });
-  form.parse(req, async (err, fields, _files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
-    try {
-      const { sessionId } = authReq.session;
-      const { id } = authReq.params;
-      const payloadRaw = fields.Payload?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing payload field", 400, "BAD_REQUEST"));
-      }
-      const payload = JSON.parse(payloadRaw);
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+    const payload = req.body;
 
-      // Zod Body Validation ensures only allowed fields are passed to SAP.
-      const validatedPayload = UpdateInvoiceInputSchema.parse(payload);
+    // Zod Body Validation ensures only allowed fields are passed to SAP.
+    const validatedPayload = UpdateInvoiceInputSchema.parse(payload);
 
-      logger.info({ msg: "Updating A/P Invoice", id: id as string });
+    logger.info({ msg: "Updating A/P Invoice", id: id as string });
 
-      const result = await apInvoiceService.updateInvoice(
-        sessionId,
-        id as string,
-        validatedPayload,
-      );
+    const result = await apInvoiceService.updateInvoice(sessionId, id as string, validatedPayload);
 
-      res.status(200).json({ success: true, message: result.message });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Flags an A/P Invoice as cancelled in SAP B1.

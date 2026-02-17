@@ -1,16 +1,9 @@
 import React from 'react'
 
-import { cn } from '@/utils/cn'
+import type { InputProps } from '@/components/ui/types/input.types'
+import { cn } from '@/shared/utils/cn'
 
-import type { InputProps } from './types/input.types'
-
-/**
- * Input: High-precision data entry field.
- * 
- * DESIGN: Subdued zinc-50 background with sapphire-600 focus ring.
- * ARCHITECTURE: Forwards refs for TanStack Form / react-hook-form integration.
- * ACCESSIBILITY: Automatic ID generation handles label/input pairing if `id` is omitted.
- */
+// Input: High-precision data entry field with sapphire-600 focus states.
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, id, name, ...props }, ref) => {
     const autoId = React.useId()

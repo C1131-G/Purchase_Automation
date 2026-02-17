@@ -8,11 +8,7 @@ import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { type SalesOrder, SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
-import type {
-  SAPAttachmentResult,
-  SAPDocumentLine,
-  SAPDocumentResponse,
-} from "@/services/types/sap.types";
+import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Fetches a filtered and paginated list of Sales Orders from the tenant-specific HANA database.
 export const getSalesOrders = async (dbName: string, filters: SalesOrderFilters) => {
@@ -162,15 +158,12 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
 };
 
 // Posts a new Sales Order to the Service Layer using the /Orders endpoint.
-export const createSalesOrder = async (
-  sessionId: string,
-  payload: Record<string, unknown>,
-  files: Record<string, unknown> = {},
-) => {
+export const createSalesOrder = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
+      DocDueDate: payload.DocDueDate,
       Comments: payload.Comments,
       Address: payload.Address,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((line) => ({
@@ -191,31 +184,12 @@ export const createSalesOrder = async (
         6,
       )}-${docDate.substring(6, 8)}`;
     }
-
-    // Orchestrates attachment upload if files are present in the multipart request.
-    const uploadedFilesRaw = files?.UploadedFiles;
-    if (uploadedFilesRaw) {
-      const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : [uploadedFilesRaw];
-      logger.info({ msg: "Processing attachments", count: uploadedFiles.length });
-
-      if (uploadedFiles.length > 0) {
-        try {
-          const attachmentResult = (await serviceLayerClient.uploadAttachment(
-            sessionId,
-            uploadedFiles[0],
-          )) as unknown as SAPAttachmentResult;
-          if (attachmentResult?.AbsoluteEntry) {
-            sapPayload.AttachmentEntry = attachmentResult.AbsoluteEntry;
-            logger.info({ msg: "Attachment linked", attachmentEntry: sapPayload.AttachmentEntry });
-          }
-        } catch (attachErr: unknown) {
-          const attachError = attachErr instanceof Error ? attachErr : new Error(String(attachErr));
-          logger.error({
-            msg: "Attachment upload failed, proceeding without attachment",
-            error: attachError.message,
-          });
-        }
-      }
+    const docDueDate = sapPayload.DocDueDate as string;
+    if (docDueDate && docDueDate.length === 8) {
+      sapPayload.DocDueDate = `${docDueDate.substring(0, 4)}-${docDueDate.substring(
+        4,
+        6,
+      )}-${docDueDate.substring(6, 8)}`;
     }
 
     const result = (await serviceLayerClient.request(

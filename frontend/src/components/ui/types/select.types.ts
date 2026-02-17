@@ -1,6 +1,6 @@
 import React from 'react'
 
-export interface SelectRootProps {
+export type SelectRootProps = {
   children: React.ReactNode
   value?: string | undefined
   defaultValue?: string | undefined

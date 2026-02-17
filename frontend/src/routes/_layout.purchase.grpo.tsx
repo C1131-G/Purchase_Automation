@@ -1,15 +1,26 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
+
+import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
+import { grpoSearchSchema } from '@/features/table-pages/grpo/schemas/grpo-search.schema'
+
+const GRPOTable = lazy(() =>
+  import('@/features/table-pages/grpo/components/grpo-table').then((module) => ({
+    default: module.GRPOTable,
+  })),
+)
 
 export const Route = createFileRoute('/_layout/purchase/grpo')({
-  component: () => (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight text-zinc-950 uppercase font-outfit">
-        Goods Receipt PO (GRPO)
-      </h1>
-      <div className="p-20 rounded-[2rem] border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-400">
-        <p className="font-bold underline uppercase tracking-widest text-xs">Module Ready</p>
-        <p className="text-sm mt-2 font-medium">GRPO module will be implemented here.</p>
-      </div>
-    </div>
-  ),
+  validateSearch: (search) => grpoSearchSchema.parse(search),
+  component: RouteComponent,
 })
+
+function RouteComponent() {
+  return (
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <GRPOTable />
+      </Suspense>
+    </div>
+  )
+}

@@ -7,11 +7,7 @@ import type { InvoiceFilters } from "@/dal/types/ar-invoice.types";
 import { type ARInvoice, ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
-import type {
-  SAPAttachmentResult,
-  SAPDocumentLine,
-  SAPDocumentResponse,
-} from "@/services/types/sap.types";
+import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Fetches a paginated list of A/R Invoices from HANA with dynamic filtering support.
 export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
@@ -173,11 +169,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
 };
 
 // Creates a new Sales Invoice (A/R Invoice) in SAP B1.
-export const createInvoice = async (
-  sessionId: string,
-  payload: Record<string, unknown>,
-  files: Record<string, unknown> = {},
-) => {
+export const createInvoice = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     // Map input payload to the canonical SAP Service Layer JSON structure.
     const sapPayload: Record<string, unknown> = {
@@ -200,33 +192,6 @@ export const createInvoice = async (
         4,
         6,
       )}-${docDate.substring(6, 8)}`;
-    }
-
-    // Upload and link file attachments using SAP's internal AbsoluteEntry ID.
-    const uploadedFilesRaw = files?.UploadedFiles;
-    if (uploadedFilesRaw) {
-      const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : [uploadedFilesRaw];
-      logger.info({ msg: "Processing attachments", count: uploadedFiles.length });
-
-      if (uploadedFiles.length > 0) {
-        try {
-          const attachmentResult = (await serviceLayerClient.uploadAttachment(
-            sessionId,
-            uploadedFiles[0],
-          )) as unknown as SAPAttachmentResult;
-          if (attachmentResult?.AbsoluteEntry) {
-            sapPayload.AttachmentEntry = attachmentResult.AbsoluteEntry;
-            logger.info({ msg: "Attachment linked", attachmentEntry: sapPayload.AttachmentEntry });
-          }
-        } catch (attachErr: unknown) {
-          // Failure to upload attachment doesn't halt the main transaction.
-          const attachError = attachErr instanceof Error ? attachErr : new Error(String(attachErr));
-          logger.error({
-            msg: "Attachment upload failed, proceeding without attachment",
-            error: attachError.message,
-          });
-        }
-      }
     }
 
     // Submit POST request to SAP for invoice creation.

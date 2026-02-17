@@ -1,16 +1,11 @@
 ﻿// A/P Credit Note DAL: Manages HTTP requests for A/P Credit Note operations.
 
 import type { NextFunction, Request, Response } from "express";
-import formidable from "formidable";
 
-import AppError from "@/core/errors/app-error";
-// Core
 import { logger } from "@/core/logger/pino-logger";
 import type { CreditNoteQuery } from "@/dal/types/ap-credit-note.types";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
-// Services
 import { apCreditNoteService } from "@/services/ap-credit-note.service";
-// Validation
 import {
   CreateCreditNoteInputSchema,
   UpdateCreditNoteInputSchema,
@@ -63,72 +58,50 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-// Handles the creation of a new A/P Credit Note in SAP B1. Parses form data for payload and possible file uploads.
+// Handles the creation of a new A/P Credit Note in SAP B1.
 export const createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
-  const form = formidable({ multiples: true, keepExtensions: true });
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
-    try {
-      const { sessionId } = req.session;
-      const payloadRaw = fields.Payload?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing Payload field", 400, "BAD_REQUEST"));
-      }
-      const payload = JSON.parse(payloadRaw);
+  try {
+    const { sessionId } = req.session;
+    const payload = req.body;
 
-      // Zod Body Validation ensures the payload strictly follows the SAP creation requirements.
-      const validatedPayload = CreateCreditNoteInputSchema.parse(payload);
+    // Zod Body Validation ensures the payload strictly follows the SAP creation requirements.
+    const validatedPayload = CreateCreditNoteInputSchema.parse(payload);
 
-      logger.info({ msg: "Creating AP Credit Note", vendor: validatedPayload.CardCode });
+    logger.info({ msg: "Creating AP Credit Note", vendor: validatedPayload.CardCode });
 
-      const result = await apCreditNoteService.createCreditNote(sessionId, validatedPayload, files);
+    const result = await apCreditNoteService.createCreditNote(sessionId, validatedPayload);
 
-      logger.info({ msg: "A/P Credit Note Created", docNum: result.DocNum });
+    logger.info({ msg: "A/P Credit Note Created", docNum: result.DocNum });
 
-      res.status(201).json({ success: true, message: result.message, data: result });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(201).json({ success: true, message: result.message, data: result });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Updates an existing A/P Credit Note's metadata (e.g., comments) via Service Layer PATCH.
 export const updateCreditNote = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
-  const form = formidable({ multiples: true, keepExtensions: true });
-  form.parse(req, async (err, fields, _files) => {
-    if (err) {
-      logger.error({ msg: "Form parsing failed", error: err.message });
-      return next(new AppError("Failed to parse form data", 400, "BAD_REQUEST"));
-    }
-    try {
-      const { sessionId } = authReq.session;
-      const { id } = authReq.params;
-      const payloadRaw = fields.Payload?.[0];
-      if (!payloadRaw) {
-        return next(new AppError("Missing payload field", 400, "BAD_REQUEST"));
-      }
-      const payload = JSON.parse(payloadRaw);
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+    const payload = req.body;
 
-      // Zod validation ensures no unexpected fields are sent to SAP during update.
-      const validatedPayload = UpdateCreditNoteInputSchema.parse(payload);
+    // Zod validation ensures no unexpected fields are sent to SAP during update.
+    const validatedPayload = UpdateCreditNoteInputSchema.parse(payload);
 
-      logger.info({ msg: "Updating A/P Credit Note", id });
+    logger.info({ msg: "Updating A/P Credit Note", id });
 
-      const result = await apCreditNoteService.updateCreditNote(
-        sessionId,
-        id as string,
-        validatedPayload,
-      );
+    const result = await apCreditNoteService.updateCreditNote(
+      sessionId,
+      id as string,
+      validatedPayload,
+    );
 
-      res.status(200).json({ success: true, message: result.message });
-    } catch (error) {
-      next(error);
-    }
-  });
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Cancels an A/P Credit Note in SAP B1.

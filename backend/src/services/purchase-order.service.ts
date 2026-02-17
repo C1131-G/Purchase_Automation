@@ -9,11 +9,7 @@ import type { PurchaseOrderFilters } from "@/dal/types/purchase-order.types";
 import { type PurchaseOrder, PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
-import type {
-  SAPAttachmentResult,
-  SAPDocumentLine,
-  SAPDocumentResponse,
-} from "@/services/types/sap.types";
+import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFilters) => {
@@ -168,11 +164,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
 };
 
 // Submits a new Purchase Order to SAP B1.
-export const createPurchaseOrder = async (
-  sessionId: string,
-  payload: Record<string, unknown>,
-  files: Record<string, unknown> = {},
-) => {
+export const createPurchaseOrder = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
@@ -204,32 +196,6 @@ export const createPurchaseOrder = async (
         4,
         6,
       )}-${docDueDate.substring(6, 8)}`;
-    }
-
-    // Process and link attachments to the PO header.
-    const uploadedFilesRaw = files?.UploadedFiles;
-    if (uploadedFilesRaw) {
-      const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : [uploadedFilesRaw];
-      logger.info({ msg: "Processing attachments", count: uploadedFiles.length });
-
-      if (uploadedFiles.length > 0) {
-        try {
-          const attachmentResult = (await serviceLayerClient.uploadAttachment(
-            sessionId,
-            uploadedFiles[0],
-          )) as unknown as SAPAttachmentResult;
-          if (attachmentResult?.AbsoluteEntry) {
-            sapPayload.AttachmentEntry = attachmentResult.AbsoluteEntry;
-            logger.info({ msg: "Attachment linked", attachmentEntry: sapPayload.AttachmentEntry });
-          }
-        } catch (attachErr: unknown) {
-          const attachError = attachErr instanceof Error ? attachErr : new Error(String(attachErr));
-          logger.error({
-            msg: "Attachment upload failed, proceeding without attachment",
-            error: attachError.message,
-          });
-        }
-      }
     }
 
     const result = (await serviceLayerClient.request(

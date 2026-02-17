@@ -7,11 +7,7 @@ import type { CreditNoteFilters } from "@/dal/types/ap-credit-note.types";
 import { APCreditNote, APCreditNoteSchema } from "@/db/schemas/ap-credit-note.schema";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
-import type {
-  SAPAttachmentResult,
-  SAPDocumentLine,
-  SAPDocumentResponse,
-} from "@/services/types/sap.types";
+import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Fetches a paginated list of A/P Credit Notes from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
@@ -160,12 +156,8 @@ export const getCreditNote = async (sessionId: string, id: string) => {
   }
 };
 
-// Creates a formal A/P Credit Note in SAP. Handles payload conversion and file attachments.
-export const createCreditNote = async (
-  sessionId: string,
-  payload: Record<string, unknown>,
-  files: Record<string, unknown> = {},
-) => {
+// Creates a formal A/P Credit Note in SAP. Handles payload conversion.
+export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     // Construct the SAP Service Layer compatible payload.
     const sapPayload: Record<string, unknown> = {
@@ -188,33 +180,6 @@ export const createCreditNote = async (
         4,
         6,
       )}-${docDate.substring(6, 8)}`;
-    }
-
-    // Process file attachments through the Service Layer's Attachment service.
-    const uploadedFilesRaw = files?.UploadedFiles;
-    if (uploadedFilesRaw) {
-      const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : [uploadedFilesRaw];
-      logger.info({ msg: "Processing attachments", count: uploadedFiles.length });
-
-      if (uploadedFiles.length > 0) {
-        try {
-          const attachmentResult = (await serviceLayerClient.uploadAttachment(
-            sessionId,
-            uploadedFiles[0],
-          )) as unknown as SAPAttachmentResult;
-          if (attachmentResult?.AbsoluteEntry) {
-            sapPayload.AttachmentEntry = attachmentResult.AbsoluteEntry;
-            logger.info({ msg: "Attachment linked", attachmentEntry: sapPayload.AttachmentEntry });
-          }
-        } catch (attachErr: unknown) {
-          // If attachment fails, log it but don't prevent credit note creation.
-          const attachError = attachErr instanceof Error ? attachErr : new Error(String(attachErr));
-          logger.error({
-            msg: "Attachment upload failed, proceeding without attachment",
-            error: attachError.message,
-          });
-        }
-      }
     }
 
     // Submit the credit note to SAP.

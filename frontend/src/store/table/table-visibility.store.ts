@@ -1,25 +1,19 @@
 import { create } from 'zustand'
 
-/**
- * Visibility Store Contract:
- * - UI CACHE: Tracks which columns are toggled 'off' by the user.
- * - SYNC: Bridges TanStack `columnVisibility` state with persistent URL storage.
- * - ARCHITECTURE: Atomic updates per tableId prevent global side-effects.
- */
+import { type Updater } from '@/store/table/table-store.types'
 
-interface VisibilityStore {
-  tables: Record<string, Record<string, boolean>>
-  initVisibility: (tableId: string, visibility: Record<string, boolean>) => void
-  setVisibility: (
-    tableId: string,
-    visibility:
-      | Record<string, boolean>
-      | ((prev: Record<string, boolean>) => Record<string, boolean>),
-  ) => void
+// Visibility Store: Tracks column visibility toggles synchronized with persistent URL storage.
+
+type TableVisibility = Record<string, boolean>
+
+type VisibilityStore = {
+  tables: Record<string, TableVisibility>
+  initVisibility: (tableId: string, visibility: TableVisibility) => void
+  setVisibility: (tableId: string, visibility: Updater<TableVisibility>) => void
   resetVisibility: (tableId: string) => void
 }
 
-const EMPTY_OBJECT: Record<string, boolean> = {}
+const EMPTY_OBJECT: TableVisibility = {}
 
 export const useTableVisibilityStore = create<VisibilityStore>((set) => ({
   tables: {},

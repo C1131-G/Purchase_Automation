@@ -1,16 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
 
 import { PopoverContext, usePopover } from '@/components/ui/context/popover-context'
-import { cn } from '@/utils/cn'
-import { MOTION_EASING, MOTION_MS } from '@/utils/motion'
+import { cn } from '@/shared/utils/cn'
+import { MOTION_EASING, MOTION_MS } from '@/shared/utils/motion'
 
-/**
- * Popover: Floating industrial utility container.
- * 
- * DESIGN: High-elevation shadow (XL) with a subtle zinc-100 border.
- * LOGIC: Context-driven visibility with dedicated entry/exit animation timings.
- * UX: Automatic "click outside" dismissal and precise alignment (start/center/end).
- */
+// Popover: Floating industrial utility container with high-elevation XL shadows.
 export function PopoverRoot({
   children,
   defaultOpen = false,
@@ -21,6 +15,8 @@ export function PopoverRoot({
   const [open, setOpen] = useState(defaultOpen)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const contentId = React.useId()
+  const previousOpenRef = useRef(open)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,14 +32,33 @@ export function PopoverRoot({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open])
 
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (!open) return
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setOpen(false)
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [open])
+
+  useEffect(() => {
+    // Return focus to trigger when popover closes for keyboard/screen-reader users.
+    if (previousOpenRef.current && !open) {
+      triggerRef.current?.focus()
+    }
+    previousOpenRef.current = open
+  }, [open])
+
   return (
-    <PopoverContext.Provider value={{ open, setOpen, triggerRef, contentRef }}>
+    <PopoverContext.Provider value={{ open, setOpen, triggerRef, contentRef, contentId }}>
       <div className="relative inline-block">{children}</div>
     </PopoverContext.Provider>
   )
 }
 
-export interface PopoverTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export type PopoverTriggerProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   asChild?: boolean
 }
 
@@ -53,16 +68,24 @@ export function PopoverTrigger({
   asChild = false,
   ...props
 }: PopoverTriggerProps) {
-  const { open, setOpen, triggerRef } = usePopover()
+  const { open, setOpen, triggerRef, contentId } = usePopover()
+
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    if (e.defaultPrevented) return
+    setOpen(!open)
+  }
 
   if (asChild && React.isValidElement(children)) {
-    const childrenProps = children.props as any
-    return React.cloneElement(children as React.ReactElement<any>, {
-      ref: triggerRef,
+    const childrenElement = children as React.ReactElement
+    const childrenProps = childrenElement.props as { onClick?: (e: React.MouseEvent) => void }
+    return React.cloneElement(childrenElement, {
+      // ref: triggerRef, // Removed as per instruction "Avoid accessing `ref` during `cloneElement`"
+      'aria-expanded': open,
+      'aria-haspopup': 'true', // Changed from 'dialog' to 'true' as per snippet
+      'aria-controls': contentId,
       onClick: (e: React.MouseEvent) => {
         childrenProps.onClick?.(e)
-        if (e.defaultPrevented) return
-        setOpen(!open)
+        handleTriggerClick(e)
       },
       ...props,
     })
@@ -72,10 +95,10 @@ export function PopoverTrigger({
     <button
       ref={triggerRef}
       type="button"
-      onClick={(e) => {
-        if (e.defaultPrevented) return
-        setOpen(!open)
-      }}
+      aria-expanded={open}
+      aria-haspopup="true" // Changed from 'dialog' to 'true' as per snippet
+      aria-controls={contentId}
+      onClick={handleTriggerClick}
       className={cn('active:scale-[0.95] transition-transform', className)}
       {...props}
     >
@@ -90,26 +113,34 @@ export function PopoverContent({
   side = 'bottom',
   align = 'end',
   unstyled = false,
+  id,
 }: {
   children: React.ReactNode
   className?: string
   side?: 'top' | 'bottom'
   align?: 'start' | 'center' | 'end'
   unstyled?: boolean
+  id?: string
 }) {
-  const { open, contentRef } = usePopover()
+  const { open, contentRef, contentId } = usePopover()
   const [isVisible, setIsVisible] = React.useState(false) // Controls render
   const [isAnimating, setIsAnimating] = React.useState(false) // Controls class
 
+  if (open && !isVisible) {
+    setIsVisible(true)
+  }
+
+  if (!open && isAnimating) {
+    setIsAnimating(false)
+  }
+
   useEffect(() => {
     if (open) {
-      setIsVisible(true)
       // Double RAF for smoother entry
       requestAnimationFrame(() => {
         requestAnimationFrame(() => setIsAnimating(true))
       })
     } else {
-      setIsAnimating(false)
       // Slightly faster close for snappier feel
       const timer = setTimeout(() => setIsVisible(false), MOTION_MS.popoverExit)
       return () => clearTimeout(timer)
@@ -121,9 +152,12 @@ export function PopoverContent({
   return (
     <div
       ref={contentRef}
+      id={id ?? contentId}
+      role="dialog"
+      aria-modal="false"
       data-popover-content
       className={cn(
-        'absolute z-[999] pointer-events-auto',
+        'absolute z-999 pointer-events-auto',
         // Smooth, industry-standard easing with faster close
         'transition-all ease-out',
         isAnimating
@@ -143,7 +177,7 @@ export function PopoverContent({
       {unstyled ? (
         children
       ) : (
-        <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-[200px]">
+        <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-50">
           {children}
         </div>
       )}
@@ -151,6 +185,7 @@ export function PopoverContent({
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const Popover = {
   Root: PopoverRoot,
   Trigger: PopoverTrigger,

@@ -13,8 +13,32 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { dbName } = authReq.user;
-    logger.info({ msg: "Fetching products", dbName });
-    const data = await masterDataService.getProducts(dbName);
+    const warehouseCode =
+      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const limit =
+      typeof req.query.limit === "string" && req.query.limit.trim() !== ""
+        ? Number(req.query.limit)
+        : undefined;
+    logger.info({ msg: "Fetching products", dbName, warehouseCode, search, limit });
+    const data = await masterDataService.getProducts(dbName, warehouseCode, search, limit);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getProductWarehouseStocks = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const itemCode = typeof req.query.itemCode === "string" ? req.query.itemCode : "";
+    logger.info({ msg: "Fetching product warehouse stocks", dbName, itemCode });
+    const data = await masterDataService.getProductWarehouseStocks(dbName, itemCode);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
@@ -88,6 +112,7 @@ export const getWarehouses = async (req: Request, res: Response, next: NextFunct
 
 export const masterDataDal = {
   getProducts,
+  getProductWarehouseStocks,
   getVendors,
   getCustomers,
   getTaxCodes,

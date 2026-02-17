@@ -10,6 +10,9 @@ export type Item = {
   ItemName: string; // Product description.
   SalUnitMsr?: string; // Standard unit of measurement (e.g., 'Each', 'Box').
   AvgPrice?: number; // Calculated average cost from SAP for inventory valuation.
+  LastPurCur?: string; // Item master purchase currency.
+  VatGroupPu?: string; // Purchase tax group code.
+  VatGourpSa?: string; // Sales tax group code fallback.
   DfltWH?: string; // Default warehouse where this item is normally stored.
   frozenFor?: string; // 'Y' if the item is inactive.
 };
@@ -31,6 +34,24 @@ export const ItemSchema = new EntitySchema<Item>({
       precision: 19,
       scale: 6,
       name: "AvgPrice",
+      nullable: true,
+    },
+    LastPurCur: {
+      type: "nvarchar" as HANAColumnType,
+      length: 3,
+      name: "LastPurCur",
+      nullable: true,
+    },
+    VatGroupPu: {
+      type: "nvarchar" as HANAColumnType,
+      length: 8,
+      name: "VatGroupPu",
+      nullable: true,
+    },
+    VatGourpSa: {
+      type: "nvarchar" as HANAColumnType,
+      length: 8,
+      name: "VatGourpSa",
       nullable: true,
     },
     DfltWH: { type: "nvarchar" as HANAColumnType, length: 50, name: "DfltWH", nullable: true },

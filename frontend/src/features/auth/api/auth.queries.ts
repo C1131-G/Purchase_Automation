@@ -1,46 +1,36 @@
 import { queryOptions } from '@tanstack/react-query'
 
-import { authAPI, OrganizationsAPI } from '@/api/auth.service'
+import { authAPI, OrganizationsAPI } from '@/features/auth/api/auth.service'
+import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
 
-/**
- * Centralized Query Key Registry.
- * Follows a hierarchical structure to allow for tactical cache invalidation.
- */
+// authKeys: Centralized query key registry for tactical cache invalidation.
 export const authKeys = {
-  /** Root key for all authentication-related state */
+  // Root key for all authentication-related state.
   all: ['auth'] as const,
-  /** Specific key for the list of available organizations */
+  // organization: Specific key for available organizations list.
   organization: () => [...authKeys.all, 'organization'] as const,
-  /** Specific key for the logged-in user profile */
+  // user: Specific key for logged-in user profile.
   user: () => [...authKeys.all, 'user'] as const,
 }
 
-/**
- * Auth Query Factory.
- * Provides reusable query options for fetching and caching authentication data.
- */
+// authQueries: Reusable query options for fetching/caching authentication data.
 export const authQueries = {
-  /**
-   * Fetches the organization list.
-   * Optimized for static data: Cached for 24 hours.
-   */
+  // organization: Fetches list (Cached for 24 hours).
   organization: () =>
     queryOptions({
       queryKey: authKeys.organization(),
       queryFn: () => OrganizationsAPI.getAll().then((res) => res.data),
-      staleTime: 1000 * 60 * 60 * 24, // 24 hours
-      gcTime: 1000 * 60 * 60 * 24 + 1000 * 60 * 10, // 24 hours + 10 mins
+      staleTime: QUERY_CACHE_POLICY.authOrganization.staleTime,
+      gcTime: QUERY_CACHE_POLICY.authOrganization.gcTime,
     }),
 
-  /**
-   * Fetches the current user profile.
-   * Balanced for session security: Stays fresh for 30 minutes.
-   */
+  // user: Fetches user profile (Fresh for 30 minutes).
   user: () =>
     queryOptions({
       queryKey: authKeys.user(),
       queryFn: () => authAPI.getMe().then((res) => res.data.user),
-      staleTime: 1000 * 60 * 30, // 30 minutes
-      gcTime: 1000 * 60 * 60, // 1 hour
+      staleTime: QUERY_CACHE_POLICY.authUser.staleTime,
+      gcTime: QUERY_CACHE_POLICY.authUser.gcTime,
+      retry: false,
     }),
 }

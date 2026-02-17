@@ -2,19 +2,20 @@
 
 import { DataSource } from "typeorm";
 
-// Configuration
 import { config } from "@/config/env";
-// Core & Utils
 import { logger } from "@/core/logger/pino-logger";
+import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { APCreditNoteSchema } from "@/db/schemas/ap-credit-note.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { ARCreditNoteSchema } from "@/db/schemas/ar-credit-note.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
+import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
 import { ItemSchema } from "@/db/schemas/item.schema";
-// Schemas
+import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
+import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
 import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
@@ -73,7 +74,11 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       OutgoingPaymentSchema,
       UserSchema,
       ItemSchema,
+      ItemPriceSchema,
+      ItemWarehouseStockSchema,
       BusinessPartnerSchema,
+      BusinessPartnerAddressSchema,
+      AdminSettingsSchema,
       TaxGroupSchema,
       UnitOfMeasurementSchema,
       WarehouseSchema,
