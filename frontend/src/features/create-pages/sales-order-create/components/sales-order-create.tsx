@@ -509,7 +509,7 @@ export function SalesOrderCreate() {
     createError === 'Fill required fields before creating sales order.' && !createDisabledReason
       ? null
       : createError === 'Add at least one product row before creating sales order.' &&
-        hasValidRowsForCreate
+          hasValidRowsForCreate
         ? null
         : createError
 
@@ -923,10 +923,11 @@ export function SalesOrderCreate() {
                             })
                             clearProductRowDraft(row.id, 'quantity')
                           }}
-                          className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${isNearLimit
+                          className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${
+                            isNearLimit
                               ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400'
                               : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400'
-                            }`}
+                          }`}
                         />
                       </Tooltip>
                     </td>

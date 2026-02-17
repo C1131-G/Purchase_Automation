@@ -98,17 +98,17 @@ const MANDATORY_ERROR_TEXT: Record<(typeof PURCHASE_ORDER_MANDATORY_FIELDS)[numb
   comments: 'Remarks is required.',
 }
 const REQUIRED_FIELD_LABEL_TEXT: Record<(typeof PURCHASE_ORDER_MANDATORY_FIELDS)[number], string> =
-{
-  vendorCode: 'Vendor Code',
-  vendorName: 'Vendor Name',
-  docDueDate: 'Delivery Date',
-  warehouseCode: 'Warehouse',
-  salesEmployee: 'Buyer',
-  billToAddress: 'Bill To Address',
-  shipToAddress: 'Ship To Address',
-  referenceNo: 'Reference',
-  comments: 'Remarks',
-}
+  {
+    vendorCode: 'Vendor Code',
+    vendorName: 'Vendor Name',
+    docDueDate: 'Delivery Date',
+    warehouseCode: 'Warehouse',
+    salesEmployee: 'Buyer',
+    billToAddress: 'Bill To Address',
+    shipToAddress: 'Ship To Address',
+    referenceNo: 'Reference',
+    comments: 'Remarks',
+  }
 
 export function PurchaseOrderCreate() {
   const queryClient = useQueryClient()
@@ -917,10 +917,11 @@ export function PurchaseOrderCreate() {
                             })
                             clearProductRowDraft(row.id, 'quantity')
                           }}
-                          className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${isNearLimit
+                          className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${
+                            isNearLimit
                               ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400'
                               : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400'
-                            }`}
+                          }`}
                         />
                       </Tooltip>
                     </td>

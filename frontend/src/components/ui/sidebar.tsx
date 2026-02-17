@@ -27,9 +27,16 @@ export function SidebarProvider({
   ...props
 }: React.ComponentProps<'div'>) {
   const toggleSidebar = useToggleSidebarAction()
+  const open = useSidebarOpen()
+  const setOpen = useSetSidebarAction()
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && open) {
+        event.preventDefault()
+        setOpen(false)
+        return
+      }
       if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
         toggleSidebar()
@@ -38,7 +45,7 @@ export function SidebarProvider({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [toggleSidebar])
+  }, [open, setOpen, toggleSidebar])
 
   return (
     <div
@@ -73,6 +80,7 @@ export function Sidebar({
   collapsible?: 'offcanvas' | 'icon' | 'none'
 }) {
   const open = useSidebarOpen()
+  const setOpen = useSetSidebarAction()
   const state = open ? 'expanded' : 'collapsed'
   const resolvedWidth =
     state === 'collapsed'
@@ -98,39 +106,49 @@ export function Sidebar({
   }
 
   return (
-    <div
-      style={
-        {
-          transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-          width: resolvedWidth,
-        } as React.CSSProperties
-      }
-      className={cn(
-        'group hidden md:block fixed left-0 top-0 transition-all duration-500 bg-white border-zinc-100 border-r overflow-hidden h-screen z-[120]',
-        state === 'collapsed' && collapsible === 'offcanvas' && 'border-r-0!',
-        className,
-      )}
-      data-state={state}
-      data-collapsible={collapsible}
-      data-variant={variant}
-      data-side={side}
-      {...props}
-    >
+    <>
+      {collapsible === 'offcanvas' && open ? (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-[110] hidden bg-zinc-950/12 md:block"
+          onClick={() => setOpen(false)}
+        />
+      ) : null}
       <div
         style={
           {
             transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-            width: 'var(--sidebar-width)',
+            width: resolvedWidth,
           } as React.CSSProperties
         }
         className={cn(
-          'flex h-full flex-col transition-opacity duration-200',
-          state === 'collapsed' && collapsible === 'offcanvas' ? 'opacity-0' : 'opacity-100',
+          'group hidden md:block fixed left-0 top-0 transition-all duration-500 bg-white border-zinc-100 border-r overflow-hidden h-screen z-[120]',
+          state === 'collapsed' && collapsible === 'offcanvas' && 'border-r-0!',
+          className,
         )}
+        data-state={state}
+        data-collapsible={collapsible}
+        data-variant={variant}
+        data-side={side}
+        {...props}
       >
-        {children}
+        <div
+          style={
+            {
+              transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+              width: 'var(--sidebar-width)',
+            } as React.CSSProperties
+          }
+          className={cn(
+            'flex h-full flex-col transition-opacity duration-200',
+            state === 'collapsed' && collapsible === 'offcanvas' ? 'opacity-0' : 'opacity-100',
+          )}
+        >
+          {children}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -163,10 +181,13 @@ export function SidebarTrigger({
 }
 
 export function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
+  const open = useSidebarOpen()
+
   return (
     <main
       className={cn(
         'bg-zinc-50 relative z-0 flex min-w-0 flex-1 flex-col transition-all duration-500 ease-in-out',
+        open && 'md:blur-[2px] md:saturate-75',
         className,
       )}
       {...props}

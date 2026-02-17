@@ -15,18 +15,14 @@ const cellWidths = ['w-20', 'w-22', 'w-24', 'w-32', 'w-18', 'w-16']
 export function TableSkeleton() {
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-50 bg-white">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="h-8 w-8 rounded-md bg-zinc-100 animate-pulse" />
-          <div className="h-6 w-px bg-zinc-100" />
-          <div className="h-11 w-full max-w-96 rounded-xl border border-zinc-100 bg-zinc-50 animate-pulse" />
+      <div className="flex flex-col gap-3 px-6 py-4 border-b border-zinc-50 bg-white">
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-20 rounded bg-zinc-200 animate-pulse" />
+          <div className="h-4 w-3 rounded bg-zinc-100 animate-pulse" />
+          <div className="h-4 w-40 rounded bg-zinc-200 animate-pulse" />
         </div>
-        <div className="flex items-center gap-2 ml-4">
-          <div className="h-11 w-24 rounded-xl border border-zinc-100 bg-zinc-50 animate-pulse" />
-          <div className="h-6 w-px bg-zinc-100" />
-          <div className="h-11 w-28 rounded-xl border border-zinc-100 bg-zinc-50 animate-pulse" />
-          <div className="h-6 w-px bg-zinc-100" />
-          <div className="h-11 w-28 rounded-xl border border-zinc-100 bg-zinc-50 animate-pulse" />
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-md bg-zinc-100 animate-pulse" />
         </div>
       </div>
 

@@ -47,7 +47,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="w-full sm:w-[420px] mx-auto space-y-7 animate-in fade-in slide-in-from-top-4 duration-700">
+    <div className="w-full sm:w-105 mx-auto space-y-7 animate-in fade-in slide-in-from-top-4 duration-700">
       <div className="space-y-1.5 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 uppercase font-outfit">
           Portal Access
@@ -157,7 +157,7 @@ export function LoginForm() {
             isLoading={isLoggingIn}
             loadingText="Authenticating..."
             disabled={isLoadingOrgs}
-            className="w-full"
+            className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
           >
             Sign In
           </Button>

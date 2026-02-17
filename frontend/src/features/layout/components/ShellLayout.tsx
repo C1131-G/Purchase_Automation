@@ -31,14 +31,18 @@ export function ShellLayout() {
   const logoutBusy = isLoggingOut || isAuthLoading
 
   // Accordion Logic: Sync open section with current URL
-  const getInitialSection = () => {
+  const activeSection = React.useMemo(() => {
     if (location.pathname.startsWith('/purchase')) return 'purchase'
     if (location.pathname.startsWith('/sales')) return 'sales'
     if (location.pathname.startsWith('/dashboard')) return 'dashboard'
     return 'purchase'
-  }
+  }, [location.pathname])
 
-  const [openSection, setOpenSection] = React.useState<string | null>(getInitialSection())
+  const [openSection, setOpenSection] = React.useState<string | null>(activeSection)
+
+  React.useEffect(() => {
+    setOpenSection(activeSection)
+  }, [activeSection])
 
   // handleToggle: Manages unique open state for sidebar sections.
   const handleToggle = (section: string) => {
