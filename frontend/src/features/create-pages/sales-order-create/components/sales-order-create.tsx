@@ -509,7 +509,7 @@ export function SalesOrderCreate() {
     createError === 'Fill required fields before creating sales order.' && !createDisabledReason
       ? null
       : createError === 'Add at least one product row before creating sales order.' &&
-          hasValidRowsForCreate
+        hasValidRowsForCreate
         ? null
         : createError
 
@@ -600,16 +600,6 @@ export function SalesOrderCreate() {
         </Link>
         <span className="text-zinc-300">›</span>
         <span className="text-zinc-700">Create Sales Order</span>
-      </div>
-      <div className="mb-2">
-        <Link
-          to="/sales/orders"
-          viewTransition
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-600 transition hover:text-blue-700"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Sales Orders Table
-        </Link>
       </div>
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <VendorCustomerSection
@@ -933,11 +923,10 @@ export function SalesOrderCreate() {
                             })
                             clearProductRowDraft(row.id, 'quantity')
                           }}
-                          className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${
-                            isNearLimit
+                          className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${isNearLimit
                               ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400'
                               : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400'
-                          }`}
+                            }`}
                         />
                       </Tooltip>
                     </td>

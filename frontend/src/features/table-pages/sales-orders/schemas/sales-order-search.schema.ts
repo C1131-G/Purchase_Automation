@@ -25,8 +25,8 @@ export const salesOrderColumnFilterSchema = z.object({
 })
 
 export const salesOrderSearchSchema = z.object({
-  page: z.coerce.number().int().min(1).catch(1),
-  limit: z.coerce.number().int().min(1).catch(10),
+  page: z.coerce.number().int().min(1).catch(1).default(1).optional(),
+  limit: z.coerce.number().int().min(1).catch(10).default(10).optional(),
   sorting: z.array(z.object({ id: z.string(), desc: z.boolean() })).optional(),
   columnVisibility: z.record(z.string(), z.boolean()).optional(),
   columnOrder: z.array(z.string()).optional(),
