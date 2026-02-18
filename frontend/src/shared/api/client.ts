@@ -30,18 +30,12 @@ export async function apiClient<T>(path: string, options: RequestInit = {}): Pro
       throw new Error(errorData.message || 'Session expired. Please login again.')
     }
 
-    if (!isAtLoginUI) {
-      Promise.all([import('@/store/auth/auth.store'), import('@/store/toast.store')]).then(
-        ([authModule, toastModule]) => {
-          toastModule.toast.warning('Session expired', 'Please login again.')
-          authModule.useAuthStore.getState().forceLogout()
-        },
-      )
-    } else {
-      import('@/store/toast.store').then((toastModule) => {
+    Promise.all([import('@/store/auth/auth.store'), import('@/store/toast.store')]).then(
+      ([authModule, toastModule]) => {
         toastModule.toast.warning('Session expired', 'Please login again.')
-      })
-    }
+        authModule.useAuthStore.getState().forceLogout()
+      },
+    )
     throw new Error('Session expired. Please login again.')
   }
 
