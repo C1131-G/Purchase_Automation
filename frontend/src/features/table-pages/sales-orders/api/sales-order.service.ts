@@ -15,6 +15,11 @@ export type SalesOrderListItem = z.infer<typeof salesOrderListItemSchema>
 export type SalesOrderListParams = z.infer<typeof salesOrderListParamsSchema>
 
 export type SalesOrderListResponse = z.infer<typeof salesOrderListResponseSchema>
+export type SalesOrderDocNumLookupItem = { code: string; name: string }
+export type SalesOrderDocNumLookupResponse = {
+  success: boolean
+  data: SalesOrderDocNumLookupItem[]
+}
 
 export type CreateSalesOrderPayload = Record<string, unknown>
 
@@ -29,5 +34,10 @@ export const salesOrderAPI = {
       method: 'POST',
       body: JSON.stringify(payload),
     })
+  },
+  getSalesOrderDocNums: async (search?: string) => {
+    const query = toQueryString({ search })
+    const path = query ? `/api/v1/sales-orders/docnums?${query}` : '/api/v1/sales-orders/docnums'
+    return apiClient<SalesOrderDocNumLookupResponse>(path)
   },
 }

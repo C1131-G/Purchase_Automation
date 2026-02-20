@@ -1,17 +1,17 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
-import {
-  type DateRangeFilter,
-  isDateRangeFilter,
-  isNumberComparisonFilter,
-  type NumberComparisonFilter,
-} from '@/components/ui/types/table-filter-values'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import {
   type APInvoiceListParams,
   type APInvoiceStatus,
 } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
 import { type APInvoiceSearch } from '@/features/table-pages/ap-invoices/schemas/ap-invoice-search.schema'
+import {
+  type DateRangeFilter,
+  isDateRangeFilter,
+  isNumberComparisonFilter,
+  type NumberComparisonFilter,
+} from '@/features/table-pages/shared/utils/table-filter-values'
 import { type ComparisonOperator } from '@/shared/api/common-query.types'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)

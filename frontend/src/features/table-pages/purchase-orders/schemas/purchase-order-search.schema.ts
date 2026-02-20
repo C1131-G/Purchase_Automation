@@ -26,8 +26,8 @@ export const purchaseOrderColumnFilterSchema = z.object({
 
 export const purchaseOrderSearchSchema = z.object({
   // Pagination (syncs with table state)
-  page: z.coerce.number().int().min(1).catch(1).default(1).optional(), // page
-  limit: z.coerce.number().int().min(1).catch(10).default(10).optional(), // limit
+  page: z.coerce.number().int().min(1).catch(1),
+  limit: z.coerce.number().int().min(1).catch(10),
 
   // Table State
   sorting: z.array(z.object({ id: z.string(), desc: z.boolean() })).optional(), // sorting
@@ -51,4 +51,3 @@ export const purchaseOrderSearchSchema = z.object({
 
 export type PurchaseOrderSearch = z.infer<typeof purchaseOrderSearchSchema>
 export type PurchaseOrderColumnFilter = z.infer<typeof purchaseOrderColumnFilterSchema>
-export type PurchaseOrderColumnFilterValue = z.infer<typeof purchaseOrderColumnFilterValueSchema>

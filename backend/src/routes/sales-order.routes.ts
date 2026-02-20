@@ -5,7 +5,10 @@ import express from "express";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { salesOrderDal } from "@/dal/sales-order.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
-import { SalesOrderQuerySchema } from "@/validation/schemas/inputs/sales-order.input";
+import {
+  SalesOrderDocNumLookupQuerySchema,
+  SalesOrderQuerySchema,
+} from "@/validation/schemas/inputs/sales-order.input";
 
 const router = express.Router();
 
@@ -14,6 +17,11 @@ router.use(validateSession);
 
 // GET /: Retrieves a paginated list of sales orders with tenant-specific filtering.
 router.get("/", validateQuery(SalesOrderQuerySchema), salesOrderDal.getSalesOrders);
+router.get(
+  "/docnums",
+  validateQuery(SalesOrderDocNumLookupQuerySchema),
+  salesOrderDal.getSalesOrderDocNums,
+);
 
 // GET /SalesEmployee: Lookup for finding which sales personnel are assigned to the current tenant.
 router.get("/SalesEmployee", salesOrderDal.getSalesEmployees);

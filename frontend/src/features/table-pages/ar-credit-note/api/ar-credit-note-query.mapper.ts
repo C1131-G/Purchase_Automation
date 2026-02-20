@@ -1,17 +1,17 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
-import {
-  type DateRangeFilter,
-  isDateRangeFilter,
-  isNumberComparisonFilter,
-  type NumberComparisonFilter,
-} from '@/components/ui/types/table-filter-values'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import {
   type ARCreditNoteListParams,
   type ARCreditNoteStatus,
 } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.service'
 import { type ARCreditNoteSearch } from '@/features/table-pages/ar-credit-note/schemas/ar-credit-note-search.schema'
+import {
+  type DateRangeFilter,
+  isDateRangeFilter,
+  isNumberComparisonFilter,
+  type NumberComparisonFilter,
+} from '@/features/table-pages/shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 

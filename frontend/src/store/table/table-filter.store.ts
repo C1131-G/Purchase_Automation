@@ -1,7 +1,7 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 import { create } from 'zustand'
 
-import { type DateRangeFilter } from '@/components/ui/types/table-filter-values'
+import { type DateRangeFilter } from '@/features/table-pages/shared/utils/table-filter-values'
 
 // Filter Store: Manages active filter selection (popovers) and ephemeral drafts synchronized with TanStack table state.
 type FilterState = {

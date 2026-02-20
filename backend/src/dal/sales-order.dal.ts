@@ -11,6 +11,7 @@ import { salesOrderService } from "@/services/sales-order.service";
 // Validation
 import {
   CreateSalesOrderInputSchema,
+  type SalesOrderDocNumLookupQuery,
   UpdateSalesOrderInputSchema,
 } from "@/validation/schemas/inputs/sales-order.input";
 
@@ -34,6 +35,23 @@ export const getSalesOrders = async (req: Request, res: Response, next: NextFunc
     logger.info({ msg: "Fetched Sales Orders", count: result.data.length, total: result.total });
 
     res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSalesOrderDocNums = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    SalesOrderDocNumLookupQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search } = authReq.query;
+    const data = await salesOrderService.getSalesOrderDocNums(dbName, search);
+    res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -134,6 +152,7 @@ export const cancelSalesOrder = async (req: Request, res: Response, next: NextFu
 
 export const salesOrderDal = {
   getSalesOrders,
+  getSalesOrderDocNums,
   getSalesOrder,
   createSalesOrder,
   updateSalesOrder,

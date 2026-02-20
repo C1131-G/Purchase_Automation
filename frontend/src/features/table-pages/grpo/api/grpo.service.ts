@@ -15,11 +15,21 @@ export type GRPOListItem = z.infer<typeof grpoListItemSchema>
 export type GRPOListParams = z.infer<typeof grpoListParamsSchema>
 
 export type GRPOListResponse = z.infer<typeof grpoListResponseSchema>
+export type GRPODocNumLookupItem = { code: string; name: string }
+export type GRPODocNumLookupResponse = {
+  success: boolean
+  data: GRPODocNumLookupItem[]
+}
 
 export const grpoAPI = {
   getGRPOs: async (params: GRPOListParams) => {
     const query = toQueryString(params)
     const path = query ? `/api/v1/grpos?${query}` : '/api/v1/grpos'
     return apiClient<GRPOListResponse>(path)
+  },
+  getGRPODocNums: async (search?: string) => {
+    const query = toQueryString({ search })
+    const path = query ? `/api/v1/grpos/docnums?${query}` : '/api/v1/grpos/docnums'
+    return apiClient<GRPODocNumLookupResponse>(path)
   },
 }

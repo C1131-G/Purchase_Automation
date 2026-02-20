@@ -25,8 +25,6 @@ export const calculateOrderTotals = (productRows: ProductRow[]) => {
   }
 }
 
-export const calculatePOTotals = calculateOrderTotals
-
 export const calculateSummaryCurrency = (productRows: ProductRow[]) => {
   const currencies = Array.from(
     new Set(

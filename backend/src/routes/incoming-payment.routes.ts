@@ -5,7 +5,10 @@ import express from "express";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { incomingPaymentDal } from "@/dal/incoming-payment.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
-import { PaymentQuerySchema } from "@/validation/schemas/inputs/payments.input";
+import {
+  PaymentDocNumLookupQuerySchema,
+  PaymentQuerySchema,
+} from "@/validation/schemas/inputs/payments.input";
 
 const router = express.Router();
 
@@ -14,6 +17,11 @@ router.use(validateSession);
 
 // GET /: Retrieves a paginated list of payments received from the tenant's customers.
 router.get("/", validateQuery(PaymentQuerySchema), incomingPaymentDal.getPayments);
+router.get(
+  "/docnums",
+  validateQuery(PaymentDocNumLookupQuerySchema),
+  incomingPaymentDal.getPaymentDocNums,
+);
 
 // GET /:id: Fetches full details for a single incoming payment, including settlement allocations.
 router.get("/:id", incomingPaymentDal.getPayment);

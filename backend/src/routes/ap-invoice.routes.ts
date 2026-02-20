@@ -5,7 +5,10 @@ import express from "express";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { apInvoiceDal } from "@/dal/ap-invoice.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
-import { InvoiceQuerySchema } from "@/validation/schemas/inputs/invoice.input";
+import {
+  InvoiceDocNumLookupQuerySchema,
+  InvoiceQuerySchema,
+} from "@/validation/schemas/inputs/invoice.input";
 
 const router = express.Router();
 
@@ -14,6 +17,11 @@ router.use(validateSession);
 
 // GET /: Retrieves a paginated list of A/P invoices with tenant and vendor filtering.
 router.get("/", validateQuery(InvoiceQuerySchema), apInvoiceDal.getInvoices);
+router.get(
+  "/docnums",
+  validateQuery(InvoiceDocNumLookupQuerySchema),
+  apInvoiceDal.getInvoiceDocNums,
+);
 
 // GET /:id: Fetches full details for a single A/P invoice.
 router.get("/:id", apInvoiceDal.getInvoice);

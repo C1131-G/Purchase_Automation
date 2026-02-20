@@ -82,10 +82,6 @@ export const usePOCreateStore = create<POCreateState>((set) => ({
 }))
 
 export const usePOHeader = () => usePOCreateStore((state) => state.header)
-export const usePOLines = () => usePOCreateStore((state) => state.lines)
 
 export const useSetPOHeaderAction = () => usePOCreateStore((state) => state.setHeader)
-export const useAddPOLineAction = () => usePOCreateStore((state) => state.addLine)
-export const useUpdatePOLineAction = () => usePOCreateStore((state) => state.updateLine)
-export const useRemovePOLineAction = () => usePOCreateStore((state) => state.removeLine)
 export const useResetPOCreateAction = () => usePOCreateStore((state) => state.reset)

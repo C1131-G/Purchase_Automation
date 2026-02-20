@@ -11,8 +11,6 @@ type OrderStore = {
   resetOrder: (tableId: string, defaultOrder: string[]) => void
 }
 
-const EMPTY_ARRAY: string[] = []
-
 export const useTableOrderStore = create<OrderStore>((set) => ({
   tables: {},
   initOrder: (tableId, order) =>
@@ -32,11 +30,4 @@ export const useTableOrderStore = create<OrderStore>((set) => ({
     })),
 }))
 
-export const useTableOrder = (tableId: string) =>
-  useTableOrderStore((state) => state.tables[tableId] || EMPTY_ARRAY)
-
 export const useSetOrderAction = () => useTableOrderStore((state) => state.setOrder)
-
-export const useInitOrderAction = () => useTableOrderStore((state) => state.initOrder)
-
-export const useResetOrderAction = () => useTableOrderStore((state) => state.resetOrder)

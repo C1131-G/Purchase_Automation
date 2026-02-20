@@ -5,7 +5,10 @@ import express from "express";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { arInvoiceDal } from "@/dal/ar-invoice.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
-import { InvoiceQuerySchema } from "@/validation/schemas/inputs/invoice.input";
+import {
+  InvoiceDocNumLookupQuerySchema,
+  InvoiceQuerySchema,
+} from "@/validation/schemas/inputs/invoice.input";
 
 const router = express.Router();
 
@@ -14,6 +17,11 @@ router.use(validateSession);
 
 // GET /: Retrieves a list of customer invoices, filtered by status or date.
 router.get("/", validateQuery(InvoiceQuerySchema), arInvoiceDal.getInvoices);
+router.get(
+  "/docnums",
+  validateQuery(InvoiceDocNumLookupQuerySchema),
+  arInvoiceDal.getInvoiceDocNums,
+);
 
 // GET /:id: Fetches full details for a single A/R invoice.
 router.get("/:id", arInvoiceDal.getInvoice);

@@ -98,6 +98,16 @@ export const PurchaseOrderQuerySchema = z
     return normalized;
   });
 
+export const PurchaseOrderDocNumLookupQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .optional()
+    .openapi({ example: "8001", description: "DocNum contains search term" }),
+});
+
 // PurchaseOrderLineItemSchema: Validates individual rows in the document.
 // Quantities and Prices must be non-negative to ensure data integrity in SAP.
 const PurchaseOrderLineItemSchema = z.object({
@@ -139,5 +149,6 @@ export const UpdatePurchaseOrderInputSchema = CreatePurchaseOrderInputSchema.par
 });
 
 export type PurchaseOrderQuery = z.infer<typeof PurchaseOrderQuerySchema>;
+export type PurchaseOrderDocNumLookupQuery = z.infer<typeof PurchaseOrderDocNumLookupQuerySchema>;
 export type CreatePurchaseOrderInput = z.infer<typeof CreatePurchaseOrderInputSchema>;
 export type UpdatePurchaseOrderInput = z.infer<typeof UpdatePurchaseOrderInputSchema>;

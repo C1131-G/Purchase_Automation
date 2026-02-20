@@ -1,9 +1,12 @@
+import 'goey-toast/styles.css'
+
 import { dehydrate, hydrate, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
+import { GoeyToaster } from 'goey-toast'
 import { useEffect, useRef } from 'react'
 
-import { Toaster } from '@/components/ui/toaster'
+import { GOEY_TOASTER_CONFIG } from '@/components/goey-toast.config'
 import { routeTree } from '@/routeTree.gen'
 import { QUERY_CACHE_KEY } from '@/shared/utils/query-cache-persistence'
 
@@ -78,7 +81,7 @@ function App() {
     // 4. Wrap the app with the QueryClientProvider
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster />
+      <GoeyToaster {...GOEY_TOASTER_CONFIG} />
       <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
     </QueryClientProvider>
   )

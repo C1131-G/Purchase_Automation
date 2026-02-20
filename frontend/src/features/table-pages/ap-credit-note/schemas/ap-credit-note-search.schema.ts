@@ -42,4 +42,3 @@ export const apCreditNoteSearchSchema = z.object({
 
 export type APCreditNoteSearch = z.infer<typeof apCreditNoteSearchSchema>
 export type APCreditNoteColumnFilter = z.infer<typeof apCreditNoteColumnFilterSchema>
-export type APCreditNoteColumnFilterValue = z.infer<typeof apCreditNoteColumnFilterValueSchema>

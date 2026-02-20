@@ -15,11 +15,21 @@ export type APInvoiceListItem = z.infer<typeof apInvoiceListItemSchema>
 export type APInvoiceListParams = z.infer<typeof apInvoiceListParamsSchema>
 
 export type APInvoiceListResponse = z.infer<typeof apInvoiceListResponseSchema>
+export type APInvoiceDocNumLookupItem = { code: string; name: string }
+export type APInvoiceDocNumLookupResponse = {
+  success: boolean
+  data: APInvoiceDocNumLookupItem[]
+}
 
 export const apInvoiceAPI = {
   getAPInvoices: async (params: APInvoiceListParams) => {
     const query = toQueryString(params)
     const path = query ? `/api/v1/ap-invoices?${query}` : '/api/v1/ap-invoices'
     return apiClient<APInvoiceListResponse>(path)
+  },
+  getAPInvoiceDocNums: async (search?: string) => {
+    const query = toQueryString({ search })
+    const path = query ? `/api/v1/ap-invoices/docnums?${query}` : '/api/v1/ap-invoices/docnums'
+    return apiClient<APInvoiceDocNumLookupResponse>(path)
   },
 }

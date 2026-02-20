@@ -9,6 +9,7 @@ type AuthState = {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
+  logoutReason: 'user' | 'session_ended' | null
 
   // Actions
   login: (userData: User) => void
@@ -26,10 +27,7 @@ export const useAuthStore = create<AuthState>((set) => {
   // Listen for logout events from other tabs
   authChannel.onmessage = (event) => {
     if (event.data.type === 'LOGOUT') {
-      set({ user: null, isAuthenticated: false })
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login?reason=session_ended'
-      }
+      set({ user: null, isAuthenticated: false, isLoading: false, logoutReason: 'session_ended' })
     }
   }
 
@@ -38,6 +36,7 @@ export const useAuthStore = create<AuthState>((set) => {
     isAuthenticated: false,
     isLoading: false,
     error: null,
+    logoutReason: null,
 
     // login: Updates state with user data and marks as authenticated.
     login: (userData) =>
@@ -45,6 +44,7 @@ export const useAuthStore = create<AuthState>((set) => {
         user: userData,
         isAuthenticated: true,
         error: null,
+        logoutReason: null,
       }),
 
     // logout: Resets authentication state and clears user data via API.
@@ -58,38 +58,33 @@ export const useAuthStore = create<AuthState>((set) => {
 
       // 2. Clear local state
       set({
-        user: null,
-        isAuthenticated: false,
         isLoading: true,
+        logoutReason: 'user',
       })
 
-      // 3. Allow UI to render a short fade-out transition before redirect.
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, 180)
-      })
-
-      // 4. Redirect to login.
-      const isAtLogin = window.location.pathname.includes('/login')
-      if (!isAtLogin) {
-        window.location.replace('/login')
-      }
-
-      // 5. Attempt to notify the backend (best-effort)
+      // 3. Attempt to notify the backend (best-effort)
       try {
         await authAPI.logout()
       } catch (error) {
         console.error('Logout API failed:', error)
       }
-      set({ isLoading: false })
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        logoutReason: 'user',
+      })
     },
 
     // forceLogout: Clears local state only (avoids recursive logout calls on 401).
     forceLogout: () => {
       authChannel.postMessage({ type: 'LOGOUT' })
-      set({ user: null, isAuthenticated: false, isLoading: false })
-      if (!window.location.pathname.includes('/login')) {
-        window.location.replace('/login?reason=session_ended')
-      }
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        logoutReason: 'session_ended',
+      })
     },
 
     // setError: Sets a global authentication error message.
@@ -102,12 +97,6 @@ export const useAuthStore = create<AuthState>((set) => {
 
 // --- State Selectors ---
 
-// useUser: Selector for current user profile.
-export const useUser = () => useAuthStore((state) => state.user)
-
-// useIsAuthenticated: Selector for auth status.
-export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated)
-
 // useAuthError: Selector for global error messages.
 export const useAuthError = () => useAuthStore((state) => state.error)
 
@@ -118,7 +107,6 @@ export const useLoginAction = () => useAuthStore((state) => state.login)
 
 // useLogoutAction: Hook to retrieve atomic logout action.
 export const useLogoutAction = () => useAuthStore((state) => state.logout)
-export const useForceLogoutAction = () => useAuthStore((state) => state.forceLogout)
 
 // useSetAuthError: Hook to retrieve atomic error setter.
 export const useSetAuthError = () => useAuthStore((state) => state.setError)

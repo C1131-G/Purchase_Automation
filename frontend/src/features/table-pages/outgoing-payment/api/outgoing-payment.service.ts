@@ -12,11 +12,23 @@ export type OutgoingPaymentListItem = z.infer<typeof outgoingPaymentListItemSche
 export type OutgoingPaymentListParams = z.infer<typeof outgoingPaymentListParamsSchema>
 
 export type OutgoingPaymentListResponse = z.infer<typeof outgoingPaymentListResponseSchema>
+export type OutgoingPaymentDocNumLookupItem = { code: string; name: string }
+export type OutgoingPaymentDocNumLookupResponse = {
+  success: boolean
+  data: OutgoingPaymentDocNumLookupItem[]
+}
 
 export const outgoingPaymentAPI = {
   getOutgoingPayments: async (params: OutgoingPaymentListParams) => {
     const query = toQueryString(params)
     const path = query ? `/api/v1/outgoing-payments?${query}` : '/api/v1/outgoing-payments'
     return apiClient<OutgoingPaymentListResponse>(path)
+  },
+  getOutgoingPaymentDocNums: async (search?: string) => {
+    const query = toQueryString({ search })
+    const path = query
+      ? `/api/v1/outgoing-payments/docnums?${query}`
+      : '/api/v1/outgoing-payments/docnums'
+    return apiClient<OutgoingPaymentDocNumLookupResponse>(path)
   },
 }

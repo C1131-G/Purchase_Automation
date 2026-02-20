@@ -1,6 +1,6 @@
 import { type ComponentProps } from 'react'
 
-import { WarehouseLogisticsGrid } from '@/components/create/grids/warehouse-logistics-grid'
+import { WarehouseLogisticsGrid } from '@/features/create-pages/create-shared/components/grids/warehouse-logistics-grid'
 
 type WarehouseLogisticsSectionProps = ComponentProps<typeof WarehouseLogisticsGrid>
 

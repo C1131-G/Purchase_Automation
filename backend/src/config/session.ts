@@ -23,15 +23,33 @@ export const configureSession = (app: Application) => {
     fs.mkdirSync(sessionPath, { recursive: true });
   }
 
+  const store = new SessionFileStore({
+    path: sessionPath,
+    // Keep server-side session records longer to prevent unintended auto-expiry
+    // during active business usage. Session still ends on explicit logout.
+    ttl: 60 * 60 * 24 * 30, // 30 days
+    retries: 0,
+  });
+
+  const originalGet = store.get.bind(store);
+  store.get = (sid, callback) => {
+    originalGet(sid, (error, sess) => {
+      if ((error as NodeJS.ErrnoException | null)?.code === "ENOENT") {
+        logger.warn({
+          event: "session_file_missing",
+          sid,
+          reason: "session_file_deleted_or_expired",
+        });
+        callback(null, null);
+        return;
+      }
+      callback(error, sess);
+    });
+  };
+
   app.use(
     session({
-      store: new SessionFileStore({
-        path: sessionPath,
-        // Keep server-side session records longer to prevent unintended auto-expiry
-        // during active business usage. Session still ends on explicit logout.
-        ttl: 60 * 60 * 24 * 30, // 30 days
-        retries: 0,
-      }),
+      store,
       secret: config.session.secret,
       resave: false, // Prevents unnecessary disk I/O on unchanged sessions.
       saveUninitialized: false, // Compliance: Don't create sessions until a user actually logs in.

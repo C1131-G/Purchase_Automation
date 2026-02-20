@@ -115,6 +115,25 @@ export const getSalesOrders = async (dbName: string, filters: SalesOrderFilters)
   }
 };
 
+export const getSalesOrderDocNums = async (dbName: string, search?: string) => {
+  const repo = await getTenantRepository(dbName, SalesOrderSchema);
+  const queryBuilder = repo.createQueryBuilder("so");
+
+  queryBuilder.select("so.docNum", "DocNum").distinct(true);
+  if (search && search.trim().length > 0) {
+    queryBuilder.where("CAST(so.docNum AS NVARCHAR) LIKE :search", {
+      search: `%${search.trim()}%`,
+    });
+  }
+  queryBuilder.orderBy("so.docNum", "DESC");
+
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  return rows
+    .map((row) => String(row.DocNum).trim())
+    .filter((value) => value.length > 0)
+    .map((code) => ({ code, name: code }));
+};
+
 // Obtains the full Sales Order document structure from SAP, used for detail views.
 export const getSalesOrder = async (sessionId: string, id: string) => {
   try {
@@ -343,6 +362,7 @@ export const getSalesEmployees = async (dbName: string) => {
 
 export const salesOrderService = {
   getSalesOrders,
+  getSalesOrderDocNums,
   getSalesOrder,
   createSalesOrder,
   updateSalesOrder,

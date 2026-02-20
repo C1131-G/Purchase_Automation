@@ -8,21 +8,13 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
-import { TablePagination } from '@/components/table/controls/pagination'
-import { TableErrorState } from '@/components/table/core/table-error-state'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/table/core/table-root'
-import { TableToolbar } from '@/components/table/core/table-toolbar'
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
+import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
+import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { arInvoiceQueries } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
 import { type ARInvoiceListItem } from '@/features/table-pages/ar-invoices/api/ar-invoice.service'
 import { mapSearchToARInvoiceListParams } from '@/features/table-pages/ar-invoices/api/ar-invoice-query.mapper'
@@ -32,6 +24,17 @@ import {
   arInvoiceColumnFilterSchema,
   type ARInvoiceSearch,
 } from '@/features/table-pages/ar-invoices/schemas/ar-invoice-search.schema'
+import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/features/table-pages/shared/components/core/table-root'
+import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
 import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
@@ -136,6 +139,21 @@ export function ARInvoiceTable() {
     refetch,
   } = useQuery(arInvoiceQueries.list(listParams))
   const queryClient = useQueryClient()
+
+  // Customers lookup for filter suggestions and popup
+  const customersQuery = useQuery(createSharedQueries.customers())
+  const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data])
+
+  const docNumSuggestionsQuery = useQuery(arInvoiceQueries.docNumSuggestions())
+  const docNumSuggestions = useMemo<LookupItem[]>(
+    () => docNumSuggestionsQuery.data?.data ?? [],
+    [docNumSuggestionsQuery.data],
+  )
+
+  // Lookup popup state
+  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
+  const [lookupColumnId, setLookupColumnId] = useState<string>('')
+  const [lookupSearch, setLookupSearch] = useState('')
 
   const rows = arInvoiceList?.data ?? []
   const totalRows = arInvoiceList?.total ?? 0
@@ -264,7 +282,7 @@ export function ARInvoiceTable() {
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
-  const handleResetTable = () => {
+  const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
     setOrder(TABLE_ID, [...defaultColumnOrder])
@@ -286,7 +304,61 @@ export function ARInvoiceTable() {
       }),
       replace: true,
     })
-  }
+  }, [
+    setSorting,
+    setVisibility,
+    setOrder,
+    defaultColumnOrder,
+    clearAllFilters,
+    setPagination,
+    navigate,
+  ])
+
+  const handleLookupPopupOpen = useCallback((columnId: string) => {
+    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
+    setLookupColumnId(columnId)
+    setLookupSearch('')
+    setLookupPopupOpen(true)
+  }, [])
+
+  const handleLookupSelect = useCallback(
+    (item: LookupItem) => {
+      const column = table.getColumn(lookupColumnId)
+      if (column) {
+        const value =
+          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
+        column.setFilterValue(value)
+      }
+      setLookupPopupOpen(false)
+    },
+    [lookupColumnId, table],
+  )
+
+  const handlePrefetchPage = useCallback(
+    (nextPageIndex: number, nextPageSize: number) => {
+      queryClient.prefetchQuery(
+        arInvoiceQueries.list({
+          ...listParams,
+          page: nextPageIndex + 1,
+          limit: nextPageSize,
+        }),
+      )
+    },
+    [queryClient, listParams],
+  )
+
+  const handlePrefetchPageSize = useCallback(
+    (nextPageSize: number) => {
+      queryClient.prefetchQuery(
+        arInvoiceQueries.list({
+          ...listParams,
+          page: 1,
+          limit: nextPageSize,
+        }),
+      )
+    },
+    [queryClient, listParams],
+  )
 
   if (showInitialSkeleton) return <TableSkeleton />
   if (isError && !arInvoiceList) {
@@ -307,7 +379,48 @@ export function ARInvoiceTable() {
         onReset={handleResetTable}
         isFetching={isFetching}
         createLink="/sales/create-ar-invoice"
-        breadcrumb={{ section: 'Sales', page: 'AR Invoices Table', href: '/sales/ar-invoice' }}
+        breadcrumb={{ section: 'Sales', page: 'AR Invoices', href: '/sales/ar-invoice' }}
+        lookupSuggestions={customers}
+        docNumSuggestions={docNumSuggestions}
+        enableDocNumPopup
+        onLookupPopupOpen={handleLookupPopupOpen}
+      />
+      <LookupPopup
+        open={lookupPopupOpen}
+        mode={
+          lookupColumnId === 'DocNum'
+            ? undefined
+            : lookupColumnId === 'CardCode'
+              ? 'customer-code'
+              : 'customer-name'
+        }
+        search={lookupSearch}
+        results={lookupColumnId === 'DocNum' ? docNumSuggestions : customers}
+        loading={
+          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : customersQuery.isLoading
+        }
+        error={
+          lookupColumnId === 'DocNum'
+            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
+              ? 'Failed to load document numbers'
+              : null
+            : customersQuery.isError
+              ? 'Failed to load customers'
+              : null
+        }
+        title={
+          lookupColumnId === 'DocNum'
+            ? 'Search Doc Number'
+            : lookupColumnId === 'CardCode'
+              ? 'Search Customer Code'
+              : 'Search Customer Name'
+        }
+        searchPlaceholder={
+          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search customer code or name'
+        }
+        onSearchChange={setLookupSearch}
+        onClose={() => setLookupPopupOpen(false)}
+        onSelect={handleLookupSelect}
       />
       <div className="flex-1 overflow-x-hidden w-full px-12">
         <Table className="w-full">
@@ -358,24 +471,8 @@ export function ARInvoiceTable() {
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={(nextPageIndex, nextPageSize) => {
-          queryClient.prefetchQuery(
-            arInvoiceQueries.list({
-              ...listParams,
-              page: nextPageIndex + 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
-        onPrefetchPageSize={(nextPageSize) => {
-          queryClient.prefetchQuery(
-            arInvoiceQueries.list({
-              ...listParams,
-              page: 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
+        onPrefetchPage={handlePrefetchPage}
+        onPrefetchPageSize={handlePrefetchPageSize}
       />
     </div>
   )

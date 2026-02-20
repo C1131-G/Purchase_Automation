@@ -115,6 +115,25 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
   }
 };
 
+export const getCreditNoteDocNums = async (dbName: string, search?: string) => {
+  const repo = await getTenantRepository(dbName, APCreditNoteSchema);
+  const queryBuilder = repo.createQueryBuilder("cn");
+
+  queryBuilder.select("cn.docNum", "DocNum").distinct(true);
+  if (search && search.trim().length > 0) {
+    queryBuilder.where("CAST(cn.docNum AS NVARCHAR) LIKE :search", {
+      search: `%${search.trim()}%`,
+    });
+  }
+  queryBuilder.orderBy("cn.docNum", "DESC");
+
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  return rows
+    .map((row) => String(row.DocNum).trim())
+    .filter((value) => value.length > 0)
+    .map((code) => ({ code, name: code }));
+};
+
 // Obtains full document detail for an A/P Credit Note from the SAP Service Layer.
 export const getCreditNote = async (sessionId: string, id: string) => {
   try {
@@ -259,6 +278,7 @@ export const cancelCreditNote = async (sessionId: string, id: string) => {
 
 export const apCreditNoteService = {
   getCreditNotes,
+  getCreditNoteDocNums,
   getCreditNote,
   createCreditNote,
   updateCreditNote,

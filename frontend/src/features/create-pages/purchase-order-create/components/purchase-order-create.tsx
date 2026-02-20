@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 
+import { Button } from '@/components/button'
 import { CreateModalSkeleton } from '@/components/skeleton/create-modal-skeleton'
-import { Button } from '@/components/ui/button'
-import { Tooltip } from '@/components/ui/tooltip'
+import { Tooltip } from '@/components/tooltip'
 import { createSharedQueries as purchaseOrderCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { AddressReferenceSection } from '@/features/create-pages/create-shared/components/sections/address-reference.section'
@@ -34,6 +34,7 @@ import {
   toDisplayDate,
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
+import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import { useCreatePurchaseOrder } from '@/features/create-pages/purchase-order-create/api/purchase-order-create.mutations'
 import {
   usePOHeader,
@@ -109,6 +110,28 @@ const REQUIRED_FIELD_LABEL_TEXT: Record<(typeof PURCHASE_ORDER_MANDATORY_FIELDS)
     referenceNo: 'Reference',
     comments: 'Remarks',
   }
+const QUICK_PRODUCT_LIMIT = 10
+const FULL_PRODUCT_LIMIT = 100
+
+const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSearch: string) => {
+  const term = rawSearch.trim().toLowerCase()
+  if (!term) return items
+
+  const score = (item: ProductLookupItem) => {
+    const code = item.code.toLowerCase()
+    const name = item.name.toLowerCase()
+    if (code === term || name === term) return 0
+    if (code.startsWith(term) || name.startsWith(term)) return 1
+    if (code.includes(term) || name.includes(term)) return 2
+    return 3
+  }
+
+  return [...items].sort((a, b) => {
+    const byScore = score(a) - score(b)
+    if (byScore !== 0) return byScore
+    return a.code.localeCompare(b.code, undefined, { sensitivity: 'base', numeric: true })
+  })
+}
 
 export function PurchaseOrderCreate() {
   const queryClient = useQueryClient()
@@ -186,15 +209,19 @@ export function PurchaseOrderCreate() {
     if (matched?.code) return matched.code
     return (header.warehouseCode ?? '').trim()
   }, [warehouseInput, warehouses, header.warehouseCode])
+  const normalizedProductSearch = debouncedProductSearch.trim()
   const productsQuery = useQuery({
     ...purchaseOrderCreateQueries.products(
       effectiveWarehouseCode || undefined,
-      debouncedProductSearch || undefined,
-      debouncedProductSearch ? undefined : 100,
+      normalizedProductSearch || undefined,
+      normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
     ),
     enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
   })
-  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
+  const products = useMemo(
+    () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
+    [productsQuery.data, normalizedProductSearch],
+  )
   const productWarehouseStocksQuery = useQuery({
     ...purchaseOrderCreateQueries.productWarehouseStocks(stockPreviewProduct?.code),
     enabled: Boolean(stockPreviewProduct?.code),
@@ -272,8 +299,14 @@ export function PurchaseOrderCreate() {
     setWarehouseInput(item.name)
     setHeader({ warehouseCode: item.code })
     setProductSearchFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }))
-    // Warm product list as soon as warehouse is chosen so popup opens with data immediately.
-    void queryClient.prefetchQuery(purchaseOrderCreateQueries.products(item.code, undefined, 100))
+    // Warm a compact first page immediately, then warm the broader product set in background.
+    void queryClient
+      .prefetchQuery(purchaseOrderCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT))
+      .then(() =>
+        queryClient.prefetchQuery(
+          purchaseOrderCreateQueries.products(item.code, undefined, FULL_PRODUCT_LIMIT),
+        ),
+      )
     setWarehouseFocused(false)
     setModalOpen(false)
   }
@@ -285,14 +318,80 @@ export function PurchaseOrderCreate() {
     setModalOpen(false)
   }
 
+  const handleVendorNameChange = (value: string) => {
+    setNameInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
+    if (value.trim() === '') {
+      setNameFocused(true)
+      setHeader({ vendorName: '', vendorCode: '' })
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
+    const matched = findVendorByName(value)
+    if (matched) {
+      selectVendor(matched)
+      return
+    }
+    setHeader({ vendorName: value, vendorCode: '' })
+  }
+
+  const handleVendorCodeChange = (value: string) => {
+    setCodeInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
+    if (value.trim() === '') {
+      setCodeFocused(true)
+      setHeader({ vendorCode: '', vendorName: '' })
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
+    const matched = findVendorByCode(value)
+    if (matched) {
+      selectVendor(matched)
+      return
+    }
+    setHeader({ vendorCode: value, vendorName: '' })
+  }
+
+  const handleWarehouseChange = (value: string) => {
+    setWarehouseInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }))
+    if (value.trim() === '') {
+      setWarehouseFocused(true)
+      setHeader({ warehouseCode: '' })
+      return
+    }
+    const matched = findWarehouseByName(value) ?? findWarehouseByCode(value)
+    if (matched) {
+      selectWarehouse(matched)
+      return
+    }
+    setHeader({ warehouseCode: '' })
+  }
+
+  const handleSalesEmployeeChange = (value: string) => {
+    setSalesEmployeeInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }))
+    setSalesEmployeeFocused(true)
+  }
+
   const openPopup = (mode: PopupMode) => {
     setModalMode(mode)
     if (mode === 'vendor-name') setModalSearch(nameInput)
     if (mode === 'vendor-code') setModalSearch(codeInput)
-    if (mode === 'warehouse') setModalSearch('')
-    if (mode === 'sales-employee') setModalSearch('')
+    if (mode === 'warehouse') setModalSearch(warehouseInput)
+    if (mode === 'sales-employee') setModalSearch(salesEmployeeInput)
     setModalOpen(true)
   }
+
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+    syncLookupSearchByMode(mode, value, {
+      onVendorName: handleVendorNameChange,
+      onVendorCode: handleVendorCodeChange,
+      onWarehouse: handleWarehouseChange,
+      onSalesEmployee: handleSalesEmployeeChange,
+    })
 
   const warehouseSuggestions = useMemo(() => {
     const term = warehouseInput.trim().toLowerCase()
@@ -344,11 +443,27 @@ export function PurchaseOrderCreate() {
       return
     }
 
-    setProductSearch('')
-    setDebouncedProductSearch('')
-    void queryClient.fetchQuery(
-      purchaseOrderCreateQueries.products(effectiveWarehouseCode, undefined, 100),
-    )
+    const existingRow = rowId ? productRows.find((r) => r.id === rowId) : null
+    const initialSearch = existingRow ? existingRow.productName : ''
+    setProductSearch(initialSearch)
+    setDebouncedProductSearch(initialSearch)
+
+    if (effectiveWarehouseCode) {
+      void queryClient.fetchQuery(
+        purchaseOrderCreateQueries.products(
+          effectiveWarehouseCode,
+          initialSearch || undefined,
+          QUICK_PRODUCT_LIMIT,
+        ),
+      )
+      void queryClient.prefetchQuery(
+        purchaseOrderCreateQueries.products(
+          effectiveWarehouseCode,
+          initialSearch || undefined,
+          FULL_PRODUCT_LIMIT,
+        ),
+      )
+    }
     setActiveProductRowId(rowId)
     setProductPopupOpen(true)
     window.requestAnimationFrame(() => {
@@ -400,13 +515,19 @@ export function PurchaseOrderCreate() {
   }
 
   const prefetchProducts = () => {
+    if (!effectiveWarehouseCode) return
     void queryClient.prefetchQuery(
       purchaseOrderCreateQueries.products(
-        effectiveWarehouseCode || undefined,
-        debouncedProductSearch || undefined,
-        debouncedProductSearch ? undefined : 100,
+        effectiveWarehouseCode,
+        normalizedProductSearch || undefined,
+        normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
       ),
     )
+    if (!normalizedProductSearch) {
+      void queryClient.prefetchQuery(
+        purchaseOrderCreateQueries.products(effectiveWarehouseCode, undefined, FULL_PRODUCT_LIMIT),
+      )
+    }
   }
 
   const applyProductToRow = (product: ProductLookupItem) => {
@@ -586,25 +707,20 @@ export function PurchaseOrderCreate() {
 
   return (
     <div className="w-full bg-zinc-50 p-3 pb-20">
-      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
         <span>Purchase</span>
-        <span className="text-zinc-300">›</span>
-        <Link to="/purchase/orders" className="text-blue-600 hover:text-blue-700">
-          Purchase Orders Table
-        </Link>
-        <span className="text-zinc-300">›</span>
-        <span className="text-zinc-700">Create Purchase Order</span>
-      </div>
-      {/* <div className="mb-2">
+        <ChevronRight className="size-3.5 text-zinc-300" />
         <Link
           to="/purchase/orders"
-          viewTransition
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-600 transition hover:text-blue-700"
+          search={{ page: 1, limit: 10 }}
+          preload="intent"
+          className="text-blue-600 hover:text-blue-700"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Purchase Orders Table
+          Purchase Orders
         </Link>
-      </div> */}
+        <ChevronRight className="size-3.5 text-zinc-300" />
+        <span className="text-zinc-700">Create Purchase Order</span>
+      </div>
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <VendorCustomerSection
           loading={vendorsQuery.isLoading}
@@ -621,44 +737,24 @@ export function PurchaseOrderCreate() {
           codeFocused={codeFocused}
           nameSuggestions={nameSuggestions}
           codeSuggestions={codeSuggestions}
-          onNameChange={(value) => {
-            setNameInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
-            if (value.trim() === '') {
-              setNameFocused(true)
-              setHeader({ vendorName: '', vendorCode: '' })
-              setBillToAddress('')
-              setShipToAddress('')
-              return
-            }
-            const matched = findVendorByName(value)
-            if (matched) {
-              selectVendor(matched)
-              return
-            }
-            setHeader({ vendorName: value, vendorCode: '' })
+          onNameChange={handleVendorNameChange}
+          onCodeChange={handleVendorCodeChange}
+          onNameFocus={() => {
+            setNameFocused(true)
           }}
-          onCodeChange={(value) => {
-            setCodeInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
-            if (value.trim() === '') {
-              setCodeFocused(true)
-              setHeader({ vendorCode: '', vendorName: '' })
-              setBillToAddress('')
-              setShipToAddress('')
-              return
-            }
-            const matched = findVendorByCode(value)
-            if (matched) {
-              selectVendor(matched)
-              return
-            }
-            setHeader({ vendorCode: value, vendorName: '' })
+          onCodeFocus={() => {
+            setCodeFocused(true)
           }}
-          onNameFocus={() => setNameFocused(true)}
-          onCodeFocus={() => setCodeFocused(true)}
-          onNameBlur={() => setTimeout(() => setNameFocused(false), 120)}
-          onCodeBlur={() => setTimeout(() => setCodeFocused(false), 120)}
+          onNameBlur={() =>
+            setTimeout(() => {
+              setNameFocused(false)
+            }, 120)
+          }
+          onCodeBlur={() =>
+            setTimeout(() => {
+              setCodeFocused(false)
+            }, 120)
+          }
           onOpenNamePopup={() => openPopup('vendor-name')}
           onOpenCodePopup={() => openPopup('vendor-code')}
           onSelectVendor={selectVendor}
@@ -677,30 +773,24 @@ export function PurchaseOrderCreate() {
           salesEmployeeFocused={salesEmployeeFocused}
           warehouseSuggestions={warehouseSuggestions}
           salesEmployeeSuggestions={salesEmployeeSuggestions}
-          onWarehouseChange={(value) => {
-            setWarehouseInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }))
-            if (value.trim() === '') {
-              setWarehouseFocused(true)
-              setHeader({ warehouseCode: '' })
-              return
-            }
-            const matched = findWarehouseByName(value) ?? findWarehouseByCode(value)
-            if (matched) {
-              selectWarehouse(matched)
-              return
-            }
-            setHeader({ warehouseCode: '' })
+          onWarehouseChange={handleWarehouseChange}
+          onSalesEmployeeChange={handleSalesEmployeeChange}
+          onWarehouseFocus={() => {
+            setWarehouseFocused(true)
           }}
-          onSalesEmployeeChange={(value) => {
-            setSalesEmployeeInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }))
+          onSalesEmployeeFocus={() => {
             setSalesEmployeeFocused(true)
           }}
-          onWarehouseFocus={() => setWarehouseFocused(true)}
-          onSalesEmployeeFocus={() => setSalesEmployeeFocused(true)}
-          onWarehouseBlur={() => setTimeout(() => setWarehouseFocused(false), 120)}
-          onSalesEmployeeBlur={() => setTimeout(() => setSalesEmployeeFocused(false), 120)}
+          onWarehouseBlur={() =>
+            setTimeout(() => {
+              setWarehouseFocused(false)
+            }, 120)
+          }
+          onSalesEmployeeBlur={() =>
+            setTimeout(() => {
+              setSalesEmployeeFocused(false)
+            }, 120)
+          }
           onOpenWarehousePopup={() => openPopup('warehouse')}
           onOpenSalesEmployeePopup={() => openPopup('sales-employee')}
           onSelectWarehouse={selectWarehouse}
@@ -795,16 +885,36 @@ export function PurchaseOrderCreate() {
                 </span>
               </Tooltip>
             ) : null}
-            <button
-              type="button"
-              onClick={() => openProductPopup(null)}
-              onMouseEnter={prefetchProducts}
-              onFocus={prefetchProducts}
-              className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
-            >
-              <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-              Search Products
-            </button>
+            {missingSearchMandatoryFields.length > 0 ? (
+              <Tooltip
+                content={`Required fields: ${missingSearchMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field]).join(', ')}`}
+                className="block w-auto max-w-none"
+              >
+                <span>
+                  <button
+                    type="button"
+                    onClick={() => openProductPopup(null)}
+                    onMouseEnter={prefetchProducts}
+                    onFocus={prefetchProducts}
+                    className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+                  >
+                    <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                    Search Products
+                  </button>
+                </span>
+              </Tooltip>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openProductPopup(null)}
+                onMouseEnter={prefetchProducts}
+                onFocus={prefetchProducts}
+                className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+              >
+                <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                Search Products
+              </button>
+            )}
           </div>
         </div>
         <div className="overflow-x-auto px-2 py-2">
@@ -1100,7 +1210,12 @@ export function PurchaseOrderCreate() {
               type="button"
               size="md"
               variant="outline"
-              onClick={() => navigate({ to: '/purchase/orders', viewTransition: true })}
+              onClick={() =>
+                navigate({
+                  to: '/purchase/orders',
+                  search: { page: 1, limit: 10 },
+                })
+              }
               className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
             >
               <span className="inline-flex items-center gap-2">
@@ -1111,19 +1226,24 @@ export function PurchaseOrderCreate() {
             <div className="flex items-center gap-2">
               {createDisabledReason && !createPurchaseOrderMutation.isPending ? (
                 missingMandatoryFields.length > 0 ? (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
-                    <span>Required fields</span>
-                    <span
-                      className="inline-block size-3 rounded-full border border-zinc-300"
-                      style={{
-                        background: `conic-gradient(#2563eb ${requiredCompletionPercent}%, #e4e4e7 ${requiredCompletionPercent}% 100%)`,
-                      }}
-                    />
-                    <span>
-                      {PURCHASE_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length}/
-                      {PURCHASE_ORDER_MANDATORY_FIELDS.length}
+                  <Tooltip
+                    content={`Required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field]).join(', ')}`}
+                    className="block w-auto max-w-none"
+                  >
+                    <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                      <span>Required fields</span>
+                      <span
+                        className="inline-block size-3 rounded-full border border-zinc-300"
+                        style={{
+                          background: `conic-gradient(#2563eb ${requiredCompletionPercent}%, #e4e4e7 ${requiredCompletionPercent}% 100%)`,
+                        }}
+                      />
+                      <span>
+                        {PURCHASE_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length}/
+                        {PURCHASE_ORDER_MANDATORY_FIELDS.length}
+                      </span>
                     </span>
-                  </span>
+                  </Tooltip>
                 ) : (
                   <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
                     <span className="inline-block size-2 rounded-full bg-amber-500" />
@@ -1182,6 +1302,7 @@ export function PurchaseOrderCreate() {
                     : null
             }
             onSearchChange={setModalSearch}
+            onSearchSync={handleLookupModalSearchSync}
             onClose={() => setModalOpen(false)}
             onSelect={(item) => {
               if (modalMode === 'warehouse') {

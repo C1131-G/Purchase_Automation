@@ -27,9 +27,4 @@ export const useTableSortingStore = create<SortingStore>((set) => ({
     })),
 }))
 
-export const useTableSorting = (tableId: string) =>
-  useTableSortingStore((state) => state.tables[tableId] || EMPTY_SORTING)
-
 export const useSetSortingAction = () => useTableSortingStore((state) => state.setSorting)
-
-export const useResetSortingAction = () => useTableSortingStore((state) => state.resetSorting)

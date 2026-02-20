@@ -11,6 +11,7 @@ import { outgoingPaymentService } from "@/services/outgoing-payment.service";
 // Validation
 import {
   CreatePaymentInputSchema,
+  type PaymentDocNumLookupQuery,
   UpdatePaymentInputSchema,
 } from "@/validation/schemas/inputs/payments.input";
 
@@ -38,6 +39,23 @@ export const getPayments = async (req: Request, res: Response, next: NextFunctio
     });
 
     res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPaymentDocNums = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    PaymentDocNumLookupQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search } = authReq.query;
+    const data = await outgoingPaymentService.getPaymentDocNums(dbName, search);
+    res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -126,6 +144,7 @@ export const cancelPayment = async (req: Request, res: Response, next: NextFunct
 
 export const outgoingPaymentDal = {
   getPayments,
+  getPaymentDocNums,
   getPayment,
   createPayment,
   updatePayment,

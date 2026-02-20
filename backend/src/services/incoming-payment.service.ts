@@ -112,6 +112,25 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
   }
 };
 
+export const getPaymentDocNums = async (dbName: string, search?: string) => {
+  const repo = await getTenantRepository(dbName, IncomingPaymentSchema);
+  const queryBuilder = repo.createQueryBuilder("p");
+
+  queryBuilder.select("p.docNum", "DocNum").distinct(true);
+  if (search && search.trim().length > 0) {
+    queryBuilder.where("CAST(p.docNum AS NVARCHAR) LIKE :search", {
+      search: `%${search.trim()}%`,
+    });
+  }
+  queryBuilder.orderBy("p.docNum", "DESC");
+
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  return rows
+    .map((row) => String(row.DocNum).trim())
+    .filter((value) => value.length > 0)
+    .map((code) => ({ code, name: code }));
+};
+
 // Obtains detailed payment data, including which invoices were paid by this document.
 export const getPayment = async (sessionId: string, id: string) => {
   try {
@@ -265,6 +284,7 @@ export const cancelPayment = async (sessionId: string, id: string) => {
 
 export const incomingPaymentService = {
   getPayments,
+  getPaymentDocNums,
   getPayment,
   createPayment,
   updatePayment,

@@ -118,6 +118,29 @@ export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFi
   }
 };
 
+// Returns distinct DocNum values for lookup/search popup.
+export const getPurchaseOrderDocNums = async (dbName: string, search?: string) => {
+  const repo = await getTenantRepository(dbName, PurchaseOrderSchema);
+  const queryBuilder = repo.createQueryBuilder("po");
+
+  queryBuilder.select("po.docNum", "DocNum").distinct(true);
+
+  if (search && search.trim().length > 0) {
+    queryBuilder.where("CAST(po.docNum AS NVARCHAR) LIKE :search", {
+      search: `%${search.trim()}%`,
+    });
+  }
+
+  queryBuilder.orderBy("po.docNum", "DESC");
+
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+
+  return rows
+    .map((row) => String(row.DocNum).trim())
+    .filter((value) => value.length > 0)
+    .map((code) => ({ code, name: code }));
+};
+
 // Requests a specific PO document from the Service Layer, including item lines.
 export const getPurchaseOrder = async (sessionId: string, id: string) => {
   try {
@@ -307,6 +330,7 @@ export const cancelPurchaseOrder = async (sessionId: string, id: string) => {
 
 export const purchaseOrderService = {
   getPurchaseOrders,
+  getPurchaseOrderDocNums,
   getPurchaseOrder,
   createPurchaseOrder,
   updatePurchaseOrder,

@@ -13,8 +13,6 @@ type VisibilityStore = {
   resetVisibility: (tableId: string) => void
 }
 
-const EMPTY_OBJECT: TableVisibility = {}
-
 export const useTableVisibilityStore = create<VisibilityStore>((set) => ({
   tables: {},
   initVisibility: (tableId, visibility) =>
@@ -34,13 +32,4 @@ export const useTableVisibilityStore = create<VisibilityStore>((set) => ({
     })),
 }))
 
-export const useTableVisibility = (tableId: string) =>
-  useTableVisibilityStore((state) => state.tables[tableId] || EMPTY_OBJECT)
-
 export const useSetVisibilityAction = () => useTableVisibilityStore((state) => state.setVisibility)
-
-export const useInitVisibilityAction = () =>
-  useTableVisibilityStore((state) => state.initVisibility)
-
-export const useResetVisibilityAction = () =>
-  useTableVisibilityStore((state) => state.resetVisibility)

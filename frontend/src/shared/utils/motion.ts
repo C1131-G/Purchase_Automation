@@ -6,6 +6,9 @@ export const MOTION_MS = {
   calendarCell: 160,
   calendarList: 140,
   calendarAutoClose: 120,
+  sidebarOpenClose: 420,
+  sidebarBackdrop: 300,
+  sidebarContentFade: 280,
 } as const
 
 export const MOTION_EASING = {

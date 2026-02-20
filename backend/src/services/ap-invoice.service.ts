@@ -116,6 +116,25 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
   }
 };
 
+export const getInvoiceDocNums = async (dbName: string, search?: string) => {
+  const repo = await getTenantRepository(dbName, APInvoiceSchema);
+  const queryBuilder = repo.createQueryBuilder("invoice");
+
+  queryBuilder.select("invoice.docNum", "DocNum").distinct(true);
+  if (search && search.trim().length > 0) {
+    queryBuilder.where("CAST(invoice.docNum AS NVARCHAR) LIKE :search", {
+      search: `%${search.trim()}%`,
+    });
+  }
+  queryBuilder.orderBy("invoice.docNum", "DESC");
+
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  return rows
+    .map((row) => String(row.DocNum).trim())
+    .filter((value) => value.length > 0)
+    .map((code) => ({ code, name: code }));
+};
+
 // Fetches full document details for a specific A/P Invoice directly from the SAP Service Layer.
 // This includes line items which are typically not loaded in the list view.
 export const getInvoice = async (sessionId: string, id: string) => {
@@ -260,6 +279,7 @@ export const cancelInvoice = async (sessionId: string, id: string) => {
 
 export const apInvoiceService = {
   getInvoices,
+  getInvoiceDocNums,
   getInvoice,
   createInvoice,
   updateInvoice,

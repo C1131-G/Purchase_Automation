@@ -1,14 +1,14 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
+import { type GRPOListParams, type GRPOStatus } from '@/features/table-pages/grpo/api/grpo.service'
+import { type GRPOSearch } from '@/features/table-pages/grpo/schemas/grpo-search.schema'
 import {
   type DateRangeFilter,
   isDateRangeFilter,
   isNumberComparisonFilter,
   type NumberComparisonFilter,
-} from '@/components/ui/types/table-filter-values'
-import { type GRPOListParams, type GRPOStatus } from '@/features/table-pages/grpo/api/grpo.service'
-import { type GRPOSearch } from '@/features/table-pages/grpo/schemas/grpo-search.schema'
+} from '@/features/table-pages/shared/utils/table-filter-values'
 import { type ComparisonOperator } from '@/shared/api/common-query.types'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)

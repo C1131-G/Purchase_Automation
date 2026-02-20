@@ -8,21 +8,13 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
-import { TablePagination } from '@/components/table/controls/pagination'
-import { TableErrorState } from '@/components/table/core/table-error-state'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/table/core/table-root'
-import { TableToolbar } from '@/components/table/core/table-toolbar'
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
+import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
+import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
 import { type SalesOrderListItem } from '@/features/table-pages/sales-orders/api/sales-order.service'
 import { mapSearchToSalesOrderListParams } from '@/features/table-pages/sales-orders/api/sales-order-query.mapper'
@@ -32,6 +24,17 @@ import {
   salesOrderColumnFilterSchema,
   type SalesOrderSearch,
 } from '@/features/table-pages/sales-orders/schemas/sales-order-search.schema'
+import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/features/table-pages/shared/components/core/table-root'
+import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
 import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
@@ -140,6 +143,21 @@ export function SalesOrderTable() {
     refetch,
   } = useQuery(salesOrderQueries.list(listParams))
   const queryClient = useQueryClient()
+
+  // Customers lookup for filter suggestions and popup
+  const customersQuery = useQuery(createSharedQueries.customers())
+  const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data])
+
+  const docNumSuggestionsQuery = useQuery(salesOrderQueries.docNumSuggestions())
+  const docNumSuggestions = useMemo<LookupItem[]>(
+    () => docNumSuggestionsQuery.data?.data ?? [],
+    [docNumSuggestionsQuery.data],
+  )
+
+  // Lookup popup state
+  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
+  const [lookupColumnId, setLookupColumnId] = useState<string>('')
+  const [lookupSearch, setLookupSearch] = useState('')
 
   const rows = salesOrderList?.data ?? []
   const totalRows = salesOrderList?.total ?? 0
@@ -267,7 +285,7 @@ export function SalesOrderTable() {
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
-  const handleResetTable = () => {
+  const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
     setOrder(TABLE_ID, [...defaultColumnOrder])
@@ -288,7 +306,68 @@ export function SalesOrderTable() {
       }),
       replace: true,
     })
-  }
+  }, [
+    setSorting,
+    setVisibility,
+    setOrder,
+    defaultColumnOrder,
+    clearAllFilters,
+    setPagination,
+    navigate,
+  ])
+
+  const handleLookupPopupOpen = useCallback((columnId: string) => {
+    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
+    setLookupColumnId(columnId)
+    setLookupSearch('')
+    setLookupPopupOpen(true)
+  }, [])
+
+  const handleLookupSelect = useCallback(
+    (item: LookupItem) => {
+      const column = table.getColumn(lookupColumnId)
+      if (column) {
+        const value =
+          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
+        column.setFilterValue(value)
+      }
+      setLookupPopupOpen(false)
+    },
+    [lookupColumnId, table],
+  )
+
+  const handlePrefetchPage = useCallback(
+    (nextPageIndex: number, nextPageSize: number) => {
+      queryClient.prefetchQuery(
+        salesOrderQueries.list({
+          ...listParams,
+          page: nextPageIndex + 1,
+          limit: nextPageSize,
+        }),
+      )
+    },
+    [queryClient, listParams],
+  )
+
+  const handlePrefetchPageSize = useCallback(
+    (nextPageSize: number) => {
+      queryClient.prefetchQuery(
+        salesOrderQueries.list({
+          ...listParams,
+          page: 1,
+          limit: nextPageSize,
+        }),
+      )
+    },
+    [queryClient, listParams],
+  )
+
+  const handleCreateClickPrefetch = useCallback(() => {
+    void Promise.allSettled([
+      queryClient.prefetchQuery(createSharedQueries.warehouses()),
+      queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+    ])
+  }, [queryClient])
 
   if (showInitialSkeleton) return <TableSkeleton />
   if (isError && !salesOrderList) {
@@ -307,9 +386,51 @@ export function SalesOrderTable() {
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
+        onCreateClick={handleCreateClickPrefetch}
         isFetching={isFetching}
         createLink="/sales/create-order"
-        breadcrumb={{ section: 'Sales', page: 'Sales Orders Table', href: '/sales/orders' }}
+        breadcrumb={{ section: 'Sales', page: 'Sales Orders', href: '/sales/orders' }}
+        lookupSuggestions={customers}
+        docNumSuggestions={docNumSuggestions}
+        enableDocNumPopup
+        onLookupPopupOpen={handleLookupPopupOpen}
+      />
+      <LookupPopup
+        open={lookupPopupOpen}
+        mode={
+          lookupColumnId === 'DocNum'
+            ? undefined
+            : lookupColumnId === 'CardCode'
+              ? 'customer-code'
+              : 'customer-name'
+        }
+        search={lookupSearch}
+        results={lookupColumnId === 'DocNum' ? docNumSuggestions : customers}
+        loading={
+          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : customersQuery.isLoading
+        }
+        error={
+          lookupColumnId === 'DocNum'
+            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
+              ? 'Failed to load document numbers'
+              : null
+            : customersQuery.isError
+              ? 'Failed to load customers'
+              : null
+        }
+        title={
+          lookupColumnId === 'DocNum'
+            ? 'Search Doc Number'
+            : lookupColumnId === 'CardCode'
+              ? 'Search Customer Code'
+              : 'Search Customer Name'
+        }
+        searchPlaceholder={
+          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search customer code or name'
+        }
+        onSearchChange={setLookupSearch}
+        onClose={() => setLookupPopupOpen(false)}
+        onSelect={handleLookupSelect}
       />
       <div className="flex-1 overflow-auto w-full px-1.5">
         <Table className="w-full min-w-300">
@@ -360,24 +481,8 @@ export function SalesOrderTable() {
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={(nextPageIndex, nextPageSize) => {
-          queryClient.prefetchQuery(
-            salesOrderQueries.list({
-              ...listParams,
-              page: nextPageIndex + 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
-        onPrefetchPageSize={(nextPageSize) => {
-          queryClient.prefetchQuery(
-            salesOrderQueries.list({
-              ...listParams,
-              page: 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
+        onPrefetchPage={handlePrefetchPage}
+        onPrefetchPageSize={handlePrefetchPageSize}
       />
     </div>
   )

@@ -8,21 +8,13 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
-import { TablePagination } from '@/components/table/controls/pagination'
-import { TableErrorState } from '@/components/table/core/table-error-state'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/table/core/table-root'
-import { TableToolbar } from '@/components/table/core/table-toolbar'
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
+import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
+import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
 import { type GRPOListItem } from '@/features/table-pages/grpo/api/grpo.service'
 import { mapSearchToGRPOListParams } from '@/features/table-pages/grpo/api/grpo-query.mapper'
@@ -32,6 +24,17 @@ import {
   grpoColumnFilterSchema,
   type GRPOSearch,
 } from '@/features/table-pages/grpo/schemas/grpo-search.schema'
+import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/features/table-pages/shared/components/core/table-root'
+import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
 import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
@@ -137,6 +140,22 @@ export function GRPOTable() {
     refetch,
   } = useQuery(grpoQueries.list(listParams))
   const queryClient = useQueryClient()
+
+  // Vendors lookup for filter suggestions and popup
+  const vendorsQuery = useQuery(createSharedQueries.vendors())
+  const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data])
+
+  const docNumSuggestionsQuery = useQuery(grpoQueries.docNumSuggestions())
+  const docNumSuggestions = useMemo<LookupItem[]>(
+    () => docNumSuggestionsQuery.data?.data ?? [],
+    [docNumSuggestionsQuery.data],
+  )
+
+  // Lookup popup state
+  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
+  const [lookupColumnId, setLookupColumnId] = useState<string>('')
+  const [lookupSearch, setLookupSearch] = useState('')
+
   const rows = grpoList?.data ?? []
   const totalRows = grpoList?.total ?? 0
   const totalPages = Math.max(grpoList?.totalPages ?? 1, 1)
@@ -267,7 +286,7 @@ export function GRPOTable() {
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
-  const handleResetTable = () => {
+  const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
     setOrder(TABLE_ID, [...defaultColumnOrder])
@@ -288,7 +307,48 @@ export function GRPOTable() {
       }),
       replace: true,
     })
-  }
+  }, [
+    setSorting,
+    setVisibility,
+    setOrder,
+    defaultColumnOrder,
+    clearAllFilters,
+    setPagination,
+    navigate,
+  ])
+
+  const handleLookupPopupOpen = useCallback((columnId: string) => {
+    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
+    setLookupColumnId(columnId)
+    setLookupSearch('')
+    setLookupPopupOpen(true)
+  }, [])
+
+  const handleLookupSelect = useCallback(
+    (item: LookupItem) => {
+      const column = table.getColumn(lookupColumnId)
+      if (column) {
+        const value =
+          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
+        column.setFilterValue(value)
+      }
+      setLookupPopupOpen(false)
+    },
+    [lookupColumnId, table],
+  )
+
+  const handlePrefetchPage = useCallback(
+    (nextPageIndex: number, nextPageSize: number) => {
+      queryClient.prefetchQuery(
+        grpoQueries.list({
+          ...listParams,
+          page: nextPageIndex + 1,
+          limit: nextPageSize,
+        }),
+      )
+    },
+    [queryClient, listParams],
+  )
 
   if (showInitialSkeleton) {
     return <TableSkeleton />
@@ -310,7 +370,49 @@ export function GRPOTable() {
         table={table}
         onReset={handleResetTable}
         isFetching={isFetching}
-        breadcrumb={{ section: 'Purchase', page: 'GRPO Table', href: '/purchase/grpo' }}
+        createLink="/purchase/create-grpo"
+        breadcrumb={{ section: 'Purchase', page: 'GRPO', href: '/purchase/grpo' }}
+        lookupSuggestions={vendors}
+        docNumSuggestions={docNumSuggestions}
+        enableDocNumPopup
+        onLookupPopupOpen={handleLookupPopupOpen}
+      />
+      <LookupPopup
+        open={lookupPopupOpen}
+        mode={
+          lookupColumnId === 'DocNum'
+            ? undefined
+            : lookupColumnId === 'CardCode'
+              ? 'vendor-code'
+              : 'vendor-name'
+        }
+        search={lookupSearch}
+        results={lookupColumnId === 'DocNum' ? docNumSuggestions : vendors}
+        loading={
+          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : vendorsQuery.isLoading
+        }
+        error={
+          lookupColumnId === 'DocNum'
+            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
+              ? 'Failed to load document numbers'
+              : null
+            : vendorsQuery.isError
+              ? 'Failed to load vendors'
+              : null
+        }
+        title={
+          lookupColumnId === 'DocNum'
+            ? 'Search Doc Number'
+            : lookupColumnId === 'CardCode'
+              ? 'Search Vendor Code'
+              : 'Search Vendor Name'
+        }
+        searchPlaceholder={
+          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search vendor code or name'
+        }
+        onSearchChange={setLookupSearch}
+        onClose={() => setLookupPopupOpen(false)}
+        onSelect={handleLookupSelect}
       />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
@@ -363,24 +465,7 @@ export function GRPOTable() {
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={(nextPageIndex, nextPageSize) => {
-          queryClient.prefetchQuery(
-            grpoQueries.list({
-              ...listParams,
-              page: nextPageIndex + 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
-        onPrefetchPageSize={(nextPageSize) => {
-          queryClient.prefetchQuery(
-            grpoQueries.list({
-              ...listParams,
-              page: 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
+        onPrefetchPage={handlePrefetchPage}
       />
     </div>
   )

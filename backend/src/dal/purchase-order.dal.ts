@@ -8,6 +8,7 @@ import type { PurchaseOrderQuery } from "@/dal/types/purchase-order.types";
 import { purchaseOrderService } from "@/services/purchase-order.service";
 import {
   CreatePurchaseOrderInputSchema,
+  type PurchaseOrderDocNumLookupQuery,
   UpdatePurchaseOrderInputSchema,
 } from "@/validation/schemas/inputs/purchase-order.input";
 
@@ -33,6 +34,29 @@ export const getPurchaseOrders = async (req: Request, res: Response, next: NextF
     res.status(200).json({
       success: true,
       ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retrieves distinct DocNum values for lookup popup suggestions.
+export const getPurchaseOrderDocNums = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    PurchaseOrderDocNumLookupQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search } = authReq.query;
+
+    const data = await purchaseOrderService.getPurchaseOrderDocNums(dbName, search);
+
+    res.status(200).json({
+      success: true,
+      data,
     });
   } catch (error) {
     next(error);
@@ -142,6 +166,7 @@ export const cancelPurchaseOrder = async (req: Request, res: Response, next: Nex
 
 export const purchaseOrderDal = {
   getPurchaseOrders,
+  getPurchaseOrderDocNums,
   getPurchaseOrder,
   createPurchaseOrder,
   updatePurchaseOrder,

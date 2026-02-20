@@ -1,6 +1,6 @@
 import { type ComponentProps } from 'react'
 
-import { DocumentDetailsGrid } from '@/components/create/grids/document-details-grid'
+import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
 
 type DocumentDetailsSectionProps = ComponentProps<typeof DocumentDetailsGrid>
 

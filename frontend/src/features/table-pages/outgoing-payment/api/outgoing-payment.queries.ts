@@ -1,4 +1,4 @@
-import { keepPreviousData, queryOptions } from '@tanstack/react-query'
+import { queryOptions } from '@tanstack/react-query'
 
 import {
   outgoingPaymentAPI,
@@ -10,6 +10,8 @@ export const outgoingPaymentKeys = {
   all: ['outgoing-payments'] as const,
   list: (params: OutgoingPaymentListParams) =>
     [...outgoingPaymentKeys.all, 'list', params] as const,
+  docNumSuggestions: (search?: string) =>
+    [...outgoingPaymentKeys.all, 'doc-num-suggestions', search ?? ''] as const,
 }
 
 export const outgoingPaymentQueries = {
@@ -17,8 +19,14 @@ export const outgoingPaymentQueries = {
     queryOptions({
       queryKey: outgoingPaymentKeys.list(params),
       queryFn: () => outgoingPaymentAPI.getOutgoingPayments(params),
-      placeholderData: keepPreviousData,
-      staleTime: QUERY_CACHE_POLICY.list.staleTime,
-      gcTime: QUERY_CACHE_POLICY.list.gcTime,
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+    }),
+  docNumSuggestions: (search?: string) =>
+    queryOptions({
+      queryKey: outgoingPaymentKeys.docNumSuggestions(search),
+      queryFn: () => outgoingPaymentAPI.getOutgoingPaymentDocNums(search),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),
 }

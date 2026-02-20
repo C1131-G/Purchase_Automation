@@ -1,4 +1,4 @@
-import { keepPreviousData, queryOptions } from '@tanstack/react-query'
+import { queryOptions } from '@tanstack/react-query'
 
 import {
   apCreditNoteAPI,
@@ -9,6 +9,8 @@ import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
 export const apCreditNoteKeys = {
   all: ['ap-credit-notes'] as const,
   list: (params: APCreditNoteListParams) => [...apCreditNoteKeys.all, 'list', params] as const,
+  docNumSuggestions: (search?: string) =>
+    [...apCreditNoteKeys.all, 'doc-num-suggestions', search ?? ''] as const,
 }
 
 export const apCreditNoteQueries = {
@@ -16,8 +18,14 @@ export const apCreditNoteQueries = {
     queryOptions({
       queryKey: apCreditNoteKeys.list(params),
       queryFn: () => apCreditNoteAPI.getAPCreditNotes(params),
-      placeholderData: keepPreviousData,
-      staleTime: QUERY_CACHE_POLICY.list.staleTime,
-      gcTime: QUERY_CACHE_POLICY.list.gcTime,
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+    }),
+  docNumSuggestions: (search?: string) =>
+    queryOptions({
+      queryKey: apCreditNoteKeys.docNumSuggestions(search),
+      queryFn: () => apCreditNoteAPI.getAPCreditNoteDocNums(search),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),
 }

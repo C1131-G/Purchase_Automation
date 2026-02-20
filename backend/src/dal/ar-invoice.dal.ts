@@ -8,6 +8,7 @@ import type { AuthenticatedRequest } from "@/dal/types/express.types";
 import { arInvoiceService } from "@/services/ar-invoice.service";
 import {
   CreateInvoiceInputSchema,
+  type InvoiceDocNumLookupQuery,
   UpdateInvoiceInputSchema,
 } from "@/validation/schemas/inputs/invoice.input";
 
@@ -31,6 +32,23 @@ export const getInvoices = async (req: Request, res: Response, next: NextFunctio
     logger.info({ msg: "Fetched A/R Invoices", count: result.data.length, total: result.total });
 
     res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getInvoiceDocNums = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    InvoiceDocNumLookupQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search } = authReq.query;
+    const data = await arInvoiceService.getInvoiceDocNums(dbName, search);
+    res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -112,6 +130,7 @@ export const cancelInvoice = async (req: Request, res: Response, next: NextFunct
 
 export const arInvoiceDal = {
   getInvoices,
+  getInvoiceDocNums,
   getInvoice,
   createInvoice,
   updateInvoice,

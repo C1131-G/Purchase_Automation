@@ -69,6 +69,16 @@ export const InvoiceQuerySchema = z
     return normalized;
   });
 
+export const InvoiceDocNumLookupQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .optional()
+    .openapi({ example: "2001", description: "DocNum contains search term" }),
+});
+
 // InvoiceLineItemSchema: Rows in the invoice document.
 const InvoiceLineItemSchema = z.object({
   ItemCode: z.string().min(1),
@@ -101,5 +111,6 @@ export const UpdateInvoiceInputSchema = CreateInvoiceInputSchema.partial().exten
 });
 
 export type InvoiceQuery = z.infer<typeof InvoiceQuerySchema>;
+export type InvoiceDocNumLookupQuery = z.infer<typeof InvoiceDocNumLookupQuerySchema>;
 export type CreateInvoiceInput = z.infer<typeof CreateInvoiceInputSchema>;
 export type UpdateInvoiceInput = z.infer<typeof UpdateInvoiceInputSchema>;

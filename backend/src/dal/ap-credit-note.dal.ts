@@ -8,6 +8,7 @@ import type { AuthenticatedRequest } from "@/dal/types/express.types";
 import { apCreditNoteService } from "@/services/ap-credit-note.service";
 import {
   CreateCreditNoteInputSchema,
+  type CreditNoteDocNumLookupQuery,
   UpdateCreditNoteInputSchema,
 } from "@/validation/schemas/inputs/credit-note.input";
 
@@ -35,6 +36,23 @@ export const getCreditNotes = async (req: Request, res: Response, next: NextFunc
     });
 
     res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCreditNoteDocNums = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    CreditNoteDocNumLookupQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search } = authReq.query;
+    const data = await apCreditNoteService.getCreditNoteDocNums(dbName, search);
+    res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -122,6 +140,7 @@ export const cancelCreditNote = async (req: Request, res: Response, next: NextFu
 
 export const apCreditNoteDal = {
   getCreditNotes,
+  getCreditNoteDocNums,
   getCreditNote,
   createCreditNote,
   updateCreditNote,

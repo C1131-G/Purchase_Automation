@@ -85,6 +85,16 @@ export const GRPOQuerySchema = z
     return normalized;
   });
 
+export const GRPODocNumLookupQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .optional()
+    .openapi({ example: "6005", description: "DocNum contains search term" }),
+});
+
 // AvailablePOsQuerySchema: Ensures a valid vendor code is provided when looking up pending deliveries.
 export const AvailablePOsQuerySchema = z.object({
   vendorCode: z.string().min(1),
@@ -119,6 +129,7 @@ export const UpdateGRPOInputSchema = CreateGRPOInputSchema.partial().extend({
 });
 
 export type GRPOQuery = z.infer<typeof GRPOQuerySchema>;
+export type GRPODocNumLookupQuery = z.infer<typeof GRPODocNumLookupQuerySchema>;
 export type AvailablePOsQuery = z.infer<typeof AvailablePOsQuerySchema>;
 export type CreateGRPOInput = z.infer<typeof CreateGRPOInputSchema>;
 export type UpdateGRPOInput = z.infer<typeof UpdateGRPOInputSchema>;

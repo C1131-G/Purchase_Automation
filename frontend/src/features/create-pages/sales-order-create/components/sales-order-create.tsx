@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 
+import { Button } from '@/components/button'
 import { CreateModalSkeleton } from '@/components/skeleton/create-modal-skeleton'
-import { Button } from '@/components/ui/button'
-import { Tooltip } from '@/components/ui/tooltip'
+import { Tooltip } from '@/components/tooltip'
 import { createSharedQueries as salesOrderCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { AddressReferenceSection } from '@/features/create-pages/create-shared/components/sections/address-reference.section'
@@ -34,6 +34,7 @@ import {
   toDisplayDate,
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
+import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import { useCreateSalesOrder } from '@/features/create-pages/sales-order-create/api/sales-order-create.mutations'
 import {
   useResetSOCreateAction,
@@ -107,6 +108,28 @@ const REQUIRED_FIELD_LABEL_TEXT: Record<(typeof SALES_ORDER_MANDATORY_FIELDS)[nu
   shipToAddress: 'Ship To Address',
   referenceNo: 'Reference',
   comments: 'Remarks',
+}
+const QUICK_PRODUCT_LIMIT = 10
+const FULL_PRODUCT_LIMIT = 100
+
+const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSearch: string) => {
+  const term = rawSearch.trim().toLowerCase()
+  if (!term) return items
+
+  const score = (item: ProductLookupItem) => {
+    const code = item.code.toLowerCase()
+    const name = item.name.toLowerCase()
+    if (code === term || name === term) return 0
+    if (code.startsWith(term) || name.startsWith(term)) return 1
+    if (code.includes(term) || name.includes(term)) return 2
+    return 3
+  }
+
+  return [...items].sort((a, b) => {
+    const byScore = score(a) - score(b)
+    if (byScore !== 0) return byScore
+    return a.code.localeCompare(b.code, undefined, { sensitivity: 'base', numeric: true })
+  })
 }
 
 export function SalesOrderCreate() {
@@ -185,15 +208,19 @@ export function SalesOrderCreate() {
     if (matched?.code) return matched.code
     return (header.warehouseCode ?? '').trim()
   }, [warehouseInput, warehouses, header.warehouseCode])
+  const normalizedProductSearch = debouncedProductSearch.trim()
   const productsQuery = useQuery({
     ...salesOrderCreateQueries.products(
       effectiveWarehouseCode || undefined,
-      debouncedProductSearch || undefined,
-      debouncedProductSearch ? undefined : 100,
+      normalizedProductSearch || undefined,
+      normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
     ),
     enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
   })
-  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data])
+  const products = useMemo(
+    () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
+    [productsQuery.data, normalizedProductSearch],
+  )
   const productWarehouseStocksQuery = useQuery({
     ...salesOrderCreateQueries.productWarehouseStocks(stockPreviewProduct?.code),
     enabled: Boolean(stockPreviewProduct?.code),
@@ -271,8 +298,14 @@ export function SalesOrderCreate() {
     setWarehouseInput(item.name)
     setHeader({ warehouseCode: item.code })
     setProductSearchFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }))
-    // Warm product list as soon as warehouse is chosen so popup opens with data immediately.
-    void queryClient.prefetchQuery(salesOrderCreateQueries.products(item.code, undefined, 100))
+    // Warm a compact first page immediately, then warm the broader product set in background.
+    void queryClient
+      .prefetchQuery(salesOrderCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT))
+      .then(() =>
+        queryClient.prefetchQuery(
+          salesOrderCreateQueries.products(item.code, undefined, FULL_PRODUCT_LIMIT),
+        ),
+      )
     setWarehouseFocused(false)
     setModalOpen(false)
   }
@@ -284,14 +317,80 @@ export function SalesOrderCreate() {
     setModalOpen(false)
   }
 
+  const handleVendorNameChange = (value: string) => {
+    setNameInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
+    if (value.trim() === '') {
+      setNameFocused(true)
+      setHeader({ vendorName: '', vendorCode: '' })
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
+    const matched = findVendorByName(value)
+    if (matched) {
+      selectVendor(matched)
+      return
+    }
+    setHeader({ vendorName: value, vendorCode: '' })
+  }
+
+  const handleVendorCodeChange = (value: string) => {
+    setCodeInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
+    if (value.trim() === '') {
+      setCodeFocused(true)
+      setHeader({ vendorCode: '', vendorName: '' })
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
+    const matched = findVendorByCode(value)
+    if (matched) {
+      selectVendor(matched)
+      return
+    }
+    setHeader({ vendorCode: value, vendorName: '' })
+  }
+
+  const handleWarehouseChange = (value: string) => {
+    setWarehouseInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }))
+    if (value.trim() === '') {
+      setWarehouseFocused(true)
+      setHeader({ warehouseCode: '' })
+      return
+    }
+    const matched = findWarehouseByName(value) ?? findWarehouseByCode(value)
+    if (matched) {
+      selectWarehouse(matched)
+      return
+    }
+    setHeader({ warehouseCode: '' })
+  }
+
+  const handleSalesEmployeeChange = (value: string) => {
+    setSalesEmployeeInput(value)
+    setProductSearchFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }))
+    setSalesEmployeeFocused(true)
+  }
+
   const openPopup = (mode: PopupMode) => {
     setModalMode(mode)
     if (mode === 'vendor-name') setModalSearch(nameInput)
     if (mode === 'vendor-code') setModalSearch(codeInput)
-    if (mode === 'warehouse') setModalSearch('')
-    if (mode === 'sales-employee') setModalSearch('')
+    if (mode === 'warehouse') setModalSearch(warehouseInput)
+    if (mode === 'sales-employee') setModalSearch(salesEmployeeInput)
     setModalOpen(true)
   }
+
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+    syncLookupSearchByMode(mode, value, {
+      onVendorName: handleVendorNameChange,
+      onVendorCode: handleVendorCodeChange,
+      onWarehouse: handleWarehouseChange,
+      onSalesEmployee: handleSalesEmployeeChange,
+    })
 
   const warehouseSuggestions = useMemo(() => {
     const term = warehouseInput.trim().toLowerCase()
@@ -346,7 +445,10 @@ export function SalesOrderCreate() {
     setProductSearch('')
     setDebouncedProductSearch('')
     void queryClient.fetchQuery(
-      salesOrderCreateQueries.products(effectiveWarehouseCode, undefined, 100),
+      salesOrderCreateQueries.products(effectiveWarehouseCode, undefined, QUICK_PRODUCT_LIMIT),
+    )
+    void queryClient.prefetchQuery(
+      salesOrderCreateQueries.products(effectiveWarehouseCode, undefined, FULL_PRODUCT_LIMIT),
     )
     setActiveProductRowId(rowId)
     setProductPopupOpen(true)
@@ -399,13 +501,19 @@ export function SalesOrderCreate() {
   }
 
   const prefetchProducts = () => {
+    if (!effectiveWarehouseCode) return
     void queryClient.prefetchQuery(
       salesOrderCreateQueries.products(
-        effectiveWarehouseCode || undefined,
-        debouncedProductSearch || undefined,
-        debouncedProductSearch ? undefined : 100,
+        effectiveWarehouseCode,
+        normalizedProductSearch || undefined,
+        normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
       ),
     )
+    if (!normalizedProductSearch) {
+      void queryClient.prefetchQuery(
+        salesOrderCreateQueries.products(effectiveWarehouseCode, undefined, FULL_PRODUCT_LIMIT),
+      )
+    }
   }
 
   const applyProductToRow = (product: ProductLookupItem) => {
@@ -592,13 +700,13 @@ export function SalesOrderCreate() {
 
   return (
     <div className="w-full bg-zinc-50 p-3 pb-20">
-      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
         <span>Sales</span>
-        <span className="text-zinc-300">›</span>
-        <Link to="/sales/orders" className="text-blue-600 hover:text-blue-700">
-          Sales Orders Table
+        <ChevronRight className="size-3.5 text-zinc-300" />
+        <Link to="/sales/orders" preload="intent" className="text-blue-600 hover:text-blue-700">
+          Sales Orders
         </Link>
-        <span className="text-zinc-300">›</span>
+        <ChevronRight className="size-3.5 text-zinc-300" />
         <span className="text-zinc-700">Create Sales Order</span>
       </div>
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -617,40 +725,8 @@ export function SalesOrderCreate() {
           codeFocused={codeFocused}
           nameSuggestions={nameSuggestions}
           codeSuggestions={codeSuggestions}
-          onNameChange={(value) => {
-            setNameInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
-            if (value.trim() === '') {
-              setNameFocused(true)
-              setHeader({ vendorName: '', vendorCode: '' })
-              setBillToAddress('')
-              setShipToAddress('')
-              return
-            }
-            const matched = findVendorByName(value)
-            if (matched) {
-              selectVendor(matched)
-              return
-            }
-            setHeader({ vendorName: value, vendorCode: '' })
-          }}
-          onCodeChange={(value) => {
-            setCodeInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
-            if (value.trim() === '') {
-              setCodeFocused(true)
-              setHeader({ vendorCode: '', vendorName: '' })
-              setBillToAddress('')
-              setShipToAddress('')
-              return
-            }
-            const matched = findVendorByCode(value)
-            if (matched) {
-              selectVendor(matched)
-              return
-            }
-            setHeader({ vendorCode: value, vendorName: '' })
-          }}
+          onNameChange={handleVendorNameChange}
+          onCodeChange={handleVendorCodeChange}
           onNameFocus={() => setNameFocused(true)}
           onCodeFocus={() => setCodeFocused(true)}
           onNameBlur={() => setTimeout(() => setNameFocused(false), 120)}
@@ -683,26 +759,8 @@ export function SalesOrderCreate() {
           salesEmployeeFocused={salesEmployeeFocused}
           warehouseSuggestions={warehouseSuggestions}
           salesEmployeeSuggestions={salesEmployeeSuggestions}
-          onWarehouseChange={(value) => {
-            setWarehouseInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }))
-            if (value.trim() === '') {
-              setWarehouseFocused(true)
-              setHeader({ warehouseCode: '' })
-              return
-            }
-            const matched = findWarehouseByName(value) ?? findWarehouseByCode(value)
-            if (matched) {
-              selectWarehouse(matched)
-              return
-            }
-            setHeader({ warehouseCode: '' })
-          }}
-          onSalesEmployeeChange={(value) => {
-            setSalesEmployeeInput(value)
-            setProductSearchFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }))
-            setSalesEmployeeFocused(true)
-          }}
+          onWarehouseChange={handleWarehouseChange}
+          onSalesEmployeeChange={handleSalesEmployeeChange}
           onWarehouseFocus={() => setWarehouseFocused(true)}
           onSalesEmployeeFocus={() => setSalesEmployeeFocused(true)}
           onWarehouseBlur={() => setTimeout(() => setWarehouseFocused(false), 120)}
@@ -801,16 +859,36 @@ export function SalesOrderCreate() {
                 </span>
               </Tooltip>
             ) : null}
-            <button
-              type="button"
-              onClick={() => openProductPopup(null)}
-              onMouseEnter={prefetchProducts}
-              onFocus={prefetchProducts}
-              className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
-            >
-              <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-              Search Products
-            </button>
+            {missingSearchMandatoryFields.length > 0 ? (
+              <Tooltip
+                content={`Required fields: ${missingSearchMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field]).join(', ')}`}
+                className="block w-auto max-w-none"
+              >
+                <span>
+                  <button
+                    type="button"
+                    onClick={() => openProductPopup(null)}
+                    onMouseEnter={prefetchProducts}
+                    onFocus={prefetchProducts}
+                    className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+                  >
+                    <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                    Search Products
+                  </button>
+                </span>
+              </Tooltip>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openProductPopup(null)}
+                onMouseEnter={prefetchProducts}
+                onFocus={prefetchProducts}
+                className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+              >
+                <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                Search Products
+              </button>
+            )}
           </div>
         </div>
         <div className="overflow-x-auto px-2 py-2">
@@ -1106,7 +1184,7 @@ export function SalesOrderCreate() {
               type="button"
               size="md"
               variant="outline"
-              onClick={() => navigate({ to: '/sales/orders', viewTransition: true })}
+              onClick={() => navigate({ to: '/sales/orders' })}
               className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
             >
               <span className="inline-flex items-center gap-2">
@@ -1117,19 +1195,24 @@ export function SalesOrderCreate() {
             <div className="flex items-center gap-2">
               {createDisabledReason && !createSalesOrderMutation.isPending ? (
                 missingMandatoryFields.length > 0 ? (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
-                    <span>Required fields</span>
-                    <span
-                      className="inline-block size-3 rounded-full border border-zinc-300"
-                      style={{
-                        background: `conic-gradient(#2563eb ${requiredCompletionPercent}%, #e4e4e7 ${requiredCompletionPercent}% 100%)`,
-                      }}
-                    />
-                    <span>
-                      {SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length}/
-                      {SALES_ORDER_MANDATORY_FIELDS.length}
+                  <Tooltip
+                    content={`Required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field]).join(', ')}`}
+                    className="block w-auto max-w-none"
+                  >
+                    <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                      <span>Required fields</span>
+                      <span
+                        className="inline-block size-3 rounded-full border border-zinc-300"
+                        style={{
+                          background: `conic-gradient(#2563eb ${requiredCompletionPercent}%, #e4e4e7 ${requiredCompletionPercent}% 100%)`,
+                        }}
+                      />
+                      <span>
+                        {SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length}/
+                        {SALES_ORDER_MANDATORY_FIELDS.length}
+                      </span>
                     </span>
-                  </span>
+                  </Tooltip>
                 ) : (
                   <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
                     <span className="inline-block size-2 rounded-full bg-amber-500" />
@@ -1190,6 +1273,7 @@ export function SalesOrderCreate() {
                     : null
             }
             onSearchChange={setModalSearch}
+            onSearchSync={handleLookupModalSearchSync}
             onClose={() => setModalOpen(false)}
             onSelect={(item) => {
               if (modalMode === 'warehouse') {

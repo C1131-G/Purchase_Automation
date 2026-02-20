@@ -60,6 +60,16 @@ export const PaymentQuerySchema = z
     return normalized;
   });
 
+export const PaymentDocNumLookupQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .optional()
+    .openapi({ example: "7008", description: "DocNum contains search term" }),
+});
+
 // CreatePaymentInputSchema: Validates the complex payload for recording a payment.
 // It supports cash and transfer sums, along with a list of invoices being settled.
 export const CreatePaymentInputSchema = z.object({
@@ -86,5 +96,6 @@ export const CreatePaymentInputSchema = z.object({
 export const UpdatePaymentInputSchema = CreatePaymentInputSchema.partial();
 
 export type PaymentQuery = z.infer<typeof PaymentQuerySchema>;
+export type PaymentDocNumLookupQuery = z.infer<typeof PaymentDocNumLookupQuerySchema>;
 export type CreatePaymentInput = z.infer<typeof CreatePaymentInputSchema>;
 export type UpdatePaymentInput = z.infer<typeof UpdatePaymentInputSchema>;

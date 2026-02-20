@@ -1,4 +1,4 @@
-import { keepPreviousData, queryOptions } from '@tanstack/react-query'
+import { queryOptions } from '@tanstack/react-query'
 
 import {
   salesOrderAPI,
@@ -9,6 +9,8 @@ import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
 export const salesOrderKeys = {
   all: ['sales-orders'] as const,
   list: (params: SalesOrderListParams) => [...salesOrderKeys.all, 'list', params] as const,
+  docNumSuggestions: (search?: string) =>
+    [...salesOrderKeys.all, 'doc-num-suggestions', search ?? ''] as const,
 }
 
 export const salesOrderQueries = {
@@ -16,8 +18,14 @@ export const salesOrderQueries = {
     queryOptions({
       queryKey: salesOrderKeys.list(params),
       queryFn: () => salesOrderAPI.getSalesOrders(params),
-      placeholderData: keepPreviousData,
-      staleTime: QUERY_CACHE_POLICY.list.staleTime,
-      gcTime: QUERY_CACHE_POLICY.list.gcTime,
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+    }),
+  docNumSuggestions: (search?: string) =>
+    queryOptions({
+      queryKey: salesOrderKeys.docNumSuggestions(search),
+      queryFn: () => salesOrderAPI.getSalesOrderDocNums(search),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),
 }

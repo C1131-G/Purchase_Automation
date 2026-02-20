@@ -5,7 +5,10 @@ import express from "express";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { purchaseOrderDal } from "@/dal/purchase-order.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
-import { PurchaseOrderQuerySchema } from "@/validation/schemas/inputs/purchase-order.input";
+import {
+  PurchaseOrderDocNumLookupQuerySchema,
+  PurchaseOrderQuerySchema,
+} from "@/validation/schemas/inputs/purchase-order.input";
 
 const router = express.Router();
 
@@ -14,6 +17,13 @@ router.use(validateSession);
 
 // GET /: Retrieves a paginated list of POs, optionally filtered by date or document number.
 router.get("/", validateQuery(PurchaseOrderQuerySchema), purchaseOrderDal.getPurchaseOrders);
+
+// GET /docnums: Retrieves distinct DocNum values for lookup suggestions.
+router.get(
+  "/docnums",
+  validateQuery(PurchaseOrderDocNumLookupQuerySchema),
+  purchaseOrderDal.getPurchaseOrderDocNums,
+);
 
 // GET /:id: Fetches full details for a single PO, including line items.
 router.get("/:id", purchaseOrderDal.getPurchaseOrder);

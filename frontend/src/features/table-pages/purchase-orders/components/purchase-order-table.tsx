@@ -8,11 +8,23 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
-import { TablePagination } from '@/components/table/controls/pagination'
-import { TableErrorState } from '@/components/table/core/table-error-state'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
+import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
+import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
+import { type PurchaseOrderListItem } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
+import { mapSearchToPurchaseOrderListParams } from '@/features/table-pages/purchase-orders/api/purchase-order-query.mapper'
+import { createPurchaseOrderColumns } from '@/features/table-pages/purchase-orders/components/purchase-order-columns'
+import { PurchaseOrderLookupLayer } from '@/features/table-pages/purchase-orders/components/purchase-order-lookup-layer'
+import {
+  type PurchaseOrderColumnFilter,
+  purchaseOrderColumnFilterSchema,
+  type PurchaseOrderSearch,
+} from '@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema'
+import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
 import {
   Table,
   TableBody,
@@ -20,18 +32,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/table/core/table-root'
-import { TableToolbar } from '@/components/table/core/table-toolbar'
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
-import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
-import { type PurchaseOrderListItem } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
-import { mapSearchToPurchaseOrderListParams } from '@/features/table-pages/purchase-orders/api/purchase-order-query.mapper'
-import { createPurchaseOrderColumns } from '@/features/table-pages/purchase-orders/components/columns'
+} from '@/features/table-pages/shared/components/core/table-root'
+import { useTablePrefetch } from '@/features/table-pages/shared/hooks/use-table-prefetch'
 import {
-  type PurchaseOrderColumnFilter,
-  purchaseOrderColumnFilterSchema,
-} from '@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema'
-import { type PurchaseOrderSearch } from '@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema'
+  type TableFetchAction,
+  useTableToast,
+} from '@/features/table-pages/shared/hooks/use-table-toast'
+import {
+  cloneFilters,
+  cloneOrder,
+  cloneSorting,
+  cloneVisibility,
+  normalizeVisibility,
+} from '@/features/table-pages/shared/utils/table-state.utils'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
@@ -39,26 +52,9 @@ import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-// PurchaseOrderTable: Operational grid for procurement management using SAP B1 Industrial style.
-// Bridges TanStack Table logic with custom Sapphire UI and reactive URL synchronization.
 const routeApi = getRouteApi('/_layout/purchase/orders')
 const TABLE_ID = 'purchase-orders'
-
-const cloneSorting = (sorting: SortingState): SortingState =>
-  sorting.map((item) => ({ id: item.id, desc: item.desc }))
-
-const cloneVisibility = (visibility: VisibilityState): VisibilityState => ({ ...visibility })
-const normalizeVisibility = (visibility: VisibilityState): VisibilityState => {
-  return Object.fromEntries(Object.entries(visibility).filter(([, visible]) => visible === false))
-}
-
-const cloneOrder = (order: string[]): string[] => [...order]
-
-const cloneFilters = (filters: ColumnFiltersState): ColumnFiltersState =>
-  filters.map((filter) => ({
-    id: filter.id,
-    value: Array.isArray(filter.value) ? [...filter.value] : filter.value,
-  }))
+const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 
 const toPurchaseOrderColumnFilters = (filters: ColumnFiltersState): PurchaseOrderColumnFilter[] => {
   const typedFilters: PurchaseOrderColumnFilter[] = []
@@ -80,12 +76,11 @@ export function PurchaseOrderTable() {
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
 
+  /** Tracks which user action last triggered a fetch for action-specific toasts. */
+  const lastActionRef = useRef<TableFetchAction>('fetching')
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
-
-  const defaultColumnOrder = useMemo(() => {
-    return ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
   }, [])
 
   const columns = useMemo(() => createPurchaseOrderColumns(), [])
@@ -113,10 +108,10 @@ export function PurchaseOrderTable() {
     const base =
       searchParams.columnOrder?.length && searchParams.columnOrder.some(Boolean)
         ? searchParams.columnOrder
-        : defaultColumnOrder
+        : DEFAULT_COLUMN_ORDER
     const filtered = base.filter((id) => columnIds.includes(id))
-    return cloneOrder(filtered.length ? filtered : defaultColumnOrder)
-  }, [searchParams.columnOrder, defaultColumnOrder, columnIds])
+    return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER)
+  }, [searchParams.columnOrder, columnIds])
 
   const columnFilters = useMemo<ColumnFiltersState>(
     () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
@@ -125,7 +120,6 @@ export function PurchaseOrderTable() {
 
   const pagination = useMemo(
     () => ({
-      // INDEXING: Translate human-friendly 1-indexed URL `page` to developer-friendly 0-indexed state
       pageIndex: Math.max((searchParams.page ?? 1) - 1, 0),
       pageSize: Math.max(searchParams.limit ?? 10, 1),
     }),
@@ -133,13 +127,7 @@ export function PurchaseOrderTable() {
   )
 
   const tableState = useMemo(
-    () => ({
-      sorting,
-      columnVisibility,
-      columnOrder,
-      pagination,
-      columnFilters,
-    }),
+    () => ({ sorting, columnVisibility, columnOrder, pagination, columnFilters }),
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
@@ -153,8 +141,10 @@ export function PurchaseOrderTable() {
     error,
     refetch,
   } = useQuery(purchaseOrderQueries.list(listParams))
+
   const queryClient = useQueryClient()
-  const rows = poList?.data ?? []
+
+  const rows = useMemo(() => poList?.data ?? [], [poList?.data])
   const totalRows = poList?.total ?? 0
   const totalPages = Math.max(poList?.totalPages ?? 1, 1)
   const showInitialSkeleton = isLoading && !poList
@@ -167,6 +157,7 @@ export function PurchaseOrderTable() {
     state: tableState,
     meta: { tableId: TABLE_ID },
     onSortingChange: (updater) => {
+      lastActionRef.current = 'sorting'
       const next = typeof updater === 'function' ? updater(sorting) : updater
       const nextSorting = cloneSorting(next)
       setSorting(TABLE_ID, nextSorting)
@@ -194,14 +185,12 @@ export function PurchaseOrderTable() {
       const next = typeof updater === 'function' ? updater(columnOrder) : updater
       setOrder(TABLE_ID, cloneOrder(next))
       navigate({
-        search: (prev: PurchaseOrderSearch) => ({
-          ...prev,
-          columnOrder: [...next],
-        }),
+        search: (prev: PurchaseOrderSearch) => ({ ...prev, columnOrder: [...next] }),
         replace: true,
       })
     },
     onPaginationChange: (updater) => {
+      lastActionRef.current = 'paginating'
       const next = typeof updater === 'function' ? updater(pagination) : updater
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
@@ -218,6 +207,7 @@ export function PurchaseOrderTable() {
       })
     },
     onColumnFiltersChange: (updater) => {
+      lastActionRef.current = 'filtering'
       const next = typeof updater === 'function' ? updater(columnFilters) : updater
       const normalized = normalizeColumnFilters(next)
       const nextFilters = cloneFilters(normalized)
@@ -254,6 +244,7 @@ export function PurchaseOrderTable() {
     1,
   )
   const maxPageIndex = Math.max(effectivePageCount - 1, 0)
+
   useEffect(() => {
     setColumnFilters(TABLE_ID, columnFilters)
   }, [setColumnFilters, columnFilters])
@@ -268,25 +259,39 @@ export function PurchaseOrderTable() {
 
   useEffect(() => {
     if (pagination.pageIndex <= maxPageIndex) return
-
     const clampedPageIndex = maxPageIndex
-    setPagination(TABLE_ID, {
-      pageIndex: clampedPageIndex,
-      totalRows: filteredTotalRows,
-    })
+    setPagination(TABLE_ID, { pageIndex: clampedPageIndex, totalRows: filteredTotalRows })
     navigate({
-      search: (prev: PurchaseOrderSearch) => ({
-        ...prev,
-        page: clampedPageIndex + 1,
-      }),
+      search: (prev: PurchaseOrderSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
       replace: true,
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
-  const handleResetTable = () => {
+  // Aggressive Background Prefetching (Shared Global Hook)
+  const getQueryOptions = useCallback(
+    (params: { page: number; limit: number }) =>
+      purchaseOrderQueries.list({ ...listParams, ...params }),
+    [listParams],
+  )
+
+  const { prefetchPage } = useTablePrefetch({
+    queryClient,
+    hasData: !!poList,
+    pagination,
+    maxPageIndex,
+    getQueryOptions,
+  })
+
+  useTableToast({
+    isFetching,
+    hasData: !!poList,
+    action: lastActionRef.current,
+  })
+
+  const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
-    setOrder(TABLE_ID, [...defaultColumnOrder])
+    setOrder(TABLE_ID, [...DEFAULT_COLUMN_ORDER])
     clearAllFilters(TABLE_ID)
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 })
 
@@ -296,7 +301,7 @@ export function PurchaseOrderTable() {
         page: 1,
         limit: 10,
         columnVisibility: {},
-        columnOrder: [...defaultColumnOrder],
+        columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnFilters: [],
         sorting: [],
         DocTotalOperator: undefined,
@@ -304,11 +309,19 @@ export function PurchaseOrderTable() {
       }),
       replace: true,
     })
-  }
+  }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate])
+
+  const handleCreateClickPrefetch = useCallback(() => {
+    void Promise.allSettled([
+      queryClient.prefetchQuery(createSharedQueries.warehouses()),
+      queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+    ])
+  }, [queryClient])
 
   if (showInitialSkeleton) {
     return <TableSkeleton />
   }
+
   if (isError && !poList) {
     return (
       <TableErrorState
@@ -321,16 +334,11 @@ export function PurchaseOrderTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <TableToolbar
+      <PurchaseOrderLookupLayer
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
-        isFetching={isFetching}
-        breadcrumb={{
-          section: 'Purchase',
-          page: 'Purchase Orders Table',
-          href: '/purchase/orders',
-        }}
+        onCreateClick={handleCreateClickPrefetch}
       />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
@@ -383,24 +391,8 @@ export function PurchaseOrderTable() {
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={(nextPageIndex, nextPageSize) => {
-          queryClient.prefetchQuery(
-            purchaseOrderQueries.list({
-              ...listParams,
-              page: nextPageIndex + 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
-        onPrefetchPageSize={(nextPageSize) => {
-          queryClient.prefetchQuery(
-            purchaseOrderQueries.list({
-              ...listParams,
-              page: 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
+        onPrefetchPage={prefetchPage}
+        onPrefetchPageSize={(pageSize) => prefetchPage(0, pageSize)}
       />
     </div>
   )

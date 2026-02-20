@@ -65,6 +65,16 @@ export const CreditNoteQuerySchema = z
     return normalized;
   });
 
+export const CreditNoteDocNumLookupQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .optional()
+    .openapi({ example: "5003", description: "DocNum contains search term" }),
+});
+
 // CreditNoteLineItemSchema: Individual items being credited or returned.
 const CreditNoteLineItemSchema = z.object({
   ItemCode: z.string().min(1),
@@ -91,5 +101,6 @@ export const UpdateCreditNoteInputSchema = CreateCreditNoteInputSchema.partial()
 });
 
 export type CreditNoteQuery = z.infer<typeof CreditNoteQuerySchema>;
+export type CreditNoteDocNumLookupQuery = z.infer<typeof CreditNoteDocNumLookupQuerySchema>;
 export type CreateCreditNoteInput = z.infer<typeof CreateCreditNoteInputSchema>;
 export type UpdateCreditNoteInput = z.infer<typeof UpdateCreditNoteInputSchema>;

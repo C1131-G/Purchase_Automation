@@ -1,13 +1,13 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
+import { type OutgoingPaymentListParams } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
+import { type OutgoingPaymentSearch } from '@/features/table-pages/outgoing-payment/schemas/outgoing-payment-search.schema'
 import {
   type DateRangeFilter,
   isDateRangeFilter,
   isNumberComparisonFilter,
-} from '@/components/ui/types/table-filter-values'
-import { type OutgoingPaymentListParams } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
-import { type OutgoingPaymentSearch } from '@/features/table-pages/outgoing-payment/schemas/outgoing-payment-search.schema'
+} from '@/features/table-pages/shared/utils/table-filter-values'
 import { type ComparisonOperator } from '@/shared/api/common-query.types'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)

@@ -42,4 +42,3 @@ export const grpoSearchSchema = z.object({
 
 export type GRPOSearch = z.infer<typeof grpoSearchSchema>
 export type GRPOColumnFilter = z.infer<typeof grpoColumnFilterSchema>
-export type GRPOColumnFilterValue = z.infer<typeof grpoColumnFilterValueSchema>

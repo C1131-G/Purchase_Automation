@@ -1,12 +1,15 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
-import { type DateRangeFilter, isDateRangeFilter } from '@/components/ui/types/table-filter-values'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import {
   type ARInvoiceListParams,
   type ARInvoiceStatus,
 } from '@/features/table-pages/ar-invoices/api/ar-invoice.service'
 import { type ARInvoiceSearch } from '@/features/table-pages/ar-invoices/schemas/ar-invoice-search.schema'
+import {
+  type DateRangeFilter,
+  isDateRangeFilter,
+} from '@/features/table-pages/shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 

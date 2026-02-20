@@ -15,6 +15,11 @@ export type PurchaseOrderListItem = z.infer<typeof purchaseOrderListItemSchema>
 export type PurchaseOrderListParams = z.infer<typeof purchaseOrderListParamsSchema>
 
 export type PurchaseOrderListResponse = z.infer<typeof purchaseOrderListResponseSchema>
+export type PurchaseOrderDocNumLookupItem = { code: string; name: string }
+export type PurchaseOrderDocNumLookupResponse = {
+  success: boolean
+  data: PurchaseOrderDocNumLookupItem[]
+}
 
 export type CreatePurchaseOrderPayload = Record<string, unknown>
 
@@ -23,6 +28,13 @@ export const purchaseOrderAPI = {
     const query = toQueryString(params)
     const path = query ? `/api/v1/purchase-orders?${query}` : '/api/v1/purchase-orders'
     return apiClient<PurchaseOrderListResponse>(path)
+  },
+  getPurchaseOrderDocNums: async (search?: string) => {
+    const query = toQueryString({ search })
+    const path = query
+      ? `/api/v1/purchase-orders/docnums?${query}`
+      : '/api/v1/purchase-orders/docnums'
+    return apiClient<PurchaseOrderDocNumLookupResponse>(path)
   },
   createPurchaseOrder: async (payload: CreatePurchaseOrderPayload) => {
     return apiClient<unknown>('/api/v1/purchase-orders', {

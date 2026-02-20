@@ -1,6 +1,6 @@
 import { type ComponentProps } from 'react'
 
-import { VendorCustomerGrid } from '@/components/create/grids/vendor-customer-grid'
+import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
 
 type VendorCustomerSectionProps = ComponentProps<typeof VendorCustomerGrid>
 

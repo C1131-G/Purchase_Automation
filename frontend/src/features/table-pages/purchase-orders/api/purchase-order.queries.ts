@@ -9,6 +9,8 @@ import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
 export const purchaseOrderKeys = {
   all: ['purchase-orders'] as const,
   list: (params: PurchaseOrderListParams) => [...purchaseOrderKeys.all, 'list', params] as const,
+  docNumSuggestions: (search?: string) =>
+    [...purchaseOrderKeys.all, 'doc-num-suggestions', search ?? ''] as const,
 }
 
 export const purchaseOrderQueries = {
@@ -16,8 +18,15 @@ export const purchaseOrderQueries = {
     queryOptions({
       queryKey: purchaseOrderKeys.list(params),
       queryFn: () => purchaseOrderAPI.getPurchaseOrders(params),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
       placeholderData: keepPreviousData,
-      staleTime: QUERY_CACHE_POLICY.list.staleTime,
-      gcTime: QUERY_CACHE_POLICY.list.gcTime,
+    }),
+  docNumSuggestions: (search?: string) =>
+    queryOptions({
+      queryKey: purchaseOrderKeys.docNumSuggestions(search),
+      queryFn: () => purchaseOrderAPI.getPurchaseOrderDocNums(search),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),
 }

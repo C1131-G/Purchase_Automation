@@ -65,6 +65,16 @@ export const SalesOrderQuerySchema = z
     return normalized;
   });
 
+export const SalesOrderDocNumLookupQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .optional()
+    .openapi({ example: "9001", description: "DocNum contains search term" }),
+});
+
 // SalesOrderLineItemSchema: Individual items requested in the order.
 const SalesOrderLineItemSchema = z.object({
   ItemCode: z.string().min(1),
@@ -97,5 +107,6 @@ export const UpdateSalesOrderInputSchema = CreateSalesOrderInputSchema.partial()
 });
 
 export type SalesOrderQuery = z.infer<typeof SalesOrderQuerySchema>;
+export type SalesOrderDocNumLookupQuery = z.infer<typeof SalesOrderDocNumLookupQuerySchema>;
 export type CreateSalesOrderInput = z.infer<typeof CreateSalesOrderInputSchema>;
 export type UpdateSalesOrderInput = z.infer<typeof UpdateSalesOrderInputSchema>;

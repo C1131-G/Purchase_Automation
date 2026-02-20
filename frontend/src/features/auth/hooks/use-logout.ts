@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 
+import { authQueries } from '@/features/auth/api/auth.queries'
 import { clearPersistedQueryCache } from '@/shared/utils/query-cache-persistence'
 import { useLogoutAction } from '@/store/auth/auth.store'
 
@@ -13,16 +15,34 @@ import { useLogoutAction } from '@/store/auth/auth.store'
  */
 export function useLogout() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const logoutAction = useLogoutAction()
 
   return useMutation({
     mutationFn: async () => {
-      // 1. Clear in-memory + persisted cache before redirect to prevent cross-user stale hydrate.
+      // 1. Stop in-flight protected requests from finishing after logout.
+      await queryClient.cancelQueries()
+
+      // 2. Clear in-memory + persisted cache before redirect to prevent cross-user stale hydrate.
       clearPersistedQueryCache()
       queryClient.clear()
 
-      // 2. Single source logout flow (includes best-effort backend call)
+      // 3. Single source logout flow (includes best-effort backend call)
       await logoutAction()
+
+      // 4. Warm organizations after logout so login dropdown has fresh data.
+      try {
+        await queryClient.prefetchQuery(authQueries.organization())
+      } catch {
+        // Non-blocking: login navigation must continue even if warm-up fails.
+      }
+
+      // 5. Mark explicit logout so login route skips /auth/me probe.
+      await navigate({
+        to: '/login',
+        search: { reason: 'logged_out' },
+        replace: true,
+      })
     },
   })
 }

@@ -126,6 +126,25 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
   }
 };
 
+export const getInvoiceDocNums = async (dbName: string, search?: string) => {
+  const repo = await getTenantRepository(dbName, ARInvoiceSchema);
+  const queryBuilder = repo.createQueryBuilder("inv");
+
+  queryBuilder.select("inv.docNum", "DocNum").distinct(true);
+  if (search && search.trim().length > 0) {
+    queryBuilder.where("CAST(inv.docNum AS NVARCHAR) LIKE :search", {
+      search: `%${search.trim()}%`,
+    });
+  }
+  queryBuilder.orderBy("inv.docNum", "DESC");
+
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  return rows
+    .map((row) => String(row.DocNum).trim())
+    .filter((value) => value.length > 0)
+    .map((code) => ({ code, name: code }));
+};
+
 // Retrieves detailed data for a single A/R Invoice from the SAP Service Layer.
 export const getInvoice = async (sessionId: string, id: string) => {
   try {
@@ -269,6 +288,7 @@ export const cancelInvoice = async (sessionId: string, id: string) => {
 
 export const arInvoiceService = {
   getInvoices,
+  getInvoiceDocNums,
   getInvoice,
   createInvoice,
   updateInvoice,

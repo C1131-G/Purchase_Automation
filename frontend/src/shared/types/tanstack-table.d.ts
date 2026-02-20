@@ -1,19 +1,26 @@
 import { type RowData } from '@tanstack/react-table'
 
-declare module '@tanstack/react-table' {
-  interface SelectOption {
-    label: string
-    value: string
-  }
+import {
+  type SelectOption,
+  type TableFilterType,
+} from '@/features/table-pages/shared/utils/table-filter-values'
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface TableMeta<TData extends RowData> {
+declare module '@tanstack/react-table' {
+  interface TableMeta<TData extends RowData, _TInternal = unknown> {
+    // Type-only anchor to keep declaration generics intentional and lint-safe.
+    __tableTypeAnchor?: [TData?, _TInternal?]
     tableId?: string
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface ColumnMeta<TData extends RowData, TValue> {
+  interface ColumnMeta<
+    TData extends RowData,
+    TValue,
+    _TInternal1 = unknown,
+    _TInternal2 = unknown,
+  > {
+    // Type-only anchor to keep declaration generics intentional and lint-safe.
+    __typeAnchor?: [TData?, TValue?, _TInternal1?, _TInternal2?]
     filterType?: TableFilterType
-    filterOptions?: SelectOption[] | boolean
+    filterOptions?: SelectOption[] | string[] | boolean
   }
 }

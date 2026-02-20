@@ -5,7 +5,10 @@ import express from "express";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { apCreditNoteDal } from "@/dal/ap-credit-note.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
-import { CreditNoteQuerySchema } from "@/validation/schemas/inputs/credit-note.input";
+import {
+  CreditNoteDocNumLookupQuerySchema,
+  CreditNoteQuerySchema,
+} from "@/validation/schemas/inputs/credit-note.input";
 
 const router = express.Router();
 
@@ -14,6 +17,11 @@ router.use(validateSession);
 
 // GET /: Retrieves a paginated list of A/P credit notes.
 router.get("/", validateQuery(CreditNoteQuerySchema), apCreditNoteDal.getCreditNotes);
+router.get(
+  "/docnums",
+  validateQuery(CreditNoteDocNumLookupQuerySchema),
+  apCreditNoteDal.getCreditNoteDocNums,
+);
 
 // GET /:id: Fetches full details for a single A/P credit note.
 router.get("/:id", apCreditNoteDal.getCreditNote);

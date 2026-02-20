@@ -8,21 +8,13 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
-import { TablePagination } from '@/components/table/controls/pagination'
-import { TableErrorState } from '@/components/table/core/table-error-state'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/table/core/table-root'
-import { TableToolbar } from '@/components/table/core/table-toolbar'
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
+import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
+import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { outgoingPaymentQueries } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.queries'
 import { type OutgoingPaymentListItem } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
 import { mapSearchToOutgoingPaymentListParams } from '@/features/table-pages/outgoing-payment/api/outgoing-payment-query.mapper'
@@ -32,6 +24,17 @@ import {
   outgoingPaymentColumnFilterSchema,
   type OutgoingPaymentSearch,
 } from '@/features/table-pages/outgoing-payment/schemas/outgoing-payment-search.schema'
+import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/features/table-pages/shared/components/core/table-root'
+import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
 import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
@@ -130,6 +133,22 @@ export function OutgoingPaymentTable() {
     refetch,
   } = useQuery(outgoingPaymentQueries.list(listParams))
   const queryClient = useQueryClient()
+
+  // Vendors lookup for filter suggestions and popup
+  const vendorsQuery = useQuery(createSharedQueries.vendors())
+  const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data])
+
+  const docNumSuggestionsQuery = useQuery(outgoingPaymentQueries.docNumSuggestions())
+  const docNumSuggestions = useMemo<LookupItem[]>(
+    () => docNumSuggestionsQuery.data?.data ?? [],
+    [docNumSuggestionsQuery.data],
+  )
+
+  // Lookup popup state
+  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
+  const [lookupColumnId, setLookupColumnId] = useState<string>('')
+  const [lookupSearch, setLookupSearch] = useState('')
+
   const rows = paymentList?.data ?? []
   const totalRows = paymentList?.total ?? 0
   const totalPages = Math.max(paymentList?.totalPages ?? 1, 1)
@@ -250,7 +269,7 @@ export function OutgoingPaymentTable() {
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
-  const handleResetTable = () => {
+  const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
     setOrder(TABLE_ID, [...defaultColumnOrder])
@@ -272,7 +291,61 @@ export function OutgoingPaymentTable() {
       }),
       replace: true,
     })
-  }
+  }, [
+    setSorting,
+    setVisibility,
+    setOrder,
+    defaultColumnOrder,
+    clearAllFilters,
+    setPagination,
+    navigate,
+  ])
+
+  const handleLookupPopupOpen = useCallback((columnId: string) => {
+    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
+    setLookupColumnId(columnId)
+    setLookupSearch('')
+    setLookupPopupOpen(true)
+  }, [])
+
+  const handleLookupSelect = useCallback(
+    (item: LookupItem) => {
+      const column = table.getColumn(lookupColumnId)
+      if (column) {
+        const value =
+          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
+        column.setFilterValue(value)
+      }
+      setLookupPopupOpen(false)
+    },
+    [lookupColumnId, table],
+  )
+
+  const handlePrefetchPage = useCallback(
+    (nextPageIndex: number, nextPageSize: number) => {
+      queryClient.prefetchQuery(
+        outgoingPaymentQueries.list({
+          ...listParams,
+          page: nextPageIndex + 1,
+          limit: nextPageSize,
+        }),
+      )
+    },
+    [queryClient, listParams],
+  )
+
+  const handlePrefetchPageSize = useCallback(
+    (nextPageSize: number) => {
+      queryClient.prefetchQuery(
+        outgoingPaymentQueries.list({
+          ...listParams,
+          page: 1,
+          limit: nextPageSize,
+        }),
+      )
+    },
+    [queryClient, listParams],
+  )
 
   if (showInitialSkeleton) return <TableSkeleton />
   if (isError && !paymentList) {
@@ -292,11 +365,53 @@ export function OutgoingPaymentTable() {
         table={table}
         onReset={handleResetTable}
         isFetching={isFetching}
+        createLink="/purchase/create-outgoing-payment"
         breadcrumb={{
           section: 'Purchase',
-          page: 'Outgoing Payments Table',
+          page: 'Outgoing Payments',
           href: '/purchase/outgoing-payment',
         }}
+        lookupSuggestions={vendors}
+        docNumSuggestions={docNumSuggestions}
+        enableDocNumPopup
+        onLookupPopupOpen={handleLookupPopupOpen}
+      />
+      <LookupPopup
+        open={lookupPopupOpen}
+        mode={
+          lookupColumnId === 'DocNum'
+            ? undefined
+            : lookupColumnId === 'CardCode'
+              ? 'vendor-code'
+              : 'vendor-name'
+        }
+        search={lookupSearch}
+        results={lookupColumnId === 'DocNum' ? docNumSuggestions : vendors}
+        loading={
+          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : vendorsQuery.isLoading
+        }
+        error={
+          lookupColumnId === 'DocNum'
+            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
+              ? 'Failed to load document numbers'
+              : null
+            : vendorsQuery.isError
+              ? 'Failed to load vendors'
+              : null
+        }
+        title={
+          lookupColumnId === 'DocNum'
+            ? 'Search Doc Number'
+            : lookupColumnId === 'CardCode'
+              ? 'Search Vendor Code'
+              : 'Search Vendor Name'
+        }
+        searchPlaceholder={
+          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search vendor code or name'
+        }
+        onSearchChange={setLookupSearch}
+        onClose={() => setLookupPopupOpen(false)}
+        onSelect={handleLookupSelect}
       />
       <div className="flex-1 overflow-auto w-full px-1.5">
         <Table className="w-full min-w-300">
@@ -347,24 +462,8 @@ export function OutgoingPaymentTable() {
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={(nextPageIndex, nextPageSize) => {
-          queryClient.prefetchQuery(
-            outgoingPaymentQueries.list({
-              ...listParams,
-              page: nextPageIndex + 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
-        onPrefetchPageSize={(nextPageSize) => {
-          queryClient.prefetchQuery(
-            outgoingPaymentQueries.list({
-              ...listParams,
-              page: 1,
-              limit: nextPageSize,
-            }),
-          )
-        }}
+        onPrefetchPage={handlePrefetchPage}
+        onPrefetchPageSize={handlePrefetchPageSize}
       />
     </div>
   )

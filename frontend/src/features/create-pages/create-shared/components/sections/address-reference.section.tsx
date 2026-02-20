@@ -1,7 +1,7 @@
 import { type ComponentProps } from 'react'
 
-import { AddressGrid } from '@/components/create/grids/address-grid'
-import { ReferenceGrid } from '@/components/create/grids/reference-grid'
+import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
+import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 
 type AddressReferenceSectionProps = ComponentProps<typeof AddressGrid> &
   ComponentProps<typeof ReferenceGrid>

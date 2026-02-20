@@ -42,4 +42,3 @@ export const apInvoiceSearchSchema = z.object({
 
 export type APInvoiceSearch = z.infer<typeof apInvoiceSearchSchema>
 export type APInvoiceColumnFilter = z.infer<typeof apInvoiceColumnFilterSchema>
-export type APInvoiceColumnFilterValue = z.infer<typeof apInvoiceColumnFilterValueSchema>

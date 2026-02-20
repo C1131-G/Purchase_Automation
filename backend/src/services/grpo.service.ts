@@ -117,6 +117,25 @@ export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
   }
 };
 
+export const getGRPODocNums = async (dbName: string, search?: string) => {
+  const repo = await getTenantRepository(dbName, GRPOSchema);
+  const queryBuilder = repo.createQueryBuilder("grpo");
+
+  queryBuilder.select("grpo.docNum", "DocNum").distinct(true);
+  if (search && search.trim().length > 0) {
+    queryBuilder.where("CAST(grpo.docNum AS NVARCHAR) LIKE :search", {
+      search: `%${search.trim()}%`,
+    });
+  }
+  queryBuilder.orderBy("grpo.docNum", "DESC");
+
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  return rows
+    .map((row) => String(row.DocNum).trim())
+    .filter((value) => value.length > 0)
+    .map((code) => ({ code, name: code }));
+};
+
 // Requests a list of open Purchase Orders for a specific vendor from the Service Layer.
 // This is typically called at the start of the GRPO creation wizard.
 export const getAvailablePOs = async (sessionId: string, vendorCode: string) => {
@@ -368,6 +387,7 @@ export const cancelGRPO = async (sessionId: string, id: string) => {
 
 export const grpoService = {
   getGRPOs,
+  getGRPODocNums,
   getAvailablePOs,
   getPODetail,
   getGRPO,

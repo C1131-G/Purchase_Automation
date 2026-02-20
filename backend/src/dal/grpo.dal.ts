@@ -8,6 +8,7 @@ import type { GRPOQuery } from "@/dal/types/grpo.types";
 import { grpoService } from "@/services/grpo.service";
 import {
   CreateGRPOInputSchema,
+  type GRPODocNumLookupQuery,
   UpdateGRPOInputSchema,
 } from "@/validation/schemas/inputs/grpo.input";
 
@@ -34,6 +35,23 @@ export const getGRPOs = async (req: Request, res: Response, next: NextFunction) 
       success: true,
       ...result,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getGRPODocNums = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    GRPODocNumLookupQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search } = authReq.query;
+    const data = await grpoService.getGRPODocNums(dbName, search);
+    res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -190,6 +208,7 @@ export const cancelGRPO = async (req: Request, res: Response, next: NextFunction
 
 export const grpoDal = {
   getGRPOs,
+  getGRPODocNums,
   getGRPO,
   getPODetail,
   getAvailablePOs,

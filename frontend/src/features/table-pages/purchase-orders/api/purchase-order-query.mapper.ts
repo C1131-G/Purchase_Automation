@@ -1,17 +1,17 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
-import { normalizeColumnFilters } from '@/components/ui/types/filter-utils'
-import {
-  type DateRangeFilter,
-  isDateRangeFilter,
-  isNumberComparisonFilter,
-  type NumberComparisonFilter,
-} from '@/components/ui/types/table-filter-values'
+import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import {
   type PurchaseOrderListParams,
   type PurchaseOrderStatus,
 } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
 import { type PurchaseOrderSearch } from '@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema'
+import {
+  type DateRangeFilter,
+  isDateRangeFilter,
+  isNumberComparisonFilter,
+  type NumberComparisonFilter,
+} from '@/features/table-pages/shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 
@@ -83,27 +83,18 @@ export const mapSearchToPurchaseOrderListParams = (
       : undefined
   const sortOrder = firstSort ? (firstSort.desc ? 'desc' : 'asc') : undefined
 
-  const params: PurchaseOrderListParams = {
+  return {
     page: Math.max(search.page ?? 1, 1),
     limit: Math.max(search.limit ?? 10, 1),
+    DocNum: getStringFilter(filters, 'DocNum'),
+    CardCode: getStringFilter(filters, 'CardCode'),
+    CardName: getStringFilter(filters, 'CardName'),
+    DocStatus: docStatus,
+    DocDateStart: start,
+    DocDateEnd: end,
+    DocTotalOperator: docTotal?.operator,
+    DocTotal: docTotal?.value,
+    sortBy,
+    sortOrder,
   }
-
-  const docNum = getStringFilter(filters, 'DocNum')
-  if (docNum) params.DocNum = docNum
-
-  const cardCode = getStringFilter(filters, 'CardCode')
-  if (cardCode) params.CardCode = cardCode
-
-  const cardName = getStringFilter(filters, 'CardName')
-  if (cardName) params.CardName = cardName
-
-  if (docStatus) params.DocStatus = docStatus
-  if (start) params.DocDateStart = start
-  if (end) params.DocDateEnd = end
-  if (docTotal?.operator) params.DocTotalOperator = docTotal.operator
-  if (docTotal?.value !== undefined) params.DocTotal = docTotal.value
-  if (sortBy) params.sortBy = sortBy
-  if (sortOrder) params.sortOrder = sortOrder
-
-  return params
 }

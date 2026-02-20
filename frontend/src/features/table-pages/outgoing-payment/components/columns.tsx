@@ -1,12 +1,12 @@
 import { createColumnHelper } from '@tanstack/react-table'
 
-import { TableColumnSort } from '@/components/table/core/table-column-sort'
-import { Tooltip } from '@/components/ui/tooltip'
+import { Tooltip } from '@/components/tooltip'
+import { type OutgoingPaymentListItem } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
+import { TableColumnSort } from '@/features/table-pages/shared/components/core/table-column-sort'
 import {
   matchesDateRange,
   matchesNumberComparison,
-} from '@/components/ui/types/table-filter-values'
-import { type OutgoingPaymentListItem } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
+} from '@/features/table-pages/shared/utils/table-filter-values'
 
 const columnHelper = createColumnHelper<OutgoingPaymentListItem>()
 

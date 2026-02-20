@@ -5,7 +5,11 @@ import express from "express";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { grpoDal } from "@/dal/grpo.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
-import { AvailablePOsQuerySchema, GRPOQuerySchema } from "@/validation/schemas/inputs/grpo.input";
+import {
+  AvailablePOsQuerySchema,
+  GRPODocNumLookupQuerySchema,
+  GRPOQuerySchema,
+} from "@/validation/schemas/inputs/grpo.input";
 
 const router = express.Router();
 
@@ -14,6 +18,7 @@ router.use(validateSession);
 
 // GET /: Retrieves a paginated list of existing GRPOs.
 router.get("/", validateQuery(GRPOQuerySchema), grpoDal.getGRPOs);
+router.get("/docnums", validateQuery(GRPODocNumLookupQuerySchema), grpoDal.getGRPODocNums);
 
 // GET /available-pos: Helper for the 'Create GRPO' UI. Finds Open Purchase Orders that have items yet to be received.
 router.get("/available-pos", validateQuery(AvailablePOsQuerySchema), grpoDal.getAvailablePOs);

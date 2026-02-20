@@ -1,8 +1,8 @@
-import { Outlet, useLocation } from '@tanstack/react-router'
+import { Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import { BadgePercent, Building2, LayoutDashboard, ShoppingCart } from 'lucide-react'
 import React from 'react'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/button'
 import {
   Sidebar,
   SidebarContent,
@@ -17,18 +17,47 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
-} from '@/components/ui/sidebar'
+} from '@/components/sidebar'
 import { useLogout } from '@/features/auth/hooks/use-logout'
+import { cn } from '@/shared/utils/cn'
 import { useAuthStore } from '@/store/auth/auth.store'
-import { useSetSidebarAction } from '@/store/sidebar/sidebar.store'
+import { useSetSidebarAction, useSidebarOpen } from '@/store/sidebar/sidebar.store'
 
 // ShellLayout: Persistent Sidebar & Header Layout with Sapphire & White theme.
 export function ShellLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const isAuthLoading = useAuthStore((state) => state.isLoading)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const logoutReason = useAuthStore((state) => state.logoutReason)
+  const isSidebarOpen = useSidebarOpen()
   const setSidebarOpen = useSetSidebarAction()
   const logoutBusy = isLoggingOut || isAuthLoading
+
+  React.useEffect(() => {
+    if (isAuthenticated || isAuthLoading) return
+
+    if (logoutReason === 'session_ended') {
+      void navigate({
+        to: '/login',
+        search: { reason: 'session_ended' },
+        replace: true,
+      })
+      return
+    }
+
+    if (logoutReason === 'user') {
+      void navigate({
+        to: '/login',
+        search: { reason: 'logged_out' },
+        replace: true,
+      })
+      return
+    }
+
+    void navigate({ to: '/login', replace: true })
+  }, [isAuthenticated, isAuthLoading, logoutReason, navigate])
 
   // Accordion Logic: Sync open section with current URL
   const activeSection = React.useMemo(() => {
@@ -53,7 +82,7 @@ export function ShellLayout() {
   return (
     <SidebarProvider>
       {/* Premium Sapphire White Sidebar */}
-      <Sidebar className="border-r border-zinc-100 bg-white" collapsible="offcanvas">
+      <Sidebar className={cn('border-r border-zinc-100 bg-white')} collapsible="offcanvas">
         <SidebarHeader className="p-5 border-zinc-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -216,7 +245,13 @@ export function ShellLayout() {
       </Sidebar>
 
       {/* Sapphire Light Workspace */}
-      <SidebarInset className="bg-zinc-50">
+      <SidebarInset
+        className={cn(
+          'bg-zinc-50 transition-[filter,opacity] duration-150',
+          isSidebarOpen && 'md:pointer-events-none md:opacity-80 md:blur-[2px]',
+          logoutBusy && 'pointer-events-none opacity-80 blur-[2px]',
+        )}
+      >
         {/* Main Body - Routed Content */}
         <main className="flex-1 p-0 overflow-hidden">
           <div

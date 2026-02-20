@@ -1,10 +1,12 @@
 import { type ComponentProps, useMemo, useState } from 'react'
 
-import { AnimatedModalShell } from '@/components/create/core/animated-modal-shell'
+import { LookupErrorState } from '@/components/lookup/lookup-error-state'
+import { LookupPopup, type LookupPopupMode } from '@/components/lookup/lookup-popup'
 import {
   type ProductLookupItem,
   type ProductWarehouseStockItem,
 } from '@/features/create-pages/create-shared/api/create-shared.types'
+import { AnimatedModalShell } from '@/features/create-pages/create-shared/components/core/animated-modal-shell'
 import {
   type LookupOption,
   type PopupMode,
@@ -19,6 +21,7 @@ type LookupPopupModalProps = {
   loading: boolean
   error: string | null
   onSearchChange: (value: string) => void
+  onSearchSync?: (mode: PopupMode, value: string) => void
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onSelect: (customer: LookupOption) => void
 }
@@ -69,6 +72,8 @@ function ModalStateRow({ colSpan, tone, message }: ModalStateRowProps) {
     </tr>
   )
 }
+
+const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const
 
 export function ProductPopupModal({
   open,
@@ -126,17 +131,16 @@ export function ProductPopupModal({
               </thead>
               <tbody>
                 {loading ? (
-                  Array.from({ length: 6 }).map((_, index) => (
-                    <tr key={`product-skeleton-${index}`} className="border-t border-zinc-100">
+                  SKELETON_ROW_KEYS.map((slot) => (
+                    <tr key={`product-skeleton-${slot}`} className="border-t border-zinc-100">
                       <td className="px-3 py-2" colSpan={4}>
                         <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
                       </td>
                     </tr>
                   ))
                 ) : error ? (
-                  <ModalStateRow
+                  <LookupErrorState
                     colSpan={4}
-                    tone="error"
                     message={error || 'Unable to load products. Please try again.'}
                   />
                 ) : safeResults.length === 0 ? (
@@ -231,17 +235,16 @@ export function ProductWarehouseStockModal({
               </thead>
               <tbody>
                 {loading ? (
-                  Array.from({ length: 6 }).map((_, index) => (
-                    <tr key={`stock-skeleton-${index}`} className="border-t border-zinc-100">
+                  SKELETON_ROW_KEYS.map((slot) => (
+                    <tr key={`stock-skeleton-${slot}`} className="border-t border-zinc-100">
                       <td className="px-3 py-2" colSpan={3}>
                         <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
                       </td>
                     </tr>
                   ))
                 ) : error ? (
-                  <ModalStateRow
+                  <LookupErrorState
                     colSpan={3}
-                    tone="error"
                     message={error || 'Unable to load stock details. Please try again.'}
                   />
                 ) : filteredStocks.length === 0 ? (
@@ -290,99 +293,32 @@ export function LookupPopupModal({
   loading,
   error,
   onSearchChange,
+  onSearchSync,
   onClose,
   onSelect,
 }: LookupPopupModalProps) {
-  const safeResults = Array.isArray(results) ? results : []
-  const modalTitle =
-    mode === 'warehouse'
-      ? 'Select Warehouse'
-      : mode === 'sales-employee'
-        ? 'Select Sales Employee'
-        : `Select Customer by ${mode === 'vendor-name' ? 'Name' : 'Code'}`
-  const searchPlaceholder =
-    mode === 'warehouse'
-      ? 'Search warehouse code or name'
-      : mode === 'sales-employee'
-        ? 'Search sales employee code or name'
-        : 'Search customer name or code'
+  const modeMap: Record<PopupMode, LookupPopupMode> = {
+    'vendor-name': 'customer-name',
+    'vendor-code': 'customer-code',
+    warehouse: 'warehouse',
+    'sales-employee': 'sales-employee',
+  }
 
   return (
-    <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-xl">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h3 className="text-sm font-semibold text-zinc-900">{modalTitle}</h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="p-4">
-        <input
-          className="mb-3 h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
-          placeholder={searchPlaceholder}
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
-
-        <div className="overflow-hidden rounded-xl border border-zinc-200">
-          <div className="max-h-64 overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-zinc-50 text-zinc-600">
-                <tr>
-                  <th className="px-3 py-2">Code</th>
-                  <th className="px-3 py-2">Name</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 6 }).map((_, index) => (
-                    <tr key={`customer-skeleton-${index}`} className="border-t border-zinc-100">
-                      <td className="px-3 py-2" colSpan={2}>
-                        <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
-                      </td>
-                    </tr>
-                  ))
-                ) : error ? (
-                  <ModalStateRow
-                    colSpan={2}
-                    tone="error"
-                    message={error || 'Unable to load data. Please try again.'}
-                  />
-                ) : safeResults.length === 0 ? (
-                  <ModalStateRow
-                    colSpan={2}
-                    tone="muted"
-                    message={
-                      search.trim()
-                        ? `No results match "${search.trim()}".`
-                        : mode === 'warehouse'
-                          ? 'No warehouses available.'
-                          : mode === 'sales-employee'
-                            ? 'No sales employees available.'
-                            : 'No customers available.'
-                    }
-                  />
-                ) : (
-                  safeResults.map((customer, index) => (
-                    <tr
-                      key={`${customer.code}-${customer.name}-${index}`}
-                      className="cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50"
-                      onClick={() => onSelect(customer)}
-                    >
-                      <td className="px-3 py-2 font-medium text-zinc-800">{customer.code}</td>
-                      <td className="px-3 py-2 text-zinc-700">{customer.name}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </AnimatedModalShell>
+    <LookupPopup
+      open={open}
+      mode={modeMap[mode]}
+      showBothColumns={mode === 'vendor-name' || mode === 'vendor-code'}
+      search={search}
+      results={results}
+      loading={loading}
+      error={error}
+      onSearchChange={(value) => {
+        onSearchChange(value)
+        onSearchSync?.(mode, value)
+      }}
+      onClose={onClose}
+      onSelect={onSelect}
+    />
   )
 }

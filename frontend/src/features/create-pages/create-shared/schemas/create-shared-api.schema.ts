@@ -21,9 +21,3 @@ export const productWarehouseStockItemSchema = z.object({
   name: z.string(),
   stock: z.number(),
 })
-
-export const masterDataResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
-  z.object({
-    success: z.boolean(),
-    data: z.array(itemSchema),
-  })

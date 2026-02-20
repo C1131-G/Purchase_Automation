@@ -1,4 +1,6 @@
-import { AnimatedModalShell } from '@/components/create/core/animated-modal-shell'
+import { useMemo } from 'react'
+
+import { AnimatedModalShell } from '@/features/create-pages/create-shared/components/core/animated-modal-shell'
 
 type CreateModalSkeletonProps = {
   title?: string
@@ -15,6 +17,15 @@ export function CreateModalSkeleton({
   rows = 6,
   panelClassName = 'max-w-xl',
 }: CreateModalSkeletonProps) {
+  const headerKeys = useMemo(
+    () => Array.from({ length: columns }, (_, position) => `header-${position + 1}`),
+    [columns],
+  )
+  const rowKeys = useMemo(
+    () => Array.from({ length: rows }, (_, position) => `row-${position + 1}`),
+    [rows],
+  )
+
   return (
     <AnimatedModalShell open onClose={() => {}} panelClassName={panelClassName}>
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
@@ -34,17 +45,14 @@ export function CreateModalSkeleton({
               className="grid gap-3"
               style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
             >
-              {Array.from({ length: columns }).map((_, index) => (
-                <div key={`head-${index}`} className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
+              {headerKeys.map((headerKey) => (
+                <div key={headerKey} className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
               ))}
             </div>
           </div>
           <div className="max-h-80 overflow-auto p-3 space-y-2">
-            {Array.from({ length: rows }).map((_, index) => (
-              <div
-                key={`row-${index}`}
-                className="h-8 w-full rounded-lg bg-zinc-100 animate-pulse"
-              />
+            {rowKeys.map((rowKey) => (
+              <div key={rowKey} className="h-8 w-full rounded-lg bg-zinc-100 animate-pulse" />
             ))}
           </div>
         </div>

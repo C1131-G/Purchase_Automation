@@ -82,10 +82,6 @@ export const useSOCreateStore = create<SOCreateState>((set) => ({
 }))
 
 export const useSOHeader = () => useSOCreateStore((state) => state.header)
-export const useSOLines = () => useSOCreateStore((state) => state.lines)
 
 export const useSetSOHeaderAction = () => useSOCreateStore((state) => state.setHeader)
-export const useAddSOLineAction = () => useSOCreateStore((state) => state.addLine)
-export const useUpdateSOLineAction = () => useSOCreateStore((state) => state.updateLine)
-export const useRemoveSOLineAction = () => useSOCreateStore((state) => state.removeLine)
 export const useResetSOCreateAction = () => useSOCreateStore((state) => state.reset)

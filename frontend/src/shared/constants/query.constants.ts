@@ -6,8 +6,8 @@ export const QUERY_TIME = {
 } as const
 
 export const QUERY_CACHE_POLICY = {
-  list: {
-    staleTime: 15 * QUERY_TIME.second,
+  tableList: {
+    staleTime: 0,
     gcTime: 5 * QUERY_TIME.minute,
   },
   createDynamicLookup: {
@@ -16,7 +16,7 @@ export const QUERY_CACHE_POLICY = {
   },
   createStaticLookup: {
     staleTime: 1 * QUERY_TIME.day,
-    gcTime: 1 * QUERY_TIME.day,
+    gcTime: 1 * QUERY_TIME.day + 10 * QUERY_TIME.minute,
   },
   authOrganization: {
     staleTime: 1 * QUERY_TIME.day,
