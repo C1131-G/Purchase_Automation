@@ -12,6 +12,10 @@ const PurchaseOrderTable = lazy(() =>
   ),
 )
 
+/**
+ * PurchaseOrdersRoute: Main listing for procurement documents.
+ * Validates grid state (pagination, sorting, filters) via URL search schema.
+ */
 export const Route = createFileRoute('/_layout/purchase/orders')({
   validateSearch: (search) => purchaseOrderSearchSchema.parse(search),
   component: RouteComponent,

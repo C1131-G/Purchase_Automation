@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import {
   outgoingPaymentAPI,
@@ -21,6 +21,7 @@ export const outgoingPaymentQueries = {
       queryFn: () => outgoingPaymentAPI.getOutgoingPayments(params),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      placeholderData: keepPreviousData,
     }),
   docNumSuggestions: (search?: string) =>
     queryOptions({

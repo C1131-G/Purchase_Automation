@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+/** SOLineItemState: Local state representation of a single sales document line. */
 export type SOLineItemState = {
   id: string
   itemCode: string
@@ -19,6 +20,7 @@ export type SOLineItemState = {
   comment: string
 }
 
+/** SOHeaderState: Top-level sales document metadata (Customer, Dates, Warehouse). */
 export type SOHeaderState = {
   vendorCode: string
   vendorName: string
@@ -29,6 +31,7 @@ export type SOHeaderState = {
   comments: string
 }
 
+/** SOCreateState: Orchestrates the draft Sales Order state and mutation actions. */
 type SOCreateState = {
   header: SOHeaderState
   lines: SOLineItemState[]
@@ -51,6 +54,10 @@ const getDefaultHeader = (): SOHeaderState => ({
   comments: '',
 })
 
+/**
+ * useSOCreateStore: Global store for managing the creation lifecycle of Sales Orders.
+ * Centralizes header data and line items before persistence.
+ */
 export const useSOCreateStore = create<SOCreateState>((set) => ({
   header: getDefaultHeader(),
   lines: [],

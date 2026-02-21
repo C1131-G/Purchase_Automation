@@ -7,8 +7,8 @@ import {
   type DateRangeFilter,
   isDateRangeFilter,
   isNumberComparisonFilter,
-} from '@/features/table-pages/shared/utils/table-filter-values'
-import { type ComparisonOperator } from '@/shared/api/common-query.types'
+  type NumberComparisonFilter,
+} from '@/features/table-pages/table-shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 
@@ -32,13 +32,13 @@ const getDateRangeFilter = (
   return value
 }
 
-const getNumberComparison = (
-  filters: ColumnFiltersState,
-  id: string,
-): { operator: ComparisonOperator; value: number } | undefined => {
-  const value = findFilter(filters, id)?.value
+const getDocTotalFilter = (filters: ColumnFiltersState): NumberComparisonFilter | undefined => {
+  const value = findFilter(filters, 'DocTotal')?.value
   if (!isNumberComparisonFilter(value)) return undefined
-  return { operator: value.operator, value: value.value }
+  return {
+    operator: value.operator,
+    value: value.value,
+  }
 }
 
 const SORTABLE_FIELDS = new Set(['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal'])
@@ -49,7 +49,7 @@ export const mapSearchToIncomingPaymentListParams = (
   const filters = normalizeColumnFilters(search.columnFilters)
 
   const docDate = getDateRangeFilter(filters, 'DocDate')
-  const docTotal = getNumberComparison(filters, 'DocTotal')
+  const docTotal = getDocTotalFilter(filters)
   const counterRef = getStringFilter(filters, 'CounterRef')
 
   const start = docDate?.from ?? docDate?.to

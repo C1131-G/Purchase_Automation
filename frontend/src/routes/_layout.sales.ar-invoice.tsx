@@ -10,6 +10,10 @@ const ARInvoiceTable = lazy(() =>
   })),
 )
 
+/**
+ * ARInvoiceRoute: Accounts Receivable Invoice listing.
+ * Orchestrates grid state synchronization between UI elements and URL.
+ */
 export const Route = createFileRoute('/_layout/sales/ar-invoice')({
   validateSearch: (search) => arInvoiceSearchSchema.parse(search),
   component: RouteComponent,

@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 
+/** SidebarState: Controls the navigation sidebar's expanded/collapsed state. */
 type SidebarState = {
   open: boolean
   setOpen: (open: boolean) => void
   toggleSidebar: () => void
 }
 
+/** useSidebarStore: Global state for sidebar visibility. */
 export const useSidebarStore = create<SidebarState>((set) => ({
   open: false,
   setOpen: (open) => set({ open }),

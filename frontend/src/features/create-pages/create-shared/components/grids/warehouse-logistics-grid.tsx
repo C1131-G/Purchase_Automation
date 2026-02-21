@@ -29,6 +29,7 @@ type WarehouseLogisticsGridProps = {
   salesEmployeeLabel?: string
   salesEmployeePlaceholder?: string
   salesEmployeeLoadingPlaceholder?: string
+  error?: string | null
 }
 
 export function WarehouseLogisticsGrid({
@@ -57,9 +58,15 @@ export function WarehouseLogisticsGrid({
   salesEmployeeLabel = 'Buyer *',
   salesEmployeePlaceholder = 'Select Buyer',
   salesEmployeeLoadingPlaceholder = 'Loading buyers...',
+  error,
 }: WarehouseLogisticsGridProps) {
   return (
     <SectionCard title="Warehouse & Logistics" className="lg:col-span-1">
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {error}
+        </div>
+      ) : null}
       <div className="relative">
         <FieldBlock
           label="Warehouse *"

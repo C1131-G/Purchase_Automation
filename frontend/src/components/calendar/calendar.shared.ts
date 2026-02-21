@@ -1,3 +1,4 @@
+/** MONTHS: Display names for calendar months. */
 export const MONTHS = [
   'January',
   'February',

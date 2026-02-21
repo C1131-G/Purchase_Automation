@@ -8,24 +8,23 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
-import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
 import { type SalesOrderListItem } from '@/features/table-pages/sales-orders/api/sales-order.service'
 import { mapSearchToSalesOrderListParams } from '@/features/table-pages/sales-orders/api/sales-order-query.mapper'
-import { createSalesOrderColumns } from '@/features/table-pages/sales-orders/components/columns'
+import { createSalesOrderColumns } from '@/features/table-pages/sales-orders/components/sales-order-columns'
+import { SalesOrderLookupLayer } from '@/features/table-pages/sales-orders/components/sales-order-lookup-layer'
 import {
   type SalesOrderColumnFilter,
   salesOrderColumnFilterSchema,
   type SalesOrderSearch,
 } from '@/features/table-pages/sales-orders/schemas/sales-order-search.schema'
-import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
-import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import { TablePagination } from '@/features/table-pages/table-shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/table-shared/components/core/table-error-state'
 import {
   Table,
   TableBody,
@@ -33,35 +32,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/features/table-pages/shared/components/core/table-root'
-import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
-import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
+} from '@/features/table-pages/table-shared/components/core/table-root'
+import { useTablePrefetch } from '@/features/table-pages/table-shared/hooks/use-table-prefetch'
+import {
+  type TableFetchAction,
+  useTableToast,
+} from '@/features/table-pages/table-shared/hooks/use-table-toast'
+import {
+  cloneFilters,
+  cloneOrder,
+  cloneSorting,
+  cloneVisibility,
+  normalizeVisibility,
+} from '@/features/table-pages/table-shared/utils/table-state.utils'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
+import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
 import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-// SalesOrderTable: Operational grid for sales management using SAP B1 Industrial style.
-// Bridges TanStack Table logic with custom Sapphire UI and reactive URL synchronization.
 const routeApi = getRouteApi('/_layout/sales/orders')
 const TABLE_ID = 'sales-orders'
-
-const cloneSorting = (sorting: SortingState): SortingState =>
-  sorting.map((item) => ({ id: item.id, desc: item.desc }))
-
-const cloneVisibility = (visibility: VisibilityState): VisibilityState => ({ ...visibility })
-const normalizeVisibility = (visibility: VisibilityState): VisibilityState => {
-  return Object.fromEntries(Object.entries(visibility).filter(([, visible]) => visible === false))
-}
-
-const cloneOrder = (order: string[]): string[] => [...order]
-
-const cloneFilters = (filters: ColumnFiltersState): ColumnFiltersState =>
-  filters.map((filter) => ({
-    id: filter.id,
-    value: Array.isArray(filter.value) ? [...filter.value] : filter.value,
-  }))
+const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 
 const toSalesOrderColumnFilters = (filters: ColumnFiltersState): SalesOrderColumnFilter[] => {
   const typedFilters: SalesOrderColumnFilter[] = []
@@ -73,6 +66,8 @@ const toSalesOrderColumnFilters = (filters: ColumnFiltersState): SalesOrderColum
   return typedFilters
 }
 
+// SalesOrderTable: Comprehensive data grid for sales orders, utilizing TanStack Table for headless logic.
+// Follows a strict URL-first state pattern to ensure reliability and searchability.
 export function SalesOrderTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
@@ -83,15 +78,23 @@ export function SalesOrderTable() {
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
 
+  /** Tracks which user action last triggered a fetch for action-specific toasts. */
+  const lastActionRef = useRef<TableFetchAction>('fetching')
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const defaultColumnOrder = useMemo(() => {
-    return ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
-  }, [])
-
   const columns = useMemo(() => createSalesOrderColumns(), [])
+  const columnIds = useMemo(
+    () =>
+      columns
+        .map((column) =>
+          column.id ? column.id : typeof column.accessorKey === 'string' ? column.accessorKey : '',
+        )
+        .filter(Boolean),
+    [columns],
+  )
 
   const sorting = useMemo<SortingState>(
     () => cloneSorting(searchParams.sorting ?? []),
@@ -103,11 +106,14 @@ export function SalesOrderTable() {
     [searchParams.columnVisibility],
   )
 
-  const columnOrder = useMemo<string[]>(
-    () =>
-      cloneOrder(searchParams.columnOrder?.length ? searchParams.columnOrder : defaultColumnOrder),
-    [searchParams.columnOrder, defaultColumnOrder],
-  )
+  const columnOrder = useMemo<string[]>(() => {
+    const base =
+      searchParams.columnOrder?.length && searchParams.columnOrder.some(Boolean)
+        ? searchParams.columnOrder
+        : DEFAULT_COLUMN_ORDER
+    const filtered = base.filter((id) => columnIds.includes(id))
+    return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER)
+  }, [searchParams.columnOrder, columnIds])
 
   const columnFilters = useMemo<ColumnFiltersState>(
     () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
@@ -123,17 +129,13 @@ export function SalesOrderTable() {
   )
 
   const tableState = useMemo(
-    () => ({
-      sorting,
-      columnVisibility,
-      columnOrder,
-      pagination,
-      columnFilters,
-    }),
+    () => ({ sorting, columnVisibility, columnOrder, pagination, columnFilters }),
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
   const listParams = useMemo(() => mapSearchToSalesOrderListParams(searchParams), [searchParams])
+
+  // React Query Integration: Triggers fetches based on reactive search params from the search-mapper.
   const {
     data: salesOrderList,
     isLoading,
@@ -142,24 +144,10 @@ export function SalesOrderTable() {
     error,
     refetch,
   } = useQuery(salesOrderQueries.list(listParams))
+
   const queryClient = useQueryClient()
 
-  // Customers lookup for filter suggestions and popup
-  const customersQuery = useQuery(createSharedQueries.customers())
-  const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data])
-
-  const docNumSuggestionsQuery = useQuery(salesOrderQueries.docNumSuggestions())
-  const docNumSuggestions = useMemo<LookupItem[]>(
-    () => docNumSuggestionsQuery.data?.data ?? [],
-    [docNumSuggestionsQuery.data],
-  )
-
-  // Lookup popup state
-  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
-  const [lookupColumnId, setLookupColumnId] = useState<string>('')
-  const [lookupSearch, setLookupSearch] = useState('')
-
-  const rows = salesOrderList?.data ?? []
+  const rows = useMemo(() => salesOrderList?.data ?? [], [salesOrderList?.data])
   const totalRows = salesOrderList?.total ?? 0
   const totalPages = Math.max(salesOrderList?.totalPages ?? 1, 1)
   const showInitialSkeleton = isLoading && !salesOrderList
@@ -172,6 +160,7 @@ export function SalesOrderTable() {
     state: tableState,
     meta: { tableId: TABLE_ID },
     onSortingChange: (updater) => {
+      lastActionRef.current = 'sorting'
       const next = typeof updater === 'function' ? updater(sorting) : updater
       const nextSorting = cloneSorting(next)
       setSorting(TABLE_ID, nextSorting)
@@ -199,14 +188,12 @@ export function SalesOrderTable() {
       const next = typeof updater === 'function' ? updater(columnOrder) : updater
       setOrder(TABLE_ID, cloneOrder(next))
       navigate({
-        search: (prev: SalesOrderSearch) => ({
-          ...prev,
-          columnOrder: [...next],
-        }),
+        search: (prev: SalesOrderSearch) => ({ ...prev, columnOrder: [...next] }),
         replace: true,
       })
     },
     onPaginationChange: (updater) => {
+      lastActionRef.current = 'paginating'
       const next = typeof updater === 'function' ? updater(pagination) : updater
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
@@ -223,6 +210,7 @@ export function SalesOrderTable() {
       })
     },
     onColumnFiltersChange: (updater) => {
+      lastActionRef.current = 'filtering'
       const next = typeof updater === 'function' ? updater(columnFilters) : updater
       const normalized = normalizeColumnFilters(next)
       const nextFilters = cloneFilters(normalized)
@@ -251,6 +239,7 @@ export function SalesOrderTable() {
     autoResetPageIndex: false,
   })
 
+  // Coordination Layer: Manages the transition between query results and table-rendered rows.
   const filteredTotalRows = totalRows
   const effectivePageSize = Math.max(pagination.pageSize, 1)
   const effectivePageCount = Math.max(
@@ -277,18 +266,36 @@ export function SalesOrderTable() {
     const clampedPageIndex = maxPageIndex
     setPagination(TABLE_ID, { pageIndex: clampedPageIndex, totalRows: filteredTotalRows })
     navigate({
-      search: (prev: SalesOrderSearch) => ({
-        ...prev,
-        page: clampedPageIndex + 1,
-      }),
+      search: (prev: SalesOrderSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
       replace: true,
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
+  // Aggressive Background Prefetching (Shared Global Hook)
+  const getQueryOptions = useCallback(
+    (params: { page: number; limit: number }) =>
+      salesOrderQueries.list({ ...listParams, ...params }),
+    [listParams],
+  )
+
+  const { prefetchPage } = useTablePrefetch({
+    queryClient,
+    hasData: !!salesOrderList,
+    pagination,
+    maxPageIndex,
+    getQueryOptions,
+  })
+
+  useTableToast({
+    isFetching,
+    hasData: !!salesOrderList,
+    action: lastActionRef.current,
+  })
+
   const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
-    setOrder(TABLE_ID, [...defaultColumnOrder])
+    setOrder(TABLE_ID, [...DEFAULT_COLUMN_ORDER])
     clearAllFilters(TABLE_ID)
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 })
 
@@ -298,7 +305,7 @@ export function SalesOrderTable() {
         page: 1,
         limit: 10,
         columnVisibility: {},
-        columnOrder: [...defaultColumnOrder],
+        columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnFilters: [],
         sorting: [],
         DocTotalOperator: undefined,
@@ -306,70 +313,19 @@ export function SalesOrderTable() {
       }),
       replace: true,
     })
-  }, [
-    setSorting,
-    setVisibility,
-    setOrder,
-    defaultColumnOrder,
-    clearAllFilters,
-    setPagination,
-    navigate,
-  ])
-
-  const handleLookupPopupOpen = useCallback((columnId: string) => {
-    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
-    setLookupColumnId(columnId)
-    setLookupSearch('')
-    setLookupPopupOpen(true)
-  }, [])
-
-  const handleLookupSelect = useCallback(
-    (item: LookupItem) => {
-      const column = table.getColumn(lookupColumnId)
-      if (column) {
-        const value =
-          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
-        column.setFilterValue(value)
-      }
-      setLookupPopupOpen(false)
-    },
-    [lookupColumnId, table],
-  )
-
-  const handlePrefetchPage = useCallback(
-    (nextPageIndex: number, nextPageSize: number) => {
-      queryClient.prefetchQuery(
-        salesOrderQueries.list({
-          ...listParams,
-          page: nextPageIndex + 1,
-          limit: nextPageSize,
-        }),
-      )
-    },
-    [queryClient, listParams],
-  )
-
-  const handlePrefetchPageSize = useCallback(
-    (nextPageSize: number) => {
-      queryClient.prefetchQuery(
-        salesOrderQueries.list({
-          ...listParams,
-          page: 1,
-          limit: nextPageSize,
-        }),
-      )
-    },
-    [queryClient, listParams],
-  )
+  }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate])
 
   const handleCreateClickPrefetch = useCallback(() => {
     void Promise.allSettled([
-      queryClient.prefetchQuery(createSharedQueries.warehouses()),
+      queryClient.prefetchQuery(createSharedQueries.customers()),
       queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
     ])
   }, [queryClient])
 
-  if (showInitialSkeleton) return <TableSkeleton />
+  if (showInitialSkeleton) {
+    return <TableSkeleton />
+  }
+
   if (isError && !salesOrderList) {
     return (
       <TableErrorState
@@ -382,56 +338,13 @@ export function SalesOrderTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <TableToolbar
+      <SalesOrderLookupLayer
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
         onCreateClick={handleCreateClickPrefetch}
-        isFetching={isFetching}
-        createLink="/sales/create-order"
-        breadcrumb={{ section: 'Sales', page: 'Sales Orders', href: '/sales/orders' }}
-        lookupSuggestions={customers}
-        docNumSuggestions={docNumSuggestions}
-        enableDocNumPopup
-        onLookupPopupOpen={handleLookupPopupOpen}
       />
-      <LookupPopup
-        open={lookupPopupOpen}
-        mode={
-          lookupColumnId === 'DocNum'
-            ? undefined
-            : lookupColumnId === 'CardCode'
-              ? 'customer-code'
-              : 'customer-name'
-        }
-        search={lookupSearch}
-        results={lookupColumnId === 'DocNum' ? docNumSuggestions : customers}
-        loading={
-          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : customersQuery.isLoading
-        }
-        error={
-          lookupColumnId === 'DocNum'
-            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
-              ? 'Failed to load document numbers'
-              : null
-            : customersQuery.isError
-              ? 'Failed to load customers'
-              : null
-        }
-        title={
-          lookupColumnId === 'DocNum'
-            ? 'Search Doc Number'
-            : lookupColumnId === 'CardCode'
-              ? 'Search Customer Code'
-              : 'Search Customer Name'
-        }
-        searchPlaceholder={
-          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search customer code or name'
-        }
-        onSearchChange={setLookupSearch}
-        onClose={() => setLookupPopupOpen(false)}
-        onSelect={handleLookupSelect}
-      />
+
       <div className="flex-1 overflow-auto w-full px-1.5">
         <Table className="w-full min-w-300">
           <TableHeader>
@@ -477,12 +390,13 @@ export function SalesOrderTable() {
           </TableBody>
         </Table>
       </div>
+
       <TablePagination
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={handlePrefetchPage}
-        onPrefetchPageSize={handlePrefetchPageSize}
+        onPrefetchPage={prefetchPage}
+        onPrefetchPageSize={(pageSize) => prefetchPage(0, pageSize)}
       />
     </div>
   )

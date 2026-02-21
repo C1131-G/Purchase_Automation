@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+/** POLineItemState: Local state representation of a single document line. */
 export type POLineItemState = {
   id: string
   itemCode: string
@@ -19,6 +20,7 @@ export type POLineItemState = {
   comment: string
 }
 
+/** POHeaderState: Top-level document metadata (Vendor, Dates, Warehouse). */
 export type POHeaderState = {
   vendorCode: string
   vendorName: string
@@ -29,6 +31,7 @@ export type POHeaderState = {
   comments: string
 }
 
+/** POCreateState: Orchestrates the draft PO state and mutation actions. */
 type POCreateState = {
   header: POHeaderState
   lines: POLineItemState[]
@@ -51,6 +54,10 @@ const getDefaultHeader = (): POHeaderState => ({
   comments: '',
 })
 
+/**
+ * usePOCreateStore: Global store for managing the creation lifecycle of Purchase Orders.
+ * Centralizes header data and line items before persistence.
+ */
 export const usePOCreateStore = create<POCreateState>((set) => ({
   header: getDefaultHeader(),
   lines: [],

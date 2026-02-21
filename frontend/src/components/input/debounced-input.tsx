@@ -2,6 +2,10 @@ import { useEffect, useId, useState } from 'react'
 
 import type { DebouncedInputProps } from '@/components/types/input.types'
 
+/**
+ * DebouncedInput: State-optimized entry field for high-frequency updates (e.g., search).
+ * PERFORMANCE: Throttles `onChange` emissions to reduce expensive parent re-renders.
+ */
 export function DebouncedInput({
   value: initialValue,
   onChange,

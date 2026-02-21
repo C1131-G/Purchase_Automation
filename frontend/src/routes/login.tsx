@@ -8,7 +8,10 @@ import { authQueries } from '@/features/auth/api/auth.queries'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 import { useAuthStore } from '@/store/auth/auth.store'
 
-// Login Route: Authenticated entryway with flex-centered layout and minimalist slate background.
+/**
+ * LoginRoute: Authenticated entryway with flex-centered layout and minimalist slate background.
+ * Validates existing sessions on mount before showing credentials form.
+ */
 export const Route = createFileRoute('/login')({
   beforeLoad: () => {
     const { isAuthenticated } = useAuthStore.getState()

@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { grpoAPI, type GRPOListParams } from '@/features/table-pages/grpo/api/grpo.service'
 import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
@@ -17,6 +17,7 @@ export const grpoQueries = {
       queryFn: () => grpoAPI.getGRPOs(params),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      placeholderData: keepPreviousData,
     }),
   docNumSuggestions: (search?: string) =>
     queryOptions({

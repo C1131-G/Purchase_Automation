@@ -3,7 +3,10 @@ import React from 'react'
 import type { InputProps } from '@/components/types/input.types'
 import { cn } from '@/shared/utils/cn'
 
-// Input: High-precision data entry field with sapphire-600 focus states.
+/**
+ * Input: High-precision data entry field with sapphire-600 focus states.
+ * THEME: Enforces uniform industrial sizing and industrial typography.
+ */
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, id, name, ...props }, ref) => {
     const autoId = React.useId()

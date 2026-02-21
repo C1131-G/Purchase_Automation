@@ -8,24 +8,23 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
-import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
 import { type GRPOListItem } from '@/features/table-pages/grpo/api/grpo.service'
 import { mapSearchToGRPOListParams } from '@/features/table-pages/grpo/api/grpo-query.mapper'
-import { createGRPOColumns } from '@/features/table-pages/grpo/components/columns'
+import { createGRPOColumns } from '@/features/table-pages/grpo/components/grpo-columns'
+import { GRPOLookupLayer } from '@/features/table-pages/grpo/components/grpo-lookup-layer'
 import {
   type GRPOColumnFilter,
   grpoColumnFilterSchema,
   type GRPOSearch,
 } from '@/features/table-pages/grpo/schemas/grpo-search.schema'
-import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
-import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import { TablePagination } from '@/features/table-pages/table-shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/table-shared/components/core/table-error-state'
 import {
   Table,
   TableBody,
@@ -33,35 +32,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/features/table-pages/shared/components/core/table-root'
-import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
-import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
+} from '@/features/table-pages/table-shared/components/core/table-root'
+import { useTablePrefetch } from '@/features/table-pages/table-shared/hooks/use-table-prefetch'
+import {
+  type TableFetchAction,
+  useTableToast,
+} from '@/features/table-pages/table-shared/hooks/use-table-toast'
+import {
+  cloneFilters,
+  cloneOrder,
+  cloneSorting,
+  cloneVisibility,
+  normalizeVisibility,
+} from '@/features/table-pages/table-shared/utils/table-state.utils'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
+import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
 import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-// GRPOTable: Operational grid for Good Receipt PO management using SAP B1 Industrial style.
-// Bridges TanStack Table logic with custom Sapphire UI and reactive URL synchronization.
 const routeApi = getRouteApi('/_layout/purchase/grpo')
 const TABLE_ID = 'grpo'
-
-const cloneSorting = (sorting: SortingState): SortingState =>
-  sorting.map((item) => ({ id: item.id, desc: item.desc }))
-
-const cloneVisibility = (visibility: VisibilityState): VisibilityState => ({ ...visibility })
-const normalizeVisibility = (visibility: VisibilityState): VisibilityState => {
-  return Object.fromEntries(Object.entries(visibility).filter(([, visible]) => visible === false))
-}
-
-const cloneOrder = (order: string[]): string[] => [...order]
-
-const cloneFilters = (filters: ColumnFiltersState): ColumnFiltersState =>
-  filters.map((filter) => ({
-    id: filter.id,
-    value: Array.isArray(filter.value) ? [...filter.value] : filter.value,
-  }))
+const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 
 const toGRPOColumnFilters = (filters: ColumnFiltersState): GRPOColumnFilter[] => {
   const typedFilters: GRPOColumnFilter[] = []
@@ -73,6 +66,8 @@ const toGRPOColumnFilters = (filters: ColumnFiltersState): GRPOColumnFilter[] =>
   return typedFilters
 }
 
+// GRPOTable: Goods Receipt PO listing, the primary touchpoint for warehouse intake tracking.
+// Extends the standard table pattern with specific GRPO data fetching and URL synchronization.
 export function GRPOTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
@@ -83,11 +78,23 @@ export function GRPOTable() {
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
 
-  const defaultColumnOrder = useMemo(() => {
-    return ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
+  /** Tracks which user action last triggered a fetch for action-specific toasts. */
+  const lastActionRef = useRef<TableFetchAction>('fetching')
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const columns = useMemo(() => createGRPOColumns(), [])
+  const columnIds = useMemo(
+    () =>
+      columns
+        .map((column) =>
+          column.id ? column.id : typeof column.accessorKey === 'string' ? column.accessorKey : '',
+        )
+        .filter(Boolean),
+    [columns],
+  )
 
   const sorting = useMemo<SortingState>(
     () => cloneSorting(searchParams.sorting ?? []),
@@ -99,11 +106,14 @@ export function GRPOTable() {
     [searchParams.columnVisibility],
   )
 
-  const columnOrder = useMemo<string[]>(
-    () =>
-      cloneOrder(searchParams.columnOrder?.length ? searchParams.columnOrder : defaultColumnOrder),
-    [searchParams.columnOrder, defaultColumnOrder],
-  )
+  const columnOrder = useMemo<string[]>(() => {
+    const base =
+      searchParams.columnOrder?.length && searchParams.columnOrder.some(Boolean)
+        ? searchParams.columnOrder
+        : DEFAULT_COLUMN_ORDER
+    const filtered = base.filter((id) => columnIds.includes(id))
+    return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER)
+  }, [searchParams.columnOrder, columnIds])
 
   const columnFilters = useMemo<ColumnFiltersState>(
     () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
@@ -119,18 +129,13 @@ export function GRPOTable() {
   )
 
   const tableState = useMemo(
-    () => ({
-      sorting,
-      columnVisibility,
-      columnOrder,
-      pagination,
-      columnFilters,
-    }),
+    () => ({ sorting, columnVisibility, columnOrder, pagination, columnFilters }),
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
   const listParams = useMemo(() => mapSearchToGRPOListParams(searchParams), [searchParams])
 
+  // React Query Integration: Triggers fetches based on reactive search params from the search-mapper.
   const {
     data: grpoList,
     isLoading,
@@ -139,24 +144,10 @@ export function GRPOTable() {
     error,
     refetch,
   } = useQuery(grpoQueries.list(listParams))
+
   const queryClient = useQueryClient()
 
-  // Vendors lookup for filter suggestions and popup
-  const vendorsQuery = useQuery(createSharedQueries.vendors())
-  const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data])
-
-  const docNumSuggestionsQuery = useQuery(grpoQueries.docNumSuggestions())
-  const docNumSuggestions = useMemo<LookupItem[]>(
-    () => docNumSuggestionsQuery.data?.data ?? [],
-    [docNumSuggestionsQuery.data],
-  )
-
-  // Lookup popup state
-  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
-  const [lookupColumnId, setLookupColumnId] = useState<string>('')
-  const [lookupSearch, setLookupSearch] = useState('')
-
-  const rows = grpoList?.data ?? []
+  const rows = useMemo(() => grpoList?.data ?? [], [grpoList?.data])
   const totalRows = grpoList?.total ?? 0
   const totalPages = Math.max(grpoList?.totalPages ?? 1, 1)
   const showInitialSkeleton = isLoading && !grpoList
@@ -169,6 +160,7 @@ export function GRPOTable() {
     state: tableState,
     meta: { tableId: TABLE_ID },
     onSortingChange: (updater) => {
+      lastActionRef.current = 'sorting'
       const next = typeof updater === 'function' ? updater(sorting) : updater
       const nextSorting = cloneSorting(next)
       setSorting(TABLE_ID, nextSorting)
@@ -196,14 +188,12 @@ export function GRPOTable() {
       const next = typeof updater === 'function' ? updater(columnOrder) : updater
       setOrder(TABLE_ID, cloneOrder(next))
       navigate({
-        search: (prev: GRPOSearch) => ({
-          ...prev,
-          columnOrder: [...next],
-        }),
+        search: (prev: GRPOSearch) => ({ ...prev, columnOrder: [...next] }),
         replace: true,
       })
     },
     onPaginationChange: (updater) => {
+      lastActionRef.current = 'paginating'
       const next = typeof updater === 'function' ? updater(pagination) : updater
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
@@ -220,6 +210,7 @@ export function GRPOTable() {
       })
     },
     onColumnFiltersChange: (updater) => {
+      lastActionRef.current = 'filtering'
       const next = typeof updater === 'function' ? updater(columnFilters) : updater
       const normalized = normalizeColumnFilters(next)
       const nextFilters = cloneFilters(normalized)
@@ -248,6 +239,7 @@ export function GRPOTable() {
     autoResetPageIndex: false,
   })
 
+  // Interaction Layer: Syncs UI state (sorting/visibility) back to the URL search parameters.
   const filteredTotalRows = totalRows
   const effectivePageSize = Math.max(pagination.pageSize, 1)
   const effectivePageCount = Math.max(
@@ -271,25 +263,38 @@ export function GRPOTable() {
 
   useEffect(() => {
     if (pagination.pageIndex <= maxPageIndex) return
-
     const clampedPageIndex = maxPageIndex
-    setPagination(TABLE_ID, {
-      pageIndex: clampedPageIndex,
-      totalRows: filteredTotalRows,
-    })
+    setPagination(TABLE_ID, { pageIndex: clampedPageIndex, totalRows: filteredTotalRows })
     navigate({
-      search: (prev: GRPOSearch) => ({
-        ...prev,
-        page: clampedPageIndex + 1,
-      }),
+      search: (prev: GRPOSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
       replace: true,
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
+  // Aggressive Background Prefetching (Shared Global Hook)
+  const getQueryOptions = useCallback(
+    (params: { page: number; limit: number }) => grpoQueries.list({ ...listParams, ...params }),
+    [listParams],
+  )
+
+  const { prefetchPage } = useTablePrefetch({
+    queryClient,
+    hasData: !!grpoList,
+    pagination,
+    maxPageIndex,
+    getQueryOptions,
+  })
+
+  useTableToast({
+    isFetching,
+    hasData: !!grpoList,
+    action: lastActionRef.current,
+  })
+
   const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
-    setOrder(TABLE_ID, [...defaultColumnOrder])
+    setOrder(TABLE_ID, [...DEFAULT_COLUMN_ORDER])
     clearAllFilters(TABLE_ID)
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 })
 
@@ -299,7 +304,7 @@ export function GRPOTable() {
         page: 1,
         limit: 10,
         columnVisibility: {},
-        columnOrder: [...defaultColumnOrder],
+        columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnFilters: [],
         sorting: [],
         DocTotalOperator: undefined,
@@ -307,52 +312,19 @@ export function GRPOTable() {
       }),
       replace: true,
     })
-  }, [
-    setSorting,
-    setVisibility,
-    setOrder,
-    defaultColumnOrder,
-    clearAllFilters,
-    setPagination,
-    navigate,
-  ])
+  }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate])
 
-  const handleLookupPopupOpen = useCallback((columnId: string) => {
-    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
-    setLookupColumnId(columnId)
-    setLookupSearch('')
-    setLookupPopupOpen(true)
-  }, [])
-
-  const handleLookupSelect = useCallback(
-    (item: LookupItem) => {
-      const column = table.getColumn(lookupColumnId)
-      if (column) {
-        const value =
-          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
-        column.setFilterValue(value)
-      }
-      setLookupPopupOpen(false)
-    },
-    [lookupColumnId, table],
-  )
-
-  const handlePrefetchPage = useCallback(
-    (nextPageIndex: number, nextPageSize: number) => {
-      queryClient.prefetchQuery(
-        grpoQueries.list({
-          ...listParams,
-          page: nextPageIndex + 1,
-          limit: nextPageSize,
-        }),
-      )
-    },
-    [queryClient, listParams],
-  )
+  const handleCreateClickPrefetch = useCallback(() => {
+    void Promise.allSettled([
+      queryClient.prefetchQuery(createSharedQueries.warehouses()),
+      queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+    ])
+  }, [queryClient])
 
   if (showInitialSkeleton) {
     return <TableSkeleton />
   }
+
   if (isError && !grpoList) {
     return (
       <TableErrorState
@@ -365,54 +337,11 @@ export function GRPOTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <TableToolbar
+      <GRPOLookupLayer
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
-        isFetching={isFetching}
-        createLink="/purchase/create-grpo"
-        breadcrumb={{ section: 'Purchase', page: 'GRPO', href: '/purchase/grpo' }}
-        lookupSuggestions={vendors}
-        docNumSuggestions={docNumSuggestions}
-        enableDocNumPopup
-        onLookupPopupOpen={handleLookupPopupOpen}
-      />
-      <LookupPopup
-        open={lookupPopupOpen}
-        mode={
-          lookupColumnId === 'DocNum'
-            ? undefined
-            : lookupColumnId === 'CardCode'
-              ? 'vendor-code'
-              : 'vendor-name'
-        }
-        search={lookupSearch}
-        results={lookupColumnId === 'DocNum' ? docNumSuggestions : vendors}
-        loading={
-          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : vendorsQuery.isLoading
-        }
-        error={
-          lookupColumnId === 'DocNum'
-            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
-              ? 'Failed to load document numbers'
-              : null
-            : vendorsQuery.isError
-              ? 'Failed to load vendors'
-              : null
-        }
-        title={
-          lookupColumnId === 'DocNum'
-            ? 'Search Doc Number'
-            : lookupColumnId === 'CardCode'
-              ? 'Search Vendor Code'
-              : 'Search Vendor Name'
-        }
-        searchPlaceholder={
-          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search vendor code or name'
-        }
-        onSearchChange={setLookupSearch}
-        onClose={() => setLookupPopupOpen(false)}
-        onSelect={handleLookupSelect}
+        onCreateClick={handleCreateClickPrefetch}
       />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
@@ -465,7 +394,8 @@ export function GRPOTable() {
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={handlePrefetchPage}
+        onPrefetchPage={prefetchPage}
+        onPrefetchPageSize={(pageSize) => prefetchPage(0, pageSize)}
       />
     </div>
   )

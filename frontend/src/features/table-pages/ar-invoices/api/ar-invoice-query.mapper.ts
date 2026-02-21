@@ -9,7 +9,9 @@ import { type ARInvoiceSearch } from '@/features/table-pages/ar-invoices/schemas
 import {
   type DateRangeFilter,
   isDateRangeFilter,
-} from '@/features/table-pages/shared/utils/table-filter-values'
+  isNumberComparisonFilter,
+  type NumberComparisonFilter,
+} from '@/features/table-pages/table-shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 
@@ -43,22 +45,13 @@ const getDateRangeFilter = (
   return value
 }
 
-const getNumberComparison = (
-  filters: ColumnFiltersState,
-  id: string,
-): { operator: 'eq' | 'lt' | 'gt'; value: number } | undefined => {
-  const value = findFilter(filters, id)?.value
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  const candidate = value as { operator?: string; value?: number | string }
-  const operator = candidate.operator
-  const parsed =
-    typeof candidate.value === 'number'
-      ? candidate.value
-      : parseFloat(String(candidate.value ?? ''))
-
-  if (operator !== 'eq' && operator !== 'lt' && operator !== 'gt') return undefined
-  if (!Number.isFinite(parsed)) return undefined
-  return { operator, value: parsed }
+const getDocTotalFilter = (filters: ColumnFiltersState): NumberComparisonFilter | undefined => {
+  const value = findFilter(filters, 'DocTotal')?.value
+  if (!isNumberComparisonFilter(value)) return undefined
+  return {
+    operator: value.operator,
+    value: value.value,
+  }
 }
 
 const SORTABLE_FIELDS = new Set([
@@ -76,7 +69,7 @@ export const mapSearchToARInvoiceListParams = (search: ARInvoiceSearch): ARInvoi
 
   const docDate = getDateRangeFilter(filters, 'DocDate')
   const docStatus = getEnumFilter<ARInvoiceStatus>(filters, 'DocStatus', ['Open', 'Closed'])
-  const docTotal = getNumberComparison(filters, 'DocTotal')
+  const docTotal = getDocTotalFilter(filters)
   const numAtCard = getStringFilter(filters, 'NumAtCard')
 
   const start = docDate?.from ?? docDate?.to
@@ -89,28 +82,19 @@ export const mapSearchToARInvoiceListParams = (search: ARInvoiceSearch): ARInvoi
       : undefined
   const sortOrder = firstSort ? (firstSort.desc ? 'desc' : 'asc') : undefined
 
-  const params: ARInvoiceListParams = {
+  return {
     page: Math.max(search.page ?? 1, 1),
     limit: Math.max(search.limit ?? 10, 1),
+    DocNum: getStringFilter(filters, 'DocNum'),
+    CardCode: getStringFilter(filters, 'CardCode'),
+    CardName: getStringFilter(filters, 'CardName'),
+    DocStatus: docStatus,
+    DocDateStart: start,
+    DocDateEnd: end,
+    DocTotalOperator: docTotal?.operator,
+    DocTotal: docTotal?.value,
+    NumAtCard: numAtCard,
+    sortBy,
+    sortOrder,
   }
-
-  const docNum = getStringFilter(filters, 'DocNum')
-  if (docNum) params.DocNum = docNum
-
-  const cardCode = getStringFilter(filters, 'CardCode')
-  if (cardCode) params.CardCode = cardCode
-
-  const cardName = getStringFilter(filters, 'CardName')
-  if (cardName) params.CardName = cardName
-
-  if (numAtCard) params.NumAtCard = numAtCard
-  if (docStatus) params.DocStatus = docStatus
-  if (start) params.DocDateStart = start
-  if (end) params.DocDateEnd = end
-  if (docTotal?.operator) params.DocTotalOperator = docTotal.operator
-  if (docTotal?.value !== undefined) params.DocTotal = docTotal.value
-  if (sortBy) params.sortBy = sortBy
-  if (sortOrder) params.sortOrder = sortOrder
-
-  return params
 }

@@ -2,7 +2,10 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 
 import { useAuthStore } from '@/store/auth/auth.store'
 
-// Entry Receptionist: Analyzes auth state to route users to /login or the /purchase orders dashboard.
+/**
+ * EntryReceptionist: Root redirect logic.
+ * Analyzes auth state to switch between dashboard and login view.
+ */
 export const Route = createFileRoute('/')({
   beforeLoad: () => {
     const { isAuthenticated } = useAuthStore.getState()

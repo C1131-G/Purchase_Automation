@@ -12,7 +12,7 @@ type AnimatedModalShellProps = {
   onClose: () => void
   children: ReactNode
   panelClassName?: string
-  onAfterClose?: () => void
+  onAfterClose?: (() => void) | undefined
 }
 
 export function AnimatedModalShell({

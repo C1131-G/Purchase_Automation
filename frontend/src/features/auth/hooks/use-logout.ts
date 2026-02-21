@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { goeyToast } from 'goey-toast'
 
 import { authQueries } from '@/features/auth/api/auth.queries'
 import { clearPersistedQueryCache } from '@/shared/utils/query-cache-persistence'
@@ -43,6 +44,9 @@ export function useLogout() {
         search: { reason: 'logged_out' },
         replace: true,
       })
+    },
+    onError: () => {
+      goeyToast.error('Logout failed. Please try again.')
     },
   })
 }

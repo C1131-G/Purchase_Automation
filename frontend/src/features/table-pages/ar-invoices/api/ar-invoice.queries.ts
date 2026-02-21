@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import {
   arInvoiceAPI,
@@ -20,6 +20,7 @@ export const arInvoiceQueries = {
       queryFn: () => arInvoiceAPI.getARInvoices(params),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      placeholderData: keepPreviousData,
     }),
   docNumSuggestions: (search?: string) =>
     queryOptions({

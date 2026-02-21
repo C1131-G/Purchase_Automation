@@ -21,6 +21,10 @@ type CalendarAction =
   | { type: 'SET_INTERNAL_RANGE'; payload: CalendarDateRange }
   | { type: 'SYNC_SELECTED'; payload: { selected?: Date | CalendarDateRange; today: Date } }
 
+/**
+ * createCalendarInitialState: Bootstraps the calendar state based on selection and current date.
+ * Ensures the view anchor (currentDate) is derived from the active selection.
+ */
 export const createCalendarInitialState = (
   selected: Date | CalendarDateRange | undefined,
   today: Date,

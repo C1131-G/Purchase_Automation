@@ -6,6 +6,10 @@ import { cn } from '@/shared/utils/cn'
 
 const getDocument = (node: HTMLElement | null) => node?.ownerDocument ?? document
 
+/**
+ * Tooltip: Contextual information overlay.
+ * IMPLEMENTATION: Uses React Portal for top-level stacking and automatic positioning relative to anchor.
+ */
 export const Tooltip = ({ children, content, className, contentClassName }: TooltipProps) => {
   const anchorRef = useRef<HTMLSpanElement | null>(null)
   const [container, setContainer] = useState<HTMLElement | null>(null)

@@ -1,26 +1,23 @@
-import { AlertTriangle } from 'lucide-react'
+import { SectionErrorState } from '@/components/section-error-state'
 
 type LookupErrorStateProps = {
   colSpan: number
-  message: string
-  title?: string
+  message?: string
+  onRetry?: () => void
 }
 
-export function LookupErrorState({
-  colSpan,
-  message,
-  title = 'Lookup unavailable',
-}: LookupErrorStateProps) {
+// LookupErrorState: Formats errors to fit perfectly inside table-aligned popups.
+// Force-wraps standard error UI in a <tr><td> structure for grid alignment.
+export function LookupErrorState({ colSpan, message, onRetry }: LookupErrorStateProps) {
   return (
     <tr>
-      <td className="px-3 py-3" colSpan={colSpan}>
-        <div className="flex flex-col items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-center">
-          <div className="flex size-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-            <AlertTriangle className="size-4" />
-          </div>
-          <p className="text-xs font-semibold text-zinc-900">{title}</p>
-          <p className="text-[11px] text-zinc-500">{message}</p>
-        </div>
+      <td colSpan={colSpan} className="px-3 py-4">
+        <SectionErrorState
+          variant="compact"
+          title="Lookup unavailable"
+          message={message}
+          onRetry={onRetry}
+        />
       </td>
     </tr>
   )

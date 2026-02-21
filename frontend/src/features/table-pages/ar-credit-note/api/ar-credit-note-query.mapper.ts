@@ -11,7 +11,7 @@ import {
   isDateRangeFilter,
   isNumberComparisonFilter,
   type NumberComparisonFilter,
-} from '@/features/table-pages/shared/utils/table-filter-values'
+} from '@/features/table-pages/table-shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 

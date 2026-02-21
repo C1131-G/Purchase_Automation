@@ -38,6 +38,8 @@ export const apInvoiceSearchSchema = z.object({
   DocStatus: z.string().optional(),
   DocDateStart: z.string().optional(),
   DocDateEnd: z.string().optional(),
+  DocTotalOperator: z.enum(['eq', 'lt', 'gt']).optional(),
+  DocTotal: z.coerce.number().optional(),
 })
 
 export type APInvoiceSearch = z.infer<typeof apInvoiceSearchSchema>

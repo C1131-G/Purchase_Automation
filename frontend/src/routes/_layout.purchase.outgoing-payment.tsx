@@ -12,6 +12,10 @@ const OutgoingPaymentTable = lazy(() =>
   ),
 )
 
+/**
+ * OutgoingPaymentRoute: Supplier payment document listing.
+ * Validates complex filter states via shared search schema patterns.
+ */
 export const Route = createFileRoute('/_layout/purchase/outgoing-payment')({
   validateSearch: (search) => outgoingPaymentSearchSchema.parse(search),
   component: RouteComponent,

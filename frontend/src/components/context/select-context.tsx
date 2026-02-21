@@ -11,6 +11,10 @@ export type SelectContextType = {
   registerLabel: (value: string, label: string | React.ReactNode) => void
 }
 
+/**
+ * SelectContext: Engine for custom industrial-grade dropdowns.
+ * ARCHITECTURE: Manages selection state, item registration, and portal visibility.
+ */
 export const SelectContext = createContext<SelectContextType | null>(null)
 
 export function useSelect() {

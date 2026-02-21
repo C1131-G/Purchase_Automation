@@ -1,3 +1,4 @@
+/** MOTION_MS: Unified animation durations (ms) for consistent UI transitions. */
 export const MOTION_MS = {
   popoverEnter: 160,
   popoverExit: 120,
@@ -11,6 +12,7 @@ export const MOTION_MS = {
   sidebarContentFade: 280,
 } as const
 
+/** MOTION_EASING: Standardized CSS transition functions for smooth animations. */
 export const MOTION_EASING = {
   smoothOut: 'ease-in-out',
 } as const

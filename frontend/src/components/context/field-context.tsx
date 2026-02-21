@@ -7,6 +7,10 @@ export type FieldContextValue = {
   error?: string
 }
 
+/**
+ * FieldContext: State coordination for form-field labels, errors, and descriptions.
+ * UX: Ensures accessibility attributes (aria-describedby) are correctly linked across nodes.
+ */
 export const FieldContext = createContext<FieldContextValue | undefined>(undefined)
 
 export function useField() {

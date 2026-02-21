@@ -18,6 +18,11 @@ import {
 import { CalendarGrid } from './calendar-grid'
 import { CalendarPicker } from './calendar-picker'
 
+/**
+ * Calendar: Universal date and range picker for ERP workflows.
+ * ARCHITECTURE: Composed of a reducer-managed engine (state) and dual-view (Grid/Picker) layout.
+ * STYLING: Enforces premium sapphire-on-white aesthetics with fluid transitions.
+ */
 function Calendar({
   className,
   mode = 'single',

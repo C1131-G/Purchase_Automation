@@ -12,6 +12,10 @@ const APCreditNoteTable = lazy(() =>
   ),
 )
 
+/**
+ * APCreditNoteRoute: Procurement return documents listing.
+ * Orchestrates grid state persistence via URL serialization.
+ */
 export const Route = createFileRoute('/_layout/purchase/ap-credit-note')({
   validateSearch: (search) => apCreditNoteSearchSchema.parse(search),
   component: RouteComponent,

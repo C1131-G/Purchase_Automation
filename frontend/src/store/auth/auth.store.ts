@@ -4,11 +4,15 @@ import { authAPI, type User } from '@/features/auth/api/auth.service'
 
 // AuthState: Defines session state and available store actions.
 type AuthState = {
-  // State
+  /** Current authorized user. */
   user: User | null
+  /** Flag for active authentication session. */
   isAuthenticated: boolean
+  /** Loading state for async auth transitions. */
   isLoading: boolean
+  /** error: Holds global authentication error messages. */
   error: string | null
+  /** logoutReason: Context for UI redirects/toasts. */
   logoutReason: 'user' | 'session_ended' | null
 
   // Actions

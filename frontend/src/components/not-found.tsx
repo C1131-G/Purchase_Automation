@@ -3,6 +3,10 @@ import { AlertTriangle, ArrowLeft } from 'lucide-react'
 
 import { Button } from '@/components/button'
 
+/**
+ * NotFound: Catch-all error view for non-existent routes.
+ * DESIGN: Minimalist flex-centered layout with recovery "Go home" action.
+ */
 export function NotFound() {
   const navigate = useNavigate()
 

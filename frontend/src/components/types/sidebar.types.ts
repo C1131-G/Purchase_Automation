@@ -3,6 +3,10 @@ import React from 'react'
 
 export type SidebarProviderProps = React.ComponentProps<'div'>
 
+/**
+ * SidebarProps: Master configuration for application navigation.
+ * COLLAPSIBLE: Controls offcanvas (mobile), icon (compact), or none (fixed) states.
+ */
 export type SidebarProps = React.ComponentProps<'div'> & {
   side?: 'left' | 'right'
   variant?: 'sidebar' | 'floating' | 'inset'

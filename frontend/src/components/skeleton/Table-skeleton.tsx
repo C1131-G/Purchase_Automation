@@ -5,7 +5,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/features/table-pages/shared/components/core/table-root'
+} from '@/features/table-pages/table-shared/components/core/table-root'
 
 /**
  * Column widths matching the standard 6-column table layout:
@@ -121,6 +121,11 @@ function PaginationSkeleton() {
  * Renders a full-height layout that precisely mirrors the real table chrome:
  * toolbar (single-row), 6-column × 10-row body, pagination footer.
  * Zero layout shift when real data arrives.
+ */
+/**
+ * TableSkeleton: Shared loading state for all high-precision data tables.
+ * UX: Mirrors actual table anatomy (toolbar, header, body, pagination) to prevent layout shifts.
+ * DESIGN: Uses pulsing zinc-100 backgrounds with industrial fluid transitions.
  */
 export function TableSkeleton() {
   return (

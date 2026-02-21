@@ -1,5 +1,9 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
+/**
+ * normalizeFilterValue: Cleanses raw filter inputs into ERP-standard structures.
+ * HANDLES: Arrays, Date Ranges ({from, to}), and Numeric Operators ({operator, value}).
+ */
 const normalizeFilterValue = (value: unknown): unknown | null => {
   if (Array.isArray(value)) return value.length > 0 ? value : null
   if (value && typeof value === 'object') {

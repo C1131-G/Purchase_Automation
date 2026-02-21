@@ -10,6 +10,10 @@ const GRPOTable = lazy(() =>
   })),
 )
 
+/**
+ * PurchaseGRPORoute: Goods Receipt PO listing and management.
+ * Synchronizes grid state with URL parameters for shareable views.
+ */
 export const Route = createFileRoute('/_layout/purchase/grpo')({
   validateSearch: (search) => grpoSearchSchema.parse(search),
   component: RouteComponent,

@@ -7,10 +7,18 @@ export type TablePagination = {
   totalRows: number
 }
 
+/**
+ * PaginationStore: Centralized management for feature grid pagination.
+ * Synchronizes 0-indexed local states with 1-indexed URL/API parameters.
+ */
 type PaginationStore = {
+  /** Registry of pagination states indexed by Table ID. */
   tables: Record<string, TablePagination>
+  /** initPagination: Ensures a table has a valid initial pagination state. */
   initPagination: (tableId: string, pagination: TablePagination) => void
+  /** setPagination: Updates partial pagination fields for a specific grid. */
   setPagination: (tableId: string, pagination: Partial<TablePagination>) => void
+  /** resetPagination: Restores default pagination (page 1, 10 items). */
   resetPagination: (tableId: string) => void
 }
 

@@ -10,8 +10,8 @@ import {
   type DateRangeFilter,
   isDateRangeFilter,
   isNumberComparisonFilter,
-} from '@/features/table-pages/shared/utils/table-filter-values'
-import { type ComparisonOperator } from '@/shared/api/common-query.types'
+  type NumberComparisonFilter,
+} from '@/features/table-pages/table-shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 
@@ -45,13 +45,13 @@ const getDateRangeFilter = (
   return value
 }
 
-const getNumberComparison = (
-  filters: ColumnFiltersState,
-  id: string,
-): { operator: ComparisonOperator; value: number } | undefined => {
-  const value = findFilter(filters, id)?.value
+const getDocTotalFilter = (filters: ColumnFiltersState): NumberComparisonFilter | undefined => {
+  const value = findFilter(filters, 'DocTotal')?.value
   if (!isNumberComparisonFilter(value)) return undefined
-  return { operator: value.operator, value: value.value }
+  return {
+    operator: value.operator,
+    value: value.value,
+  }
 }
 
 const SORTABLE_FIELDS = new Set([
@@ -68,7 +68,7 @@ export const mapSearchToSalesOrderListParams = (search: SalesOrderSearch): Sales
 
   const docDate = getDateRangeFilter(filters, 'DocDate')
   const docStatus = getEnumFilter<SalesOrderStatus>(filters, 'DocStatus', ['Open', 'Closed'])
-  const docTotal = getNumberComparison(filters, 'DocTotal')
+  const docTotal = getDocTotalFilter(filters)
 
   const start = docDate?.from ?? docDate?.to
   const end = docDate?.to ?? docDate?.from

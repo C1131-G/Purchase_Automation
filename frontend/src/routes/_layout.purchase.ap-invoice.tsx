@@ -10,6 +10,10 @@ const APInvoiceTable = lazy(() =>
   })),
 )
 
+/**
+ * APInvoiceRoute: Accounts Payable Invoice grid.
+ * Enforces strict search parameter validation for consistent UI state.
+ */
 export const Route = createFileRoute('/_layout/purchase/ap-invoice')({
   validateSearch: (search) => apInvoiceSearchSchema.parse(search),
   component: RouteComponent,

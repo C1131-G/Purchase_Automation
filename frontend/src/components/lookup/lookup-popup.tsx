@@ -72,18 +72,16 @@ type LookupPopupProps = {
 
 type ModalStateRowProps = {
   colSpan: number
-  tone: 'error' | 'muted'
   message: string
 }
 
-function ModalStateRow({ colSpan, tone, message }: ModalStateRowProps) {
+function ModalEmptyRow({ colSpan, message }: ModalStateRowProps) {
   return (
     <tr>
-      <td
-        className={`px-3 py-6 text-center ${tone === 'error' ? 'text-red-600' : 'text-zinc-500'}`}
-        colSpan={colSpan}
-      >
-        {message}
+      <td colSpan={colSpan} className="px-3 py-4">
+        <div className="flex flex-col items-center gap-1 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-5 text-center">
+          <p className="text-xs font-medium text-zinc-500">{message}</p>
+        </div>
       </td>
     </tr>
   )
@@ -91,6 +89,11 @@ function ModalStateRow({ colSpan, tone, message }: ModalStateRowProps) {
 
 const LOOKUP_SKELETON_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const
 
+/**
+ * LookupPopup: High-utility modal for entity selection.
+ * UX: Supports code/name search with real-time feedback via `useLookupToast`.
+ * DESIGN: Integrated with `AnimatedModalShell` for premium transitions.
+ */
 export function LookupPopup({
   open,
   search,
@@ -132,6 +135,7 @@ export function LookupPopup({
     loading,
     hasData: filteredResults.length > 0,
     open,
+    message: search.trim() ? 'Searching…' : 'Loading…',
   })
 
   return (
@@ -179,11 +183,10 @@ export function LookupPopup({
                     message={error || 'Unable to load data. Please try again.'}
                   />
                 ) : filteredResults.length === 0 && !loading ? (
-                  <ModalStateRow
+                  <ModalEmptyRow
                     colSpan={showCodeOnly || showNameOnly ? 1 : 2}
-                    tone="muted"
                     message={
-                      search.trim() ? `No results match "${search.trim()}".` : 'No data available.'
+                      search.trim() ? `No results for "${search.trim()}".` : 'No data available.'
                     }
                   />
                 ) : (

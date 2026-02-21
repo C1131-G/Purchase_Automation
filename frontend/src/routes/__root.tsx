@@ -6,7 +6,6 @@ import { NotFound } from '@/components/not-found'
 
 /**
  * Root: Global application container.
- *
  * THEME: Rigid Light-mode foundation (zinc-900 on white).
  * ARCHITECTURE: Context provider for QueryClient and TanStack Router Outlet.
  * TYPOGRAPHY: Enforces `font-outfit` as the industrial sans-serif baseline.

@@ -23,6 +23,11 @@ type CalendarPickerProps = {
   onSwitchToGrid: () => void
 }
 
+/**
+ * CalendarPicker: Scrollable month and year selector.
+ * UX: Uses smooth-scroll synchronization to align center-item with current selection.
+ * PERFORMANCE: Implements RequestAnimationFrame (RAF) for efficient scroll tracking.
+ */
 export function CalendarPicker({
   view,
   year,

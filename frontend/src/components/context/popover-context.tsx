@@ -8,6 +8,10 @@ export type PopoverContextType = {
   contentId: string
 }
 
+/**
+ * PopoverContext: State coordination for floating industrial utility containers.
+ * REFS: Tracks trigger and content nodes for outside-click and escape-key handling.
+ */
 export const PopoverContext = createContext<PopoverContextType | undefined>(undefined)
 
 export function usePopover() {

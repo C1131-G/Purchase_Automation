@@ -10,6 +10,11 @@ type CreateModalSkeletonProps = {
   panelClassName?: string
 }
 
+/**
+ * CreateModalSkeleton: High-fidelity loading state for transactional creation modals.
+ * ARCHITECTURE: Dynamic grid-based skeleton that adapts to specific form structures.
+ * UX: Eliminates cumulative layout shift (CLS) by reserving exact form dimensions.
+ */
 export function CreateModalSkeleton({
   title = 'Loading',
   subtitle,

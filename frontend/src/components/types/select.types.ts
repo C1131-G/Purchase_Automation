@@ -1,5 +1,9 @@
 import React from 'react'
 
+/**
+ * SelectRootProps: Configuration for custom industrial-grade dropdowns.
+ * STATE: Supports both controlled (`value`) and uncontrolled (`defaultValue`) patterns.
+ */
 export type SelectRootProps = {
   children: React.ReactNode
   value?: string

@@ -12,6 +12,10 @@ const ARCreditNoteTable = lazy(() =>
   ),
 )
 
+/**
+ * ARCreditNoteRoute: Sales return document management.
+ * Validates grid state via URL search schema for consistent views.
+ */
 export const Route = createFileRoute('/_layout/sales/ar-credit-note')({
   validateSearch: (search) => arCreditNoteSearchSchema.parse(search),
   component: RouteComponent,

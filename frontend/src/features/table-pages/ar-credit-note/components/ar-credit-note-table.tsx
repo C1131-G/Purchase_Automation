@@ -8,24 +8,23 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
-import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { arCreditNoteQueries } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.queries'
 import { type ARCreditNoteListItem } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.service'
 import { mapSearchToARCreditNoteListParams } from '@/features/table-pages/ar-credit-note/api/ar-credit-note-query.mapper'
-import { createARCreditNoteColumns } from '@/features/table-pages/ar-credit-note/components/columns'
+import { createARCreditNoteColumns } from '@/features/table-pages/ar-credit-note/components/ar-credit-note-columns'
+import { ARCreditNoteLookupLayer } from '@/features/table-pages/ar-credit-note/components/ar-credit-note-lookup-layer'
 import {
   type ARCreditNoteColumnFilter,
   arCreditNoteColumnFilterSchema,
   type ARCreditNoteSearch,
 } from '@/features/table-pages/ar-credit-note/schemas/ar-credit-note-search.schema'
-import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
-import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import { TablePagination } from '@/features/table-pages/table-shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/table-shared/components/core/table-error-state'
 import {
   Table,
   TableBody,
@@ -33,35 +32,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/features/table-pages/shared/components/core/table-root'
-import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
-import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
+} from '@/features/table-pages/table-shared/components/core/table-root'
+import { useTablePrefetch } from '@/features/table-pages/table-shared/hooks/use-table-prefetch'
+import {
+  type TableFetchAction,
+  useTableToast,
+} from '@/features/table-pages/table-shared/hooks/use-table-toast'
+import {
+  cloneFilters,
+  cloneOrder,
+  cloneSorting,
+  cloneVisibility,
+  normalizeVisibility,
+} from '@/features/table-pages/table-shared/utils/table-state.utils'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
+import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
 import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-// ARCreditNoteTable: Operational grid for AR Credit Note management using SAP B1 Industrial style.
-// Bridges TanStack Table logic with custom Sapphire UI and reactive URL synchronization.
 const routeApi = getRouteApi('/_layout/sales/ar-credit-note')
 const TABLE_ID = 'ar-credit-notes'
-
-const cloneSorting = (sorting: SortingState): SortingState =>
-  sorting.map((item) => ({ id: item.id, desc: item.desc }))
-
-const cloneVisibility = (visibility: VisibilityState): VisibilityState => ({ ...visibility })
-const normalizeVisibility = (visibility: VisibilityState): VisibilityState => {
-  return Object.fromEntries(Object.entries(visibility).filter(([, visible]) => visible === false))
-}
-
-const cloneOrder = (order: string[]): string[] => [...order]
-
-const cloneFilters = (filters: ColumnFiltersState): ColumnFiltersState =>
-  filters.map((filter) => ({
-    id: filter.id,
-    value: Array.isArray(filter.value) ? [...filter.value] : filter.value,
-  }))
+const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 
 const toARCreditNoteColumnFilters = (filters: ColumnFiltersState): ARCreditNoteColumnFilter[] => {
   const typedFilters: ARCreditNoteColumnFilter[] = []
@@ -73,6 +66,10 @@ const toARCreditNoteColumnFilters = (filters: ColumnFiltersState): ARCreditNoteC
   return typedFilters
 }
 
+/**
+ * ARCreditNoteTable: Accounts Receivable Credit Note data grid.
+ * Mirrors the financial list pattern for strict visual and functional consistency.
+ */
 export function ARCreditNoteTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
@@ -83,11 +80,23 @@ export function ARCreditNoteTable() {
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
 
-  const defaultColumnOrder = useMemo(() => {
-    return ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
+  /** Tracks which user action last triggered a fetch for action-specific toasts. */
+  const lastActionRef = useRef<TableFetchAction>('fetching')
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const columns = useMemo(() => createARCreditNoteColumns(), [])
+  const columnIds = useMemo(
+    () =>
+      columns
+        .map((column) =>
+          column.id ? column.id : typeof column.accessorKey === 'string' ? column.accessorKey : '',
+        )
+        .filter(Boolean),
+    [columns],
+  )
 
   const sorting = useMemo<SortingState>(
     () => cloneSorting(searchParams.sorting ?? []),
@@ -99,11 +108,14 @@ export function ARCreditNoteTable() {
     [searchParams.columnVisibility],
   )
 
-  const columnOrder = useMemo<string[]>(
-    () =>
-      cloneOrder(searchParams.columnOrder?.length ? searchParams.columnOrder : defaultColumnOrder),
-    [searchParams.columnOrder, defaultColumnOrder],
-  )
+  const columnOrder = useMemo<string[]>(() => {
+    const base =
+      searchParams.columnOrder?.length && searchParams.columnOrder.some(Boolean)
+        ? searchParams.columnOrder
+        : DEFAULT_COLUMN_ORDER
+    const filtered = base.filter((id) => columnIds.includes(id))
+    return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER)
+  }, [searchParams.columnOrder, columnIds])
 
   const columnFilters = useMemo<ColumnFiltersState>(
     () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
@@ -119,17 +131,13 @@ export function ARCreditNoteTable() {
   )
 
   const tableState = useMemo(
-    () => ({
-      sorting,
-      columnVisibility,
-      columnOrder,
-      pagination,
-      columnFilters,
-    }),
+    () => ({ sorting, columnVisibility, columnOrder, pagination, columnFilters }),
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
   const listParams = useMemo(() => mapSearchToARCreditNoteListParams(searchParams), [searchParams])
+
+  // Query Integration: Centralized fetching logic syncs with URL-based search parameters.
   const {
     data: arCreditNoteList,
     isLoading,
@@ -138,24 +146,10 @@ export function ARCreditNoteTable() {
     error,
     refetch,
   } = useQuery(arCreditNoteQueries.list(listParams))
+
   const queryClient = useQueryClient()
 
-  // Customers lookup for filter suggestions and popup
-  const customersQuery = useQuery(createSharedQueries.customers())
-  const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data])
-
-  const docNumSuggestionsQuery = useQuery(arCreditNoteQueries.docNumSuggestions())
-  const docNumSuggestions = useMemo<LookupItem[]>(
-    () => docNumSuggestionsQuery.data?.data ?? [],
-    [docNumSuggestionsQuery.data],
-  )
-
-  // Lookup popup state
-  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
-  const [lookupColumnId, setLookupColumnId] = useState<string>('')
-  const [lookupSearch, setLookupSearch] = useState('')
-
-  const rows = arCreditNoteList?.data ?? []
+  const rows = useMemo(() => arCreditNoteList?.data ?? [], [arCreditNoteList?.data])
   const totalRows = arCreditNoteList?.total ?? 0
   const totalPages = Math.max(arCreditNoteList?.totalPages ?? 1, 1)
   const showInitialSkeleton = isLoading && !arCreditNoteList
@@ -168,6 +162,7 @@ export function ARCreditNoteTable() {
     state: tableState,
     meta: { tableId: TABLE_ID },
     onSortingChange: (updater) => {
+      lastActionRef.current = 'sorting'
       const next = typeof updater === 'function' ? updater(sorting) : updater
       const nextSorting = cloneSorting(next)
       setSorting(TABLE_ID, nextSorting)
@@ -195,14 +190,12 @@ export function ARCreditNoteTable() {
       const next = typeof updater === 'function' ? updater(columnOrder) : updater
       setOrder(TABLE_ID, cloneOrder(next))
       navigate({
-        search: (prev: ARCreditNoteSearch) => ({
-          ...prev,
-          columnOrder: [...next],
-        }),
+        search: (prev: ARCreditNoteSearch) => ({ ...prev, columnOrder: [...next] }),
         replace: true,
       })
     },
     onPaginationChange: (updater) => {
+      lastActionRef.current = 'paginating'
       const next = typeof updater === 'function' ? updater(pagination) : updater
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
@@ -219,6 +212,7 @@ export function ARCreditNoteTable() {
       })
     },
     onColumnFiltersChange: (updater) => {
+      lastActionRef.current = 'filtering'
       const next = typeof updater === 'function' ? updater(columnFilters) : updater
       const normalized = normalizeColumnFilters(next)
       const nextFilters = cloneFilters(normalized)
@@ -230,9 +224,8 @@ export function ARCreditNoteTable() {
           ...prev,
           page: 1,
           columnFilters: nextSearchColumnFilters,
-          DocStatus: undefined,
-          DocDateStart: undefined,
-          DocDateEnd: undefined,
+          DocTotalOperator: undefined,
+          DocTotal: undefined,
         }),
         replace: true,
       })
@@ -248,6 +241,7 @@ export function ARCreditNoteTable() {
     autoResetPageIndex: false,
   })
 
+  // Table Orchestration: Reconciles reactive query data with the TanStack Table instance.
   const filteredTotalRows = totalRows
   const effectivePageSize = Math.max(pagination.pageSize, 1)
   const effectivePageCount = Math.max(
@@ -274,18 +268,36 @@ export function ARCreditNoteTable() {
     const clampedPageIndex = maxPageIndex
     setPagination(TABLE_ID, { pageIndex: clampedPageIndex, totalRows: filteredTotalRows })
     navigate({
-      search: (prev: ARCreditNoteSearch) => ({
-        ...prev,
-        page: clampedPageIndex + 1,
-      }),
+      search: (prev: ARCreditNoteSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
       replace: true,
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
+  // Aggressive Background Prefetching (Shared Global Hook)
+  const getQueryOptions = useCallback(
+    (params: { page: number; limit: number }) =>
+      arCreditNoteQueries.list({ ...listParams, ...params }),
+    [listParams],
+  )
+
+  const { prefetchPage } = useTablePrefetch({
+    queryClient,
+    hasData: !!arCreditNoteList,
+    pagination,
+    maxPageIndex,
+    getQueryOptions,
+  })
+
+  useTableToast({
+    isFetching,
+    hasData: !!arCreditNoteList,
+    action: lastActionRef.current,
+  })
+
   const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
-    setOrder(TABLE_ID, [...defaultColumnOrder])
+    setOrder(TABLE_ID, [...DEFAULT_COLUMN_ORDER])
     clearAllFilters(TABLE_ID)
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 })
 
@@ -295,72 +307,27 @@ export function ARCreditNoteTable() {
         page: 1,
         limit: 10,
         columnVisibility: {},
-        columnOrder: [...defaultColumnOrder],
+        columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnFilters: [],
         sorting: [],
-        DocStatus: undefined,
-        DocDateStart: undefined,
-        DocDateEnd: undefined,
+        DocTotalOperator: undefined,
+        DocTotal: undefined,
       }),
       replace: true,
     })
-  }, [
-    setSorting,
-    setVisibility,
-    setOrder,
-    defaultColumnOrder,
-    clearAllFilters,
-    setPagination,
-    navigate,
-  ])
+  }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate])
 
-  const handleLookupPopupOpen = useCallback((columnId: string) => {
-    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
-    setLookupColumnId(columnId)
-    setLookupSearch('')
-    setLookupPopupOpen(true)
-  }, [])
+  const handleCreateClickPrefetch = useCallback(() => {
+    void Promise.allSettled([
+      queryClient.prefetchQuery(createSharedQueries.warehouses()),
+      queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+    ])
+  }, [queryClient])
 
-  const handleLookupSelect = useCallback(
-    (item: LookupItem) => {
-      const column = table.getColumn(lookupColumnId)
-      if (column) {
-        const value =
-          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
-        column.setFilterValue(value)
-      }
-      setLookupPopupOpen(false)
-    },
-    [lookupColumnId, table],
-  )
+  if (showInitialSkeleton) {
+    return <TableSkeleton />
+  }
 
-  const handlePrefetchPage = useCallback(
-    (nextPageIndex: number, nextPageSize: number) => {
-      queryClient.prefetchQuery(
-        arCreditNoteQueries.list({
-          ...listParams,
-          page: nextPageIndex + 1,
-          limit: nextPageSize,
-        }),
-      )
-    },
-    [queryClient, listParams],
-  )
-
-  const handlePrefetchPageSize = useCallback(
-    (nextPageSize: number) => {
-      queryClient.prefetchQuery(
-        arCreditNoteQueries.list({
-          ...listParams,
-          page: 1,
-          limit: nextPageSize,
-        }),
-      )
-    },
-    [queryClient, listParams],
-  )
-
-  if (showInitialSkeleton) return <TableSkeleton />
   if (isError && !arCreditNoteList) {
     return (
       <TableErrorState
@@ -373,59 +340,13 @@ export function ARCreditNoteTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <TableToolbar
+      <ARCreditNoteLookupLayer
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
-        isFetching={isFetching}
-        breadcrumb={{
-          section: 'Sales',
-          page: 'AR Credit Notes',
-          href: '/sales/ar-credit-note',
-        }}
-        createLink="/sales/create-ar-credit-note"
-        lookupSuggestions={customers}
-        docNumSuggestions={docNumSuggestions}
-        enableDocNumPopup
-        onLookupPopupOpen={handleLookupPopupOpen}
+        onCreateClick={handleCreateClickPrefetch}
       />
-      <LookupPopup
-        open={lookupPopupOpen}
-        mode={
-          lookupColumnId === 'DocNum'
-            ? undefined
-            : lookupColumnId === 'CardCode'
-              ? 'customer-code'
-              : 'customer-name'
-        }
-        search={lookupSearch}
-        results={lookupColumnId === 'DocNum' ? docNumSuggestions : customers}
-        loading={
-          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : customersQuery.isLoading
-        }
-        error={
-          lookupColumnId === 'DocNum'
-            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
-              ? 'Failed to load document numbers'
-              : null
-            : customersQuery.isError
-              ? 'Failed to load customers'
-              : null
-        }
-        title={
-          lookupColumnId === 'DocNum'
-            ? 'Search Doc Number'
-            : lookupColumnId === 'CardCode'
-              ? 'Search Customer Code'
-              : 'Search Customer Name'
-        }
-        searchPlaceholder={
-          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search customer code or name'
-        }
-        onSearchChange={setLookupSearch}
-        onClose={() => setLookupPopupOpen(false)}
-        onSelect={handleLookupSelect}
-      />
+
       <div className="flex-1 overflow-auto w-full px-1.5">
         <Table className="w-full min-w-300">
           <TableHeader>
@@ -471,12 +392,13 @@ export function ARCreditNoteTable() {
           </TableBody>
         </Table>
       </div>
+
       <TablePagination
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={handlePrefetchPage}
-        onPrefetchPageSize={handlePrefetchPageSize}
+        onPrefetchPage={prefetchPage}
+        onPrefetchPageSize={(pageSize) => prefetchPage(0, pageSize)}
       />
     </div>
   )

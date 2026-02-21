@@ -7,6 +7,10 @@ export type SeparatorProps = React.ComponentPropsWithoutRef<'div'> & {
   decorative?: boolean
 }
 
+/**
+ * Separator: Surgical layout divider.
+ * ARCHITECTURE: Supports both horizontal and vertical orientations for grid/flex control.
+ */
 const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
   ({ className, orientation = 'horizontal', ...props }, ref) => (
     <div

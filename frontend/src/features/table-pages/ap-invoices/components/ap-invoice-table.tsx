@@ -8,24 +8,23 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
-import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
-import type { APInvoiceListItem } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
+import { type APInvoiceListItem } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
 import { mapSearchToAPInvoiceListParams } from '@/features/table-pages/ap-invoices/api/ap-invoice-query.mapper'
-import { createAPInvoiceColumns } from '@/features/table-pages/ap-invoices/components/columns'
+import { createAPInvoiceColumns } from '@/features/table-pages/ap-invoices/components/ap-invoice-columns'
+import { APInvoiceLookupLayer } from '@/features/table-pages/ap-invoices/components/ap-invoice-lookup-layer'
 import {
   type APInvoiceColumnFilter,
   apInvoiceColumnFilterSchema,
   type APInvoiceSearch,
 } from '@/features/table-pages/ap-invoices/schemas/ap-invoice-search.schema'
-import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
-import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import { TablePagination } from '@/features/table-pages/table-shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/table-shared/components/core/table-error-state'
 import {
   Table,
   TableBody,
@@ -33,35 +32,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/features/table-pages/shared/components/core/table-root'
-import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
-import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
+} from '@/features/table-pages/table-shared/components/core/table-root'
+import { useTablePrefetch } from '@/features/table-pages/table-shared/hooks/use-table-prefetch'
+import {
+  type TableFetchAction,
+  useTableToast,
+} from '@/features/table-pages/table-shared/hooks/use-table-toast'
+import {
+  cloneFilters,
+  cloneOrder,
+  cloneSorting,
+  cloneVisibility,
+  normalizeVisibility,
+} from '@/features/table-pages/table-shared/utils/table-state.utils'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
+import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
 import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-// APInvoiceTable: Operational grid for AP Invoice management using SAP B1 Industrial style.
-// Bridges TanStack Table logic with custom Sapphire UI and reactive URL synchronization.
 const routeApi = getRouteApi('/_layout/purchase/ap-invoice')
 const TABLE_ID = 'ap-invoices'
-
-const cloneSorting = (sorting: SortingState): SortingState =>
-  sorting.map((item) => ({ id: item.id, desc: item.desc }))
-
-const cloneVisibility = (visibility: VisibilityState): VisibilityState => ({ ...visibility })
-const normalizeVisibility = (visibility: VisibilityState): VisibilityState => {
-  return Object.fromEntries(Object.entries(visibility).filter(([, visible]) => visible === false))
-}
-
-const cloneOrder = (order: string[]): string[] => [...order]
-
-const cloneFilters = (filters: ColumnFiltersState): ColumnFiltersState =>
-  filters.map((filter) => ({
-    id: filter.id,
-    value: Array.isArray(filter.value) ? [...filter.value] : filter.value,
-  }))
+const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 
 const toAPInvoiceColumnFilters = (filters: ColumnFiltersState): APInvoiceColumnFilter[] => {
   const typedFilters: APInvoiceColumnFilter[] = []
@@ -73,6 +66,8 @@ const toAPInvoiceColumnFilters = (filters: ColumnFiltersState): APInvoiceColumnF
   return typedFilters
 }
 
+// APInvoiceTable: Central listing component for accounts payable invoices.
+// Integrates with TanStack Table for headless data management and URL-bound state.
 export function APInvoiceTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
@@ -83,11 +78,23 @@ export function APInvoiceTable() {
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
 
-  const defaultColumnOrder = useMemo(() => {
-    return ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
+  /** Tracks which user action last triggered a fetch for action-specific toasts. */
+  const lastActionRef = useRef<TableFetchAction>('fetching')
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const columns = useMemo(() => createAPInvoiceColumns(), [])
+  const columnIds = useMemo(
+    () =>
+      columns
+        .map((column) =>
+          column.id ? column.id : typeof column.accessorKey === 'string' ? column.accessorKey : '',
+        )
+        .filter(Boolean),
+    [columns],
+  )
 
   const sorting = useMemo<SortingState>(
     () => cloneSorting(searchParams.sorting ?? []),
@@ -99,11 +106,14 @@ export function APInvoiceTable() {
     [searchParams.columnVisibility],
   )
 
-  const columnOrder = useMemo<string[]>(
-    () =>
-      cloneOrder(searchParams.columnOrder?.length ? searchParams.columnOrder : defaultColumnOrder),
-    [searchParams.columnOrder, defaultColumnOrder],
-  )
+  const columnOrder = useMemo<string[]>(() => {
+    const base =
+      searchParams.columnOrder?.length && searchParams.columnOrder.some(Boolean)
+        ? searchParams.columnOrder
+        : DEFAULT_COLUMN_ORDER
+    const filtered = base.filter((id) => columnIds.includes(id))
+    return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER)
+  }, [searchParams.columnOrder, columnIds])
 
   const columnFilters = useMemo<ColumnFiltersState>(
     () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
@@ -119,17 +129,13 @@ export function APInvoiceTable() {
   )
 
   const tableState = useMemo(
-    () => ({
-      sorting,
-      columnVisibility,
-      columnOrder,
-      pagination,
-      columnFilters,
-    }),
+    () => ({ sorting, columnVisibility, columnOrder, pagination, columnFilters }),
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
   const listParams = useMemo(() => mapSearchToAPInvoiceListParams(searchParams), [searchParams])
+
+  // Data Pipeline: Derives list params from URL search and triggers server-side query.
   const {
     data: apInvoiceList,
     isLoading,
@@ -138,24 +144,10 @@ export function APInvoiceTable() {
     error,
     refetch,
   } = useQuery(apInvoiceQueries.list(listParams))
+
   const queryClient = useQueryClient()
 
-  // Vendors lookup for filter suggestions and popup
-  const vendorsQuery = useQuery(createSharedQueries.vendors())
-  const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data])
-
-  const docNumSuggestionsQuery = useQuery(apInvoiceQueries.docNumSuggestions())
-  const docNumSuggestions = useMemo<LookupItem[]>(
-    () => docNumSuggestionsQuery.data?.data ?? [],
-    [docNumSuggestionsQuery.data],
-  )
-
-  // Lookup popup state
-  const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
-  const [lookupColumnId, setLookupColumnId] = useState<string>('')
-  const [lookupSearch, setLookupSearch] = useState('')
-
-  const rows = apInvoiceList?.data ?? []
+  const rows = useMemo(() => apInvoiceList?.data ?? [], [apInvoiceList?.data])
   const totalRows = apInvoiceList?.total ?? 0
   const totalPages = Math.max(apInvoiceList?.totalPages ?? 1, 1)
   const showInitialSkeleton = isLoading && !apInvoiceList
@@ -168,6 +160,7 @@ export function APInvoiceTable() {
     state: tableState,
     meta: { tableId: TABLE_ID },
     onSortingChange: (updater) => {
+      lastActionRef.current = 'sorting'
       const next = typeof updater === 'function' ? updater(sorting) : updater
       const nextSorting = cloneSorting(next)
       setSorting(TABLE_ID, nextSorting)
@@ -195,14 +188,12 @@ export function APInvoiceTable() {
       const next = typeof updater === 'function' ? updater(columnOrder) : updater
       setOrder(TABLE_ID, cloneOrder(next))
       navigate({
-        search: (prev: APInvoiceSearch) => ({
-          ...prev,
-          columnOrder: [...next],
-        }),
+        search: (prev: APInvoiceSearch) => ({ ...prev, columnOrder: [...next] }),
         replace: true,
       })
     },
     onPaginationChange: (updater) => {
+      lastActionRef.current = 'paginating'
       const next = typeof updater === 'function' ? updater(pagination) : updater
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
@@ -219,6 +210,7 @@ export function APInvoiceTable() {
       })
     },
     onColumnFiltersChange: (updater) => {
+      lastActionRef.current = 'filtering'
       const next = typeof updater === 'function' ? updater(columnFilters) : updater
       const normalized = normalizeColumnFilters(next)
       const nextFilters = cloneFilters(normalized)
@@ -247,6 +239,7 @@ export function APInvoiceTable() {
     autoResetPageIndex: false,
   })
 
+  // State Synchronization: Reconciles local table state with persistent URL search parameters.
   const filteredTotalRows = totalRows
   const effectivePageSize = Math.max(pagination.pageSize, 1)
   const effectivePageCount = Math.max(
@@ -271,23 +264,38 @@ export function APInvoiceTable() {
   useEffect(() => {
     if (pagination.pageIndex <= maxPageIndex) return
     const clampedPageIndex = maxPageIndex
-    setPagination(TABLE_ID, {
-      pageIndex: clampedPageIndex,
-      totalRows: filteredTotalRows,
-    })
+    setPagination(TABLE_ID, { pageIndex: clampedPageIndex, totalRows: filteredTotalRows })
     navigate({
-      search: (prev: APInvoiceSearch) => ({
-        ...prev,
-        page: clampedPageIndex + 1,
-      }),
+      search: (prev: APInvoiceSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
       replace: true,
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
 
+  // Aggressive Background Prefetching (Shared Global Hook)
+  const getQueryOptions = useCallback(
+    (params: { page: number; limit: number }) =>
+      apInvoiceQueries.list({ ...listParams, ...params }),
+    [listParams],
+  )
+
+  const { prefetchPage } = useTablePrefetch({
+    queryClient,
+    hasData: !!apInvoiceList,
+    pagination,
+    maxPageIndex,
+    getQueryOptions,
+  })
+
+  useTableToast({
+    isFetching,
+    hasData: !!apInvoiceList,
+    action: lastActionRef.current,
+  })
+
   const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, [])
     setVisibility(TABLE_ID, {})
-    setOrder(TABLE_ID, [...defaultColumnOrder])
+    setOrder(TABLE_ID, [...DEFAULT_COLUMN_ORDER])
     clearAllFilters(TABLE_ID)
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 })
 
@@ -297,7 +305,7 @@ export function APInvoiceTable() {
         page: 1,
         limit: 10,
         columnVisibility: {},
-        columnOrder: [...defaultColumnOrder],
+        columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnFilters: [],
         sorting: [],
         DocTotalOperator: undefined,
@@ -305,63 +313,19 @@ export function APInvoiceTable() {
       }),
       replace: true,
     })
-  }, [
-    setSorting,
-    setVisibility,
-    setOrder,
-    defaultColumnOrder,
-    clearAllFilters,
-    setPagination,
-    navigate,
-  ])
+  }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate])
 
-  const handleLookupPopupOpen = useCallback((columnId: string) => {
-    if (columnId !== 'CardCode' && columnId !== 'CardName' && columnId !== 'DocNum') return
-    setLookupColumnId(columnId)
-    setLookupSearch('')
-    setLookupPopupOpen(true)
-  }, [])
+  const handleCreateClickPrefetch = useCallback(() => {
+    void Promise.allSettled([
+      queryClient.prefetchQuery(createSharedQueries.warehouses()),
+      queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+    ])
+  }, [queryClient])
 
-  const handleLookupSelect = useCallback(
-    (item: LookupItem) => {
-      const column = table.getColumn(lookupColumnId)
-      if (column) {
-        const value =
-          lookupColumnId === 'CardCode' || lookupColumnId === 'DocNum' ? item.code : item.name
-        column.setFilterValue(value)
-      }
-      setLookupPopupOpen(false)
-    },
-    [lookupColumnId, table],
-  )
+  if (showInitialSkeleton) {
+    return <TableSkeleton />
+  }
 
-  const handlePrefetchPage = useCallback(
-    (nextPageIndex: number, nextPageSize: number) => {
-      queryClient.prefetchQuery(
-        apInvoiceQueries.list({
-          ...listParams,
-          page: nextPageIndex + 1,
-          limit: nextPageSize,
-        }),
-      )
-    },
-    [queryClient, listParams],
-  )
-
-  const handlePrefetchPageSize = useCallback(
-    (nextPageSize: number) => {
-      queryClient.prefetchQuery(
-        apInvoiceQueries.list({
-          ...listParams,
-          page: 1,
-          limit: nextPageSize,
-        }),
-      )
-    },
-    [queryClient, listParams],
-  )
-
-  if (showInitialSkeleton) return <TableSkeleton />
   if (isError && !apInvoiceList) {
     return (
       <TableErrorState
@@ -374,58 +338,11 @@ export function APInvoiceTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <TableToolbar
+      <APInvoiceLookupLayer
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
-        isFetching={isFetching}
-        createLink="/purchase/create-ap-invoice"
-        breadcrumb={{
-          section: 'Purchase',
-          page: 'AP Invoices',
-          href: '/purchase/ap-invoice',
-        }}
-        lookupSuggestions={vendors}
-        docNumSuggestions={docNumSuggestions}
-        enableDocNumPopup
-        onLookupPopupOpen={handleLookupPopupOpen}
-      />
-      <LookupPopup
-        open={lookupPopupOpen}
-        mode={
-          lookupColumnId === 'DocNum'
-            ? undefined
-            : lookupColumnId === 'CardCode'
-              ? 'vendor-code'
-              : 'vendor-name'
-        }
-        search={lookupSearch}
-        results={lookupColumnId === 'DocNum' ? docNumSuggestions : vendors}
-        loading={
-          lookupColumnId === 'DocNum' ? docNumSuggestionsQuery.isLoading : vendorsQuery.isLoading
-        }
-        error={
-          lookupColumnId === 'DocNum'
-            ? docNumSuggestionsQuery.isError && docNumSuggestions.length === 0
-              ? 'Failed to load document numbers'
-              : null
-            : vendorsQuery.isError
-              ? 'Failed to load vendors'
-              : null
-        }
-        title={
-          lookupColumnId === 'DocNum'
-            ? 'Search Doc Number'
-            : lookupColumnId === 'CardCode'
-              ? 'Search Vendor Code'
-              : 'Search Vendor Name'
-        }
-        searchPlaceholder={
-          lookupColumnId === 'DocNum' ? 'Search document number' : 'Search vendor code or name'
-        }
-        onSearchChange={setLookupSearch}
-        onClose={() => setLookupPopupOpen(false)}
-        onSelect={handleLookupSelect}
+        onCreateClick={handleCreateClickPrefetch}
       />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
@@ -478,8 +395,8 @@ export function APInvoiceTable() {
         tableId={TABLE_ID}
         table={table}
         totalRows={filteredTotalRows}
-        onPrefetchPage={handlePrefetchPage}
-        onPrefetchPageSize={handlePrefetchPageSize}
+        onPrefetchPage={prefetchPage}
+        onPrefetchPageSize={(pageSize) => prefetchPage(0, pageSize)}
       />
     </div>
   )

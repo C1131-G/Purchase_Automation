@@ -1,23 +1,40 @@
 import { type ColumnFiltersState } from '@tanstack/react-table'
 import { create } from 'zustand'
 
-import { type DateRangeFilter } from '@/features/table-pages/shared/utils/table-filter-values'
+import { type DateRangeFilter } from '@/features/table-pages/table-shared/utils/table-filter-values'
 
 // Filter Store: Manages active filter selection (popovers) and ephemeral drafts synchronized with TanStack table state.
+/**
+ * FilterState: Tracks active filter selection, applied filters, and ephemeral drafts.
+ * Supports deferred updates for complex filters like date ranges.
+ */
 type FilterState = {
+  /** The currently open filter popover ID (e.g., column accessorKey). */
   activeFilter: string | null
+  /** Applied filters synchronized with TanStack Table state. */
   columnFilters: ColumnFiltersState
+  /** dateFilterDraft: Holds unsaved date range selections before 'Apply' is clicked. */
   dateFilterDraft: Record<string, DateRangeFilter | null>
 }
 
 const EMPTY_ARRAY: ColumnFiltersState = []
 
+/**
+ * FilterStore: Centralized management of complex grid filtering logic.
+ * Ensures consistent behavior across sidebar lookups and inline table headers.
+ */
 type FilterStore = {
+  /** Registry of filter states indexed by Table ID. */
   tables: Record<string, FilterState>
+  /** setActiveFilter: Opens/closes specific filter popovers. */
   setActiveFilter: (tableId: string, filter: string | null) => void
+  /** setColumnFilters: Updates the final applied filter set. */
   setColumnFilters: (tableId: string, filters: ColumnFiltersState) => void
+  /** setDateFilterDraft: Updates ephemeral date selection state. */
   setDateFilterDraft: (tableId: string, columnId: string, range: DateRangeFilter | null) => void
+  /** clearDateFilterDraft: Resets draft state for a specific date column. */
   clearDateFilterDraft: (tableId: string, columnId: string) => void
+  /** clearAllFilters: Performs a full reset of all active and draft filters. */
   clearAllFilters: (tableId: string) => void
 }
 

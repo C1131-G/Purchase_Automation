@@ -10,6 +10,10 @@ const SalesOrderTable = lazy(() =>
   })),
 )
 
+/**
+ * SalesOrdersRoute: Main listing for sales document management.
+ * Enforces grid-state validation via shared search schema patterns.
+ */
 export const Route = createFileRoute('/_layout/sales/orders')({
   validateSearch: (search) => salesOrderSearchSchema.parse(search),
   component: RouteComponent,

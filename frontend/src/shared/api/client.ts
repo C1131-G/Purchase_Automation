@@ -1,7 +1,10 @@
-// BASE_URL: Regional API gateway endpoint; defaults to localhost:4000.
+/** BASE_URL: Regional API gateway endpoint; defaults to localhost:4000. */
 const BASE_URL: string = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
-// apiClient: Universal fetch wrapper with automatic base URL injection, session management, and 401 redirection.
+/**
+ * apiClient: Universal fetch wrapper with automatic base URL injection, session management, and 401 redirection.
+ * Centralizes authentication logic and error normalization for all API communication.
+ */
 export async function apiClient<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`
   const mergedHeaders = {

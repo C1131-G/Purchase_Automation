@@ -8,8 +8,7 @@ import {
   isDateRangeFilter,
   isNumberComparisonFilter,
   type NumberComparisonFilter,
-} from '@/features/table-pages/shared/utils/table-filter-values'
-import { type ComparisonOperator } from '@/shared/api/common-query.types'
+} from '@/features/table-pages/table-shared/utils/table-filter-values'
 
 const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f) => f.id === id)
 
@@ -43,9 +42,7 @@ const getDateRangeFilter = (
   return value
 }
 
-const getDocTotalFilter = (
-  filters: ColumnFiltersState,
-): (NumberComparisonFilter & { operator: ComparisonOperator }) | undefined => {
+const getDocTotalFilter = (filters: ColumnFiltersState): NumberComparisonFilter | undefined => {
   const value = findFilter(filters, 'DocTotal')?.value
   if (!isNumberComparisonFilter(value)) return undefined
   return {

@@ -7,8 +7,8 @@ import { createSharedQueries } from '@/features/create-pages/create-shared/api/c
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
 import { type PurchaseOrderListItem } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
-import { TableToolbar } from '@/features/table-pages/shared/components/core/table-toolbar'
-import { useTableLookupPopupSync } from '@/features/table-pages/shared/hooks/use-table-lookup-popup-sync'
+import { TableToolbar } from '@/features/table-pages/table-shared/components/core/table-toolbar'
+import { useTableLookupPopupSync } from '@/features/table-pages/table-shared/hooks/use-table-lookup-popup-sync'
 import { useSetActiveFilterAction } from '@/store/table/table-filter.store'
 
 const PO_BREADCRUMB = {
@@ -154,8 +154,8 @@ export function PurchaseOrderLookupLayer({
         results={lookupColumnId === 'DocNum' ? docNumLookupResults : vendors}
         loading={
           lookupColumnId === 'DocNum'
-            ? docNumSuggestionsQuery.isLoading || docNumLookupSearchQuery.isFetching
-            : vendorsQuery.isLoading
+            ? docNumSuggestionsQuery.isFetching || docNumLookupSearchQuery.isFetching
+            : vendorsQuery.isFetching
         }
         error={
           lookupColumnId === 'DocNum'

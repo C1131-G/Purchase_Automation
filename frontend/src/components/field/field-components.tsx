@@ -11,6 +11,10 @@ import type {
 } from '@/components/types/field.types'
 import { cn } from '@/shared/utils/cn'
 
+/**
+ * FieldRoot: Architectural container for form field coordination.
+ * UX: Generates unified IDs for accessibility (labels, errors, descriptions).
+ */
 export function FieldRoot({ children, error, className }: FieldRootProps) {
   const id = useId()
   const errorId = `${id}-error`

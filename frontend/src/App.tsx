@@ -6,6 +6,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { GoeyToaster } from 'goey-toast'
 import { useEffect, useRef } from 'react'
 
+import { GlobalErrorBoundary } from '@/components/error-boundary'
 import { GOEY_TOASTER_CONFIG } from '@/components/goey-toast.config'
 import { routeTree } from '@/routeTree.gen'
 import { QUERY_CACHE_KEY } from '@/shared/utils/query-cache-persistence'
@@ -80,7 +81,9 @@ function App() {
   return (
     // 4. Wrap the app with the QueryClientProvider
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <GlobalErrorBoundary>
+        <RouterProvider router={router} />
+      </GlobalErrorBoundary>
       <GoeyToaster {...GOEY_TOASTER_CONFIG} />
       <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
     </QueryClientProvider>

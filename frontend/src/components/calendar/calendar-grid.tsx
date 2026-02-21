@@ -22,6 +22,10 @@ type CalendarGridProps = {
   onSelectDate: (day: number) => void
 }
 
+/**
+ * CalendarGrid: Renders the 7-column day layout.
+ * COORDINATION: Handles day selection and visual state (today, selected, range) calculation.
+ */
 export function CalendarGrid({
   daySlots,
   year,

@@ -12,6 +12,10 @@ const IncomingPaymentTable = lazy(() =>
   ),
 )
 
+/**
+ * IncomingPaymentRoute: Customer payment document listing.
+ * Enforces strict URL parameter validation for consistent grid state.
+ */
 export const Route = createFileRoute('/_layout/sales/incoming-payment')({
   validateSearch: (search) => incomingPaymentSearchSchema.parse(search),
   component: RouteComponent,

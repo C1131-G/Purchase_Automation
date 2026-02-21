@@ -38,6 +38,8 @@ export const grpoSearchSchema = z.object({
   DocStatus: z.string().optional(),
   DocDateStart: z.string().optional(),
   DocDateEnd: z.string().optional(),
+  DocTotalOperator: z.enum(['eq', 'lt', 'gt']).optional(),
+  DocTotal: z.coerce.number().optional(),
 })
 
 export type GRPOSearch = z.infer<typeof grpoSearchSchema>

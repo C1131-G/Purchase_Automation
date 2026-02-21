@@ -2,11 +2,11 @@ import { createColumnHelper } from '@tanstack/react-table'
 
 import { Tooltip } from '@/components/tooltip'
 import { type PurchaseOrderListItem } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
-import { TableColumnSort } from '@/features/table-pages/shared/components/core/table-column-sort'
+import { TableColumnSort } from '@/features/table-pages/table-shared/components/core/table-column-sort'
 import {
   matchesDateRange,
   matchesNumberComparison,
-} from '@/features/table-pages/shared/utils/table-filter-values'
+} from '@/features/table-pages/table-shared/utils/table-filter-values'
 
 const columnHelper = createColumnHelper<PurchaseOrderListItem>()
 

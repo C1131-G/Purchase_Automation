@@ -23,8 +23,8 @@ import {
   purchaseOrderColumnFilterSchema,
   type PurchaseOrderSearch,
 } from '@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema'
-import { TablePagination } from '@/features/table-pages/shared/components/controls/pagination'
-import { TableErrorState } from '@/features/table-pages/shared/components/core/table-error-state'
+import { TablePagination } from '@/features/table-pages/table-shared/components/controls/pagination'
+import { TableErrorState } from '@/features/table-pages/table-shared/components/core/table-error-state'
 import {
   Table,
   TableBody,
@@ -32,19 +32,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/features/table-pages/shared/components/core/table-root'
-import { useTablePrefetch } from '@/features/table-pages/shared/hooks/use-table-prefetch'
+} from '@/features/table-pages/table-shared/components/core/table-root'
+import { useTablePrefetch } from '@/features/table-pages/table-shared/hooks/use-table-prefetch'
 import {
   type TableFetchAction,
   useTableToast,
-} from '@/features/table-pages/shared/hooks/use-table-toast'
+} from '@/features/table-pages/table-shared/hooks/use-table-toast'
 import {
   cloneFilters,
   cloneOrder,
   cloneSorting,
   cloneVisibility,
   normalizeVisibility,
-} from '@/features/table-pages/shared/utils/table-state.utils'
+} from '@/features/table-pages/table-shared/utils/table-state.utils'
 import { useSetColumnFiltersAction } from '@/store/table/table-filter.store'
 import { useClearAllFiltersAction } from '@/store/table/table-filter.store'
 import { useSetOrderAction } from '@/store/table/table-order.store'
@@ -66,6 +66,8 @@ const toPurchaseOrderColumnFilters = (filters: ColumnFiltersState): PurchaseOrde
   return typedFilters
 }
 
+// PurchaseOrderTable: Orchestrates the primary listing view with server-side sorting, filtering, and pagination.
+// State is mirrored in the URL via TanStack Router for shareable, persistent views.
 export function PurchaseOrderTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
@@ -133,6 +135,7 @@ export function PurchaseOrderTable() {
 
   const listParams = useMemo(() => mapSearchToPurchaseOrderListParams(searchParams), [searchParams])
 
+  // Data Fetching: Syncs with listParams derived directly from the URL search state.
   const {
     data: poList,
     isLoading,
@@ -236,6 +239,7 @@ export function PurchaseOrderTable() {
     autoResetPageIndex: false,
   })
 
+  // Table Logic Summary: Syncs local UI state (sorting/visibility) back to the URL coordinates.
   const filteredTotalRows = totalRows
   const effectivePageSize = Math.max(pagination.pageSize, 1)
   const effectivePageCount = Math.max(

@@ -4,7 +4,10 @@ import { authQueries } from '@/features/auth/api/auth.queries'
 import { ShellLayout } from '@/features/layout/components/ShellLayout'
 import { useAuthStore } from '@/store/auth/auth.store'
 
-// Shell Layout: Persistent ERP frame managing stable Sidebar/Header navigation state.
+/**
+ * ShellLayout: Persistent ERP frame managing sidebar, header, and content areas.
+ * SECURITY: Handles initial hydration of auth state before rendering children.
+ */
 export const Route = createFileRoute('/_layout')({
   beforeLoad: async ({ context }) => {
     const authState = useAuthStore.getState()

@@ -13,6 +13,11 @@ import type {
 } from '@/components/types/select.types'
 import { cn } from '@/shared/utils/cn'
 
+/**
+ * SelectRoot: Context-driven engine for custom dropdowns.
+ * STATE: Handles both controlled and uncontrolled value patterns.
+ * UX: Tracks labels and items to display readable selection values in the trigger.
+ */
 export function SelectRoot({
   children,
   value: controlledValue,

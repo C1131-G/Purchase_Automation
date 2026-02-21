@@ -29,6 +29,7 @@ type DocumentDetailsGridProps = {
   onDocDueDateChange: (value: string) => void
   docDueDateInvalid?: boolean
   docDueDateErrorText?: string
+  error?: string | null
 }
 
 export function DocumentDetailsGrid({
@@ -46,9 +47,15 @@ export function DocumentDetailsGrid({
   onDocDueDateChange,
   docDueDateInvalid,
   docDueDateErrorText,
+  error,
 }: DocumentDetailsGridProps) {
   return (
     <SectionCard title="Document Details" className="lg:col-span-1">
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {error}
+        </div>
+      ) : null}
       <div>
         <div className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
           Doc Number
