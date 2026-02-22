@@ -106,6 +106,14 @@ export const PurchaseOrderDocNumLookupQuerySchema = z.object({
     .max(50)
     .optional()
     .openapi({ example: "8001", description: "DocNum contains search term" }),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .default(10)
+    .optional()
+    .openapi({ example: 10, description: "Max suggestions (hard capped at 100)" }),
 });
 
 // PurchaseOrderLineItemSchema: Validates individual rows in the document.

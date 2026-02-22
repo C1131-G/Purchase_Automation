@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { type useReactTable } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
@@ -43,12 +43,13 @@ export function SalesOrderLookupLayer({
   onCreateClick,
 }: SalesOrderLookupLayerProps) {
   const setActiveFilter = useSetActiveFilterAction()
+  const queryClient = useQueryClient()
 
   const customersQuery = useQuery(createSharedQueries.customers())
   const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data])
   const tableRows = table.getRowModel().rows
 
-  const docNumSuggestionsQuery = useQuery(salesOrderQueries.docNumSuggestions())
+  const docNumSuggestionsQuery = useQuery(salesOrderQueries.docNumSuggestions(undefined, 10))
   const tableOrderedDocNumSuggestions = useMemo<LookupItem[]>(() => {
     const seen = new Set<string>()
     const result: LookupItem[] = []
@@ -86,6 +87,7 @@ export function SalesOrderLookupLayer({
     lookupPopupOpen,
     lookupColumnId,
     lookupSearch,
+    debouncedLookupSearch,
     externalSelection,
     onLookupPopupOpen: handleLookupPopupOpen,
     onLookupSearchChange: handleLookupSearchChange,
@@ -97,12 +99,20 @@ export function SalesOrderLookupLayer({
     onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
   })
 
-  const docNumLookupSearchTerm = useMemo(() => lookupSearch.trim(), [lookupSearch])
-  const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length > 0
+  const docNumLookupSearchTerm = useMemo(
+    () => debouncedLookupSearch.trim(),
+    [debouncedLookupSearch],
+  )
+  const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length >= 2
   const docNumLookupSearchQuery = useQuery({
     ...salesOrderQueries.docNumSuggestions(docNumLookupSearchTerm || undefined),
     enabled: shouldQueryDocNumSearch,
   })
+
+  useEffect(() => {
+    if (!lookupPopupOpen || lookupColumnId !== 'DocNum') return
+    void queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 100))
+  }, [lookupPopupOpen, lookupColumnId, queryClient])
 
   const docNumLookupResults = useMemo<LookupItem[]>(() => {
     if (lookupColumnId !== 'DocNum') return docNumSuggestions
@@ -166,6 +176,18 @@ export function SalesOrderLookupLayer({
             : customersQuery.isError
               ? 'Failed to load customers'
               : null
+        }
+        onRetry={
+          lookupColumnId === 'DocNum'
+            ? () => {
+                void docNumSuggestionsQuery.refetch()
+                if (shouldQueryDocNumSearch) {
+                  void docNumLookupSearchQuery.refetch()
+                }
+              }
+            : () => {
+                void customersQuery.refetch()
+              }
         }
         title={
           lookupColumnId === 'DocNum'

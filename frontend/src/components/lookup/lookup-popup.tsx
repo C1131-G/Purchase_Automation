@@ -68,6 +68,7 @@ type LookupPopupProps = {
   onSearchChange: (value: string) => void
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onSelect: (item: LookupItem) => void
+  onRetry?: () => void
 }
 
 type ModalStateRowProps = {
@@ -107,6 +108,7 @@ export function LookupPopup({
   onSearchChange,
   onClose,
   onSelect,
+  onRetry,
 }: LookupPopupProps) {
   const config = mode ? MODE_CONFIG[mode] : null
 
@@ -181,6 +183,7 @@ export function LookupPopup({
                   <LookupErrorState
                     colSpan={showCodeOnly || showNameOnly ? 1 : 2}
                     message={error || 'Unable to load data. Please try again.'}
+                    {...(onRetry ? { onRetry } : {})}
                   />
                 ) : filteredResults.length === 0 && !loading ? (
                   <ModalEmptyRow

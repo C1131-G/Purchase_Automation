@@ -45,6 +45,7 @@ export function useSoProducts({
   }, [productSearch])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
+  const productQueryLimit = normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT
 
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
   // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
@@ -52,7 +53,7 @@ export function useSoProducts({
     ...salesOrderCreateQueries.products(
       effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
-      normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
+      productQueryLimit,
     ),
     enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
   })
@@ -73,7 +74,7 @@ export function useSoProducts({
       salesOrderCreateQueries.products(
         effectiveWarehouseCode,
         normalizedProductSearch || undefined,
-        normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
+        productQueryLimit,
       ),
     )
     if (!normalizedProductSearch) {
@@ -106,7 +107,7 @@ export function useSoProducts({
         salesOrderCreateQueries.products(
           effectiveWarehouseCode,
           initialSearch || undefined,
-          QUICK_PRODUCT_LIMIT,
+          initialSearch.trim() ? undefined : QUICK_PRODUCT_LIMIT,
         ),
       )
       void queryClient.prefetchQuery(

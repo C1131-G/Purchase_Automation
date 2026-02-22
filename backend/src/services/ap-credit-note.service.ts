@@ -5,6 +5,7 @@ import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { CreditNoteFilters } from "@/dal/types/ap-credit-note.types";
 import { APCreditNote, APCreditNoteSchema } from "@/db/schemas/ap-credit-note.schema";
+import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -115,9 +116,10 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
   }
 };
 
-export const getCreditNoteDocNums = async (dbName: string, search?: string) => {
+export const getCreditNoteDocNums = async (dbName: string, search?: string, limit?: number) => {
   const repo = await getTenantRepository(dbName, APCreditNoteSchema);
   const queryBuilder = repo.createQueryBuilder("cn");
+  const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("cn.docNum", "DocNum").distinct(true);
   if (search && search.trim().length > 0) {
@@ -126,6 +128,7 @@ export const getCreditNoteDocNums = async (dbName: string, search?: string) => {
     });
   }
   queryBuilder.orderBy("cn.docNum", "DESC");
+  queryBuilder.take(safeLimit);
 
   const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
   return rows

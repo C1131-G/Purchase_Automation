@@ -45,6 +45,7 @@ export function usePoProducts({
   }, [productSearch])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
+  const productQueryLimit = normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT
 
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
   // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
@@ -52,7 +53,7 @@ export function usePoProducts({
     ...purchaseOrderCreateQueries.products(
       effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
-      normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
+      productQueryLimit,
     ),
     enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
   })
@@ -73,7 +74,7 @@ export function usePoProducts({
       purchaseOrderCreateQueries.products(
         effectiveWarehouseCode,
         normalizedProductSearch || undefined,
-        normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT,
+        productQueryLimit,
       ),
     )
     if (!normalizedProductSearch) {
@@ -106,7 +107,7 @@ export function usePoProducts({
         purchaseOrderCreateQueries.products(
           effectiveWarehouseCode,
           initialSearch || undefined,
-          QUICK_PRODUCT_LIMIT,
+          initialSearch.trim() ? undefined : QUICK_PRODUCT_LIMIT,
         ),
       )
       void queryClient.prefetchQuery(
@@ -171,7 +172,6 @@ export function usePoProducts({
   ) => {
     void queryClient.prefetchQuery(purchaseOrderCreateQueries.productWarehouseStocks(product.code))
 
-    const maxAllowed = Math.max(1, Math.floor(product.stock) - 1)
     if (activeProductRowId) {
       updateProductRow(activeProductRowId, {
         productCode: product.code,
@@ -181,7 +181,7 @@ export function usePoProducts({
         currency: product.currency,
         taxCode: product.taxCode,
         taxRate: product.taxRate,
-        quantity: Math.min(maxAllowed, 1),
+        quantity: 1,
         discountPercent: 0,
         discountAmount: 0,
       })
@@ -197,7 +197,7 @@ export function usePoProducts({
           currency: product.currency,
           taxCode: product.taxCode,
           taxRate: product.taxRate,
-          quantity: Math.min(maxAllowed, 1),
+          quantity: 1,
           discountPercent: 0,
           discountAmount: 0,
           comment: '',

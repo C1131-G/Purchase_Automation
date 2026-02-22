@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react'
+import { useRef } from 'react'
 
 type FieldBlockProps = {
   label: string
@@ -12,6 +13,8 @@ type FieldBlockProps = {
   loading?: boolean | undefined
   invalid?: boolean | undefined
   errorText?: string | undefined
+  disabled?: boolean | undefined
+  onDisabledClick?: (() => void) | undefined
 }
 
 export function FieldBlock({
@@ -26,7 +29,19 @@ export function FieldBlock({
   loading,
   invalid,
   errorText,
+  disabled,
+  onDisabledClick,
 }: FieldBlockProps) {
+  const lastDisabledFeedbackAtRef = useRef(0)
+
+  const triggerDisabledFeedback = () => {
+    if (!disabled || !onDisabledClick) return
+    const now = Date.now()
+    if (now - lastDisabledFeedbackAtRef.current < 500) return
+    lastDisabledFeedbackAtRef.current = now
+    onDisabledClick()
+  }
+
   const trimmedLabel = label.trim()
   const isRequired = trimmedLabel.endsWith('*')
   const displayLabel = isRequired ? trimmedLabel.slice(0, -1).trimEnd() : label
@@ -45,17 +60,39 @@ export function FieldBlock({
             invalid
               ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
               : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-          }`}
+          } ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
           placeholder={loading ? (loadingPlaceholder ?? 'Loading...') : placeholder}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onFocus={onFocus}
+          readOnly={disabled}
+          onChange={(event) => {
+            if (disabled) return
+            onChange(event.target.value)
+          }}
+          onClick={() => {
+            if (!disabled) return
+            triggerDisabledFeedback()
+          }}
+          onFocus={() => {
+            if (disabled) {
+              triggerDisabledFeedback()
+              return
+            }
+            onFocus()
+          }}
           onBlur={onBlur}
         />
         <button
           type="button"
-          onClick={onOpenPopup}
-          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100"
+          onClick={() => {
+            if (disabled) {
+              triggerDisabledFeedback()
+              return
+            }
+            onOpenPopup()
+          }}
+          className={`absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+            disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-zinc-100'
+          }`}
         >
           <Search className="h-3 w-3" />
         </button>

@@ -1,6 +1,8 @@
 import { type FetchQueryOptions, type QueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect } from 'react'
 
+import { runSmartPrefetch } from '@/features/table-pages/table-shared/hooks/prefetch-orchestrator'
+
 interface UseTablePrefetchProps<
   TQueryFnData = unknown,
   TError = unknown,
@@ -41,20 +43,41 @@ export function useTablePrefetch<
   maxPageIndex,
   getQueryOptions,
 }: UseTablePrefetchProps<TQueryFnData, TError, TData, TQueryKey>) {
+  const connection = (
+    navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } }
+  ).connection as { effectiveType?: string; saveData?: boolean } | undefined
+  const isSlowNetwork =
+    connection?.saveData ||
+    connection?.effectiveType === '2g' ||
+    connection?.effectiveType === 'slow-2g'
+  const isDocumentVisible =
+    typeof document === 'undefined' ? true : document.visibilityState === 'visible'
+  const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine !== false
+  const prefetchMode =
+    import.meta.env.VITE_TABLE_PREFETCH_MODE ??
+    (import.meta.env.PROD ? 'conservative' : 'aggressive')
+  const prefetchDisabled = prefetchMode === 'off'
+  const enableAggressivePrefetch =
+    prefetchMode === 'aggressive' &&
+    !prefetchDisabled &&
+    !isSlowNetwork &&
+    isDocumentVisible &&
+    isOnline
+  const enablePrefetch = !prefetchDisabled && !isSlowNetwork && isDocumentVisible && isOnline
+
   const prefetchPage = useCallback(
     (pageIndex: number, pageSize: number) => {
-      queryClient
-        .prefetchQuery(getQueryOptions({ page: pageIndex + 1, limit: pageSize }))
-        .catch(() => {})
+      if (!enablePrefetch) return
+      void runSmartPrefetch(queryClient, getQueryOptions({ page: pageIndex + 1, limit: pageSize }))
     },
-    [queryClient, getQueryOptions],
+    [queryClient, getQueryOptions, enablePrefetch],
   )
 
   useEffect(() => {
-    if (!hasData) return
+    if (!hasData || !enablePrefetch) return
 
-    // Limit Prefetching: User has 10 rows? Prefetch 20 in the background just in case they switch
-    if (pagination.pageSize === 10) {
+    // Optional aggressive mode: prefetch page-size switch candidates.
+    if (enableAggressivePrefetch && pagination.pageSize === 10) {
       prefetchPage(0, 20)
     }
 
@@ -62,7 +85,15 @@ export function useTablePrefetch<
     if (pagination.pageIndex < maxPageIndex) {
       prefetchPage(pagination.pageIndex + 1, pagination.pageSize)
     }
-  }, [pagination.pageIndex, pagination.pageSize, maxPageIndex, hasData, prefetchPage])
+  }, [
+    pagination.pageIndex,
+    pagination.pageSize,
+    maxPageIndex,
+    hasData,
+    prefetchPage,
+    enableAggressivePrefetch,
+    enablePrefetch,
+  ])
 
   return { prefetchPage }
 }

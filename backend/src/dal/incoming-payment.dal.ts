@@ -53,8 +53,8 @@ export const getPaymentDocNums = async (req: Request, res: Response, next: NextF
   >;
   try {
     const { dbName } = authReq.user;
-    const { search } = authReq.query;
-    const data = await incomingPaymentService.getPaymentDocNums(dbName, search);
+    const { search, limit } = authReq.query;
+    const data = await incomingPaymentService.getPaymentDocNums(dbName, search, limit);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

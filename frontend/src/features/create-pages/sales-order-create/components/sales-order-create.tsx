@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { goeyToast } from 'goey-toast'
 import { ChevronRight } from 'lucide-react'
 
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
@@ -117,6 +118,12 @@ export function SalesOrderCreate() {
           salesEmployeeInvalid={Boolean(state.productSearchFieldErrors.salesEmployee)}
           warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
           salesEmployeeErrorText={state.productSearchFieldErrors.salesEmployee}
+          warehouseLocked={state.productRows.length > 0}
+          onWarehouseLockedClick={() =>
+            goeyToast(
+              "Warehouse can't be changed after product selection. Remove products or create.",
+            )
+          }
         />
 
         <DocumentDetailsGrid

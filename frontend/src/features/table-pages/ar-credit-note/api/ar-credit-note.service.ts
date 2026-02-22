@@ -27,8 +27,8 @@ export const arCreditNoteAPI = {
     const path = query ? `/api/v1/ar-credit-notes?${query}` : '/api/v1/ar-credit-notes'
     return apiClient<ARCreditNoteListResponse>(path)
   },
-  getARCreditNoteDocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getARCreditNoteDocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query
       ? `/api/v1/ar-credit-notes/docnums?${query}`
       : '/api/v1/ar-credit-notes/docnums'

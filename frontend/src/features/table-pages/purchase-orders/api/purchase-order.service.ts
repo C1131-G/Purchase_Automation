@@ -29,8 +29,8 @@ export const purchaseOrderAPI = {
     const path = query ? `/api/v1/purchase-orders?${query}` : '/api/v1/purchase-orders'
     return apiClient<PurchaseOrderListResponse>(path)
   },
-  getPurchaseOrderDocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getPurchaseOrderDocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query
       ? `/api/v1/purchase-orders/docnums?${query}`
       : '/api/v1/purchase-orders/docnums'

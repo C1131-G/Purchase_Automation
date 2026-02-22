@@ -1,4 +1,5 @@
 import { SectionErrorState } from '@/components/section-error-state'
+import { toSafeErrorMessage } from '@/shared/utils/error-message'
 
 type LookupErrorStateProps = {
   colSpan: number
@@ -15,7 +16,7 @@ export function LookupErrorState({ colSpan, message, onRetry }: LookupErrorState
         <SectionErrorState
           variant="compact"
           title="Lookup unavailable"
-          message={message}
+          message={toSafeErrorMessage(message, 'Unable to load lookup results. Please try again.')}
           onRetry={onRetry}
         />
       </td>

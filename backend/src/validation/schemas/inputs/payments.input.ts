@@ -68,6 +68,14 @@ export const PaymentDocNumLookupQuerySchema = z.object({
     .max(50)
     .optional()
     .openapi({ example: "7008", description: "DocNum contains search term" }),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .default(10)
+    .optional()
+    .openapi({ example: 10, description: "Max suggestions (hard capped at 100)" }),
 });
 
 // CreatePaymentInputSchema: Validates the complex payload for recording a payment.

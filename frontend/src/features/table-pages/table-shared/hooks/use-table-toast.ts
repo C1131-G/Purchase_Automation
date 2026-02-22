@@ -1,5 +1,5 @@
 import { goeyToast } from 'goey-toast'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 /** The type of user-triggered action that caused a refetch. */
 export type TableFetchAction = 'sorting' | 'filtering' | 'paginating' | 'fetching'
@@ -17,6 +17,7 @@ const ACTION_MESSAGES: Record<TableFetchAction, string> = {
   paginating: 'Loading page…',
   fetching: 'Loading data…',
 }
+const TOAST_COOLDOWN_MS = 900
 
 /**
  * Action-specific background loading toast.
@@ -27,19 +28,58 @@ const ACTION_MESSAGES: Record<TableFetchAction, string> = {
  */
 export function useTableToast({ isFetching, hasData, action = 'fetching' }: UseTableToastProps) {
   const toastIdRef = useRef<string | number | null>(null)
+  const wasFetchingRef = useRef(false)
+  const lastToastKeyRef = useRef<string | null>(null)
+  const lastToastAtRef = useRef(0)
+
+  const dismissToast = useCallback(() => {
+    if (toastIdRef.current !== null) {
+      goeyToast.dismiss(toastIdRef.current)
+      toastIdRef.current = null
+    }
+  }, [])
+
+  const showToast = useCallback(
+    (nextAction: TableFetchAction) => {
+      const nextMessage = ACTION_MESSAGES[nextAction]
+      const now = Date.now()
+      const isDuplicateWithinCooldown =
+        lastToastKeyRef.current === nextMessage && now - lastToastAtRef.current < TOAST_COOLDOWN_MS
+      if (isDuplicateWithinCooldown) return
+
+      dismissToast()
+      toastIdRef.current = goeyToast(nextMessage, { duration: 10000 })
+      lastToastKeyRef.current = nextMessage
+      lastToastAtRef.current = now
+    },
+    [dismissToast],
+  )
 
   useEffect(() => {
-    if (isFetching && hasData) {
-      const message = ACTION_MESSAGES[action]
-      const id = goeyToast(message, { duration: 10000 })
-      toastIdRef.current = id
-
-      return () => {
-        if (toastIdRef.current !== null) {
-          goeyToast.dismiss(toastIdRef.current)
-          toastIdRef.current = null
-        }
-      }
+    if (!hasData) {
+      dismissToast()
+      wasFetchingRef.current = false
+      return
     }
-  }, [isFetching, hasData, action])
+
+    if (isFetching) {
+      wasFetchingRef.current = true
+      if (toastIdRef.current === null) {
+        showToast(action)
+      }
+      return
+    }
+
+    if (wasFetchingRef.current) {
+      dismissToast()
+      wasFetchingRef.current = false
+    }
+  }, [isFetching, hasData, action, dismissToast, showToast])
+
+  useEffect(
+    () => () => {
+      dismissToast()
+    },
+    [dismissToast],
+  )
 }

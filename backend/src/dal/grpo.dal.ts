@@ -49,8 +49,8 @@ export const getGRPODocNums = async (req: Request, res: Response, next: NextFunc
   >;
   try {
     const { dbName } = authReq.user;
-    const { search } = authReq.query;
-    const data = await grpoService.getGRPODocNums(dbName, search);
+    const { search, limit } = authReq.query;
+    const data = await grpoService.getGRPODocNums(dbName, search, limit);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

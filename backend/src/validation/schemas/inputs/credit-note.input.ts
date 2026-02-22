@@ -73,6 +73,14 @@ export const CreditNoteDocNumLookupQuerySchema = z.object({
     .max(50)
     .optional()
     .openapi({ example: "5003", description: "DocNum contains search term" }),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .default(10)
+    .optional()
+    .openapi({ example: 10, description: "Max suggestions (hard capped at 100)" }),
 });
 
 // CreditNoteLineItemSchema: Individual items being credited or returned.

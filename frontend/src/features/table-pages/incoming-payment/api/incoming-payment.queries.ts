@@ -10,8 +10,8 @@ export const incomingPaymentKeys = {
   all: ['incoming-payments'] as const,
   list: (params: IncomingPaymentListParams) =>
     [...incomingPaymentKeys.all, 'list', params] as const,
-  docNumSuggestions: (search?: string) =>
-    [...incomingPaymentKeys.all, 'doc-num-suggestions', search ?? ''] as const,
+  docNumSuggestions: (search?: string, limit?: number) =>
+    [...incomingPaymentKeys.all, 'doc-num-suggestions', search ?? '', limit ?? 'all'] as const,
 }
 
 export const incomingPaymentQueries = {
@@ -23,10 +23,11 @@ export const incomingPaymentQueries = {
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
       placeholderData: keepPreviousData,
     }),
-  docNumSuggestions: (search?: string) =>
+  docNumSuggestions: (search?: string, limit?: number) =>
     queryOptions({
-      queryKey: incomingPaymentKeys.docNumSuggestions(search),
-      queryFn: () => incomingPaymentAPI.getIncomingPaymentDocNums(search),
+      queryKey: incomingPaymentKeys.docNumSuggestions(search, limit),
+      queryFn: () => incomingPaymentAPI.getIncomingPaymentDocNums(search, limit),
+      placeholderData: keepPreviousData,
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router'
 import { BadgePercent, Building2, LayoutDashboard, ShoppingCart } from 'lucide-react'
 import React from 'react'
@@ -19,6 +20,10 @@ import {
   SidebarProvider,
 } from '@/components/sidebar'
 import { useLogout } from '@/features/auth/hooks/use-logout'
+import {
+  prefetchTableRouteIntent,
+  type TableRoutePath,
+} from '@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch'
 import { cn } from '@/shared/utils/cn'
 import { useAuthStore } from '@/store/auth/auth.store'
 import { useSetSidebarAction, useSidebarOpen } from '@/store/sidebar/sidebar.store'
@@ -27,6 +32,7 @@ import { useSetSidebarAction, useSidebarOpen } from '@/store/sidebar/sidebar.sto
 export function ShellLayout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { mutate: logout, isPending: isLoggingOut } = useLogout()
   const isAuthLoading = useAuthStore((state) => state.isLoading)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -79,6 +85,13 @@ export function ShellLayout() {
     setOpenSection((prev) => (prev === section ? null : section))
   }
 
+  const handleTableNavIntent = React.useCallback(
+    (routePath: TableRoutePath) => {
+      prefetchTableRouteIntent(queryClient, routePath)
+    },
+    [queryClient],
+  )
+
   return (
     <SidebarProvider>
       {/* Premium Sapphire White Sidebar */}
@@ -116,6 +129,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/purchase/orders"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/purchase/orders')}
+                      onFocus={() => handleTableNavIntent('/purchase/orders')}
+                      onTouchStart={() => handleTableNavIntent('/purchase/orders')}
                       isActive={location.pathname === '/purchase/orders'}
                     >
                       Purchase Orders
@@ -124,6 +141,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/purchase/grpo"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/purchase/grpo')}
+                      onFocus={() => handleTableNavIntent('/purchase/grpo')}
+                      onTouchStart={() => handleTableNavIntent('/purchase/grpo')}
                       isActive={location.pathname === '/purchase/grpo'}
                     >
                       GRPO
@@ -132,6 +153,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/purchase/ap-invoice"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/purchase/ap-invoice')}
+                      onFocus={() => handleTableNavIntent('/purchase/ap-invoice')}
+                      onTouchStart={() => handleTableNavIntent('/purchase/ap-invoice')}
                       isActive={location.pathname === '/purchase/ap-invoice'}
                     >
                       A/P Invoice
@@ -140,6 +165,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/purchase/ap-credit-note"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/purchase/ap-credit-note')}
+                      onFocus={() => handleTableNavIntent('/purchase/ap-credit-note')}
+                      onTouchStart={() => handleTableNavIntent('/purchase/ap-credit-note')}
                       isActive={location.pathname === '/purchase/ap-credit-note'}
                     >
                       A/P Credit Note
@@ -148,6 +177,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/purchase/outgoing-payment"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/purchase/outgoing-payment')}
+                      onFocus={() => handleTableNavIntent('/purchase/outgoing-payment')}
+                      onTouchStart={() => handleTableNavIntent('/purchase/outgoing-payment')}
                       isActive={location.pathname === '/purchase/outgoing-payment'}
                     >
                       Outgoing Payment
@@ -166,6 +199,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/sales/orders"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/sales/orders')}
+                      onFocus={() => handleTableNavIntent('/sales/orders')}
+                      onTouchStart={() => handleTableNavIntent('/sales/orders')}
                       isActive={location.pathname === '/sales/orders'}
                     >
                       Sales Orders
@@ -174,6 +211,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/sales/ar-invoice"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/sales/ar-invoice')}
+                      onFocus={() => handleTableNavIntent('/sales/ar-invoice')}
+                      onTouchStart={() => handleTableNavIntent('/sales/ar-invoice')}
                       isActive={location.pathname === '/sales/ar-invoice'}
                     >
                       A/R Invoice
@@ -182,6 +223,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/sales/ar-credit-note"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/sales/ar-credit-note')}
+                      onFocus={() => handleTableNavIntent('/sales/ar-credit-note')}
+                      onTouchStart={() => handleTableNavIntent('/sales/ar-credit-note')}
                       isActive={location.pathname === '/sales/ar-credit-note'}
                     >
                       A/R Credit Note
@@ -190,6 +235,10 @@ export function ShellLayout() {
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       to="/sales/incoming-payment"
+                      search={{}}
+                      onMouseEnter={() => handleTableNavIntent('/sales/incoming-payment')}
+                      onFocus={() => handleTableNavIntent('/sales/incoming-payment')}
+                      onTouchStart={() => handleTableNavIntent('/sales/incoming-payment')}
                       isActive={location.pathname === '/sales/incoming-payment'}
                     >
                       Incoming Payment

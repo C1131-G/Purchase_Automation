@@ -13,6 +13,7 @@ interface CreateProductTableRowProps {
   row: ProductRow
   rowDraft?: ProductRowDraft | undefined
   effectiveWarehouseCode: string
+  enforceStockLimit?: boolean
   openProductPopup: (rowId: string | null) => void
   openStockPreview: (product: StockPreviewProduct) => void
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void
@@ -26,6 +27,7 @@ export function CreateProductTableRow({
   row,
   rowDraft,
   effectiveWarehouseCode,
+  enforceStockLimit = true,
   openProductPopup,
   openStockPreview,
   updateProductRow,
@@ -37,7 +39,7 @@ export function CreateProductTableRow({
   const queryClient = useQueryClient()
 
   const maxAllowed = Math.max(1, Math.floor(row.stock) - 1)
-  const isNearLimit = row.quantity >= maxAllowed
+  const isNearLimit = enforceStockLimit && row.quantity >= maxAllowed
   const quantityMessage =
     row.stock > 0
       ? `In stock: ${row.stock}. You can add up to ${maxAllowed}.`
@@ -97,7 +99,30 @@ export function CreateProductTableRow({
         </div>
       </td>
       <td className="px-3 py-2">
-        <Tooltip content={quantityMessage} className="block w-auto max-w-none">
+        {enforceStockLimit ? (
+          <Tooltip content={quantityMessage} className="block w-auto max-w-none">
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={rowDraft?.quantity ?? String(row.quantity)}
+              onChange={(event) => setProductRowDraft(row.id, 'quantity', event.target.value)}
+              onBlur={(event) => {
+                const rawValue = event.target.value.trim()
+                const typedQuantity = rawValue === '' ? 1 : Math.max(1, Number(rawValue) || 1)
+                updateProductRow(row.id, {
+                  quantity: Math.min(maxAllowed, typedQuantity),
+                })
+                clearProductRowDraft(row.id, 'quantity')
+              }}
+              className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${
+                isNearLimit
+                  ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400'
+                  : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400'
+              }`}
+            />
+          </Tooltip>
+        ) : (
           <input
             type="number"
             min={1}
@@ -107,18 +132,12 @@ export function CreateProductTableRow({
             onBlur={(event) => {
               const rawValue = event.target.value.trim()
               const typedQuantity = rawValue === '' ? 1 : Math.max(1, Number(rawValue) || 1)
-              updateProductRow(row.id, {
-                quantity: Math.min(maxAllowed, typedQuantity),
-              })
+              updateProductRow(row.id, { quantity: typedQuantity })
               clearProductRowDraft(row.id, 'quantity')
             }}
-            className={`h-9 w-24 rounded-lg border px-2 text-sm outline-none focus:bg-white ${
-              isNearLimit
-                ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400'
-                : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400'
-            }`}
+            className="h-9 w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white"
           />
-        </Tooltip>
+        )}
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm text-zinc-700">{row.price.toFixed(2)}</td>
       <td className="px-3 py-2">

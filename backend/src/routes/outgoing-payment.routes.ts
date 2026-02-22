@@ -2,6 +2,7 @@
 
 import express from "express";
 
+import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { outgoingPaymentDal } from "@/dal/outgoing-payment.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
@@ -19,6 +20,7 @@ router.use(validateSession);
 router.get("/", validateQuery(PaymentQuerySchema), outgoingPaymentDal.getPayments);
 router.get(
   "/docnums",
+  lookupLimiter,
   validateQuery(PaymentDocNumLookupQuerySchema),
   outgoingPaymentDal.getPaymentDocNums,
 );

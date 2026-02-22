@@ -7,7 +7,10 @@ import { goeyToast } from 'goey-toast'
  * @param documentType - Human-readable document name, e.g. "Purchase Order".
  */
 export function createOrderToast(documentType: string) {
-  const loadingId = goeyToast.info(`Creating ${documentType}…`)
+  const loadingId = goeyToast.info(`Creating ${documentType}…`, {
+    // Keep visible until we explicitly dismiss on success/error.
+    duration: 24 * 60 * 60 * 1000,
+  })
 
   return {
     success: () => {

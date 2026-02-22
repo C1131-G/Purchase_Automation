@@ -27,8 +27,8 @@ export const apInvoiceAPI = {
     const path = query ? `/api/v1/ap-invoices?${query}` : '/api/v1/ap-invoices'
     return apiClient<APInvoiceListResponse>(path)
   },
-  getAPInvoiceDocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getAPInvoiceDocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query ? `/api/v1/ap-invoices/docnums?${query}` : '/api/v1/ap-invoices/docnums'
     return apiClient<APInvoiceDocNumLookupResponse>(path)
   },

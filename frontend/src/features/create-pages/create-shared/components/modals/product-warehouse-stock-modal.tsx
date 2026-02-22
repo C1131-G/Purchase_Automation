@@ -13,6 +13,7 @@ type ProductWarehouseStockModalProps = {
   stocks: ProductWarehouseStockItem[]
   loading: boolean
   error: string | null
+  onRetry?: () => void
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onAfterClose?: ComponentProps<typeof AnimatedModalShell>['onAfterClose']
 }
@@ -43,6 +44,7 @@ export function ProductWarehouseStockModal({
   stocks,
   loading,
   error,
+  onRetry,
   onClose,
   onAfterClose,
 }: ProductWarehouseStockModalProps) {
@@ -120,6 +122,7 @@ export function ProductWarehouseStockModal({
                   <LookupErrorState
                     colSpan={3}
                     message={error || 'Unable to load stock details. Please try again.'}
+                    {...(onRetry ? { onRetry } : {})}
                   />
                 ) : filteredStocks.length === 0 && !loading ? (
                   <ModalEmptyRow

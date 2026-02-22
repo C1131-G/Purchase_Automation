@@ -73,6 +73,14 @@ export const SalesOrderDocNumLookupQuerySchema = z.object({
     .max(50)
     .optional()
     .openapi({ example: "9001", description: "DocNum contains search term" }),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .default(10)
+    .optional()
+    .openapi({ example: 10, description: "Max suggestions (hard capped at 100)" }),
 });
 
 // SalesOrderLineItemSchema: Individual items requested in the order.

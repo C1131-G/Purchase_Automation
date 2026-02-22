@@ -50,9 +50,9 @@ export const getPurchaseOrderDocNums = async (req: Request, res: Response, next:
   >;
   try {
     const { dbName } = authReq.user;
-    const { search } = authReq.query;
+    const { search, limit } = authReq.query;
 
-    const data = await purchaseOrderService.getPurchaseOrderDocNums(dbName, search);
+    const data = await purchaseOrderService.getPurchaseOrderDocNums(dbName, search, limit);
 
     res.status(200).json({
       success: true,

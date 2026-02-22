@@ -7,6 +7,7 @@ import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PurchaseOrderFilters } from "@/dal/types/purchase-order.types";
 // Data Access & Schemas
 import { type PurchaseOrder, PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
+import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -119,9 +120,10 @@ export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFi
 };
 
 // Returns distinct DocNum values for lookup/search popup.
-export const getPurchaseOrderDocNums = async (dbName: string, search?: string) => {
+export const getPurchaseOrderDocNums = async (dbName: string, search?: string, limit?: number) => {
   const repo = await getTenantRepository(dbName, PurchaseOrderSchema);
   const queryBuilder = repo.createQueryBuilder("po");
+  const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("po.docNum", "DocNum").distinct(true);
 
@@ -132,6 +134,7 @@ export const getPurchaseOrderDocNums = async (dbName: string, search?: string) =
   }
 
   queryBuilder.orderBy("po.docNum", "DESC");
+  queryBuilder.take(safeLimit);
 
   const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
 

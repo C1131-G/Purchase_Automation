@@ -1,5 +1,5 @@
 import { type Table } from '@tanstack/react-table'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 
@@ -14,6 +14,7 @@ type UseTableLookupPopupSyncResult = {
   lookupPopupOpen: boolean
   lookupColumnId: string
   lookupSearch: string
+  debouncedLookupSearch: string
   externalSelection: { item: LookupItem; columnId: string } | null
   onLookupPopupOpen: (columnId: string, initialSearch?: string) => void
   onLookupSearchChange: (value: string) => void
@@ -32,6 +33,7 @@ export function useTableLookupPopupSync<TData>({
   const [lookupPopupOpen, setLookupPopupOpen] = useState(false)
   const [lookupColumnId, setLookupColumnId] = useState('')
   const [lookupSearch, setLookupSearch] = useState('')
+  const [debouncedLookupSearch, setDebouncedLookupSearch] = useState('')
   const [externalSelection, setExternalSelection] = useState<{
     item: LookupItem
     columnId: string
@@ -53,6 +55,7 @@ export function useTableLookupPopupSync<TData>({
 
       setLookupColumnId(columnId)
       setLookupSearch(searchVal)
+      setDebouncedLookupSearch(searchVal)
       setExternalSelection(null)
       setLookupPopupOpen(true)
     },
@@ -76,6 +79,15 @@ export function useTableLookupPopupSync<TData>({
     setLookupPopupOpen(false)
     setExternalSelection(null)
   }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedLookupSearch(lookupSearch)
+    }, 300)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [lookupSearch])
 
   const onLookupSelect = useCallback(
     (item: LookupItem) => {
@@ -108,6 +120,7 @@ export function useTableLookupPopupSync<TData>({
     lookupPopupOpen,
     lookupColumnId,
     lookupSearch,
+    debouncedLookupSearch,
     externalSelection,
     onLookupPopupOpen,
     onLookupSearchChange,

@@ -223,7 +223,7 @@ export function useSalesOrderCreate() {
     createError === 'Fill required fields before creating sales order.' && !createDisabledReason
       ? null
       : createError === 'Add at least one product row before creating sales order.' &&
-        hasValidRowsForCreate
+          hasValidRowsForCreate
         ? null
         : createError
 
@@ -278,7 +278,11 @@ export function useSalesOrderCreate() {
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: salesOrderKeys.all })
-      void queryClient.prefetchQuery(salesOrderQueries.list({ page: 1, limit: 10 }))
+      void Promise.allSettled([
+        queryClient.prefetchQuery(salesOrderQueries.list({ page: 1, limit: 10 })),
+        queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 10)),
+        queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 100)),
+      ])
 
       resetSOCreate()
       lookups.setNameInput('')

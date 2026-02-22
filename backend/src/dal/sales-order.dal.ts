@@ -49,8 +49,8 @@ export const getSalesOrderDocNums = async (req: Request, res: Response, next: Ne
   >;
   try {
     const { dbName } = authReq.user;
-    const { search } = authReq.query;
-    const data = await salesOrderService.getSalesOrderDocNums(dbName, search);
+    const { search, limit } = authReq.query;
+    const data = await salesOrderService.getSalesOrderDocNums(dbName, search, limit);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

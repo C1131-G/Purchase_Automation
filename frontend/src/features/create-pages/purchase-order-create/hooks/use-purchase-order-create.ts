@@ -273,7 +273,11 @@ export function usePurchaseOrderCreate() {
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all })
-      void queryClient.prefetchQuery(purchaseOrderQueries.list({ page: 1, limit: 10 }))
+      void Promise.allSettled([
+        queryClient.prefetchQuery(purchaseOrderQueries.list({ page: 1, limit: 10 })),
+        queryClient.prefetchQuery(purchaseOrderQueries.docNumSuggestions(undefined, 10)),
+        queryClient.prefetchQuery(purchaseOrderQueries.docNumSuggestions(undefined, 100)),
+      ])
 
       resetPOCreate()
       lookups.setNameInput('')

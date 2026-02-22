@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import {
   mapLookup,
@@ -74,6 +74,7 @@ export const createSharedQueries = {
       },
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
       gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
+      placeholderData: keepPreviousData,
     }),
   productWarehouseStocks: (itemCode?: string) =>
     queryOptions({

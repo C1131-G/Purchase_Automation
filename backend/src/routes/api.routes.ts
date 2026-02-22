@@ -3,6 +3,7 @@
 
 import express from "express";
 
+import { authenticatedApiLimiter } from "@/core/middleware/rate-limit.middleware";
 import { apCreditNoteRoutes } from "@/routes/ap-credit-note.routes";
 import { apInvoiceRoutes } from "@/routes/ap-invoice.routes";
 import { arCreditNoteRoutes } from "@/routes/ar-credit-note.routes";
@@ -22,6 +23,10 @@ const router = express.Router();
 // Identity & Orchestration: Routes for tenant discovery, user login, and high-level KPI aggregation.
 router.use("/organizations", organizationRoutes);
 router.use("/auth", authRoutes);
+
+// Apply broader authenticated limiter after public/bootstrap routes.
+router.use(authenticatedApiLimiter);
+
 router.use("/dashboard", dashboardRoutes);
 
 // Procure-to-Pay (P2P): Routes primarily used by Vendors to track their orders, deliveries, and incoming credits.

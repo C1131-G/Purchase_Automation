@@ -5,6 +5,7 @@ import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PaymentFilters } from "@/dal/types/incoming-payment.types";
 import { type IncomingPayment, IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
+import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
@@ -112,9 +113,10 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
   }
 };
 
-export const getPaymentDocNums = async (dbName: string, search?: string) => {
+export const getPaymentDocNums = async (dbName: string, search?: string, limit?: number) => {
   const repo = await getTenantRepository(dbName, IncomingPaymentSchema);
   const queryBuilder = repo.createQueryBuilder("p");
+  const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("p.docNum", "DocNum").distinct(true);
   if (search && search.trim().length > 0) {
@@ -123,6 +125,7 @@ export const getPaymentDocNums = async (dbName: string, search?: string) => {
     });
   }
   queryBuilder.orderBy("p.docNum", "DESC");
+  queryBuilder.take(safeLimit);
 
   const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
   return rows

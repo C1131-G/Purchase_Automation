@@ -6,6 +6,7 @@ import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { SalesOrderFilters } from "@/dal/types/sales-order.types";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { type SalesOrder, SalesOrderSchema } from "@/db/schemas/sales-order.schema";
+import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -115,9 +116,10 @@ export const getSalesOrders = async (dbName: string, filters: SalesOrderFilters)
   }
 };
 
-export const getSalesOrderDocNums = async (dbName: string, search?: string) => {
+export const getSalesOrderDocNums = async (dbName: string, search?: string, limit?: number) => {
   const repo = await getTenantRepository(dbName, SalesOrderSchema);
   const queryBuilder = repo.createQueryBuilder("so");
+  const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("so.docNum", "DocNum").distinct(true);
   if (search && search.trim().length > 0) {
@@ -126,6 +128,7 @@ export const getSalesOrderDocNums = async (dbName: string, search?: string) => {
     });
   }
   queryBuilder.orderBy("so.docNum", "DESC");
+  queryBuilder.take(safeLimit);
 
   const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
   return rows

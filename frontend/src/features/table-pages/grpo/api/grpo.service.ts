@@ -27,8 +27,8 @@ export const grpoAPI = {
     const path = query ? `/api/v1/grpos?${query}` : '/api/v1/grpos'
     return apiClient<GRPOListResponse>(path)
   },
-  getGRPODocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getGRPODocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query ? `/api/v1/grpos/docnums?${query}` : '/api/v1/grpos/docnums'
     return apiClient<GRPODocNumLookupResponse>(path)
   },

@@ -35,8 +35,8 @@ export const salesOrderAPI = {
       body: JSON.stringify(payload),
     })
   },
-  getSalesOrderDocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getSalesOrderDocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query ? `/api/v1/sales-orders/docnums?${query}` : '/api/v1/sales-orders/docnums'
     return apiClient<SalesOrderDocNumLookupResponse>(path)
   },

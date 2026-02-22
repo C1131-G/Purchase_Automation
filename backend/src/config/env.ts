@@ -52,6 +52,7 @@ export const config = {
     port: validatedEnv.PORT,
     frontendUrl: validatedEnv.FRONTEND_URL,
     shutdownTimeout: validatedEnv.SHUTDOWN_TIMEOUT,
+    trustProxyHops: validatedEnv.TRUST_PROXY_HOPS,
   },
   serviceLayer: {
     serviceLayerURL: validatedEnv.SERVICE_LAYER_URL,

@@ -6,8 +6,8 @@ import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
 export const grpoKeys = {
   all: ['grpos'] as const,
   list: (params: GRPOListParams) => [...grpoKeys.all, 'list', params] as const,
-  docNumSuggestions: (search?: string) =>
-    [...grpoKeys.all, 'doc-num-suggestions', search ?? ''] as const,
+  docNumSuggestions: (search?: string, limit?: number) =>
+    [...grpoKeys.all, 'doc-num-suggestions', search ?? '', limit ?? 'all'] as const,
 }
 
 export const grpoQueries = {
@@ -19,10 +19,11 @@ export const grpoQueries = {
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
       placeholderData: keepPreviousData,
     }),
-  docNumSuggestions: (search?: string) =>
+  docNumSuggestions: (search?: string, limit?: number) =>
     queryOptions({
-      queryKey: grpoKeys.docNumSuggestions(search),
-      queryFn: () => grpoAPI.getGRPODocNums(search),
+      queryKey: grpoKeys.docNumSuggestions(search, limit),
+      queryFn: () => grpoAPI.getGRPODocNums(search, limit),
+      placeholderData: keepPreviousData,
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),

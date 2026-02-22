@@ -32,7 +32,7 @@ export function useLogin() {
     },
 
     // onSuccess: Synchronizes global store, cache, and navigation on success.
-    onSuccess: async (response) => {
+    onSuccess: (response) => {
       if (response.success && response.data?.user) {
         // Sync the Zustand store
         login(response.data.user)
@@ -41,15 +41,13 @@ export function useLogin() {
         // Sync the Query Cache (Blueprint)
         queryClient.setQueryData(authKeys.user(), response.data.user)
 
-        // Prime PO list first, then prefetch remaining table data in background.
-        try {
-          await prefetchTableDataAfterLogin(queryClient)
-        } catch {
-          // Non-blocking: navigation must continue even if prefetch partially fails.
-        }
-
-        // Kick off navigation to the root/dashboard
+        // Kick off navigation immediately so UI transitions without waiting on warmups.
         navigate({ to: '/' })
+
+        // Warm table data in the background after navigation starts.
+        window.setTimeout(() => {
+          void prefetchTableDataAfterLogin(queryClient)
+        }, 0)
       } else {
         setError('Login successful, but user profile was missing.')
       }

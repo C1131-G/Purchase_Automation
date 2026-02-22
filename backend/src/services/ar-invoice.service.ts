@@ -5,6 +5,7 @@ import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { InvoiceFilters } from "@/dal/types/ar-invoice.types";
 import { type ARInvoice, ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
+import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -126,9 +127,10 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
   }
 };
 
-export const getInvoiceDocNums = async (dbName: string, search?: string) => {
+export const getInvoiceDocNums = async (dbName: string, search?: string, limit?: number) => {
   const repo = await getTenantRepository(dbName, ARInvoiceSchema);
   const queryBuilder = repo.createQueryBuilder("inv");
+  const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("inv.docNum", "DocNum").distinct(true);
   if (search && search.trim().length > 0) {
@@ -137,6 +139,7 @@ export const getInvoiceDocNums = async (dbName: string, search?: string) => {
     });
   }
   queryBuilder.orderBy("inv.docNum", "DESC");
+  queryBuilder.take(safeLimit);
 
   const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
   return rows

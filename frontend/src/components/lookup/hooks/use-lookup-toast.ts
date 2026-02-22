@@ -1,5 +1,5 @@
 import { goeyToast } from 'goey-toast'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 interface UseLookupToastProps {
   loading: boolean
@@ -7,6 +7,7 @@ interface UseLookupToastProps {
   open: boolean
   message?: string
 }
+const TOAST_COOLDOWN_MS = 900
 
 /**
  * Custom hook to show a background activity toast (e.g., "Loading…" or "Searching…")
@@ -19,18 +20,51 @@ export function useLookupToast({
   message = 'Searching…',
 }: UseLookupToastProps) {
   const toastIdRef = useRef<string | number | null>(null)
+  const wasLoadingRef = useRef(false)
+  const lastToastMessageRef = useRef<string | null>(null)
+  const lastToastAtRef = useRef(0)
+
+  const dismissToast = useCallback(() => {
+    if (toastIdRef.current !== null) {
+      goeyToast.dismiss(toastIdRef.current)
+      toastIdRef.current = null
+    }
+  }, [])
+
+  const showToast = useCallback(() => {
+    const now = Date.now()
+    const isDuplicateWithinCooldown =
+      lastToastMessageRef.current === message && now - lastToastAtRef.current < TOAST_COOLDOWN_MS
+    if (isDuplicateWithinCooldown) return
+
+    dismissToast()
+    toastIdRef.current = goeyToast(message, { duration: 10000 })
+    lastToastMessageRef.current = message
+    lastToastAtRef.current = now
+  }, [dismissToast, message])
 
   useEffect(() => {
-    if (loading && hasData && open) {
-      const id = goeyToast(message, { duration: 10000 })
-      toastIdRef.current = id
+    const shouldShow = loading && hasData && open
 
-      return () => {
-        if (toastIdRef.current !== null) {
-          goeyToast.dismiss(toastIdRef.current)
-          toastIdRef.current = null
-        }
+    if (!shouldShow) {
+      if (wasLoadingRef.current) {
+        dismissToast()
+        wasLoadingRef.current = false
       }
+      return
     }
-  }, [loading, hasData, open, message])
+
+    if (!wasLoadingRef.current || toastIdRef.current === null) {
+      showToast()
+    }
+    wasLoadingRef.current = true
+  }, [loading, hasData, open, showToast, dismissToast])
+
+  useEffect(
+    () => () => {
+      dismissToast()
+      wasLoadingRef.current = false
+    },
+    [dismissToast],
+  )
 }

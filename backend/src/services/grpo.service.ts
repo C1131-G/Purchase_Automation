@@ -7,6 +7,7 @@ import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { GRPOFilters } from "@/dal/types/grpo.types";
 // Data Access & Schemas
 import { type GRPO, GRPOSchema } from "@/db/schemas/grpo.schema";
+import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -117,9 +118,10 @@ export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
   }
 };
 
-export const getGRPODocNums = async (dbName: string, search?: string) => {
+export const getGRPODocNums = async (dbName: string, search?: string, limit?: number) => {
   const repo = await getTenantRepository(dbName, GRPOSchema);
   const queryBuilder = repo.createQueryBuilder("grpo");
+  const safeLimit = getSafeDocNumLimit(limit);
 
   queryBuilder.select("grpo.docNum", "DocNum").distinct(true);
   if (search && search.trim().length > 0) {
@@ -128,6 +130,7 @@ export const getGRPODocNums = async (dbName: string, search?: string) => {
     });
   }
   queryBuilder.orderBy("grpo.docNum", "DESC");
+  queryBuilder.take(safeLimit);
 
   const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
   return rows

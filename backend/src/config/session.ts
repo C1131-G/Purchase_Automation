@@ -11,10 +11,9 @@ import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
 
 export const configureSession = (app: Application) => {
-  // Scalability Check: FileStore writes sessions to the local disk.
-  // In a multi-server/container production cluster, this must be replaced with Redis.
+  // FileStore writes sessions to local disk and is not cluster-safe.
   if (config.nodeEnv === "production") {
-    logger.warn("Using FileStore for sessions in PRODUCTION. This prevents horizontal scaling.");
+    logger.warn("Using FileStore for sessions in PRODUCTION.");
   }
 
   const SessionFileStore = FileStore(session);
@@ -25,9 +24,7 @@ export const configureSession = (app: Application) => {
 
   const store = new SessionFileStore({
     path: sessionPath,
-    // Keep server-side session records longer to prevent unintended auto-expiry
-    // during active business usage. Session still ends on explicit logout.
-    ttl: 60 * 60 * 24 * 30, // 30 days
+    ttl: 60 * 60 * 24 * 30,
     retries: 0,
   });
 

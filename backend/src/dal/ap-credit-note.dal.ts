@@ -50,8 +50,8 @@ export const getCreditNoteDocNums = async (req: Request, res: Response, next: Ne
   >;
   try {
     const { dbName } = authReq.user;
-    const { search } = authReq.query;
-    const data = await apCreditNoteService.getCreditNoteDocNums(dbName, search);
+    const { search, limit } = authReq.query;
+    const data = await apCreditNoteService.getCreditNoteDocNums(dbName, search, limit);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

@@ -9,8 +9,8 @@ import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
 export const arCreditNoteKeys = {
   all: ['ar-credit-notes'] as const,
   list: (params: ARCreditNoteListParams) => [...arCreditNoteKeys.all, 'list', params] as const,
-  docNumSuggestions: (search?: string) =>
-    [...arCreditNoteKeys.all, 'doc-num-suggestions', search ?? ''] as const,
+  docNumSuggestions: (search?: string, limit?: number) =>
+    [...arCreditNoteKeys.all, 'doc-num-suggestions', search ?? '', limit ?? 'all'] as const,
 }
 
 export const arCreditNoteQueries = {
@@ -22,10 +22,11 @@ export const arCreditNoteQueries = {
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
       placeholderData: keepPreviousData,
     }),
-  docNumSuggestions: (search?: string) =>
+  docNumSuggestions: (search?: string, limit?: number) =>
     queryOptions({
-      queryKey: arCreditNoteKeys.docNumSuggestions(search),
-      queryFn: () => arCreditNoteAPI.getARCreditNoteDocNums(search),
+      queryKey: arCreditNoteKeys.docNumSuggestions(search, limit),
+      queryFn: () => arCreditNoteAPI.getARCreditNoteDocNums(search, limit),
+      placeholderData: keepPreviousData,
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),

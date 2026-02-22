@@ -27,8 +27,8 @@ export const arInvoiceAPI = {
     const path = query ? `/api/v1/ar-invoices?${query}` : '/api/v1/ar-invoices'
     return apiClient<ARInvoiceListResponse>(path)
   },
-  getARInvoiceDocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getARInvoiceDocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query ? `/api/v1/ar-invoices/docnums?${query}` : '/api/v1/ar-invoices/docnums'
     return apiClient<ARInvoiceDocNumLookupResponse>(path)
   },

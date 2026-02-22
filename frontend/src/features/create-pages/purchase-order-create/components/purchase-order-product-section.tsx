@@ -123,6 +123,7 @@ export function PurchaseOrderProductSection({
         productRows={productRows}
         productRowDrafts={productRowDrafts}
         effectiveWarehouseCode={effectiveWarehouseCode}
+        enforceStockLimit={false}
         openProductPopup={openProductPopup}
         openStockPreview={openStockPreview}
         updateProductRow={updateProductRow}

@@ -5,15 +5,17 @@ import cors from "cors";
 import express, { type Application } from "express";
 import helmet from "helmet";
 
-import { apiLimiter } from "@/core/middleware/rate-limit.middleware";
+import { config } from "@/config/env";
 
 export const configureMiddleware = (app: Application) => {
+  // Respect upstream reverse proxy (LB/Ingress) for correct client IP extraction.
+  app.set("trust proxy", config.server.trustProxyHops);
+
   // Body parsing: Strict limits are applied to prevent payload injection or memory exhaustion.
   app.use(express.json({ limit: "50kb" }));
   app.use(express.urlencoded({ extended: true, limit: "50kb" }));
 
   // Security headers: Helmet provides a baseline set of HTTP protection (e.g., XSS, Clickjacking).
-  app.use(apiLimiter);
   app.use(
     helmet({
       contentSecurityPolicy: false, // Disabled/simplified to allow Swagger UI scripts to run.

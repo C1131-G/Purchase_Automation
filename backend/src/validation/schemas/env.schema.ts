@@ -14,6 +14,7 @@ export const EnvSchema = z.object({
   SESSION_SECRET: z.string().min(64).trim(),
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
   PORT: z.coerce.number().int().positive().default(4000),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
 
   // SAP Service Layer: Remote API connection for transactional writes.
   SERVICE_LAYER_URL: z.string().url(),
@@ -35,7 +36,7 @@ export const EnvSchema = z.object({
     .optional()
     .default("false"),
   SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(10000),
-  HANA_MAX_POOL_SIZE: z.coerce.number().int().positive().default(10),
+  HANA_MAX_POOL_SIZE: z.coerce.number().int().positive().default(30),
   HANA_CONNECTION_LIFE_TIME: z.coerce.number().int().positive().default(3600),
 });
 

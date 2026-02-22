@@ -24,8 +24,8 @@ export const outgoingPaymentAPI = {
     const path = query ? `/api/v1/outgoing-payments?${query}` : '/api/v1/outgoing-payments'
     return apiClient<OutgoingPaymentListResponse>(path)
   },
-  getOutgoingPaymentDocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getOutgoingPaymentDocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query
       ? `/api/v1/outgoing-payments/docnums?${query}`
       : '/api/v1/outgoing-payments/docnums'

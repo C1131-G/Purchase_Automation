@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { type useReactTable } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
@@ -38,12 +38,13 @@ export type GRPOLookupLayerProps = {
 
 export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPOLookupLayerProps) {
   const setActiveFilter = useSetActiveFilterAction()
+  const queryClient = useQueryClient()
 
   const vendorsQuery = useQuery(createSharedQueries.vendors())
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data])
   const tableRows = table.getRowModel().rows
 
-  const docNumSuggestionsQuery = useQuery(grpoQueries.docNumSuggestions())
+  const docNumSuggestionsQuery = useQuery(grpoQueries.docNumSuggestions(undefined, 10))
   const tableOrderedDocNumSuggestions = useMemo<LookupItem[]>(() => {
     const seen = new Set<string>()
     const result: LookupItem[] = []
@@ -81,6 +82,7 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
     lookupPopupOpen,
     lookupColumnId,
     lookupSearch,
+    debouncedLookupSearch,
     externalSelection,
     onLookupPopupOpen: handleLookupPopupOpen,
     onLookupSearchChange: handleLookupSearchChange,
@@ -92,12 +94,20 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
     onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
   })
 
-  const docNumLookupSearchTerm = useMemo(() => lookupSearch.trim(), [lookupSearch])
-  const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length > 0
+  const docNumLookupSearchTerm = useMemo(
+    () => debouncedLookupSearch.trim(),
+    [debouncedLookupSearch],
+  )
+  const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length >= 2
   const docNumLookupSearchQuery = useQuery({
     ...grpoQueries.docNumSuggestions(docNumLookupSearchTerm || undefined),
     enabled: shouldQueryDocNumSearch,
   })
+
+  useEffect(() => {
+    if (!lookupPopupOpen || lookupColumnId !== 'DocNum') return
+    void queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 100))
+  }, [lookupPopupOpen, lookupColumnId, queryClient])
 
   const docNumLookupResults = useMemo<LookupItem[]>(() => {
     if (lookupColumnId !== 'DocNum') return docNumSuggestions
@@ -161,6 +171,18 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
             : vendorsQuery.isError
               ? 'Failed to load vendors'
               : null
+        }
+        onRetry={
+          lookupColumnId === 'DocNum'
+            ? () => {
+                void docNumSuggestionsQuery.refetch()
+                if (shouldQueryDocNumSearch) {
+                  void docNumLookupSearchQuery.refetch()
+                }
+              }
+            : () => {
+                void vendorsQuery.refetch()
+              }
         }
         title={
           lookupColumnId === 'DocNum'

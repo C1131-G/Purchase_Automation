@@ -93,6 +93,14 @@ export const GRPODocNumLookupQuerySchema = z.object({
     .max(50)
     .optional()
     .openapi({ example: "6005", description: "DocNum contains search term" }),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(100)
+    .default(10)
+    .optional()
+    .openapi({ example: 10, description: "Max suggestions (hard capped at 100)" }),
 });
 
 // AvailablePOsQuerySchema: Ensures a valid vendor code is provided when looking up pending deliveries.

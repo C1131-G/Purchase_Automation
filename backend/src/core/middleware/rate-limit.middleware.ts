@@ -1,28 +1,47 @@
-// Rate Limit Middleware: Protects the API from brute-force attacks and denial-of-service (DoS) by throttling request volume.
+// Rate Limit Middleware: Route-class limiters with proxy-aware keys.
 
-import rateLimit from "express-rate-limit";
+import type { Request } from "express";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+const WINDOW_MS = 15 * 60 * 1000;
 
-// Login Limiter: Strict policy for authentication attempts. Restricts a single IP to 10 login attempts every 15 minutes to prevent password guessing.
-export const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    success: false,
-    message: "Too many login attempts. Please try again after 15 minutes.",
-  },
-  // Injects standard headers (RateLimit-Limit/Remaining/Reset) into the response for client-side throttling awareness.
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const rateLimitIpKey = (req: Request) => ipKeyGenerator(req.ip);
 
-// API Limiter: General usage policy for authenticated routes. Prevents aggressive automated scraping or recursive API loops.
-export const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: {
-    success: false,
-    message: "Too many requests from this IP, please try again after 15 minutes.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+const authenticatedKey = (req: Request) => {
+  const user = (req as Request & { session?: { user?: Record<string, unknown> } }).session?.user;
+  const userId = user?.userId ?? user?.id ?? user?.username ?? user?.email;
+  if (typeof userId === "string" && userId.trim().length > 0) {
+    return `user:${userId}`;
+  }
+  return `ip:${rateLimitIpKey(req)}`;
+};
+
+const buildLimiter = (max: number, message: string, keyGenerator: (req: Request) => string) =>
+  rateLimit({
+    windowMs: WINDOW_MS,
+    max,
+    message: { success: false, message },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator,
+  });
+
+// Strict limiter for login endpoint.
+export const loginLimiter = buildLimiter(
+  10,
+  "Too many login attempts. Please try again after 15 minutes.",
+  (req) => `ip:${rateLimitIpKey(req)}`,
+);
+
+// Moderate limiter for high-frequency lookup endpoints.
+export const lookupLimiter = buildLimiter(
+  600,
+  "Too many lookup requests. Please try again after 15 minutes.",
+  authenticatedKey,
+);
+
+// Broader limiter for normal authenticated API traffic.
+export const authenticatedApiLimiter = buildLimiter(
+  5000,
+  "Too many requests. Please try again after 15 minutes.",
+  authenticatedKey,
+);

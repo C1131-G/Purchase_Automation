@@ -24,8 +24,8 @@ export const incomingPaymentAPI = {
     const path = query ? `/api/v1/incoming-payments?${query}` : '/api/v1/incoming-payments'
     return apiClient<IncomingPaymentListResponse>(path)
   },
-  getIncomingPaymentDocNums: async (search?: string) => {
-    const query = toQueryString({ search })
+  getIncomingPaymentDocNums: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit })
     const path = query
       ? `/api/v1/incoming-payments/docnums?${query}`
       : '/api/v1/incoming-payments/docnums'

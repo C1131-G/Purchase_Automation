@@ -26,6 +26,8 @@ type WarehouseLogisticsGridProps = {
   salesEmployeeInvalid?: boolean | undefined
   warehouseErrorText?: string | undefined
   salesEmployeeErrorText?: string | undefined
+  warehouseLocked?: boolean
+  onWarehouseLockedClick?: () => void
   salesEmployeeLabel?: string
   salesEmployeePlaceholder?: string
   salesEmployeeLoadingPlaceholder?: string
@@ -55,6 +57,8 @@ export function WarehouseLogisticsGrid({
   salesEmployeeInvalid,
   warehouseErrorText,
   salesEmployeeErrorText,
+  warehouseLocked = false,
+  onWarehouseLockedClick,
   salesEmployeeLabel = 'Buyer *',
   salesEmployeePlaceholder = 'Select Buyer',
   salesEmployeeLoadingPlaceholder = 'Loading buyers...',
@@ -80,6 +84,8 @@ export function WarehouseLogisticsGrid({
           loading={warehouseLoading}
           invalid={warehouseInvalid}
           errorText={warehouseErrorText}
+          disabled={warehouseLocked}
+          onDisabledClick={onWarehouseLockedClick}
         />
         {warehouseFocused ? (
           <SuggestionList items={warehouseSuggestions} onSelect={onSelectWarehouse} floating />

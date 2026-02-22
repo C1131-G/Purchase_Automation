@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { type Table } from '@tanstack/react-table'
 import { ArrowRight, ChevronRight } from 'lucide-react'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { Separator } from '@/components/separator'
 import { SidebarTrigger } from '@/components/sidebar'
@@ -57,6 +57,7 @@ export function TableToolbar<TData>({
   const activeFilterId = useTableActiveFilter(tableId)
   const setActiveFilter = useSetActiveFilterAction()
   const hasRestoredInitialFilter = useRef(false)
+  const hasTriggeredCreatePrefetch = useRef(false)
   const tableColumnFilters = table.getState().columnFilters
   const filterableColumnIds = useMemo(
     () =>
@@ -91,6 +92,12 @@ export function TableToolbar<TData>({
       setActiveFilter(tableId, null)
     }
   }, [tableId, activeFilterId, filterableColumnIds, setActiveFilter])
+
+  const triggerCreatePrefetch = useCallback(() => {
+    if (!onCreateClick || hasTriggeredCreatePrefetch.current) return
+    hasTriggeredCreatePrefetch.current = true
+    onCreateClick()
+  }, [onCreateClick])
 
   return (
     <div className="border-b border-zinc-100 bg-white">
@@ -139,9 +146,14 @@ export function TableToolbar<TData>({
             to={createLink}
             preload="intent"
             viewTransition
+            onPointerEnter={triggerCreatePrefetch}
+            onMouseEnter={triggerCreatePrefetch}
+            onMouseOver={triggerCreatePrefetch}
+            onFocus={triggerCreatePrefetch}
+            onTouchStart={triggerCreatePrefetch}
             onClick={() => {
               onReset()
-              onCreateClick?.()
+              triggerCreatePrefetch()
             }}
             className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
           >

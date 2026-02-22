@@ -14,6 +14,7 @@ type LookupPopupModalProps = {
   results: LookupOption[]
   loading: boolean
   error: string | null
+  onRetry?: () => void
   onSearchChange: (value: string) => void
   onSearchSync?: (mode: PopupMode, value: string) => void
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
@@ -27,6 +28,7 @@ export function LookupPopupModal({
   results,
   loading,
   error,
+  onRetry,
   onSearchChange,
   onSearchSync,
   onClose,
@@ -48,6 +50,7 @@ export function LookupPopupModal({
       results={results}
       loading={loading}
       error={error}
+      {...(onRetry ? { onRetry } : {})}
       onSearchChange={(value) => {
         onSearchChange(value)
         onSearchSync?.(mode, value)

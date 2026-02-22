@@ -10,6 +10,7 @@ interface CreateProductTableProps {
   productRows: ProductRow[]
   productRowDrafts: Record<string, ProductRowDraft>
   effectiveWarehouseCode: string
+  enforceStockLimit?: boolean
   openProductPopup: (rowId: string | null) => void
   openStockPreview: (product: StockPreviewProduct) => void
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void
@@ -26,6 +27,7 @@ export function CreateProductTable({
   productRows,
   productRowDrafts,
   effectiveWarehouseCode,
+  enforceStockLimit = true,
   openProductPopup,
   openStockPreview,
   updateProductRow,
@@ -70,6 +72,7 @@ export function CreateProductTable({
               row={row}
               rowDraft={productRowDrafts[row.id]}
               effectiveWarehouseCode={effectiveWarehouseCode}
+              enforceStockLimit={enforceStockLimit}
               openProductPopup={openProductPopup}
               openStockPreview={openStockPreview}
               updateProductRow={updateProductRow}

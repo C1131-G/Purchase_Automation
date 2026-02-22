@@ -12,8 +12,8 @@ export const QUERY_TIME = {
  */
 export const QUERY_CACHE_POLICY = {
   tableList: {
-    staleTime: 1 * QUERY_TIME.day,
-    gcTime: 1 * QUERY_TIME.day + 10 * QUERY_TIME.minute,
+    staleTime: 10 * QUERY_TIME.minute,
+    gcTime: 1 * QUERY_TIME.hour,
   },
   createDynamicLookup: {
     staleTime: 1 * QUERY_TIME.minute,

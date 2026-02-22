@@ -12,6 +12,7 @@ type ProductPopupModalProps = {
   results: ProductLookupItem[]
   loading: boolean
   error: string | null
+  onRetry?: () => void
   onSearchChange: (value: string) => void
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onSelect: (product: ProductLookupItem) => void
@@ -38,6 +39,7 @@ export function ProductPopupModal({
   results,
   loading,
   error,
+  onRetry,
   onSearchChange,
   onClose,
   onSelect,
@@ -105,6 +107,7 @@ export function ProductPopupModal({
                   <LookupErrorState
                     colSpan={4}
                     message={error || 'Unable to load products. Please try again.'}
+                    {...(onRetry ? { onRetry } : {})}
                   />
                 ) : safeResults.length === 0 && !loading ? (
                   <ModalEmptyRow colSpan={4} message={emptyMessage} />

@@ -46,8 +46,8 @@ export const getInvoiceDocNums = async (req: Request, res: Response, next: NextF
   >;
   try {
     const { dbName } = authReq.user;
-    const { search } = authReq.query;
-    const data = await arInvoiceService.getInvoiceDocNums(dbName, search);
+    const { search, limit } = authReq.query;
+    const data = await arInvoiceService.getInvoiceDocNums(dbName, search, limit);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

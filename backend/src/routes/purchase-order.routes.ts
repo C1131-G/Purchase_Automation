@@ -2,6 +2,7 @@
 
 import express from "express";
 
+import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
 import { purchaseOrderDal } from "@/dal/purchase-order.dal";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
@@ -21,6 +22,7 @@ router.get("/", validateQuery(PurchaseOrderQuerySchema), purchaseOrderDal.getPur
 // GET /docnums: Retrieves distinct DocNum values for lookup suggestions.
 router.get(
   "/docnums",
+  lookupLimiter,
   validateQuery(PurchaseOrderDocNumLookupQuerySchema),
   purchaseOrderDal.getPurchaseOrderDocNums,
 );

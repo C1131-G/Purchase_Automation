@@ -68,6 +68,17 @@ export function PurchaseOrderModals({ state }: PurchaseOrderModalsProps) {
                       : 'Unable to load vendors'
                     : null
             }
+            onRetry={() => {
+              if (state.modalMode === 'warehouse') {
+                void state.warehousesQuery.refetch()
+                return
+              }
+              if (state.modalMode === 'sales-employee') {
+                void state.salesEmployeesQuery.refetch()
+                return
+              }
+              void state.vendorsQuery.refetch()
+            }}
             onSearchChange={state.setModalSearch}
             onSearchSync={state.handleLookupModalSearchSync}
             onClose={() => state.setModalOpen(false)}
@@ -102,7 +113,7 @@ export function PurchaseOrderModals({ state }: PurchaseOrderModalsProps) {
             warehouseCode={state.effectiveWarehouseCode}
             search={state.productSearch}
             results={state.products}
-            loading={state.productsQuery.isFetching && state.products.length === 0}
+            loading={state.productsQuery.isFetching}
             error={
               state.productsQuery.isError
                 ? state.productsQuery.error instanceof Error
@@ -110,6 +121,9 @@ export function PurchaseOrderModals({ state }: PurchaseOrderModalsProps) {
                   : 'Unable to load products'
                 : null
             }
+            onRetry={() => {
+              void state.productsQuery.refetch()
+            }}
             onSearchChange={state.setProductSearch}
             onClose={() => state.setProductPopupOpen(false)}
             onSelect={state.applyProductToRow}
@@ -144,6 +158,9 @@ export function PurchaseOrderModals({ state }: PurchaseOrderModalsProps) {
                   : 'Unable to load warehouse stocks'
                 : null
             }
+            onRetry={() => {
+              void state.productWarehouseStocksQuery.refetch()
+            }}
             onClose={() => state.setStockPreviewProduct(null)}
           />
         </Suspense>
