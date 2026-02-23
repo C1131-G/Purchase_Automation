@@ -90,6 +90,31 @@ export const getPurchaseOrder = async (req: Request, res: Response, next: NextFu
   }
 };
 
+// Gets purchase order details by DocNum (table-facing identifier).
+export const getPurchaseOrderByDocNum = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
+    const { docNum } = authReq.params;
+
+    logger.info({ msg: "Fetching PO detail by DocNum", docNum });
+
+    const data = await purchaseOrderService.getPurchaseOrderByDocNum(
+      sessionId,
+      dbName,
+      docNum as string,
+    );
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Submits a new Purchase Order to SAP.
 export const createPurchaseOrder = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
@@ -168,6 +193,7 @@ export const purchaseOrderDal = {
   getPurchaseOrders,
   getPurchaseOrderDocNums,
   getPurchaseOrder,
+  getPurchaseOrderByDocNum,
   createPurchaseOrder,
   updatePurchaseOrder,
   cancelPurchaseOrder,

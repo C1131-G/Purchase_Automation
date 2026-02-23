@@ -1,3 +1,4 @@
+/** Auth Service: Low-level API client for login, logout, and token management. */
 import { z } from 'zod'
 
 import {

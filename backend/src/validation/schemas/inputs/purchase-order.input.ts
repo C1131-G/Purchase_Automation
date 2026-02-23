@@ -130,6 +130,11 @@ const PurchaseOrderLineItemSchema = z.object({
 // CreatePurchaseOrderInputSchema: Validates the full payload for a new procurement document.
 export const CreatePurchaseOrderInputSchema = z.object({
   CardCode: z.string().min(1).openapi({ example: "V1000", description: "Vendor Card Code" }),
+  SalesPersonCode: z.coerce
+    .number()
+    .int()
+    .optional()
+    .openapi({ example: 7, description: "Assigned buyer/sales employee code" }),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")

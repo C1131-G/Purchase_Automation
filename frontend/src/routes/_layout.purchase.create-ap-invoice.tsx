@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { requireActiveSession } from '@/routes/_require-active-session'
 
 /** PurchaseAPInvoiceCreateRoute: Page for creating new AP Invoices. */
@@ -7,6 +8,8 @@ export const Route = createFileRoute('/_layout/purchase/create-ap-invoice')({
   beforeLoad: async () => {
     await requireActiveSession()
   },
+  pendingMs: 0,
+  pendingComponent: CreatePageRouteSkeleton,
   component: RouteComponent,
 })
 

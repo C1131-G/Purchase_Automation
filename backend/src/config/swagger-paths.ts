@@ -172,6 +172,23 @@ registry.registerPath({
   },
 });
 
+registry.registerPath({
+  method: "post",
+  path: "/ARInvoice",
+  summary: "Create A/R Invoice",
+  tags: ["Invoices"],
+  security: [{ SessionCookie: [] }],
+  request: {
+    body: { content: { "application/json": { schema: CreateInvoiceInputSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Created",
+      content: { "application/json": { schema: SuccessResponseSchema } },
+    },
+  },
+});
+
 // --- Credit Notes: Document reversals and credits ---
 
 registry.registerPath({

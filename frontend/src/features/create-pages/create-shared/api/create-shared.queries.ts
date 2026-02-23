@@ -1,3 +1,4 @@
+/** Create Shared Queries: TanStack Query keys and options for universal master data. */
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import {
@@ -33,8 +34,8 @@ const fetchSalesEmployees = async () => {
 
 export const createSharedKeys = {
   all: ['create-shared'] as const,
-  vendors: () => [...createSharedKeys.all, 'vendors'] as const,
-  customers: () => [...createSharedKeys.all, 'customers'] as const,
+  vendors: () => [...createSharedKeys.all, 'vendors-v2'] as const,
+  customers: () => [...createSharedKeys.all, 'customers-v2'] as const,
   salesEmployees: () => [...createSharedKeys.all, 'sales-employees'] as const,
   products: () => [...createSharedKeys.all, 'products-v2'] as const,
   productWarehouseStocks: () => [...createSharedKeys.all, 'product-warehouse-stocks'] as const,

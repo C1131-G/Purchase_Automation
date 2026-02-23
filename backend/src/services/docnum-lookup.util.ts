@@ -7,4 +7,3 @@ export const getSafeDocNumLimit = (limit?: number) => {
   if (normalized < 1) return DEFAULT_DOCNUM_LIMIT;
   return Math.min(normalized, MAX_DOCNUM_LIMIT);
 };
-

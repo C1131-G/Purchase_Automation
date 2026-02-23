@@ -74,6 +74,24 @@ export const getSalesOrder = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// Retrieves sales order details by DocNum.
+export const getSalesOrderByDocNum = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
+    const { docNum } = authReq.params;
+
+    logger.info({ msg: "Fetching Sales Order detail by DocNum", docNum });
+
+    const data = await salesOrderService.getSalesOrderByDocNum(sessionId, dbName, docNum as string);
+    if (!data) return res.status(404).json({ success: false, message: "Sales Order not found" });
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Submits a new Sales Order to SAP B1.
 export const createSalesOrder = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
@@ -154,6 +172,7 @@ export const salesOrderDal = {
   getSalesOrders,
   getSalesOrderDocNums,
   getSalesOrder,
+  getSalesOrderByDocNum,
   createSalesOrder,
   updateSalesOrder,
   cancelSalesOrder,

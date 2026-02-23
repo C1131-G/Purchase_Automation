@@ -173,7 +173,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
-        Price: line.Price,
+        Price: line.Price || line.UnitPrice,
         TaxCode: line.TaxCode,
         WarehouseCode: line.WarehouseCode,
         LineTotal: line.LineTotal,
@@ -193,21 +193,23 @@ export const getInvoice = async (sessionId: string, id: string) => {
 // Creates a new Sales Invoice (A/R Invoice) in SAP B1.
 export const createInvoice = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
-    // Map input payload to the canonical SAP Service Layer JSON structure.
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
+      DocDueDate: payload.DocDueDate,
       Comments: payload.Comments,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        TaxCode: item.TaxCode as string,
-        WarehouseCode: item.WarehouseCode as string,
+      Address: payload.Address,
+      NumAtCard: payload.NumAtCard,
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((line) => ({
+        ItemCode: line.ItemCode as string,
+        Quantity: line.Quantity as number,
+        UnitPrice: (line.UnitPrice || line.Price) as number,
+        TaxCode: line.TaxCode as string,
+        WarehouseCode: line.WarehouseCode as string,
+        DiscountPercent: line.DiscountPercent as number,
       })),
     };
 
-    // Correct date formatting to YYYY-MM-DD.
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.substring(0, 4)}-${docDate.substring(
@@ -215,8 +217,14 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
         6,
       )}-${docDate.substring(6, 8)}`;
     }
+    const docDueDate = sapPayload.DocDueDate as string;
+    if (docDueDate && docDueDate.length === 8) {
+      sapPayload.DocDueDate = `${docDueDate.substring(0, 4)}-${docDueDate.substring(
+        4,
+        6,
+      )}-${docDueDate.substring(6, 8)}`;
+    }
 
-    // Submit POST request to SAP for invoice creation.
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
@@ -252,8 +260,21 @@ export const updateInvoice = async (
   try {
     const sapPayload: Record<string, unknown> = {};
     if (payload.Comments) sapPayload.Comments = payload.Comments;
+    if (payload.Address) sapPayload.Address = payload.Address;
+    if (payload.NumAtCard) sapPayload.NumAtCard = payload.NumAtCard;
 
-    // Partial update via PATCH.
+    const lines = payload.DocumentLines as Record<string, unknown>[];
+    if (lines) {
+      sapPayload.DocumentLines = lines.map((line) => ({
+        ItemCode: line.ItemCode as string,
+        Quantity: line.Quantity as number,
+        UnitPrice: (line.UnitPrice || line.Price) as number,
+        TaxCode: line.TaxCode as string,
+        WarehouseCode: line.WarehouseCode as string,
+        DiscountPercent: line.DiscountPercent as number,
+      }));
+    }
+
     await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload);
 
     // Invalidate tenant-specific sales dashboard cache.
@@ -262,7 +283,10 @@ export const updateInvoice = async (
       purgeCache(`dash:sales:${session.companyDB}:`);
     }
 
-    return { success: true, message: "A/R Invoice updated successfully" };
+    return {
+      success: true,
+      message: "A/R Invoice updated successfully",
+    };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({ msg: "Failed to update A/R Invoice", error: error.message, id });
@@ -281,7 +305,10 @@ export const cancelInvoice = async (sessionId: string, id: string) => {
       purgeCache(`dash:sales:${session.companyDB}:`);
     }
 
-    return { success: true, message: "A/R Invoice cancelled successfully" };
+    return {
+      success: true,
+      message: "A/R Invoice canceled successfully",
+    };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({ msg: "Failed to cancel A/R Invoice", error: error.message, id });

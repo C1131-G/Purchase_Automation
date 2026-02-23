@@ -1,3 +1,4 @@
+/** useLogin: Orchestrates the login flow, including validation and session establishment. */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'

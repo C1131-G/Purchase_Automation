@@ -10,8 +10,8 @@ import { cn } from '@/shared/utils/cn'
 import { MOTION_EASING, MOTION_MS } from '@/shared/utils/motion'
 
 // Popover: Floating industrial utility container with high-elevation XL shadows.
-export function PopoverRoot({ children, defaultOpen = false }: PopoverRootProps) {
-  const [open, setOpen] = useState(defaultOpen)
+function PopoverRoot({ children, defaultOpen = false }: PopoverRootProps) {
+  const [open, setOpen] = useState(() => defaultOpen)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const contentId = React.useId()
@@ -111,31 +111,7 @@ export function PopoverContent({
   id,
 }: PopoverContentProps) {
   const { open, contentRef, contentId } = usePopover()
-  const [isVisible, setIsVisible] = React.useState(false) // Controls render
-  const [isAnimating, setIsAnimating] = React.useState(false) // Controls class
-
-  if (open && !isVisible) {
-    setIsVisible(true)
-  }
-
-  if (!open && isAnimating) {
-    setIsAnimating(false)
-  }
-
-  useEffect(() => {
-    if (open) {
-      // Double RAF for smoother entry
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setIsAnimating(true))
-      })
-    } else {
-      // Slightly faster close for snappier feel
-      const timer = setTimeout(() => setIsVisible(false), MOTION_MS.popoverExit)
-      return () => clearTimeout(timer)
-    }
-  }, [open])
-
-  if (!isVisible) return null
+  if (!open) return null
 
   return (
     <div
@@ -146,11 +122,7 @@ export function PopoverContent({
       data-popover-content
       className={cn(
         'absolute z-999 pointer-events-auto',
-        // Smooth, industry-standard easing with faster close
-        'transition-all ease-out',
-        isAnimating
-          ? 'opacity-100 scale-100 translate-y-0'
-          : 'opacity-0 scale-[0.97] -translate-y-1', // Subtle scale + upward motion on close
+        'transition-all ease-out opacity-100 scale-100 translate-y-0',
         side === 'bottom' ? 'mt-2 top-full' : 'mb-2 bottom-full',
         align === 'start' && 'left-0 origin-top-left',
         align === 'center' && 'left-1/2 -translate-x-1/2 origin-top',
@@ -158,7 +130,7 @@ export function PopoverContent({
         className,
       )}
       style={{
-        transitionDuration: `${isAnimating ? MOTION_MS.popoverEnter : MOTION_MS.popoverExit}ms`,
+        transitionDuration: `${MOTION_MS.popoverEnter}ms`,
         transitionTimingFunction: MOTION_EASING.smoothOut,
       }}
     >

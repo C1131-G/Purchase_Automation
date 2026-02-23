@@ -1,5 +1,6 @@
 ﻿// Sales Order Service: Orchestrates order processing flows. Interfaces with HANA for high-volume order queries and Service Layer for document lifecycle management (Creation, Update, Cancellation).
 
+import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData, purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
@@ -148,8 +149,11 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
 
     return {
       id: result.DocEntry,
+      DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDate: result.DocDate,
+      DocDueDate: result.DocDueDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
@@ -163,6 +167,7 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
         Price: line.Price || line.UnitPrice,
+        DiscountPercent: line.DiscountPercent,
         TaxCode: line.TaxCode,
         WarehouseCode: line.WarehouseCode,
         LineTotal: line.LineTotal,
@@ -179,11 +184,33 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
   }
 };
 
+// Resolves a Sales Order by DocNum from tenant DB and fetches full details from Service Layer.
+export const getSalesOrderByDocNum = async (sessionId: string, dbName: string, docNum: string) => {
+  const normalizedDocNum = docNum.trim();
+  if (!normalizedDocNum) {
+    throw new AppError("DocNum is required", 400, "VALIDATION_ERROR");
+  }
+
+  const repo = await getTenantRepository(dbName, SalesOrderSchema);
+  const match = await repo
+    .createQueryBuilder("so")
+    .select(["so.docEntry"])
+    .where("CAST(so.docNum AS NVARCHAR) = :docNum", { docNum: normalizedDocNum })
+    .getOne();
+
+  if (!match?.docEntry) {
+    throw new AppError("Sales Order not found", 404, "NOT_FOUND");
+  }
+
+  return getSalesOrder(sessionId, String(match.docEntry));
+};
+
 // Posts a new Sales Order to the Service Layer using the /Orders endpoint.
 export const createSalesOrder = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
+      SalesPersonCode: payload.SalesPersonCode,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
       Comments: payload.Comments,
@@ -258,8 +285,11 @@ export const updateSalesOrder = async (
   try {
     const sapPayload: Record<string, unknown> = {};
 
-    if (payload.Comments) sapPayload.Comments = payload.Comments;
-    if (payload.Address) sapPayload.Address = payload.Address;
+    if (payload.Comments !== undefined) sapPayload.Comments = payload.Comments;
+    if (payload.Address !== undefined) sapPayload.Address = payload.Address;
+    if (payload.DocDate !== undefined) sapPayload.DocDate = payload.DocDate;
+    if (payload.DocDueDate !== undefined) sapPayload.DocDueDate = payload.DocDueDate;
+    if (payload.SalesPersonCode !== undefined) sapPayload.SalesPersonCode = payload.SalesPersonCode;
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
@@ -269,8 +299,16 @@ export const updateSalesOrder = async (
         UnitPrice: (line.UnitPrice || line.Price) as number,
         TaxCode: line.TaxCode as string,
         WarehouseCode: line.WarehouseCode as string,
+        DiscountPercent: line.DiscountPercent as number,
       }));
     }
+
+    logger.info({
+      msg: "Sales order update payload prepared",
+      id,
+      changedFields: Object.keys(sapPayload),
+      lineCount: Array.isArray(sapPayload.DocumentLines) ? sapPayload.DocumentLines.length : 0,
+    });
 
     await serviceLayerClient.request(sessionId, "PATCH", `/Orders(${id})`, sapPayload);
 
@@ -332,7 +370,7 @@ export const getSalesEmployees = async (dbName: string) => {
         // Only active employees are returned to populate dropdowns correctly.
         const results = await repository.find({
           where: { Active: "Y" },
-          order: { SlpName: "ASC" },
+          order: { SlpCode: "ASC" },
           select: ["SlpCode", "SlpName"],
         });
 
@@ -367,6 +405,7 @@ export const salesOrderService = {
   getSalesOrders,
   getSalesOrderDocNums,
   getSalesOrder,
+  getSalesOrderByDocNum,
   createSalesOrder,
   updateSalesOrder,
   cancelSalesOrder,

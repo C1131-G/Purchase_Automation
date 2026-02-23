@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 
+// CreateProductTableRow: Specialized line item editor with real-time tax/total calculation.
 import { Tooltip } from '@/components/tooltip'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import {
@@ -45,13 +46,17 @@ export function CreateProductTableRow({
       ? `In stock: ${row.stock}. You can add up to ${maxAllowed}.`
       : 'Stock data not available.'
   const grossAmount = row.price * row.quantity
-  const clampedDiscountAmount = Math.max(0, Math.min(grossAmount, row.discountAmount))
-  const discountPercent = grossAmount > 0 ? (clampedDiscountAmount / grossAmount) * 100 : 0
+  const clampedDiscountPercent = Math.max(0, Math.min(100, row.discountPercent))
+  const derivedDiscountAmountFromPercent = (grossAmount * clampedDiscountPercent) / 100
+  const persistedDiscountAmount =
+    row.discountAmount > 0 ? row.discountAmount : derivedDiscountAmountFromPercent
+  const clampedDiscountAmount = Math.max(0, Math.min(grossAmount, persistedDiscountAmount))
   const lineNetTotal = grossAmount - clampedDiscountAmount
   const unitNetPrice = row.quantity > 0 ? lineNetTotal / row.quantity : 0
 
   const discountPercentInputValue =
-    rowDraft?.discountPercent ?? (discountPercent === 0 ? '' : String(discountPercent))
+    rowDraft?.discountPercent ??
+    (clampedDiscountPercent === 0 ? '' : String(clampedDiscountPercent))
   const discountAmountInputValue =
     rowDraft?.discountAmount ?? (clampedDiscountAmount === 0 ? '' : String(clampedDiscountAmount))
 

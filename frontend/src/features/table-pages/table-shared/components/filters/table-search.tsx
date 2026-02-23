@@ -25,6 +25,7 @@ interface TableSearchProps<TData> {
   preserveDocNumSuggestionOrder?: boolean
   onSelectSuggestion?: (item: LookupItem, columnId: string) => void
   onPopupOpen?: (columnId: string, initialSearch?: string) => void
+  onPopupIntent?: (columnId: string, initialSearch?: string) => void
   externalSelection?: { item: LookupItem; columnId: string } | null
 }
 
@@ -38,6 +39,7 @@ export function TableSearch<TData>({
   preserveDocNumSuggestionOrder = false,
   onSelectSuggestion,
   onPopupOpen,
+  onPopupIntent,
   externalSelection,
 }: TableSearchProps<TData>) {
   const tableId = (table.options.meta as TableMeta<TData, unknown>)?.tableId ?? 'default'
@@ -117,6 +119,7 @@ export function TableSearch<TData>({
       preserveDocNumSuggestionOrder={preserveDocNumSuggestionOrder}
       {...(onSelectSuggestion ? { onSelectSuggestion } : {})}
       {...(onPopupOpen ? { onPopupOpen } : {})}
+      {...(onPopupIntent ? { onPopupIntent } : {})}
       {...(externalSelection ? { externalSelection } : {})}
     />
   )

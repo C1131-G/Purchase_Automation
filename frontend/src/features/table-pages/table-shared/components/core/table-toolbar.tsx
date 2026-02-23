@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { type Table } from '@tanstack/react-table'
 import { ArrowRight, ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
@@ -33,6 +33,7 @@ type TableToolbarProps<TData> = {
   preserveDocNumSuggestionOrder?: boolean
   onLookupSelect?: (item: LookupItem, columnId: string) => void
   onLookupPopupOpen?: (columnId: string, initialSearch?: string) => void
+  onLookupPopupIntent?: (columnId: string, initialSearch?: string) => void
   lookupExternalSelection?: { item: LookupItem; columnId: string } | null
 }
 
@@ -50,10 +51,12 @@ export function TableToolbar<TData>({
   preserveDocNumSuggestionOrder = false,
   onLookupSelect,
   onLookupPopupOpen,
+  onLookupPopupIntent,
   lookupExternalSelection,
 }: TableToolbarProps<TData>) {
   const resolvedLookupSuggestions = lookupSuggestions ?? EMPTY_SUGGESTIONS
   const resolvedDocNumSuggestions = docNumSuggestions ?? EMPTY_SUGGESTIONS
+  const router = useRouter()
   const activeFilterId = useTableActiveFilter(tableId)
   const setActiveFilter = useSetActiveFilterAction()
   const hasRestoredInitialFilter = useRef(false)
@@ -94,10 +97,11 @@ export function TableToolbar<TData>({
   }, [tableId, activeFilterId, filterableColumnIds, setActiveFilter])
 
   const triggerCreatePrefetch = useCallback(() => {
+    void router.preloadRoute({ to: createLink as never })
     if (!onCreateClick || hasTriggeredCreatePrefetch.current) return
     hasTriggeredCreatePrefetch.current = true
     onCreateClick()
-  }, [onCreateClick])
+  }, [createLink, onCreateClick, router])
 
   return (
     <div className="border-b border-zinc-100 bg-white">
@@ -134,6 +138,7 @@ export function TableToolbar<TData>({
               preserveDocNumSuggestionOrder={preserveDocNumSuggestionOrder}
               {...(onLookupSelect ? { onSelectSuggestion: onLookupSelect } : {})}
               {...(onLookupPopupOpen ? { onPopupOpen: onLookupPopupOpen } : {})}
+              {...(onLookupPopupIntent ? { onPopupIntent: onLookupPopupIntent } : {})}
               {...(lookupExternalSelection ? { externalSelection: lookupExternalSelection } : {})}
             />
           </div>
@@ -145,6 +150,7 @@ export function TableToolbar<TData>({
           <Link
             to={createLink}
             preload="intent"
+            preloadDelay={0}
             viewTransition
             onPointerEnter={triggerCreatePrefetch}
             onMouseEnter={triggerCreatePrefetch}

@@ -2,7 +2,7 @@ import { goeyToast } from 'goey-toast'
 import { useCallback, useEffect, useRef } from 'react'
 
 /** The type of user-triggered action that caused a refetch. */
-export type TableFetchAction = 'sorting' | 'filtering' | 'paginating' | 'fetching'
+export type TableFetchAction = 'sorting' | 'filtering' | 'searching' | 'paginating' | 'fetching'
 
 interface UseTableToastProps {
   isFetching: boolean
@@ -13,7 +13,8 @@ interface UseTableToastProps {
 
 const ACTION_MESSAGES: Record<TableFetchAction, string> = {
   sorting: 'Sorting…',
-  filtering: 'Filtering…',
+  filtering: 'Searching / Filtering…',
+  searching: 'Searching…',
   paginating: 'Loading page…',
   fetching: 'Loading data…',
 }
@@ -48,7 +49,9 @@ export function useTableToast({ isFetching, hasData, action = 'fetching' }: UseT
       if (isDuplicateWithinCooldown) return
 
       dismissToast()
-      toastIdRef.current = goeyToast(nextMessage, { duration: 10000 })
+      toastIdRef.current = goeyToast.info(nextMessage, {
+        duration: 24 * 60 * 60 * 1000,
+      })
       lastToastKeyRef.current = nextMessage
       lastToastAtRef.current = now
     },
@@ -57,6 +60,13 @@ export function useTableToast({ isFetching, hasData, action = 'fetching' }: UseT
 
   useEffect(() => {
     if (!hasData) {
+      dismissToast()
+      wasFetchingRef.current = false
+      return
+    }
+
+    // Only surface toasts for user-triggered actions.
+    if (action === 'fetching') {
       dismissToast()
       wasFetchingRef.current = false
       return

@@ -1,3 +1,4 @@
+// SuggestionList: A high-performance, keyboard-accessible dropdown for lookup hints.
 import { type CreateLookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 type SuggestionListProps = {
@@ -25,7 +26,7 @@ export function SuggestionList({
         <span>Code</span>
         <span>Name</span>
       </div>
-      <div className="max-h-48 overflow-auto">
+      <div className="max-h-43.5 overflow-auto">
         {items.length === 0 ? (
           <div className="px-3 py-3 text-sm text-zinc-500">{emptyText}</div>
         ) : null}
@@ -34,7 +35,7 @@ export function SuggestionList({
             <button
               key={item.code}
               type="button"
-              className="grid w-full grid-cols-[96px_1fr] items-start border-b border-zinc-100 px-3 py-1 text-left transition last:border-b-0 hover:bg-zinc-50"
+              className="grid w-full cursor-pointer grid-cols-[96px_1fr] items-start border-b border-zinc-100 px-3 py-1 text-left transition last:border-b-0 hover:bg-zinc-50"
               onMouseDown={(event) => {
                 event.preventDefault()
                 onSelect(item)

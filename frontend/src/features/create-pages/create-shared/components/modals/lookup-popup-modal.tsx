@@ -1,3 +1,4 @@
+/** LookupPopupModal: Generic searchable dialog for high-volume master data selection. */
 import { type ComponentProps } from 'react'
 
 import { LookupPopup, type LookupPopupMode } from '@/components/lookup/lookup-popup'

@@ -91,10 +91,11 @@ export const InvoiceDocNumLookupQuerySchema = z.object({
 const InvoiceLineItemSchema = z.object({
   ItemCode: z.string().min(1),
   Quantity: z.number().positive(),
-  UnitPrice: z.number().nonnegative(),
+  UnitPrice: z.number().nonnegative().optional(),
   Price: z.number().nonnegative().optional(), // SAP 'Price' field vs 'UnitPrice'.
   TaxCode: z.string().optional(),
   WarehouseCode: z.string().optional(),
+  DiscountPercent: z.number().min(0).max(100).optional(),
 });
 
 // CreateInvoiceInputSchema: Validates new invoice submissions.
@@ -109,6 +110,7 @@ export const CreateInvoiceInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
   Comments: z.string().optional(),
+  Address: z.string().optional(),
   NumAtCard: z.string().optional(), // Customer/Vendor reference number (BP Ref No).
   DocumentLines: z.array(InvoiceLineItemSchema).min(1),
 });

@@ -1,3 +1,4 @@
+/** useLogout: Handlers for secure session termination and cache purging. */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'

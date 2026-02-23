@@ -5,6 +5,7 @@ import {
   type ProductRowDraft,
   type StockPreviewProduct,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
+// CreateProductTable: Specialized data grid for building document line items.
 
 interface CreateProductTableProps {
   productRows: ProductRow[]

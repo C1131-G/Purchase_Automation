@@ -28,7 +28,7 @@ export const configureMiddleware = (app: Application) => {
     cors({
       origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
       credentials: true, // Required for secure session cookie exchange.
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
     }),
   );

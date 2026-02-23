@@ -333,6 +333,9 @@ export function SidebarMenuSubButton({
   ...props
 }: SidebarMenuSubButtonProps) {
   const setOpen = useSetSidebarAction()
+  const handleSubMenuClick = () => {
+    setOpen(false)
+  }
 
   return (
     <Link
@@ -342,9 +345,7 @@ export function SidebarMenuSubButton({
         isActive && 'text-blue-600 font-bold',
         className,
       )}
-      onClick={() => {
-        setOpen(false)
-      }}
+      onClick={handleSubMenuClick}
       {...props}
     >
       {isActive && (

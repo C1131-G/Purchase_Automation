@@ -1,3 +1,4 @@
+/** AP Invoice Service: Direct API interaction for payable business logic. */
 import { z } from 'zod'
 
 import {

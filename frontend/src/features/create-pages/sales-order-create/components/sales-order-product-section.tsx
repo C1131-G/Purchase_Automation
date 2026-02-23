@@ -1,5 +1,6 @@
+// SalesOrderProductSection: Management of Sales Order line items, totals, and submission.
 import { useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, RefreshCw, Save } from 'lucide-react'
 
 import { Button } from '@/components/button'
 import { Tooltip } from '@/components/tooltip'
@@ -33,6 +34,8 @@ interface SalesOrderProductSectionProps {
   missingMandatoryFields: SalesOrderState['missingMandatoryFields']
   requiredCompletionPercent: SalesOrderState['requiredCompletionPercent']
   handleCreateOrder: SalesOrderState['handleCreateOrder']
+  submitLabel?: string
+  submitLoadingText?: string
 }
 
 export function SalesOrderProductSection({
@@ -58,8 +61,15 @@ export function SalesOrderProductSection({
   missingMandatoryFields,
   requiredCompletionPercent,
   handleCreateOrder,
+  submitLabel = 'Create',
+  submitLoadingText = 'Creating...',
 }: SalesOrderProductSectionProps) {
   const navigate = useNavigate()
+  const isUpdateAction = submitLabel.toLowerCase().includes('update')
+  const SubmitIcon = isUpdateAction ? RefreshCw : Save
+  const submitIconClass = isUpdateAction
+    ? 'h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600'
+    : 'h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600'
 
   return (
     <section id={sectionId} className="mt-3 rounded-2xl border border-zinc-200 bg-white">
@@ -233,11 +243,14 @@ export function SalesOrderProductSection({
               size="md"
               variant="outline"
               isLoading={createSalesOrderMutation.isPending}
-              loadingText="Creating..."
+              loadingText={submitLoadingText}
               onClick={handleCreateOrder}
-              className="h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
+              className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
             >
-              Create
+              <span className="inline-flex items-center gap-2">
+                <SubmitIcon className={submitIconClass} />
+                {submitLabel}
+              </span>
             </Button>
           </div>
         </div>

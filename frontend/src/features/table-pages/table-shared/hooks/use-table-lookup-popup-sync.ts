@@ -16,6 +16,7 @@ type UseTableLookupPopupSyncResult = {
   lookupSearch: string
   debouncedLookupSearch: string
   externalSelection: { item: LookupItem; columnId: string } | null
+  onLookupPopupIntent: (columnId: string, initialSearch?: string) => void
   onLookupPopupOpen: (columnId: string, initialSearch?: string) => void
   onLookupSearchChange: (value: string) => void
   onLookupPopupClose: () => void
@@ -39,7 +40,7 @@ export function useTableLookupPopupSync<TData>({
     columnId: string
   } | null>(null)
 
-  const onLookupPopupOpen = useCallback(
+  const seedLookupPopupState = useCallback(
     (columnId: string, initialSearch?: string) => {
       if (!allowedColumnIds.includes(columnId)) return
 
@@ -57,9 +58,23 @@ export function useTableLookupPopupSync<TData>({
       setLookupSearch(searchVal)
       setDebouncedLookupSearch(searchVal)
       setExternalSelection(null)
-      setLookupPopupOpen(true)
     },
     [allowedColumnIds, table],
+  )
+
+  const onLookupPopupIntent = useCallback(
+    (columnId: string, initialSearch?: string) => {
+      seedLookupPopupState(columnId, initialSearch)
+    },
+    [seedLookupPopupState],
+  )
+
+  const onLookupPopupOpen = useCallback(
+    (columnId: string, initialSearch?: string) => {
+      seedLookupPopupState(columnId, initialSearch)
+      setLookupPopupOpen(true)
+    },
+    [seedLookupPopupState],
   )
 
   const onLookupSearchChange = useCallback(
@@ -108,9 +123,8 @@ export function useTableLookupPopupSync<TData>({
 
       onSetActiveFilter?.(tableId, lookupColumnId)
 
-      // Immediate input sync; clear after next tick to avoid stale overwrite.
+      // Immediate input sync for toolbar input without effect-based mirroring.
       setExternalSelection({ item, columnId: lookupColumnId })
-      window.setTimeout(() => setExternalSelection(null), 0)
       setLookupPopupOpen(false)
     },
     [lookupColumnId, onSetActiveFilter, table, tableId],
@@ -122,6 +136,7 @@ export function useTableLookupPopupSync<TData>({
     lookupSearch,
     debouncedLookupSearch,
     externalSelection,
+    onLookupPopupIntent,
     onLookupPopupOpen,
     onLookupSearchChange,
     onLookupPopupClose,

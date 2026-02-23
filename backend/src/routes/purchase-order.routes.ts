@@ -28,6 +28,9 @@ router.get(
 );
 
 // GET /:id: Fetches full details for a single PO, including line items.
+router.get("/by-doc-num/:docNum", purchaseOrderDal.getPurchaseOrderByDocNum);
+
+// GET /:id: Fetches full details for a single PO, including line items.
 router.get("/:id", purchaseOrderDal.getPurchaseOrder);
 
 // POST /: Entry point for creating a new PO.

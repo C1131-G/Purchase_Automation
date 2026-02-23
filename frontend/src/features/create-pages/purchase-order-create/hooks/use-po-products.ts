@@ -1,3 +1,5 @@
+/** usePoProducts: Complex state logic for PO product lines and stock validation. */
+/** usePoProducts: Complex state logic for PO product lines and stock validation. */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 

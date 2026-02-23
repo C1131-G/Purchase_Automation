@@ -1,3 +1,4 @@
+/** GRPO Queries: TanStack Query keys and options for data fetching. */
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 
 import { grpoAPI, type GRPOListParams } from '@/features/table-pages/grpo/api/grpo.service'

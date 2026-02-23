@@ -1,6 +1,7 @@
 ﻿// Purchase Order Service: Orchestrates the procurement lifecycle. Manages HANA database queries for high-performance listings and Service Layer requests for PO creation and updates.
 
 // Core & Utils
+import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
@@ -158,6 +159,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
       CardCode: result.CardCode,
@@ -172,6 +174,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
         Price: line.Price || line.UnitPrice,
+        DiscountPercent: line.DiscountPercent,
         UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
         WarehouseCode: line.WarehouseCode,
         TaxCode: line.TaxCode,
@@ -189,11 +192,37 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
   }
 };
 
+// Resolves a PO by DocNum from tenant DB and fetches full details from Service Layer.
+export const getPurchaseOrderByDocNum = async (
+  sessionId: string,
+  dbName: string,
+  docNum: string,
+) => {
+  const normalizedDocNum = docNum.trim();
+  if (!normalizedDocNum) {
+    throw new AppError("DocNum is required", 400, "VALIDATION_ERROR");
+  }
+
+  const repo = await getTenantRepository(dbName, PurchaseOrderSchema);
+  const match = await repo
+    .createQueryBuilder("po")
+    .select(["po.docEntry"])
+    .where("CAST(po.docNum AS NVARCHAR) = :docNum", { docNum: normalizedDocNum })
+    .getOne();
+
+  if (!match?.docEntry) {
+    throw new AppError("Purchase Order not found", 404, "NOT_FOUND");
+  }
+
+  return getPurchaseOrder(sessionId, String(match.docEntry));
+};
+
 // Submits a new Purchase Order to SAP B1.
 export const createPurchaseOrder = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
+      SalesPersonCode: payload.SalesPersonCode,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
       Comments: payload.Comments,
@@ -268,9 +297,11 @@ export const updatePurchaseOrder = async (
   try {
     const sapPayload: Record<string, unknown> = {};
 
-    if (payload.Comments) sapPayload.Comments = payload.Comments;
-    if (payload.Address) sapPayload.Address = payload.Address;
-    if (payload.DocDueDate) sapPayload.DocDueDate = payload.DocDueDate;
+    if (payload.Comments !== undefined) sapPayload.Comments = payload.Comments;
+    if (payload.Address !== undefined) sapPayload.Address = payload.Address;
+    if (payload.DocDate !== undefined) sapPayload.DocDate = payload.DocDate;
+    if (payload.DocDueDate !== undefined) sapPayload.DocDueDate = payload.DocDueDate;
+    if (payload.SalesPersonCode !== undefined) sapPayload.SalesPersonCode = payload.SalesPersonCode;
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
@@ -280,8 +311,16 @@ export const updatePurchaseOrder = async (
         UnitPrice: (item.UnitPrice || item.Price) as number,
         TaxCode: item.TaxCode as string,
         WarehouseCode: item.WarehouseCode as string,
+        DiscountPercent: item.DiscountPercent as number,
       }));
     }
+
+    logger.info({
+      msg: "Purchase order update payload prepared",
+      id,
+      changedFields: Object.keys(sapPayload),
+      lineCount: Array.isArray(sapPayload.DocumentLines) ? sapPayload.DocumentLines.length : 0,
+    });
 
     await serviceLayerClient.request(sessionId, "PATCH", `/PurchaseOrders(${id})`, sapPayload);
 
@@ -335,6 +374,7 @@ export const purchaseOrderService = {
   getPurchaseOrders,
   getPurchaseOrderDocNums,
   getPurchaseOrder,
+  getPurchaseOrderByDocNum,
   createPurchaseOrder,
   updatePurchaseOrder,
   cancelPurchaseOrder,

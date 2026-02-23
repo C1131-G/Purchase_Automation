@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 
 import { authQueries } from '@/features/auth/api/auth.queries'
 import { ShellLayout } from '@/features/layout/components/ShellLayout'
+import { ApiError } from '@/shared/api/client'
 import { useAuthStore } from '@/store/auth/auth.store'
 
 /**
@@ -17,8 +18,11 @@ export const Route = createFileRoute('/_layout')({
       const user = await context.queryClient.ensureQueryData(authQueries.user())
       useAuthStore.getState().login(user)
       return
-    } catch {
-      throw redirect({ to: '/login' })
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw redirect({ to: '/login' })
+      }
+      throw error
     }
   },
   component: ShellLayout,

@@ -122,15 +122,38 @@ export function LookupPopup({
   const filteredResults = useMemo(() => {
     const term = search.trim().toLowerCase()
     if (!term) return safeResults
-    if (mode === 'vendor-code' || mode === 'customer-code') {
-      return safeResults.filter((item) => item.code.toLowerCase().includes(term))
+
+    const score = (item: LookupItem) => {
+      const code = item.code.toLowerCase()
+      const name = item.name.toLowerCase()
+
+      if (mode === 'vendor-code' || mode === 'customer-code') {
+        if (code === term) return 0
+        if (code.startsWith(term)) return 1
+        if (code.includes(term)) return 2
+        if (name.includes(term)) return 3
+        return 4
+      }
+
+      if (mode === 'vendor-name' || mode === 'customer-name') {
+        if (name === term) return 0
+        if (name.startsWith(term)) return 1
+        if (name.includes(term)) return 2
+        if (code.includes(term)) return 3
+        return 4
+      }
+
+      if (code === term || name === term) return 0
+      if (code.startsWith(term) || name.startsWith(term)) return 1
+      if (code.includes(term) || name.includes(term)) return 2
+      return 3
     }
-    if (mode === 'vendor-name' || mode === 'customer-name') {
-      return safeResults.filter((item) => item.name.toLowerCase().includes(term))
-    }
-    return safeResults.filter(
-      (item) => item.code.toLowerCase().includes(term) || item.name.toLowerCase().includes(term),
-    )
+
+    return [...safeResults].sort((a, b) => {
+      const byScore = score(a) - score(b)
+      if (byScore !== 0) return byScore
+      return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' })
+    })
   }, [safeResults, search, mode])
 
   useLookupToast({

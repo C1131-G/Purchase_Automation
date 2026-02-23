@@ -1,3 +1,4 @@
+/** usePOLookups: Manages specialized vendor and product lookups for the PO flow. */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
@@ -24,6 +25,16 @@ export function usePoLookups({
   clearFieldError,
   closeModal,
 }: UsePoLookupsProps) {
+  const INLINE_SUGGESTION_INITIAL_LIMIT = 10
+  const INLINE_SUGGESTION_BACKGROUND_LIMIT = 100
+
+  const normalizeCodeForCompare = (value: unknown) => {
+    const raw = String(value ?? '').trim()
+    if (!raw) return ''
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase()
+  }
+
   const queryClient = useQueryClient()
   // Master Data Queries: Backing lookups for vendors, warehouses, and sales employees.
   // Errors here are surface-propagated to the orchestrator for UI-level display.
@@ -47,6 +58,33 @@ export function usePoLookups({
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data])
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data])
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data])
+  const rankLookupOptions = (items: ProductLookupItem[], rawSearch: string) => {
+    const term = rawSearch.trim().toLowerCase()
+    if (!term) return items
+
+    const score = (item: ProductLookupItem) => {
+      const code = item.code.toLowerCase()
+      const name = item.name.toLowerCase()
+      if (code === term || name === term) return 0
+      if (code.startsWith(term) || name.startsWith(term)) return 1
+      if (code.includes(term) || name.includes(term)) return 2
+      return 3
+    }
+
+    return [...items].sort((a, b) => {
+      const byScore = score(a) - score(b)
+      if (byScore !== 0) return byScore
+      return a.code.localeCompare(b.code, undefined, { sensitivity: 'base', numeric: true })
+    })
+  }
+
+  const limitInlineSuggestions = (items: ProductLookupItem[], input: string, loading: boolean) => {
+    if (input.trim()) return items
+    return items.slice(
+      0,
+      loading ? INLINE_SUGGESTION_INITIAL_LIMIT : INLINE_SUGGESTION_BACKGROUND_LIMIT,
+    )
+  }
 
   const findVendorByCode = (value: string) =>
     (vendors as ProductLookupItem[]).find(
@@ -64,6 +102,14 @@ export function usePoLookups({
     (warehouses as ProductLookupItem[]).find(
       (item) => item.name.toLowerCase() === value.trim().toLowerCase(),
     )
+  const findSalesEmployeeByCode = (value: string) =>
+    (salesEmployees as ProductLookupItem[]).find(
+      (item) => normalizeCodeForCompare(item.code) === normalizeCodeForCompare(value),
+    )
+  const findSalesEmployeeByName = (value: string) =>
+    (salesEmployees as ProductLookupItem[]).find(
+      (item) => item.name.toLowerCase() === value.trim().toLowerCase(),
+    )
 
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase()
@@ -75,16 +121,32 @@ export function usePoLookups({
     return (headerWarehouseCode ?? '').trim()
   }, [warehouseInput, warehouses, headerWarehouseCode])
 
+  const resolveVendorSalesEmployeeName = (vendor: LookupOption) => {
+    const targetCode = normalizeCodeForCompare(vendor.salesEmployeeCode)
+    const nameByCode =
+      targetCode === ''
+        ? ''
+        : ((salesEmployees as ProductLookupItem[]).find(
+            (item) => normalizeCodeForCompare(item.code) === targetCode,
+          )?.name ?? '')
+    if (nameByCode) return nameByCode
+
+    return vendor.salesEmployeeName?.trim() ?? ''
+  }
+
   // Selections
   const selectVendor = (vendor: LookupOption) => {
     const nextBillToAddress = vendor.billToAddress ?? ''
     const nextShipToAddress = vendor.shipToAddress ?? ''
+    const associatedSalesEmployeeName = resolveVendorSalesEmployeeName(vendor)
     setHeader({ vendorCode: vendor.code, vendorName: vendor.name })
     setNameInput(vendor.name)
     setCodeInput(vendor.code)
+    setSalesEmployeeInput(associatedSalesEmployeeName)
 
     clearFieldError('vendorName')
     clearFieldError('vendorCode')
+    if (associatedSalesEmployeeName) clearFieldError('salesEmployee')
     if (nextBillToAddress.trim()) clearFieldError('billToAddress')
     if (nextShipToAddress.trim()) clearFieldError('shipToAddress')
 
@@ -124,6 +186,7 @@ export function usePoLookups({
     if (value.trim() === '') {
       setNameFocused(true)
       setHeader({ vendorName: '', vendorCode: '' })
+      setSalesEmployeeInput('')
       setBillToAddress('')
       setShipToAddress('')
       return
@@ -133,6 +196,10 @@ export function usePoLookups({
       selectVendor(matched)
       return
     }
+    setSalesEmployeeInput('')
+    setBillToAddress('')
+    setShipToAddress('')
+    setNameFocused(true)
     setHeader({ vendorName: value, vendorCode: '' })
   }
 
@@ -142,6 +209,7 @@ export function usePoLookups({
     if (value.trim() === '') {
       setCodeFocused(true)
       setHeader({ vendorCode: '', vendorName: '' })
+      setSalesEmployeeInput('')
       setBillToAddress('')
       setShipToAddress('')
       return
@@ -151,6 +219,10 @@ export function usePoLookups({
       selectVendor(matched)
       return
     }
+    setSalesEmployeeInput('')
+    setBillToAddress('')
+    setShipToAddress('')
+    setCodeFocused(true)
     setHeader({ vendorCode: value, vendorName: '' })
   }
 
@@ -173,52 +245,37 @@ export function usePoLookups({
   const handleSalesEmployeeChange = (value: string) => {
     setSalesEmployeeInput(value)
     clearFieldError('salesEmployee')
+    if (!value.trim()) {
+      setSalesEmployeeFocused(true)
+      return
+    }
+    const matched = findSalesEmployeeByName(value) ?? findSalesEmployeeByCode(value)
+    if (matched) {
+      selectSalesEmployee(matched)
+      return
+    }
     setSalesEmployeeFocused(true)
   }
 
   const nameSuggestions = useMemo(() => {
-    const term = nameInput.trim().toLowerCase()
-    if (!term) return (vendors as ProductLookupItem[]).slice(0, 10)
-    return (vendors as ProductLookupItem[])
-      .filter(
-        (vendor) =>
-          vendor.name.toLowerCase().includes(term) || vendor.code.toLowerCase().includes(term),
-      )
-      .slice(0, 8)
-  }, [vendors, nameInput])
+    const ranked = rankLookupOptions(vendors as ProductLookupItem[], nameInput)
+    return limitInlineSuggestions(ranked, nameInput, vendorsQuery.isFetching)
+  }, [vendors, nameInput, vendorsQuery.isFetching])
 
   const codeSuggestions = useMemo(() => {
-    const term = codeInput.trim().toLowerCase()
-    if (!term) return (vendors as ProductLookupItem[]).slice(0, 10)
-    return (vendors as ProductLookupItem[])
-      .filter(
-        (vendor) =>
-          vendor.code.toLowerCase().includes(term) || vendor.name.toLowerCase().includes(term),
-      )
-      .slice(0, 8)
-  }, [vendors, codeInput])
+    const ranked = rankLookupOptions(vendors as ProductLookupItem[], codeInput)
+    return limitInlineSuggestions(ranked, codeInput, vendorsQuery.isFetching)
+  }, [vendors, codeInput, vendorsQuery.isFetching])
 
   const warehouseSuggestions = useMemo(() => {
-    const term = warehouseInput.trim().toLowerCase()
-    if (!term) return (warehouses as ProductLookupItem[]).slice(0, 10)
-    return (warehouses as ProductLookupItem[])
-      .filter(
-        (item: ProductLookupItem) =>
-          item.code.toLowerCase().includes(term) || item.name.toLowerCase().includes(term),
-      )
-      .slice(0, 8)
-  }, [warehouses, warehouseInput])
+    const ranked = rankLookupOptions(warehouses as ProductLookupItem[], warehouseInput)
+    return limitInlineSuggestions(ranked, warehouseInput, warehousesQuery.isFetching)
+  }, [warehouses, warehouseInput, warehousesQuery.isFetching])
 
   const salesEmployeeSuggestions = useMemo(() => {
-    const term = salesEmployeeInput.trim().toLowerCase()
-    if (!term) return (salesEmployees as ProductLookupItem[]).slice(0, 10)
-    return (salesEmployees as ProductLookupItem[])
-      .filter(
-        (item: ProductLookupItem) =>
-          item.code.toLowerCase().includes(term) || item.name.toLowerCase().includes(term),
-      )
-      .slice(0, 8)
-  }, [salesEmployees, salesEmployeeInput])
+    const ranked = rankLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput)
+    return limitInlineSuggestions(ranked, salesEmployeeInput, salesEmployeesQuery.isFetching)
+  }, [salesEmployees, salesEmployeeInput, salesEmployeesQuery.isFetching])
 
   return {
     vendorsQuery,

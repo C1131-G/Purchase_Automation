@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { lazy, Suspense } from 'react'
 
 import { NotFound } from '@/components/not-found'
 
@@ -17,6 +17,14 @@ export const Route = createRootRouteWithContext<{
   notFoundComponent: NotFound,
 })
 
+const TanStackRouterDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import('@tanstack/react-router-devtools').then((module) => ({
+        default: module.TanStackRouterDevtools,
+      })),
+    )
+  : null
+
 function RootComponent() {
   return (
     <div className="min-h-screen bg-white text-zinc-900 font-outfit selection:bg-blue-500/10 selection:text-blue-900 relative overflow-hidden">
@@ -25,9 +33,11 @@ function RootComponent() {
       </main>
 
       {/* DevTools - Only visible in development */}
-      {import.meta.env.DEV && (
-        <TanStackRouterDevtools initialIsOpen={false} position="bottom-left" />
-      )}
+      {TanStackRouterDevtools ? (
+        <Suspense fallback={null}>
+          <TanStackRouterDevtools initialIsOpen={false} position="bottom-left" />
+        </Suspense>
+      ) : null}
     </div>
   )
 }

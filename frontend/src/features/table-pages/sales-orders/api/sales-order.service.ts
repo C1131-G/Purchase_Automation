@@ -1,3 +1,4 @@
+/** Sales Order Service: Direct API interaction for sales business logic. */
 import { z } from 'zod'
 
 import {
@@ -22,6 +23,36 @@ export type SalesOrderDocNumLookupResponse = {
 }
 
 export type CreateSalesOrderPayload = Record<string, unknown>
+export type UpdateSalesOrderPayload = Record<string, unknown>
+
+export type SalesOrderDetailLine = {
+  ItemCode?: string
+  ItemDescription?: string
+  Quantity?: number
+  Price?: number
+  UnitPrice?: number
+  DiscountPercent?: number
+  TaxCode?: string
+  WarehouseCode?: string
+  LineTotal?: number
+}
+
+export type SalesOrderDetail = {
+  id?: number
+  DocEntry?: number
+  DocNum?: number
+  SalesPersonCode?: number | string
+  DocDate?: string
+  DocDueDate?: string
+  CardCode?: string
+  CardName?: string
+  Address?: string
+  Comments?: string
+  DocCurr?: string
+  DocStatus?: string
+  DocumentLines?: SalesOrderDetailLine[]
+}
+export type SalesOrderDetailResponse = { success: boolean; data: SalesOrderDetail }
 
 export const salesOrderAPI = {
   getSalesOrders: async (params: SalesOrderListParams) => {
@@ -34,6 +65,15 @@ export const salesOrderAPI = {
       method: 'POST',
       body: JSON.stringify(payload),
     })
+  },
+  updateSalesOrder: async (id: string | number, payload: UpdateSalesOrderPayload) => {
+    return apiClient<unknown>(`/api/v1/sales-orders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  },
+  getSalesOrderByDocNum: async (docNum: string | number) => {
+    return apiClient<SalesOrderDetailResponse>(`/api/v1/sales-orders/by-doc-num/${docNum}`)
   },
   getSalesOrderDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit })

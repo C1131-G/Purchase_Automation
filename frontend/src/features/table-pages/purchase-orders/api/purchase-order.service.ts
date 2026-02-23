@@ -1,3 +1,4 @@
+/** Purchase Order Service: Direct API interaction for ordering business logic. */
 import { z } from 'zod'
 
 import {
@@ -22,6 +23,36 @@ export type PurchaseOrderDocNumLookupResponse = {
 }
 
 export type CreatePurchaseOrderPayload = Record<string, unknown>
+export type UpdatePurchaseOrderPayload = Record<string, unknown>
+
+export type PurchaseOrderDetailLine = {
+  ItemCode?: string
+  ItemDescription?: string
+  Quantity?: number
+  Price?: number
+  UnitPrice?: number
+  DiscountPercent?: number
+  TaxCode?: string
+  WarehouseCode?: string
+  LineTotal?: number
+}
+
+export type PurchaseOrderDetail = {
+  id?: number
+  DocEntry?: number
+  DocNum?: number
+  SalesPersonCode?: number | string
+  DocDate?: string
+  DocDueDate?: string
+  CardCode?: string
+  CardName?: string
+  Address?: string
+  Comments?: string
+  DocCurr?: string
+  DocStatus?: string
+  DocumentLines?: PurchaseOrderDetailLine[]
+}
+export type PurchaseOrderDetailResponse = { success: boolean; data: PurchaseOrderDetail }
 
 export const purchaseOrderAPI = {
   getPurchaseOrders: async (params: PurchaseOrderListParams) => {
@@ -41,5 +72,14 @@ export const purchaseOrderAPI = {
       method: 'POST',
       body: JSON.stringify(payload),
     })
+  },
+  updatePurchaseOrder: async (id: string | number, payload: UpdatePurchaseOrderPayload) => {
+    return apiClient<unknown>(`/api/v1/purchase-orders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  },
+  getPurchaseOrderByDocNum: async (docNum: string | number) => {
+    return apiClient<PurchaseOrderDetailResponse>(`/api/v1/purchase-orders/by-doc-num/${docNum}`)
   },
 }

@@ -29,6 +29,9 @@ router.get(
 router.get("/SalesEmployee", salesOrderDal.getSalesEmployees);
 
 // GET /:id: Fetches full details for a single sales order.
+router.get("/by-doc-num/:docNum", salesOrderDal.getSalesOrderByDocNum);
+
+// GET /:id: Fetches full details for a single sales order.
 router.get("/:id", salesOrderDal.getSalesOrder);
 
 // POST /: Submits a new sales order into the SAP system.

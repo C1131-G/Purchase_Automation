@@ -1,3 +1,4 @@
+/** AR Credit Note Service: Direct API interaction for credit business logic. */
 import { z } from 'zod'
 
 import {

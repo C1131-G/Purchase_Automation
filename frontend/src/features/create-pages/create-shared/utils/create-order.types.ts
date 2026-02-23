@@ -10,7 +10,7 @@ export type ActiveDatePicker = 'doc' | 'delivery' | null
 
 export type CreateLookupOption = Pick<
   LookupItem,
-  'code' | 'name' | 'billToAddress' | 'shipToAddress'
+  'code' | 'name' | 'billToAddress' | 'shipToAddress' | 'salesEmployeeCode' | 'salesEmployeeName'
 >
 
 export type CreateSectionCardProps = PropsWithChildren<{

@@ -1,3 +1,4 @@
+// IncomingPaymentColumns: Column definitions (accessors, headers, cell renderers) for the payment grid.
 import { createColumnHelper } from '@tanstack/react-table'
 
 import { Tooltip } from '@/components/tooltip'
@@ -16,7 +17,13 @@ export const createIncomingPaymentColumns = () => [
     header: ({ column, table }) => (
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc Number" />
     ),
-    cell: (info) => info.getValue(),
+    cell: (info) => (
+      <Tooltip content="Double click to edit">
+        <span className="block cursor-pointer truncate transition-colors hover:text-blue-600">
+          {info.getValue()}
+        </span>
+      </Tooltip>
+    ),
     filterFn: 'includesString',
     enableSorting: true,
     sortingFn: 'basic',

@@ -10,6 +10,7 @@ export default defineConfig({
       routesDirectory: './src/routes',
       generatedRouteTree: './src/routeTree.gen.ts',
       routeFileIgnorePattern: '^_require-active-session\\.ts$',
+      autoCodeSplitting: true,
     }),
     react({
       babel: {

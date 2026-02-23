@@ -4,6 +4,7 @@ import { CreateModalSkeleton } from '@/components/skeleton/create-modal-skeleton
 import { type LookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { type usePurchaseOrderCreate } from '@/features/create-pages/purchase-order-create/hooks/use-purchase-order-create'
 
+// PurchaseOrderModals: specialized selection dialogs (Vendors, Items) for PO flow.
 const LookupPopupModal = lazy(() =>
   import('@/features/create-pages/create-shared/components/modals/lookup-popup-modal').then(
     (module) => ({

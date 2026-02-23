@@ -18,6 +18,7 @@ export interface TextFilterSearchProps<TData> extends BaseSearchProps<TData> {
   preserveDocNumSuggestionOrder?: boolean
   onSelectSuggestion?: (item: LookupItem, columnId: string) => void
   onPopupOpen?: (columnId: string, initialSearch?: string) => void
+  onPopupIntent?: (columnId: string, initialSearch?: string) => void
   /** Direct selection from popup — bypasses async URL filter-state round-trip for instant input sync */
   externalSelection?: { item: LookupItem; columnId: string } | null
 }

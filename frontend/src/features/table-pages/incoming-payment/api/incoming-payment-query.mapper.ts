@@ -1,3 +1,4 @@
+/** Incoming Payment Search Mapper: Bridges URL search state with API request parameters. */
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
 import { normalizeColumnFilters } from '@/components/types/filter-utils'

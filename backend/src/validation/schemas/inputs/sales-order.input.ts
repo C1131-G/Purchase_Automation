@@ -96,6 +96,7 @@ const SalesOrderLineItemSchema = z.object({
 // CreateSalesOrderInputSchema: Validates a new sales order submission.
 export const CreateSalesOrderInputSchema = z.object({
   CardCode: z.string().min(1), // Customer identification.
+  SalesPersonCode: z.coerce.number().int().optional(),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")

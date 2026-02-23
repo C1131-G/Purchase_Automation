@@ -69,7 +69,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="w-full sm:w-105 mx-auto space-y-7 animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="w-full sm:w-105 mx-auto space-y-7">
       <div className="space-y-1.5 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 uppercase font-outfit">
           Portal Access
@@ -182,7 +182,7 @@ export function LoginForm() {
         {/* --- Error + Submit --- */}
         <div className="space-y-2 pt-1">
           {authError ? (
-            <p className="text-red-600 text-[11px] font-semibold text-center leading-tight animate-in fade-in slide-in-from-top-1">
+            <p className="text-red-600 text-[11px] font-semibold text-center leading-tight">
               {authError}
             </p>
           ) : null}

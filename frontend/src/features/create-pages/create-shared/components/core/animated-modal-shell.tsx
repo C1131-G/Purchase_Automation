@@ -1,3 +1,4 @@
+/** AnimatedModalShell: Specialized CSS-transition wrapper for premium modal effects. */
 import { type ReactNode, useEffect } from 'react'
 
 import {

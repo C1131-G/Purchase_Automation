@@ -1,3 +1,4 @@
+/** Master Data Service: API interaction for foundational ERP entities (Items, Partners, Tax). */
 import { type MasterDataResponse } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { apiClient } from '@/shared/api/client'
 

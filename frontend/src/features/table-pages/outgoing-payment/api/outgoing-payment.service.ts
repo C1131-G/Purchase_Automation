@@ -1,3 +1,4 @@
+/** Outgoing Payment Service: Direct API interaction for payment business logic. */
 import { z } from 'zod'
 
 import {

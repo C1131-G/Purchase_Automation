@@ -1,3 +1,4 @@
+/** Create Order Calculations: Business logic for computing totals, taxes, and line items. */
 import { type ProductRow } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 export const calculateOrderTotals = (productRows: ProductRow[]) => {

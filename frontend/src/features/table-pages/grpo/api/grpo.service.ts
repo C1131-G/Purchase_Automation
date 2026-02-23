@@ -1,3 +1,4 @@
+/** GRPO Service: Direct API interaction for receipt business logic. */
 import { z } from 'zod'
 
 import {

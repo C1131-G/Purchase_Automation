@@ -1,6 +1,7 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   getMissingMandatoryCreateFieldsTyped,
@@ -17,9 +18,13 @@ import {
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { createOrderToast } from '@/features/create-pages/create-shared/utils/create-order-toast'
 import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
-import { useCreateSalesOrder } from '@/features/create-pages/sales-order-create/api/sales-order-create.mutations'
+import {
+  useCreateSalesOrder,
+  useUpdateSalesOrder,
+} from '@/features/create-pages/sales-order-create/api/sales-order-create.mutations'
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
+  FULL_PRODUCT_LIMIT,
   MANDATORY_ERROR_TEXT,
   type ProductSearchFieldError,
   REQUIRED_FIELD_LABEL_TEXT,
@@ -28,6 +33,7 @@ import {
   salesOrderKeys,
   salesOrderQueries,
 } from '@/features/table-pages/sales-orders/api/sales-order.queries'
+import { type SalesOrderDetailLine } from '@/features/table-pages/sales-orders/api/sales-order.service'
 import {
   useResetSOCreateAction,
   useSetSOHeaderAction,
@@ -38,11 +44,29 @@ import { useSoLookups } from './use-so-lookups'
 import { useSoModals } from './use-so-modals'
 import { useSoProducts } from './use-so-products'
 
-export function useSalesOrderCreate() {
+type SalesOrderCreateMode = 'create' | 'edit'
+
+type UseSalesOrderCreateOptions = {
+  mode?: SalesOrderCreateMode
+  docNum?: string
+}
+
+export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
+  const normalizeCodeForCompare = (value: unknown) => {
+    const raw = String(value ?? '').trim()
+    if (!raw) return ''
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase()
+  }
+
+  const mode = options?.mode ?? 'create'
+  const isEditMode = mode === 'edit'
   const header = useSOHeader()
   const resetSOCreate = useResetSOCreateAction()
   const setHeader = useSetSOHeaderAction()
+  const queryClient = useQueryClient()
   const createSalesOrderMutation = useCreateSalesOrder()
+  const updateSalesOrderMutation = useUpdateSalesOrder()
 
   const today = useMemo(() => {
     const now = new Date()
@@ -54,6 +78,7 @@ export function useSalesOrderCreate() {
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   )
   const [createError, setCreateError] = useState<string | null>(null)
+  const hydratedDocNumRef = useRef<string | null>(null)
 
   const docDateContainerRef = useRef<HTMLDivElement>(null)
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null)
@@ -81,8 +106,146 @@ export function useSalesOrderCreate() {
   })
 
   useEffect(() => {
+    if (isEditMode) return
     resetSOCreate()
-  }, [resetSOCreate])
+  }, [isEditMode, resetSOCreate])
+
+  const editDetailQuery = useQuery({
+    ...salesOrderQueries.detailByDocNum((options?.docNum ?? '').trim()),
+    enabled: isEditMode && Boolean((options?.docNum ?? '').trim()),
+  })
+
+  useEffect(() => {
+    if (!isEditMode) return
+    const currentDocNum = (options?.docNum ?? '').trim()
+    if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) return
+    const detail = editDetailQuery.data?.data
+    if (!detail) return
+
+    const vendorCode = String(detail.CardCode ?? '').trim()
+    const vendorName = String(detail.CardName ?? '').trim()
+    const matchedVendor = lookups.vendors.find((vendor) => String(vendor.code) === vendorCode)
+    const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+    const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode)
+    const salesEmployeeNameFromDocCode =
+      detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+        ? lookups.salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(detail.SalesPersonCode),
+          )?.name
+        : ''
+    const associatedSalesEmployeeName =
+      salesEmployeeNameFromDocCode ||
+      (matchedVendor?.salesEmployeeCode !== undefined
+        ? lookups.salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
+          )?.name
+        : '') ||
+      matchedVendor?.salesEmployeeName?.trim() ||
+      ''
+
+    const rawComments = String(detail.Comments ?? '').trim()
+    const splitComments = rawComments.split(' | ').map((part) => part.trim())
+    const hasReferenceMarker = splitComments.length > 1
+    const referenceNo = hasReferenceMarker ? (splitComments[0] ?? '') : ''
+    const comments = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+
+    const docDate = String(detail.DocDate ?? '').slice(0, 10)
+    const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
+    const address = String(detail.Address ?? '').trim()
+    void (async () => {
+      const detailLines = detail.DocumentLines ?? []
+      const productsForWarehouse =
+        warehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(
+                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+              )
+              .catch(() => [])
+          : []
+
+      const productByCode = new Map(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      )
+      const stockByItemCode = new Map<string, number>()
+
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
+      ].filter(Boolean)
+
+      await Promise.all(
+        uniqueItemCodes.map(async (itemCode) => {
+          const warehouseStocks = await queryClient
+            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+            .catch(() => [])
+
+          const resolvedStock = warehouseCode
+            ? Number(
+                warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
+                  ?.stock ?? 0,
+              )
+            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
+
+          stockByItemCode.set(itemCode, resolvedStock)
+        }),
+      )
+
+      const mappedRows = detailLines.map((line: SalesOrderDetailLine, index) => {
+        const itemCode = String(line.ItemCode ?? '').trim()
+        const productMeta = productByCode.get(itemCode)
+        const quantity = Number(line.Quantity ?? 1)
+        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
+        const discountPercent = Number(line.DiscountPercent ?? 0)
+        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
+        return {
+          id: `row-${currentDocNum}-${index}`,
+          productCode: itemCode,
+          productName: String(line.ItemDescription ?? productMeta?.name ?? '').trim(),
+          stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
+          price,
+          currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
+          taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
+          taxRate: Number(productMeta?.taxRate ?? 0),
+          quantity,
+          discountPercent,
+          discountAmount,
+          comment: '',
+        }
+      })
+
+      setHeader({
+        vendorCode,
+        vendorName,
+        docDate: docDate || header.docDate,
+        docDueDate,
+        warehouseCode,
+        referenceNo,
+        comments,
+      })
+      lookups.setNameInput(vendorName)
+      lookups.setCodeInput(vendorCode)
+      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
+      lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
+      lookups.setBillToAddress(address)
+      lookups.setShipToAddress(address)
+      productsHook.setProductRows(mappedRows)
+      productsHook.setProductRowDrafts({})
+
+      hydratedDocNumRef.current = currentDocNum
+    })()
+  }, [
+    queryClient,
+    editDetailQuery.data,
+    header.docDate,
+    isEditMode,
+    lookups,
+    options?.docNum,
+    productsHook,
+    setHeader,
+  ])
 
   const popupResults = useMemo(() => {
     const term = modals.modalSearch.trim().toLowerCase()
@@ -94,11 +257,19 @@ export function useSalesOrderCreate() {
           : lookups.salesEmployees
     ) as ProductLookupItem[]
     if (!term) return source
-    return source.filter(
-      (item: ProductLookupItem) =>
-        (item.code || '').toLowerCase().includes(term) ||
-        (item.name || '').toLowerCase().includes(term),
-    )
+    const score = (item: ProductLookupItem) => {
+      const code = (item.code || '').toLowerCase()
+      const name = (item.name || '').toLowerCase()
+      if (code === term || name === term) return 0
+      if (code.startsWith(term) || name.startsWith(term)) return 1
+      if (code.includes(term) || name.includes(term)) return 2
+      return 3
+    }
+    return [...source].sort((a, b) => {
+      const byScore = score(a) - score(b)
+      if (byScore !== 0) return byScore
+      return a.code.localeCompare(b.code, undefined, { sensitivity: 'base', numeric: true })
+    })
   }, [
     lookups.vendors,
     lookups.warehouses,
@@ -199,6 +370,21 @@ export function useSalesOrderCreate() {
     [createMandatoryValues, searchMandatoryFields],
   )
 
+  const resolvedSalesEmployeeCode = useMemo(() => {
+    const byName = lookups.salesEmployees.find(
+      (item) => item.name.trim().toLowerCase() === lookups.salesEmployeeInput.trim().toLowerCase(),
+    )
+    if (byName) return Number(normalizeCodeForCompare(byName.code))
+
+    const byCode = lookups.salesEmployees.find(
+      (item) =>
+        normalizeCodeForCompare(item.code) === normalizeCodeForCompare(lookups.salesEmployeeInput),
+    )
+    if (byCode) return Number(normalizeCodeForCompare(byCode.code))
+
+    return undefined
+  }, [lookups.salesEmployeeInput, lookups.salesEmployees])
+
   const searchRequiredCompletionPercent =
     ((searchMandatoryFields.length - missingSearchMandatoryFields.length) /
       searchMandatoryFields.length) *
@@ -211,7 +397,7 @@ export function useSalesOrderCreate() {
     missingMandatoryFields.length > 0
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}.`
       : !hasValidRowsForCreate
-        ? 'Add at least one product row before creating sales order.'
+        ? `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} sales order.`
         : null
 
   const requiredCompletionPercent =
@@ -219,19 +405,19 @@ export function useSalesOrderCreate() {
       SALES_ORDER_MANDATORY_FIELDS.length) *
     100
 
+  const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? 'updating' : 'creating'} sales order.`
+  const rowsErrorText = `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} sales order.`
+
   const visibleCreateError =
-    createError === 'Fill required fields before creating sales order.' && !createDisabledReason
+    createError === requiredFieldsErrorText && !createDisabledReason
       ? null
-      : createError === 'Add at least one product row before creating sales order.' &&
-          hasValidRowsForCreate
+      : createError === rowsErrorText && hasValidRowsForCreate
         ? null
         : createError
 
   function handleCreateOrderAction() {
     void handleCreateOrder()
   }
-
-  const queryClient = useQueryClient()
 
   const handleCreateOrder = async () => {
     const nextErrors: ProductSearchFieldError = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS }
@@ -242,7 +428,7 @@ export function useSalesOrderCreate() {
 
     if (Object.values(nextErrors).some(Boolean)) {
       setProductSearchFieldErrors(nextErrors)
-      setCreateError('Fill required fields before creating sales order.')
+      setCreateError(requiredFieldsErrorText)
       return
     }
 
@@ -250,7 +436,7 @@ export function useSalesOrderCreate() {
       (row) => row.productCode.trim() && row.quantity > 0,
     )
     if (validRows.length === 0) {
-      setCreateError('Add at least one product row before creating sales order.')
+      setCreateError(rowsErrorText)
       return
     }
 
@@ -258,9 +444,11 @@ export function useSalesOrderCreate() {
 
     const payload = {
       CardCode: (header.vendorCode || lookups.codeInput).trim(),
+      SalesPersonCode: resolvedSalesEmployeeCode,
       DocDate: header.docDate,
       DocDueDate: header.docDueDate || header.docDate,
       Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
+      Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
       DocumentLines: validRows.map((row) => ({
         ItemCode: row.productCode,
         Quantity: row.quantity,
@@ -271,9 +459,20 @@ export function useSalesOrderCreate() {
       })),
     }
 
-    const toastHandle = createOrderToast('Sales Order')
+    const toastHandle = createOrderToast('Sales Order', isEditMode ? 'update' : 'create')
     try {
-      await createSalesOrderMutation.mutateAsync({ payload })
+      if (isEditMode) {
+        const detail = editDetailQuery.data?.data
+        const docEntry = detail?.DocEntry ?? detail?.id
+        if (docEntry === undefined || docEntry === null) {
+          setCreateError('Unable to update sales order. Document id is missing.')
+          toastHandle.error()
+          return
+        }
+        await updateSalesOrderMutation.mutateAsync({ id: docEntry, payload })
+      } else {
+        await createSalesOrderMutation.mutateAsync({ payload })
+      }
       toastHandle.success()
 
       // Proactive Cache Revalidation
@@ -283,6 +482,14 @@ export function useSalesOrderCreate() {
         queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 10)),
         queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 100)),
       ])
+
+      if (isEditMode) {
+        const currentDocNum = (options?.docNum ?? '').trim()
+        if (currentDocNum) {
+          void queryClient.prefetchQuery(salesOrderQueries.detailByDocNum(currentDocNum))
+        }
+        return
+      }
 
       resetSOCreate()
       lookups.setNameInput('')
@@ -312,11 +519,13 @@ export function useSalesOrderCreate() {
       toastHandle.error()
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        'Failed to create sales order. Try again.',
+        `Failed to ${isEditMode ? 'update' : 'create'} sales order. Try again.`,
       )
       setCreateError(errorMessage)
     }
   }
+
+  const submitSalesOrderMutation = isEditMode ? updateSalesOrderMutation : createSalesOrderMutation
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),
@@ -338,7 +547,10 @@ export function useSalesOrderCreate() {
       productsHook.applyProductToRow(product, {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
-    createSalesOrderMutation,
+    createSalesOrderMutation: submitSalesOrderMutation,
+    updateSalesOrderMutation,
+    editDetailQuery,
+    isEditMode,
     header,
     today,
     activeDatePicker,

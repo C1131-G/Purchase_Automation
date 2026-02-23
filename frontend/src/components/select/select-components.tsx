@@ -28,7 +28,7 @@ export function SelectRoot({
   name,
 }: SelectRootProps) {
   const [open, setOpen] = useState(false)
-  const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue)
+  const [uncontrolledValue, setUncontrolledValue] = useState(() => defaultValue)
   const [labelMap, setLabelMap] = useState<Record<string, string | React.ReactNode>>({})
   const triggerRef = useRef<HTMLButtonElement>(null)
   const autoId = React.useId()

@@ -1,3 +1,4 @@
+// SectionCard: A surgical, card-based container for logical form groupings.
 import { type CreateSectionCardProps } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 export function SectionCard({ title, children, className }: CreateSectionCardProps) {

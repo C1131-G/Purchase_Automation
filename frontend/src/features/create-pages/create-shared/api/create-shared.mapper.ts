@@ -1,3 +1,4 @@
+/** Create Shared Mapper: Universal mappers for master data and creation payloads. */
 import {
   type LookupItem,
   type ProductLookupItem,
@@ -36,6 +37,13 @@ export const mapVendorLookup = (item: unknown): LookupItem => {
     name: String(record.CardName ?? record.cardName ?? record.name ?? record.Name ?? ''),
     billToAddress: String(record.billToAddress ?? record.BillToAddress ?? record.Address ?? ''),
     shipToAddress: String(record.shipToAddress ?? record.ShipToAddress ?? record.Address ?? ''),
+    salesEmployeeCode:
+      (record.salesEmployeeCode as string | number | undefined) ??
+      (record.SalesEmployeeCode as string | number | undefined) ??
+      (record.SlpCode as string | number | undefined),
+    salesEmployeeName: String(
+      record.salesEmployeeName ?? record.SalesEmployeeName ?? record.SlpName ?? '',
+    ),
   }
 }
 
@@ -83,12 +91,12 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
     price: toNumberOrZero(record.Price ?? record.price ?? record.AvgPrice),
     currency: rawCurrency,
     taxCode: String(
-      record.TaxCode ??
-        record.taxCode ??
-        record.VatGroupPu ??
-        record.vatGroupPu ??
-        record.VatGourpPu ??
-        record.vatGourpPu ??
+      record.TaxCode ||
+        record.taxCode ||
+        record.VatGroupPu ||
+        record.vatGroupPu ||
+        record.VatGourpPu ||
+        record.vatGourpPu ||
         '',
     ).trim(),
     taxRate: toNumberOrZero(record.TaxRate ?? record.taxRate ?? record.Rate),

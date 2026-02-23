@@ -1,3 +1,4 @@
+/** Lookup Search Sync: Synchronizes toolbar search states with specialized lookup popups. */
 import { type PopupMode } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 type LookupSearchSyncHandlers = {

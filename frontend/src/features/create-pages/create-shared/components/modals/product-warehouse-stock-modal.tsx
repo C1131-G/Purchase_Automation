@@ -1,3 +1,4 @@
+// ProductWarehouseStockModal: Displays real-time inventory levels across multiple warehouses.
 import { type ComponentProps, useMemo, useState } from 'react'
 
 import { useLookupToast } from '@/components/lookup/hooks/use-lookup-toast'

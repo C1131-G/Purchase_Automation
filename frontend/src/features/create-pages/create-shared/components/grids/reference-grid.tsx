@@ -1,3 +1,4 @@
+// ReferenceGrid: Capture and display document-level remarks and attachments.
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
 
 type ReferenceGridProps = {

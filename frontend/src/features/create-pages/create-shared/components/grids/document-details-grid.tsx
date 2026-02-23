@@ -2,6 +2,7 @@ import { CalendarDays } from 'lucide-react'
 import { type ComponentProps, type ReactElement, type RefObject } from 'react'
 
 import { Calendar } from '@/components/calendar/calendar'
+// DocumentDetailsGrid: Manages core document metadata (DocNum, Dates, Reference).
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
 
 type ActiveDatePicker = 'doc' | 'delivery' | null

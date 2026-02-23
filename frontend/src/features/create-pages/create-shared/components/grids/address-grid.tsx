@@ -1,3 +1,4 @@
+/** AddressGrid: Specialized sub-form for dual-address management (Billing/Shipping). */
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
 
 type AddressGridProps = {

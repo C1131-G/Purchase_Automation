@@ -6,6 +6,8 @@ export const lookupItemSchema = z.object({
   rate: z.number().optional(),
   billToAddress: z.string().optional(),
   shipToAddress: z.string().optional(),
+  salesEmployeeCode: z.union([z.string(), z.number()]).optional(),
+  salesEmployeeName: z.string().optional(),
 })
 
 export const productLookupItemSchema = lookupItemSchema.extend({

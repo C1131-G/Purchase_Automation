@@ -73,8 +73,9 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
 
 // Creates a new A/R Invoice in SAP B1.
 export const createInvoice = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
   try {
-    const { sessionId } = req.session;
+    const { sessionId } = authReq.session;
     const payload = req.body;
 
     // Zod validation ensures the payload adheres to the required SAP format for A/R Invoices.
@@ -122,7 +123,7 @@ export const cancelInvoice = async (req: Request, res: Response, next: NextFunct
     logger.info({ msg: "Cancelling A/R Invoice", id });
 
     const result = await arInvoiceService.cancelInvoice(sessionId, id as string);
-    res.status(200).json({ success: true, message: result.message });
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }

@@ -1,3 +1,4 @@
+/** usePoModals: Specialized state management for PO-specific lookup dialogs. */
 import { useState } from 'react'
 
 import {

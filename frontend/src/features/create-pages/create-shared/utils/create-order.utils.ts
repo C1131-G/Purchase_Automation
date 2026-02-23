@@ -20,6 +20,15 @@ const normalizeServiceLayerFieldMessage = (message: string) => {
   const compactMessage = message.replace(/\s+/g, ' ').trim()
 
   if (
+    /timeout of\s+\d+(\.\d+)?ms exceeded/i.test(compactMessage) ||
+    /etimedout/i.test(compactMessage) ||
+    /econnaborted/i.test(compactMessage) ||
+    /network error/i.test(compactMessage)
+  ) {
+    return 'Request timed out. Please try again.'
+  }
+
+  if (
     /Enter due date/i.test(compactMessage) ||
     /\[(ORDR|OPOR)\.DocDueDate\]/i.test(compactMessage)
   ) {

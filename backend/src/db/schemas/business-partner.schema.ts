@@ -10,6 +10,7 @@ export type BusinessPartner = {
   CardName: string; // Company name.
   Address?: string; // Bill-to address summary.
   Currency?: string; // Master currency (e.g., 'INR', 'USD').
+  SlpCode?: number; // Linked sales employee code.
   CardType: string; // 'C' = Customer, 'S' = Vendor.
   frozenFor?: string; // 'Y' if the account is deactivated in SAP.
 };
@@ -22,6 +23,7 @@ export const BusinessPartnerSchema = new EntitySchema<BusinessPartner>({
     CardName: { type: "nvarchar" as HANAColumnType, length: 100, name: "CardName" },
     Address: { type: "nvarchar" as HANAColumnType, length: 100, name: "Address", nullable: true },
     Currency: { type: "nvarchar" as HANAColumnType, length: 3, name: "Currency", nullable: true },
+    SlpCode: { type: "int" as HANAColumnType, name: "SlpCode", nullable: true },
     CardType: { type: "nvarchar" as HANAColumnType, length: 1, name: "CardType" },
     frozenFor: { type: "nvarchar" as HANAColumnType, length: 1, name: "frozenFor", default: "N" },
   },

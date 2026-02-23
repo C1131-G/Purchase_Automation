@@ -1,3 +1,4 @@
+/** Auth Queries: TanStack Query keys and factories for authentication state and user profile. */
 import { queryOptions } from '@tanstack/react-query'
 
 import { authAPI, type Organization, OrganizationsAPI } from '@/features/auth/api/auth.service'
@@ -11,15 +12,16 @@ type OrganizationCache = {
   data: Organization[]
 }
 
-const readCachedOrganizations = (): Organization[] | undefined => {
+const readCachedOrganizationsEntry = (): OrganizationCache | undefined => {
   if (typeof window === 'undefined') return undefined
   try {
     const raw = window.localStorage.getItem(ORG_CACHE_KEY)
     if (!raw) return undefined
     const parsed = JSON.parse(raw) as OrganizationCache
     if (!Array.isArray(parsed?.data)) return undefined
+    if (typeof parsed?.timestamp !== 'number') return undefined
     if (Date.now() - parsed.timestamp > ORG_CACHE_MAX_AGE_MS) return undefined
-    return parsed.data
+    return parsed
   } catch {
     return undefined
   }
@@ -48,18 +50,22 @@ export const authKeys = {
 // authQueries: Reusable query options for fetching/caching authentication data.
 export const authQueries = {
   // organization: Fetches list (Cached for 24 hours).
-  organization: () =>
-    queryOptions({
+  organization: () => {
+    const cached = readCachedOrganizationsEntry()
+
+    return queryOptions({
       queryKey: authKeys.organization(),
       queryFn: async () => {
         const data = (await OrganizationsAPI.getAll()).data
         writeCachedOrganizations(data)
         return data
       },
-      placeholderData: () => readCachedOrganizations(),
+      initialData: cached?.data,
+      initialDataUpdatedAt: (cached?.timestamp ?? 0) as number,
       staleTime: QUERY_CACHE_POLICY.authOrganization.staleTime,
       gcTime: QUERY_CACHE_POLICY.authOrganization.gcTime,
-    }),
+    })
+  },
 
   // user: Fetches user profile (Fresh for 30 minutes).
   user: () =>

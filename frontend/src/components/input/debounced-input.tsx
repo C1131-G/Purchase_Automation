@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import type { DebouncedInputProps } from '@/components/types/input.types'
 
@@ -15,6 +15,7 @@ export function DebouncedInput({
   ...props
 }: DebouncedInputProps) {
   const [value, setValue] = useState(initialValue)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoId = useId()
   const resolvedId = id ?? autoId
   const resolvedName = name ?? resolvedId
@@ -24,12 +25,13 @@ export function DebouncedInput({
   }, [initialValue])
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      onChange(value)
-    }, debounce)
-
-    return () => clearTimeout(timeout)
-  }, [value, onChange, debounce])
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+        debounceTimerRef.current = null
+      }
+    }
+  }, [])
 
   return (
     <input
@@ -37,7 +39,18 @@ export function DebouncedInput({
       id={resolvedId}
       name={resolvedName}
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => {
+        const nextValue = e.target.value
+        setValue(nextValue)
+
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current)
+        }
+
+        debounceTimerRef.current = setTimeout(() => {
+          onChange(nextValue)
+        }, debounce)
+      }}
     />
   )
 }

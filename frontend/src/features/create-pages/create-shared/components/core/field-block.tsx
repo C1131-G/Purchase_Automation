@@ -1,3 +1,4 @@
+// FieldBlock: A standardized layout container for form fields, labels, and validation.
 import { Search } from 'lucide-react'
 import { useRef } from 'react'
 
@@ -66,6 +67,7 @@ export function FieldBlock({
           readOnly={disabled}
           onChange={(event) => {
             if (disabled) return
+            // Interaction Layer: Syncs local field changes with global form state.
             onChange(event.target.value)
           }}
           onClick={() => {

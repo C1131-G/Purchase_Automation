@@ -1,3 +1,4 @@
+/** AR Invoice Service: Direct API interaction for receivable business logic. */
 import { z } from 'zod'
 
 import {
@@ -20,6 +21,7 @@ export type ARInvoiceDocNumLookupResponse = {
   success: boolean
   data: ARInvoiceDocNumLookupItem[]
 }
+export type CreateARInvoicePayload = Record<string, unknown>
 
 export const arInvoiceAPI = {
   getARInvoices: async (params: ARInvoiceListParams) => {
@@ -27,6 +29,11 @@ export const arInvoiceAPI = {
     const path = query ? `/api/v1/ar-invoices?${query}` : '/api/v1/ar-invoices'
     return apiClient<ARInvoiceListResponse>(path)
   },
+  createARInvoice: async (payload: CreateARInvoicePayload) =>
+    apiClient<unknown>('/api/v1/ar-invoices', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   getARInvoiceDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit })
     const path = query ? `/api/v1/ar-invoices/docnums?${query}` : '/api/v1/ar-invoices/docnums'

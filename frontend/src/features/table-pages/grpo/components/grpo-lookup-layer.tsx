@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+// GRPOLookupLayer: Orchestrates lookup popups and suggestions for goods receipt filtering.
 import { type useReactTable } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 
@@ -16,6 +17,8 @@ const GRPO_BREADCRUMB = {
   page: 'GRPO Data Table',
   href: '/purchase/grpo',
 } as const
+const DOC_NUM_QUICK_LIMIT = 10
+const DOC_NUM_BACKGROUND_LIMIT = 100
 
 const toOrderedUniqueDocNumSuggestions = (items: LookupItem[]): LookupItem[] => {
   const seen = new Set<string>()
@@ -43,8 +46,35 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
   const vendorsQuery = useQuery(createSharedQueries.vendors())
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data])
   const tableRows = table.getRowModel().rows
+  const {
+    lookupPopupOpen,
+    lookupColumnId,
+    lookupSearch,
+    debouncedLookupSearch,
+    externalSelection,
+    onLookupPopupIntent: handleLookupPopupIntent,
+    onLookupPopupOpen: handleLookupPopupOpen,
+    onLookupSearchChange: handleLookupSearchChange,
+    onLookupPopupClose: handleLookupPopupClose,
+    onLookupSelect: handleLookupSelect,
+  } = useTableLookupPopupSync({
+    table,
+    tableId,
+    onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
+  })
+  const docNumLookupSearchTerm = useMemo(
+    () => debouncedLookupSearch.trim(),
+    [debouncedLookupSearch],
+  )
+  const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length >= 2
 
-  const docNumSuggestionsQuery = useQuery(grpoQueries.docNumSuggestions(undefined, 10))
+  const docNumSuggestionsQuery = useQuery(
+    grpoQueries.docNumSuggestions(undefined, DOC_NUM_QUICK_LIMIT),
+  )
+  const docNumSuggestionsBackgroundQuery = useQuery({
+    ...grpoQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
+    enabled: docNumSuggestionsQuery.isFetched,
+  })
   const tableOrderedDocNumSuggestions = useMemo<LookupItem[]>(() => {
     const seen = new Set<string>()
     const result: LookupItem[] = []
@@ -55,78 +85,60 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
       seen.add(code)
       result.push({ code, name: code })
     }
+    // Suggestion Logic: Merges table data with background API for immediate feedback.
     return result
   }, [tableRows])
 
   const docNumSuggestions = useMemo<LookupItem[]>(() => {
     const tableMatches = tableOrderedDocNumSuggestions
+    const quickMatches = toOrderedUniqueDocNumSuggestions(docNumSuggestionsQuery.data?.data ?? [])
     const backgroundMatches = toOrderedUniqueDocNumSuggestions(
-      docNumSuggestionsQuery.data?.data ?? [],
+      docNumSuggestionsBackgroundQuery.data?.data ?? [],
     )
 
-    // Merge background matches after table matches, ensuring uniqueness
+    const mergedSource = [...quickMatches, ...backgroundMatches]
+
     const seen = new Set(tableMatches.map((m) => m.code))
     const results = [...tableMatches]
 
-    for (const item of backgroundMatches) {
+    for (const item of mergedSource) {
       if (!seen.has(item.code)) {
         seen.add(item.code)
         results.push(item)
       }
+      if (results.length >= DOC_NUM_BACKGROUND_LIMIT) break
     }
 
     return results
-  }, [tableOrderedDocNumSuggestions, docNumSuggestionsQuery.data])
+  }, [
+    tableOrderedDocNumSuggestions,
+    docNumSuggestionsQuery.data,
+    docNumSuggestionsBackgroundQuery.data,
+  ])
 
-  const {
-    lookupPopupOpen,
-    lookupColumnId,
-    lookupSearch,
-    debouncedLookupSearch,
-    externalSelection,
-    onLookupPopupOpen: handleLookupPopupOpen,
-    onLookupSearchChange: handleLookupSearchChange,
-    onLookupPopupClose: handleLookupPopupClose,
-    onLookupSelect: handleLookupSelect,
-  } = useTableLookupPopupSync({
-    table,
-    tableId,
-    onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
-  })
-
-  const docNumLookupSearchTerm = useMemo(
-    () => debouncedLookupSearch.trim(),
-    [debouncedLookupSearch],
-  )
-  const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length >= 2
   const docNumLookupSearchQuery = useQuery({
-    ...grpoQueries.docNumSuggestions(docNumLookupSearchTerm || undefined),
+    ...grpoQueries.docNumSuggestions(docNumLookupSearchTerm || undefined, DOC_NUM_BACKGROUND_LIMIT),
     enabled: shouldQueryDocNumSearch,
   })
 
   useEffect(() => {
-    if (!lookupPopupOpen || lookupColumnId !== 'DocNum') return
-    void queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 100))
-  }, [lookupPopupOpen, lookupColumnId, queryClient])
+    if (lookupColumnId !== 'DocNum') return
+    void queryClient.prefetchQuery(
+      grpoQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
+    )
+  }, [lookupColumnId, queryClient])
 
   const docNumLookupResults = useMemo<LookupItem[]>(() => {
     if (lookupColumnId !== 'DocNum') return docNumSuggestions
 
     const term = docNumLookupSearchTerm.toLowerCase()
-
-    // When no search term, show all suggestions in the preserved table order
     if (!term) return docNumSuggestions
 
-    // Filter from the already-ordered merged list first (table rows + background)
-    const fromMerged = docNumSuggestions.filter((item) => item.code.toLowerCase().includes(term))
-    if (fromMerged.length > 0) return fromMerged
-
-    // Supplement from the background search API if nothing found in the merged list
-    const fromSearch = toOrderedUniqueDocNumSuggestions(
-      docNumLookupSearchQuery.data?.data ?? [],
-    ).filter((item) => item.code.toLowerCase().includes(term))
-
-    return fromSearch.length > 0 ? fromSearch : docNumSuggestions
+    const fromSearch = toOrderedUniqueDocNumSuggestions(docNumLookupSearchQuery.data?.data ?? [])
+    const base = fromSearch.length > 0 ? fromSearch : docNumSuggestions
+    return base
+      .filter((item) => item.code.toLowerCase().includes(term))
+      .slice(0, DOC_NUM_BACKGROUND_LIMIT)
   }, [lookupColumnId, docNumLookupSearchQuery.data, docNumSuggestions, docNumLookupSearchTerm])
 
   return (
@@ -142,6 +154,7 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
         docNumSuggestions={docNumSuggestions}
         enableDocNumPopup
         preserveDocNumSuggestionOrder
+        onLookupPopupIntent={handleLookupPopupIntent}
         onLookupPopupOpen={handleLookupPopupOpen}
         onLookupSelect={handleLookupSelect}
         lookupExternalSelection={externalSelection}
@@ -159,12 +172,16 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
         results={lookupColumnId === 'DocNum' ? docNumLookupResults : vendors}
         loading={
           lookupColumnId === 'DocNum'
-            ? docNumSuggestionsQuery.isFetching || docNumLookupSearchQuery.isFetching
+            ? docNumSuggestionsQuery.isFetching ||
+              docNumSuggestionsBackgroundQuery.isFetching ||
+              docNumLookupSearchQuery.isFetching
             : vendorsQuery.isFetching
         }
         error={
           lookupColumnId === 'DocNum'
-            ? (docNumSuggestionsQuery.isError || docNumLookupSearchQuery.isError) &&
+            ? (docNumSuggestionsQuery.isError ||
+                docNumSuggestionsBackgroundQuery.isError ||
+                docNumLookupSearchQuery.isError) &&
               docNumLookupResults.length === 0
               ? 'Failed to load document numbers'
               : null
@@ -176,6 +193,7 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
           lookupColumnId === 'DocNum'
             ? () => {
                 void docNumSuggestionsQuery.refetch()
+                void docNumSuggestionsBackgroundQuery.refetch()
                 if (shouldQueryDocNumSearch) {
                   void docNumLookupSearchQuery.refetch()
                 }

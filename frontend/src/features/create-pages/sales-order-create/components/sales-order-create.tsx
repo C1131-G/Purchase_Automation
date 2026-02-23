@@ -1,13 +1,17 @@
+/** useSalesOrderCreate: Orchestrates state and business logic for the Sales Order entry flow. */
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { ChevronRight } from 'lucide-react'
 
+// SalesOrderCreate: Primary view for sales order entry, mirroring the PO architectural pattern.
+import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
 import { WarehouseLogisticsGrid } from '@/features/create-pages/create-shared/components/grids/warehouse-logistics-grid'
+import { useBackendLoadingToast } from '@/features/create-pages/create-shared/utils/backend-loading-toast'
 import {
   parseISODate,
   toDisplayDate,
@@ -17,22 +21,93 @@ import { SalesOrderModals } from '@/features/create-pages/sales-order-create/com
 import { SalesOrderProductSection } from '@/features/create-pages/sales-order-create/components/sales-order-product-section'
 import { useSalesOrderCreate } from '@/features/create-pages/sales-order-create/hooks/use-sales-order-create'
 import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
+import { useSetSidebarAction } from '@/store/sidebar/sidebar.store'
 
 // SalesOrderCreate: Primary view for sales order entry, mirroring the PO architectural pattern.
 // Leverages a shared creation-hook pattern for consistent validation and error handling.
-export function SalesOrderCreate() {
-  const state = useSalesOrderCreate()
+interface SalesOrderCreateProps {
+  mode?: 'create' | 'edit'
+  docNum?: string
+}
+
+export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreateProps) {
+  const state = useSalesOrderCreate(docNum ? { mode, docNum } : { mode })
   const queryClient = useQueryClient()
+  const setSidebarOpen = useSetSidebarAction()
+  const pageTitle = state.isEditMode ? 'Update Sales Order' : 'Create Sales Order'
+  const backendLoading =
+    state.vendorsQuery.isLoading ||
+    state.warehousesQuery.isLoading ||
+    state.salesEmployeesQuery.isLoading ||
+    (state.isEditMode && state.editDetailQuery.isLoading)
+  const backendErrorMessage = state.isEditMode
+    ? state.editDetailQuery.isError
+      ? state.editDetailQuery.error instanceof Error
+        ? state.editDetailQuery.error.message
+        : 'Unable to load sales order for editing.'
+      : null
+    : null
+
+  useBackendLoadingToast({
+    loading: backendLoading,
+    loadingMessage: state.isEditMode
+      ? 'Loading sales order update data...'
+      : 'Loading sales order create data...',
+    errorMessage: backendErrorMessage,
+  })
+
+  const isInitialCreateLoading =
+    !state.isEditMode &&
+    state.vendorsQuery.isLoading &&
+    state.warehousesQuery.isLoading &&
+    state.salesEmployeesQuery.isLoading &&
+    !state.vendorsQuery.data &&
+    !state.warehousesQuery.data &&
+    !state.salesEmployeesQuery.data
+  const isEditHydrationPending =
+    state.isEditMode &&
+    Boolean(state.editDetailQuery.data) &&
+    !state.nameInput.trim() &&
+    !state.codeInput.trim() &&
+    state.productRows.length === 0
+
+  if (
+    isInitialCreateLoading ||
+    (state.isEditMode &&
+      ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
+  ) {
+    return <CreatePageRouteSkeleton />
+  }
+
+  if (state.isEditMode && state.editDetailQuery.isError) {
+    const errorMessage =
+      state.editDetailQuery.error instanceof Error
+        ? state.editDetailQuery.error.message
+        : 'Unable to load sales order for editing.'
+    return (
+      <div className="w-full bg-zinc-50 p-3 pb-20">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full bg-zinc-50 p-3 pb-20">
       <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-        <span>Sales</span>
+        <button
+          type="button"
+          className="cursor-pointer text-blue-600 hover:text-blue-700"
+          onClick={() => setSidebarOpen(true)}
+        >
+          Sales
+        </button>
         <ChevronRight className="size-3.5 text-zinc-300" />
         <Link
           to="/sales/orders"
           search={{ page: 1, limit: 10 }}
-          className="text-blue-600 hover:text-blue-700"
+          className="cursor-pointer text-blue-600 hover:text-blue-700"
           onMouseEnter={() =>
             void queryClient.prefetchQuery(salesOrderQueries.list({ page: 1, limit: 10 }))
           }
@@ -43,7 +118,7 @@ export function SalesOrderCreate() {
           Sales Orders Data Table
         </Link>
         <ChevronRight className="size-3.5 text-zinc-300" />
-        <span className="text-zinc-700">Create Sales Order</span>
+        <span className="text-zinc-700">{pageTitle}</span>
       </div>
 
       {/* Information Layer: Grid-based metadata input with predictive lookups. */}
@@ -214,6 +289,8 @@ export function SalesOrderCreate() {
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         handleCreateOrder={state.handleCreateOrder}
+        submitLabel={state.isEditMode ? 'Update' : 'Create'}
+        submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
       />
       <SalesOrderModals state={state} />
     </div>

@@ -1,10 +1,9 @@
 import 'goey-toast/styles.css'
 
 import { dehydrate, hydrate, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { GoeyToaster } from 'goey-toast'
-import { useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 
 import { GlobalErrorBoundary } from '@/components/error-boundary'
 import { GOEY_TOASTER_CONFIG } from '@/components/goey-toast.config'
@@ -12,6 +11,13 @@ import { routeTree } from '@/routeTree.gen'
 import { QUERY_CACHE_KEY } from '@/shared/utils/query-cache-persistence'
 
 const QUERY_CACHE_MAX_AGE = 30 * 60 * 1000
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import('@tanstack/react-query-devtools').then((module) => ({
+        default: module.ReactQueryDevtools,
+      })),
+    )
+  : null
 
 // 1. Create a persistent QueryClient instance
 const queryClient = new QueryClient({
@@ -85,7 +91,11 @@ function App() {
         <RouterProvider router={router} />
       </GlobalErrorBoundary>
       <GoeyToaster {...GOEY_TOASTER_CONFIG} />
-      <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+      {ReactQueryDevtools ? (
+        <Suspense fallback={null}>
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+        </Suspense>
+      ) : null}
     </QueryClientProvider>
   )
 }

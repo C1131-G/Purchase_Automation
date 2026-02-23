@@ -14,6 +14,7 @@ import {
 import { ItemSchema } from "@/db/schemas/item.schema";
 import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
 import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
+import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
 import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
@@ -55,6 +56,21 @@ const fetchLookup = async <T extends ObjectLiteral>(
 };
 
 const toTrimmed = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+const toNullableInt = (value: unknown): number | undefined => {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return undefined;
+    return Math.trunc(value);
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (!normalized) return undefined;
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed)) return undefined;
+    return Math.trunc(parsed);
+  }
+  return undefined;
+};
 const toNumberOrZero = (value: unknown): number => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") {
@@ -132,6 +148,29 @@ const fetchVendorAddresses = async (dbName: string, vendorCodes: string[]) => {
   }
 
   return addressMap;
+};
+
+const fetchSalesEmployeeNames = async (dbName: string, slpCodes: number[]) => {
+  if (slpCodes.length === 0) {
+    return new Map<number, string>();
+  }
+
+  const repository = await getTenantRepository(dbName, SalesEmployeeSchema);
+  const rows = await repository.find({
+    where: { SlpCode: In(slpCodes), Active: "Y" } as Record<string, unknown>,
+    select: ["SlpCode", "SlpName"] as const,
+  });
+
+  const salesEmployeeMap = new Map<number, string>();
+  for (const row of rows) {
+    const code = toNumberOrZero(row.SlpCode);
+    const name = toTrimmed(row.SlpName);
+    if (code > 0 && name) {
+      salesEmployeeMap.set(code, name);
+    }
+  }
+
+  return salesEmployeeMap;
 };
 
 // Fetches the product catalog with warehouse-aware stock.
@@ -352,45 +391,85 @@ export const getProductWarehouseStocks = async (dbName: string, itemCode: string
 
 // Fetches active Vendors (Business Partners with type 'S' = Supplier).
 export const getVendors = async (dbName: string) => {
-  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors", {
+  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v2", {
     where: { CardType: "S", frozenFor: "N" } as Record<string, unknown>,
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["CardCode", "CardName", "Address", "Currency"] as const,
+    select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,
   });
   const vendorCodes = results.map((item) => item.CardCode).filter(Boolean);
-  const vendorAddressMap = await fetchVendorAddresses(dbName, vendorCodes);
+  const salesEmployeeCodes = Array.from(
+    new Set(
+      results
+        .map((item) => toNullableInt(item.SlpCode))
+        .filter((code): code is number => code !== undefined),
+    ),
+  );
+  const [vendorAddressMap, salesEmployeeMap] = await Promise.all([
+    fetchVendorAddresses(dbName, vendorCodes),
+    fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
+  ]);
 
-  return results.map((item) => ({
-    id: item.CardCode,
-    CardCode: item.CardCode,
-    CardName: item.CardName,
-    Address: item.Address,
-    Currency: item.Currency,
-    // Aliases for frontend components expecting generic keys.
-    code: item.CardCode,
-    name: item.CardName,
-    billToAddress: vendorAddressMap.get(item.CardCode)?.billToAddress ?? item.Address ?? "",
-    shipToAddress: vendorAddressMap.get(item.CardCode)?.shipToAddress ?? item.Address ?? "",
-  }));
+  return results.map((item) => {
+    const normalizedCardCode = toTrimmed(item.CardCode);
+    const slpCode = toNullableInt(item.SlpCode);
+    return {
+      id: normalizedCardCode,
+      CardCode: normalizedCardCode,
+      CardName: item.CardName,
+      Address: item.Address,
+      Currency: item.Currency,
+      SlpCode: item.SlpCode,
+      // Aliases for frontend components expecting generic keys.
+      code: normalizedCardCode,
+      name: item.CardName,
+      billToAddress: vendorAddressMap.get(normalizedCardCode)?.billToAddress ?? item.Address ?? "",
+      shipToAddress: vendorAddressMap.get(normalizedCardCode)?.shipToAddress ?? item.Address ?? "",
+      salesEmployeeCode: slpCode,
+      salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
+    };
+  });
 };
 
 // Fetches active Customers (Business Partners with type 'C' = Customer).
 export const getCustomers = async (dbName: string) => {
-  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers", {
+  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v2", {
     where: { CardType: "C", frozenFor: "N" } as Record<string, unknown>,
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["CardCode", "CardName", "Address", "Currency"] as const,
+    select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,
   });
+  const customerCodes = results.map((item) => item.CardCode).filter(Boolean);
+  const salesEmployeeCodes = Array.from(
+    new Set(
+      results
+        .map((item) => toNullableInt(item.SlpCode))
+        .filter((code): code is number => code !== undefined),
+    ),
+  );
+  const [customerAddressMap, salesEmployeeMap] = await Promise.all([
+    fetchVendorAddresses(dbName, customerCodes),
+    fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
+  ]);
 
-  return results.map((item) => ({
-    id: item.CardCode,
-    CardCode: item.CardCode,
-    CardName: item.CardName,
-    Address: item.Address,
-    Currency: item.Currency,
-    code: item.CardCode,
-    name: item.CardName,
-  }));
+  return results.map((item) => {
+    const normalizedCardCode = toTrimmed(item.CardCode);
+    const slpCode = toNullableInt(item.SlpCode);
+    return {
+      id: normalizedCardCode,
+      CardCode: normalizedCardCode,
+      CardName: item.CardName,
+      Address: item.Address,
+      Currency: item.Currency,
+      SlpCode: item.SlpCode,
+      code: normalizedCardCode,
+      name: item.CardName,
+      billToAddress:
+        customerAddressMap.get(normalizedCardCode)?.billToAddress ?? item.Address ?? "",
+      shipToAddress:
+        customerAddressMap.get(normalizedCardCode)?.shipToAddress ?? item.Address ?? "",
+      salesEmployeeCode: slpCode,
+      salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
+    };
+  });
 };
 
 // Retrieves active tax groups (VAT types/rates) defined in SAP.

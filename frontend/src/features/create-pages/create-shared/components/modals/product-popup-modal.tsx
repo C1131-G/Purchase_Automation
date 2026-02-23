@@ -2,6 +2,7 @@ import { type ComponentProps } from 'react'
 
 import { useLookupToast } from '@/components/lookup/hooks/use-lookup-toast'
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
+// ProductPopupModal: Orchestrates item selection, stock validation, and price lookup.
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { AnimatedModalShell } from '@/features/create-pages/create-shared/components/core/animated-modal-shell'
 
