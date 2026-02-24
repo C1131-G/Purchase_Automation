@@ -7,6 +7,7 @@ import {
 } from '@/features/create-pages/ar-invoice-create/api/ar-invoice-create.mutations'
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
+  FULL_PRODUCT_LIMIT,
   MANDATORY_ERROR_TEXT,
   type ProductSearchFieldError,
   REQUIRED_FIELD_LABEL_TEXT,
@@ -26,7 +27,7 @@ import {
   type PopupMode,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
-import { createOrderToast } from '@/features/create-pages/create-shared/utils/create-order-toast'
+import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
 import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import {
   arInvoiceKeys,
@@ -51,6 +52,13 @@ type UseARInvoiceCreateOptions = {
 }
 
 export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
+  const normalizeCodeForCompare = (value: unknown) => {
+    const raw = String(value ?? '').trim()
+    if (!raw) return ''
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase()
+  }
+
   const mode = options?.mode ?? 'create'
   const isEditMode = mode === 'edit'
   const queryClient = useQueryClient()
@@ -117,6 +125,25 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const customerCode = String(detail.CardCode ?? '').trim()
     const customerName = String(detail.CardName ?? '').trim()
     const matchedCustomer = lookups.vendors.find((item) => String(item.code) === customerCode)
+    const salesEmployeeNameFromDocCode =
+      detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+        ? lookups.salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(detail.SalesPersonCode),
+          )?.name
+        : ''
+    const associatedSalesEmployeeName =
+      salesEmployeeNameFromDocCode ||
+      (matchedCustomer?.salesEmployeeCode !== undefined
+        ? lookups.salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(matchedCustomer.salesEmployeeCode),
+          )?.name
+        : '') ||
+      matchedCustomer?.salesEmployeeName?.trim() ||
+      ''
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
     const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode)
     const rawComments = String(detail.Comments ?? '').trim()
@@ -170,8 +197,19 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const productMeta = productByCode.get(itemCode)
         const quantity = Number(line.Quantity ?? 1)
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
-        const discountPercent = Number(line.DiscountPercent ?? 0)
-        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
+        const grossAmount = Math.max(0, price * quantity)
+        const apiDiscountPercent = Number(line.DiscountPercent ?? NaN)
+        const lineTotal = Number(line.LineTotal ?? NaN)
+        const derivedDiscountAmountFromLineTotal =
+          Number.isFinite(lineTotal) && grossAmount > 0
+            ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+            : 0
+        const discountPercent = Number.isFinite(apiDiscountPercent)
+          ? Math.max(0, apiDiscountPercent)
+          : grossAmount > 0
+            ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+            : 0
+        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
         return {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
@@ -185,6 +223,18 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           discountPercent,
           discountAmount,
           comment: '',
+          baseEntry:
+            typeof line.BaseEntry === 'number' && Number.isFinite(line.BaseEntry)
+              ? line.BaseEntry
+              : undefined,
+          baseLine:
+            typeof line.BaseLine === 'number' && Number.isFinite(line.BaseLine)
+              ? line.BaseLine
+              : undefined,
+          baseType:
+            typeof line.BaseType === 'number' && Number.isFinite(line.BaseType)
+              ? line.BaseType
+              : undefined,
         }
       })
 
@@ -200,7 +250,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       lookups.setNameInput(customerName)
       lookups.setCodeInput(customerCode)
       lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
-      lookups.setSalesEmployeeInput(matchedCustomer?.salesEmployeeName?.trim() ?? '')
+      lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
       lookups.setBillToAddress(address)
       lookups.setShipToAddress(address)
       productsHook.setProductRows(mappedRows)
@@ -342,6 +392,21 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     [createMandatoryValues, searchMandatoryFields],
   )
 
+  const resolvedSalesEmployeeCode = useMemo(() => {
+    const byName = lookups.salesEmployees.find(
+      (item) => item.name.trim().toLowerCase() === lookups.salesEmployeeInput.trim().toLowerCase(),
+    )
+    if (byName) return Number(normalizeCodeForCompare(byName.code))
+
+    const byCode = lookups.salesEmployees.find(
+      (item) =>
+        normalizeCodeForCompare(item.code) === normalizeCodeForCompare(lookups.salesEmployeeInput),
+    )
+    if (byCode) return Number(normalizeCodeForCompare(byCode.code))
+
+    return undefined
+  }, [lookups.salesEmployeeInput, lookups.salesEmployees])
+
   const searchRequiredCompletionPercent =
     ((searchMandatoryFields.length - missingSearchMandatoryFields.length) /
       searchMandatoryFields.length) *
@@ -402,22 +467,37 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     const payload = {
       CardCode: (header.vendorCode || lookups.codeInput).trim(),
+      SalesPersonCode: resolvedSalesEmployeeCode,
       DocDate: header.docDate,
       DocDueDate: header.docDueDate || header.docDate,
-      Address: lookups.billToAddress.trim() || undefined,
+      Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
       NumAtCard: header.referenceNo.trim() || undefined,
       Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-      DocumentLines: validRows.map((row) => ({
-        ItemCode: row.productCode,
-        Quantity: row.quantity,
-        UnitPrice: row.price,
-        DiscountPercent: row.discountPercent,
-        WarehouseCode: lookups.effectiveWarehouseCode || undefined,
-        TaxCode: row.taxCode || undefined,
-      })),
+      DocumentLines: validRows.map((row) => {
+        const hasCompleteBaseLink =
+          Number.isFinite(row.baseEntry) &&
+          Number.isFinite(row.baseLine) &&
+          Number.isFinite(row.baseType)
+
+        return {
+          ItemCode: row.productCode,
+          Quantity: row.quantity,
+          UnitPrice: row.price,
+          DiscountPercent: row.discountPercent,
+          WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+          TaxCode: row.taxCode || undefined,
+          ...(hasCompleteBaseLink
+            ? {
+                BaseType: row.baseType,
+                BaseEntry: row.baseEntry,
+                BaseLine: row.baseLine,
+              }
+            : {}),
+        }
+      }),
     }
 
-    const toastHandle = createOrderToast('A/R Invoice', isEditMode ? 'update' : 'create')
+    const toastHandle = documentActionToast('A/R Invoice', isEditMode ? 'update' : 'create')
     try {
       if (isEditMode) {
         const detail = editDetailQuery.data?.data
@@ -476,7 +556,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       toastHandle.error()
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        `Failed to ${isEditMode ? 'update' : 'create'} A/R invoice. Try again.`,
+        `Failed to ${isEditMode ? 'update' : 'create'} A/R Invoice. Try again.`,
       )
       setCreateError(errorMessage)
     }

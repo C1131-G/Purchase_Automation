@@ -39,24 +39,23 @@ export function CreateProductTable({
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
-      <table className="min-w-245 w-full text-left text-sm text-zinc-700">
+      <table className="min-w-280 w-full text-left text-sm text-zinc-700">
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
-            <th className="whitespace-nowrap px-3 py-2">Product</th>
+            <th className="w-md whitespace-nowrap px-3 py-2">Product</th>
             <th className="whitespace-nowrap px-3 py-2">Quantity</th>
             <th className="whitespace-nowrap px-3 py-2">Price</th>
             <th className="whitespace-nowrap px-3 py-2">Discount %</th>
             <th className="whitespace-nowrap px-3 py-2">Discount Amount</th>
             <th className="whitespace-nowrap px-3 py-2">Net Price</th>
             <th className="whitespace-nowrap px-3 py-2">Total</th>
-            <th className="whitespace-nowrap px-3 py-2">Comments</th>
             <th className="whitespace-nowrap px-3 py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
           {productRows.length === 0 ? (
             <tr>
-              <td className="px-3 py-8" colSpan={9}>
+              <td className="px-3 py-8" colSpan={8}>
                 <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
                   <div className="text-sm font-medium text-zinc-700">No products yet</div>
                   <div className="text-xs text-zinc-500">

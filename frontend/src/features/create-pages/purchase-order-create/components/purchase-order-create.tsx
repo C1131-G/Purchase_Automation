@@ -4,13 +4,11 @@ import { goeyToast } from 'goey-toast'
 // PurchaseOrderCreate: Orchestrates the entire PO creation lifecycle.
 import { ChevronRight } from 'lucide-react'
 
-import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
 import { WarehouseLogisticsGrid } from '@/features/create-pages/create-shared/components/grids/warehouse-logistics-grid'
-import { useBackendLoadingToast } from '@/features/create-pages/create-shared/utils/backend-loading-toast'
 import {
   parseISODate,
   toDisplayDate,
@@ -35,27 +33,6 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
 
   const state = usePurchaseOrderCreate(docNum ? { mode, docNum } : { mode })
   const pageTitle = state.isEditMode ? 'Update Purchase Order' : 'Create Purchase Order'
-  const backendLoading =
-    state.vendorsQuery.isLoading ||
-    state.warehousesQuery.isLoading ||
-    state.salesEmployeesQuery.isLoading ||
-    (state.isEditMode && state.editDetailQuery.isLoading)
-  const backendErrorMessage = state.isEditMode
-    ? state.editDetailQuery.isError
-      ? state.editDetailQuery.error instanceof Error
-        ? state.editDetailQuery.error.message
-        : 'Unable to load purchase order for editing.'
-      : null
-    : null
-
-  useBackendLoadingToast({
-    loading: backendLoading,
-    loadingMessage: state.isEditMode
-      ? 'Loading purchase order update data...'
-      : 'Loading purchase order create data...',
-    errorMessage: backendErrorMessage,
-  })
-
   const isInitialCreateLoading =
     !state.isEditMode &&
     state.vendorsQuery.isLoading &&
@@ -71,13 +48,10 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
     !state.codeInput.trim() &&
     state.productRows.length === 0
 
-  if (
+  const isFormHydrating =
     isInitialCreateLoading ||
     (state.isEditMode &&
       ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
-  ) {
-    return <CreatePageRouteSkeleton />
-  }
 
   if (state.isEditMode && state.editDetailQuery.isError) {
     const errorMessage =
@@ -124,7 +98,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
       {/* Header Grid: Captures primary metadata (Vendor, Logistics, Dates). */}
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <VendorCustomerGrid
-          loading={state.vendorsQuery.isLoading}
+          loading={state.vendorsQuery.isLoading || isFormHydrating}
           error={
             state.vendorsQuery.isError
               ? state.vendorsQuery.error instanceof Error
@@ -156,8 +130,8 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         <WarehouseLogisticsGrid
           warehouseInput={state.warehouseInput}
           salesEmployeeInput={state.salesEmployeeInput}
-          warehouseLoading={state.warehousesQuery.isLoading}
-          salesEmployeesLoading={state.salesEmployeesQuery.isLoading}
+          warehouseLoading={state.warehousesQuery.isLoading || isFormHydrating}
+          salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
           error={
             state.warehousesQuery.isError
               ? 'Unable to load warehouses.'
@@ -216,6 +190,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
 
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <AddressGrid
+          loading={isFormHydrating}
           billToAddress={state.billToAddress}
           shipToAddress={state.shipToAddress}
           onBillToAddressChange={(value) => {
@@ -238,6 +213,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
           shipToAddressErrorText={state.productSearchFieldErrors.shipToAddress}
         />
         <ReferenceGrid
+          loading={isFormHydrating}
           referenceNo={state.header.referenceNo}
           comments={state.header.comments}
           onReferenceNoChange={(value) => {

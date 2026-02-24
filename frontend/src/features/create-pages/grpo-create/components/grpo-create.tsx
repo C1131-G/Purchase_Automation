@@ -3,13 +3,11 @@ import { Link } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { ChevronRight } from 'lucide-react'
 
-import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
 import { WarehouseLogisticsGrid } from '@/features/create-pages/create-shared/components/grids/warehouse-logistics-grid'
-import { useBackendLoadingToast } from '@/features/create-pages/create-shared/utils/backend-loading-toast'
 import {
   parseISODate,
   toDisplayDate,
@@ -31,36 +29,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
   const queryClient = useQueryClient()
   const setSidebarOpen = useSetSidebarAction()
 
-  const backendLoading =
-    (state.isEditMode ? state.updateMutation.isPending : state.createMutation.isPending) ||
-    state.vendorsQuery.isLoading ||
-    state.warehousesQuery.isLoading ||
-    state.salesEmployeesQuery.isLoading ||
-    (state.isEditMode && state.editDetailQuery.isLoading)
-
-  const backendErrorMessage = state.vendorsQuery.isError
-    ? state.vendorsQuery.error instanceof Error
-      ? state.vendorsQuery.error.message
-      : 'Unable to load vendors.'
-    : state.isEditMode && state.editDetailQuery.isError
-      ? state.editDetailQuery.error instanceof Error
-        ? state.editDetailQuery.error.message
-        : 'Unable to load GRPO for editing.'
-      : state.salesEmployeesQuery.isError
-        ? state.salesEmployeesQuery.error instanceof Error
-          ? state.salesEmployeesQuery.error.message
-          : 'Unable to load buyers.'
-        : null
-
-  useBackendLoadingToast({
-    loading: backendLoading,
-    loadingMessage: state.isEditMode
-      ? 'Loading GRPO update data...'
-      : 'Loading GRPO create data...',
-    errorMessage: backendErrorMessage,
-  })
-
-  const showSkeleton =
+  const isInitialCreateLoading =
     !state.isEditMode &&
     state.vendorsQuery.isLoading &&
     state.warehousesQuery.isLoading &&
@@ -78,12 +47,10 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
     !state.vendorCodeInput.trim() &&
     state.rows.length === 0
 
-  if (
-    state.isEditMode &&
-    ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending)
-  ) {
-    return <CreatePageRouteSkeleton />
-  }
+  const isFormHydrating =
+    isInitialCreateLoading ||
+    (state.isEditMode &&
+      ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
 
   if (state.isEditMode && state.editDetailQuery.isError) {
     const errorMessage =
@@ -97,10 +64,6 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
         </p>
       </div>
     )
-  }
-
-  if (showSkeleton) {
-    return <CreatePageRouteSkeleton />
   }
 
   return (
@@ -131,7 +94,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
 
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <VendorCustomerGrid
-          loading={state.vendorsQuery.isLoading}
+          loading={state.vendorsQuery.isLoading || isFormHydrating}
           error={null}
           nameInput={state.vendorNameInput}
           codeInput={state.vendorCodeInput}
@@ -157,8 +120,8 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
         <WarehouseLogisticsGrid
           warehouseInput={state.warehouseInput}
           salesEmployeeInput={state.buyerInput}
-          warehouseLoading={state.warehousesQuery.isLoading}
-          salesEmployeesLoading={state.salesEmployeesQuery.isLoading}
+          warehouseLoading={state.warehousesQuery.isLoading || isFormHydrating}
+          salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
           warehouseFocused={state.warehouseFocused}
           salesEmployeeFocused={state.buyerFocused}
           warehouseSuggestions={state.warehouseSuggestions}
@@ -189,6 +152,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
         <DocumentDetailsGrid
           docDate={state.docDate}
           docDueDate={state.docDueDate}
+          loading={isFormHydrating}
           today={state.today}
           activeDatePicker={state.activeDatePicker}
           docDateContainerRef={state.docDateContainerRef}
@@ -206,6 +170,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
 
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <AddressGrid
+          loading={isFormHydrating}
           billToAddress={state.billToAddress}
           shipToAddress={state.shipToAddress}
           onBillToAddressChange={state.setBillToAddress}
@@ -216,6 +181,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
           shipToAddressErrorText={state.fieldErrors.shipToAddress}
         />
         <ReferenceGrid
+          loading={isFormHydrating}
           referenceNo={state.referenceNo}
           comments={state.remarks}
           onReferenceNoChange={state.setReferenceNo}

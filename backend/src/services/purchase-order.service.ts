@@ -227,14 +227,24 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       DocDueDate: payload.DocDueDate || payload.DocDate,
       Comments: payload.Comments,
       Address: payload.Address,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        TaxCode: item.TaxCode as string,
-        WarehouseCode: item.WarehouseCode as string,
-        DiscountPercent: item.DiscountPercent as number,
-      })),
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+        const docLine: Record<string, unknown> = {
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          TaxCode: item.TaxCode as string,
+          WarehouseCode: item.WarehouseCode as string,
+          DiscountPercent: item.DiscountPercent as number,
+        };
+
+        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
+          docLine.BaseType = item.BaseType;
+          docLine.BaseEntry = item.BaseEntry;
+          docLine.BaseLine = item.BaseLine;
+        }
+
+        return docLine;
+      }),
     };
 
     // Formats DocDate into SAP-compliant YYYY-MM-DD.
@@ -305,14 +315,24 @@ export const updatePurchaseOrder = async (
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
-      sapPayload.DocumentLines = lines.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        TaxCode: item.TaxCode as string,
-        WarehouseCode: item.WarehouseCode as string,
-        DiscountPercent: item.DiscountPercent as number,
-      }));
+      sapPayload.DocumentLines = lines.map((item) => {
+        const docLine: Record<string, unknown> = {
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          TaxCode: item.TaxCode as string,
+          WarehouseCode: item.WarehouseCode as string,
+          DiscountPercent: item.DiscountPercent as number,
+        };
+
+        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
+          docLine.BaseType = item.BaseType;
+          docLine.BaseEntry = item.BaseEntry;
+          docLine.BaseLine = item.BaseLine;
+        }
+
+        return docLine;
+      });
     }
 
     logger.info({

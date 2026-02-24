@@ -17,7 +17,7 @@ import {
   type PopupMode,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
-import { createOrderToast } from '@/features/create-pages/create-shared/utils/create-order-toast'
+import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
 import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import {
   useCreatePurchaseOrder,
@@ -455,7 +455,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       })),
     }
 
-    const toastHandle = createOrderToast('Purchase Order', isEditMode ? 'update' : 'create')
+    const toastHandle = documentActionToast('Purchase Order', isEditMode ? 'update' : 'create')
     try {
       if (isEditMode) {
         const detail = editDetailQuery.data?.data

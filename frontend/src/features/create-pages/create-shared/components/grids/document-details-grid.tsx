@@ -16,6 +16,7 @@ const CalendarWithBounds = Calendar as unknown as (props: CalendarWithBoundsProp
 type DocumentDetailsGridProps = {
   docDate: string
   docDueDate: string
+  loading?: boolean
   today: Date
   activeDatePicker: ActiveDatePicker
   docDateContainerRef: RefObject<HTMLDivElement | null>
@@ -29,13 +30,14 @@ type DocumentDetailsGridProps = {
   onDocDateChange: (value: string) => void
   onDocDueDateChange: (value: string) => void
   docDueDateInvalid?: boolean
-  docDueDateErrorText?: string
+  docDueDateErrorText?: string | undefined
   error?: string | null
 }
 
 export function DocumentDetailsGrid({
   docDate,
   docDueDate,
+  loading = false,
   today,
   activeDatePicker,
   docDateContainerRef,
@@ -61,9 +63,13 @@ export function DocumentDetailsGrid({
         <div className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
           Doc Number
         </div>
-        <div className="flex h-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-base font-semibold text-blue-700">
-          Generated on Save
-        </div>
+        {loading ? (
+          <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+        ) : (
+          <div className="flex h-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-base font-semibold text-blue-700">
+            Generated on Save
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -74,15 +80,19 @@ export function DocumentDetailsGrid({
           >
             Doc Date
           </label>
-          <button
-            id="po-doc-date"
-            type="button"
-            onClick={() => onSetActiveDatePicker((prev) => (prev === 'doc' ? null : 'doc'))}
-            className="flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-800 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
-          >
-            <span>{toDisplayDate(docDate)}</span>
-            <CalendarDays className="h-4 w-4 text-zinc-600" />
-          </button>
+          {loading ? (
+            <div className="h-11 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+          ) : (
+            <button
+              id="po-doc-date"
+              type="button"
+              onClick={() => onSetActiveDatePicker((prev) => (prev === 'doc' ? null : 'doc'))}
+              className="flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-800 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+            >
+              <span>{toDisplayDate(docDate)}</span>
+              <CalendarDays className="h-4 w-4 text-zinc-600" />
+            </button>
+          )}
           {activeDatePicker === 'doc' ? (
             <div className="absolute left-0 top-full z-40 mt-2">
               <CalendarWithBounds
@@ -109,23 +119,27 @@ export function DocumentDetailsGrid({
               *
             </span>
           </label>
-          <button
-            id="po-delivery-date"
-            type="button"
-            onClick={() =>
-              onSetActiveDatePicker((prev) => (prev === 'delivery' ? null : 'delivery'))
-            }
-            className={`flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border px-3 text-sm text-zinc-800 outline-none transition hover:bg-white ${
-              docDueDateInvalid
-                ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-            }`}
-          >
-            <span className={docDueDate ? '' : 'text-zinc-400'}>
-              {docDueDate ? toDisplayDate(docDueDate) : 'Select delivery date'}
-            </span>
-            <CalendarDays className="h-4 w-4 text-zinc-600" />
-          </button>
+          {loading ? (
+            <div className="h-11 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+          ) : (
+            <button
+              id="po-delivery-date"
+              type="button"
+              onClick={() =>
+                onSetActiveDatePicker((prev) => (prev === 'delivery' ? null : 'delivery'))
+              }
+              className={`flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border px-3 text-sm text-zinc-800 outline-none transition hover:bg-white ${
+                docDueDateInvalid
+                  ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
+                  : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+              }`}
+            >
+              <span className={docDueDate ? '' : 'text-zinc-400'}>
+                {docDueDate ? toDisplayDate(docDueDate) : 'Select delivery date'}
+              </span>
+              <CalendarDays className="h-4 w-4 text-zinc-600" />
+            </button>
+          )}
           {activeDatePicker === 'delivery' ? (
             <div className="absolute right-0 top-full z-40 mt-2">
               <CalendarWithBounds

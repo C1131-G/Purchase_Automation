@@ -42,9 +42,7 @@ export function CreateProductTableRow({
   const maxAllowed = Math.max(1, Math.floor(row.stock) - 1)
   const isNearLimit = enforceStockLimit && row.quantity >= maxAllowed
   const quantityMessage =
-    row.stock > 0
-      ? `In stock: ${row.stock}. You can add up to ${maxAllowed}.`
-      : 'Stock data not available.'
+    row.stock > 0 ? `Max allowed limit: ${maxAllowed}` : 'Max allowed limit unavailable'
   const grossAmount = row.price * row.quantity
   const clampedDiscountPercent = Math.max(0, Math.min(100, row.discountPercent))
   const derivedDiscountAmountFromPercent = (grossAmount * clampedDiscountPercent) / 100
@@ -62,7 +60,7 @@ export function CreateProductTableRow({
 
   return (
     <tr>
-      <td className="w-64 max-w-64 px-3 py-2">
+      <td className="w-sm max-w-sm px-3 py-2">
         <div className="space-y-1">
           <Tooltip
             content={row.productName || 'Select Product'}
@@ -233,15 +231,6 @@ export function CreateProductTableRow({
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm font-medium text-zinc-900">
         {lineNetTotal.toFixed(2)}
-      </td>
-      <td className="px-3 py-2">
-        <input
-          type="text"
-          value={row.comment}
-          onChange={(event) => updateProductRow(row.id, { comment: event.target.value })}
-          placeholder="Comment"
-          className="h-9 w-full min-w-40 rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white"
-        />
       </td>
       <td className="px-3 py-2 text-right">
         <Tooltip content="Remove row" className="block w-auto max-w-none">

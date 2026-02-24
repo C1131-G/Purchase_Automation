@@ -38,6 +38,7 @@ export function usePoProducts({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({})
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null)
   const [debouncedProductSearch, setDebouncedProductSearch] = useState('')
+  const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -47,7 +48,13 @@ export function usePoProducts({
   }, [productSearch])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
-  const productQueryLimit = normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setProductQueryLimit(QUICK_PRODUCT_LIMIT)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [normalizedProductSearch, effectiveWarehouseCode, productPopupOpen])
 
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
   // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
@@ -76,14 +83,9 @@ export function usePoProducts({
       purchaseOrderCreateQueries.products(
         effectiveWarehouseCode,
         normalizedProductSearch || undefined,
-        productQueryLimit,
+        QUICK_PRODUCT_LIMIT,
       ),
     )
-    if (!normalizedProductSearch) {
-      void queryClient.prefetchQuery(
-        purchaseOrderCreateQueries.products(effectiveWarehouseCode, undefined, FULL_PRODUCT_LIMIT),
-      )
-    }
   }
 
   const openProductPopup = (
@@ -103,23 +105,7 @@ export function usePoProducts({
 
     setProductSearch(initialSearch)
     setDebouncedProductSearch(initialSearch)
-
-    if (effectiveWarehouseCode) {
-      void queryClient.fetchQuery(
-        purchaseOrderCreateQueries.products(
-          effectiveWarehouseCode,
-          initialSearch || undefined,
-          initialSearch.trim() ? undefined : QUICK_PRODUCT_LIMIT,
-        ),
-      )
-      void queryClient.prefetchQuery(
-        purchaseOrderCreateQueries.products(
-          effectiveWarehouseCode,
-          initialSearch || undefined,
-          FULL_PRODUCT_LIMIT,
-        ),
-      )
-    }
+    setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     setActiveProductRowId(rowId)
     setProductPopupOpen(true)
     window.requestAnimationFrame(() => {
@@ -127,6 +113,16 @@ export function usePoProducts({
         .getElementById('purchase-order-product-section')
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
+  }
+
+  const loadMoreProducts = () => {
+    if (!productPopupOpen) return
+    if (productsQuery.isFetching) return
+    const currentCount = productsQuery.data?.length ?? 0
+    if (currentCount < productQueryLimit) return
+    const isSearchMode = normalizedProductSearch.length > 0
+    if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) return
+    setProductQueryLimit((prev) => prev + 1)
   }
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {
@@ -228,6 +224,7 @@ export function usePoProducts({
     productWarehouseStocksQuery,
     prefetchProducts,
     openProductPopup,
+    loadMoreProducts,
     debouncedProductSearch,
     setDebouncedProductSearch,
   }

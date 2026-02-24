@@ -1,4 +1,4 @@
-/** Create Order Toast: Unified success/error notifications for document creation. */
+/** Document Action Toast: Unified success/error notifications for backend actions. */
 import { goeyToast } from 'goey-toast'
 
 /**
@@ -8,7 +8,7 @@ import { goeyToast } from 'goey-toast'
  * @param documentType - Human-readable document name, e.g. "Purchase Order".
  * @param action - Mutation intent, either create or update.
  */
-export function createOrderToast(documentType: string, action: 'create' | 'update' = 'create') {
+export function documentActionToast(documentType: string, action: 'create' | 'update' = 'create') {
   const verb = action === 'update' ? 'Updating' : 'Creating'
   const successVerb = action === 'update' ? 'updated' : 'created'
   const failureText = action === 'update' ? 'Update failed' : 'Create failed'

@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
 import {
-  FULL_PRODUCT_LIMIT,
   type ProductSearchFieldError,
   QUICK_PRODUCT_LIMIT,
 } from '@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils'
@@ -121,16 +120,14 @@ export function useArLookups({
   const selectVendor = (vendor: LookupOption) => {
     const nextBillToAddress = vendor.billToAddress ?? ''
     const nextShipToAddress = vendor.shipToAddress ?? ''
-    const associatedSalesEmployeeName =
-      vendor.salesEmployeeName?.trim() ||
-      (vendor.salesEmployeeCode !== undefined
-        ? (salesEmployees as ProductLookupItem[]).find(
-            (item) =>
-              normalizeCodeForCompare(item.code) ===
-              normalizeCodeForCompare(vendor.salesEmployeeCode),
-          )?.name
-        : '') ||
-      ''
+    const targetCode = normalizeCodeForCompare(vendor.salesEmployeeCode)
+    const nameByCode =
+      targetCode === ''
+        ? ''
+        : ((salesEmployees as ProductLookupItem[]).find(
+            (item) => normalizeCodeForCompare(item.code) === targetCode,
+          )?.name ?? '')
+    const associatedSalesEmployeeName = nameByCode || vendor.salesEmployeeName?.trim() || ''
     setHeader({ vendorCode: vendor.code, vendorName: vendor.name })
     setNameInput(vendor.name)
     setCodeInput(vendor.code)
@@ -153,13 +150,9 @@ export function useArLookups({
     setWarehouseInput(item.name)
     setHeader({ warehouseCode: item.code })
     clearFieldError('warehouseCode')
-    void queryClient
-      .prefetchQuery(arInvoiceCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT))
-      .then(() =>
-        queryClient.prefetchQuery(
-          arInvoiceCreateQueries.products(item.code, undefined, FULL_PRODUCT_LIMIT),
-        ),
-      )
+    void queryClient.prefetchQuery(
+      arInvoiceCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT),
+    )
     setWarehouseFocused(false)
     closeModal()
   }

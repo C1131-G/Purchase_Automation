@@ -189,13 +189,23 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        TaxCode: item.TaxCode as string,
-        WarehouseCode: item.WarehouseCode as string,
-      })),
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+        const docLine: Record<string, unknown> = {
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          TaxCode: item.TaxCode as string,
+          WarehouseCode: item.WarehouseCode as string,
+        };
+
+        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
+          docLine.BaseType = item.BaseType;
+          docLine.BaseEntry = item.BaseEntry;
+          docLine.BaseLine = item.BaseLine;
+        }
+
+        return docLine;
+      }),
     };
 
     // Ensure DocDate is in ISO YYYY-MM-DD format as required by SAP Service Layer.

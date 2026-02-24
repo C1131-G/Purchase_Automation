@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 
 const TOP_CARD_KEYS = ['top-1', 'top-2', 'top-3'] as const
-const PRODUCT_ROW_KEYS = ['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5'] as const
+const PRODUCT_ROW_KEYS = ['prod-1'] as const
 const PRODUCT_HEADER_KEYS = [
   'h-product',
   'h-qty',
@@ -63,7 +63,6 @@ export function CreatePageRouteSkeleton() {
         {TOP_CARD_KEYS.map((key) => (
           <SectionShell key={key} titleWidth="w-40">
             <FieldSkeleton />
-            <FieldSkeleton />
           </SectionShell>
         ))}
       </div>
@@ -83,14 +82,12 @@ export function CreatePageRouteSkeleton() {
         </SectionShell>
         <SectionShell titleWidth="w-24">
           <FieldSkeleton />
-          <FieldSkeleton />
         </SectionShell>
       </div>
 
       <section className="mt-3 rounded-2xl border border-zinc-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
           <Pulse className="h-4 w-32" />
-          <Pulse className="h-11 w-44 rounded-xl" />
         </div>
 
         <div className="overflow-x-auto px-2 py-2">
@@ -163,7 +160,6 @@ export function CreatePageRouteSkeleton() {
           <div className="mt-3 flex items-center justify-between gap-2">
             <Pulse className="h-11 w-36 rounded-xl" />
             <div className="flex items-center gap-2">
-              <Pulse className="h-7 w-28 rounded-full" />
               <Pulse className="h-11 w-28 rounded-xl" />
             </div>
           </div>

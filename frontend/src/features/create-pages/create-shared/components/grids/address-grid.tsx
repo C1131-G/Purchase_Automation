@@ -4,6 +4,7 @@ import { SectionCard } from '@/features/create-pages/create-shared/components/co
 type AddressGridProps = {
   billToAddress: string
   shipToAddress: string
+  loading?: boolean
   onBillToAddressChange: (value: string) => void
   onShipToAddressChange: (value: string) => void
   billToAddressInvalid?: boolean | undefined
@@ -15,6 +16,7 @@ type AddressGridProps = {
 export function AddressGrid({
   billToAddress,
   shipToAddress,
+  loading = false,
   onBillToAddressChange,
   onShipToAddressChange,
   billToAddressInvalid,
@@ -35,17 +37,21 @@ export function AddressGrid({
               *
             </span>
           </label>
-          <textarea
-            id="po-bill-to-address"
-            value={billToAddress}
-            onChange={(event) => onBillToAddressChange(event.target.value)}
-            placeholder="Enter Billing Address"
-            className={`h-16 w-full rounded-xl border px-3 py-2 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
-              billToAddressInvalid
-                ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-            }`}
-          />
+          {loading ? (
+            <div className="h-16 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+          ) : (
+            <textarea
+              id="po-bill-to-address"
+              value={billToAddress}
+              onChange={(event) => onBillToAddressChange(event.target.value)}
+              placeholder="Enter Billing Address"
+              className={`h-16 w-full rounded-xl border px-3 py-2 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
+                billToAddressInvalid
+                  ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
+                  : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+              }`}
+            />
+          )}
           {billToAddressInvalid && billToAddressErrorText ? (
             <p className="mt-1 text-xs text-red-600">{billToAddressErrorText}</p>
           ) : null}
@@ -60,17 +66,21 @@ export function AddressGrid({
               *
             </span>
           </label>
-          <textarea
-            id="po-ship-to-address"
-            value={shipToAddress}
-            onChange={(event) => onShipToAddressChange(event.target.value)}
-            placeholder="Enter Shipping Address"
-            className={`h-16 w-full rounded-xl border px-3 py-2 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
-              shipToAddressInvalid
-                ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-            }`}
-          />
+          {loading ? (
+            <div className="h-16 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+          ) : (
+            <textarea
+              id="po-ship-to-address"
+              value={shipToAddress}
+              onChange={(event) => onShipToAddressChange(event.target.value)}
+              placeholder="Enter Shipping Address"
+              className={`h-16 w-full rounded-xl border px-3 py-2 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
+                shipToAddressInvalid
+                  ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
+                  : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+              }`}
+            />
+          )}
           {shipToAddressInvalid && shipToAddressErrorText ? (
             <p className="mt-1 text-xs text-red-600">{shipToAddressErrorText}</p>
           ) : null}

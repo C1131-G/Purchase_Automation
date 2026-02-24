@@ -108,6 +108,7 @@ export function SalesOrderModals({ state }: SalesOrderModalsProps) {
               void state.productsQuery.refetch()
             }}
             onSearchChange={state.setProductSearch}
+            onReachEnd={state.loadMoreProducts}
             onClose={() => state.setProductPopupOpen(false)}
             onSelect={state.applyProductToRow}
           />

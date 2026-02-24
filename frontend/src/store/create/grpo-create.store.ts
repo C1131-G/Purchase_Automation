@@ -1,0 +1,97 @@
+import { create } from 'zustand'
+
+export type GRPOLineItemState = {
+  id: string
+  productCode: string
+  productName: string
+  stock: number
+  currency: string
+  taxCode: string
+  taxRate: number
+  baseQuantity?: number
+  quantity: number
+  discountPercent: number
+  discountAmount: number
+  comment: string
+  price: number
+  warehouseCode: string
+  baseLine?: number | undefined
+  baseEntry?: number | undefined
+  baseType?: number | undefined
+}
+
+export type GRPOHeaderState = {
+  vendorCode: string
+  vendorName: string
+  docDate: string
+  docDueDate: string
+  warehouseCode: string
+  referenceNo: string
+  remarks: string
+}
+
+type GRPOCreateState = {
+  header: GRPOHeaderState
+  lines: GRPOLineItemState[]
+  setHeader: (patch: Partial<GRPOHeaderState>) => void
+  setLines: (
+    lines: GRPOLineItemState[] | ((prev: GRPOLineItemState[]) => GRPOLineItemState[]),
+  ) => void
+  addLine: (line: GRPOLineItemState) => void
+  updateLine: (id: string, patch: Partial<GRPOLineItemState>) => void
+  removeLine: (id: string) => void
+  reset: () => void
+}
+
+const getToday = () => new Date().toISOString().slice(0, 10)
+
+const getDefaultHeader = (): GRPOHeaderState => ({
+  vendorCode: '',
+  vendorName: '',
+  docDate: getToday(),
+  docDueDate: '',
+  warehouseCode: '',
+  referenceNo: '',
+  remarks: '',
+})
+
+export const useGRPOCreateStore = create<GRPOCreateState>((set) => ({
+  header: getDefaultHeader(),
+  lines: [],
+  setHeader: (patch) =>
+    set((prev) => ({
+      ...prev,
+      header: { ...prev.header, ...patch },
+    })),
+  setLines: (lines) =>
+    set((prev) => ({
+      ...prev,
+      lines: typeof lines === 'function' ? lines(prev.lines) : lines,
+    })),
+  addLine: (line) =>
+    set((prev) => ({
+      ...prev,
+      lines: [...prev.lines, line],
+    })),
+  updateLine: (id, patch) =>
+    set((prev) => ({
+      ...prev,
+      lines: prev.lines.map((line) => (line.id === id ? { ...line, ...patch } : line)),
+    })),
+  removeLine: (id) =>
+    set((prev) => ({
+      ...prev,
+      lines: prev.lines.filter((line) => line.id !== id),
+    })),
+  reset: () =>
+    set({
+      header: getDefaultHeader(),
+      lines: [],
+    }),
+}))
+
+export const useGRPOHeader = () => useGRPOCreateStore((state) => state.header)
+export const useGRPOLines = () => useGRPOCreateStore((state) => state.lines)
+export const useSetGRPOHeaderAction = () => useGRPOCreateStore((state) => state.setHeader)
+export const useSetGRPOLinesAction = () => useGRPOCreateStore((state) => state.setLines)
+export const useResetGRPOCreateAction = () => useGRPOCreateStore((state) => state.reset)

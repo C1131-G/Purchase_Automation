@@ -44,6 +44,24 @@ export const configureSession = (app: Application) => {
     });
   };
 
+  if (typeof store.touch === "function") {
+    const originalTouch = store.touch.bind(store);
+    store.touch = (sid, sess, callback) => {
+      originalTouch(sid, sess, (error) => {
+        if ((error as NodeJS.ErrnoException | null)?.code === "ENOENT") {
+          logger.warn({
+            event: "session_file_missing_on_touch",
+            sid,
+            reason: "session_file_deleted_or_expired",
+          });
+          callback?.(null);
+          return;
+        }
+        callback?.(error ?? null);
+      });
+    };
+  }
+
   app.use(
     session({
       store,

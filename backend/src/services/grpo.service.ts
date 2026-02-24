@@ -250,6 +250,7 @@ export const getGRPO = async (sessionId: string, id: string) => {
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
         Price: line.Price || line.UnitPrice,
+        DiscountPercent: line.DiscountPercent,
         UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
         WarehouseCode: line.WarehouseCode,
         LineTotal: line.LineTotal,
@@ -273,16 +274,25 @@ export const createGRPO = async (sessionId: string, payload: Record<string, unkn
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        WarehouseCode: item.WarehouseCode as string,
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+        const line: Record<string, unknown> = {
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          WarehouseCode: item.WarehouseCode as string,
+          DiscountPercent: item.DiscountPercent as number,
+        };
+
         // SAP Required: BaseType 22 indicates this line references a Purchase Order.
-        BaseType: 22,
-        BaseEntry: item.BaseEntry as number, // The DocEntry of the source PO.
-        BaseLine: item.BaseLine as number, // The specific line number in the source PO.
-      })),
+        // We only include these fields if we have a valid BaseEntry and BaseLine.
+        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
+          line.BaseType = item.BaseType ?? 22;
+          line.BaseEntry = item.BaseEntry;
+          line.BaseLine = item.BaseLine;
+        }
+
+        return line;
+      }),
     };
 
     // Standardizes date format for SAP.

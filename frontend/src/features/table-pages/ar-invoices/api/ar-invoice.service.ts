@@ -33,6 +33,9 @@ export type ARInvoiceDetailLine = {
   TaxCode?: string
   WarehouseCode?: string
   LineTotal?: number
+  BaseEntry?: number
+  BaseLine?: number
+  BaseType?: number
 }
 export type ARInvoiceDetail = {
   id?: number

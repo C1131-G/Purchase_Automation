@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { ChevronRight } from 'lucide-react'
 
-import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { ARInvoiceModals } from '@/features/create-pages/ar-invoice-create/components/ar-invoice-modals'
 import { ARInvoiceProductSection } from '@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section'
 import { useARInvoiceCreate } from '@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create'
@@ -12,7 +11,6 @@ import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/compo
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
 import { WarehouseLogisticsGrid } from '@/features/create-pages/create-shared/components/grids/warehouse-logistics-grid'
-import { useBackendLoadingToast } from '@/features/create-pages/create-shared/utils/backend-loading-toast'
 import {
   parseISODate,
   toDisplayDate,
@@ -31,27 +29,6 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
   const queryClient = useQueryClient()
   const setSidebarOpen = useSetSidebarAction()
   const pageTitle = state.isEditMode ? 'Update A/R Invoice' : 'Create A/R Invoice'
-  const backendLoading =
-    state.vendorsQuery.isLoading ||
-    state.warehousesQuery.isLoading ||
-    state.salesEmployeesQuery.isLoading ||
-    (state.isEditMode && state.editDetailQuery.isLoading)
-  const backendErrorMessage = state.isEditMode
-    ? state.editDetailQuery.isError
-      ? state.editDetailQuery.error instanceof Error
-        ? state.editDetailQuery.error.message
-        : 'Unable to load A/R invoice for editing.'
-      : null
-    : null
-
-  useBackendLoadingToast({
-    loading: backendLoading,
-    loadingMessage: state.isEditMode
-      ? 'Loading A/R invoice update data...'
-      : 'Loading A/R invoice create data...',
-    errorMessage: backendErrorMessage,
-  })
-
   const isInitialCreateLoading =
     !state.isEditMode &&
     state.vendorsQuery.isLoading &&
@@ -68,13 +45,10 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
     !state.codeInput.trim() &&
     state.productRows.length === 0
 
-  if (
+  const isFormHydrating =
     isInitialCreateLoading ||
     (state.isEditMode &&
       ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
-  ) {
-    return <CreatePageRouteSkeleton />
-  }
 
   if (state.isEditMode && state.editDetailQuery.isError) {
     const errorMessage =
@@ -120,7 +94,7 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
 
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <VendorCustomerGrid
-          loading={state.vendorsQuery.isLoading}
+          loading={state.vendorsQuery.isLoading || isFormHydrating}
           error={
             state.vendorsQuery.isError
               ? state.vendorsQuery.error instanceof Error
@@ -162,8 +136,8 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
           salesEmployeeLoadingPlaceholder="Loading sales employees..."
           warehouseInput={state.warehouseInput}
           salesEmployeeInput={state.salesEmployeeInput}
-          warehouseLoading={state.warehousesQuery.isLoading}
-          salesEmployeesLoading={state.salesEmployeesQuery.isLoading}
+          warehouseLoading={state.warehousesQuery.isLoading || isFormHydrating}
+          salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
           error={
             state.warehousesQuery.isError
               ? 'Unable to load warehouses.'
@@ -200,6 +174,7 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         <DocumentDetailsGrid
           docDate={state.header.docDate}
           docDueDate={state.header.docDueDate}
+          loading={isFormHydrating}
           today={state.today}
           activeDatePicker={state.activeDatePicker}
           docDateContainerRef={state.docDateContainerRef}
@@ -222,6 +197,7 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
 
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <AddressGrid
+          loading={isFormHydrating}
           billToAddress={state.billToAddress}
           shipToAddress={state.shipToAddress}
           onBillToAddressChange={(value) => {
@@ -244,6 +220,7 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
           shipToAddressErrorText={state.productSearchFieldErrors.shipToAddress}
         />
         <ReferenceGrid
+          loading={isFormHydrating}
           referenceNo={state.header.referenceNo}
           comments={state.header.comments}
           onReferenceNoChange={(value) => {

@@ -36,6 +36,7 @@ export function useArProducts({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({})
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null)
   const [debouncedProductSearch, setDebouncedProductSearch] = useState('')
+  const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -45,7 +46,13 @@ export function useArProducts({
   }, [productSearch])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
-  const productQueryLimit = normalizedProductSearch ? undefined : QUICK_PRODUCT_LIMIT
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setProductQueryLimit(QUICK_PRODUCT_LIMIT)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [normalizedProductSearch, effectiveWarehouseCode, productPopupOpen])
 
   const productsQuery = useQuery({
     ...arInvoiceCreateQueries.products(
@@ -72,14 +79,9 @@ export function useArProducts({
       arInvoiceCreateQueries.products(
         effectiveWarehouseCode,
         normalizedProductSearch || undefined,
-        productQueryLimit,
+        QUICK_PRODUCT_LIMIT,
       ),
     )
-    if (!normalizedProductSearch) {
-      void queryClient.prefetchQuery(
-        arInvoiceCreateQueries.products(effectiveWarehouseCode, undefined, FULL_PRODUCT_LIMIT),
-      )
-    }
   }
 
   const openProductPopup = (
@@ -99,23 +101,7 @@ export function useArProducts({
 
     setProductSearch(initialSearch)
     setDebouncedProductSearch(initialSearch)
-
-    if (effectiveWarehouseCode) {
-      void queryClient.fetchQuery(
-        arInvoiceCreateQueries.products(
-          effectiveWarehouseCode,
-          initialSearch || undefined,
-          initialSearch.trim() ? undefined : QUICK_PRODUCT_LIMIT,
-        ),
-      )
-      void queryClient.prefetchQuery(
-        arInvoiceCreateQueries.products(
-          effectiveWarehouseCode,
-          initialSearch || undefined,
-          FULL_PRODUCT_LIMIT,
-        ),
-      )
-    }
+    setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     setActiveProductRowId(rowId)
     setProductPopupOpen(true)
     window.requestAnimationFrame(() => {
@@ -123,6 +109,16 @@ export function useArProducts({
         .getElementById('ar-invoice-product-section')
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
+  }
+
+  const loadMoreProducts = () => {
+    if (!productPopupOpen) return
+    if (productsQuery.isFetching) return
+    const currentCount = productsQuery.data?.length ?? 0
+    if (currentCount < productQueryLimit) return
+    const isSearchMode = normalizedProductSearch.length > 0
+    if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) return
+    setProductQueryLimit((prev) => prev + 1)
   }
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {
@@ -224,6 +220,7 @@ export function useArProducts({
     productWarehouseStocksQuery,
     prefetchProducts,
     openProductPopup,
+    loadMoreProducts,
     debouncedProductSearch,
     setDebouncedProductSearch,
   }

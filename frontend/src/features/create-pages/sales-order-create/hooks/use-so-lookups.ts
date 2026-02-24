@@ -6,7 +6,6 @@ import { createSharedQueries as salesOrderCreateQueries } from '@/features/creat
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { type LookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 import {
-  FULL_PRODUCT_LIMIT,
   type ProductSearchFieldError,
   QUICK_PRODUCT_LIMIT,
 } from '@/features/create-pages/sales-order-create/utils/so-create.utils'
@@ -161,13 +160,9 @@ export function useSoLookups({
     setWarehouseInput(item.name)
     setHeader({ warehouseCode: item.code })
     clearFieldError('warehouseCode')
-    void queryClient
-      .prefetchQuery(salesOrderCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT))
-      .then(() =>
-        queryClient.prefetchQuery(
-          salesOrderCreateQueries.products(item.code, undefined, FULL_PRODUCT_LIMIT),
-        ),
-      )
+    void queryClient.prefetchQuery(
+      salesOrderCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT),
+    )
     setWarehouseFocused(false)
     closeModal()
   }

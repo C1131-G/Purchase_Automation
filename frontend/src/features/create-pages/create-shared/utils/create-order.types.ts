@@ -31,6 +31,9 @@ export type ProductGridRow = {
   discountPercent: number
   discountAmount: number
   comment: string
+  baseEntry?: number | undefined
+  baseLine?: number | undefined
+  baseType?: number | undefined
 }
 
 export type ProductGridRowDraft = {

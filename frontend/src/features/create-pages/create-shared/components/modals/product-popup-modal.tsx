@@ -1,6 +1,5 @@
 import { type ComponentProps } from 'react'
 
-import { useLookupToast } from '@/components/lookup/hooks/use-lookup-toast'
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
 // ProductPopupModal: Orchestrates item selection, stock validation, and price lookup.
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
@@ -15,6 +14,7 @@ type ProductPopupModalProps = {
   error: string | null
   onRetry?: () => void
   onSearchChange: (value: string) => void
+  onReachEnd?: () => void
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onSelect: (product: ProductLookupItem) => void
 }
@@ -42,6 +42,7 @@ export function ProductPopupModal({
   error,
   onRetry,
   onSearchChange,
+  onReachEnd,
   onClose,
   onSelect,
 }: ProductPopupModalProps) {
@@ -51,13 +52,6 @@ export function ProductPopupModal({
     : warehouseCode
       ? 'No products available for selected warehouse.'
       : 'Select warehouse first to load products.'
-
-  useLookupToast({
-    loading,
-    hasData: safeResults.length > 0,
-    open,
-    message: search.trim() ? 'Searching…' : 'Loading…',
-  })
 
   return (
     <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-4xl">
@@ -85,7 +79,17 @@ export function ProductPopupModal({
           onChange={(event) => onSearchChange(event.target.value)}
         />
         <div className="overflow-hidden rounded-xl border border-zinc-200">
-          <div className="max-h-80 overflow-auto">
+          <div
+            className="max-h-80 overflow-auto"
+            onScroll={(event) => {
+              if (!onReachEnd || loading) return
+              const target = event.currentTarget
+              const threshold = 32
+              const reachedEnd =
+                target.scrollHeight - target.scrollTop - target.clientHeight <= threshold
+              if (reachedEnd) onReachEnd()
+            }}
+          >
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-zinc-50 text-zinc-600">
                 <tr>

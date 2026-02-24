@@ -106,6 +106,7 @@ export function GRPOTable() {
           void Promise.allSettled([
             queryClient.prefetchQuery(createSharedQueries.vendors()),
             queryClient.prefetchQuery(createSharedQueries.warehouses()),
+            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
           ])
 
           const detail = response?.data

@@ -1,7 +1,6 @@
 // ProductWarehouseStockModal: Displays real-time inventory levels across multiple warehouses.
 import { type ComponentProps, useMemo, useState } from 'react'
 
-import { useLookupToast } from '@/components/lookup/hooks/use-lookup-toast'
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
 import { type ProductWarehouseStockItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { AnimatedModalShell } from '@/features/create-pages/create-shared/components/core/animated-modal-shell'
@@ -63,12 +62,6 @@ export function ProductWarehouseStockModal({
         stockItem.code.toLowerCase().includes(term) || stockItem.name.toLowerCase().includes(term),
     )
   }, [sortedStocks, warehouseSearch])
-
-  useLookupToast({
-    loading,
-    hasData: filteredStocks.length > 0,
-    open,
-  })
 
   return (
     <AnimatedModalShell

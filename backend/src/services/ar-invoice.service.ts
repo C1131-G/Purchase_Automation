@@ -162,6 +162,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
       id: result.DocEntry,
       DocNum: result.DocNum,
       DocDate: result.DocDate,
+      DocDueDate: result.DocDueDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
@@ -174,6 +175,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
         Price: line.Price || line.UnitPrice,
+        DiscountPercent: line.DiscountPercent,
         TaxCode: line.TaxCode,
         WarehouseCode: line.WarehouseCode,
         LineTotal: line.LineTotal,
@@ -200,14 +202,24 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
       Comments: payload.Comments,
       Address: payload.Address,
       NumAtCard: payload.NumAtCard,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((line) => ({
-        ItemCode: line.ItemCode as string,
-        Quantity: line.Quantity as number,
-        UnitPrice: (line.UnitPrice || line.Price) as number,
-        TaxCode: line.TaxCode as string,
-        WarehouseCode: line.WarehouseCode as string,
-        DiscountPercent: line.DiscountPercent as number,
-      })),
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((line) => {
+        const docLine: Record<string, unknown> = {
+          ItemCode: line.ItemCode as string,
+          Quantity: line.Quantity as number,
+          UnitPrice: (line.UnitPrice || line.Price) as number,
+          TaxCode: line.TaxCode as string,
+          WarehouseCode: line.WarehouseCode as string,
+          DiscountPercent: line.DiscountPercent as number,
+        };
+
+        if (Number.isFinite(line.BaseEntry) && Number.isFinite(line.BaseLine)) {
+          docLine.BaseType = line.BaseType;
+          docLine.BaseEntry = line.BaseEntry;
+          docLine.BaseLine = line.BaseLine;
+        }
+
+        return docLine;
+      }),
     };
 
     const docDate = sapPayload.DocDate as string;
@@ -265,14 +277,24 @@ export const updateInvoice = async (
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
-      sapPayload.DocumentLines = lines.map((line) => ({
-        ItemCode: line.ItemCode as string,
-        Quantity: line.Quantity as number,
-        UnitPrice: (line.UnitPrice || line.Price) as number,
-        TaxCode: line.TaxCode as string,
-        WarehouseCode: line.WarehouseCode as string,
-        DiscountPercent: line.DiscountPercent as number,
-      }));
+      sapPayload.DocumentLines = lines.map((line) => {
+        const docLine: Record<string, unknown> = {
+          ItemCode: line.ItemCode as string,
+          Quantity: line.Quantity as number,
+          UnitPrice: (line.UnitPrice || line.Price) as number,
+          TaxCode: line.TaxCode as string,
+          WarehouseCode: line.WarehouseCode as string,
+          DiscountPercent: line.DiscountPercent as number,
+        };
+
+        if (Number.isFinite(line.BaseEntry) && Number.isFinite(line.BaseLine)) {
+          docLine.BaseType = line.BaseType;
+          docLine.BaseEntry = line.BaseEntry;
+          docLine.BaseLine = line.BaseLine;
+        }
+
+        return docLine;
+      });
     }
 
     await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload);

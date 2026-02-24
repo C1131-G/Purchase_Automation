@@ -17,10 +17,24 @@ const USER_CHECK_ATTEMPT_SKIP_MS = 5 * 60 * 1000
  * Validates existing sessions on mount before showing credentials form.
  */
 export const Route = createFileRoute('/login')({
-  beforeLoad: () => {
+  beforeLoad: async ({ context }) => {
     const { isAuthenticated } = useAuthStore.getState()
     if (isAuthenticated) {
-      throw redirect({ to: '/' })
+      throw redirect({
+        to: '/purchase/orders',
+        search: { page: 1, limit: 10 },
+      })
+    }
+
+    try {
+      const user = await context.queryClient.ensureQueryData(authQueries.user())
+      useAuthStore.getState().login(user)
+      throw redirect({
+        to: '/purchase/orders',
+        search: { page: 1, limit: 10 },
+      })
+    } catch {
+      // No active session; keep login visible.
     }
   },
   component: LoginComponent,

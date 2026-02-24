@@ -15,8 +15,9 @@ type GRPOCreateLine = {
   comment: string
   price: number
   warehouseCode: string
-  baseLine?: number
-  baseEntry?: number
+  baseLine?: number | undefined
+  baseEntry?: number | undefined
+  baseType?: number | undefined
 }
 
 export function useGrpoProducts() {
@@ -36,7 +37,7 @@ export function useGrpoProducts() {
     setRows((prev) =>
       prev.map((item) => {
         if (item.id !== rowId) return item
-        const max = Number.isFinite(item.baseQuantity) ? item.baseQuantity : nextQuantity
+        const max = typeof item.baseQuantity === 'number' ? item.baseQuantity : nextQuantity
         const next = Math.max(0, Math.min(max, nextQuantity))
         return { ...item, quantity: next }
       }),
