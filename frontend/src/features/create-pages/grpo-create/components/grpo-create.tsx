@@ -64,10 +64,10 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
 
   const handleRestrictedClick = state.isEditMode
     ? (fieldName: string) => (event: MouseEvent<HTMLDivElement>) => {
-        event.preventDefault()
-        event.stopPropagation()
-        state.showEditRestrictedToast(fieldName)
-      }
+      event.preventDefault()
+      event.stopPropagation()
+      state.showEditRestrictedToast(fieldName)
+    }
     : undefined
 
   return (
