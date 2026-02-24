@@ -342,7 +342,12 @@ export const updateGRPO = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
-    if (payload.Comments) sapPayload.Comments = payload.Comments;
+    if (Object.prototype.hasOwnProperty.call(payload, "DocDueDate")) {
+      sapPayload.DocDueDate = payload.DocDueDate;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "Comments")) {
+      sapPayload.Comments = payload.Comments;
+    }
 
     await serviceLayerClient.request(
       sessionId,

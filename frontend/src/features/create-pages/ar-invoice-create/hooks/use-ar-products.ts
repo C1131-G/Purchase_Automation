@@ -7,7 +7,10 @@ import {
   QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from '@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils'
-import { createSharedQueries as arInvoiceCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
+import {
+  createSharedKeys,
+  createSharedQueries as arInvoiceCreateQueries,
+} from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   type ProductRow,
@@ -39,11 +42,12 @@ export function useArProducts({
   const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT)
 
   useEffect(() => {
+    void queryClient.cancelQueries({ queryKey: createSharedKeys.products() })
     const timer = window.setTimeout(() => {
       setDebouncedProductSearch(productSearch.trim())
-    }, 300)
+    }, 180)
     return () => window.clearTimeout(timer)
-  }, [productSearch])
+  }, [productSearch, queryClient])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
 
@@ -99,8 +103,9 @@ export function useArProducts({
       return
     }
 
-    setProductSearch(initialSearch)
-    setDebouncedProductSearch(initialSearch)
+    const nextSearch = rowId || initialSearch.trim().length > 0 ? initialSearch : productSearch
+    setProductSearch(nextSearch)
+    setDebouncedProductSearch(nextSearch)
     setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     setActiveProductRowId(rowId)
     setProductPopupOpen(true)

@@ -1,5 +1,5 @@
 // FieldBlock: A standardized layout container for form fields, labels, and validation.
-import { Search } from 'lucide-react'
+import { Lock, Pencil, Search } from 'lucide-react'
 import { useRef } from 'react'
 
 type FieldBlockProps = {
@@ -16,6 +16,7 @@ type FieldBlockProps = {
   errorText?: string | undefined
   disabled?: boolean | undefined
   onDisabledClick?: (() => void) | undefined
+  editableHighlight?: boolean | undefined
 }
 
 export function FieldBlock({
@@ -32,6 +33,7 @@ export function FieldBlock({
   errorText,
   disabled,
   onDisabledClick,
+  editableHighlight,
 }: FieldBlockProps) {
   const lastDisabledFeedbackAtRef = useRef(0)
 
@@ -52,16 +54,22 @@ export function FieldBlock({
       <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
         <span className="inline-flex items-center gap-1.5">
           <span>{displayLabel}</span>
+          {disabled ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+          {!disabled && editableHighlight ? (
+            <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
+          ) : null}
           {isRequired ? <span className="text-red-500">*</span> : null}
         </span>
       </label>
       <div className="relative">
         <input
-          className={`h-10 w-full rounded-xl border pl-3 pr-12 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
+          className={`h-10 w-full rounded-xl border pl-3 pr-12 text-sm outline-none transition placeholder:text-zinc-400 ${
             invalid
               ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-              : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-          } ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
+              : editableHighlight
+                ? 'border-emerald-300 bg-emerald-50/60 text-zinc-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+          } ${disabled ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100' : ''}`}
           placeholder={loading ? (loadingPlaceholder ?? 'Loading...') : placeholder}
           value={value}
           readOnly={disabled}

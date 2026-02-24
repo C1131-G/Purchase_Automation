@@ -22,6 +22,8 @@ interface CreateProductTableProps {
   totals: ReturnType<typeof calculateOrderTotals>
   summaryCurrencyLabel: string | null
   createError: string | null
+  disableLineInputs?: boolean
+  onLineInputRestrictedClick?: () => void
 }
 
 export function CreateProductTable({
@@ -36,6 +38,8 @@ export function CreateProductTable({
   setProductRowDraft,
   clearProductRowDraft,
   prefetchProducts,
+  disableLineInputs = false,
+  onLineInputRestrictedClick,
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
@@ -80,6 +84,8 @@ export function CreateProductTable({
               setProductRowDraft={setProductRowDraft}
               clearProductRowDraft={clearProductRowDraft}
               prefetchProducts={prefetchProducts}
+              disableInputs={disableLineInputs}
+              onInputRestrictedClick={onLineInputRestrictedClick}
             />
           ))}
         </tbody>

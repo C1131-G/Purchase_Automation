@@ -33,6 +33,10 @@ type VendorCustomerGridProps = {
   vendorCodeInvalid?: boolean | undefined
   vendorNameErrorText?: string | undefined
   vendorCodeErrorText?: string | undefined
+  nameDisabled?: boolean
+  codeDisabled?: boolean
+  nameEditableHighlight?: boolean
+  codeEditableHighlight?: boolean
 }
 
 export function VendorCustomerGrid({
@@ -64,6 +68,10 @@ export function VendorCustomerGrid({
   vendorCodeInvalid,
   vendorNameErrorText,
   vendorCodeErrorText,
+  nameDisabled = false,
+  codeDisabled = false,
+  nameEditableHighlight = false,
+  codeEditableHighlight = false,
 }: VendorCustomerGridProps) {
   return (
     <SectionCard title={sectionTitle} className="lg:col-span-1">
@@ -85,6 +93,8 @@ export function VendorCustomerGrid({
           loading={loading}
           invalid={vendorNameInvalid}
           errorText={vendorNameErrorText}
+          disabled={nameDisabled}
+          editableHighlight={nameEditableHighlight}
         />
         {nameFocused ? (
           <SuggestionList items={nameSuggestions} onSelect={onSelectVendor} floating />
@@ -104,6 +114,8 @@ export function VendorCustomerGrid({
           loading={loading}
           invalid={vendorCodeInvalid}
           errorText={vendorCodeErrorText}
+          disabled={codeDisabled}
+          editableHighlight={codeEditableHighlight}
         />
         {codeFocused ? (
           <SuggestionList items={codeSuggestions} onSelect={onSelectVendor} floating />

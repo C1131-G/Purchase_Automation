@@ -115,10 +115,16 @@ export const CreateInvoiceInputSchema = z.object({
   DocumentLines: z.array(InvoiceLineItemSchema).min(1),
 });
 
-// UpdateInvoiceInputSchema: Allows modification of pending invoices.
-export const UpdateInvoiceInputSchema = CreateInvoiceInputSchema.partial().extend({
-  Address: z.string().optional(),
-});
+// UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
+export const UpdateInvoiceInputSchema = z
+  .object({
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    Comments: z.string().optional(),
+  })
+  .strict();
 
 export type InvoiceQuery = z.infer<typeof InvoiceQuerySchema>;
 export type InvoiceDocNumLookupQuery = z.infer<typeof InvoiceDocNumLookupQuerySchema>;

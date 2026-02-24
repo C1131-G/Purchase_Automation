@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { goeyToast } from 'goey-toast'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
@@ -79,11 +80,23 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   )
   const [createError, setCreateError] = useState<string | null>(null)
   const hydratedDocNumRef = useRef<string | null>(null)
+  const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
+  const lastRestrictedToastAtRef = useRef(0)
+  const editDocNum = (options?.docNum ?? '').trim()
 
   const docDateContainerRef = useRef<HTMLDivElement>(null)
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null)
 
   const modals = useSoModals()
+
+  const notifyRestricted = (fieldName: string) => {
+    const now = Date.now()
+    if (now - lastRestrictedToastAtRef.current < 2500) return
+    lastRestrictedToastAtRef.current = now
+    goeyToast.error(`${fieldName} is locked for edit`, {
+      id: 'restricted-edit-toast',
+    })
+  }
 
   const clearFieldError = (field: keyof ProductSearchFieldError) => {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }))
@@ -108,16 +121,17 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   useEffect(() => {
     if (isEditMode) return
     resetSOCreate()
+    hydratedDocNumRef.current = null
   }, [isEditMode, resetSOCreate])
 
   const editDetailQuery = useQuery({
-    ...salesOrderQueries.detailByDocNum((options?.docNum ?? '').trim()),
-    enabled: isEditMode && Boolean((options?.docNum ?? '').trim()),
+    ...salesOrderQueries.detailByDocNum(editDocNum),
+    enabled: isEditMode && Boolean(editDocNum),
   })
 
   useEffect(() => {
     if (!isEditMode) return
-    const currentDocNum = (options?.docNum ?? '').trim()
+    const currentDocNum = editDocNum
     if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) return
     const detail = editDetailQuery.data?.data
     if (!detail) return
@@ -235,6 +249,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       productsHook.setProductRowDrafts({})
 
       hydratedDocNumRef.current = currentDocNum
+      setHydratedDocNum(currentDocNum)
     })()
   }, [
     queryClient,
@@ -242,7 +257,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     header.docDate,
     isEditMode,
     lookups,
-    options?.docNum,
+    editDocNum,
     productsHook,
     setHeader,
   ])
@@ -440,24 +455,101 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       return
     }
 
+    if (isEditMode) {
+      const detail = editDetailQuery.data?.data
+      if (detail) {
+        const rawComments = String(detail.Comments ?? '').trim()
+        const splitComments = rawComments.split(' | ').map((part) => part.trim())
+        const hasReferenceMarker = splitComments.length > 1
+        const existingReferenceNo = hasReferenceMarker ? (splitComments[0] ?? '') : ''
+        const existingCommentText = hasReferenceMarker
+          ? splitComments.slice(1).join(' | ')
+          : rawComments
+
+        const existingComparable = {
+          SalesPersonCode:
+            detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+              ? Number(normalizeCodeForCompare(detail.SalesPersonCode))
+              : undefined,
+          DocDate: String(detail.DocDate ?? '').slice(0, 10),
+          DocDueDate:
+            String(detail.DocDueDate ?? '').slice(0, 10) ||
+            String(detail.DocDate ?? '').slice(0, 10),
+          Comments: [existingReferenceNo.trim(), existingCommentText.trim()]
+            .filter(Boolean)
+            .join(' | '),
+          Address: String(detail.Address ?? '').trim() || undefined,
+          DocumentLines: (detail.DocumentLines ?? [])
+            .filter((line) => Number(line.Quantity ?? 0) > 0)
+            .map((line) => ({
+              ItemCode: String(line.ItemCode ?? '').trim(),
+              Quantity: Number(line.Quantity ?? 0),
+              UnitPrice: Number(line.Price ?? line.UnitPrice ?? 0),
+              DiscountPercent: Number(line.DiscountPercent ?? 0),
+              WarehouseCode: String(line.WarehouseCode ?? '').trim() || undefined,
+              TaxCode: String(line.TaxCode ?? '').trim() || undefined,
+            })),
+        }
+
+        const currentComparable = {
+          SalesPersonCode: resolvedSalesEmployeeCode,
+          DocDate: header.docDate,
+          DocDueDate: header.docDueDate || header.docDate,
+          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
+          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          DocumentLines: validRows.map((row) => ({
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            UnitPrice: row.price,
+            DiscountPercent: row.discountPercent,
+            WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+            TaxCode: row.taxCode || undefined,
+          })),
+        }
+
+        if (JSON.stringify(currentComparable) === JSON.stringify(existingComparable)) {
+          const noChangeMessage = 'Change at least one field before update.'
+          setCreateError(noChangeMessage)
+          goeyToast.error(noChangeMessage, { id: 'no-change-update-toast' })
+          return
+        }
+      }
+    }
+
     setCreateError(null)
 
-    const payload = {
-      CardCode: (header.vendorCode || lookups.codeInput).trim(),
-      SalesPersonCode: resolvedSalesEmployeeCode,
-      DocDate: header.docDate,
-      DocDueDate: header.docDueDate || header.docDate,
-      Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-      Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
-      DocumentLines: validRows.map((row) => ({
-        ItemCode: row.productCode,
-        Quantity: row.quantity,
-        UnitPrice: row.price,
-        DiscountPercent: row.discountPercent,
-        WarehouseCode: lookups.effectiveWarehouseCode || undefined,
-        TaxCode: row.taxCode || undefined,
-      })),
-    }
+    const payload = isEditMode
+      ? {
+          SalesPersonCode: resolvedSalesEmployeeCode,
+          DocDate: header.docDate,
+          DocDueDate: header.docDueDate || header.docDate,
+          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
+          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          DocumentLines: validRows.map((row) => ({
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            UnitPrice: row.price,
+            DiscountPercent: row.discountPercent,
+            WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+            TaxCode: row.taxCode || undefined,
+          })),
+        }
+      : {
+          CardCode: (header.vendorCode || lookups.codeInput).trim(),
+          SalesPersonCode: resolvedSalesEmployeeCode,
+          DocDate: header.docDate,
+          DocDueDate: header.docDueDate || header.docDate,
+          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
+          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          DocumentLines: validRows.map((row) => ({
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            UnitPrice: row.price,
+            DiscountPercent: row.discountPercent,
+            WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+            TaxCode: row.taxCode || undefined,
+          })),
+        }
 
     const toastHandle = documentActionToast('Sales Order', isEditMode ? 'update' : 'create')
     try {
@@ -536,6 +628,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     [productsHook.productRows],
   )
   const summaryCurrencyLabel = summaryCurrency === 'MULTI' ? 'MULTI' : summaryCurrency
+  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
 
   return {
     ...lookups,
@@ -551,6 +644,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     updateSalesOrderMutation,
     editDetailQuery,
     isEditMode,
+    isEditHydrated,
     header,
     today,
     activeDatePicker,
@@ -573,5 +667,6 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     deliveryDateContainerRef,
     handleCreateOrder: handleCreateOrderAction,
     setHeader,
+    showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
   }
 }

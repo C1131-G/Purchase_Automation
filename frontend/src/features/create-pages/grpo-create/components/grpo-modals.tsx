@@ -16,6 +16,7 @@ export function GRPOModals({ state }: GRPOModalsProps) {
           search={state.productSearch}
           results={state.products}
           loading={state.productsQuery.isLoading}
+          backgroundLoading={state.productsQuery.isFetching && !state.productsQuery.isLoading}
           error={
             state.productsQuery.isError
               ? state.productsQuery.error instanceof Error

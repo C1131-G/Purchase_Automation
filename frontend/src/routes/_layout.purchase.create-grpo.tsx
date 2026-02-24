@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
-import { GRPOCreate } from '@/features/create-pages/grpo-create/components/grpo-create'
+import GRPOCreate from '@/features/create-pages/grpo-create/components/grpo-create'
 import { requireActiveSession } from '@/routes/_require-active-session'
 
 /** PurchaseGRPOCreateRoute: Page for creating new Goods Receipt POs. */

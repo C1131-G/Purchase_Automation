@@ -1,7 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { goeyToast } from 'goey-toast'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
+import {
+  createSharedKeys,
+  createSharedQueries,
+} from '@/features/create-pages/create-shared/api/create-shared.queries'
 import {
   type LookupItem,
   type ProductLookupItem,
@@ -84,6 +88,7 @@ const normalizeCodeForCompare = (value: unknown) => {
 
 export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions) {
   const isEditMode = mode === 'edit'
+  const editDocNum = (docNum ?? '').trim()
   const queryClient = useQueryClient()
   const header = useGRPOHeader()
   const setHeader = useSetGRPOHeaderAction()
@@ -93,6 +98,8 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
   const createMutation = useCreateGRPO()
   const updateMutation = useUpdateGRPO()
   const hydratedDocNumRef = useRef<string | null>(null)
+  const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
+  const lastRestrictedToastAtRef = useRef(0)
 
   const [vendorNameInput, setVendorNameInput] = useState('')
   const [vendorCodeInput, setVendorCodeInput] = useState('')
@@ -123,6 +130,15 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
   const docDateContainerRef = useRef<HTMLDivElement>(null)
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null)
 
+  const notifyRestricted = (fieldName: string) => {
+    const now = Date.now()
+    if (now - lastRestrictedToastAtRef.current < 2500) return
+    lastRestrictedToastAtRef.current = now
+    goeyToast.error(`${fieldName} is locked for edit`, {
+      id: 'restricted-edit-toast',
+    })
+  }
+
   const vendorsQuery = useQuery(createSharedQueries.vendors())
   const warehousesQuery = useQuery(createSharedQueries.warehouses())
   const salesEmployeesQuery = useQuery(createSharedQueries.salesEmployees())
@@ -151,11 +167,12 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
   )
 
   useEffect(() => {
+    void queryClient.cancelQueries({ queryKey: createSharedKeys.products() })
     const timer = window.setTimeout(() => {
       setDebouncedProductSearch(productSearch.trim())
-    }, 300)
+    }, 180)
     return () => window.clearTimeout(timer)
-  }, [productSearch])
+  }, [productSearch, queryClient])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -170,8 +187,8 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
   })
 
   const editDetailQuery = useQuery({
-    ...grpoQueries.detailByDocNum((docNum ?? '').trim()),
-    enabled: isEditMode && Boolean((docNum ?? '').trim()),
+    ...grpoQueries.detailByDocNum(editDocNum),
+    enabled: isEditMode && Boolean(editDocNum),
   })
 
   useEffect(() => {
@@ -182,7 +199,7 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
 
   useEffect(() => {
     if (!isEditMode) return
-    const currentDocNum = (docNum ?? '').trim()
+    const currentDocNum = editDocNum
     if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) return
     const detail = editDetailQuery.data?.data
     if (!detail) return
@@ -301,9 +318,10 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
       setLines(mappedLines)
       setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim())
       hydratedDocNumRef.current = currentDocNum
+      setHydratedDocNum(currentDocNum)
     })()
   }, [
-    docNum,
+    editDocNum,
     editDetailQuery.data,
     isEditMode,
     queryClient,
@@ -651,6 +669,7 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
   }, [missingMandatoryFields.length])
 
   const requiredFieldsTotal = GRPO_MANDATORY_FIELDS.length
+  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
 
   const createDisabledReason = useMemo(() => {
     if (missingMandatoryFields.length > 0) {
@@ -745,36 +764,62 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
       return
     }
 
-    setCreateError(null)
-    const payload = {
-      CardCode: vendorCodeInput.trim(),
-      DocDate: header.docDate || undefined,
-      DocDueDate: header.docDueDate || undefined,
-      SalesPersonCode: resolvedSalesEmployeeCode,
-      Comments:
-        [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join(' | ') || undefined,
-      DocumentLines: filteredRows.map((row) => {
-        const hasCompleteBaseLink =
-          Number.isFinite(row.baseEntry) &&
-          Number.isFinite(row.baseLine) &&
-          Number.isFinite(row.baseType)
+    if (isEditMode) {
+      const detail = editDetailQuery.data?.data
+      const existingDocDueDate = String(detail?.DocDueDate ?? '')
+        .slice(0, 10)
+        .trim()
+      const rawComments = String(detail?.Comments ?? '').trim()
+      const splitComments = rawComments.split(' | ').map((part) => part.trim())
+      const hasReferenceMarker = splitComments.length > 1
+      const existingRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+      const currentDocDueDate = String(header.docDueDate ?? '').trim()
+      const currentRemarks = String(header.remarks ?? '').trim()
 
-        return {
-          ItemCode: row.productCode,
-          Quantity: row.quantity,
-          UnitPrice: row.price,
-          DiscountPercent: row.discountPercent,
-          WarehouseCode: effectiveWarehouseCode || row.warehouseCode || undefined,
-          ...(hasCompleteBaseLink
-            ? {
-                BaseType: row.baseType,
-                BaseEntry: row.baseEntry,
-                BaseLine: row.baseLine,
-              }
-            : {}),
-        }
-      }),
+      if (currentDocDueDate === existingDocDueDate && currentRemarks === existingRemarks.trim()) {
+        const noChangeMessage = 'Change at least one field before update.'
+        setCreateError(noChangeMessage)
+        goeyToast.error(noChangeMessage, { id: 'no-change-update-toast' })
+        return
+      }
     }
+
+    setCreateError(null)
+    const payload = isEditMode
+      ? {
+          DocDueDate: header.docDueDate || undefined,
+          Comments: header.remarks.trim() || undefined,
+        }
+      : {
+          CardCode: vendorCodeInput.trim(),
+          DocDate: header.docDate || undefined,
+          DocDueDate: header.docDueDate || undefined,
+          SalesPersonCode: resolvedSalesEmployeeCode,
+          Comments:
+            [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join(' | ') ||
+            undefined,
+          DocumentLines: filteredRows.map((row) => {
+            const hasCompleteBaseLink =
+              Number.isFinite(row.baseEntry) &&
+              Number.isFinite(row.baseLine) &&
+              Number.isFinite(row.baseType)
+
+            return {
+              ItemCode: row.productCode,
+              Quantity: row.quantity,
+              UnitPrice: row.price,
+              DiscountPercent: row.discountPercent,
+              WarehouseCode: effectiveWarehouseCode || row.warehouseCode || undefined,
+              ...(hasCompleteBaseLink
+                ? {
+                    BaseType: row.baseType,
+                    BaseEntry: row.baseEntry,
+                    BaseLine: row.baseLine,
+                  }
+                : {}),
+            }
+          }),
+        }
 
     const toastHandle = documentActionToast('GRPO', isEditMode ? 'update' : 'create')
     try {
@@ -846,6 +891,7 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     warehousesQuery,
     salesEmployeesQuery,
     editDetailQuery,
+    isEditHydrated,
     createMutation,
     updateMutation,
     vendorNameInput,
@@ -891,26 +937,40 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     setProductSearch,
     setStockPreviewProduct,
     setWarehouseFocused,
-    setDocDate: (val: string) => setHeader({ docDate: val }),
+    setDocDate: (val: string) =>
+      isEditMode ? notifyRestricted('Document Date') : setHeader({ docDate: val }),
     setDocDueDate: (val: string) => setHeader({ docDueDate: val }),
-    setBuyerInput: handleBuyerChange,
-    setWarehouseInput: handleWarehouseInputChange,
-    setReferenceNo: handleReferenceNoChange,
+    setBuyerInput: (val: string) =>
+      isEditMode ? notifyRestricted('Buyer') : handleBuyerChange(val),
+    setWarehouseInput: (val: string) =>
+      isEditMode ? notifyRestricted('Warehouse') : handleWarehouseInputChange(val),
+    setReferenceNo: (val: string) =>
+      isEditMode ? notifyRestricted('Reference No') : handleReferenceNoChange(val),
     setRemarks: handleRemarksChange,
-    setBillToAddress: handleBillToAddressChange,
-    setShipToAddress: handleShipToAddressChange,
-    selectVendor,
-    selectBuyer,
-    handleVendorNameChange,
-    handleVendorCodeChange,
-    selectWarehouse,
-    prefetchProducts,
-    openProductPopup,
+    setBillToAddress: (val: string) =>
+      isEditMode ? notifyRestricted('Bill To Address') : handleBillToAddressChange(val),
+    setShipToAddress: (val: string) =>
+      isEditMode ? notifyRestricted('Ship To Address') : handleShipToAddressChange(val),
+    selectVendor: (val: LookupItem) =>
+      isEditMode ? notifyRestricted('Vendor') : selectVendor(val),
+    selectBuyer: (val: LookupItem) => (isEditMode ? notifyRestricted('Buyer') : selectBuyer(val)),
+    handleVendorNameChange: (val: string) =>
+      isEditMode ? notifyRestricted('Vendor Name') : handleVendorNameChange(val),
+    handleVendorCodeChange: (val: string) =>
+      isEditMode ? notifyRestricted('Vendor Code') : handleVendorCodeChange(val),
+    selectWarehouse: (val: LookupItem) =>
+      isEditMode ? notifyRestricted('Warehouse') : selectWarehouse(val),
+    prefetchProducts: () => (isEditMode ? null : prefetchProducts()),
+    openProductPopup: (rowId: string | null = null) =>
+      isEditMode ? notifyRestricted('Products') : openProductPopup(rowId),
     loadMoreProducts,
     openStockPreview,
-    applyProductToRow,
-    updateProductRow,
-    removeProductRow,
+    applyProductToRow: (val: ProductLookupItem) =>
+      isEditMode ? notifyRestricted('Products') : applyProductToRow(val),
+    updateProductRow: (id: string, patch: Partial<GRPOCreateLine>) =>
+      isEditMode ? notifyRestricted('Products') : updateProductRow(id, patch),
+    removeProductRow: (id: string) =>
+      isEditMode ? notifyRestricted('Products') : removeProductRow(id),
     setProductRowDraft,
     clearProductRowDraft,
     handleCreateGRPO,
@@ -923,5 +983,6 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     deliveryDateContainerRef,
     handleDocDateChange,
     handleDocDueDateChange,
+    showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
   }
 }

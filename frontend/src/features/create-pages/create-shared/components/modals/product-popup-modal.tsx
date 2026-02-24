@@ -1,4 +1,4 @@
-import { type ComponentProps } from 'react'
+import { type ComponentProps, memo, useEffect, useMemo, useRef } from 'react'
 
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
 // ProductPopupModal: Orchestrates item selection, stock validation, and price lookup.
@@ -11,6 +11,7 @@ type ProductPopupModalProps = {
   search: string
   results: ProductLookupItem[]
   loading: boolean
+  backgroundLoading?: boolean
   error: string | null
   onRetry?: () => void
   onSearchChange: (value: string) => void
@@ -18,6 +19,8 @@ type ProductPopupModalProps = {
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onSelect: (product: ProductLookupItem) => void
 }
+
+const popupScrollState = new Map<string, number>()
 
 function ModalEmptyRow({ colSpan, message }: { colSpan: number; message: string }) {
   return (
@@ -33,12 +36,34 @@ function ModalEmptyRow({ colSpan, message }: { colSpan: number; message: string 
 
 const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const
 
+const ProductPopupRow = memo(function ProductPopupRow({
+  product,
+  onSelect,
+}: {
+  product: ProductLookupItem
+  onSelect: (product: ProductLookupItem) => void
+}) {
+  return (
+    <tr
+      key={`${product.code}-${product.name}`}
+      className="cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50"
+      onClick={() => onSelect(product)}
+    >
+      <td className="px-3 py-2 font-medium text-zinc-800">{product.code}</td>
+      <td className="px-3 py-2 text-zinc-700">{product.name}</td>
+      <td className="px-3 py-2 text-zinc-700">{product.stock}</td>
+      <td className="px-3 py-2 text-zinc-700">{product.price.toFixed(2)}</td>
+    </tr>
+  )
+})
+
 export function ProductPopupModal({
   open,
   warehouseCode,
   search,
   results,
   loading,
+  backgroundLoading = false,
   error,
   onRetry,
   onSearchChange,
@@ -46,12 +71,36 @@ export function ProductPopupModal({
   onClose,
   onSelect,
 }: ProductPopupModalProps) {
-  const safeResults = Array.isArray(results) ? results : []
+  const safeResults = useMemo(() => (Array.isArray(results) ? results : []), [results])
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollKey = warehouseCode?.trim() || '__no_warehouse__'
   const emptyMessage = search.trim()
     ? `No products match "${search.trim()}".`
     : warehouseCode
       ? 'No products available for selected warehouse.'
       : 'Select warehouse first to load products.'
+
+  useEffect(() => {
+    if (!open) return
+    const node = scrollContainerRef.current
+    if (!node) return
+    const saved = popupScrollState.get(scrollKey)
+    if (typeof saved === 'number') {
+      node.scrollTop = saved
+    }
+  }, [open, scrollKey])
+
+  const renderedRows = useMemo(
+    () =>
+      safeResults.map((product) => (
+        <ProductPopupRow
+          key={`${product.code}-${product.name}`}
+          product={product}
+          onSelect={onSelect}
+        />
+      )),
+    [safeResults, onSelect],
+  )
 
   return (
     <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-4xl">
@@ -72,16 +121,23 @@ export function ProductPopupModal({
       </div>
 
       <div className="p-4">
-        <input
-          className="mb-3 h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
-          placeholder="Search product code or name"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
+        <div className="mb-3 flex items-center gap-3">
+          <input
+            className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+            placeholder="Search product code or name"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+          {backgroundLoading ? (
+            <span className="whitespace-nowrap text-xs font-medium text-zinc-500">Updating...</span>
+          ) : null}
+        </div>
         <div className="overflow-hidden rounded-xl border border-zinc-200">
           <div
+            ref={scrollContainerRef}
             className="max-h-80 overflow-auto"
             onScroll={(event) => {
+              popupScrollState.set(scrollKey, event.currentTarget.scrollTop)
               if (!onReachEnd || loading) return
               const target = event.currentTarget
               const threshold = 32
@@ -117,18 +173,7 @@ export function ProductPopupModal({
                 ) : safeResults.length === 0 && !loading ? (
                   <ModalEmptyRow colSpan={4} message={emptyMessage} />
                 ) : (
-                  safeResults.map((product) => (
-                    <tr
-                      key={`${product.code}-${product.name}`}
-                      className="cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50"
-                      onClick={() => onSelect(product)}
-                    >
-                      <td className="px-3 py-2 font-medium text-zinc-800">{product.code}</td>
-                      <td className="px-3 py-2 text-zinc-700">{product.name}</td>
-                      <td className="px-3 py-2 text-zinc-700">{product.stock}</td>
-                      <td className="px-3 py-2 text-zinc-700">{product.price.toFixed(2)}</td>
-                    </tr>
-                  ))
+                  renderedRows
                 )}
               </tbody>
             </table>

@@ -1,4 +1,4 @@
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Lock, Pencil } from 'lucide-react'
 import { type ComponentProps, type ReactElement, type RefObject } from 'react'
 
 import { Calendar } from '@/components/calendar/calendar'
@@ -32,6 +32,8 @@ type DocumentDetailsGridProps = {
   docDueDateInvalid?: boolean
   docDueDateErrorText?: string | undefined
   error?: string | null
+  docDateReadOnly?: boolean
+  docDueDateEditableHighlight?: boolean
 }
 
 export function DocumentDetailsGrid({
@@ -51,6 +53,8 @@ export function DocumentDetailsGrid({
   docDueDateInvalid,
   docDueDateErrorText,
   error,
+  docDateReadOnly = false,
+  docDueDateEditableHighlight = false,
 }: DocumentDetailsGridProps) {
   return (
     <SectionCard title="Document Details" className="lg:col-span-1">
@@ -78,7 +82,12 @@ export function DocumentDetailsGrid({
             htmlFor="po-doc-date"
             className="mb-2 block whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
           >
-            Doc Date
+            <span className="inline-flex items-center gap-1.5">
+              <span>Doc Date</span>
+              {docDateReadOnly ? (
+                <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+              ) : null}
+            </span>
           </label>
           {loading ? (
             <div className="h-11 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
@@ -86,8 +95,13 @@ export function DocumentDetailsGrid({
             <button
               id="po-doc-date"
               type="button"
+              disabled={docDateReadOnly}
               onClick={() => onSetActiveDatePicker((prev) => (prev === 'doc' ? null : 'doc'))}
-              className="flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-800 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+              className={`flex h-11 w-full items-center justify-between rounded-xl border px-3 text-sm outline-none transition ${
+                docDateReadOnly
+                  ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500'
+                  : 'cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+              }`}
             >
               <span>{toDisplayDate(docDate)}</span>
               <CalendarDays className="h-4 w-4 text-zinc-600" />
@@ -114,9 +128,14 @@ export function DocumentDetailsGrid({
             htmlFor="po-delivery-date"
             className="mb-2 block whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
           >
-            Delivery Date{' '}
-            <span className="text-red-500" aria-hidden="true">
-              *
+            <span className="inline-flex items-center gap-1.5">
+              <span>Delivery Date</span>
+              {docDueDateEditableHighlight ? (
+                <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
+              ) : null}
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
             </span>
           </label>
           {loading ? (
@@ -131,7 +150,9 @@ export function DocumentDetailsGrid({
               className={`flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border px-3 text-sm text-zinc-800 outline-none transition hover:bg-white ${
                 docDueDateInvalid
                   ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                  : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+                  : docDueDateEditableHighlight
+                    ? 'border-emerald-300 bg-emerald-50/60 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
+                    : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
               }`}
             >
               <span className={docDueDate ? '' : 'text-zinc-400'}>

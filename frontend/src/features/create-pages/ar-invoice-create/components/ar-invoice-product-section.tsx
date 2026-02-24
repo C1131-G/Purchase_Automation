@@ -35,6 +35,7 @@ interface ARInvoiceProductSectionProps {
   handleCreateOrder: ARInvoiceState['handleCreateOrder']
   submitLabel?: string
   submitLoadingText?: string
+  onEditRestrictedClick?: (fieldName: string) => void
 }
 
 export function ARInvoiceProductSection({
@@ -62,6 +63,7 @@ export function ARInvoiceProductSection({
   handleCreateOrder,
   submitLabel = 'Create',
   submitLoadingText = 'Creating...',
+  onEditRestrictedClick,
 }: ARInvoiceProductSectionProps) {
   const navigate = useNavigate()
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
@@ -98,10 +100,20 @@ export function ARInvoiceProductSection({
           ) : null}
           <button
             type="button"
-            onClick={() => openProductPopup(null)}
+            onClick={() => {
+              if (isUpdateAction) {
+                onEditRestrictedClick?.('Products')
+                return
+              }
+              openProductPopup(null)
+            }}
             onMouseEnter={prefetchProducts}
             onFocus={prefetchProducts}
-            className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+            className={`group inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all ${
+              isUpdateAction
+                ? 'cursor-not-allowed opacity-60'
+                : 'cursor-pointer hover:bg-zinc-50 hover:text-blue-600'
+            }`}
           >
             <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
             Search Products
@@ -109,21 +121,35 @@ export function ARInvoiceProductSection({
         </div>
       </div>
 
-      <CreateProductTable
-        productRows={productRows}
-        productRowDrafts={productRowDrafts}
-        effectiveWarehouseCode={effectiveWarehouseCode}
-        openProductPopup={openProductPopup}
-        openStockPreview={openStockPreview}
-        updateProductRow={updateProductRow}
-        removeProductRow={removeProductRow}
-        setProductRowDraft={setProductRowDraft}
-        clearProductRowDraft={clearProductRowDraft}
-        prefetchProducts={prefetchProducts}
-        totals={totals}
-        summaryCurrencyLabel={summaryCurrencyLabel}
-        createError={createError}
-      />
+      <div
+        onClickCapture={
+          isUpdateAction
+            ? (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                onEditRestrictedClick?.('Products')
+              }
+            : undefined
+        }
+      >
+        <CreateProductTable
+          productRows={productRows}
+          productRowDrafts={productRowDrafts}
+          effectiveWarehouseCode={effectiveWarehouseCode}
+          disableLineInputs={isUpdateAction}
+          onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
+          openProductPopup={openProductPopup}
+          openStockPreview={openStockPreview}
+          updateProductRow={updateProductRow}
+          removeProductRow={removeProductRow}
+          setProductRowDraft={setProductRowDraft}
+          clearProductRowDraft={clearProductRowDraft}
+          prefetchProducts={prefetchProducts}
+          totals={totals}
+          summaryCurrencyLabel={summaryCurrencyLabel}
+          createError={createError}
+        />
+      </div>
 
       <div className="border-t border-zinc-100 px-4 py-3">
         <div className="ml-auto w-full max-w-sm">

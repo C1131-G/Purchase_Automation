@@ -110,10 +110,23 @@ export const CreateSalesOrderInputSchema = z.object({
   DocumentLines: z.array(SalesOrderLineItemSchema).min(1),
 });
 
-// UpdateSalesOrderInputSchema: Allows modification of open sales orders.
-export const UpdateSalesOrderInputSchema = CreateSalesOrderInputSchema.partial().extend({
-  Address: z.string().optional(),
-});
+// UpdateSalesOrderInputSchema: Edit flow blocks customer updates (CardCode/CardName).
+export const UpdateSalesOrderInputSchema = z
+  .object({
+    SalesPersonCode: z.coerce.number().int().optional(),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    Comments: z.string().optional(),
+    Address: z.string().optional(),
+    DocumentLines: z.array(SalesOrderLineItemSchema).min(1).optional(),
+  })
+  .strict();
 
 export type SalesOrderQuery = z.infer<typeof SalesOrderQuerySchema>;
 export type SalesOrderDocNumLookupQuery = z.infer<typeof SalesOrderDocNumLookupQuerySchema>;

@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 // PurchaseOrderCreate: Orchestrates the entire PO creation lifecycle.
 import { ChevronRight } from 'lucide-react'
+import { type MouseEvent } from 'react'
 
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
@@ -41,12 +42,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
     !state.vendorsQuery.data &&
     !state.warehousesQuery.data &&
     !state.salesEmployeesQuery.data
-  const isEditHydrationPending =
-    state.isEditMode &&
-    Boolean(state.editDetailQuery.data) &&
-    !state.nameInput.trim() &&
-    !state.codeInput.trim() &&
-    state.productRows.length === 0
+  const isEditHydrationPending = state.isEditMode && !state.isEditHydrated
 
   const isFormHydrating =
     isInitialCreateLoading ||
@@ -66,6 +62,14 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
       </div>
     )
   }
+
+  const handleVendorRestrictedClick = state.isEditMode
+    ? (event: MouseEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+        state.showEditRestrictedToast('Vendor Info')
+      }
+    : undefined
 
   return (
     <div className="w-full bg-zinc-50 p-3 pb-20">
@@ -97,35 +101,44 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
 
       {/* Header Grid: Captures primary metadata (Vendor, Logistics, Dates). */}
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        <VendorCustomerGrid
-          loading={state.vendorsQuery.isLoading || isFormHydrating}
-          error={
-            state.vendorsQuery.isError
-              ? state.vendorsQuery.error instanceof Error
-                ? state.vendorsQuery.error.message
-                : 'Unable to load vendors. Please login again.'
-              : null
-          }
-          nameInput={state.nameInput}
-          codeInput={state.codeInput}
-          nameFocused={state.nameFocused}
-          codeFocused={state.codeFocused}
-          nameSuggestions={state.nameSuggestions}
-          codeSuggestions={state.codeSuggestions}
-          onNameChange={state.handleVendorNameChange}
-          onCodeChange={state.handleVendorCodeChange}
-          onNameFocus={() => state.setNameFocused(true)}
-          onCodeFocus={() => state.setCodeFocused(true)}
-          onNameBlur={() => setTimeout(() => state.setNameFocused(false), 120)}
-          onCodeBlur={() => setTimeout(() => state.setCodeFocused(false), 120)}
-          onOpenNamePopup={() => state.openPopup('vendor-name')}
-          onOpenCodePopup={() => state.openPopup('vendor-code')}
-          onSelectVendor={state.selectVendor}
-          vendorNameInvalid={Boolean(state.productSearchFieldErrors.vendorName)}
-          vendorCodeInvalid={Boolean(state.productSearchFieldErrors.vendorCode)}
-          vendorNameErrorText={state.productSearchFieldErrors.vendorName}
-          vendorCodeErrorText={state.productSearchFieldErrors.vendorCode}
-        />
+        <div
+          onClickCapture={handleVendorRestrictedClick}
+          className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
+        >
+          <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
+            <VendorCustomerGrid
+              loading={state.vendorsQuery.isLoading || isFormHydrating}
+              error={
+                state.vendorsQuery.isError
+                  ? state.vendorsQuery.error instanceof Error
+                    ? state.vendorsQuery.error.message
+                    : 'Unable to load vendors. Please login again.'
+                  : null
+              }
+              nameInput={state.nameInput}
+              codeInput={state.codeInput}
+              nameFocused={state.nameFocused}
+              codeFocused={state.codeFocused}
+              nameSuggestions={state.nameSuggestions}
+              codeSuggestions={state.codeSuggestions}
+              onNameChange={state.handleVendorNameChange}
+              onCodeChange={state.handleVendorCodeChange}
+              onNameFocus={() => state.setNameFocused(true)}
+              onCodeFocus={() => state.setCodeFocused(true)}
+              onNameBlur={() => setTimeout(() => state.setNameFocused(false), 120)}
+              onCodeBlur={() => setTimeout(() => state.setCodeFocused(false), 120)}
+              onOpenNamePopup={() => state.openPopup('vendor-name')}
+              onOpenCodePopup={() => state.openPopup('vendor-code')}
+              onSelectVendor={state.selectVendor}
+              vendorNameInvalid={Boolean(state.productSearchFieldErrors.vendorName)}
+              vendorCodeInvalid={Boolean(state.productSearchFieldErrors.vendorCode)}
+              vendorNameErrorText={state.productSearchFieldErrors.vendorName}
+              vendorCodeErrorText={state.productSearchFieldErrors.vendorCode}
+              nameDisabled={state.isEditMode}
+              codeDisabled={state.isEditMode}
+            />
+          </div>
+        </div>
 
         <WarehouseLogisticsGrid
           warehouseInput={state.warehouseInput}
@@ -166,6 +179,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         />
 
         <DocumentDetailsGrid
+          loading={isFormHydrating}
           docDate={state.header.docDate}
           docDueDate={state.header.docDueDate}
           today={state.today}

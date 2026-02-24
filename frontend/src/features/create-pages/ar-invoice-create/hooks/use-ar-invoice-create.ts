@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { goeyToast } from 'goey-toast'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
@@ -13,7 +14,10 @@ import {
   REQUIRED_FIELD_LABEL_TEXT,
 } from '@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
-import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
+import {
+  type LookupItem,
+  type ProductLookupItem,
+} from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   getMissingMandatoryCreateFieldsTyped,
   SALES_ORDER_MANDATORY_FIELDS,
@@ -25,6 +29,7 @@ import {
 import {
   type ActiveDatePicker,
   type PopupMode,
+  type ProductRow,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
@@ -35,6 +40,7 @@ import {
 } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
 import { type ARInvoiceDetailLine } from '@/features/table-pages/ar-invoices/api/ar-invoice.service'
 import {
+  type ARInvoiceHeaderState,
   useARInvoiceHeader,
   useResetARInvoiceCreateAction,
   useSetARInvoiceHeaderAction,
@@ -79,11 +85,23 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   )
   const [createError, setCreateError] = useState<string | null>(null)
   const hydratedDocNumRef = useRef<string | null>(null)
+  const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
+  const lastRestrictedToastAtRef = useRef(0)
+  const editDocNum = (options?.docNum ?? '').trim()
 
   const docDateContainerRef = useRef<HTMLDivElement>(null)
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null)
 
   const modals = useArModals()
+
+  const notifyRestricted = (fieldName: string) => {
+    const now = Date.now()
+    if (now - lastRestrictedToastAtRef.current < 2500) return
+    lastRestrictedToastAtRef.current = now
+    goeyToast.error(`${fieldName} is locked for edit`, {
+      id: 'restricted-edit-toast',
+    })
+  }
 
   const clearFieldError = (field: keyof ProductSearchFieldError) => {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }))
@@ -108,16 +126,17 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   useEffect(() => {
     if (isEditMode) return
     resetARInvoiceCreate()
+    hydratedDocNumRef.current = null
   }, [isEditMode, resetARInvoiceCreate])
 
   const editDetailQuery = useQuery({
-    ...arInvoiceQueries.detailByDocNum((options?.docNum ?? '').trim()),
-    enabled: isEditMode && Boolean((options?.docNum ?? '').trim()),
+    ...arInvoiceQueries.detailByDocNum(editDocNum),
+    enabled: isEditMode && Boolean(editDocNum),
   })
 
   useEffect(() => {
     if (!isEditMode) return
-    const currentDocNum = (options?.docNum ?? '').trim()
+    const currentDocNum = editDocNum
     if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) return
     const detail = editDetailQuery.data?.data
     if (!detail) return
@@ -128,7 +147,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const salesEmployeeNameFromDocCode =
       detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
         ? lookups.salesEmployees.find(
-            (item) =>
+            (item: LookupItem) =>
               normalizeCodeForCompare(item.code) ===
               normalizeCodeForCompare(detail.SalesPersonCode),
           )?.name
@@ -137,7 +156,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       salesEmployeeNameFromDocCode ||
       (matchedCustomer?.salesEmployeeCode !== undefined
         ? lookups.salesEmployees.find(
-            (item) =>
+            (item: LookupItem) =>
               normalizeCodeForCompare(item.code) ===
               normalizeCodeForCompare(matchedCustomer.salesEmployeeCode),
           )?.name
@@ -159,7 +178,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     void (async () => {
       const detailLines = detail.DocumentLines ?? []
-      const productsForWarehouse =
+      const productsForWarehouse = (
         warehouseCode.trim().length > 0
           ? await queryClient
               .fetchQuery(
@@ -167,8 +186,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               )
               .catch(() => [])
           : []
+      ) as ProductLookupItem[]
 
-      const productByCode = new Map(
+      const productByCode = new Map<string, ProductLookupItem>(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
       )
       const stockByItemCode = new Map<string, number>()
@@ -178,9 +198,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
       await Promise.all(
         uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = await queryClient
+          const warehouseStocks = (await queryClient
             .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])
+            .catch(() => [])) as Array<{ code: string; stock: number }>
 
           const resolvedStock = warehouseCode
             ? Number(
@@ -257,13 +277,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       productsHook.setProductRowDrafts({})
 
       hydratedDocNumRef.current = currentDocNum
+      setHydratedDocNum(currentDocNum)
     })()
   }, [
     editDetailQuery.data,
     header.docDate,
     isEditMode,
     lookups,
-    options?.docNum,
+    editDocNum,
     productsHook,
     queryClient,
     setHeader,
@@ -463,39 +484,64 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       return
     }
 
+    if (isEditMode) {
+      const detail = editDetailQuery.data?.data
+      const existingDocDueDate = String(detail?.DocDueDate ?? '')
+        .slice(0, 10)
+        .trim()
+      const rawComments = String(detail?.Comments ?? '').trim()
+      const splitComments = rawComments.split(' | ').map((part) => part.trim())
+      const hasReferenceMarker = splitComments.length > 1
+      const existingComments = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+      const currentDocDueDate = String(header.docDueDate ?? '').trim()
+      const currentComments = String(header.comments ?? '').trim()
+
+      if (currentDocDueDate === existingDocDueDate && currentComments === existingComments.trim()) {
+        const noChangeMessage = 'Change at least one field before update.'
+        setCreateError(noChangeMessage)
+        goeyToast.error(noChangeMessage, { id: 'no-change-update-toast' })
+        return
+      }
+    }
+
     setCreateError(null)
 
-    const payload = {
-      CardCode: (header.vendorCode || lookups.codeInput).trim(),
-      SalesPersonCode: resolvedSalesEmployeeCode,
-      DocDate: header.docDate,
-      DocDueDate: header.docDueDate || header.docDate,
-      Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
-      NumAtCard: header.referenceNo.trim() || undefined,
-      Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-      DocumentLines: validRows.map((row) => {
-        const hasCompleteBaseLink =
-          Number.isFinite(row.baseEntry) &&
-          Number.isFinite(row.baseLine) &&
-          Number.isFinite(row.baseType)
-
-        return {
-          ItemCode: row.productCode,
-          Quantity: row.quantity,
-          UnitPrice: row.price,
-          DiscountPercent: row.discountPercent,
-          WarehouseCode: lookups.effectiveWarehouseCode || undefined,
-          TaxCode: row.taxCode || undefined,
-          ...(hasCompleteBaseLink
-            ? {
-                BaseType: row.baseType,
-                BaseEntry: row.baseEntry,
-                BaseLine: row.baseLine,
-              }
-            : {}),
+    const payload = isEditMode
+      ? {
+          DocDueDate: header.docDueDate || undefined,
+          Comments: header.comments.trim() || undefined,
         }
-      }),
-    }
+      : {
+          CardCode: (header.vendorCode || lookups.codeInput).trim(),
+          SalesPersonCode: resolvedSalesEmployeeCode,
+          DocDate: header.docDate,
+          DocDueDate: header.docDueDate || header.docDate,
+          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
+          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
+          DocumentLines: validRows.map((row) => {
+            const hasCompleteBaseLink =
+              Number.isFinite(row.baseEntry) &&
+              Number.isFinite(row.baseLine) &&
+              Number.isFinite(row.baseType)
+
+            return {
+              ItemCode: row.productCode,
+              Quantity: row.quantity,
+              UnitPrice: row.price,
+              DiscountPercent: row.discountPercent,
+              WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+              TaxCode: row.taxCode || undefined,
+              ...(hasCompleteBaseLink
+                ? {
+                    BaseType: row.baseType,
+                    BaseEntry: row.baseEntry,
+                    BaseLine: row.baseLine,
+                  }
+                : {}),
+            }
+          }),
+        }
 
     const toastHandle = documentActionToast('A/R Invoice', isEditMode ? 'update' : 'create')
     try {
@@ -573,26 +619,63 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     [productsHook.productRows],
   )
   const summaryCurrencyLabel = summaryCurrency === 'MULTI' ? 'MULTI' : summaryCurrency
+  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
 
   return {
     ...lookups,
     ...modals,
     ...productsHook,
-    openProductPopup: handleOpenProductPopup,
-    openPopup: openPopupWithContext,
+    setNameInput: (val: string) =>
+      isEditMode ? notifyRestricted('Customer Name') : lookups.setNameInput(val),
+    setCodeInput: (val: string) =>
+      isEditMode ? notifyRestricted('Customer Code') : lookups.setCodeInput(val),
+    setWarehouseInput: (val: string) =>
+      isEditMode ? notifyRestricted('Warehouse') : lookups.setWarehouseInput(val),
+    setSalesEmployeeInput: (val: string) =>
+      isEditMode ? notifyRestricted('Sales Employee') : lookups.setSalesEmployeeInput(val),
+    setBillToAddress: (val: string) =>
+      isEditMode ? notifyRestricted('Bill To Address') : lookups.setBillToAddress(val),
+    setShipToAddress: (val: string) =>
+      isEditMode ? notifyRestricted('Ship To Address') : lookups.setShipToAddress(val),
+    handleVendorNameChange: (val: string) =>
+      isEditMode ? notifyRestricted('Customer Name') : lookups.handleVendorNameChange(val),
+    handleVendorCodeChange: (val: string) =>
+      isEditMode ? notifyRestricted('Customer Code') : lookups.handleVendorCodeChange(val),
+    handleWarehouseChange: (val: string) =>
+      isEditMode ? notifyRestricted('Warehouse') : lookups.handleWarehouseChange(val),
+    handleSalesEmployeeChange: (val: string) =>
+      isEditMode ? notifyRestricted('Sales Employee') : lookups.handleSalesEmployeeChange(val),
+    selectVendor: (val: LookupItem) =>
+      isEditMode ? notifyRestricted('Customer') : lookups.selectVendor(val),
+    selectWarehouse: (val: LookupItem) =>
+      isEditMode ? notifyRestricted('Warehouse') : lookups.selectWarehouse(val),
+    selectSalesEmployee: (val: LookupItem) =>
+      isEditMode ? notifyRestricted('Sales Employee') : lookups.selectSalesEmployee(val),
+    openProductPopup: (rowId: string | null = null) =>
+      isEditMode ? notifyRestricted('Products') : handleOpenProductPopup(rowId),
+    openPopup: (mode: PopupMode) =>
+      isEditMode ? notifyRestricted('Lookup') : openPopupWithContext(mode),
     applyProductToRow: (product: ProductLookupItem) =>
-      productsHook.applyProductToRow(product, {
-        closeProductPopup: () => modals.setProductPopupOpen(false),
-      }),
+      isEditMode
+        ? notifyRestricted('Products')
+        : productsHook.applyProductToRow(product, {
+            closeProductPopup: () => modals.setProductPopupOpen(false),
+          }),
+    updateProductRow: (id: string, patch: Partial<ProductRow>) =>
+      isEditMode ? notifyRestricted('Products') : productsHook.updateProductRow(id, patch),
+    removeProductRow: (id: string) =>
+      isEditMode ? notifyRestricted('Products') : productsHook.removeProductRow(id),
     createARInvoiceMutation: submitARInvoiceMutation,
     updateARInvoiceMutation,
     editDetailQuery,
     isEditMode,
+    isEditHydrated,
     header,
     today,
     activeDatePicker,
     setActiveDatePicker,
-    handleLookupModalSearchSync,
+    handleLookupModalSearchSync: (mode: PopupMode, val: string) =>
+      isEditMode ? notifyRestricted('Lookup Search') : handleLookupModalSearchSync(mode, val),
     popupResults,
     productSearchFieldErrors,
     setProductSearchFieldErrors,
@@ -609,6 +692,21 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     docDateContainerRef,
     deliveryDateContainerRef,
     handleCreateOrder: handleCreateOrderAction,
-    setHeader,
+    setHeader: (patch: Partial<ARInvoiceHeaderState>) => {
+      // In edit mode, only delivery date and remarks/comments can be updated.
+      const allowedKeys = ['docDueDate', 'comments']
+      const patchKeys = Object.keys(patch)
+      const restrictedUpdate = isEditMode && patchKeys.some((k) => !allowedKeys.includes(k))
+
+      if (restrictedUpdate) {
+        notifyRestricted('Header Fields')
+        return
+      }
+      setHeader(patch)
+    },
+    setDocDate: (val: string) =>
+      isEditMode ? notifyRestricted('Document Date') : setHeader({ docDate: val }),
+    setDocDueDate: (val: string) => setHeader({ docDueDate: val }),
+    showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
   }
 }

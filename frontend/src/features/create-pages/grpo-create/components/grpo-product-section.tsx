@@ -43,6 +43,7 @@ interface GRPOProductSectionProps {
     field: 'quantity' | 'discountPercent' | 'discountAmount',
   ) => void
   onSubmit: () => void
+  onEditRestrictedClick?: (fieldName: string) => void
 }
 
 export function GRPOProductSection({
@@ -68,6 +69,7 @@ export function GRPOProductSection({
   onSetProductRowDraft,
   onClearProductRowDraft,
   onSubmit,
+  onEditRestrictedClick,
 }: GRPOProductSectionProps) {
   const navigate = useNavigate()
   const showRequiredHints = !isEditMode
@@ -101,10 +103,20 @@ export function GRPOProductSection({
           ) : null}
           <button
             type="button"
-            onClick={() => openProductPopup(null)}
+            onClick={() => {
+              if (isEditMode) {
+                onEditRestrictedClick?.('Products')
+                return
+              }
+              openProductPopup(null)
+            }}
             onMouseEnter={prefetchProducts}
             onFocus={prefetchProducts}
-            className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+            className={`group inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all ${
+              isEditMode
+                ? 'cursor-not-allowed opacity-60'
+                : 'cursor-pointer hover:bg-zinc-50 hover:text-blue-600'
+            }`}
           >
             <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
             Search Products
@@ -112,22 +124,36 @@ export function GRPOProductSection({
         </div>
       </div>
 
-      <CreateProductTable
-        productRows={rows}
-        productRowDrafts={productRowDrafts}
-        effectiveWarehouseCode={effectiveWarehouseCode}
-        enforceStockLimit={false}
-        openProductPopup={openProductPopup}
-        openStockPreview={openStockPreview}
-        updateProductRow={onUpdateProductRow}
-        removeProductRow={onRemoveProductRow}
-        setProductRowDraft={onSetProductRowDraft}
-        clearProductRowDraft={onClearProductRowDraft}
-        prefetchProducts={prefetchProducts}
-        totals={totals}
-        summaryCurrencyLabel={summaryCurrencyLabel}
-        createError={createError}
-      />
+      <div
+        onClickCapture={
+          isEditMode
+            ? (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                onEditRestrictedClick?.('Products')
+              }
+            : undefined
+        }
+      >
+        <CreateProductTable
+          productRows={rows}
+          productRowDrafts={productRowDrafts}
+          effectiveWarehouseCode={effectiveWarehouseCode}
+          enforceStockLimit={false}
+          disableLineInputs={isEditMode}
+          onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
+          openProductPopup={openProductPopup}
+          openStockPreview={openStockPreview}
+          updateProductRow={onUpdateProductRow}
+          removeProductRow={onRemoveProductRow}
+          setProductRowDraft={onSetProductRowDraft}
+          clearProductRowDraft={onClearProductRowDraft}
+          prefetchProducts={prefetchProducts}
+          totals={totals}
+          summaryCurrencyLabel={summaryCurrencyLabel}
+          createError={createError}
+        />
+      </div>
 
       <div className="border-t border-zinc-100 px-4 py-3">
         <div className="ml-auto w-full max-w-sm">

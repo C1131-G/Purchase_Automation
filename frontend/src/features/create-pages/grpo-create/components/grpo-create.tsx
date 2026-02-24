@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { ChevronRight } from 'lucide-react'
+import { type MouseEvent } from 'react'
 
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
@@ -40,12 +41,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
     !state.vendorNameInput.trim() &&
     !state.vendorCodeInput.trim()
 
-  const isEditHydrationPending =
-    state.isEditMode &&
-    Boolean(state.editDetailQuery.data) &&
-    !state.vendorNameInput.trim() &&
-    !state.vendorCodeInput.trim() &&
-    state.rows.length === 0
+  const isEditHydrationPending = state.isEditMode && !state.isEditHydrated
 
   const isFormHydrating =
     isInitialCreateLoading ||
@@ -65,6 +61,14 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
       </div>
     )
   }
+
+  const handleRestrictedClick = state.isEditMode
+    ? (fieldName: string) => (event: MouseEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+        state.showEditRestrictedToast(fieldName)
+      }
+    : undefined
 
   return (
     <div className="w-full bg-zinc-50 p-3 pb-20">
@@ -93,61 +97,79 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
       </div>
 
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        <VendorCustomerGrid
-          loading={state.vendorsQuery.isLoading || isFormHydrating}
-          error={null}
-          nameInput={state.vendorNameInput}
-          codeInput={state.vendorCodeInput}
-          nameFocused={state.vendorNameFocused}
-          codeFocused={state.vendorCodeFocused}
-          nameSuggestions={state.vendorNameSuggestions}
-          codeSuggestions={state.vendorCodeSuggestions}
-          onNameChange={state.handleVendorNameChange}
-          onCodeChange={state.handleVendorCodeChange}
-          onNameFocus={() => state.setVendorNameFocused(true)}
-          onCodeFocus={() => state.setVendorCodeFocused(true)}
-          onNameBlur={() => setTimeout(() => state.setVendorNameFocused(false), 120)}
-          onCodeBlur={() => setTimeout(() => state.setVendorCodeFocused(false), 120)}
-          onOpenNamePopup={() => state.setVendorNameFocused(true)}
-          onOpenCodePopup={() => state.setVendorCodeFocused(true)}
-          onSelectVendor={state.selectVendor}
-          vendorNameInvalid={Boolean(state.fieldErrors.vendorName)}
-          vendorCodeInvalid={Boolean(state.fieldErrors.vendorCode)}
-          vendorNameErrorText={state.fieldErrors.vendorName}
-          vendorCodeErrorText={state.fieldErrors.vendorCode}
-        />
+        <div
+          onClickCapture={handleRestrictedClick?.('Vendor Info')}
+          className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
+        >
+          <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
+            <VendorCustomerGrid
+              loading={state.vendorsQuery.isLoading || isFormHydrating}
+              error={null}
+              nameInput={state.vendorNameInput}
+              codeInput={state.vendorCodeInput}
+              nameFocused={state.vendorNameFocused}
+              codeFocused={state.vendorCodeFocused}
+              nameSuggestions={state.vendorNameSuggestions}
+              codeSuggestions={state.vendorCodeSuggestions}
+              onNameChange={state.handleVendorNameChange}
+              onCodeChange={state.handleVendorCodeChange}
+              onNameFocus={() => state.setVendorNameFocused(true)}
+              onCodeFocus={() => state.setVendorCodeFocused(true)}
+              onNameBlur={() => setTimeout(() => state.setVendorNameFocused(false), 120)}
+              onCodeBlur={() => setTimeout(() => state.setVendorCodeFocused(false), 120)}
+              onOpenNamePopup={() => state.setVendorNameFocused(true)}
+              onOpenCodePopup={() => state.setVendorCodeFocused(true)}
+              onSelectVendor={state.selectVendor}
+              vendorNameInvalid={Boolean(state.fieldErrors.vendorName)}
+              vendorCodeInvalid={Boolean(state.fieldErrors.vendorCode)}
+              vendorNameErrorText={state.fieldErrors.vendorName}
+              vendorCodeErrorText={state.fieldErrors.vendorCode}
+              nameDisabled={state.isEditMode}
+              codeDisabled={state.isEditMode}
+            />
+          </div>
+        </div>
 
-        <WarehouseLogisticsGrid
-          warehouseInput={state.warehouseInput}
-          salesEmployeeInput={state.buyerInput}
-          warehouseLoading={state.warehousesQuery.isLoading || isFormHydrating}
-          salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
-          warehouseFocused={state.warehouseFocused}
-          salesEmployeeFocused={state.buyerFocused}
-          warehouseSuggestions={state.warehouseSuggestions}
-          salesEmployeeSuggestions={state.buyerSuggestions}
-          onWarehouseChange={state.setWarehouseInput}
-          onSalesEmployeeChange={state.setBuyerInput}
-          onWarehouseFocus={() => state.setWarehouseFocused(true)}
-          onSalesEmployeeFocus={() => state.setBuyerFocused(true)}
-          onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
-          onSalesEmployeeBlur={() => setTimeout(() => state.setBuyerFocused(false), 120)}
-          onOpenWarehousePopup={() => state.setWarehouseFocused(true)}
-          onOpenSalesEmployeePopup={() => state.setBuyerFocused(true)}
-          onSelectWarehouse={state.selectWarehouse}
-          onSelectSalesEmployee={state.selectBuyer}
-          salesEmployeeLabel="Buyer *"
-          salesEmployeePlaceholder="Select Buyer"
-          salesEmployeeLoadingPlaceholder="Loading buyers..."
-          salesEmployeeInvalid={Boolean(state.fieldErrors.salesEmployee)}
-          warehouseInvalid={Boolean(state.fieldErrors.warehouseCode)}
-          salesEmployeeErrorText={state.fieldErrors.salesEmployee}
-          warehouseErrorText={state.fieldErrors.warehouseCode}
-          warehouseLocked={state.isEditMode}
-          onWarehouseLockedClick={() =>
-            goeyToast('Warehouse is fixed in edit mode. Update lines if needed.')
-          }
-        />
+        <div
+          onClickCapture={handleRestrictedClick?.('Warehouse & Logistics')}
+          className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
+        >
+          <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
+            <WarehouseLogisticsGrid
+              warehouseInput={state.warehouseInput}
+              salesEmployeeInput={state.buyerInput}
+              warehouseLoading={state.warehousesQuery.isLoading || isFormHydrating}
+              salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
+              warehouseFocused={state.warehouseFocused}
+              salesEmployeeFocused={state.buyerFocused}
+              warehouseSuggestions={state.warehouseSuggestions}
+              salesEmployeeSuggestions={state.buyerSuggestions}
+              onWarehouseChange={state.setWarehouseInput}
+              onSalesEmployeeChange={state.setBuyerInput}
+              onWarehouseFocus={() => state.setWarehouseFocused(true)}
+              onSalesEmployeeFocus={() => state.setBuyerFocused(true)}
+              onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+              onSalesEmployeeBlur={() => setTimeout(() => state.setBuyerFocused(false), 120)}
+              onOpenWarehousePopup={() => state.setWarehouseFocused(true)}
+              onOpenSalesEmployeePopup={() => state.setBuyerFocused(true)}
+              onSelectWarehouse={state.selectWarehouse}
+              onSelectSalesEmployee={state.selectBuyer}
+              salesEmployeeLabel="Buyer *"
+              salesEmployeePlaceholder="Select Buyer"
+              salesEmployeeLoadingPlaceholder="Loading buyers..."
+              salesEmployeeInvalid={Boolean(state.fieldErrors.salesEmployee)}
+              warehouseInvalid={Boolean(state.fieldErrors.warehouseCode)}
+              salesEmployeeErrorText={state.fieldErrors.salesEmployee}
+              warehouseErrorText={state.fieldErrors.warehouseCode}
+              warehouseLocked={state.isEditMode}
+              onWarehouseLockedClick={() =>
+                goeyToast('Warehouse is fixed in edit mode. Update lines if needed.')
+              }
+              warehouseDisabled={state.isEditMode}
+              salesEmployeeDisabled={state.isEditMode}
+            />
+          </div>
+        </div>
 
         <DocumentDetailsGrid
           docDate={state.docDate}
@@ -160,37 +182,66 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
           toDisplayDate={toDisplayDate}
           parseISODate={parseISODate}
           toISODate={toISODate}
-          onSetActiveDatePicker={state.setActiveDatePicker}
+          onSetActiveDatePicker={(value) => {
+            if (!state.isEditMode) {
+              state.setActiveDatePicker(value)
+              return
+            }
+            state.setActiveDatePicker((prev) => {
+              const next = typeof value === 'function' ? value(prev) : value
+              if (next === 'doc') {
+                state.showEditRestrictedToast('Document Date')
+                return null
+              }
+              return next
+            })
+          }}
           onDocDateChange={state.handleDocDateChange}
           onDocDueDateChange={state.handleDocDueDateChange}
+          docDateReadOnly={state.isEditMode}
+          docDueDateEditableHighlight={state.isEditMode}
           docDueDateInvalid={Boolean(state.fieldErrors.docDueDate)}
           docDueDateErrorText={state.fieldErrors.docDueDate}
         />
       </div>
 
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        <AddressGrid
-          loading={isFormHydrating}
-          billToAddress={state.billToAddress}
-          shipToAddress={state.shipToAddress}
-          onBillToAddressChange={state.setBillToAddress}
-          onShipToAddressChange={state.setShipToAddress}
-          billToAddressInvalid={Boolean(state.fieldErrors.billToAddress)}
-          shipToAddressInvalid={Boolean(state.fieldErrors.shipToAddress)}
-          billToAddressErrorText={state.fieldErrors.billToAddress}
-          shipToAddressErrorText={state.fieldErrors.shipToAddress}
-        />
-        <ReferenceGrid
-          loading={isFormHydrating}
-          referenceNo={state.referenceNo}
-          comments={state.remarks}
-          onReferenceNoChange={state.setReferenceNo}
-          onCommentsChange={state.setRemarks}
-          referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
-          commentsInvalid={Boolean(state.fieldErrors.comments)}
-          referenceNoErrorText={state.fieldErrors.referenceNo}
-          commentsErrorText={state.fieldErrors.comments}
-        />
+        <div
+          className={`h-full lg:col-span-2 ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
+          onClickCapture={handleRestrictedClick?.('Address')}
+        >
+          <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
+            <AddressGrid
+              className="h-full"
+              loading={isFormHydrating}
+              billToAddress={state.billToAddress}
+              shipToAddress={state.shipToAddress}
+              readOnly={state.isEditMode}
+              onBillToAddressChange={state.setBillToAddress}
+              onShipToAddressChange={state.setShipToAddress}
+              billToAddressInvalid={Boolean(state.fieldErrors.billToAddress)}
+              shipToAddressInvalid={Boolean(state.fieldErrors.shipToAddress)}
+              billToAddressErrorText={state.fieldErrors.billToAddress}
+              shipToAddressErrorText={state.fieldErrors.shipToAddress}
+            />
+          </div>
+        </div>
+        <div className="h-full">
+          <ReferenceGrid
+            loading={isFormHydrating}
+            referenceNo={state.referenceNo}
+            comments={state.remarks}
+            referenceNoDisabled={state.isEditMode}
+            onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
+            onReferenceNoChange={state.setReferenceNo}
+            onCommentsChange={state.setRemarks}
+            commentsEditableHighlight={state.isEditMode}
+            referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
+            commentsInvalid={Boolean(state.fieldErrors.comments)}
+            referenceNoErrorText={state.fieldErrors.referenceNo}
+            commentsErrorText={state.fieldErrors.comments}
+          />
+        </div>
       </div>
 
       <GRPOProductSection
@@ -218,9 +269,12 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
         onSetProductRowDraft={state.setProductRowDraft}
         onClearProductRowDraft={state.clearProductRowDraft}
         onSubmit={state.handleCreateGRPO}
+        onEditRestrictedClick={state.showEditRestrictedToast}
       />
 
       <GRPOModals state={state} />
     </div>
   )
 }
+
+export default GRPOCreate

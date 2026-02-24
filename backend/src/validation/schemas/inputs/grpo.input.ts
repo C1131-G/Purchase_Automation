@@ -132,10 +132,16 @@ export const CreateGRPOInputSchema = z.object({
   DocumentLines: z.array(GRPOLineItemSchema).min(1),
 });
 
-// UpdateGRPOInputSchema: Allows minor adjustments to open receipt drafts.
-export const UpdateGRPOInputSchema = CreateGRPOInputSchema.partial().extend({
-  Address: z.string().optional(),
-});
+// UpdateGRPOInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
+export const UpdateGRPOInputSchema = z
+  .object({
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    Comments: z.string().optional(),
+  })
+  .strict();
 
 export type GRPOQuery = z.infer<typeof GRPOQuerySchema>;
 export type GRPODocNumLookupQuery = z.infer<typeof GRPODocNumLookupQuerySchema>;

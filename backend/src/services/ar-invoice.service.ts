@@ -263,7 +263,7 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
   }
 };
 
-// Updates metadata (Comments) on an existing A/R Invoice.
+// Updates allowed mutable fields on an existing A/R Invoice.
 export const updateInvoice = async (
   sessionId: string,
   id: string,
@@ -271,30 +271,11 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
-    if (payload.Comments) sapPayload.Comments = payload.Comments;
-    if (payload.Address) sapPayload.Address = payload.Address;
-    if (payload.NumAtCard) sapPayload.NumAtCard = payload.NumAtCard;
-
-    const lines = payload.DocumentLines as Record<string, unknown>[];
-    if (lines) {
-      sapPayload.DocumentLines = lines.map((line) => {
-        const docLine: Record<string, unknown> = {
-          ItemCode: line.ItemCode as string,
-          Quantity: line.Quantity as number,
-          UnitPrice: (line.UnitPrice || line.Price) as number,
-          TaxCode: line.TaxCode as string,
-          WarehouseCode: line.WarehouseCode as string,
-          DiscountPercent: line.DiscountPercent as number,
-        };
-
-        if (Number.isFinite(line.BaseEntry) && Number.isFinite(line.BaseLine)) {
-          docLine.BaseType = line.BaseType;
-          docLine.BaseEntry = line.BaseEntry;
-          docLine.BaseLine = line.BaseLine;
-        }
-
-        return docLine;
-      });
+    if (Object.prototype.hasOwnProperty.call(payload, "DocDueDate")) {
+      sapPayload.DocDueDate = payload.DocDueDate;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "Comments")) {
+      sapPayload.Comments = payload.Comments;
     }
 
     await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload);

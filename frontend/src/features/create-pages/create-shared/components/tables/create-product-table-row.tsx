@@ -22,6 +22,8 @@ interface CreateProductTableRowProps {
   setProductRowDraft: (id: string, field: keyof ProductRowDraft, value: string) => void
   clearProductRowDraft: (id: string, field: keyof ProductRowDraft) => void
   prefetchProducts: () => void
+  disableInputs?: boolean
+  onInputRestrictedClick?: () => void
 }
 
 export function CreateProductTableRow({
@@ -36,6 +38,8 @@ export function CreateProductTableRow({
   setProductRowDraft,
   clearProductRowDraft,
   prefetchProducts,
+  disableInputs = false,
+  onInputRestrictedClick,
 }: CreateProductTableRowProps) {
   const queryClient = useQueryClient()
 
@@ -109,8 +113,16 @@ export function CreateProductTableRow({
               min={1}
               step={1}
               value={rowDraft?.quantity ?? String(row.quantity)}
-              onChange={(event) => setProductRowDraft(row.id, 'quantity', event.target.value)}
+              readOnly={disableInputs}
+              onClick={() => {
+                if (disableInputs) onInputRestrictedClick?.()
+              }}
+              onChange={(event) => {
+                if (disableInputs) return
+                setProductRowDraft(row.id, 'quantity', event.target.value)
+              }}
               onBlur={(event) => {
+                if (disableInputs) return
                 const rawValue = event.target.value.trim()
                 const typedQuantity = rawValue === '' ? 1 : Math.max(1, Number(rawValue) || 1)
                 updateProductRow(row.id, {
@@ -122,7 +134,7 @@ export function CreateProductTableRow({
                 isNearLimit
                   ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-400'
                   : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400'
-              }`}
+              } ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
             />
           </Tooltip>
         ) : (
@@ -131,14 +143,22 @@ export function CreateProductTableRow({
             min={1}
             step={1}
             value={rowDraft?.quantity ?? String(row.quantity)}
-            onChange={(event) => setProductRowDraft(row.id, 'quantity', event.target.value)}
+            readOnly={disableInputs}
+            onClick={() => {
+              if (disableInputs) onInputRestrictedClick?.()
+            }}
+            onChange={(event) => {
+              if (disableInputs) return
+              setProductRowDraft(row.id, 'quantity', event.target.value)
+            }}
             onBlur={(event) => {
+              if (disableInputs) return
               const rawValue = event.target.value.trim()
               const typedQuantity = rawValue === '' ? 1 : Math.max(1, Number(rawValue) || 1)
               updateProductRow(row.id, { quantity: typedQuantity })
               clearProductRowDraft(row.id, 'quantity')
             }}
-            className="h-9 w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white"
+            className={`h-9 w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
           />
         )}
       </td>
@@ -150,7 +170,12 @@ export function CreateProductTableRow({
           step="0.01"
           inputMode="decimal"
           value={discountPercentInputValue}
+          readOnly={disableInputs}
+          onClick={() => {
+            if (disableInputs) onInputRestrictedClick?.()
+          }}
           onChange={(event) => {
+            if (disableInputs) return
             const rawValue = event.target.value
             setProductRowDraft(row.id, 'discountPercent', rawValue)
 
@@ -171,6 +196,7 @@ export function CreateProductTableRow({
             })
           }}
           onBlur={(event) => {
+            if (disableInputs) return
             const rawValue = event.target.value.trim()
             const nextPercent = rawValue === '' ? 0 : Math.max(0, Number(rawValue) || 0)
             const nextAmount = (grossAmount * nextPercent) / 100
@@ -180,7 +206,7 @@ export function CreateProductTableRow({
             })
             clearProductRowDraft(row.id, 'discountPercent')
           }}
-          className="h-9 w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white"
+          className={`h-9 w-20 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
         />
       </td>
       <td className="px-3 py-2">
@@ -190,8 +216,14 @@ export function CreateProductTableRow({
           step="0.01"
           inputMode="decimal"
           max={grossAmount}
+          title=""
           value={discountAmountInputValue}
+          readOnly={disableInputs}
+          onClick={() => {
+            if (disableInputs) onInputRestrictedClick?.()
+          }}
           onChange={(event) => {
+            if (disableInputs) return
             const rawValue = event.target.value
             setProductRowDraft(row.id, 'discountAmount', rawValue)
 
@@ -213,6 +245,7 @@ export function CreateProductTableRow({
             })
           }}
           onBlur={(event) => {
+            if (disableInputs) return
             const rawValue = event.target.value.trim()
             const nextAmount = rawValue === '' ? 0 : Math.max(0, Number(rawValue) || 0)
             const safeAmount = Math.min(grossAmount, nextAmount)
@@ -223,7 +256,7 @@ export function CreateProductTableRow({
             })
             clearProductRowDraft(row.id, 'discountAmount')
           }}
-          className="h-9 w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white"
+          className={`h-9 w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-800 outline-none focus:border-blue-400 focus:bg-white ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
         />
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm text-zinc-700">

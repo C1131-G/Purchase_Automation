@@ -33,6 +33,10 @@ type WarehouseLogisticsGridProps = {
   salesEmployeePlaceholder?: string
   salesEmployeeLoadingPlaceholder?: string
   error?: string | null
+  warehouseDisabled?: boolean
+  salesEmployeeDisabled?: boolean
+  warehouseEditableHighlight?: boolean
+  salesEmployeeEditableHighlight?: boolean
 }
 
 export function WarehouseLogisticsGrid({
@@ -64,9 +68,13 @@ export function WarehouseLogisticsGrid({
   salesEmployeePlaceholder = 'Select Buyer',
   salesEmployeeLoadingPlaceholder = 'Loading buyers...',
   error,
+  warehouseDisabled = false,
+  salesEmployeeDisabled = false,
+  warehouseEditableHighlight = false,
+  salesEmployeeEditableHighlight = false,
 }: WarehouseLogisticsGridProps) {
   return (
-    <SectionCard title="Warehouse & Logistics" className="lg:col-span-1">
+    <SectionCard title="Warehouse & Logistics" className="lg:col-span-1 min-h-[220px]">
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {error}
@@ -85,8 +93,9 @@ export function WarehouseLogisticsGrid({
           loading={warehouseLoading}
           invalid={warehouseInvalid}
           errorText={warehouseErrorText}
-          disabled={warehouseLocked}
+          disabled={warehouseLocked || warehouseDisabled}
           onDisabledClick={onWarehouseLockedClick}
+          editableHighlight={warehouseEditableHighlight}
         />
         {warehouseFocused ? (
           <SuggestionList items={warehouseSuggestions} onSelect={onSelectWarehouse} floating />
@@ -106,6 +115,8 @@ export function WarehouseLogisticsGrid({
           loading={salesEmployeesLoading}
           invalid={salesEmployeeInvalid}
           errorText={salesEmployeeErrorText}
+          disabled={salesEmployeeDisabled}
+          editableHighlight={salesEmployeeEditableHighlight}
         />
         {salesEmployeeFocused ? (
           <SuggestionList

@@ -156,10 +156,23 @@ export const CreatePurchaseOrderInputSchema = z.object({
     .openapi({ description: "List of items in the purchase order" }),
 });
 
-// UpdatePurchaseOrderInputSchema: Allows modification of specific fields on an existing document.
-export const UpdatePurchaseOrderInputSchema = CreatePurchaseOrderInputSchema.partial().extend({
-  Address: z.string().optional(),
-});
+// UpdatePurchaseOrderInputSchema: Edit flow blocks vendor updates (CardCode).
+export const UpdatePurchaseOrderInputSchema = z
+  .object({
+    SalesPersonCode: z.coerce.number().int().optional(),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    Comments: z.string().optional(),
+    Address: z.string().optional(),
+    DocumentLines: z.array(PurchaseOrderLineItemSchema).min(1).optional(),
+  })
+  .strict();
 
 export type PurchaseOrderQuery = z.infer<typeof PurchaseOrderQuerySchema>;
 export type PurchaseOrderDocNumLookupQuery = z.infer<typeof PurchaseOrderDocNumLookupQuerySchema>;
