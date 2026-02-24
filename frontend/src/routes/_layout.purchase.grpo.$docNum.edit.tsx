@@ -4,12 +4,16 @@ import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route
 import { GRPOCreate } from '@/features/create-pages/grpo-create/components/grpo-create'
 import { requireActiveSession } from '@/routes/_require-active-session'
 
-/** PurchaseGRPOCreateRoute: Page for creating new Goods Receipt POs. */
-export const Route = createFileRoute('/_layout/purchase/create-grpo')({
+export const Route = createFileRoute('/_layout/purchase/grpo/$docNum/edit')({
   beforeLoad: async () => {
     await requireActiveSession()
   },
   pendingMs: 0,
   pendingComponent: CreatePageRouteSkeleton,
-  component: GRPOCreate,
+  component: GRPOEditPage,
 })
+
+function GRPOEditPage() {
+  const { docNum } = Route.useParams()
+  return <GRPOCreate mode="edit" docNum={docNum} />
+}

@@ -21,22 +21,39 @@ import {
 import { arInvoiceQueries } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
 import { useSetSidebarAction } from '@/store/sidebar/sidebar.store'
 
-export function ARInvoiceCreate() {
-  const state = useARInvoiceCreate()
+interface ARInvoiceCreateProps {
+  mode?: 'create' | 'edit'
+  docNum?: string
+}
+
+export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProps) {
+  const state = useARInvoiceCreate(docNum ? { mode, docNum } : { mode })
   const queryClient = useQueryClient()
   const setSidebarOpen = useSetSidebarAction()
+  const pageTitle = state.isEditMode ? 'Update A/R Invoice' : 'Create A/R Invoice'
   const backendLoading =
     state.vendorsQuery.isLoading ||
     state.warehousesQuery.isLoading ||
-    state.salesEmployeesQuery.isLoading
+    state.salesEmployeesQuery.isLoading ||
+    (state.isEditMode && state.editDetailQuery.isLoading)
+  const backendErrorMessage = state.isEditMode
+    ? state.editDetailQuery.isError
+      ? state.editDetailQuery.error instanceof Error
+        ? state.editDetailQuery.error.message
+        : 'Unable to load A/R invoice for editing.'
+      : null
+    : null
 
   useBackendLoadingToast({
     loading: backendLoading,
-    loadingMessage: 'Loading A/R invoice create data...',
-    errorMessage: null,
+    loadingMessage: state.isEditMode
+      ? 'Loading A/R invoice update data...'
+      : 'Loading A/R invoice create data...',
+    errorMessage: backendErrorMessage,
   })
 
   const isInitialCreateLoading =
+    !state.isEditMode &&
     state.vendorsQuery.isLoading &&
     state.warehousesQuery.isLoading &&
     state.salesEmployeesQuery.isLoading &&
@@ -44,8 +61,33 @@ export function ARInvoiceCreate() {
     !state.warehousesQuery.data &&
     !state.salesEmployeesQuery.data
 
-  if (isInitialCreateLoading) {
+  const isEditHydrationPending =
+    state.isEditMode &&
+    Boolean(state.editDetailQuery.data) &&
+    !state.nameInput.trim() &&
+    !state.codeInput.trim() &&
+    state.productRows.length === 0
+
+  if (
+    isInitialCreateLoading ||
+    (state.isEditMode &&
+      ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
+  ) {
     return <CreatePageRouteSkeleton />
+  }
+
+  if (state.isEditMode && state.editDetailQuery.isError) {
+    const errorMessage =
+      state.editDetailQuery.error instanceof Error
+        ? state.editDetailQuery.error.message
+        : 'Unable to load A/R invoice for editing.'
+    return (
+      <div className="w-full bg-zinc-50 p-3 pb-20">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -73,7 +115,7 @@ export function ARInvoiceCreate() {
           A/R Invoice Data Table
         </Link>
         <ChevronRight className="size-3.5 text-zinc-300" />
-        <span className="text-zinc-700">Create A/R Invoice</span>
+        <span className="text-zinc-700">{pageTitle}</span>
       </div>
 
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -242,6 +284,8 @@ export function ARInvoiceCreate() {
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         handleCreateOrder={state.handleCreateOrder}
+        submitLabel={state.isEditMode ? 'Update' : 'Create'}
+        submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
       />
       <ARInvoiceModals state={state} />
     </div>

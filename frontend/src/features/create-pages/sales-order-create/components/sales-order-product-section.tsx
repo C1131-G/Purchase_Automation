@@ -67,6 +67,7 @@ export function SalesOrderProductSection({
   const navigate = useNavigate()
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
   const SubmitIcon = isUpdateAction ? RefreshCw : Save
+  const showRequiredHints = !isUpdateAction
   const submitIconClass = isUpdateAction
     ? 'h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600'
     : 'h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600'
@@ -76,7 +77,7 @@ export function SalesOrderProductSection({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
         <h3 className="whitespace-nowrap text-sm font-medium text-zinc-800">Product Details</h3>
         <div className="flex items-center gap-2">
-          {missingSearchMandatoryFields.length > 0 ? (
+          {showRequiredHints && missingSearchMandatoryFields.length > 0 ? (
             <Tooltip
               content={`Required fields: ${missingSearchMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}`}
               className="block w-auto max-w-none"
@@ -96,36 +97,16 @@ export function SalesOrderProductSection({
               </span>
             </Tooltip>
           ) : null}
-          {missingSearchMandatoryFields.length > 0 ? (
-            <Tooltip
-              content={`Required fields: ${missingSearchMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}`}
-              className="block w-auto max-w-none"
-            >
-              <span>
-                <button
-                  type="button"
-                  onClick={() => openProductPopup(null)}
-                  onMouseEnter={prefetchProducts}
-                  onFocus={prefetchProducts}
-                  className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
-                >
-                  <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-                  Search Products
-                </button>
-              </span>
-            </Tooltip>
-          ) : (
-            <button
-              type="button"
-              onClick={() => openProductPopup(null)}
-              onMouseEnter={prefetchProducts}
-              onFocus={prefetchProducts}
-              className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
-            >
-              <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-              Search Products
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => openProductPopup(null)}
+            onMouseEnter={prefetchProducts}
+            onFocus={prefetchProducts}
+            className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+          >
+            <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+            Search Products
+          </button>
         </div>
       </div>
 
@@ -212,31 +193,33 @@ export function SalesOrderProductSection({
           </Button>
           <div className="flex items-center gap-2">
             {createDisabledReason && !createSalesOrderMutation.isPending ? (
-              missingMandatoryFields.length > 0 ? (
-                <Tooltip
-                  content={`Required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}`}
-                  className="block w-auto max-w-none"
-                >
-                  <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
-                    <span>Required fields</span>
-                    <span
-                      className="inline-block size-3 rounded-full border border-zinc-300"
-                      style={{
-                        background: `conic-gradient(#2563eb ${requiredCompletionPercent}%, #e4e4e7 ${requiredCompletionPercent}% 100%)`,
-                      }}
-                    />
-                    <span>
-                      {SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length}/
-                      {SALES_ORDER_MANDATORY_FIELDS.length}
+              showRequiredHints ? (
+                missingMandatoryFields.length > 0 ? (
+                  <Tooltip
+                    content={`Required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}`}
+                    className="block w-auto max-w-none"
+                  >
+                    <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                      <span>Required fields</span>
+                      <span
+                        className="inline-block size-3 rounded-full border border-zinc-300"
+                        style={{
+                          background: `conic-gradient(#2563eb ${requiredCompletionPercent}%, #e4e4e7 ${requiredCompletionPercent}% 100%)`,
+                        }}
+                      />
+                      <span>
+                        {SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length}/
+                        {SALES_ORDER_MANDATORY_FIELDS.length}
+                      </span>
                     </span>
+                  </Tooltip>
+                ) : (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                    <span className="inline-block size-2 rounded-full bg-amber-500" />
+                    <span>Pick 1 product</span>
                   </span>
-                </Tooltip>
-              ) : (
-                <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
-                  <span className="inline-block size-2 rounded-full bg-amber-500" />
-                  <span>Pick 1 product</span>
-                </span>
-              )
+                )
+              ) : null
             ) : null}
             <Button
               type="button"

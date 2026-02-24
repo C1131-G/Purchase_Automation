@@ -21,6 +21,73 @@ export type GRPODocNumLookupResponse = {
   success: boolean
   data: GRPODocNumLookupItem[]
 }
+export type AvailablePOItem = {
+  id: number
+  purchaseOrderNo: string
+  poDate?: string
+  vendorCode?: string
+  vendorName?: string
+  vendorRefNumber?: string
+  total?: number
+}
+export type AvailablePOResponse = {
+  success: boolean
+  data: AvailablePOItem[]
+}
+
+export type GRPOCreatePODetailLine = {
+  ItemCode?: string
+  ItemDescription?: string
+  Quantity?: number
+  UoMCode?: string | number
+  Price?: number
+  WarehouseCode?: string
+  TaxCode?: string
+}
+
+export type GRPOCreatePODetail = {
+  id?: number
+  DocEntry?: number
+  DocNum?: number
+  DocDate?: string
+  DocDueDate?: string
+  CardCode?: string
+  CardName?: string
+  Address?: string
+  DocTotal?: number
+  DocumentLines?: GRPOCreatePODetailLine[]
+}
+export type GRPOCreatePODetailResponse = { success: boolean; data: GRPOCreatePODetail }
+export type CreateGRPOPayload = Record<string, unknown>
+export type UpdateGRPOPayload = Record<string, unknown>
+
+export type GRPODetailLine = {
+  ItemCode?: string
+  ItemDescription?: string
+  Quantity?: number
+  Price?: number
+  UnitPrice?: number
+  WarehouseCode?: string
+  LineTotal?: number
+}
+
+export type GRPODetail = {
+  id?: number
+  DocEntry?: number
+  DocNum?: number
+  DocDate?: string
+  SalesPersonCode?: string | number
+  CardCode?: string
+  CardName?: string
+  Address?: string
+  Comments?: string
+  DocTotal?: number
+  DocCurr?: string
+  DocStatus?: string
+  DocumentLines?: GRPODetailLine[]
+}
+
+export type GRPODetailResponse = { success: boolean; data: GRPODetail }
 
 export const grpoAPI = {
   getGRPOs: async (params: GRPOListParams) => {
@@ -32,5 +99,28 @@ export const grpoAPI = {
     const query = toQueryString({ search, limit })
     const path = query ? `/api/v1/grpos/docnums?${query}` : '/api/v1/grpos/docnums'
     return apiClient<GRPODocNumLookupResponse>(path)
+  },
+  getAvailablePOs: async (vendorCode: string) => {
+    const query = toQueryString({ vendorCode })
+    const path = `/api/v1/grpos/available-pos?${query}`
+    return apiClient<AvailablePOResponse>(path)
+  },
+  getPODetailForGRPO: async (id: string | number) => {
+    return apiClient<GRPOCreatePODetailResponse>(`/api/v1/grpos/po-detail/${id}`)
+  },
+  createGRPO: async (payload: CreateGRPOPayload) => {
+    return apiClient<unknown>('/api/v1/grpos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+  updateGRPO: async (id: string | number, payload: UpdateGRPOPayload) => {
+    return apiClient<unknown>(`/api/v1/grpos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  },
+  getGRPOById: async (id: string | number) => {
+    return apiClient<GRPODetailResponse>(`/api/v1/grpos/${id}`)
   },
 }

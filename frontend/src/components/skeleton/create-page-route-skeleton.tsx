@@ -1,3 +1,5 @@
+import { type ReactNode } from 'react'
+
 const TOP_CARD_KEYS = ['top-1', 'top-2', 'top-3'] as const
 const PRODUCT_ROW_KEYS = ['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5'] as const
 const PRODUCT_HEADER_KEYS = [
@@ -170,4 +172,3 @@ export function CreatePageRouteSkeleton() {
     </div>
   )
 }
-import { type ReactNode } from 'react'

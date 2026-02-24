@@ -3,82 +3,85 @@ import { ArrowLeft, Plus, RefreshCw, Save } from 'lucide-react'
 
 import { Button } from '@/components/button'
 import { Tooltip } from '@/components/tooltip'
-import { type useARInvoiceCreate } from '@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create'
-import { REQUIRED_FIELD_LABEL_TEXT } from '@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
-import { SALES_ORDER_MANDATORY_FIELDS } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
+import {
+  calculateOrderTotals,
+  calculateSummaryCurrency,
+} from '@/features/create-pages/create-shared/utils/create-order.calculations'
+import { type GRPOCreateLine } from '@/features/create-pages/grpo-create/hooks/use-grpo-create'
 
-type ARInvoiceState = ReturnType<typeof useARInvoiceCreate>
-
-interface ARInvoiceProductSectionProps {
-  sectionId: string
-  missingSearchMandatoryFields: ARInvoiceState['missingSearchMandatoryFields']
-  searchRequiredCompletionPercent: ARInvoiceState['searchRequiredCompletionPercent']
-  searchMandatoryFields: ARInvoiceState['searchMandatoryFields']
-  openProductPopup: ARInvoiceState['openProductPopup']
-  prefetchProducts: ARInvoiceState['prefetchProducts']
-  productRows: ARInvoiceState['productRows']
-  productRowDrafts: ARInvoiceState['productRowDrafts']
-  effectiveWarehouseCode: ARInvoiceState['effectiveWarehouseCode']
-  openStockPreview: ARInvoiceState['openStockPreview']
-  updateProductRow: ARInvoiceState['updateProductRow']
-  removeProductRow: ARInvoiceState['removeProductRow']
-  setProductRowDraft: ARInvoiceState['setProductRowDraft']
-  clearProductRowDraft: ARInvoiceState['clearProductRowDraft']
-  totals: ARInvoiceState['totals']
-  summaryCurrencyLabel: ARInvoiceState['summaryCurrencyLabel']
-  createError: ARInvoiceState['createError']
-  createDisabledReason: ARInvoiceState['createDisabledReason']
-  createARInvoiceMutation: ARInvoiceState['createARInvoiceMutation']
-  missingMandatoryFields: ARInvoiceState['missingMandatoryFields']
-  requiredCompletionPercent: ARInvoiceState['requiredCompletionPercent']
-  handleCreateOrder: ARInvoiceState['handleCreateOrder']
-  submitLabel?: string
-  submitLoadingText?: string
+interface GRPOProductSectionProps {
+  rows: GRPOCreateLine[]
+  productRowDrafts: Record<
+    string,
+    { quantity?: string; discountPercent?: string; discountAmount?: string }
+  >
+  effectiveWarehouseCode: string
+  createError: string | null
+  createDisabledReason: string | null
+  missingSearchMandatoryFields: string[]
+  searchRequiredCompletionPercent: number
+  searchMandatoryFields: readonly string[]
+  missingMandatoryFields: string[]
+  requiredCompletionPercent: number
+  requiredFieldsTotal: number
+  requiredFieldLabelText: Record<string, string>
+  openProductPopup: (rowId: string | null) => void
+  openStockPreview: (product: { code: string; name: string }) => void
+  prefetchProducts: () => void
+  isSubmitting: boolean
+  isEditMode: boolean
+  onUpdateProductRow: (rowId: string, patch: Partial<GRPOCreateLine>) => void
+  onRemoveProductRow: (rowId: string) => void
+  onSetProductRowDraft: (
+    rowId: string,
+    field: 'quantity' | 'discountPercent' | 'discountAmount',
+    value: string,
+  ) => void
+  onClearProductRowDraft: (
+    rowId: string,
+    field: 'quantity' | 'discountPercent' | 'discountAmount',
+  ) => void
+  onSubmit: () => void
 }
 
-export function ARInvoiceProductSection({
-  sectionId,
+export function GRPOProductSection({
+  rows,
+  productRowDrafts,
+  effectiveWarehouseCode,
+  createError,
+  createDisabledReason,
   missingSearchMandatoryFields,
   searchRequiredCompletionPercent,
   searchMandatoryFields,
-  openProductPopup,
-  prefetchProducts,
-  productRows,
-  productRowDrafts,
-  effectiveWarehouseCode,
-  openStockPreview,
-  updateProductRow,
-  removeProductRow,
-  setProductRowDraft,
-  clearProductRowDraft,
-  totals,
-  summaryCurrencyLabel,
-  createError,
-  createDisabledReason,
-  createARInvoiceMutation,
   missingMandatoryFields,
   requiredCompletionPercent,
-  handleCreateOrder,
-  submitLabel = 'Create',
-  submitLoadingText = 'Creating...',
-}: ARInvoiceProductSectionProps) {
+  requiredFieldsTotal,
+  requiredFieldLabelText,
+  openProductPopup,
+  openStockPreview,
+  prefetchProducts,
+  isSubmitting,
+  isEditMode,
+  onUpdateProductRow,
+  onRemoveProductRow,
+  onSetProductRowDraft,
+  onClearProductRowDraft,
+  onSubmit,
+}: GRPOProductSectionProps) {
   const navigate = useNavigate()
-  const isUpdateAction = submitLabel.toLowerCase().includes('update')
-  const SubmitIcon = isUpdateAction ? RefreshCw : Save
-  const showRequiredHints = !isUpdateAction
-  const submitIconClass = isUpdateAction
-    ? 'h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600'
-    : 'h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600'
+  const showRequiredHints = !isEditMode
+  const totals = calculateOrderTotals(rows)
+  const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null
 
   return (
-    <section id={sectionId} className="mt-3 rounded-2xl border border-zinc-200 bg-white">
+    <section className="mt-3 rounded-2xl border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
         <h3 className="whitespace-nowrap text-sm font-medium text-zinc-800">Product Details</h3>
         <div className="flex items-center gap-2">
           {showRequiredHints && missingSearchMandatoryFields.length > 0 ? (
             <Tooltip
-              content={`Required fields: ${missingSearchMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}`}
+              content={`Required fields: ${missingSearchMandatoryFields.map((field) => requiredFieldLabelText[field] ?? field).join(', ')}`}
               className="block w-auto max-w-none"
             >
               <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
@@ -110,15 +113,16 @@ export function ARInvoiceProductSection({
       </div>
 
       <CreateProductTable
-        productRows={productRows}
+        productRows={rows}
         productRowDrafts={productRowDrafts}
         effectiveWarehouseCode={effectiveWarehouseCode}
+        enforceStockLimit={false}
         openProductPopup={openProductPopup}
         openStockPreview={openStockPreview}
-        updateProductRow={updateProductRow}
-        removeProductRow={removeProductRow}
-        setProductRowDraft={setProductRowDraft}
-        clearProductRowDraft={clearProductRowDraft}
+        updateProductRow={onUpdateProductRow}
+        removeProductRow={onRemoveProductRow}
+        setProductRowDraft={onSetProductRowDraft}
+        clearProductRowDraft={onClearProductRowDraft}
         prefetchProducts={prefetchProducts}
         totals={totals}
         summaryCurrencyLabel={summaryCurrencyLabel}
@@ -179,7 +183,7 @@ export function ARInvoiceProductSection({
             variant="outline"
             onClick={() =>
               navigate({
-                to: '/sales/ar-invoice',
+                to: '/purchase/grpo',
                 search: { page: 1, limit: 10 },
               })
             }
@@ -191,11 +195,11 @@ export function ARInvoiceProductSection({
             </span>
           </Button>
           <div className="flex items-center gap-2">
-            {createDisabledReason && !createARInvoiceMutation.isPending ? (
+            {createDisabledReason && !isSubmitting ? (
               showRequiredHints ? (
                 missingMandatoryFields.length > 0 ? (
                   <Tooltip
-                    content={`Required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}`}
+                    content={`Required fields: ${missingMandatoryFields.map((field) => requiredFieldLabelText[field] ?? field).join(', ')}`}
                     className="block w-auto max-w-none"
                   >
                     <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
@@ -207,8 +211,7 @@ export function ARInvoiceProductSection({
                         }}
                       />
                       <span>
-                        {SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length}/
-                        {SALES_ORDER_MANDATORY_FIELDS.length}
+                        {requiredFieldsTotal - missingMandatoryFields.length}/{requiredFieldsTotal}
                       </span>
                     </span>
                   </Tooltip>
@@ -224,14 +227,18 @@ export function ARInvoiceProductSection({
               type="button"
               size="md"
               variant="outline"
-              isLoading={createARInvoiceMutation.isPending}
-              loadingText={submitLoadingText}
-              onClick={handleCreateOrder}
+              isLoading={isSubmitting}
+              loadingText={isEditMode ? 'Updating...' : 'Creating...'}
+              onClick={onSubmit}
               className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
             >
               <span className="inline-flex items-center gap-2">
-                <SubmitIcon className={submitIconClass} />
-                {submitLabel}
+                {isEditMode ? (
+                  <RefreshCw className="h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600" />
+                ) : (
+                  <Save className="h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600" />
+                )}
+                {isEditMode ? 'Update' : 'Create'}
               </span>
             </Button>
           </div>

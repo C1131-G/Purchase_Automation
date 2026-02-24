@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useRouter } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   flexRender,
@@ -79,21 +79,71 @@ const toARInvoiceColumnFilters = (filters: ColumnFiltersState): ARInvoiceColumnF
 export function ARInvoiceTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
+  const router = useRouter()
   const setSorting = useSetSortingAction()
   const setVisibility = useSetVisibilityAction()
   const setOrder = useSetOrderAction()
   const setPagination = useSetPaginationAction()
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
+  const queryClient = useQueryClient()
 
   /** Tracks which user action last triggered a fetch for action-specific toasts. */
   const lastActionRef = useRef<TableFetchAction>('fetching')
+  const docNumPrefetchRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createARInvoiceColumns(), [])
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      const normalizedDocNum = docNum.trim()
+      if (!normalizedDocNum) return
+      if (docNumPrefetchRef.current.has(normalizedDocNum)) return
+      docNumPrefetchRef.current.add(normalizedDocNum)
+
+      void queryClient
+        .fetchQuery(arInvoiceQueries.detailByDocNum(normalizedDocNum))
+        .then(() => {
+          void router.preloadRoute({
+            to: '/sales/ar-invoice/$docNum/edit',
+            params: { docNum: normalizedDocNum },
+          } as never)
+          void Promise.allSettled([
+            queryClient.prefetchQuery(createSharedQueries.customers()),
+            queryClient.prefetchQuery(createSharedQueries.warehouses()),
+            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+          ])
+        })
+        .catch(() => {
+          docNumPrefetchRef.current.delete(normalizedDocNum)
+        })
+    },
+    [queryClient, router],
+  )
+
+  const columns = useMemo(
+    () =>
+      createARInvoiceColumns({
+        onDocNumHover: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+        },
+        onDocNumDoubleClick: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+          void navigate({
+            to: '/sales/ar-invoice/$docNum/edit',
+            params: { docNum: normalized },
+            viewTransition: true,
+          } as never)
+        },
+      }),
+    [navigate, prefetchEditRouteData],
+  )
   const columnIds = useMemo(
     () =>
       columns
@@ -152,8 +202,6 @@ export function ARInvoiceTable() {
     error,
     refetch,
   } = useQuery(arInvoiceQueries.list(listParams))
-
-  const queryClient = useQueryClient()
 
   const rows = useMemo(() => arInvoiceList?.data ?? [], [arInvoiceList?.data])
   const totalRows = arInvoiceList?.total ?? 0
@@ -325,6 +373,7 @@ export function ARInvoiceTable() {
 
   const handleCreateClickPrefetch = useCallback(() => {
     void Promise.allSettled([
+      queryClient.prefetchQuery(createSharedQueries.customers()),
       queryClient.prefetchQuery(createSharedQueries.warehouses()),
       queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
     ])

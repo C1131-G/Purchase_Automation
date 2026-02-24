@@ -1,13 +1,17 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { useCreateARInvoice } from '@/features/create-pages/ar-invoice-create/api/ar-invoice-create.mutations'
+import {
+  useCreateARInvoice,
+  useUpdateARInvoice,
+} from '@/features/create-pages/ar-invoice-create/api/ar-invoice-create.mutations'
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   MANDATORY_ERROR_TEXT,
   type ProductSearchFieldError,
   REQUIRED_FIELD_LABEL_TEXT,
 } from '@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils'
+import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   getMissingMandatoryCreateFieldsTyped,
@@ -28,6 +32,7 @@ import {
   arInvoiceKeys,
   arInvoiceQueries,
 } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
+import { type ARInvoiceDetailLine } from '@/features/table-pages/ar-invoices/api/ar-invoice.service'
 import {
   useARInvoiceHeader,
   useResetARInvoiceCreateAction,
@@ -38,11 +43,22 @@ import { useArLookups } from './use-ar-lookups'
 import { useArModals } from './use-ar-modals'
 import { useArProducts } from './use-ar-products'
 
-export function useARInvoiceCreate() {
+type ARInvoiceCreateMode = 'create' | 'edit'
+
+type UseARInvoiceCreateOptions = {
+  mode?: ARInvoiceCreateMode
+  docNum?: string
+}
+
+export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
+  const mode = options?.mode ?? 'create'
+  const isEditMode = mode === 'edit'
+  const queryClient = useQueryClient()
   const header = useARInvoiceHeader()
   const resetARInvoiceCreate = useResetARInvoiceCreateAction()
   const setHeader = useSetARInvoiceHeaderAction()
   const createARInvoiceMutation = useCreateARInvoice()
+  const updateARInvoiceMutation = useUpdateARInvoice()
 
   const today = useMemo(() => {
     const now = new Date()
@@ -54,6 +70,7 @@ export function useARInvoiceCreate() {
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   )
   const [createError, setCreateError] = useState<string | null>(null)
+  const hydratedDocNumRef = useRef<string | null>(null)
 
   const docDateContainerRef = useRef<HTMLDivElement>(null)
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null)
@@ -81,8 +98,126 @@ export function useARInvoiceCreate() {
   })
 
   useEffect(() => {
+    if (isEditMode) return
     resetARInvoiceCreate()
-  }, [resetARInvoiceCreate])
+  }, [isEditMode, resetARInvoiceCreate])
+
+  const editDetailQuery = useQuery({
+    ...arInvoiceQueries.detailByDocNum((options?.docNum ?? '').trim()),
+    enabled: isEditMode && Boolean((options?.docNum ?? '').trim()),
+  })
+
+  useEffect(() => {
+    if (!isEditMode) return
+    const currentDocNum = (options?.docNum ?? '').trim()
+    if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) return
+    const detail = editDetailQuery.data?.data
+    if (!detail) return
+
+    const customerCode = String(detail.CardCode ?? '').trim()
+    const customerName = String(detail.CardName ?? '').trim()
+    const matchedCustomer = lookups.vendors.find((item) => String(item.code) === customerCode)
+    const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+    const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode)
+    const rawComments = String(detail.Comments ?? '').trim()
+    const splitComments = rawComments.split(' | ').map((part) => part.trim())
+    const hasReferenceMarker = splitComments.length > 1
+    const referenceNo = hasReferenceMarker
+      ? (splitComments[0] ?? '')
+      : String(detail.NumAtCard ?? '')
+    const comments = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+    const docDate = String(detail.DocDate ?? '').slice(0, 10)
+    const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
+    const address = String(detail.Address ?? '').trim()
+
+    void (async () => {
+      const detailLines = detail.DocumentLines ?? []
+      const productsForWarehouse =
+        warehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(
+                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+              )
+              .catch(() => [])
+          : []
+
+      const productByCode = new Map(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      )
+      const stockByItemCode = new Map<string, number>()
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
+      ].filter(Boolean)
+
+      await Promise.all(
+        uniqueItemCodes.map(async (itemCode) => {
+          const warehouseStocks = await queryClient
+            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+            .catch(() => [])
+
+          const resolvedStock = warehouseCode
+            ? Number(
+                warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
+                  ?.stock ?? 0,
+              )
+            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
+          stockByItemCode.set(itemCode, resolvedStock)
+        }),
+      )
+
+      const mappedRows = detailLines.map((line: ARInvoiceDetailLine, index) => {
+        const itemCode = String(line.ItemCode ?? '').trim()
+        const productMeta = productByCode.get(itemCode)
+        const quantity = Number(line.Quantity ?? 1)
+        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
+        const discountPercent = Number(line.DiscountPercent ?? 0)
+        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
+        return {
+          id: `row-${currentDocNum}-${index}`,
+          productCode: itemCode,
+          productName: String(line.ItemDescription ?? productMeta?.name ?? '').trim(),
+          stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
+          price,
+          currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
+          taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
+          taxRate: Number(productMeta?.taxRate ?? 0),
+          quantity,
+          discountPercent,
+          discountAmount,
+          comment: '',
+        }
+      })
+
+      setHeader({
+        vendorCode: customerCode,
+        vendorName: customerName,
+        docDate: docDate || header.docDate,
+        docDueDate,
+        warehouseCode,
+        referenceNo,
+        comments,
+      })
+      lookups.setNameInput(customerName)
+      lookups.setCodeInput(customerCode)
+      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
+      lookups.setSalesEmployeeInput(matchedCustomer?.salesEmployeeName?.trim() ?? '')
+      lookups.setBillToAddress(address)
+      lookups.setShipToAddress(address)
+      productsHook.setProductRows(mappedRows)
+      productsHook.setProductRowDrafts({})
+
+      hydratedDocNumRef.current = currentDocNum
+    })()
+  }, [
+    editDetailQuery.data,
+    header.docDate,
+    isEditMode,
+    lookups,
+    options?.docNum,
+    productsHook,
+    queryClient,
+    setHeader,
+  ])
 
   const popupResults = useMemo(() => {
     const term = modals.modalSearch.trim().toLowerCase()
@@ -220,7 +355,7 @@ export function useARInvoiceCreate() {
     missingMandatoryFields.length > 0
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}.`
       : !hasValidRowsForCreate
-        ? 'Add at least one product row before creating A/R invoice.'
+        ? `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} A/R invoice.`
         : null
 
   const requiredCompletionPercent =
@@ -228,19 +363,19 @@ export function useARInvoiceCreate() {
       SALES_ORDER_MANDATORY_FIELDS.length) *
     100
 
+  const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? 'updating' : 'creating'} A/R invoice.`
+  const rowsErrorText = `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} A/R invoice.`
+
   const visibleCreateError =
-    createError === 'Fill required fields before creating A/R invoice.' && !createDisabledReason
+    createError === requiredFieldsErrorText && !createDisabledReason
       ? null
-      : createError === 'Add at least one product row before creating A/R invoice.' &&
-          hasValidRowsForCreate
+      : createError === rowsErrorText && hasValidRowsForCreate
         ? null
         : createError
 
   function handleCreateOrderAction() {
     void handleCreateOrder()
   }
-
-  const queryClient = useQueryClient()
 
   const handleCreateOrder = async () => {
     const nextErrors: ProductSearchFieldError = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS }
@@ -251,7 +386,7 @@ export function useARInvoiceCreate() {
 
     if (Object.values(nextErrors).some(Boolean)) {
       setProductSearchFieldErrors(nextErrors)
-      setCreateError('Fill required fields before creating A/R invoice.')
+      setCreateError(requiredFieldsErrorText)
       return
     }
 
@@ -259,7 +394,7 @@ export function useARInvoiceCreate() {
       (row) => row.productCode.trim() && row.quantity > 0,
     )
     if (validRows.length === 0) {
-      setCreateError('Add at least one product row before creating A/R invoice.')
+      setCreateError(rowsErrorText)
       return
     }
 
@@ -282,9 +417,20 @@ export function useARInvoiceCreate() {
       })),
     }
 
-    const toastHandle = createOrderToast('A/R Invoice')
+    const toastHandle = createOrderToast('A/R Invoice', isEditMode ? 'update' : 'create')
     try {
-      await createARInvoiceMutation.mutateAsync({ payload })
+      if (isEditMode) {
+        const detail = editDetailQuery.data?.data
+        const docEntry = detail?.DocEntry ?? detail?.id
+        if (docEntry === undefined || docEntry === null) {
+          setCreateError('Unable to update A/R invoice. Document id is missing.')
+          toastHandle.error()
+          return
+        }
+        await updateARInvoiceMutation.mutateAsync({ id: docEntry, payload })
+      } else {
+        await createARInvoiceMutation.mutateAsync({ payload })
+      }
       toastHandle.success()
 
       void queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all })
@@ -293,6 +439,14 @@ export function useARInvoiceCreate() {
         queryClient.prefetchQuery(arInvoiceQueries.docNumSuggestions(undefined, 10)),
         queryClient.prefetchQuery(arInvoiceQueries.docNumSuggestions(undefined, 100)),
       ])
+
+      if (isEditMode) {
+        const currentDocNum = (options?.docNum ?? '').trim()
+        if (currentDocNum) {
+          void queryClient.prefetchQuery(arInvoiceQueries.detailByDocNum(currentDocNum))
+        }
+        return
+      }
 
       resetARInvoiceCreate()
       lookups.setNameInput('')
@@ -322,11 +476,13 @@ export function useARInvoiceCreate() {
       toastHandle.error()
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        'Failed to create A/R invoice. Try again.',
+        `Failed to ${isEditMode ? 'update' : 'create'} A/R invoice. Try again.`,
       )
       setCreateError(errorMessage)
     }
   }
+
+  const submitARInvoiceMutation = isEditMode ? updateARInvoiceMutation : createARInvoiceMutation
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),
@@ -348,7 +504,10 @@ export function useARInvoiceCreate() {
       productsHook.applyProductToRow(product, {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
-    createARInvoiceMutation,
+    createARInvoiceMutation: submitARInvoiceMutation,
+    updateARInvoiceMutation,
+    editDetailQuery,
+    isEditMode,
     header,
     today,
     activeDatePicker,

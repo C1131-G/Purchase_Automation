@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useRouter } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   flexRender,
@@ -55,6 +55,7 @@ import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 const routeApi = getRouteApi('/_layout/purchase/grpo')
 const TABLE_ID = 'grpo'
 const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
+const EDIT_PRODUCTS_PREFETCH_LIMIT = 100
 
 const toGRPOColumnFilters = (filters: ColumnFiltersState): GRPOColumnFilter[] => {
   const typedFilters: GRPOColumnFilter[] = []
@@ -71,21 +72,92 @@ const toGRPOColumnFilters = (filters: ColumnFiltersState): GRPOColumnFilter[] =>
 export function GRPOTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
+  const router = useRouter()
   const setSorting = useSetSortingAction()
   const setVisibility = useSetVisibilityAction()
   const setOrder = useSetOrderAction()
   const setPagination = useSetPaginationAction()
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
+  const queryClient = useQueryClient()
 
   /** Tracks which user action last triggered a fetch for action-specific toasts. */
   const lastActionRef = useRef<TableFetchAction>('fetching')
+  const docNumPrefetchRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createGRPOColumns(), [])
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      const normalizedDocNum = docNum.trim()
+      if (!normalizedDocNum) return
+      if (docNumPrefetchRef.current.has(normalizedDocNum)) return
+      docNumPrefetchRef.current.add(normalizedDocNum)
+
+      void queryClient
+        .fetchQuery(grpoQueries.detailByDocNum(normalizedDocNum))
+        .then((response) => {
+          void router.preloadRoute({
+            to: '/purchase/grpo/$docNum/edit',
+            params: { docNum: normalizedDocNum },
+          } as never)
+          void Promise.allSettled([
+            queryClient.prefetchQuery(createSharedQueries.vendors()),
+            queryClient.prefetchQuery(createSharedQueries.warehouses()),
+          ])
+
+          const detail = response?.data
+          if (!detail) return
+
+          const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+          if (warehouseCode) {
+            void queryClient.prefetchQuery(
+              createSharedQueries.products(warehouseCode, undefined, EDIT_PRODUCTS_PREFETCH_LIMIT),
+            )
+          }
+
+          const itemCodes = [
+            ...new Set(
+              (detail.DocumentLines ?? [])
+                .map((line) => String(line.ItemCode ?? '').trim())
+                .filter(Boolean),
+            ),
+          ]
+
+          for (const itemCode of itemCodes) {
+            void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+          }
+        })
+        .catch(() => {
+          docNumPrefetchRef.current.delete(normalizedDocNum)
+        })
+    },
+    [queryClient, router],
+  )
+
+  const columns = useMemo(
+    () =>
+      createGRPOColumns({
+        onDocNumHover: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+        },
+        onDocNumDoubleClick: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+          void navigate({
+            to: '/purchase/grpo/$docNum/edit',
+            params: { docNum: normalized },
+            viewTransition: true,
+          } as never)
+        },
+      }),
+    [navigate, prefetchEditRouteData],
+  )
   const columnIds = useMemo(
     () =>
       columns
@@ -144,8 +216,6 @@ export function GRPOTable() {
     error,
     refetch,
   } = useQuery(grpoQueries.list(listParams))
-
-  const queryClient = useQueryClient()
 
   const rows = useMemo(() => grpoList?.data ?? [], [grpoList?.data])
   const totalRows = grpoList?.total ?? 0
@@ -316,8 +386,9 @@ export function GRPOTable() {
 
   const handleCreateClickPrefetch = useCallback(() => {
     void Promise.allSettled([
+      queryClient.prefetchQuery(createSharedQueries.vendors()),
       queryClient.prefetchQuery(createSharedQueries.warehouses()),
-      queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+      queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 10)),
     ])
   }, [queryClient])
 
