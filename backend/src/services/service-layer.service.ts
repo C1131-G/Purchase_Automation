@@ -182,16 +182,18 @@ class ServiceLayerClient {
       if (axios.isAxiosError(err)) {
         const statusCode = err.response?.status;
         const message = err.response?.data?.error?.message?.value || err.message;
+        const buildSessionExpiredError = () => {
+          const sessionError = new Error("SAP session expired") as SLError;
+          sessionError.statusCode = 401;
+          sessionError.isSessionExpired = true;
+          return sessionError;
+        };
 
         // 401 recovery mode: one silent re-login + one retry.
         if (statusCode === 401) {
           if (allowUnauthorizedRetry) {
             try {
               await this.refreshSessionAfterUnauthorized(sessionId);
-              const refreshedSession = this.sessions.get(sessionId);
-              if (refreshedSession?.cookieString) {
-                return await this.request<T>(sessionId, method, endpoint, data, false);
-              }
             } catch (refreshError: unknown) {
               const refreshMessage =
                 refreshError instanceof Error ? refreshError.message : String(refreshError);
@@ -201,14 +203,39 @@ class ServiceLayerClient {
                 endpoint,
                 error: refreshMessage,
               });
+              this.destroyLocalSession(sessionId, "SAP 401 Unauthorized");
+              throw buildSessionExpiredError();
+            }
+
+            const refreshedSession = this.sessions.get(sessionId);
+            if (refreshedSession?.cookieString) {
+              try {
+                return await this.request<T>(sessionId, method, endpoint, data, false);
+              } catch (retryError: unknown) {
+                const retryStatus = axios.isAxiosError(retryError)
+                  ? retryError.response?.status
+                  : (retryError as SLError | undefined)?.statusCode;
+
+                // Only treat repeated 401 as an auth failure; propagate functional SAP errors as-is.
+                if (retryStatus === 401) {
+                  const retryMessage =
+                    retryError instanceof Error ? retryError.message : String(retryError);
+                  logger.warn({
+                    msg: "Service Layer request still unauthorized after silent re-login",
+                    sessionId,
+                    endpoint,
+                    error: retryMessage,
+                  });
+                  this.destroyLocalSession(sessionId, "SAP 401 Unauthorized");
+                  throw buildSessionExpiredError();
+                }
+                throw retryError instanceof Error ? retryError : new Error(String(retryError));
+              }
             }
           }
 
           this.destroyLocalSession(sessionId, "SAP 401 Unauthorized");
-          const sessionError = new Error("SAP session expired") as SLError;
-          sessionError.statusCode = 401;
-          sessionError.isSessionExpired = true;
-          throw sessionError;
+          throw buildSessionExpiredError();
         }
 
         const customErr = new Error(message) as SLError;

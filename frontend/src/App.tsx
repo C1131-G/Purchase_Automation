@@ -8,7 +8,11 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { GlobalErrorBoundary } from '@/components/error-boundary'
 import { GOEY_TOASTER_CONFIG } from '@/components/goey-toast.config'
 import { routeTree } from '@/routeTree.gen'
-import { QUERY_CACHE_KEY } from '@/shared/utils/query-cache-persistence'
+import {
+  CLEAR_QUERY_CACHE_EVENT,
+  clearPersistedQueryCache,
+  QUERY_CACHE_KEY,
+} from '@/shared/utils/query-cache-persistence'
 
 const QUERY_CACHE_MAX_AGE = 30 * 60 * 1000
 const ReactQueryDevtools = import.meta.env.DEV
@@ -82,6 +86,15 @@ function App() {
       if (persistTimerRef.current) window.clearTimeout(persistTimerRef.current)
       unsubscribe()
     }
+  }, [])
+
+  useEffect(() => {
+    const handleClearQueryCache = () => {
+      clearPersistedQueryCache()
+      queryClient.clear()
+    }
+    window.addEventListener(CLEAR_QUERY_CACHE_EVENT, handleClearQueryCache)
+    return () => window.removeEventListener(CLEAR_QUERY_CACHE_EVENT, handleClearQueryCache)
   }, [])
 
   return (

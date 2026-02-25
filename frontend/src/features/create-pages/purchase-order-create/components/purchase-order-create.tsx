@@ -1,15 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { goeyToast } from 'goey-toast'
-// PurchaseOrderCreate: Orchestrates the entire PO creation lifecycle.
-import { ChevronRight } from 'lucide-react'
 import { type MouseEvent } from 'react'
 
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
-import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
+import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
+import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
-import { WarehouseLogisticsGrid } from '@/features/create-pages/create-shared/components/grids/warehouse-logistics-grid'
+import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import {
   parseISODate,
   toDisplayDate,
@@ -19,49 +16,28 @@ import { PurchaseOrderModals } from '@/features/create-pages/purchase-order-crea
 import { PurchaseOrderProductSection } from '@/features/create-pages/purchase-order-create/components/purchase-order-product-section'
 import { usePurchaseOrderCreate } from '@/features/create-pages/purchase-order-create/hooks/use-purchase-order-create'
 import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
-import { useSetSidebarAction } from '@/store/sidebar/sidebar.store'
 
-// PurchaseOrderCreate: Orchestrator for the complex PO creation multi-step flow.
-// State is centralized in usePurchaseOrderCreate to keep the UI declarative and clean.
 interface PurchaseOrderCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
 }
 
+/**
+ * PurchaseOrderCreate: Orchestrator for the complex PO creation multi-step flow.
+ * State is centralized in usePurchaseOrderCreate to keep the UI declarative and clean.
+ * Leverages CreatePageWrapper for consistent entity layout.
+ */
 export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCreateProps) {
   const queryClient = useQueryClient()
-  const setSidebarOpen = useSetSidebarAction()
-
   const state = usePurchaseOrderCreate(docNum ? { mode, docNum } : { mode })
+
   const pageTitle = state.isEditMode ? 'Update Purchase Order' : 'Create Purchase Order'
-  const isInitialCreateLoading =
-    !state.isEditMode &&
-    state.vendorsQuery.isLoading &&
-    state.warehousesQuery.isLoading &&
-    state.salesEmployeesQuery.isLoading &&
-    !state.vendorsQuery.data &&
-    !state.warehousesQuery.data &&
-    !state.salesEmployeesQuery.data
-  const isEditHydrationPending = state.isEditMode && !state.isEditHydrated
-
-  const isFormHydrating =
-    isInitialCreateLoading ||
-    (state.isEditMode &&
-      ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
-
-  if (state.isEditMode && state.editDetailQuery.isError) {
-    const errorMessage =
-      state.editDetailQuery.error instanceof Error
-        ? state.editDetailQuery.error.message
-        : 'Unable to load purchase order for editing.'
-    return (
-      <div className="w-full bg-zinc-50 p-3 pb-20">
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </p>
-      </div>
-    )
-  }
+  const isFormHydrating = !state.isEditMode
+    ? state.vendorsQuery.isLoading &&
+      state.warehousesQuery.isLoading &&
+      state.salesEmployeesQuery.isLoading &&
+      !state.vendorsQuery.data
+    : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated
 
   const handleVendorRestrictedClick = state.isEditMode
     ? (event: MouseEvent<HTMLDivElement>) => {
@@ -72,34 +48,23 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
     : undefined
 
   return (
-    <div className="w-full bg-zinc-50 p-3 pb-20">
-      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-        <button
-          type="button"
-          className="cursor-pointer text-blue-600 hover:text-blue-700"
-          onClick={() => setSidebarOpen(true)}
-        >
-          Purchase
-        </button>
-        <ChevronRight className="size-3.5 text-zinc-300" />
-        <Link
-          to="/purchase/orders"
-          search={{ page: 1, limit: 10 }}
-          className="cursor-pointer text-blue-600 hover:text-blue-700"
-          onMouseEnter={() =>
-            void queryClient.prefetchQuery(purchaseOrderQueries.list({ page: 1, limit: 10 }))
-          }
-          onFocus={() =>
-            void queryClient.prefetchQuery(purchaseOrderQueries.list({ page: 1, limit: 10 }))
-          }
-        >
-          Purchase Orders Data Table
-        </Link>
-        <ChevronRight className="size-3.5 text-zinc-300" />
-        <span className="text-zinc-700">{pageTitle}</span>
-      </div>
-
-      {/* Header Grid: Captures primary metadata (Vendor, Logistics, Dates). */}
+    <CreatePageWrapper
+      rootLabel="Purchase"
+      breadcrumbParent={{
+        label: 'Purchase Orders Data Table',
+        to: '/purchase/orders',
+        onMouseEnter: () =>
+          void queryClient.prefetchQuery(purchaseOrderQueries.list({ page: 1, limit: 10 })),
+      }}
+      pageTitle={pageTitle}
+      editError={
+        state.isEditMode && state.editDetailQuery.isError
+          ? state.editDetailQuery.error instanceof Error
+            ? state.editDetailQuery.error.message
+            : 'Unable to load purchase order for editing.'
+          : null
+      }
+    >
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
           onClickCapture={handleVendorRestrictedClick}
@@ -140,45 +105,20 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
           </div>
         </div>
 
-        <WarehouseLogisticsGrid
-          warehouseInput={state.warehouseInput}
+        <LogisticsGrid
           salesEmployeeInput={state.salesEmployeeInput}
-          warehouseLoading={state.warehousesQuery.isLoading || isFormHydrating}
           salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
-          error={
-            state.warehousesQuery.isError
-              ? 'Unable to load warehouses.'
-              : state.salesEmployeesQuery.isError
-                ? 'Unable to load buyers.'
-                : null
-          }
-          warehouseFocused={state.warehouseFocused}
+          error={state.salesEmployeesQuery.isError ? 'Unable to load buyers.' : null}
           salesEmployeeFocused={state.salesEmployeeFocused}
-          warehouseSuggestions={state.warehouseSuggestions}
           salesEmployeeSuggestions={state.salesEmployeeSuggestions}
-          onWarehouseChange={state.handleWarehouseChange}
           onSalesEmployeeChange={state.handleSalesEmployeeChange}
-          onWarehouseFocus={() => state.setWarehouseFocused(true)}
           onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-          onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
           onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
-          onOpenWarehousePopup={() => state.openPopup('warehouse')}
           onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
-          onSelectWarehouse={state.selectWarehouse}
           onSelectSalesEmployee={state.selectSalesEmployee}
-          warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
-          salesEmployeeInvalid={Boolean(state.productSearchFieldErrors.salesEmployee)}
-          warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
-          salesEmployeeErrorText={state.productSearchFieldErrors.salesEmployee}
-          warehouseLocked={state.productRows.length > 0}
-          onWarehouseLockedClick={() =>
-            goeyToast(
-              "Warehouse can't be changed after product selection. Remove products or create.",
-            )
-          }
         />
 
-        <DocumentDetailsGrid
+        <DocumentDatesGrid
           loading={isFormHydrating}
           docDate={state.header.docDate}
           docDueDate={state.header.docDueDate}
@@ -195,10 +135,6 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
             state.setHeader({ docDueDate: value })
             state.setProductSearchFieldErrors((prev) => ({ ...prev, docDueDate: undefined }))
           }}
-          docDueDateInvalid={Boolean(state.productSearchFieldErrors.docDueDate)}
-          {...(state.productSearchFieldErrors.docDueDate
-            ? { docDueDateErrorText: state.productSearchFieldErrors.docDueDate }
-            : {})}
         />
       </div>
 
@@ -221,10 +157,6 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
               shipToAddress: value.trim() ? undefined : prev.shipToAddress,
             }))
           }}
-          billToAddressInvalid={Boolean(state.productSearchFieldErrors.billToAddress)}
-          shipToAddressInvalid={Boolean(state.productSearchFieldErrors.shipToAddress)}
-          billToAddressErrorText={state.productSearchFieldErrors.billToAddress}
-          shipToAddressErrorText={state.productSearchFieldErrors.shipToAddress}
         />
         <ReferenceGrid
           loading={isFormHydrating}
@@ -245,7 +177,6 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         />
       </div>
 
-      {/* Product Section: Handles line items, real-time totals, and final submission. */}
       <PurchaseOrderProductSection
         sectionId="purchase-order-product-section"
         missingSearchMandatoryFields={state.missingSearchMandatoryFields}
@@ -255,8 +186,8 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         prefetchProducts={state.prefetchProducts}
         productRows={state.productRows}
         productRowDrafts={state.productRowDrafts}
-        effectiveWarehouseCode={state.effectiveWarehouseCode}
-        openStockPreview={state.openStockPreview}
+        warehouses={state.warehouses}
+        warehousesLoading={state.warehousesQuery.isLoading}
         updateProductRow={state.updateProductRow}
         removeProductRow={state.removeProductRow}
         setProductRowDraft={state.setProductRowDraft}
@@ -273,6 +204,6 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
       />
       <PurchaseOrderModals state={state} />
-    </div>
+    </CreatePageWrapper>
   )
 }

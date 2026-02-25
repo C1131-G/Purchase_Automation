@@ -100,6 +100,29 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
         '',
     ).trim(),
     taxRate: toNumberOrZero(record.TaxRate ?? record.taxRate ?? record.Rate),
+    uomCode: String(
+      record.UoMCode ??
+        record.uomCode ??
+        record.UomCode ??
+        record.uom ??
+        record.Uom ??
+        record.SalUnitMsr ??
+        '',
+    ).trim(),
+    uomEntry: toNumberOrZero(record.UoMEntry ?? record.uomEntry ?? record.UomEntry) || undefined,
+    purchaseUomCode: String(
+      record.PurchaseUoMCode ??
+        record.purchaseUomCode ??
+        record.PurchaseUomCode ??
+        record.purchaseUom ??
+        record.PurchaseUom ??
+        record.BuyUnitMsr ??
+        '',
+    ).trim(),
+    purchaseUomEntry:
+      toNumberOrZero(
+        record.PurchaseUoMEntry ?? record.purchaseUomEntry ?? record.PurchaseUomEntry,
+      ) || undefined,
   }
 }
 

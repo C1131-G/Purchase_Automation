@@ -31,6 +31,8 @@ export type PurchaseOrderDetailLine = {
   Quantity?: number
   Price?: number
   UnitPrice?: number
+  UoMCode?: string | number
+  UoMEntry?: number
   DiscountPercent?: number
   TaxCode?: string
   WarehouseCode?: string

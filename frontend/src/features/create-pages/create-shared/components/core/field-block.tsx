@@ -1,6 +1,6 @@
 // FieldBlock: A standardized layout container for form fields, labels, and validation.
 import { Lock, Pencil, Search } from 'lucide-react'
-import { useRef } from 'react'
+import { useId, useRef } from 'react'
 
 type FieldBlockProps = {
   label: string
@@ -36,6 +36,7 @@ export function FieldBlock({
   editableHighlight,
 }: FieldBlockProps) {
   const lastDisabledFeedbackAtRef = useRef(0)
+  const inputId = useId()
 
   const triggerDisabledFeedback = () => {
     if (!disabled || !onDisabledClick) return
@@ -51,7 +52,10 @@ export function FieldBlock({
 
   return (
     <div>
-      <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+      <label
+        htmlFor={inputId}
+        className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
+      >
         <span className="inline-flex items-center gap-1.5">
           <span>{displayLabel}</span>
           {disabled ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
@@ -63,6 +67,7 @@ export function FieldBlock({
       </label>
       <div className="relative">
         <input
+          id={inputId}
           className={`h-10 w-full rounded-xl border pl-3 pr-12 text-sm outline-none transition placeholder:text-zinc-400 ${
             invalid
               ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'

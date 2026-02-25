@@ -1,19 +1,17 @@
 import { CreateProductTableRow } from '@/features/create-pages/create-shared/components/tables/create-product-table-row'
 import { calculateOrderTotals } from '@/features/create-pages/create-shared/utils/create-order.calculations'
 import {
+  type CreateLookupOption,
   type ProductRow,
   type ProductRowDraft,
-  type StockPreviewProduct,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 // CreateProductTable: Specialized data grid for building document line items.
 
 interface CreateProductTableProps {
   productRows: ProductRow[]
   productRowDrafts: Record<string, ProductRowDraft>
-  effectiveWarehouseCode: string
   enforceStockLimit?: boolean
   openProductPopup: (rowId: string | null) => void
-  openStockPreview: (product: StockPreviewProduct) => void
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void
   removeProductRow: (id: string) => void
   setProductRowDraft: (id: string, field: keyof ProductRowDraft, value: string) => void
@@ -22,40 +20,51 @@ interface CreateProductTableProps {
   totals: ReturnType<typeof calculateOrderTotals>
   summaryCurrencyLabel: string | null
   createError: string | null
+  warehouses: CreateLookupOption[]
+  warehousesLoading: boolean
+  disableLineInputs?: boolean
+  onLineInputRestrictedClick?: () => void
+  stockLimitReserve?: number
+  minStockToSelectWarehouse?: number
 }
 
 export function CreateProductTable({
   productRows,
   productRowDrafts,
-  effectiveWarehouseCode,
   enforceStockLimit = true,
   openProductPopup,
-  openStockPreview,
   updateProductRow,
   removeProductRow,
   setProductRowDraft,
   clearProductRowDraft,
   prefetchProducts,
+  warehouses,
+  warehousesLoading,
+  disableLineInputs = false,
+  onLineInputRestrictedClick,
+  stockLimitReserve = 0,
+  minStockToSelectWarehouse = 0,
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
-      <table className="min-w-290 w-full text-left text-sm text-zinc-700">
+      <table className="min-w-300 w-full table-fixed text-left text-sm text-zinc-700">
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
-            <th className="w-md whitespace-nowrap px-3 py-2">Product</th>
-            <th className="whitespace-nowrap px-3 py-2">Quantity</th>
-            <th className="whitespace-nowrap px-3 py-2">Price</th>
-            <th className="whitespace-nowrap px-3 py-2">Discount %</th>
-            <th className="whitespace-nowrap px-3 py-2">Discount Amount</th>
-            <th className="whitespace-nowrap px-3 py-2">Net Price</th>
-            <th className="whitespace-nowrap px-3 py-2">Total</th>
-            <th className="whitespace-nowrap px-3 py-2 text-right">Actions</th>
+            <th className="w-[20%] px-2 py-2">Product</th>
+            <th className="w-[26%] px-2 py-2">Warehouse</th>
+            <th className="w-[8%] px-2 py-2 text-left">Quantity</th>
+            <th className="w-[6%] px-2 py-2 text-left">Price</th>
+            <th className="w-[8%] px-2 py-2 text-left">Disc %</th>
+            <th className="w-[8%] px-2 py-2 text-left text-wrap">Disc Amt</th>
+            <th className="w-[8%] px-2 py-2 text-left text-wrap">Net Price</th>
+            <th className="w-[8%] px-2 py-2 text-left">Total</th>
+            <th className="w-[8%] px-2 py-2 text-left">Actions</th>
           </tr>
         </thead>
         <tbody>
           {productRows.length === 0 ? (
             <tr>
-              <td className="px-3 py-8" colSpan={8}>
+              <td className="px-3 py-8" colSpan={9}>
                 <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
                   <div className="text-sm font-medium text-zinc-700">No products yet</div>
                   <div className="text-xs text-zinc-500">
@@ -71,15 +80,19 @@ export function CreateProductTable({
               key={row.id}
               row={row}
               rowDraft={productRowDrafts[row.id]}
-              effectiveWarehouseCode={effectiveWarehouseCode}
               enforceStockLimit={enforceStockLimit}
               openProductPopup={openProductPopup}
-              openStockPreview={openStockPreview}
               updateProductRow={updateProductRow}
               removeProductRow={removeProductRow}
               setProductRowDraft={setProductRowDraft}
               clearProductRowDraft={clearProductRowDraft}
               prefetchProducts={prefetchProducts}
+              warehouses={warehouses}
+              warehousesLoading={warehousesLoading}
+              disableInputs={disableLineInputs}
+              onInputRestrictedClick={onLineInputRestrictedClick}
+              stockLimitReserve={stockLimitReserve}
+              minStockToSelectWarehouse={minStockToSelectWarehouse}
             />
           ))}
         </tbody>

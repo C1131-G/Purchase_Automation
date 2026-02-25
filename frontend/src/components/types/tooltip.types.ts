@@ -2,7 +2,7 @@ import React from 'react'
 
 export type TooltipProps = {
   children: React.ReactNode
-  content: string
+  content: React.ReactNode
   className?: string
   contentClassName?: string
 }

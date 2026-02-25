@@ -23,9 +23,6 @@ export function useArLookups({
   clearFieldError,
   closeModal,
 }: UseArLookupsProps) {
-  const INLINE_SUGGESTION_INITIAL_LIMIT = 10
-  const INLINE_SUGGESTION_BACKGROUND_LIMIT = 100
-
   const normalizeCodeForCompare = (value: unknown) => {
     const raw = String(value ?? '').trim()
     if (!raw) return ''
@@ -74,13 +71,7 @@ export function useArLookups({
     })
   }
 
-  const limitInlineSuggestions = (items: ProductLookupItem[], input: string, loading: boolean) => {
-    if (input.trim()) return items
-    return items.slice(
-      0,
-      loading ? INLINE_SUGGESTION_INITIAL_LIMIT : INLINE_SUGGESTION_BACKGROUND_LIMIT,
-    )
-  }
+  const limitInlineSuggestions = (items: ProductLookupItem[]) => items
 
   const findVendorByCode = (value: string) =>
     (vendors as ProductLookupItem[]).find(
@@ -243,22 +234,22 @@ export function useArLookups({
 
   const nameSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(vendors as ProductLookupItem[], nameInput)
-    return limitInlineSuggestions(ranked, nameInput, vendorsQuery.isFetching)
+    return limitInlineSuggestions(ranked)
   }, [vendors, nameInput, vendorsQuery.isFetching])
 
   const codeSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(vendors as ProductLookupItem[], codeInput)
-    return limitInlineSuggestions(ranked, codeInput, vendorsQuery.isFetching)
+    return limitInlineSuggestions(ranked)
   }, [vendors, codeInput, vendorsQuery.isFetching])
 
   const warehouseSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(warehouses as ProductLookupItem[], warehouseInput)
-    return limitInlineSuggestions(ranked, warehouseInput, warehousesQuery.isFetching)
+    return limitInlineSuggestions(ranked)
   }, [warehouses, warehouseInput, warehousesQuery.isFetching])
 
   const salesEmployeeSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput)
-    return limitInlineSuggestions(ranked, salesEmployeeInput, salesEmployeesQuery.isFetching)
+    return limitInlineSuggestions(ranked)
   }, [salesEmployees, salesEmployeeInput, salesEmployeesQuery.isFetching])
 
   return {

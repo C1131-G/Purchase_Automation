@@ -88,6 +88,8 @@ const CreditNoteLineItemSchema = z.object({
   ItemCode: z.string().min(1),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative(),
+  UoMCode: z.union([z.string(), z.number()]).optional(),
+  UoMEntry: z.coerce.number().int().optional(),
   TaxCode: z.string().optional(),
   WarehouseCode: z.string().optional(),
 });

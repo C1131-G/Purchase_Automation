@@ -1,4 +1,5 @@
-import { Search, X } from 'lucide-react'
+import { Loader2, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { cn } from '@/shared/utils/cn'
@@ -120,6 +121,7 @@ type SuggestionsDropdownProps = {
   isVisible: boolean
   suggestions: LookupItem[]
   activeColumnId: string
+  query: string
   onSelectSuggestion: (item: LookupItem) => void
 }
 
@@ -127,14 +129,55 @@ export function SuggestionsDropdown({
   isVisible,
   suggestions,
   activeColumnId,
+  query,
   onSelectSuggestion,
 }: SuggestionsDropdownProps) {
-  if (!isVisible || suggestions.length === 0) return null
+  const INITIAL_LIMIT = 10
+  const STEP = 10
+  const MAX_LIMIT = 100
+  const trimmedQuery = query.trim()
+  const isSearchMode = trimmedQuery.length > 0
+  const [visibleCount, setVisibleCount] = useState(INITIAL_LIMIT)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_LIMIT)
+    setLoadingMore(false)
+  }, [trimmedQuery, suggestions.length, activeColumnId, isVisible])
+
+  const cappedSuggestions = useMemo(() => {
+    if (isSearchMode) return suggestions
+    return suggestions.slice(0, MAX_LIMIT)
+  }, [isSearchMode, suggestions])
+
+  const visibleSuggestions = useMemo(() => {
+    if (isSearchMode) return cappedSuggestions
+    return cappedSuggestions.slice(0, visibleCount)
+  }, [cappedSuggestions, isSearchMode, visibleCount])
+
+  const canLoadMore = !isSearchMode && visibleSuggestions.length < cappedSuggestions.length
+
+  const handleScroll = () => {
+    if (!canLoadMore || loadingMore) return
+    const node = listRef.current
+    if (!node) return
+    const threshold = 24
+    const reachedEnd = node.scrollHeight - node.scrollTop - node.clientHeight <= threshold
+    if (!reachedEnd) return
+    setLoadingMore(true)
+    window.setTimeout(() => {
+      setVisibleCount((prev) => Math.min(prev + STEP, MAX_LIMIT))
+      setLoadingMore(false)
+    }, 120)
+  }
+
+  if (!isVisible || visibleSuggestions.length === 0) return null
 
   return (
     <div className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden py-1">
-      <div className="max-h-64 overflow-auto">
-        {suggestions.map((item) => {
+      <div ref={listRef} className="max-h-64 overflow-auto" onScroll={handleScroll}>
+        {visibleSuggestions.map((item) => {
           const isNameOnly = activeColumnId === 'CardName'
           const displayValue = isNameOnly ? item.name : item.code
 
@@ -159,6 +202,11 @@ export function SuggestionsDropdown({
             </button>
           )
         })}
+        {loadingMore ? (
+          <div className="flex items-center justify-center px-3 py-2 text-zinc-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        ) : null}
       </div>
     </div>
   )

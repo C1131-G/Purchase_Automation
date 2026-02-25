@@ -11,7 +11,10 @@ export type ActiveDatePicker = 'doc' | 'delivery' | null
 export type CreateLookupOption = Pick<
   LookupItem,
   'code' | 'name' | 'billToAddress' | 'shipToAddress' | 'salesEmployeeCode' | 'salesEmployeeName'
->
+> & {
+  stock?: number | undefined
+  disabled?: boolean
+}
 
 export type CreateSectionCardProps = PropsWithChildren<{
   title: string
@@ -27,10 +30,15 @@ export type ProductGridRow = {
   currency: string
   taxCode: string
   taxRate: number
+  uomCode?: string | undefined
+  uomEntry?: number | undefined
+  purchaseUomCode?: string | undefined
+  purchaseUomEntry?: number | undefined
   quantity: number
   discountPercent: number
   discountAmount: number
   comment: string
+  warehouseCode: string
   baseEntry?: number | undefined
   baseLine?: number | undefined
   baseType?: number | undefined

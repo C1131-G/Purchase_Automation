@@ -208,6 +208,7 @@ export const getPODetail = async (sessionId: string, poDocEntry: string) => {
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
         UoMCode: (line as unknown as Record<string, unknown>).UoMCode, // SAP internal UoM ID.
+        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
         Price: line.Price || line.UnitPrice,
         WarehouseCode: line.WarehouseCode,
         TaxCode: line.TaxCode || "",
@@ -252,6 +253,7 @@ export const getGRPO = async (sessionId: string, id: string) => {
         Price: line.Price || line.UnitPrice,
         DiscountPercent: line.DiscountPercent,
         UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
+        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
         WarehouseCode: line.WarehouseCode,
         LineTotal: line.LineTotal,
       })),
@@ -279,9 +281,19 @@ export const createGRPO = async (sessionId: string, payload: Record<string, unkn
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           WarehouseCode: item.WarehouseCode as string,
           DiscountPercent: item.DiscountPercent as number,
         };
+        const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          line.UoMEntry = Math.trunc(uomEntry);
+        } else {
+          const uomCode = item.UoMCode ?? item.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            line.UoMCode = uomCode as string | number;
+          }
+        }
 
         // SAP Required: BaseType 22 indicates this line references a Purchase Order.
         // We only include these fields if we have a valid BaseEntry and BaseLine.

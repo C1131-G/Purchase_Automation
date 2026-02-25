@@ -164,6 +164,8 @@ export const getInvoice = async (sessionId: string, id: string) => {
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
+        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
+        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
         Price: line.Price,
         TaxCode: line.TaxCode,
         WarehouseCode: line.WarehouseCode,
@@ -194,6 +196,8 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
+          UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           TaxCode: item.TaxCode as string,
           WarehouseCode: item.WarehouseCode as string,
         };

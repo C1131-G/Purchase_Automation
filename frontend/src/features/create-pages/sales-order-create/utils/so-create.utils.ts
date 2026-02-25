@@ -26,11 +26,7 @@ export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
 export const MANDATORY_ERROR_TEXT: Record<(typeof SALES_ORDER_MANDATORY_FIELDS)[number], string> = {
   vendorCode: 'Customer Code is required.',
   vendorName: 'Customer Name is required.',
-  docDueDate: 'Delivery Date is required.',
   warehouseCode: 'Warehouse is required.',
-  salesEmployee: 'Sales Employee is required.',
-  billToAddress: 'Bill To Address is required.',
-  shipToAddress: 'Ship To Address is required.',
   referenceNo: 'Reference is required.',
   comments: 'Remarks is required.',
 }
@@ -40,11 +36,7 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
 > = {
   vendorCode: 'Customer Code',
   vendorName: 'Customer Name',
-  docDueDate: 'Delivery Date',
   warehouseCode: 'Warehouse',
-  salesEmployee: 'Sales Employee',
-  billToAddress: 'Bill To Address',
-  shipToAddress: 'Ship To Address',
   referenceNo: 'Reference',
   comments: 'Remarks',
 }

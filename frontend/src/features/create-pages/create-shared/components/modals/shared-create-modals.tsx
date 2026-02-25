@@ -1,24 +1,96 @@
-import { Suspense } from 'react'
+import { lazy, Suspense } from 'react'
 
 import { CreateModalSkeleton } from '@/components/skeleton/create-modal-skeleton'
-import { type useARInvoiceCreate } from '@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create'
-import { LookupPopupModal } from '@/features/create-pages/create-shared/components/modals/lookup-popup-modal'
+import {
+  type ProductLookupItem,
+  type ProductWarehouseStockItem,
+} from '@/features/create-pages/create-shared/api/create-shared.types'
 import { ProductPopupModal } from '@/features/create-pages/create-shared/components/modals/product-popup-modal'
 import { ProductWarehouseStockModal } from '@/features/create-pages/create-shared/components/modals/product-warehouse-stock-modal'
-import { type LookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
+import {
+  type LookupOption,
+  type PopupMode,
+} from '@/features/create-pages/create-shared/utils/create-order.types'
 
-interface ARInvoiceModalsProps {
-  state: ReturnType<typeof useARInvoiceCreate>
+const LookupPopupModal = lazy(() =>
+  import('@/features/create-pages/create-shared/components/modals/lookup-popup-modal').then(
+    (module) => ({
+      default: module.LookupPopupModal,
+    }),
+  ),
+)
+
+interface SharedCreateModalsProps {
+  state: {
+    modalOpen: boolean
+    modalMode: PopupMode
+    modalSearch: string
+    setModalSearch: (value: string) => void
+    setModalOpen: (value: boolean) => void
+    popupResults: LookupOption[]
+    handleLookupModalSearchSync: (mode: PopupMode, value: string) => void
+
+    // Lookups Queries/Logic
+    vendorsQuery: { isFetching: boolean; isError: boolean; error: unknown; refetch: () => void }
+    warehousesQuery: { isFetching: boolean; isError: boolean; error: unknown; refetch: () => void }
+    salesEmployeesQuery: {
+      isFetching: boolean
+      isError: boolean
+      error: unknown
+      refetch: () => void
+    }
+    selectVendor: (item: LookupOption) => void
+    selectWarehouse: (item: LookupOption) => void
+    selectSalesEmployee: (item: LookupOption) => void
+
+    // Products
+    productPopupOpen: boolean
+    setProductPopupOpen: (value: boolean) => void
+    productSearch: string
+    setProductSearch: (value: string) => void
+    products: ProductLookupItem[]
+    productsQuery: {
+      isLoading: boolean
+      isFetching: boolean
+      isError: boolean
+      error: unknown
+      refetch: () => void
+    }
+    loadMoreProducts: () => void
+    applyProductToRow: (product: ProductLookupItem) => void
+    effectiveWarehouseCode: string
+
+    // Stocks
+    stockPreviewProduct: { code: string; name: string } | null
+    setStockPreviewProduct: (product: { code: string; name: string } | null) => void
+    productWarehouseStocksQuery: {
+      isLoading: boolean
+      isError: boolean
+      error: unknown
+      data: ProductWarehouseStockItem[]
+      refetch: () => void
+    }
+  }
+  entityLabels?: {
+    vendorPopupTitle?: string
+    vendorErrorMsg?: string
+    salesEmployeeLabel?: string
+    salesEmployeeErrorMsg?: string
+  }
 }
 
-export function ARInvoiceModals({ state }: ARInvoiceModalsProps) {
+/**
+ * SharedCreateModals: Unified orchestrator for select dialogs (Vendors, Items, Stocks).
+ */
+export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsProps) {
+  const { vendorPopupTitle = 'Loading vendor popup', vendorErrorMsg = 'Unable to load vendors' } =
+    entityLabels || {}
+
   return (
     <>
       {state.modalOpen ? (
         <Suspense
-          fallback={
-            <CreateModalSkeleton title="Loading customer popup" panelClassName="max-w-xl" />
-          }
+          fallback={<CreateModalSkeleton title={vendorPopupTitle} panelClassName="max-w-xl" />}
         >
           <LookupPopupModal
             open={state.modalOpen}
@@ -43,12 +115,12 @@ export function ARInvoiceModals({ state }: ARInvoiceModalsProps) {
                   ? state.salesEmployeesQuery.isError
                     ? state.salesEmployeesQuery.error instanceof Error
                       ? state.salesEmployeesQuery.error.message
-                      : 'Unable to load sales employees'
+                      : entityLabels?.salesEmployeeErrorMsg || 'Unable to load sales employees'
                     : null
                   : state.vendorsQuery.isError
                     ? state.vendorsQuery.error instanceof Error
                       ? state.vendorsQuery.error.message
-                      : 'Unable to load customers'
+                      : vendorErrorMsg
                     : null
             }
             onRetry={() => {

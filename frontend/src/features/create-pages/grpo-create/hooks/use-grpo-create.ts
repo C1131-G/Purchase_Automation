@@ -12,11 +12,16 @@ import {
 } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   type ActiveDatePicker,
+  type PopupMode,
   type ProductRowDraft,
   type StockPreviewProduct,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
+import {
+  getLookupInlineSearchByMode,
+  syncLookupSearchByMode,
+} from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import {
   useCreateGRPO,
   useUpdateGRPO,
@@ -47,6 +52,8 @@ export type GRPOCreateLine = {
   currency: string
   taxCode: string
   taxRate: number
+  uomCode?: string
+  uomEntry?: number
   baseQuantity?: number
   quantity: number
   discountPercent: number
@@ -65,11 +72,6 @@ const FULL_PRODUCT_LIMIT = 100
 const EMPTY_GRPO_FIELD_ERRORS: GRPOFieldErrors = {
   vendorName: undefined,
   vendorCode: undefined,
-  warehouseCode: undefined,
-  salesEmployee: undefined,
-  docDueDate: undefined,
-  billToAddress: undefined,
-  shipToAddress: undefined,
   referenceNo: undefined,
   comments: undefined,
 }
@@ -107,6 +109,9 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
   const [vendorCodeFocused, setVendorCodeFocused] = useState(false)
   const [buyerInput, setBuyerInput] = useState('')
   const [buyerFocused, setBuyerFocused] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<PopupMode>('vendor-name')
+  const [modalSearch, setModalSearch] = useState('')
   const [productPopupOpen, setProductPopupOpen] = useState(false)
   const [productSearch, setProductSearch] = useState('')
   const [debouncedProductSearch, setDebouncedProductSearch] = useState('')
@@ -153,33 +158,40 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     return matched?.code ?? warehouseInput.trim()
   }, [warehouseInput, warehouses])
 
+  const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput)
+  const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`
+
   const productsQuery = useQuery({
     ...createSharedQueries.products(
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
       productQueryLimit,
     ),
-    enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
+    enabled: productPopupOpen && vendorSelected,
   })
+
+  useEffect(() => {
+    if (!productPopupOpen || !vendorSelected) return
+    void queryClient.invalidateQueries({ queryKey: createSharedKeys.products() })
+  }, [productPopupOpen, queryClient, vendorLookupToken, vendorSelected])
   const products = useMemo(
     () => filterAndRankLookups(productsQuery.data ?? [], debouncedProductSearch),
     [productsQuery.data, debouncedProductSearch],
   )
 
   useEffect(() => {
-    void queryClient.cancelQueries({ queryKey: createSharedKeys.products() })
     const timer = window.setTimeout(() => {
       setDebouncedProductSearch(productSearch.trim())
     }, 180)
     return () => window.clearTimeout(timer)
-  }, [productSearch, queryClient])
+  }, [productSearch])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [debouncedProductSearch, effectiveWarehouseCode, productPopupOpen])
+  }, [debouncedProductSearch, vendorSelected, productPopupOpen])
 
   const productWarehouseStocksQuery = useQuery({
     ...createSharedQueries.productWarehouseStocks(stockPreviewProduct?.code),
@@ -294,6 +306,11 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
           currency: '',
           taxCode: '',
           taxRate: 0,
+          uomCode: String(line.UoMCode ?? '').trim(),
+          uomEntry:
+            typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+              ? line.UoMEntry
+              : undefined,
           baseQuantity: quantity,
           quantity,
           discountPercent,
@@ -336,13 +353,80 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
       vendors,
       warehouses,
       buyers: salesEmployees,
-      vendorsLoading: vendorsQuery.isFetching,
-      warehousesLoading: warehousesQuery.isFetching,
-      buyersLoading: salesEmployeesQuery.isFetching,
       vendorNameInput,
       vendorCodeInput,
       warehouseInput,
       buyerInput,
+    })
+
+  const popupResults = useMemo(() => {
+    const term = modalSearch.trim().toLowerCase()
+    const source = (
+      modalMode === 'vendor-name' || modalMode === 'vendor-code'
+        ? vendors
+        : modalMode === 'warehouse'
+          ? warehouses
+          : salesEmployees
+    ) as ProductLookupItem[]
+    if (!term) return source
+    const score = (item: ProductLookupItem) => {
+      const code = (item.code || '').toLowerCase()
+      const name = (item.name || '').toLowerCase()
+      if (code === term || name === term) return 0
+      if (code.startsWith(term) || name.startsWith(term)) return 1
+      if (code.includes(term) || name.includes(term)) return 2
+      return 3
+    }
+    return [...source].sort((a, b) => {
+      const byScore = score(a) - score(b)
+      if (byScore !== 0) return byScore
+      return a.code.localeCompare(b.code, undefined, { sensitivity: 'base', numeric: true })
+    })
+  }, [vendors, warehouses, salesEmployees, modalSearch, modalMode])
+
+  const openPopupByMode = (mode: PopupMode) => {
+    const searchVal =
+      mode === 'vendor-name' || mode === 'vendor-code'
+        ? mode === 'vendor-name'
+          ? vendorNameInput
+          : vendorCodeInput
+        : mode === 'warehouse'
+          ? warehouseInput
+          : buyerInput
+
+    setModalMode(mode)
+    setModalSearch(searchVal)
+    setModalOpen(true)
+  }
+
+  useEffect(() => {
+    if (!modalOpen) return
+    const nextSearch = getLookupInlineSearchByMode(modalMode, {
+      vendorName: vendorNameInput,
+      vendorCode: vendorCodeInput,
+      warehouse: warehouseInput,
+      salesEmployee: buyerInput,
+    })
+    if (nextSearch !== modalSearch) {
+      setModalSearch(nextSearch)
+    }
+  }, [
+    buyerInput,
+    modalMode,
+    modalOpen,
+    modalSearch,
+    setModalSearch,
+    vendorCodeInput,
+    vendorNameInput,
+    warehouseInput,
+  ])
+
+  const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
+    syncLookupSearchByMode(mode, value, {
+      onVendorName: handleVendorNameChange,
+      onVendorCode: handleVendorCodeChange,
+      onWarehouse: handleWarehouseInputChange,
+      onSalesEmployee: handleBuyerChange,
     })
 
   useEffect(() => {
@@ -492,17 +576,10 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
 
   const openProductPopup = (rowId: string | null = null) => {
     setActiveProductRowId(rowId)
-    if (
-      !vendorNameInput.trim() ||
-      !vendorCodeInput.trim() ||
-      !effectiveWarehouseCode ||
-      !buyerInput.trim()
-    ) {
+    if (!vendorNameInput.trim() || !vendorCodeInput.trim() || !buyerInput.trim()) {
       const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS }
       if (!vendorNameInput.trim()) nextErrors.vendorName = GRPO_FIELD_ERROR_TEXT.vendorName
       if (!vendorCodeInput.trim()) nextErrors.vendorCode = GRPO_FIELD_ERROR_TEXT.vendorCode
-      if (!effectiveWarehouseCode) nextErrors.warehouseCode = GRPO_FIELD_ERROR_TEXT.warehouseCode
-      if (!buyerInput.trim()) nextErrors.salesEmployee = GRPO_FIELD_ERROR_TEXT.salesEmployee
       setFieldErrors(nextErrors)
       return
     }
@@ -517,7 +594,7 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     if (currentCount < productQueryLimit) return
     const isSearchMode = debouncedProductSearch.trim().length > 0
     if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) return
-    setProductQueryLimit((prev) => prev + 1)
+    setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT))
   }
 
   const selectBuyer = (item: LookupItem) => {
@@ -555,6 +632,8 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
                 currency: String(product.currency ?? ''),
                 taxCode: String(product.taxCode ?? ''),
                 taxRate: Number(product.taxRate ?? 0),
+                uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
+                uomEntry: product.purchaseUomEntry ?? product.uomEntry,
                 quantity: 1,
                 discountPercent: 0,
                 discountAmount: 0,
@@ -578,6 +657,8 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
           currency: String(product.currency ?? ''),
           taxCode: String(product.taxCode ?? ''),
           taxRate: Number(product.taxRate ?? 0),
+          uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
+          uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           quantity: 1,
           discountPercent: 0,
           discountAmount: 0,
@@ -621,11 +702,6 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     return requiredFields.filter((field) => {
       if (field === 'vendorName') return !vendorNameInput.trim()
       if (field === 'vendorCode') return !vendorCodeInput.trim()
-      if (field === 'warehouseCode') return !warehouseInput.trim()
-      if (field === 'salesEmployee') return !buyerInput.trim()
-      if (field === 'docDueDate') return !header.docDueDate.trim()
-      if (field === 'billToAddress') return !billToAddress.trim()
-      if (field === 'shipToAddress') return !shipToAddress.trim()
       if (field === 'referenceNo') return !header.referenceNo.trim()
       if (field === 'comments') return !header.remarks.trim()
       return false
@@ -642,17 +718,12 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     header.remarks,
   ])
 
-  const searchMandatoryFields = useMemo(
-    () => ['vendorName', 'vendorCode', 'warehouseCode', 'salesEmployee'] as const,
-    [],
-  )
+  const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
   const missingSearchMandatoryFields = useMemo(
     () =>
       searchMandatoryFields.filter((field) => {
         if (field === 'vendorName') return !vendorNameInput.trim()
         if (field === 'vendorCode') return !vendorCodeInput.trim()
-        if (field === 'warehouseCode') return !warehouseInput.trim()
-        if (field === 'salesEmployee') return !buyerInput.trim()
         return false
       }),
     [searchMandatoryFields, vendorNameInput, vendorCodeInput, warehouseInput, buyerInput],
@@ -809,7 +880,9 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
               Quantity: row.quantity,
               UnitPrice: row.price,
               DiscountPercent: row.discountPercent,
-              WarehouseCode: effectiveWarehouseCode || row.warehouseCode || undefined,
+              UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
+              WarehouseCode: row.warehouseCode || undefined,
               ...(hasCompleteBaseLink
                 ? {
                     BaseType: row.baseType,
@@ -887,61 +960,102 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
 
   return {
     isEditMode,
+    isEditHydrated,
+    today,
+    activeDatePicker,
+    setActiveDatePicker,
+    docDateContainerRef,
+    deliveryDateContainerRef,
+    handleDocDateChange,
+    handleDocDueDateChange,
+    showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
+
     vendorsQuery,
     warehousesQuery,
     salesEmployeesQuery,
+    productsQuery,
+    productWarehouseStocksQuery,
     editDetailQuery,
-    isEditHydrated,
     createMutation,
     updateMutation,
+
+    vendorNameSuggestions,
+    vendorCodeSuggestions,
+    warehouseSuggestions,
+    buyerSuggestions,
+    vendors,
+    warehouses,
+    salesEmployees,
+    products,
+    effectiveWarehouseCode,
+
     vendorNameInput,
     vendorCodeInput,
+    warehouseInput,
     buyerInput,
     vendorNameFocused,
+    setVendorNameFocused,
     vendorCodeFocused,
-    buyerFocused: buyerFocused,
-    productPopupOpen,
-    productSearch,
-    warehouseInput,
+    setVendorCodeFocused,
+    buyerFocused,
+    setBuyerFocused,
     warehouseFocused,
+    setWarehouseFocused,
+    docDate: header.docDate,
+    docDueDate: header.docDueDate,
     referenceNo: header.referenceNo,
     remarks: header.remarks,
     billToAddress,
     shipToAddress,
+
+    modalOpen,
+    modalMode,
+    modalSearch,
+    setModalOpen,
+    setModalSearch,
+    openPopup: openPopupByMode,
+    handleLookupModalSearchSync,
+    popupResults,
+
+    productPopupOpen,
+    productSearch,
+    setProductPopupOpen,
+    setProductSearch,
+    openProductPopup,
+    loadMoreProducts,
+    applyProductToRow,
+    prefetchProducts: () => (isEditMode ? null : prefetchProducts()),
+
     rows,
     productRowDrafts,
+    setProductRowDraft,
+    clearProductRowDraft,
+    updateProductRow,
+    removeProductRow,
+
     stockPreviewProduct,
-    createError,
+    setStockPreviewProduct,
+    openStockPreview,
+
     fieldErrors,
+    createError,
     createDisabledReason,
-    missingMandatoryFields,
     missingSearchMandatoryFields,
-    searchMandatoryFields,
     searchRequiredCompletionPercent,
+    searchMandatoryFields,
+    missingMandatoryFields,
     requiredCompletionPercent,
     requiredFieldsTotal,
     requiredFieldLabelText: GRPO_FIELD_LABEL_TEXT,
-    vendorNameSuggestions,
-    vendorCodeSuggestions,
-    buyerSuggestions,
-    warehouseSuggestions,
-    salesEmployees,
-    productsQuery,
-    productWarehouseStocksQuery,
-    products,
-    effectiveWarehouseCode,
-    setVendorNameFocused,
-    setVendorCodeFocused,
-    setBuyerFocused,
-    setProductPopupOpen,
-    setProductSearch,
-    setStockPreviewProduct,
-    setWarehouseFocused,
+    handleCreateGRPO,
+
     setDocDate: (val: string) =>
       isEditMode ? notifyRestricted('Document Date') : setHeader({ docDate: val }),
     setDocDueDate: (val: string) => setHeader({ docDueDate: val }),
     setBuyerInput: (val: string) =>
       isEditMode ? notifyRestricted('Buyer') : handleBuyerChange(val),
+    setSalesEmployeeInput: (val: string) =>
+      isEditMode ? notifyRestricted('Sales Employee') : handleBuyerChange(val),
     setWarehouseInput: (val: string) =>
       isEditMode ? notifyRestricted('Warehouse') : handleWarehouseInputChange(val),
     setReferenceNo: (val: string) =>
@@ -953,36 +1067,14 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
       isEditMode ? notifyRestricted('Ship To Address') : handleShipToAddressChange(val),
     selectVendor: (val: LookupItem) =>
       isEditMode ? notifyRestricted('Vendor') : selectVendor(val),
+    selectWarehouse: (val: LookupItem) =>
+      isEditMode ? notifyRestricted('Warehouse') : selectWarehouse(val),
+    selectSalesEmployee: (val: LookupItem) =>
+      isEditMode ? notifyRestricted('Sales Employee') : selectBuyer(val),
     selectBuyer: (val: LookupItem) => (isEditMode ? notifyRestricted('Buyer') : selectBuyer(val)),
     handleVendorNameChange: (val: string) =>
       isEditMode ? notifyRestricted('Vendor Name') : handleVendorNameChange(val),
     handleVendorCodeChange: (val: string) =>
       isEditMode ? notifyRestricted('Vendor Code') : handleVendorCodeChange(val),
-    selectWarehouse: (val: LookupItem) =>
-      isEditMode ? notifyRestricted('Warehouse') : selectWarehouse(val),
-    prefetchProducts: () => (isEditMode ? null : prefetchProducts()),
-    openProductPopup: (rowId: string | null = null) =>
-      isEditMode ? notifyRestricted('Products') : openProductPopup(rowId),
-    loadMoreProducts,
-    openStockPreview,
-    applyProductToRow: (val: ProductLookupItem) =>
-      isEditMode ? notifyRestricted('Products') : applyProductToRow(val),
-    updateProductRow: (id: string, patch: Partial<GRPOCreateLine>) =>
-      isEditMode ? notifyRestricted('Products') : updateProductRow(id, patch),
-    removeProductRow: (id: string) =>
-      isEditMode ? notifyRestricted('Products') : removeProductRow(id),
-    setProductRowDraft,
-    clearProductRowDraft,
-    handleCreateGRPO,
-    docDate: header.docDate,
-    docDueDate: header.docDueDate,
-    today,
-    activeDatePicker,
-    setActiveDatePicker,
-    docDateContainerRef,
-    deliveryDateContainerRef,
-    handleDocDateChange,
-    handleDocDueDateChange,
-    showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
   }
 }

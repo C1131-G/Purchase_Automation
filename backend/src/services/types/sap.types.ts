@@ -4,6 +4,8 @@ export interface SAPDocumentLine {
   ItemCode: string;
   ItemDescription?: string;
   Quantity: number;
+  UoMCode?: string | number;
+  UoMEntry?: number;
   Price?: number;
   UnitPrice?: number;
   TaxCode?: string;

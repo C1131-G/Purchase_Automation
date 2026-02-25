@@ -19,7 +19,10 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
-import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import {
+  getLookupInlineSearchByMode,
+  syncLookupSearchByMode,
+} from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import {
   useCreatePurchaseOrder,
   useUpdatePurchaseOrder,
@@ -112,11 +115,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
   const productsHook = usePoProducts({
     effectiveWarehouseCode: lookups.effectiveWarehouseCode,
+    vendorLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     productPopupOpen: modals.productPopupOpen,
     setProductPopupOpen: modals.setProductPopupOpen,
     productSearch: modals.productSearch,
     setProductSearch: modals.setProductSearch,
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
+    vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
   })
 
   useEffect(() => {
@@ -224,10 +229,16 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
           taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
           taxRate: Number(productMeta?.taxRate ?? 0),
+          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
+          uomEntry:
+            typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+              ? line.UoMEntry
+              : productMeta?.uomEntry,
           quantity,
           discountPercent,
           discountAmount,
           comment: '',
+          warehouseCode: String(line.WarehouseCode ?? '').trim(),
         }
       })
 
@@ -303,6 +314,28 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     })
   }
 
+  useEffect(() => {
+    if (!modals.modalOpen) return
+    const nextSearch = getLookupInlineSearchByMode(modals.modalMode, {
+      vendorName: lookups.nameInput,
+      vendorCode: lookups.codeInput,
+      warehouse: lookups.warehouseInput,
+      salesEmployee: lookups.salesEmployeeInput,
+    })
+    if (nextSearch !== modals.modalSearch) {
+      modals.setModalSearch(nextSearch)
+    }
+  }, [
+    lookups.codeInput,
+    lookups.nameInput,
+    lookups.salesEmployeeInput,
+    lookups.warehouseInput,
+    modals.modalMode,
+    modals.modalOpen,
+    modals.modalSearch,
+    modals.setModalSearch,
+  ])
+
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
       onVendorName: lookups.handleVendorNameChange,
@@ -334,8 +367,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         const nextErrors: ProductSearchFieldError = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS }
         if (!lookups.nameInput.trim()) nextErrors.vendorName = 'Vendor Name is required.'
         if (!lookups.codeInput.trim()) nextErrors.vendorCode = 'Vendor Code is required.'
-        if (!lookups.effectiveWarehouseCode) nextErrors.warehouseCode = 'Warehouse is required.'
-        if (!lookups.salesEmployeeInput.trim()) nextErrors.salesEmployee = 'Buyer is required.'
         return nextErrors
       },
       onValidationFailed: (errors) => setProductSearchFieldErrors(errors),
@@ -348,7 +379,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       vendorCode: lookups.codeInput.trim() || header.vendorCode.trim(),
       vendorName: lookups.nameInput.trim() || header.vendorName.trim(),
       docDueDate: header.docDueDate,
-      warehouseCode: lookups.effectiveWarehouseCode,
       salesEmployee: lookups.salesEmployeeInput.trim(),
       billToAddress: lookups.billToAddress.trim(),
       shipToAddress: lookups.shipToAddress.trim(),
@@ -376,10 +406,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     [createMandatoryValues],
   )
 
-  const searchMandatoryFields = useMemo(
-    () => ['vendorName', 'vendorCode', 'warehouseCode', 'salesEmployee'] as const,
-    [],
-  )
+  const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
   const missingSearchMandatoryFields = useMemo(
     () =>
       searchMandatoryFields.filter((field) => !String(createMandatoryValues[field] ?? '').trim()),
@@ -482,6 +509,11 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
               Quantity: Number(line.Quantity ?? 0),
               UnitPrice: Number(line.Price ?? line.UnitPrice ?? 0),
               DiscountPercent: Number(line.DiscountPercent ?? 0),
+              UoMCode: String(line.UoMCode ?? '').trim() || undefined,
+              UoMEntry:
+                typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+                  ? line.UoMEntry
+                  : undefined,
               WarehouseCode: String(line.WarehouseCode ?? '').trim() || undefined,
               TaxCode: String(line.TaxCode ?? '').trim() || undefined,
             })),
@@ -498,7 +530,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             Quantity: row.quantity,
             UnitPrice: row.price,
             DiscountPercent: row.discountPercent,
-            WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+            UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
+            WarehouseCode: row.warehouseCode || undefined,
             TaxCode: row.taxCode || undefined,
           })),
         }
@@ -526,7 +560,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             Quantity: row.quantity,
             UnitPrice: row.price,
             DiscountPercent: row.discountPercent,
-            WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+            UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
+            WarehouseCode: row.warehouseCode || undefined,
             TaxCode: row.taxCode || undefined,
           })),
         }
@@ -542,7 +578,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             Quantity: row.quantity,
             UnitPrice: row.price,
             DiscountPercent: row.discountPercent,
-            WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+            UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
+            WarehouseCode: row.warehouseCode || undefined,
             TaxCode: row.taxCode || undefined,
           })),
         }

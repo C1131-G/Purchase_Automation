@@ -33,7 +33,10 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
-import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import {
+  getLookupInlineSearchByMode,
+  syncLookupSearchByMode,
+} from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import {
   arInvoiceKeys,
   arInvoiceQueries,
@@ -116,11 +119,13 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
   const productsHook = useArProducts({
     effectiveWarehouseCode: lookups.effectiveWarehouseCode,
+    customerLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     productPopupOpen: modals.productPopupOpen,
     setProductPopupOpen: modals.setProductPopupOpen,
     productSearch: modals.productSearch,
     setProductSearch: modals.setProductSearch,
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
+    customerSelected: Boolean(lookups.codeInput || lookups.nameInput),
   })
 
   useEffect(() => {
@@ -230,6 +235,10 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
             : 0
         const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
+        const resolvedUomEntry =
+          typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+            ? line.UoMEntry
+            : productMeta?.uomEntry
         return {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
@@ -239,6 +248,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
           taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
           taxRate: Number(productMeta?.taxRate ?? 0),
+          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
+          ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
           quantity,
           discountPercent,
           discountAmount,
@@ -255,6 +266,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             typeof line.BaseType === 'number' && Number.isFinite(line.BaseType)
               ? line.BaseType
               : undefined,
+          warehouseCode: String(line.WarehouseCode ?? '').trim(),
         }
       })
 
@@ -330,6 +342,28 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     })
   }
 
+  useEffect(() => {
+    if (!modals.modalOpen) return
+    const nextSearch = getLookupInlineSearchByMode(modals.modalMode, {
+      vendorName: lookups.nameInput,
+      vendorCode: lookups.codeInput,
+      warehouse: lookups.warehouseInput,
+      salesEmployee: lookups.salesEmployeeInput,
+    })
+    if (nextSearch !== modals.modalSearch) {
+      modals.setModalSearch(nextSearch)
+    }
+  }, [
+    lookups.codeInput,
+    lookups.nameInput,
+    lookups.salesEmployeeInput,
+    lookups.warehouseInput,
+    modals.modalMode,
+    modals.modalOpen,
+    modals.modalSearch,
+    modals.setModalSearch,
+  ])
+
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
       onVendorName: lookups.handleVendorNameChange,
@@ -361,9 +395,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const nextErrors: ProductSearchFieldError = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS }
         if (!lookups.nameInput.trim()) nextErrors.vendorName = 'Customer Name is required.'
         if (!lookups.codeInput.trim()) nextErrors.vendorCode = 'Customer Code is required.'
-        if (!lookups.effectiveWarehouseCode) nextErrors.warehouseCode = 'Warehouse is required.'
-        if (!lookups.salesEmployeeInput.trim())
-          nextErrors.salesEmployee = 'Sales Employee is required.'
         return nextErrors
       },
       onValidationFailed: (errors) => setProductSearchFieldErrors(errors),
@@ -402,10 +433,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     [createMandatoryValues],
   )
 
-  const searchMandatoryFields = useMemo(
-    () => ['vendorName', 'vendorCode', 'warehouseCode', 'salesEmployee'] as const,
-    [],
-  )
+  const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
 
   const missingSearchMandatoryFields = useMemo(
     () =>
@@ -530,7 +558,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               Quantity: row.quantity,
               UnitPrice: row.price,
               DiscountPercent: row.discountPercent,
-              WarehouseCode: lookups.effectiveWarehouseCode || undefined,
+              UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
+              WarehouseCode: row.warehouseCode || undefined,
               TaxCode: row.taxCode || undefined,
               ...(hasCompleteBaseLink
                 ? {
@@ -625,6 +655,46 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     ...lookups,
     ...modals,
     ...productsHook,
+    vendorsQuery: {
+      isLoading: lookups.vendorsQuery.isLoading,
+      isFetching: lookups.vendorsQuery.isFetching,
+      isError: lookups.vendorsQuery.isError,
+      error: lookups.vendorsQuery.error,
+      data: lookups.vendorsQuery.data,
+      refetch: () => void lookups.vendorsQuery.refetch(),
+    },
+    warehousesQuery: {
+      isLoading: lookups.warehousesQuery.isLoading,
+      isFetching: lookups.warehousesQuery.isFetching,
+      isError: lookups.warehousesQuery.isError,
+      error: lookups.warehousesQuery.error,
+      data: lookups.warehousesQuery.data,
+      refetch: () => void lookups.warehousesQuery.refetch(),
+    },
+    salesEmployeesQuery: {
+      isLoading: lookups.salesEmployeesQuery.isLoading,
+      isFetching: lookups.salesEmployeesQuery.isFetching,
+      isError: lookups.salesEmployeesQuery.isError,
+      error: lookups.salesEmployeesQuery.error,
+      data: lookups.salesEmployeesQuery.data,
+      refetch: () => void lookups.salesEmployeesQuery.refetch(),
+    },
+    productsQuery: {
+      isLoading: productsHook.productsQuery.isLoading,
+      isFetching: productsHook.productsQuery.isFetching,
+      isError: productsHook.productsQuery.isError,
+      error: productsHook.productsQuery.error,
+      data: productsHook.productsQuery.data,
+      refetch: () => void productsHook.productsQuery.refetch(),
+    },
+    productWarehouseStocksQuery: {
+      isLoading: productsHook.productWarehouseStocksQuery.isLoading,
+      isError: productsHook.productWarehouseStocksQuery.isError,
+      error: productsHook.productWarehouseStocksQuery.error,
+      data: productsHook.productWarehouseStocksQuery.data ?? [],
+      refetch: () => void productsHook.productWarehouseStocksQuery.refetch(),
+    },
+    warehouses: lookups.warehouses,
     setNameInput: (val: string) =>
       isEditMode ? notifyRestricted('Customer Name') : lookups.setNameInput(val),
     setCodeInput: (val: string) =>
@@ -666,7 +736,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     removeProductRow: (id: string) =>
       isEditMode ? notifyRestricted('Products') : productsHook.removeProductRow(id),
     createARInvoiceMutation: submitARInvoiceMutation,
-    updateARInvoiceMutation,
+    updateARInvoiceMutation: updateARInvoiceMutation,
     editDetailQuery,
     isEditMode,
     isEditHydrated,
@@ -678,7 +748,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       isEditMode ? notifyRestricted('Lookup Search') : handleLookupModalSearchSync(mode, val),
     popupResults,
     productSearchFieldErrors,
-    setProductSearchFieldErrors,
+    setProductSearchFieldErrors: setProductSearchFieldErrors as (
+      val: ProductSearchFieldError,
+    ) => void,
     createError: visibleCreateError,
     setCreateError,
     missingMandatoryFields,
@@ -708,5 +780,17 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       isEditMode ? notifyRestricted('Document Date') : setHeader({ docDate: val }),
     setDocDueDate: (val: string) => setHeader({ docDueDate: val }),
     showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
+    nameFocused: lookups.nameFocused,
+    codeFocused: lookups.codeFocused,
+    warehouseFocused: lookups.warehouseFocused,
+    salesEmployeeFocused: lookups.salesEmployeeFocused,
+    setNameFocused: lookups.setNameFocused,
+    setCodeFocused: lookups.setCodeFocused,
+    setWarehouseFocused: lookups.setWarehouseFocused,
+    setSalesEmployeeFocused: lookups.setSalesEmployeeFocused,
+    nameSuggestions: lookups.nameSuggestions,
+    codeSuggestions: lookups.codeSuggestions,
+    warehouseSuggestions: lookups.warehouseSuggestions,
+    salesEmployeeSuggestions: lookups.salesEmployeeSuggestions,
   }
 }

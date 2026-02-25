@@ -19,20 +19,24 @@ import {
 
 interface UseArProductsProps {
   effectiveWarehouseCode: string | null
+  customerLookupToken: string
   productPopupOpen: boolean
   setProductPopupOpen: (open: boolean) => void
   productSearch: string
   setProductSearch: (search: string) => void
   stockPreviewProductCode: string | undefined
+  customerSelected: boolean
 }
 
 export function useArProducts({
   effectiveWarehouseCode,
+  customerLookupToken,
   productPopupOpen,
   setProductPopupOpen,
   productSearch,
   setProductSearch,
   stockPreviewProductCode,
+  customerSelected,
 }: UseArProductsProps) {
   const queryClient = useQueryClient()
   const [productRows, setProductRows] = useState<ProductRow[]>([])
@@ -42,12 +46,11 @@ export function useArProducts({
   const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT)
 
   useEffect(() => {
-    void queryClient.cancelQueries({ queryKey: createSharedKeys.products() })
     const timer = window.setTimeout(() => {
       setDebouncedProductSearch(productSearch.trim())
     }, 180)
     return () => window.clearTimeout(timer)
-  }, [productSearch, queryClient])
+  }, [productSearch])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
 
@@ -56,7 +59,7 @@ export function useArProducts({
       setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [normalizedProductSearch, effectiveWarehouseCode, productPopupOpen])
+  }, [normalizedProductSearch, customerSelected, productPopupOpen])
 
   const productsQuery = useQuery({
     ...arInvoiceCreateQueries.products(
@@ -64,8 +67,13 @@ export function useArProducts({
       normalizedProductSearch || undefined,
       productQueryLimit,
     ),
-    enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
+    enabled: productPopupOpen && customerSelected,
   })
+
+  useEffect(() => {
+    if (!productPopupOpen || !customerSelected) return
+    void queryClient.invalidateQueries({ queryKey: createSharedKeys.products() })
+  }, [customerLookupToken, customerSelected, productPopupOpen, queryClient])
 
   const products = useMemo(
     () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
@@ -78,10 +86,10 @@ export function useArProducts({
   })
 
   const prefetchProducts = () => {
-    if (!effectiveWarehouseCode) return
+    if (!customerSelected) return
     void queryClient.prefetchQuery(
       arInvoiceCreateQueries.products(
-        effectiveWarehouseCode,
+        effectiveWarehouseCode || undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
       ),
@@ -123,7 +131,7 @@ export function useArProducts({
     if (currentCount < productQueryLimit) return
     const isSearchMode = normalizedProductSearch.length > 0
     if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) return
-    setProductQueryLimit((prev) => prev + 1)
+    setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT))
   }
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {
@@ -181,9 +189,12 @@ export function useArProducts({
         currency: product.currency,
         taxCode: product.taxCode,
         taxRate: product.taxRate,
+        uomCode: product.uomCode,
+        uomEntry: product.uomEntry,
         quantity: Math.min(maxAllowed, 1),
         discountPercent: 0,
         discountAmount: 0,
+        warehouseCode: effectiveWarehouseCode || '',
       })
     } else {
       setProductRows((prev) => [
@@ -197,10 +208,13 @@ export function useArProducts({
           currency: product.currency,
           taxCode: product.taxCode,
           taxRate: product.taxRate,
+          uomCode: product.uomCode,
+          uomEntry: product.uomEntry,
           quantity: Math.min(maxAllowed, 1),
           discountPercent: 0,
           discountAmount: 0,
           comment: '',
+          warehouseCode: effectiveWarehouseCode || '',
         },
       ])
     }

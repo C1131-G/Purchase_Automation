@@ -294,6 +294,7 @@ export function TextFilterSearch<TData>({
         isVisible={showSuggestions}
         suggestions={filteredSuggestions}
         activeColumnId={activeColumnId}
+        query={effectiveLiveValue}
         onSelectSuggestion={handleSelectSuggestion}
       />
     </div>

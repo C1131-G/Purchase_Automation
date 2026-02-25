@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { authAPI, type User } from '@/features/auth/api/auth.service'
+import { requestQueryCacheClear } from '@/shared/utils/query-cache-persistence'
 
 // AuthState: Defines session state and available store actions.
 type AuthState = {
@@ -31,6 +32,7 @@ export const useAuthStore = create<AuthState>((set) => {
   // Listen for logout events from other tabs
   authChannel.onmessage = (event) => {
     if (event.data.type === 'LOGOUT') {
+      requestQueryCacheClear()
       set({ user: null, isAuthenticated: false, isLoading: false, logoutReason: 'session_ended' })
     }
   }
@@ -83,6 +85,7 @@ export const useAuthStore = create<AuthState>((set) => {
     // forceLogout: Clears local state only (avoids recursive logout calls on 401).
     forceLogout: () => {
       authChannel.postMessage({ type: 'LOGOUT' })
+      requestQueryCacheClear()
       set({
         user: null,
         isAuthenticated: false,

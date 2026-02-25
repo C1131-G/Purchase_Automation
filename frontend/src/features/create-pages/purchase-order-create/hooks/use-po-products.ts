@@ -21,20 +21,24 @@ import {
 
 interface UsePoProductsProps {
   effectiveWarehouseCode: string | null
+  vendorLookupToken: string
   productPopupOpen: boolean
   setProductPopupOpen: (open: boolean) => void
   productSearch: string
   setProductSearch: (search: string) => void
   stockPreviewProductCode: string | undefined
+  vendorSelected: boolean
 }
 
 export function usePoProducts({
   effectiveWarehouseCode,
+  vendorLookupToken,
   productPopupOpen,
   setProductPopupOpen,
   productSearch,
   setProductSearch,
   stockPreviewProductCode,
+  vendorSelected,
 }: UsePoProductsProps) {
   const queryClient = useQueryClient()
   const [productRows, setProductRows] = useState<ProductRow[]>([])
@@ -44,12 +48,11 @@ export function usePoProducts({
   const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT)
 
   useEffect(() => {
-    void queryClient.cancelQueries({ queryKey: createSharedKeys.products() })
     const timer = window.setTimeout(() => {
       setDebouncedProductSearch(productSearch.trim())
     }, 180)
     return () => window.clearTimeout(timer)
-  }, [productSearch, queryClient])
+  }, [productSearch])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
 
@@ -58,7 +61,7 @@ export function usePoProducts({
       setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [normalizedProductSearch, effectiveWarehouseCode, productPopupOpen])
+  }, [normalizedProductSearch, vendorSelected, productPopupOpen])
 
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
   // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
@@ -68,8 +71,13 @@ export function usePoProducts({
       normalizedProductSearch || undefined,
       productQueryLimit,
     ),
-    enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
+    enabled: productPopupOpen && vendorSelected,
   })
+
+  useEffect(() => {
+    if (!productPopupOpen || !vendorSelected) return
+    void queryClient.invalidateQueries({ queryKey: createSharedKeys.products() })
+  }, [productPopupOpen, queryClient, vendorLookupToken, vendorSelected])
 
   const products = useMemo(
     () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
@@ -82,10 +90,10 @@ export function usePoProducts({
   })
 
   const prefetchProducts = () => {
-    if (!effectiveWarehouseCode) return
+    if (!vendorSelected) return
     void queryClient.prefetchQuery(
       purchaseOrderCreateQueries.products(
-        effectiveWarehouseCode,
+        effectiveWarehouseCode || undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
       ),
@@ -127,7 +135,7 @@ export function usePoProducts({
     if (currentCount < productQueryLimit) return
     const isSearchMode = normalizedProductSearch.length > 0
     if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) return
-    setProductQueryLimit((prev) => prev + 1)
+    setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT))
   }
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {
@@ -184,9 +192,12 @@ export function usePoProducts({
         currency: product.currency,
         taxCode: product.taxCode,
         taxRate: product.taxRate,
+        uomCode: product.purchaseUomCode || product.uomCode,
+        uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         quantity: 1,
         discountPercent: 0,
         discountAmount: 0,
+        warehouseCode: effectiveWarehouseCode ?? '',
       })
     } else {
       setProductRows((prev) => [
@@ -200,10 +211,13 @@ export function usePoProducts({
           currency: product.currency,
           taxCode: product.taxCode,
           taxRate: product.taxRate,
+          uomCode: product.purchaseUomCode || product.uomCode,
+          uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           quantity: 1,
           discountPercent: 0,
           discountAmount: 0,
           comment: '',
+          warehouseCode: effectiveWarehouseCode ?? '',
         },
       ])
     }

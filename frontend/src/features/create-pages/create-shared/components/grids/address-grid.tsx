@@ -46,9 +46,6 @@ export function AddressGrid({
               {!readOnly && editableHighlight ? (
                 <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
               ) : null}
-              <span className="text-red-500" aria-hidden="true">
-                *
-              </span>
             </span>
           </label>
           {loading ? (
@@ -84,9 +81,6 @@ export function AddressGrid({
               {!readOnly && editableHighlight ? (
                 <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
               ) : null}
-              <span className="text-red-500" aria-hidden="true">
-                *
-              </span>
             </span>
           </label>
           {loading ? (

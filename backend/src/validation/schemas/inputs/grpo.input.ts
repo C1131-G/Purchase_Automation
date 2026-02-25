@@ -114,6 +114,8 @@ const GRPOLineItemSchema = z.object({
   ItemCode: z.string().min(1),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(),
+  UoMCode: z.union([z.string(), z.number()]).optional(),
+  UoMEntry: z.coerce.number().int().optional(),
   DiscountPercent: z.number().min(0).max(100).optional(),
   BaseType: z.number().optional(), // SAP Object Type (e.g., 22 for PO).
   BaseEntry: z.number().optional(), // docEntry of the originating PO.

@@ -1,3 +1,4 @@
+import { Loader2 } from 'lucide-react'
 import { type ComponentProps, memo, useEffect, useMemo, useRef } from 'react'
 
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
@@ -107,9 +108,6 @@ export function ProductPopupModal({
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold text-zinc-900">Search Products</h3>
-          <p className="text-xs text-zinc-500">
-            {warehouseCode ? `Warehouse: ${warehouseCode}` : 'Warehouse: -'}
-          </p>
         </div>
         <button
           type="button"
@@ -128,9 +126,7 @@ export function ProductPopupModal({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
           />
-          {backgroundLoading ? (
-            <span className="whitespace-nowrap text-xs font-medium text-zinc-500">Updating...</span>
-          ) : null}
+          {backgroundLoading ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
         </div>
         <div className="overflow-hidden rounded-xl border border-zinc-200">
           <div

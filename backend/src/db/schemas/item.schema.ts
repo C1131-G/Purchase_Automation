@@ -9,6 +9,7 @@ export type Item = {
   ItemCode: string; // The primary item/product code.
   ItemName: string; // Product description.
   SalUnitMsr?: string; // Standard unit of measurement (e.g., 'Each', 'Box').
+  BuyUnitMsr?: string; // Purchasing unit used in procurement documents.
   AvgPrice?: number; // Calculated average cost from SAP for inventory valuation.
   LastPurCur?: string; // Item master purchase currency.
   VatGroupPu?: string; // Purchase tax group code.
@@ -27,6 +28,12 @@ export const ItemSchema = new EntitySchema<Item>({
       type: "nvarchar" as HANAColumnType,
       length: 100,
       name: "SalUnitMsr",
+      nullable: true,
+    },
+    BuyUnitMsr: {
+      type: "nvarchar" as HANAColumnType,
+      length: 100,
+      name: "BuyUnitMsr",
       nullable: true,
     },
     AvgPrice: {

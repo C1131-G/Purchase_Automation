@@ -97,7 +97,12 @@ export function VendorCustomerGrid({
           editableHighlight={nameEditableHighlight}
         />
         {nameFocused ? (
-          <SuggestionList items={nameSuggestions} onSelect={onSelectVendor} floating />
+          <SuggestionList
+            items={nameSuggestions}
+            onSelect={onSelectVendor}
+            floating
+            query={nameInput}
+          />
         ) : null}
       </div>
 
@@ -118,7 +123,12 @@ export function VendorCustomerGrid({
           editableHighlight={codeEditableHighlight}
         />
         {codeFocused ? (
-          <SuggestionList items={codeSuggestions} onSelect={onSelectVendor} floating />
+          <SuggestionList
+            items={codeSuggestions}
+            onSelect={onSelectVendor}
+            floating
+            query={codeInput}
+          />
         ) : null}
       </div>
     </SectionCard>

@@ -1,104 +1,73 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { goeyToast } from 'goey-toast'
-import { ChevronRight } from 'lucide-react'
 import { type MouseEvent } from 'react'
 
-import { ARInvoiceModals } from '@/features/create-pages/ar-invoice-create/components/ar-invoice-modals'
 import { ARInvoiceProductSection } from '@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section'
 import { useARInvoiceCreate } from '@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
-import { DocumentDetailsGrid } from '@/features/create-pages/create-shared/components/grids/document-details-grid'
+import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
+import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
-import { WarehouseLogisticsGrid } from '@/features/create-pages/create-shared/components/grids/warehouse-logistics-grid'
+import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
+import { SharedCreateModals } from '@/features/create-pages/create-shared/components/modals/shared-create-modals'
 import {
   parseISODate,
   toDisplayDate,
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { arInvoiceQueries } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
-import { useSetSidebarAction } from '@/store/sidebar/sidebar.store'
 
 interface ARInvoiceCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
 }
 
+/**
+ * ARInvoiceCreate: Orchestrator for the complex A/R Invoice creation flow.
+ * State is managed by useARInvoiceCreate for a clean, declarative UI.
+ * Leverages CreatePageWrapper for consistent entity layout.
+ */
 export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProps) {
-  const state = useARInvoiceCreate(docNum ? { mode, docNum } : { mode })
   const queryClient = useQueryClient()
-  const setSidebarOpen = useSetSidebarAction()
+  const state = useARInvoiceCreate(docNum ? { mode, docNum } : { mode })
+
   const pageTitle = state.isEditMode ? 'Update A/R Invoice' : 'Create A/R Invoice'
-  const isInitialCreateLoading =
-    !state.isEditMode &&
-    state.vendorsQuery.isLoading &&
-    state.warehousesQuery.isLoading &&
-    state.salesEmployeesQuery.isLoading &&
-    !state.vendorsQuery.data &&
-    !state.warehousesQuery.data &&
-    !state.salesEmployeesQuery.data
+  const isFormHydrating = !state.isEditMode
+    ? state.vendorsQuery.isLoading &&
+      state.warehousesQuery.isLoading &&
+      state.salesEmployeesQuery.isLoading &&
+      !state.vendorsQuery.data
+    : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated
 
-  const isEditHydrationPending = state.isEditMode && !state.isEditHydrated
-
-  const isFormHydrating =
-    isInitialCreateLoading ||
-    (state.isEditMode &&
-      ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
-
-  if (state.isEditMode && state.editDetailQuery.isError) {
-    const errorMessage =
-      state.editDetailQuery.error instanceof Error
-        ? state.editDetailQuery.error.message
-        : 'Unable to load A/R invoice for editing.'
-    return (
-      <div className="w-full bg-zinc-50 p-3 pb-20">
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </p>
-      </div>
-    )
-  }
-
-  const handleRestrictedClick = state.isEditMode
-    ? (fieldName: string) => (event: MouseEvent<HTMLDivElement>) => {
+  const handleCustomerRestrictedClick = state.isEditMode
+    ? (event: MouseEvent<HTMLDivElement>) => {
         event.preventDefault()
         event.stopPropagation()
-        state.showEditRestrictedToast(fieldName)
+        state.showEditRestrictedToast('Customer Info')
       }
     : undefined
 
   return (
-    <div className="w-full bg-zinc-50 p-3 pb-20">
-      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-        <button
-          type="button"
-          className="cursor-pointer text-blue-600 hover:text-blue-700"
-          onClick={() => setSidebarOpen(true)}
-        >
-          Sales
-        </button>
-        <ChevronRight className="size-3.5 text-zinc-300" />
-        <Link
-          to="/sales/ar-invoice"
-          search={{ page: 1, limit: 10 }}
-          className="cursor-pointer text-blue-600 hover:text-blue-700"
-          onMouseEnter={() =>
-            void queryClient.prefetchQuery(arInvoiceQueries.list({ page: 1, limit: 10 }))
-          }
-          onFocus={() =>
-            void queryClient.prefetchQuery(arInvoiceQueries.list({ page: 1, limit: 10 }))
-          }
-        >
-          A/R Invoice Data Table
-        </Link>
-        <ChevronRight className="size-3.5 text-zinc-300" />
-        <span className="text-zinc-700">{pageTitle}</span>
-      </div>
-
+    <CreatePageWrapper
+      rootLabel="Sales"
+      breadcrumbParent={{
+        label: 'A/R Invoice Data Table',
+        to: '/sales/ar-invoice',
+        onMouseEnter: () =>
+          void queryClient.prefetchQuery(arInvoiceQueries.list({ page: 1, limit: 10 })),
+      }}
+      pageTitle={pageTitle}
+      editError={
+        state.isEditMode && state.editDetailQuery.isError
+          ? state.editDetailQuery.error instanceof Error
+            ? state.editDetailQuery.error.message
+            : 'Unable to load A/R invoice for editing.'
+          : null
+      }
+    >
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
-          onClickCapture={handleRestrictedClick?.('Customer Info')}
+          onClickCapture={handleCustomerRestrictedClick}
           className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
@@ -108,7 +77,7 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
                 state.vendorsQuery.isError
                   ? state.vendorsQuery.error instanceof Error
                     ? state.vendorsQuery.error.message
-                    : 'Unable to load customers. Please login again.'
+                    : 'Unable to load customers.'
                   : null
               }
               nameInput={state.nameInput}
@@ -123,13 +92,6 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
               onCodeFocus={() => state.setCodeFocused(true)}
               onNameBlur={() => setTimeout(() => state.setNameFocused(false), 120)}
               onCodeBlur={() => setTimeout(() => state.setCodeFocused(false), 120)}
-              sectionTitle="Customer Info"
-              nameLabel="Customer Name *"
-              codeLabel="Customer Code *"
-              namePlaceholder="Select or Type Customer"
-              codePlaceholder="Select or Type Code"
-              nameLoadingPlaceholder="Loading customer names..."
-              codeLoadingPlaceholder="Loading customer codes..."
               onOpenNamePopup={() => state.openPopup('vendor-name')}
               onOpenCodePopup={() => state.openPopup('vendor-code')}
               onSelectVendor={state.selectVendor}
@@ -143,62 +105,25 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
           </div>
         </div>
 
-        <div
-          onClickCapture={handleRestrictedClick?.('Warehouse & Logistics')}
-          className={state.isEditMode ? 'cursor-not-allowed' : ''}
-        >
-          <div className={state.isEditMode ? 'pointer-events-none' : ''}>
-            <WarehouseLogisticsGrid
-              salesEmployeeLabel="Sales Employee *"
-              salesEmployeePlaceholder="Select Sales Employee"
-              salesEmployeeLoadingPlaceholder="Loading sales employees..."
-              warehouseInput={state.warehouseInput}
-              salesEmployeeInput={state.salesEmployeeInput}
-              warehouseLoading={state.warehousesQuery.isLoading || isFormHydrating}
-              salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
-              error={
-                state.warehousesQuery.isError
-                  ? 'Unable to load warehouses.'
-                  : state.salesEmployeesQuery.isError
-                    ? 'Unable to load sales employees.'
-                    : null
-              }
-              warehouseFocused={state.warehouseFocused}
-              salesEmployeeFocused={state.salesEmployeeFocused}
-              warehouseSuggestions={state.warehouseSuggestions}
-              salesEmployeeSuggestions={state.salesEmployeeSuggestions}
-              onWarehouseChange={state.handleWarehouseChange}
-              onSalesEmployeeChange={state.handleSalesEmployeeChange}
-              onWarehouseFocus={() => state.setWarehouseFocused(true)}
-              onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-              onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
-              onSalesEmployeeBlur={() =>
-                setTimeout(() => state.setSalesEmployeeFocused(false), 120)
-              }
-              onOpenWarehousePopup={() => state.openPopup('warehouse')}
-              onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
-              onSelectWarehouse={state.selectWarehouse}
-              onSelectSalesEmployee={state.selectSalesEmployee}
-              warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
-              salesEmployeeInvalid={Boolean(state.productSearchFieldErrors.salesEmployee)}
-              warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
-              salesEmployeeErrorText={state.productSearchFieldErrors.salesEmployee}
-              warehouseLocked={state.productRows.length > 0}
-              onWarehouseLockedClick={() =>
-                goeyToast(
-                  "Warehouse can't be changed after product selection. Remove products or create.",
-                )
-              }
-              warehouseDisabled={state.isEditMode}
-              salesEmployeeDisabled={state.isEditMode}
-            />
-          </div>
-        </div>
+        <LogisticsGrid
+          salesEmployeeLabel="Sales Employee"
+          salesEmployeeInput={state.salesEmployeeInput}
+          salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
+          error={state.salesEmployeesQuery.isError ? 'Unable to load sales employees.' : null}
+          salesEmployeeFocused={state.salesEmployeeFocused}
+          salesEmployeeSuggestions={state.salesEmployeeSuggestions}
+          onSalesEmployeeChange={state.handleSalesEmployeeChange}
+          onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
+          onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
+          onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
+          onSelectSalesEmployee={state.selectSalesEmployee}
+          salesEmployeeDisabled={state.isEditMode}
+        />
 
-        <DocumentDetailsGrid
+        <DocumentDatesGrid
+          loading={isFormHydrating}
           docDate={state.header.docDate}
           docDueDate={state.header.docDueDate}
-          loading={isFormHydrating}
           today={state.today}
           activeDatePicker={state.activeDatePicker}
           docDateContainerRef={state.docDateContainerRef}
@@ -206,82 +131,30 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
           toDisplayDate={toDisplayDate}
           parseISODate={parseISODate}
           toISODate={toISODate}
-          onSetActiveDatePicker={(value) => {
-            if (!state.isEditMode) {
-              state.setActiveDatePicker(value)
-              return
-            }
-            state.setActiveDatePicker((prev) => {
-              const next = typeof value === 'function' ? value(prev) : value
-              if (next === 'doc') {
-                state.showEditRestrictedToast('Document Date')
-                return null
-              }
-              return next
-            })
-          }}
+          onSetActiveDatePicker={state.setActiveDatePicker}
           onDocDateChange={state.setDocDate}
-          onDocDueDateChange={(value) => {
-            state.setDocDueDate(value)
-            state.setProductSearchFieldErrors((prev) => ({ ...prev, docDueDate: undefined }))
-          }}
+          onDocDueDateChange={state.setDocDueDate}
           docDateReadOnly={state.isEditMode}
           docDueDateEditableHighlight={state.isEditMode}
-          docDueDateInvalid={Boolean(state.productSearchFieldErrors.docDueDate)}
-          {...(state.productSearchFieldErrors.docDueDate
-            ? { docDueDateErrorText: state.productSearchFieldErrors.docDueDate }
-            : {})}
         />
       </div>
 
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        <div
-          className={`lg:col-span-2 ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
-          onClickCapture={handleRestrictedClick?.('Address')}
-        >
-          <div className={state.isEditMode ? 'pointer-events-none' : ''}>
-            <AddressGrid
-              loading={isFormHydrating}
-              billToAddress={state.billToAddress}
-              shipToAddress={state.shipToAddress}
-              readOnly={state.isEditMode}
-              onBillToAddressChange={(value) => {
-                state.setBillToAddress(value)
-                state.setProductSearchFieldErrors((prev) => ({
-                  ...prev,
-                  billToAddress: value.trim() ? undefined : prev.billToAddress,
-                }))
-              }}
-              onShipToAddressChange={(value) => {
-                state.setShipToAddress(value)
-                state.setProductSearchFieldErrors((prev) => ({
-                  ...prev,
-                  shipToAddress: value.trim() ? undefined : prev.shipToAddress,
-                }))
-              }}
-              billToAddressInvalid={Boolean(state.productSearchFieldErrors.billToAddress)}
-              shipToAddressInvalid={Boolean(state.productSearchFieldErrors.shipToAddress)}
-              billToAddressErrorText={state.productSearchFieldErrors.billToAddress}
-              shipToAddressErrorText={state.productSearchFieldErrors.shipToAddress}
-            />
-          </div>
-        </div>
+        <AddressGrid
+          loading={isFormHydrating}
+          billToAddress={state.billToAddress}
+          shipToAddress={state.shipToAddress}
+          readOnly={state.isEditMode}
+          onBillToAddressChange={state.setBillToAddress}
+          onShipToAddressChange={state.setShipToAddress}
+        />
         <ReferenceGrid
           loading={isFormHydrating}
           referenceNo={state.header.referenceNo}
           comments={state.header.comments}
           referenceNoDisabled={state.isEditMode}
-          onReferenceNoDisabledClick={() =>
-            state.setHeader({ referenceNo: state.header.referenceNo })
-          }
-          onReferenceNoChange={(value) => {
-            state.setHeader({ referenceNo: value })
-            state.setProductSearchFieldErrors((prev) => ({ ...prev, referenceNo: undefined }))
-          }}
-          onCommentsChange={(value) => {
-            state.setHeader({ comments: value })
-            state.setProductSearchFieldErrors((prev) => ({ ...prev, comments: undefined }))
-          }}
+          onReferenceNoChange={(value) => state.setHeader({ referenceNo: value })}
+          onCommentsChange={(value) => state.setHeader({ comments: value })}
           commentsEditableHighlight={state.isEditMode}
           referenceNoInvalid={Boolean(state.productSearchFieldErrors.referenceNo)}
           commentsInvalid={Boolean(state.productSearchFieldErrors.comments)}
@@ -299,8 +172,6 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         prefetchProducts={state.prefetchProducts}
         productRows={state.productRows}
         productRowDrafts={state.productRowDrafts}
-        effectiveWarehouseCode={state.effectiveWarehouseCode}
-        openStockPreview={state.openStockPreview}
         updateProductRow={state.updateProductRow}
         removeProductRow={state.removeProductRow}
         setProductRowDraft={state.setProductRowDraft}
@@ -316,8 +187,16 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         submitLabel={state.isEditMode ? 'Update' : 'Create'}
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
         onEditRestrictedClick={state.showEditRestrictedToast}
+        warehouses={state.warehouses}
+        warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
       />
-      <ARInvoiceModals state={state} />
-    </div>
+      <SharedCreateModals
+        state={state}
+        entityLabels={{
+          vendorPopupTitle: 'Loading customer popup',
+          vendorErrorMsg: 'Unable to load customers',
+        }}
+      />
+    </CreatePageWrapper>
   )
 }

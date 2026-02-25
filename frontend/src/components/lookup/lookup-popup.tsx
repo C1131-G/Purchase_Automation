@@ -1,4 +1,5 @@
-import { type ComponentProps, useMemo } from 'react'
+import { Loader2 } from 'lucide-react'
+import { type ComponentProps, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useLookupToast } from '@/components/lookup/hooks/use-lookup-toast'
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
@@ -110,7 +111,13 @@ export function LookupPopup({
   onSelect,
   onRetry,
 }: LookupPopupProps) {
+  const INITIAL_LIMIT = 10
+  const STEP = 10
+  const MAX_LIMIT = 100
   const config = mode ? MODE_CONFIG[mode] : null
+  const [visibleCount, setVisibleCount] = useState(INITIAL_LIMIT)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
 
   const title = customTitle ?? config?.title ?? 'Select'
   const placeholder = customPlaceholder ?? config?.placeholder ?? 'Search code or name...'
@@ -156,6 +163,36 @@ export function LookupPopup({
     })
   }, [safeResults, search, mode])
 
+  useEffect(() => {
+    setVisibleCount(INITIAL_LIMIT)
+    setLoadingMore(false)
+  }, [search, mode, safeResults.length])
+
+  const isSearchMode = search.trim().length > 0
+  const cappedResults = useMemo(
+    () => (isSearchMode ? filteredResults : filteredResults.slice(0, MAX_LIMIT)),
+    [filteredResults, isSearchMode],
+  )
+  const visibleResults = useMemo(
+    () => (isSearchMode ? cappedResults : cappedResults.slice(0, visibleCount)),
+    [cappedResults, isSearchMode, visibleCount],
+  )
+  const canLoadMore = !isSearchMode && visibleResults.length < cappedResults.length
+
+  const handleTableScroll = () => {
+    if (!canLoadMore || loadingMore) return
+    const node = listRef.current
+    if (!node) return
+    const threshold = 24
+    const reachedEnd = node.scrollHeight - node.scrollTop - node.clientHeight <= threshold
+    if (!reachedEnd) return
+    setLoadingMore(true)
+    window.setTimeout(() => {
+      setVisibleCount((prev) => Math.min(prev + STEP, MAX_LIMIT))
+      setLoadingMore(false)
+    }, 120)
+  }
+
   useLookupToast({
     loading,
     hasData: filteredResults.length > 0,
@@ -185,7 +222,7 @@ export function LookupPopup({
         />
 
         <div className="overflow-hidden rounded-xl border border-zinc-200">
-          <div className="max-h-64 overflow-auto">
+          <div ref={listRef} className="max-h-64 overflow-auto" onScroll={handleTableScroll}>
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-zinc-50 text-zinc-600">
                 <tr>
@@ -194,7 +231,7 @@ export function LookupPopup({
                 </tr>
               </thead>
               <tbody>
-                {loading && filteredResults.length === 0 ? (
+                {loading && visibleResults.length === 0 ? (
                   LOOKUP_SKELETON_KEYS.map((slot) => (
                     <tr key={`lookup-skeleton-${slot}`} className="border-t border-zinc-100">
                       <td className="px-3 py-2" colSpan={2}>
@@ -202,13 +239,13 @@ export function LookupPopup({
                       </td>
                     </tr>
                   ))
-                ) : error && filteredResults.length === 0 ? (
+                ) : error && visibleResults.length === 0 ? (
                   <LookupErrorState
                     colSpan={showCodeOnly || showNameOnly ? 1 : 2}
                     message={error || 'Unable to load data. Please try again.'}
                     {...(onRetry ? { onRetry } : {})}
                   />
-                ) : filteredResults.length === 0 && !loading ? (
+                ) : visibleResults.length === 0 && !loading ? (
                   <ModalEmptyRow
                     colSpan={showCodeOnly || showNameOnly ? 1 : 2}
                     message={
@@ -216,7 +253,7 @@ export function LookupPopup({
                     }
                   />
                 ) : (
-                  filteredResults.map((item) => (
+                  visibleResults.map((item) => (
                     <tr
                       key={item.code}
                       className="cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50"
@@ -233,6 +270,11 @@ export function LookupPopup({
                 )}
               </tbody>
             </table>
+            {loadingMore ? (
+              <div className="flex items-center justify-center px-3 py-2 text-zinc-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

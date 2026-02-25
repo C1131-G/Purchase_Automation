@@ -174,6 +174,8 @@ export const getInvoice = async (sessionId: string, id: string) => {
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
+        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
+        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
         Price: line.Price || line.UnitPrice,
         DiscountPercent: line.DiscountPercent,
         TaxCode: line.TaxCode,
@@ -207,10 +209,20 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
+          UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           TaxCode: line.TaxCode as string,
           WarehouseCode: line.WarehouseCode as string,
           DiscountPercent: line.DiscountPercent as number,
         };
+        const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          docLine.UoMEntry = Math.trunc(uomEntry);
+        } else {
+          const uomCode = line.UoMCode ?? line.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            docLine.UoMCode = uomCode as string | number;
+          }
+        }
 
         if (Number.isFinite(line.BaseEntry) && Number.isFinite(line.BaseLine)) {
           docLine.BaseType = line.BaseType;

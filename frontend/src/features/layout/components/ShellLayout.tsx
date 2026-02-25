@@ -12,7 +12,7 @@ import { cn } from '@/shared/utils/cn'
 import { useAuthStore } from '@/store/auth/auth.store'
 import { useSetSidebarAction, useSidebarOpen } from '@/store/sidebar/sidebar.store'
 
-import { type SectionKey } from './shell-layout.types'
+import { type SectionKey } from '../utils/shell-layout.types'
 import { ShellLayoutBrandHeader } from './shell-layout-brand-header'
 import { ShellLayoutLogout } from './shell-layout-logout'
 import { ShellLayoutNavigation } from './shell-layout-navigation'
@@ -66,6 +66,14 @@ export function ShellLayout() {
   const [expandedSectionOverride, setExpandedSectionOverride] = React.useState<
     SectionKey | null | undefined
   >(undefined)
+  const transitionTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current)
+    }
+  }, [])
 
   const isSectionOpen = React.useCallback(
     (section: SectionKey) => {
@@ -76,16 +84,37 @@ export function ShellLayout() {
     [activeSection, expandedSectionOverride],
   )
 
-  // Accordion behavior: opening one section closes the others.
+  // Accordion behavior: ensure current section closes before opening next one for smooth transitions.
   const handleToggle = React.useCallback(
     (section: SectionKey) => {
       setSidebarOpen(true)
-      setExpandedSectionOverride((prev) => {
-        const currentlyOpen = (prev === undefined ? activeSection : prev) === section
-        return currentlyOpen ? null : section
-      })
+
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current)
+        transitionTimeoutRef.current = null
+      }
+
+      const currentlyEffective =
+        expandedSectionOverride === undefined ? activeSection : expandedSectionOverride
+      const isClosing = currentlyEffective === section
+
+      if (isClosing) {
+        setExpandedSectionOverride(null)
+        return
+      }
+
+      // If another section is open, close it first then wait before opening new one
+      if (currentlyEffective !== null) {
+        setExpandedSectionOverride(null)
+        transitionTimeoutRef.current = setTimeout(() => {
+          setExpandedSectionOverride(section)
+          transitionTimeoutRef.current = null
+        }, 300) // Matches SidebarMenuCollapsible transition duration
+      } else {
+        setExpandedSectionOverride(section)
+      }
     },
-    [activeSection, setSidebarOpen],
+    [activeSection, expandedSectionOverride, setSidebarOpen],
   )
 
   const handleTableNavIntent = React.useCallback(

@@ -19,20 +19,24 @@ import {
 
 interface UseSoProductsProps {
   effectiveWarehouseCode: string | null
+  customerLookupToken: string
   productPopupOpen: boolean
   setProductPopupOpen: (open: boolean) => void
   productSearch: string
   setProductSearch: (search: string) => void
   stockPreviewProductCode: string | undefined
+  customerSelected: boolean
 }
 
 export function useSoProducts({
   effectiveWarehouseCode,
+  customerLookupToken,
   productPopupOpen,
   setProductPopupOpen,
   productSearch,
   setProductSearch,
   stockPreviewProductCode,
+  customerSelected,
 }: UseSoProductsProps) {
   const queryClient = useQueryClient()
   const [productRows, setProductRows] = useState<ProductRow[]>([])
@@ -42,12 +46,11 @@ export function useSoProducts({
   const [productQueryLimit, setProductQueryLimit] = useState(QUICK_PRODUCT_LIMIT)
 
   useEffect(() => {
-    void queryClient.cancelQueries({ queryKey: createSharedKeys.products() })
     const timer = window.setTimeout(() => {
       setDebouncedProductSearch(productSearch.trim())
     }, 180)
     return () => window.clearTimeout(timer)
-  }, [productSearch, queryClient])
+  }, [productSearch])
 
   const normalizedProductSearch = debouncedProductSearch.trim()
 
@@ -56,7 +59,7 @@ export function useSoProducts({
       setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [normalizedProductSearch, effectiveWarehouseCode, productPopupOpen])
+  }, [normalizedProductSearch, customerSelected, productPopupOpen])
 
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
   // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
@@ -66,8 +69,13 @@ export function useSoProducts({
       normalizedProductSearch || undefined,
       productQueryLimit,
     ),
-    enabled: productPopupOpen && Boolean(effectiveWarehouseCode),
+    enabled: productPopupOpen && customerSelected,
   })
+
+  useEffect(() => {
+    if (!productPopupOpen || !customerSelected) return
+    void queryClient.invalidateQueries({ queryKey: createSharedKeys.products() })
+  }, [customerLookupToken, customerSelected, productPopupOpen, queryClient])
 
   const products = useMemo(
     () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
@@ -80,10 +88,10 @@ export function useSoProducts({
   })
 
   const prefetchProducts = () => {
-    if (!effectiveWarehouseCode) return
+    if (!customerSelected) return
     void queryClient.prefetchQuery(
       salesOrderCreateQueries.products(
-        effectiveWarehouseCode,
+        effectiveWarehouseCode || undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
       ),
@@ -125,7 +133,7 @@ export function useSoProducts({
     if (currentCount < productQueryLimit) return
     const isSearchMode = normalizedProductSearch.length > 0
     if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) return
-    setProductQueryLimit((prev) => prev + 1)
+    setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT))
   }
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {
@@ -173,7 +181,6 @@ export function useSoProducts({
   ) => {
     void queryClient.prefetchQuery(salesOrderCreateQueries.productWarehouseStocks(product.code))
 
-    const maxAllowed = Math.max(1, Math.floor(product.stock) - 1)
     if (activeProductRowId) {
       updateProductRow(activeProductRowId, {
         productCode: product.code,
@@ -183,9 +190,12 @@ export function useSoProducts({
         currency: product.currency,
         taxCode: product.taxCode,
         taxRate: product.taxRate,
-        quantity: Math.min(maxAllowed, 1),
+        uomCode: product.uomCode,
+        uomEntry: product.uomEntry,
+        quantity: 0,
         discountPercent: 0,
         discountAmount: 0,
+        warehouseCode: effectiveWarehouseCode ?? '',
       })
     } else {
       setProductRows((prev) => [
@@ -199,10 +209,13 @@ export function useSoProducts({
           currency: product.currency,
           taxCode: product.taxCode,
           taxRate: product.taxRate,
-          quantity: Math.min(maxAllowed, 1),
+          uomCode: product.uomCode,
+          uomEntry: product.uomEntry,
+          quantity: 0,
           discountPercent: 0,
           discountAmount: 0,
           comment: '',
+          warehouseCode: effectiveWarehouseCode ?? '',
         },
       ])
     }

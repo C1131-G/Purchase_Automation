@@ -11,7 +11,7 @@ import {
 } from '@/components/sidebar'
 import { type TableRoutePath } from '@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch'
 
-import { type SectionKey } from './shell-layout.types'
+import { type SectionKey } from '../utils/shell-layout.types'
 
 type ShellLayoutNavigationProps = {
   pathname: string

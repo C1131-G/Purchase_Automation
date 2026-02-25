@@ -8,6 +8,13 @@ type LookupSearchSyncHandlers = {
   onSalesEmployee: (value: string) => void
 }
 
+type LookupSearchInlineValues = {
+  vendorName: string
+  vendorCode: string
+  warehouse: string
+  salesEmployee: string
+}
+
 export const syncLookupSearchByMode = (
   mode: PopupMode,
   value: string,
@@ -26,4 +33,11 @@ export const syncLookupSearchByMode = (
     return
   }
   handlers.onSalesEmployee(value)
+}
+
+export const getLookupInlineSearchByMode = (mode: PopupMode, values: LookupSearchInlineValues) => {
+  if (mode === 'vendor-name') return values.vendorName
+  if (mode === 'vendor-code') return values.vendorCode
+  if (mode === 'warehouse') return values.warehouse
+  return values.salesEmployee
 }

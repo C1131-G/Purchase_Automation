@@ -197,7 +197,7 @@ export const getProducts = async (
   return getCachedData(
     cacheKey,
     async () => {
-      const [items, itemStocks, itemPrices, adminSettings, taxGroups] = await Promise.all([
+      const [items, itemStocks, itemPrices, adminSettings, taxGroups, uoms] = await Promise.all([
         (async () => {
           const repository = await getTenantRepository(dbName, ItemSchema);
           const query = repository
@@ -206,6 +206,7 @@ export const getProducts = async (
               "item.ItemCode",
               "item.ItemName",
               "item.SalUnitMsr",
+              "item.BuyUnitMsr",
               "item.AvgPrice",
               "item.LastPurCur",
               "item.VatGroupPu",
@@ -264,6 +265,12 @@ export const getProducts = async (
             select: ["Code", "Rate"] as const,
           });
         })(),
+        (async () => {
+          const repository = await getTenantRepository(dbName, UnitOfMeasurementSchema);
+          return repository.find({
+            select: ["UomEntry", "UomCode", "UomName"] as const,
+          });
+        })(),
       ]);
 
       const itemCodes = items.map((item) => toTrimmed(item.ItemCode)).filter(Boolean);
@@ -294,6 +301,20 @@ export const getProducts = async (
         if (!code) continue;
         taxRateByCode.set(code, toNumberOrZero(taxGroup.Rate));
       }
+      const uomByNormalizedValue = new Map<string, { code: string; entry?: number }>();
+      for (const uom of uoms) {
+        const code = toTrimmed(uom.UomCode);
+        const name = toTrimmed(uom.UomName);
+        const entry = toNullableInt(
+          (uom as Record<string, unknown>).UomEntry ?? (uom as Record<string, unknown>).AbsEntry,
+        );
+        if (code) {
+          uomByNormalizedValue.set(code.toLowerCase(), { code, entry });
+        }
+        if (name && code) {
+          uomByNormalizedValue.set(name.toLowerCase(), { code, entry });
+        }
+      }
 
       const mappedItems = items.map((item) => {
         const normalizedItemCode = toTrimmed(item.ItemCode);
@@ -302,12 +323,25 @@ export const getProducts = async (
         const resolvedCurrency = defaultCurrency || "";
         const resolvedTaxCode = toTrimmed(item.VatGroupPu) || toTrimmed(item.VatGourpSa);
         const resolvedTaxRate = taxRateByCode.get(resolvedTaxCode) ?? 0;
+        const salesUomText = toTrimmed(item.SalUnitMsr);
+        const purchaseUomText = toTrimmed(item.BuyUnitMsr);
+        const resolvedSalesUom = uomByNormalizedValue.get(salesUomText.toLowerCase());
+        const resolvedSalesUomCode = resolvedSalesUom?.code || salesUomText;
+        const resolvedSalesUomEntry = resolvedSalesUom?.entry;
+        const resolvedPurchaseUom = uomByNormalizedValue.get(purchaseUomText.toLowerCase());
+        const resolvedPurchaseUomCode = resolvedPurchaseUom?.code || resolvedSalesUomCode;
+        const resolvedPurchaseUomEntry = resolvedPurchaseUom?.entry ?? resolvedSalesUomEntry;
 
         return {
           id: normalizedItemCode,
           ItemCode: normalizedItemCode,
           ItemName: item.ItemName,
-          Uom: item.SalUnitMsr,
+          Uom: salesUomText,
+          UoMCode: resolvedSalesUomCode,
+          UoMEntry: resolvedSalesUomEntry,
+          PurchaseUom: purchaseUomText,
+          PurchaseUoMCode: resolvedPurchaseUomCode,
+          PurchaseUoMEntry: resolvedPurchaseUomEntry,
           Price: resolvedPrice,
           Warehouse: normalizedWarehouseCode || item.DfltWH || "",
           OnHand: resolvedStock,

@@ -31,11 +31,7 @@ export const MANDATORY_ERROR_TEXT: Record<
 > = {
   vendorCode: 'Vendor Code is required.',
   vendorName: 'Vendor Name is required.',
-  docDueDate: 'Delivery Date is required.',
   warehouseCode: 'Warehouse is required.',
-  salesEmployee: 'Buyer is required.',
-  billToAddress: 'Bill To Address is required.',
-  shipToAddress: 'Ship To Address is required.',
   referenceNo: 'Reference is required.',
   comments: 'Remarks is required.',
 }
@@ -46,11 +42,7 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
 > = {
   vendorCode: 'Vendor Code',
   vendorName: 'Vendor Name',
-  docDueDate: 'Delivery Date',
   warehouseCode: 'Warehouse',
-  salesEmployee: 'Buyer',
-  billToAddress: 'Bill To Address',
-  shipToAddress: 'Ship To Address',
   referenceNo: 'Reference',
   comments: 'Remarks',
 }

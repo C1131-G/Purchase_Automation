@@ -1,8 +1,8 @@
-import { CalendarDays, Lock, Pencil } from 'lucide-react'
+import { Calendar as CalendarIcon, Lock, Pencil } from 'lucide-react'
 import { type ComponentProps, type ReactElement, type RefObject } from 'react'
 
 import { Calendar } from '@/components/calendar/calendar'
-// DocumentDetailsGrid: Manages core document metadata (DocNum, Dates, Reference).
+// DocumentDatesGrid: Manages core document metadata (DocNum, Dates, Reference).
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
 
 type ActiveDatePicker = 'doc' | 'delivery' | null
@@ -13,7 +13,7 @@ type CalendarWithBoundsProps = ComponentProps<typeof Calendar> & {
 }
 const CalendarWithBounds = Calendar as unknown as (props: CalendarWithBoundsProps) => ReactElement
 
-type DocumentDetailsGridProps = {
+type DocumentDatesGridProps = {
   docDate: string
   docDueDate: string
   loading?: boolean
@@ -36,7 +36,7 @@ type DocumentDetailsGridProps = {
   docDueDateEditableHighlight?: boolean
 }
 
-export function DocumentDetailsGrid({
+export function DocumentDatesGrid({
   docDate,
   docDueDate,
   loading = false,
@@ -55,32 +55,19 @@ export function DocumentDetailsGrid({
   error,
   docDateReadOnly = false,
   docDueDateEditableHighlight = false,
-}: DocumentDetailsGridProps) {
+}: DocumentDatesGridProps) {
   return (
-    <SectionCard title="Document Details" className="lg:col-span-1">
+    <SectionCard title="Document Dates" className="lg:col-span-1">
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {error}
         </div>
       ) : null}
-      <div>
-        <div className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          Doc Number
-        </div>
-        {loading ? (
-          <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
-        ) : (
-          <div className="flex h-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-base font-semibold text-blue-700">
-            Generated on Save
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4">
         <div ref={docDateContainerRef} className="relative">
           <label
             htmlFor="po-doc-date"
-            className="mb-2 block whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
+            className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
           >
             <span className="inline-flex items-center gap-1.5">
               <span>Doc Date</span>
@@ -90,21 +77,27 @@ export function DocumentDetailsGrid({
             </span>
           </label>
           {loading ? (
-            <div className="h-11 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+            <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
           ) : (
             <button
               id="po-doc-date"
               type="button"
               disabled={docDateReadOnly}
               onClick={() => onSetActiveDatePicker((prev) => (prev === 'doc' ? null : 'doc'))}
-              className={`flex h-11 w-full items-center justify-between rounded-xl border px-3 text-sm outline-none transition ${
+              className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDateReadOnly
-                  ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500'
+                  ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
                   : 'cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
               }`}
             >
               <span>{toDisplayDate(docDate)}</span>
-              <CalendarDays className="h-4 w-4 text-zinc-600" />
+              <div
+                className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+                  docDateReadOnly ? 'opacity-60' : 'hover:bg-zinc-100'
+                }`}
+              >
+                <CalendarIcon className="h-3 w-3" />
+              </div>
             </button>
           )}
           {activeDatePicker === 'doc' ? (
@@ -126,20 +119,17 @@ export function DocumentDetailsGrid({
         <div ref={deliveryDateContainerRef} className="relative">
           <label
             htmlFor="po-delivery-date"
-            className="mb-2 block whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
+            className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
           >
             <span className="inline-flex items-center gap-1.5">
               <span>Delivery Date</span>
               {docDueDateEditableHighlight ? (
                 <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
               ) : null}
-              <span className="text-red-500" aria-hidden="true">
-                *
-              </span>
             </span>
           </label>
           {loading ? (
-            <div className="h-11 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+            <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
           ) : (
             <button
               id="po-delivery-date"
@@ -147,22 +137,24 @@ export function DocumentDetailsGrid({
               onClick={() =>
                 onSetActiveDatePicker((prev) => (prev === 'delivery' ? null : 'delivery'))
               }
-              className={`flex h-11 w-full cursor-pointer items-center justify-between rounded-xl border px-3 text-sm text-zinc-800 outline-none transition hover:bg-white ${
+              className={`relative flex h-10 w-full cursor-pointer items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDueDateInvalid
                   ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
                   : docDueDateEditableHighlight
                     ? 'border-emerald-300 bg-emerald-50/60 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
-                    : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+                    : 'border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
               }`}
             >
-              <span className={docDueDate ? '' : 'text-zinc-400'}>
+              <span className={docDueDate ? 'text-zinc-800' : 'text-zinc-400'}>
                 {docDueDate ? toDisplayDate(docDueDate) : 'Select delivery date'}
               </span>
-              <CalendarDays className="h-4 w-4 text-zinc-600" />
+              <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100">
+                <CalendarIcon className="h-3 w-3" />
+              </div>
             </button>
           )}
           {activeDatePicker === 'delivery' ? (
-            <div className="absolute right-0 top-full z-40 mt-2">
+            <div className="absolute left-0 top-full z-40 mt-2">
               <CalendarWithBounds
                 mode="single"
                 minDate={today}

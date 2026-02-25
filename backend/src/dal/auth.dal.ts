@@ -4,6 +4,7 @@ import type { RequestHandler } from "express";
 
 // Core
 import { logger } from "@/core/logger/pino-logger";
+import { purgeCache } from "@/core/utils/cache";
 import type { LoginResponse } from "@/dal/types/auth.types";
 // Services
 import { authService } from "@/services/auth.service";
@@ -68,7 +69,7 @@ export const getCurrentUser: RequestHandler = async (req, res, next) => {
 // Terminates the SAP Service Layer session and destroys the application's Express session.
 export const logout: RequestHandler = async (req, res, next) => {
   try {
-    const { sessionId } = req.session;
+    const { sessionId, dbName } = req.session;
 
     logger.info({ msg: "Logout attempt", sessionId: sessionId ? "present" : "missing" });
 
@@ -83,6 +84,15 @@ export const logout: RequestHandler = async (req, res, next) => {
     }
 
     // Clear the local session and the associated cookie.
+    if (dbName) {
+      purgeCache(`master:${dbName}:`);
+      purgeCache(`dash:sales:${dbName}:`);
+      purgeCache(`dash:purchase:${dbName}:`);
+      purgeCache(`user:${dbName}:`);
+      purgeCache(`creds:${dbName}`);
+      logger.info({ msg: "Tenant cache purged on logout", dbName });
+    }
+
     req.session.destroy((err) => {
       if (err) {
         logger.error({ msg: "Session destroy error", error: err });

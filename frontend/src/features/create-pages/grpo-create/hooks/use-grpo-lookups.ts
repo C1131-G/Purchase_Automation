@@ -9,9 +9,6 @@ interface UseGrpoLookupsProps {
   vendors: LookupItem[]
   warehouses: LookupItem[]
   buyers: LookupItem[]
-  vendorsLoading: boolean
-  warehousesLoading: boolean
-  buyersLoading: boolean
   vendorNameInput: string
   vendorCodeInput: string
   warehouseInput: string
@@ -22,17 +19,11 @@ export function useGrpoLookups({
   vendors,
   warehouses,
   buyers,
-  vendorsLoading,
-  warehousesLoading,
-  buyersLoading,
   vendorNameInput,
   vendorCodeInput,
   warehouseInput,
   buyerInput,
 }: UseGrpoLookupsProps) {
-  const INLINE_SUGGESTION_INITIAL_LIMIT = 10
-  const INLINE_SUGGESTION_BACKGROUND_LIMIT = 100
-
   const rankLookupOptions = (items: ProductLookupItem[], rawSearch: string) => {
     const term = rawSearch.trim().toLowerCase()
     if (!term) return items
@@ -53,49 +44,26 @@ export function useGrpoLookups({
     })
   }
 
-  const limitInlineSuggestions = (items: ProductLookupItem[], input: string, loading: boolean) => {
-    if (input.trim()) return items
-    return items.slice(
-      0,
-      loading ? INLINE_SUGGESTION_INITIAL_LIMIT : INLINE_SUGGESTION_BACKGROUND_LIMIT,
-    )
-  }
+  const limitInlineSuggestions = (items: ProductLookupItem[]) => items
 
   const vendorNameSuggestions = useMemo(
     () =>
-      limitInlineSuggestions(
-        rankLookupOptions(vendors as ProductLookupItem[], vendorNameInput),
-        vendorNameInput,
-        vendorsLoading,
-      ),
-    [vendorNameInput, vendors, vendorsLoading],
+      limitInlineSuggestions(rankLookupOptions(vendors as ProductLookupItem[], vendorNameInput)),
+    [vendorNameInput, vendors],
   )
   const vendorCodeSuggestions = useMemo(
     () =>
-      limitInlineSuggestions(
-        rankLookupOptions(vendors as ProductLookupItem[], vendorCodeInput),
-        vendorCodeInput,
-        vendorsLoading,
-      ),
-    [vendorCodeInput, vendors, vendorsLoading],
+      limitInlineSuggestions(rankLookupOptions(vendors as ProductLookupItem[], vendorCodeInput)),
+    [vendorCodeInput, vendors],
   )
   const warehouseSuggestions = useMemo(
     () =>
-      limitInlineSuggestions(
-        rankLookupOptions(warehouses as ProductLookupItem[], warehouseInput),
-        warehouseInput,
-        warehousesLoading,
-      ),
-    [warehouseInput, warehouses, warehousesLoading],
+      limitInlineSuggestions(rankLookupOptions(warehouses as ProductLookupItem[], warehouseInput)),
+    [warehouseInput, warehouses],
   )
   const buyerSuggestions = useMemo(
-    () =>
-      limitInlineSuggestions(
-        rankLookupOptions(buyers as ProductLookupItem[], buyerInput),
-        buyerInput,
-        buyersLoading,
-      ),
-    [buyerInput, buyers, buyersLoading],
+    () => limitInlineSuggestions(rankLookupOptions(buyers as ProductLookupItem[], buyerInput)),
+    [buyerInput, buyers],
   )
 
   return {

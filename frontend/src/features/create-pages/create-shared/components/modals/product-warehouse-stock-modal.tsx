@@ -1,9 +1,10 @@
 // ProductWarehouseStockModal: Displays real-time inventory levels across multiple warehouses.
-import { type ComponentProps, useMemo, useState } from 'react'
+import { type ComponentProps, useEffect, useMemo, useRef, useState } from 'react'
 
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
 import { type ProductWarehouseStockItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { AnimatedModalShell } from '@/features/create-pages/create-shared/components/core/animated-modal-shell'
+import { SuggestionList } from '@/features/create-pages/create-shared/components/core/suggestion-list'
 import { type StockPreviewProduct } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 type ProductWarehouseStockModalProps = {
@@ -16,23 +17,12 @@ type ProductWarehouseStockModalProps = {
   onRetry?: () => void
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onAfterClose?: ComponentProps<typeof AnimatedModalShell>['onAfterClose']
-}
-
-const formatStockValue = (value: number) => {
-  if (!Number.isFinite(value)) return '0'
-  return String(value)
-}
-
-function ModalEmptyRow({ colSpan, message }: { colSpan: number; message: string }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} className="px-3 py-4">
-        <div className="flex flex-col items-center gap-1 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-5 text-center">
-          <p className="text-xs font-medium text-zinc-500">{message}</p>
-        </div>
-      </td>
-    </tr>
-  )
+  onSelect?: (item: ProductWarehouseStockItem) => void
+  minSelectableStock?: number
+  /** Pre-fills the modal's search field when first opened (two-way sync with inline input). */
+  initialSearch?: string
+  /** Called whenever the modal's search changes so the parent can sync the inline input. */
+  onSearchChange?: (value: string) => void
 }
 
 const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const
@@ -40,15 +30,25 @@ const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'sl
 export function ProductWarehouseStockModal({
   open,
   product,
-  currentWarehouseCode,
   stocks,
   loading,
   error,
   onRetry,
   onClose,
   onAfterClose,
-}: ProductWarehouseStockModalProps) {
-  const [warehouseSearch, setWarehouseSearch] = useState('')
+  onSelect,
+  minSelectableStock = 0,
+  initialSearch = '',
+  onSearchChange,
+}: Omit<ProductWarehouseStockModalProps, 'currentWarehouseCode'>) {
+  const [warehouseSearch, setWarehouseSearch] = useState(initialSearch)
+  const wasOpenRef = useRef(false)
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      setWarehouseSearch(initialSearch)
+    }
+    wasOpenRef.current = open
+  }, [open, initialSearch])
   const safeStocks = useMemo(() => (Array.isArray(stocks) ? stocks : []), [stocks])
   const sortedStocks = useMemo(
     () => [...safeStocks].sort((a, b) => b.stock - a.stock || a.code.localeCompare(b.code)),
@@ -63,16 +63,25 @@ export function ProductWarehouseStockModal({
     )
   }, [sortedStocks, warehouseSearch])
 
+  const suggestionItems = useMemo(() => {
+    return filteredStocks.map((stockItem) => ({
+      code: stockItem.code,
+      name: stockItem.name,
+      stock: stockItem.stock,
+      disabled: stockItem.stock < minSelectableStock,
+    }))
+  }, [filteredStocks, minSelectableStock])
+
   return (
     <AnimatedModalShell
       open={open}
       onClose={onClose}
-      panelClassName="max-w-2xl"
+      panelClassName="max-w-xl"
       onAfterClose={onAfterClose}
     >
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <div>
-          <h3 className="text-sm font-semibold text-zinc-900">Stock by Warehouse</h3>
+        <div className="min-w-0 flex-1 pr-4">
+          <h3 className="truncate text-sm font-semibold text-zinc-900">Stock by Warehouse</h3>
           <p className="truncate text-xs text-zinc-500">
             {product ? `${product.code} - ${product.name}` : '-'}
           </p>
@@ -80,7 +89,7 @@ export function ProductWarehouseStockModal({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100"
+          className="shrink-0 cursor-pointer rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100"
         >
           Close
         </button>
@@ -91,65 +100,53 @@ export function ProductWarehouseStockModal({
           className="mb-3 h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
           placeholder="Search warehouse code or name"
           value={warehouseSearch}
-          onChange={(event) => setWarehouseSearch(event.target.value)}
+          onChange={(event) => {
+            const value = event.target.value
+            setWarehouseSearch(value)
+            // Sync back to the inline input (two-way sync with the parent lookup field)
+            onSearchChange?.(value)
+          }}
         />
-        <div className="overflow-hidden rounded-xl border border-zinc-200">
-          <div className="max-h-64 overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-zinc-50 text-zinc-600">
-                <tr>
-                  <th className="px-3 py-2">Warehouse</th>
-                  <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2 text-right">Stock</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && filteredStocks.length === 0 ? (
-                  SKELETON_ROW_KEYS.map((slot) => (
-                    <tr key={`stock-skeleton-${slot}`} className="border-t border-zinc-100">
-                      <td className="px-3 py-2" colSpan={3}>
-                        <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
-                      </td>
-                    </tr>
-                  ))
-                ) : error && filteredStocks.length === 0 ? (
-                  <LookupErrorState
-                    colSpan={3}
-                    message={error || 'Unable to load stock details. Please try again.'}
-                    {...(onRetry ? { onRetry } : {})}
-                  />
-                ) : filteredStocks.length === 0 && !loading ? (
-                  <ModalEmptyRow
-                    colSpan={3}
-                    message={
-                      warehouseSearch.trim()
-                        ? `No warehouses match "${warehouseSearch.trim()}".`
-                        : 'No stock data available for this product.'
-                    }
-                  />
-                ) : (
-                  filteredStocks.map((stockItem) => {
-                    const isCurrentWarehouse =
-                      stockItem.code.toLowerCase() === currentWarehouseCode?.toLowerCase()
 
-                    return (
-                      <tr
-                        key={stockItem.code}
-                        className={`border-t border-zinc-100 ${isCurrentWarehouse ? 'bg-blue-50' : ''}`}
-                      >
-                        <td className="px-3 py-2 font-medium text-zinc-800">{stockItem.code}</td>
-                        <td className="px-3 py-2 text-zinc-700">{stockItem.name}</td>
-                        <td className="px-3 py-2 text-right font-medium text-zinc-900">
-                          {formatStockValue(stockItem.stock)}
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+        {loading && filteredStocks.length === 0 ? (
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+            {SKELETON_ROW_KEYS.map((slot) => (
+              <div
+                key={`stock-skeleton-${slot}`}
+                className="border-b border-zinc-100 px-3 py-2 last:border-0"
+              >
+                <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
+              </div>
+            ))}
           </div>
-        </div>
+        ) : error && filteredStocks.length === 0 ? (
+          <LookupErrorState
+            colSpan={1}
+            message={error || 'Unable to load stock details. Please try again.'}
+            {...(onRetry ? { onRetry } : {})}
+          />
+        ) : (
+          <div className="mt-3">
+            <SuggestionList
+              items={suggestionItems}
+              onSelect={(item) => {
+                const matchedOrig = filteredStocks.find((s) => s.code === item.code)
+                if (matchedOrig && onSelect && !item.disabled) {
+                  onSelect(matchedOrig)
+                }
+              }}
+              emptyText={
+                warehouseSearch.trim()
+                  ? `No warehouses match "${warehouseSearch.trim()}".`
+                  : 'No stock data available for this product.'
+              }
+              showStock={true}
+              floating={false}
+              maxHeight="max-h-[300px]"
+              query={warehouseSearch}
+            />
+          </div>
+        )}
       </div>
     </AnimatedModalShell>
   )

@@ -176,6 +176,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
         Price: line.Price || line.UnitPrice,
         DiscountPercent: line.DiscountPercent,
         UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
+        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
         WarehouseCode: line.WarehouseCode,
         TaxCode: line.TaxCode,
         LineTotal: line.LineTotal,
@@ -220,6 +221,28 @@ export const getPurchaseOrderByDocNum = async (
 // Submits a new Purchase Order to SAP B1.
 export const createPurchaseOrder = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
+    const inputLines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    const linesMissingUom = inputLines
+      .map((line) => ({
+        itemCode: String(line.ItemCode ?? "").trim(),
+        uomCode: String(line.UoMCode ?? line.UomCode ?? "").trim(),
+        uomEntry: Number(line.UoMEntry ?? line.UomEntry),
+      }))
+      .filter((line) => !line.uomCode && !Number.isFinite(line.uomEntry));
+
+    if (linesMissingUom.length > 0) {
+      const missingItems = linesMissingUom.map((line) => line.itemCode || "<unknown>");
+      logger.warn({
+        msg: "Purchase order payload has lines without UoMCode/UoMEntry",
+        missingItems,
+      });
+      throw new AppError(
+        `Missing UoM for item(s): ${missingItems.join(", ")}`,
+        400,
+        "VALIDATION_ERROR",
+      );
+    }
+
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       SalesPersonCode: payload.SalesPersonCode,
@@ -232,10 +255,20 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           TaxCode: item.TaxCode as string,
           WarehouseCode: item.WarehouseCode as string,
           DiscountPercent: item.DiscountPercent as number,
         };
+        const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          docLine.UoMEntry = Math.trunc(uomEntry);
+        } else {
+          const uomCode = item.UoMCode ?? item.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            docLine.UoMCode = uomCode as string | number;
+          }
+        }
 
         if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
           docLine.BaseType = item.BaseType;
@@ -246,6 +279,19 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
         return docLine;
       }),
     };
+
+    logger.info({
+      msg: "Purchase order line UoM payload",
+      lines: ((sapPayload.DocumentLines as Record<string, unknown>[]) || []).map((line) => ({
+        ItemCode: String(line.ItemCode ?? ""),
+        UoMCode: String(line.UoMCode ?? "").trim(),
+        UoMEntry:
+          typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
+            ? line.UoMEntry
+            : undefined,
+        WarehouseCode: String(line.WarehouseCode ?? "").trim(),
+      })),
+    });
 
     // Formats DocDate into SAP-compliant YYYY-MM-DD.
     const docDate = sapPayload.DocDate as string;
@@ -320,10 +366,20 @@ export const updatePurchaseOrder = async (
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           TaxCode: item.TaxCode as string,
           WarehouseCode: item.WarehouseCode as string,
           DiscountPercent: item.DiscountPercent as number,
         };
+        const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          docLine.UoMEntry = Math.trunc(uomEntry);
+        } else {
+          const uomCode = item.UoMCode ?? item.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            docLine.UoMCode = uomCode as string | number;
+          }
+        }
 
         if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
           docLine.BaseType = item.BaseType;
