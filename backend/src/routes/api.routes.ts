@@ -1,4 +1,4 @@
-﻿// API Routes Index: The central aggregation point for all backend endpoints.
+// API Routes Index: The central aggregation point for all backend endpoints.
 // It organizes sub-routers by business domain and mounts them under the common /api/v1 namespace.
 
 import express from "express";
@@ -37,6 +37,9 @@ router.use("/ap-credit-notes", apCreditNoteRoutes);
 router.use("/outgoing-payments", outgoingPaymentRoutes);
 
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
+import { salesQuotationRoutes } from "@/routes/sales-quotation.routes";
+
+router.use("/sales-quotations", salesQuotationRoutes);
 router.use("/sales-orders", salesOrderRoutes);
 router.use("/ar-invoices", arInvoiceRoutes);
 router.use("/ar-credit-notes", arCreditNoteRoutes);

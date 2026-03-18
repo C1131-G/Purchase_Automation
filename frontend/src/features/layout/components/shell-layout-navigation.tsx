@@ -104,6 +104,17 @@ export function ShellLayoutNavigation({
             >
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
+                  to="/sales/quotations"
+                  onMouseEnter={() => onTableNavIntent('/sales/quotations')}
+                  onFocus={() => onTableNavIntent('/sales/quotations')}
+                  onTouchStart={() => onTableNavIntent('/sales/quotations')}
+                  isActive={pathname === '/sales/quotations'}
+                >
+                  Sales Quotations
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
                   to="/sales/orders"
                   onMouseEnter={() => onTableNavIntent('/sales/orders')}
                   onFocus={() => onTableNavIntent('/sales/orders')}
