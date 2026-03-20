@@ -6,7 +6,7 @@ import { createSharedQueries } from '@/features/create-pages/create-shared/api/c
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   getMissingMandatoryCreateFieldsTyped,
-  SALES_ORDER_MANDATORY_FIELDS,
+  SALES_QUOTATION_MANDATORY_FIELDS,
 } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
 import {
   calculateOrderTotals,
@@ -23,39 +23,39 @@ import {
   syncLookupSearchByMode,
 } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import {
-  useCreateSalesOrder,
-  useUpdateSalesOrder,
-} from '@/features/create-pages/sales-order-create/api/sales-order-create.mutations'
+  useCreateSalesQuotation,
+  useUpdateSalesQuotation,
+} from '@/features/create-pages/sales-quotation-create/api/sales-quotation-create.mutations'
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   FULL_PRODUCT_LIMIT,
   MANDATORY_ERROR_TEXT,
   type ProductSearchFieldError,
   REQUIRED_FIELD_LABEL_TEXT,
-} from '@/features/create-pages/sales-order-create/utils/so-create.utils'
+} from '@/features/create-pages/sales-quotation-create/utils/sq-create.utils'
 import {
-  salesOrderKeys,
-  salesOrderQueries,
-} from '@/features/table-pages/sales-orders/api/sales-order.queries'
-import { type SalesOrderDetailLine } from '@/features/table-pages/sales-orders/api/sales-order.service'
+  salesQuotationKeys,
+  salesQuotationQueries,
+} from '@/features/table-pages/sales-quotations/api/sales-quotation.queries'
+import { type SalesQuotationDetailLine } from '@/features/table-pages/sales-quotations/api/sales-quotation.service'
 import {
-  useResetSOCreateAction,
-  useSetSOHeaderAction,
-  useSOHeader,
-} from '@/store/create/so-create.store'
+  useResetSQCreateAction,
+  useSetSQHeaderAction,
+  useSQHeader,
+} from '@/store/create/sq-create.store'
 
-import { useSoLookups } from './use-so-lookups'
-import { useSoModals } from './use-so-modals'
-import { useSoProducts } from './use-so-products'
+import { useSqLookups } from './use-sq-lookups'
+import { useSqModals } from './use-sq-modals'
+import { useSqProducts } from './use-sq-products'
 
-type SalesOrderCreateMode = 'create' | 'edit'
+type SalesQuotationCreateMode = 'create' | 'edit'
 
-type UseSalesOrderCreateOptions = {
-  mode?: SalesOrderCreateMode
+type UseSalesQuotationCreateOptions = {
+  mode?: SalesQuotationCreateMode
   docNum?: string
 }
 
-export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
+export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions) {
   const normalizeCodeForCompare = (value: unknown) => {
     const raw = String(value ?? '').trim()
     if (!raw) return ''
@@ -65,12 +65,12 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
   const mode = options?.mode ?? 'create'
   const isEditMode = mode === 'edit'
-  const header = useSOHeader()
-  const resetSOCreate = useResetSOCreateAction()
-  const setHeader = useSetSOHeaderAction()
+  const header = useSQHeader()
+  const resetSQCreate = useResetSQCreateAction()
+  const setHeader = useSetSQHeaderAction()
   const queryClient = useQueryClient()
-  const createSalesOrderMutation = useCreateSalesOrder()
-  const updateSalesOrderMutation = useUpdateSalesOrder()
+  const createSalesQuotationMutation = useCreateSalesQuotation()
+  const updateSalesQuotationMutation = useUpdateSalesQuotation()
 
   const today = useMemo(() => {
     const now = new Date()
@@ -90,7 +90,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const docDateContainerRef = useRef<HTMLDivElement>(null)
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null)
 
-  const modals = useSoModals()
+  const modals = useSqModals()
 
   const notifyRestricted = (fieldName: string) => {
     const now = Date.now()
@@ -105,14 +105,14 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }))
   }
 
-  const lookups = useSoLookups({
+  const lookups = useSqLookups({
     headerWarehouseCode: header.warehouseCode ?? '',
     setHeader,
     clearFieldError,
     closeModal: () => modals.setModalOpen(false),
   })
 
-  const productsHook = useSoProducts({
+  const productsHook = useSqProducts({
     effectiveWarehouseCode: lookups.effectiveWarehouseCode,
     customerLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     productPopupOpen: modals.productPopupOpen,
@@ -125,12 +125,12 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
   useEffect(() => {
     if (isEditMode) return
-    resetSOCreate()
+    resetSQCreate()
     hydratedDocNumRef.current = null
-  }, [isEditMode, resetSOCreate])
+  }, [isEditMode, resetSQCreate])
 
   const editDetailQuery = useQuery({
-    ...salesOrderQueries.detailByDocNum(editDocNum),
+    ...salesQuotationQueries.detailByDocNum(editDocNum),
     enabled: isEditMode && Boolean(editDocNum),
   })
 
@@ -212,7 +212,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         }),
       )
 
-      const mappedRows = detailLines.map((line: SalesOrderDetailLine, index) => {
+      const mappedRows = detailLines.map((line: SalesQuotationDetailLine, index) => {
         const itemCode = String(line.ItemCode ?? '').trim()
         const productMeta = productByCode.get(itemCode)
         const quantity = Number(line.Quantity ?? 1)
@@ -400,7 +400,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   )
 
   const missingMandatoryFields = useMemo(
-    () => getMissingMandatoryCreateFieldsTyped(createMandatoryValues, SALES_ORDER_MANDATORY_FIELDS),
+    () => getMissingMandatoryCreateFieldsTyped(createMandatoryValues, SALES_QUOTATION_MANDATORY_FIELDS),
     [createMandatoryValues],
   )
 
@@ -438,16 +438,16 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     missingMandatoryFields.length > 0
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(', ')}.`
       : !hasValidRowsForCreate
-        ? `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} sales order.`
+        ? `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} sales quotation.`
         : null
 
   const requiredCompletionPercent =
-    ((SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
-      SALES_ORDER_MANDATORY_FIELDS.length) *
+    ((SALES_QUOTATION_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
+      SALES_QUOTATION_MANDATORY_FIELDS.length) *
     100
 
-  const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? 'updating' : 'creating'} sales order.`
-  const rowsErrorText = `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} sales order.`
+  const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? 'updating' : 'creating'} sales quotation.`
+  const rowsErrorText = `Add at least one product row before ${isEditMode ? 'updating' : 'creating'} sales quotation.`
 
   const visibleCreateError =
     createError === requiredFieldsErrorText && !createDisabledReason
@@ -588,42 +588,42 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           })),
         }
 
-    const toastHandle = documentActionToast('Sales Order', isEditMode ? 'update' : 'create')
+    const toastHandle = documentActionToast('Sales Quotation', isEditMode ? 'update' : 'create')
     try {
       let createdDocNum: string | number | undefined
       if (isEditMode) {
         const detail = editDetailQuery.data?.data
         const docEntry = detail?.DocEntry ?? detail?.id
         if (docEntry === undefined || docEntry === null) {
-          setCreateError('Unable to update sales order. Document id is missing.')
+          setCreateError('Unable to update sales quotation. Document id is missing.')
           toastHandle.error()
           return
         }
-        await updateSalesOrderMutation.mutateAsync({ id: docEntry, payload })
+        await updateSalesQuotationMutation.mutateAsync({ id: docEntry, payload })
         createdDocNum = detail?.DocNum
       } else {
-        const result = (await createSalesOrderMutation.mutateAsync({ payload })) as any
+        const result = (await createSalesQuotationMutation.mutateAsync({ payload })) as any
         createdDocNum = result?.data?.DocNum
       }
       toastHandle.success(createdDocNum)
 
       // Proactive Cache Revalidation
-      void queryClient.invalidateQueries({ queryKey: salesOrderKeys.all })
+      void queryClient.invalidateQueries({ queryKey: salesQuotationKeys.all })
       void Promise.allSettled([
-        queryClient.prefetchQuery(salesOrderQueries.list({ page: 1, limit: 10 })),
-        queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 10)),
-        queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 100)),
+        queryClient.prefetchQuery(salesQuotationQueries.list({ page: 1, limit: 10 })),
+        queryClient.prefetchQuery(salesQuotationQueries.docNumSuggestions(undefined, 10)),
+        queryClient.prefetchQuery(salesQuotationQueries.docNumSuggestions(undefined, 100)),
       ])
 
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? '').trim()
         if (currentDocNum) {
-          void queryClient.prefetchQuery(salesOrderQueries.detailByDocNum(currentDocNum))
+          void queryClient.prefetchQuery(salesQuotationQueries.detailByDocNum(currentDocNum))
         }
         return
       }
 
-      resetSOCreate()
+      resetSQCreate()
       lookups.setNameInput('')
       lookups.setCodeInput('')
       lookups.setWarehouseInput('')
@@ -651,13 +651,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       toastHandle.error()
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        `Failed to ${isEditMode ? 'update' : 'create'} sales order. Try again.`,
+        `Failed to ${isEditMode ? 'update' : 'create'} sales quotation. Try again.`,
       )
       setCreateError(errorMessage)
     }
   }
 
-  const submitSalesOrderMutation = isEditMode ? updateSalesOrderMutation : createSalesOrderMutation
+  const submitSalesQuotationMutation = isEditMode ? updateSalesQuotationMutation : createSalesQuotationMutation
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),
@@ -680,8 +680,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       productsHook.applyProductToRow(product, {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
-    createSalesOrderMutation: submitSalesOrderMutation,
-    updateSalesOrderMutation,
+    createSalesQuotationMutation: submitSalesQuotationMutation,
+    updateSalesQuotationMutation,
     editDetailQuery,
     isEditMode,
     isEditHydrated,

@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LayoutSalesQuotationsRouteImport } from './routes/_layout.sales.quotations'
 import { Route as LayoutSalesOrdersRouteImport } from './routes/_layout.sales.orders'
 import { Route as LayoutSalesIncomingPaymentRouteImport } from './routes/_layout.sales.incoming-payment'
+import { Route as LayoutSalesCreateQuotationRouteImport } from './routes/_layout.sales.create-quotation'
 import { Route as LayoutSalesCreateOrderRouteImport } from './routes/_layout.sales.create-order'
 import { Route as LayoutSalesCreateIncomingPaymentRouteImport } from './routes/_layout.sales.create-incoming-payment'
 import { Route as LayoutSalesCreateArInvoiceRouteImport } from './routes/_layout.sales.create-ar-invoice'
@@ -32,6 +34,7 @@ import { Route as LayoutPurchaseApInvoiceRouteImport } from './routes/_layout.pu
 import { Route as LayoutPurchaseApCreditNoteRouteImport } from './routes/_layout.purchase.ap-credit-note'
 import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout.dashboard.sales'
 import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout.dashboard.purchase'
+import { Route as LayoutSalesQuotationsDocNumEditRouteImport } from './routes/_layout.sales.quotations.$docNum.edit'
 import { Route as LayoutSalesOrdersDocNumEditRouteImport } from './routes/_layout.sales.orders.$docNum.edit'
 import { Route as LayoutSalesArInvoiceDocNumEditRouteImport } from './routes/_layout.sales.ar-invoice.$docNum.edit'
 import { Route as LayoutPurchaseOrdersDocNumEditRouteImport } from './routes/_layout.purchase.orders.$docNum.edit'
@@ -51,6 +54,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LayoutSalesQuotationsRoute = LayoutSalesQuotationsRouteImport.update({
+  id: '/sales/quotations',
+  path: '/sales/quotations',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutSalesOrdersRoute = LayoutSalesOrdersRouteImport.update({
   id: '/sales/orders',
   path: '/sales/orders',
@@ -60,6 +68,12 @@ const LayoutSalesIncomingPaymentRoute =
   LayoutSalesIncomingPaymentRouteImport.update({
     id: '/sales/incoming-payment',
     path: '/sales/incoming-payment',
+    getParentRoute: () => LayoutRoute,
+  } as any)
+const LayoutSalesCreateQuotationRoute =
+  LayoutSalesCreateQuotationRouteImport.update({
+    id: '/sales/create-quotation',
+    path: '/sales/create-quotation',
     getParentRoute: () => LayoutRoute,
   } as any)
 const LayoutSalesCreateOrderRoute = LayoutSalesCreateOrderRouteImport.update({
@@ -162,6 +176,12 @@ const LayoutDashboardPurchaseRoute = LayoutDashboardPurchaseRouteImport.update({
   path: '/dashboard/purchase',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutSalesQuotationsDocNumEditRoute =
+  LayoutSalesQuotationsDocNumEditRouteImport.update({
+    id: '/$docNum/edit',
+    path: '/$docNum/edit',
+    getParentRoute: () => LayoutSalesQuotationsRoute,
+  } as any)
 const LayoutSalesOrdersDocNumEditRoute =
   LayoutSalesOrdersDocNumEditRouteImport.update({
     id: '/$docNum/edit',
@@ -208,12 +228,15 @@ export interface FileRoutesByFullPath {
   '/sales/create-ar-invoice': typeof LayoutSalesCreateArInvoiceRoute
   '/sales/create-incoming-payment': typeof LayoutSalesCreateIncomingPaymentRoute
   '/sales/create-order': typeof LayoutSalesCreateOrderRoute
+  '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
   '/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
+  '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
   '/sales/orders/$docNum/edit': typeof LayoutSalesOrdersDocNumEditRoute
+  '/sales/quotations/$docNum/edit': typeof LayoutSalesQuotationsDocNumEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -236,12 +259,15 @@ export interface FileRoutesByTo {
   '/sales/create-ar-invoice': typeof LayoutSalesCreateArInvoiceRoute
   '/sales/create-incoming-payment': typeof LayoutSalesCreateIncomingPaymentRoute
   '/sales/create-order': typeof LayoutSalesCreateOrderRoute
+  '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
   '/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
+  '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
   '/sales/orders/$docNum/edit': typeof LayoutSalesOrdersDocNumEditRoute
+  '/sales/quotations/$docNum/edit': typeof LayoutSalesQuotationsDocNumEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -266,12 +292,15 @@ export interface FileRoutesById {
   '/_layout/sales/create-ar-invoice': typeof LayoutSalesCreateArInvoiceRoute
   '/_layout/sales/create-incoming-payment': typeof LayoutSalesCreateIncomingPaymentRoute
   '/_layout/sales/create-order': typeof LayoutSalesCreateOrderRoute
+  '/_layout/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
   '/_layout/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
   '/_layout/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
+  '/_layout/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/_layout/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/_layout/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/_layout/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
   '/_layout/sales/orders/$docNum/edit': typeof LayoutSalesOrdersDocNumEditRoute
+  '/_layout/sales/quotations/$docNum/edit': typeof LayoutSalesQuotationsDocNumEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -296,12 +325,15 @@ export interface FileRouteTypes {
     | '/sales/create-ar-invoice'
     | '/sales/create-incoming-payment'
     | '/sales/create-order'
+    | '/sales/create-quotation'
     | '/sales/incoming-payment'
     | '/sales/orders'
+    | '/sales/quotations'
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
     | '/sales/orders/$docNum/edit'
+    | '/sales/quotations/$docNum/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -324,12 +356,15 @@ export interface FileRouteTypes {
     | '/sales/create-ar-invoice'
     | '/sales/create-incoming-payment'
     | '/sales/create-order'
+    | '/sales/create-quotation'
     | '/sales/incoming-payment'
     | '/sales/orders'
+    | '/sales/quotations'
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
     | '/sales/orders/$docNum/edit'
+    | '/sales/quotations/$docNum/edit'
   id:
     | '__root__'
     | '/'
@@ -353,12 +388,15 @@ export interface FileRouteTypes {
     | '/_layout/sales/create-ar-invoice'
     | '/_layout/sales/create-incoming-payment'
     | '/_layout/sales/create-order'
+    | '/_layout/sales/create-quotation'
     | '/_layout/sales/incoming-payment'
     | '/_layout/sales/orders'
+    | '/_layout/sales/quotations'
     | '/_layout/purchase/grpo/$docNum/edit'
     | '/_layout/purchase/orders/$docNum/edit'
     | '/_layout/sales/ar-invoice/$docNum/edit'
     | '/_layout/sales/orders/$docNum/edit'
+    | '/_layout/sales/quotations/$docNum/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -390,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_layout/sales/quotations': {
+      id: '/_layout/sales/quotations'
+      path: '/sales/quotations'
+      fullPath: '/sales/quotations'
+      preLoaderRoute: typeof LayoutSalesQuotationsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/sales/orders': {
       id: '/_layout/sales/orders'
       path: '/sales/orders'
@@ -402,6 +447,13 @@ declare module '@tanstack/react-router' {
       path: '/sales/incoming-payment'
       fullPath: '/sales/incoming-payment'
       preLoaderRoute: typeof LayoutSalesIncomingPaymentRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/sales/create-quotation': {
+      id: '/_layout/sales/create-quotation'
+      path: '/sales/create-quotation'
+      fullPath: '/sales/create-quotation'
+      preLoaderRoute: typeof LayoutSalesCreateQuotationRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/sales/create-order': {
@@ -530,6 +582,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutDashboardPurchaseRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/sales/quotations/$docNum/edit': {
+      id: '/_layout/sales/quotations/$docNum/edit'
+      path: '/$docNum/edit'
+      fullPath: '/sales/quotations/$docNum/edit'
+      preLoaderRoute: typeof LayoutSalesQuotationsDocNumEditRouteImport
+      parentRoute: typeof LayoutSalesQuotationsRoute
+    }
     '/_layout/sales/orders/$docNum/edit': {
       id: '/_layout/sales/orders/$docNum/edit'
       path: '/$docNum/edit'
@@ -605,6 +664,19 @@ const LayoutSalesOrdersRouteChildren: LayoutSalesOrdersRouteChildren = {
 const LayoutSalesOrdersRouteWithChildren =
   LayoutSalesOrdersRoute._addFileChildren(LayoutSalesOrdersRouteChildren)
 
+interface LayoutSalesQuotationsRouteChildren {
+  LayoutSalesQuotationsDocNumEditRoute: typeof LayoutSalesQuotationsDocNumEditRoute
+}
+
+const LayoutSalesQuotationsRouteChildren: LayoutSalesQuotationsRouteChildren = {
+  LayoutSalesQuotationsDocNumEditRoute: LayoutSalesQuotationsDocNumEditRoute,
+}
+
+const LayoutSalesQuotationsRouteWithChildren =
+  LayoutSalesQuotationsRoute._addFileChildren(
+    LayoutSalesQuotationsRouteChildren,
+  )
+
 interface LayoutRouteChildren {
   LayoutDashboardPurchaseRoute: typeof LayoutDashboardPurchaseRoute
   LayoutDashboardSalesRoute: typeof LayoutDashboardSalesRoute
@@ -624,8 +696,10 @@ interface LayoutRouteChildren {
   LayoutSalesCreateArInvoiceRoute: typeof LayoutSalesCreateArInvoiceRoute
   LayoutSalesCreateIncomingPaymentRoute: typeof LayoutSalesCreateIncomingPaymentRoute
   LayoutSalesCreateOrderRoute: typeof LayoutSalesCreateOrderRoute
+  LayoutSalesCreateQuotationRoute: typeof LayoutSalesCreateQuotationRoute
   LayoutSalesIncomingPaymentRoute: typeof LayoutSalesIncomingPaymentRoute
   LayoutSalesOrdersRoute: typeof LayoutSalesOrdersRouteWithChildren
+  LayoutSalesQuotationsRoute: typeof LayoutSalesQuotationsRouteWithChildren
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
@@ -648,8 +722,10 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutSalesCreateArInvoiceRoute: LayoutSalesCreateArInvoiceRoute,
   LayoutSalesCreateIncomingPaymentRoute: LayoutSalesCreateIncomingPaymentRoute,
   LayoutSalesCreateOrderRoute: LayoutSalesCreateOrderRoute,
+  LayoutSalesCreateQuotationRoute: LayoutSalesCreateQuotationRoute,
   LayoutSalesIncomingPaymentRoute: LayoutSalesIncomingPaymentRoute,
   LayoutSalesOrdersRoute: LayoutSalesOrdersRouteWithChildren,
+  LayoutSalesQuotationsRoute: LayoutSalesQuotationsRouteWithChildren,
 }
 
 const LayoutRouteWithChildren =

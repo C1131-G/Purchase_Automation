@@ -9,6 +9,7 @@ import { incomingPaymentQueries } from '@/features/table-pages/incoming-payment/
 import { outgoingPaymentQueries } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.queries'
 import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
 import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
+import { salesQuotationQueries } from '@/features/table-pages/sales-quotations/api/sales-quotation.queries'
 import { runSmartPrefetch } from '@/features/table-pages/table-shared/hooks/prefetch-orchestrator'
 
 export type TableRoutePath =
@@ -17,6 +18,7 @@ export type TableRoutePath =
   | '/purchase/ap-invoice'
   | '/purchase/ap-credit-note'
   | '/purchase/outgoing-payment'
+  | '/sales/quotations'
   | '/sales/orders'
   | '/sales/ar-invoice'
   | '/sales/ar-credit-note'
@@ -34,6 +36,7 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     '/purchase/ap-invoice': apInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
     '/purchase/ap-credit-note': apCreditNoteQueries.list(DEFAULT_TABLE_PARAMS),
     '/purchase/outgoing-payment': outgoingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
+    '/sales/quotations': salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/orders': salesOrderQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/ar-invoice': arInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/ar-credit-note': arCreditNoteQueries.list(DEFAULT_TABLE_PARAMS),

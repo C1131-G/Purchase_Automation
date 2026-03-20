@@ -17,26 +17,26 @@ import {
   toDisplayDate,
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
-import { SalesOrderModals } from '@/features/create-pages/sales-order-create/components/sales-order-modals'
-import { SalesOrderProductSection } from '@/features/create-pages/sales-order-create/components/sales-order-product-section'
-import { useSalesOrderCreate } from '@/features/create-pages/sales-order-create/hooks/use-sales-order-create'
-import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
+import { SalesQuotationModals } from '@/features/create-pages/sales-quotation-create/components/sales-quotation-modals'
+import { SalesQuotationProductSection } from '@/features/create-pages/sales-quotation-create/components/sales-quotation-product-section'
+import { useSalesQuotationCreate } from '@/features/create-pages/sales-quotation-create/hooks/use-sales-quotation-create'
+import { salesQuotationQueries } from '@/features/table-pages/sales-quotations/api/sales-quotation.queries'
 
-interface SalesOrderCreateProps {
+interface SalesQuotationCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
 }
 
 /**
- * SalesOrderCreate: Orchestrator for the complex SO creation multi-step flow.
- * State is centralized in useSalesOrderCreate to keep the UI declarative and clean.
+ * SalesQuotationCreate: Orchestrator for the complex SQ creation multi-step flow.
+ * State is centralized in useSalesQuotationCreate to keep the UI declarative and clean.
  * Leverages CreatePageWrapper for consistent entity layout.
  */
-export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreateProps) {
+export function SalesQuotationCreate({ mode = 'create', docNum }: SalesQuotationCreateProps) {
   const queryClient = useQueryClient()
-  const state = useSalesOrderCreate(docNum ? { mode, docNum } : { mode })
+  const state = useSalesQuotationCreate(docNum ? { mode, docNum } : { mode })
 
-  const pageTitle = state.isEditMode ? 'Update Sales Order' : 'Create Sales Order'
+  const pageTitle = state.isEditMode ? 'Update Sales Quotation' : 'Create Sales Quotation'
   const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
       state.warehousesQuery.isLoading &&
@@ -53,25 +53,21 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
     : undefined
 
   return (
-    <div
-      onClickCapture={() => goeyToast.dismiss()}
-      onKeyDownCapture={() => goeyToast.dismiss()}
-      className="contents"
-    >
+    <div onClickCapture={() => goeyToast.dismiss()} onKeyDownCapture={() => goeyToast.dismiss()} className="contents">
       <CreatePageWrapper
         rootLabel="Sales"
         breadcrumbParent={{
-          label: 'Sales Orders Data Table',
-          to: '/sales/orders',
+          label: 'Sales Quotations Data Table',
+          to: '/sales/quotations',
           onMouseEnter: () =>
-            void queryClient.prefetchQuery(salesOrderQueries.list({ page: 1, limit: 10 })),
+            void queryClient.prefetchQuery(salesQuotationQueries.list({ page: 1, limit: 10 })),
         }}
       pageTitle={pageTitle}
       editError={
         state.isEditMode && state.editDetailQuery.isError
           ? state.editDetailQuery.error instanceof Error
             ? state.editDetailQuery.error.message
-            : 'Unable to load sales order for editing.'
+            : 'Unable to load sales quotation for editing.'
           : null
       }
     >
@@ -194,8 +190,8 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
         />
       </div>
 
-      <SalesOrderProductSection
-        sectionId="sales-order-product-section"
+      <SalesQuotationProductSection
+        sectionId="sales-quotation-product-section"
         missingSearchMandatoryFields={state.missingSearchMandatoryFields}
         searchRequiredCompletionPercent={state.searchRequiredCompletionPercent}
         searchMandatoryFields={state.searchMandatoryFields}
@@ -213,7 +209,7 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
         summaryCurrencyLabel={state.summaryCurrencyLabel}
         createError={state.createError}
         createDisabledReason={state.createDisabledReason}
-        createSalesOrderMutation={state.createSalesOrderMutation}
+        createSalesQuotationMutation={state.createSalesQuotationMutation}
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         handleCreateOrder={state.handleCreateOrder}
@@ -223,7 +219,7 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
           state.isEditMode ? (
             <Link
               to="/sales/create-ar-invoice"
-              search={{ sourceDocNum: docNum, sourceDocType: 'SalesOrder' }}
+              search={{ sourceDocNum: docNum, sourceDocType: 'SalesQuotation' }}
             >
               <Button
                 type="button"
@@ -240,9 +236,8 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
           ) : null
         }
       />
-      <SalesOrderModals state={state} />
+      <SalesQuotationModals state={state} />
       </CreatePageWrapper>
     </div>
   )
 }
-

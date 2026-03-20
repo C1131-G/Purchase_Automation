@@ -1,4 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
+import { goeyToast } from 'goey-toast'
 import { type MouseEvent } from 'react'
 
 import { ARInvoiceProductSection } from '@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section'
@@ -29,7 +31,13 @@ interface ARInvoiceCreateProps {
  */
 export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProps) {
   const queryClient = useQueryClient()
-  const state = useARInvoiceCreate(docNum ? { mode, docNum } : { mode })
+  const search: any = useSearch({ strict: false })
+  const sourceDocNum = mode === 'create' ? search.sourceDocNum : undefined
+  const sourceDocType = mode === 'create' ? search.sourceDocType : undefined
+
+  const state = useARInvoiceCreate(
+    docNum ? { mode, docNum } : { mode, sourceDocNum, sourceDocType },
+  )
 
   const pageTitle = state.isEditMode ? 'Update A/R Invoice' : 'Create A/R Invoice'
   const isFormHydrating = !state.isEditMode
@@ -48,7 +56,12 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
     : undefined
 
   return (
-    <CreatePageWrapper
+    <div
+      onClickCapture={() => goeyToast.dismiss()}
+      onKeyDownCapture={() => goeyToast.dismiss()}
+      className="contents"
+    >
+      <CreatePageWrapper
       rootLabel="Sales"
       breadcrumbParent={{
         label: 'A/R Invoice Data Table',
@@ -198,5 +211,6 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         }}
       />
     </CreatePageWrapper>
+    </div>
   )
 }

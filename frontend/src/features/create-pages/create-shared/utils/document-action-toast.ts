@@ -19,9 +19,12 @@ export function documentActionToast(documentType: string, action: 'create' | 'up
   })
 
   return {
-    success: () => {
+    success: (docNum?: string | number) => {
       goeyToast.dismiss(loadingId)
-      goeyToast.success(`${documentType} ${successVerb}`)
+      const docSuffix = docNum ? ` ${docNum}` : ''
+      goeyToast.success(`${documentType}${docSuffix} ${successVerb}`, {
+        duration: 86400000, // 24 hours
+      })
     },
     error: () => {
       goeyToast.dismiss(loadingId)

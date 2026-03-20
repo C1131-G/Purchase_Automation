@@ -42,6 +42,8 @@ import {
   arInvoiceQueries,
 } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
 import { type ARInvoiceDetailLine } from '@/features/table-pages/ar-invoices/api/ar-invoice.service'
+import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
+import { salesQuotationQueries } from '@/features/table-pages/sales-quotations/api/sales-quotation.queries'
 import {
   type ARInvoiceHeaderState,
   useARInvoiceHeader,
@@ -58,6 +60,8 @@ type ARInvoiceCreateMode = 'create' | 'edit'
 type UseARInvoiceCreateOptions = {
   mode?: ARInvoiceCreateMode
   docNum?: string
+  sourceDocNum?: string
+  sourceDocType?: 'SalesQuotation' | 'SalesOrder'
 }
 
 export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
@@ -137,6 +141,16 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const editDetailQuery = useQuery({
     ...arInvoiceQueries.detailByDocNum(editDocNum),
     enabled: isEditMode && Boolean(editDocNum),
+  })
+
+  const sourceDetailQuerySQ = useQuery({
+    ...salesQuotationQueries.detailByDocNum(options?.sourceDocNum ?? ''),
+    enabled: mode === 'create' && options?.sourceDocType === 'SalesQuotation' && Boolean(options?.sourceDocNum),
+  })
+
+  const sourceDetailQuerySO = useQuery({
+    ...salesOrderQueries.detailByDocNum(options?.sourceDocNum ?? ''),
+    enabled: mode === 'create' && options?.sourceDocType === 'SalesOrder' && Boolean(options?.sourceDocNum),
   })
 
   useEffect(() => {
@@ -297,6 +311,169 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     isEditMode,
     lookups,
     editDocNum,
+    productsHook,
+    queryClient,
+    setHeader,
+  ])
+
+  useEffect(() => {
+    if (mode !== 'create') return
+    const currentSourceDocNum = options?.sourceDocNum
+    const currentSourceDocType = options?.sourceDocType
+    if (!currentSourceDocNum || !currentSourceDocType) return
+
+    const detail =
+      currentSourceDocType === 'SalesQuotation'
+        ? sourceDetailQuerySQ.data?.data
+        : sourceDetailQuerySO.data?.data
+
+    if (!detail) return
+    if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}`) return
+
+    const customerCode = String(detail.CardCode ?? '').trim()
+    const customerName = String(detail.CardName ?? '').trim()
+    const matchedCustomer = lookups.vendors.find((item) => String(item.code) === customerCode)
+    const salesEmployeeNameFromDocCode =
+      detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+        ? lookups.salesEmployees.find(
+            (item: LookupItem) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(detail.SalesPersonCode),
+          )?.name
+        : ''
+    const associatedSalesEmployeeName =
+      salesEmployeeNameFromDocCode ||
+      (matchedCustomer?.salesEmployeeCode !== undefined
+        ? lookups.salesEmployees.find(
+            (item: LookupItem) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(matchedCustomer.salesEmployeeCode),
+          )?.name
+        : '') ||
+      matchedCustomer?.salesEmployeeName?.trim() ||
+      ''
+    const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+    const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode)
+    
+    // Original doc comments might have markers, just preserve the simple part or indicate copy.
+    const rawComments = String(detail.Comments ?? '').trim()
+    const splitComments = rawComments.split(' | ').map((part) => part.trim())
+    const hasReferenceMarker = splitComments.length > 1
+    const originalComments = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+    
+    const referenceNo = String((detail as any).NumAtCard ?? '')
+    const comments = originalComments || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
+    const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
+    const address = String(detail.Address ?? '').trim()
+
+    void (async () => {
+      const detailLines = detail.DocumentLines ?? []
+      const productsForWarehouse = (
+        warehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(
+                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+              )
+              .catch(() => [])
+          : []
+      ) as ProductLookupItem[]
+
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      )
+      const stockByItemCode = new Map<string, number>()
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line: any) => String(line.ItemCode ?? '').trim())),
+      ].filter(Boolean)
+
+      await Promise.all(
+        uniqueItemCodes.map(async (itemCode) => {
+          const warehouseStocks = (await queryClient
+            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+            .catch(() => [])) as Array<{ code: string; stock: number }>
+
+          const resolvedStock = warehouseCode
+            ? Number(
+                warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
+                  ?.stock ?? 0,
+              )
+            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
+          stockByItemCode.set(itemCode, resolvedStock)
+        }),
+      )
+
+      const baseType = currentSourceDocType === 'SalesQuotation' ? 23 : 17
+
+      const mappedRows = detailLines.map((line: any, index: number) => {
+        const itemCode = String(line.ItemCode ?? '').trim()
+        const productMeta = productByCode.get(itemCode)
+        const quantity = Number(line.Quantity ?? 1)
+        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
+        const grossAmount = Math.max(0, price * quantity)
+        const apiDiscountPercent = Number(line.DiscountPercent ?? NaN)
+        const lineTotal = Number(line.LineTotal ?? NaN)
+        const derivedDiscountAmountFromLineTotal =
+          Number.isFinite(lineTotal) && grossAmount > 0
+            ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+            : 0
+        const discountPercent = Number.isFinite(apiDiscountPercent)
+          ? Math.max(0, apiDiscountPercent)
+          : grossAmount > 0
+            ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+            : 0
+        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
+        const resolvedUomEntry =
+          typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+            ? line.UoMEntry
+            : productMeta?.uomEntry
+        return {
+          id: `row-copy-${currentSourceDocNum}-${index}`,
+          productCode: itemCode,
+          productName: String(line.ItemDescription ?? productMeta?.name ?? '').trim(),
+          stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
+          price,
+          currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
+          taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
+          taxRate: Number(productMeta?.taxRate ?? 0),
+          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
+          ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
+          quantity,
+          discountPercent,
+          discountAmount,
+          comment: '',
+          baseEntry: detail.DocEntry ?? detail.id,
+          baseLine: line.LineNum ?? index,
+          baseType: baseType,
+          warehouseCode: String(line.WarehouseCode ?? '').trim(),
+        }
+      })
+
+      setHeader({
+        vendorCode: customerCode,
+        vendorName: customerName,
+        docDueDate,
+        warehouseCode,
+        referenceNo,
+        comments,
+      })
+      lookups.setNameInput(customerName)
+      lookups.setCodeInput(customerCode)
+      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
+      lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
+      lookups.setBillToAddress(address)
+      lookups.setShipToAddress(address)
+      productsHook.setProductRows(mappedRows)
+      productsHook.setProductRowDrafts({})
+
+      hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
+    })()
+  }, [
+    sourceDetailQuerySQ.data,
+    sourceDetailQuerySO.data,
+    mode,
+    options?.sourceDocNum,
+    options?.sourceDocType,
+    lookups,
     productsHook,
     queryClient,
     setHeader,
@@ -575,6 +752,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     const toastHandle = documentActionToast('A/R Invoice', isEditMode ? 'update' : 'create')
     try {
+      let createdDocNum: string | number | undefined
       if (isEditMode) {
         const detail = editDetailQuery.data?.data
         const docEntry = detail?.DocEntry ?? detail?.id
@@ -584,10 +762,12 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           return
         }
         await updateARInvoiceMutation.mutateAsync({ id: docEntry, payload })
+        createdDocNum = detail?.DocNum
       } else {
-        await createARInvoiceMutation.mutateAsync({ payload })
+        const result = (await createARInvoiceMutation.mutateAsync({ payload })) as any
+        createdDocNum = result?.data?.DocNum
       }
-      toastHandle.success()
+      toastHandle.success(createdDocNum)
 
       void queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all })
       void Promise.allSettled([
