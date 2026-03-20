@@ -47,6 +47,7 @@ interface BaseProductSectionProps {
   mandatoryCompletionPercent?: number
   mandatoryFieldsTotal?: number
   isEditMode?: boolean
+  secondaryActions?: ReactNode
 }
 
 /**
@@ -79,6 +80,7 @@ export function BaseProductSection({
   mandatoryCompletionPercent = 0,
   mandatoryFieldsTotal = 0,
   isEditMode = false,
+  secondaryActions,
 }: BaseProductSectionProps) {
   const navigate = useNavigate()
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
@@ -215,6 +217,7 @@ export function BaseProductSection({
                 )
               ) : null
             ) : null}
+            {secondaryActions}
             <Button
               type="button"
               size="md"

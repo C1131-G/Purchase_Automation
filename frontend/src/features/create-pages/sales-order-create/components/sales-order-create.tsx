@@ -1,5 +1,51 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { goeyToast } from 'goey-toast'
+import { Copy } from 'lucide-react'
 import { type MouseEvent } from 'react'
+
+import { Button } from '@/components/button'
+
+import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
+import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
+import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
+import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
+import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
+import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
+import {
+  parseISODate,
+  toDisplayDate,
+  toISODate,
+} from '@/features/create-pages/create-shared/utils/create-order.utils'
+import { SalesOrderModals } from '@/features/create-pages/sales-order-create/components/sales-order-modals'
+import { SalesOrderProductSection } from '@/features/create-pages/sales-order-create/components/sales-order-product-section'
+import { useSalesOrderCreate } from '@/features/create-pages/sales-order-create/hooks/use-sales-order-create'
+import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
+
+interface SalesOrderCreateProps {
+  mode?: 'create' | 'edit'
+  docNum?: string
+}
+
+/**
+ * SalesOrderCreate: Orchestrator for the complex SO creation multi-step flow.
+ * State is centralized in useSalesOrderCreate to keep the UI declarative and clean.
+ * Leverages CreatePageWrapper for consistent entity layout.
+ */
+export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreateProps) {
+  const queryClient = useQueryClient()
+  const state = useSalesOrderCreate(docNum ? { mode, docNum } : { mode })
+
+  const pageTitle = state.isEditMode ? 'Update Sales Order' : 'Create Sales Order'
+  const isFormHydrating = !state.isEditMode
+```typescript
+import { useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { goeyToast } from 'goey-toast'
+import { Copy } from 'lucide-react'
+import { type MouseEvent } from 'react'
+
+import { Button } from '@/components/button'
 
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
@@ -48,14 +94,19 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
     : undefined
 
   return (
-    <CreatePageWrapper
-      rootLabel="Sales"
-      breadcrumbParent={{
-        label: 'Sales Orders Data Table',
-        to: '/sales/orders',
-        onMouseEnter: () =>
-          void queryClient.prefetchQuery(salesOrderQueries.list({ page: 1, limit: 10 })),
-      }}
+    <div
+      onClickCapture={() => goeyToast.dismiss()}
+      onKeyDownCapture={() => goeyToast.dismiss()}
+      className="contents"
+    >
+      <CreatePageWrapper
+        rootLabel="Sales"
+        breadcrumbParent={{
+          label: 'Sales Orders Data Table',
+          to: '/sales/orders',
+          onMouseEnter: () =>
+            void queryClient.prefetchQuery(salesOrderQueries.list({ page: 1, limit: 10 })),
+        }}
       pageTitle={pageTitle}
       editError={
         state.isEditMode && state.editDetailQuery.isError
@@ -209,8 +260,30 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
         handleCreateOrder={state.handleCreateOrder}
         submitLabel={state.isEditMode ? 'Update' : 'Create'}
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
+        secondaryActions={
+          state.isEditMode ? (
+            <Link
+              to="/sales/create-ar-invoice"
+              search={{ sourceDocNum: docNum, sourceDocType: 'SalesOrder' }}
+            >
+              <Button
+                type="button"
+                size="md"
+                variant="outline"
+                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Copy className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                  Copy to Invoice
+                </span>
+              </Button>
+            </Link>
+          ) : null
+        }
       />
       <SalesOrderModals state={state} />
-    </CreatePageWrapper>
+      </CreatePageWrapper>
+    </div>
   )
 }
+```

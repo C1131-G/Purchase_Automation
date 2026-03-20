@@ -7,6 +7,8 @@ export const PURCHASE_ORDER_MANDATORY_FIELDS = [
 
 export const SALES_ORDER_MANDATORY_FIELDS = [...PURCHASE_ORDER_MANDATORY_FIELDS] as const
 
+export const SALES_QUOTATION_MANDATORY_FIELDS = [...PURCHASE_ORDER_MANDATORY_FIELDS] as const
+
 type MandatoryFieldValue = string | number | boolean | null | undefined
 
 export const getMissingMandatoryCreateFieldsTyped = <TField extends string>(

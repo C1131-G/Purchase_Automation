@@ -1,45 +1,45 @@
 import { type ReactNode } from 'react'
 import { BaseProductSection } from '@/features/create-pages/create-shared/components/sections/base-product-section'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
-import { SALES_ORDER_MANDATORY_FIELDS } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
-import { type useSalesOrderCreate } from '@/features/create-pages/sales-order-create/hooks/use-sales-order-create'
-import { REQUIRED_FIELD_LABEL_TEXT } from '@/features/create-pages/sales-order-create/utils/so-create.utils'
+import { SALES_QUOTATION_MANDATORY_FIELDS } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
+import { type useSalesQuotationCreate } from '@/features/create-pages/sales-quotation-create/hooks/use-sales-quotation-create'
+import { REQUIRED_FIELD_LABEL_TEXT } from '@/features/create-pages/sales-quotation-create/utils/sq-create.utils'
 
-type SalesOrderState = ReturnType<typeof useSalesOrderCreate>
+type SalesQuotationState = ReturnType<typeof useSalesQuotationCreate>
 
-interface SalesOrderProductSectionProps {
+interface SalesQuotationProductSectionProps {
   sectionId: string
-  missingSearchMandatoryFields: SalesOrderState['missingSearchMandatoryFields']
-  searchRequiredCompletionPercent: SalesOrderState['searchRequiredCompletionPercent']
-  searchMandatoryFields: SalesOrderState['searchMandatoryFields']
-  openProductPopup: SalesOrderState['openProductPopup']
-  prefetchProducts: SalesOrderState['prefetchProducts']
-  productRows: SalesOrderState['productRows']
-  productRowDrafts: SalesOrderState['productRowDrafts']
-  updateProductRow: SalesOrderState['updateProductRow']
-  removeProductRow: SalesOrderState['removeProductRow']
-  setProductRowDraft: SalesOrderState['setProductRowDraft']
-  clearProductRowDraft: SalesOrderState['clearProductRowDraft']
-  totals: SalesOrderState['totals']
-  summaryCurrencyLabel: SalesOrderState['summaryCurrencyLabel']
-  createError: SalesOrderState['createError']
-  createDisabledReason: SalesOrderState['createDisabledReason']
-  createSalesOrderMutation: SalesOrderState['createSalesOrderMutation']
-  warehouses: SalesOrderState['warehouses']
-  warehousesLoading: SalesOrderState['warehousesQuery']['isLoading']
-  missingMandatoryFields: SalesOrderState['missingMandatoryFields']
-  requiredCompletionPercent: SalesOrderState['requiredCompletionPercent']
-  handleCreateOrder: SalesOrderState['handleCreateOrder']
+  missingSearchMandatoryFields: SalesQuotationState['missingSearchMandatoryFields']
+  searchRequiredCompletionPercent: SalesQuotationState['searchRequiredCompletionPercent']
+  searchMandatoryFields: SalesQuotationState['searchMandatoryFields']
+  openProductPopup: SalesQuotationState['openProductPopup']
+  prefetchProducts: SalesQuotationState['prefetchProducts']
+  productRows: SalesQuotationState['productRows']
+  productRowDrafts: SalesQuotationState['productRowDrafts']
+  updateProductRow: SalesQuotationState['updateProductRow']
+  removeProductRow: SalesQuotationState['removeProductRow']
+  setProductRowDraft: SalesQuotationState['setProductRowDraft']
+  clearProductRowDraft: SalesQuotationState['clearProductRowDraft']
+  totals: SalesQuotationState['totals']
+  summaryCurrencyLabel: SalesQuotationState['summaryCurrencyLabel']
+  createError: SalesQuotationState['createError']
+  createDisabledReason: SalesQuotationState['createDisabledReason']
+  createSalesQuotationMutation: SalesQuotationState['createSalesQuotationMutation']
+  warehouses: SalesQuotationState['warehouses']
+  warehousesLoading: SalesQuotationState['warehousesQuery']['isLoading']
+  missingMandatoryFields: SalesQuotationState['missingMandatoryFields']
+  requiredCompletionPercent: SalesQuotationState['requiredCompletionPercent']
+  handleCreateOrder: SalesQuotationState['handleCreateOrder']
   submitLabel?: string
   submitLoadingText?: string
   secondaryActions?: ReactNode
 }
 
 /**
- * SalesOrderProductSection: Management of Sales Order line items, totals, and submission.
+ * SalesQuotationProductSection: Management of Sales Quotation line items, totals, and submission.
  * Leverages the shared BaseProductSection for a consistent ERP UI.
  */
-export function SalesOrderProductSection({
+export function SalesQuotationProductSection({
   sectionId,
   missingSearchMandatoryFields,
   searchRequiredCompletionPercent,
@@ -56,7 +56,7 @@ export function SalesOrderProductSection({
   summaryCurrencyLabel,
   createError,
   createDisabledReason,
-  createSalesOrderMutation,
+  createSalesQuotationMutation,
   missingMandatoryFields,
   requiredCompletionPercent,
   warehouses,
@@ -65,7 +65,7 @@ export function SalesOrderProductSection({
   submitLabel = 'Create',
   submitLoadingText = 'Creating...',
   secondaryActions,
-}: SalesOrderProductSectionProps) {
+}: SalesQuotationProductSectionProps) {
   return (
     <BaseProductSection
       sectionId={sectionId}
@@ -78,17 +78,17 @@ export function SalesOrderProductSection({
       totals={totals}
       currencyLabel={summaryCurrencyLabel}
       createError={createError}
-      backToUrl="/sales/orders"
+      backToUrl="/sales/quotations"
       backToLabel="Back to Table"
       submitLabel={submitLabel}
       submitLoadingText={submitLoadingText}
       secondaryActions={secondaryActions}
-      isSubmitting={createSalesOrderMutation.isPending}
+      isSubmitting={createSalesQuotationMutation.isPending}
       onSubmit={handleCreateOrder}
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
-      mandatoryFieldsTotal={SALES_ORDER_MANDATORY_FIELDS.length}
+      mandatoryFieldsTotal={SALES_QUOTATION_MANDATORY_FIELDS.length}
     >
       <CreateProductTable
         productRows={productRows}

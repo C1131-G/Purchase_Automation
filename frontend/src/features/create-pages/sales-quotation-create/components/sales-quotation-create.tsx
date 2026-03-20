@@ -1,45 +1,42 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useSearch } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
+import { Copy } from 'lucide-react'
 import { type MouseEvent } from 'react'
 
-import { ARInvoiceProductSection } from '@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section'
-import { useARInvoiceCreate } from '@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create'
+import { Button } from '@/components/button'
+
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
-import { SharedCreateModals } from '@/features/create-pages/create-shared/components/modals/shared-create-modals'
 import {
   parseISODate,
   toDisplayDate,
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
-import { arInvoiceQueries } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
+import { SalesQuotationModals } from '@/features/create-pages/sales-quotation-create/components/sales-quotation-modals'
+import { SalesQuotationProductSection } from '@/features/create-pages/sales-quotation-create/components/sales-quotation-product-section'
+import { useSalesQuotationCreate } from '@/features/create-pages/sales-quotation-create/hooks/use-sales-quotation-create'
+import { salesQuotationQueries } from '@/features/table-pages/sales-quotations/api/sales-quotation.queries'
 
-interface ARInvoiceCreateProps {
+interface SalesQuotationCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
 }
 
 /**
- * ARInvoiceCreate: Orchestrator for the complex A/R Invoice creation flow.
- * State is managed by useARInvoiceCreate for a clean, declarative UI.
+ * SalesQuotationCreate: Orchestrator for the complex SQ creation multi-step flow.
+ * State is centralized in useSalesQuotationCreate to keep the UI declarative and clean.
  * Leverages CreatePageWrapper for consistent entity layout.
  */
-export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProps) {
+export function SalesQuotationCreate({ mode = 'create', docNum }: SalesQuotationCreateProps) {
   const queryClient = useQueryClient()
-  const search: any = useSearch({ strict: false })
-  const sourceDocNum = mode === 'create' ? search.sourceDocNum : undefined
-  const sourceDocType = mode === 'create' ? search.sourceDocType : undefined
+  const state = useSalesQuotationCreate(docNum ? { mode, docNum } : { mode })
 
-  const state = useARInvoiceCreate(
-    docNum ? { mode, docNum } : { mode, sourceDocNum, sourceDocType },
-  )
-
-  const pageTitle = state.isEditMode ? 'Update A/R Invoice' : 'Create A/R Invoice'
+  const pageTitle = state.isEditMode ? 'Update Sales Quotation' : 'Create Sales Quotation'
   const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
       state.warehousesQuery.isLoading &&
@@ -47,7 +44,7 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
       !state.vendorsQuery.data
     : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated
 
-  const handleCustomerRestrictedClick = state.isEditMode
+  const handleVendorRestrictedClick = state.isEditMode
     ? (event: MouseEvent<HTMLDivElement>) => {
         event.preventDefault()
         event.stopPropagation()
@@ -56,31 +53,27 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
     : undefined
 
   return (
-    <div
-      onClickCapture={() => goeyToast.dismiss()}
-      onKeyDownCapture={() => goeyToast.dismiss()}
-      className="contents"
-    >
+    <div onClickCapture={() => goeyToast.dismiss()} onKeyDownCapture={() => goeyToast.dismiss()} className="contents">
       <CreatePageWrapper
-      rootLabel="Sales"
-      breadcrumbParent={{
-        label: 'A/R Invoice Data Table',
-        to: '/sales/ar-invoice',
-        onMouseEnter: () =>
-          void queryClient.prefetchQuery(arInvoiceQueries.list({ page: 1, limit: 10 })),
-      }}
+        rootLabel="Sales"
+        breadcrumbParent={{
+          label: 'Sales Quotations Data Table',
+          to: '/sales/quotations',
+          onMouseEnter: () =>
+            void queryClient.prefetchQuery(salesQuotationQueries.list({ page: 1, limit: 10 })),
+        }}
       pageTitle={pageTitle}
       editError={
         state.isEditMode && state.editDetailQuery.isError
           ? state.editDetailQuery.error instanceof Error
             ? state.editDetailQuery.error.message
-            : 'Unable to load A/R invoice for editing.'
+            : 'Unable to load sales quotation for editing.'
           : null
       }
     >
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
-          onClickCapture={handleCustomerRestrictedClick}
+          onClickCapture={handleVendorRestrictedClick}
           className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
@@ -90,7 +83,7 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
                 state.vendorsQuery.isError
                   ? state.vendorsQuery.error instanceof Error
                     ? state.vendorsQuery.error.message
-                    : 'Unable to load customers.'
+                    : 'Unable to load customers. Please login again.'
                   : null
               }
               nameInput={state.nameInput}
@@ -130,7 +123,6 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
           onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
           onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
           onSelectSalesEmployee={state.selectSalesEmployee}
-          salesEmployeeDisabled={state.isEditMode}
         />
 
         <DocumentDatesGrid
@@ -145,10 +137,14 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
           parseISODate={parseISODate}
           toISODate={toISODate}
           onSetActiveDatePicker={state.setActiveDatePicker}
-          onDocDateChange={state.setDocDate}
-          onDocDueDateChange={state.setDocDueDate}
-          docDateReadOnly={state.isEditMode}
-          docDueDateEditableHighlight={state.isEditMode}
+          onDocDateChange={(value) => state.setHeader({ docDate: value })}
+          onDocDueDateChange={(value) => {
+            state.setHeader({ docDueDate: value })
+            state.setProductSearchFieldErrors((prev) => ({
+              ...prev,
+              docDueDate: undefined,
+            }))
+          }}
         />
       </div>
 
@@ -157,18 +153,36 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
           loading={isFormHydrating}
           billToAddress={state.billToAddress}
           shipToAddress={state.shipToAddress}
-          readOnly={state.isEditMode}
-          onBillToAddressChange={state.setBillToAddress}
-          onShipToAddressChange={state.setShipToAddress}
+          onBillToAddressChange={(value) => {
+            state.setBillToAddress(value)
+            state.setProductSearchFieldErrors((prev) => ({
+              ...prev,
+              billToAddress: value.trim() ? undefined : prev.billToAddress,
+            }))
+          }}
+          onShipToAddressChange={(value) => {
+            state.setShipToAddress(value)
+            state.setProductSearchFieldErrors((prev) => ({
+              ...prev,
+              shipToAddress: value.trim() ? undefined : prev.shipToAddress,
+            }))
+          }}
         />
         <ReferenceGrid
           loading={isFormHydrating}
           referenceNo={state.header.referenceNo}
           comments={state.header.comments}
-          referenceNoDisabled={state.isEditMode}
-          onReferenceNoChange={(value) => state.setHeader({ referenceNo: value })}
-          onCommentsChange={(value) => state.setHeader({ comments: value })}
-          commentsEditableHighlight={state.isEditMode}
+          onReferenceNoChange={(value) => {
+            state.setHeader({ referenceNo: value })
+            state.setProductSearchFieldErrors((prev) => ({
+              ...prev,
+              referenceNo: undefined,
+            }))
+          }}
+          onCommentsChange={(value) => {
+            state.setHeader({ comments: value })
+            state.setProductSearchFieldErrors((prev) => ({ ...prev, comments: undefined }))
+          }}
           referenceNoInvalid={Boolean(state.productSearchFieldErrors.referenceNo)}
           commentsInvalid={Boolean(state.productSearchFieldErrors.comments)}
           referenceNoErrorText={state.productSearchFieldErrors.referenceNo}
@@ -176,8 +190,8 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         />
       </div>
 
-      <ARInvoiceProductSection
-        sectionId="ar-invoice-product-section"
+      <SalesQuotationProductSection
+        sectionId="sales-quotation-product-section"
         missingSearchMandatoryFields={state.missingSearchMandatoryFields}
         searchRequiredCompletionPercent={state.searchRequiredCompletionPercent}
         searchMandatoryFields={state.searchMandatoryFields}
@@ -185,6 +199,8 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         prefetchProducts={state.prefetchProducts}
         productRows={state.productRows}
         productRowDrafts={state.productRowDrafts}
+        warehouses={state.warehouses}
+        warehousesLoading={state.warehousesQuery.isLoading}
         updateProductRow={state.updateProductRow}
         removeProductRow={state.removeProductRow}
         setProductRowDraft={state.setProductRowDraft}
@@ -193,24 +209,35 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         summaryCurrencyLabel={state.summaryCurrencyLabel}
         createError={state.createError}
         createDisabledReason={state.createDisabledReason}
-        createARInvoiceMutation={state.createARInvoiceMutation}
+        createSalesQuotationMutation={state.createSalesQuotationMutation}
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         handleCreateOrder={state.handleCreateOrder}
         submitLabel={state.isEditMode ? 'Update' : 'Create'}
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
-        onEditRestrictedClick={state.showEditRestrictedToast}
-        warehouses={state.warehouses}
-        warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
+        secondaryActions={
+          state.isEditMode ? (
+            <Link
+              to="/sales/create-ar-invoice"
+              search={{ sourceDocNum: docNum, sourceDocType: 'SalesQuotation' }}
+            >
+              <Button
+                type="button"
+                size="md"
+                variant="outline"
+                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Copy className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                  Copy to Invoice
+                </span>
+              </Button>
+            </Link>
+          ) : null
+        }
       />
-      <SharedCreateModals
-        state={state}
-        entityLabels={{
-          vendorPopupTitle: 'Loading customer popup',
-          vendorErrorMsg: 'Unable to load customers',
-        }}
-      />
-    </CreatePageWrapper>
+      <SalesQuotationModals state={state} />
+      </CreatePageWrapper>
     </div>
   )
 }
