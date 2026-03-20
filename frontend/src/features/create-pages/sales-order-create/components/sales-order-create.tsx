@@ -38,47 +38,6 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
 
   const pageTitle = state.isEditMode ? 'Update Sales Order' : 'Create Sales Order'
   const isFormHydrating = !state.isEditMode
-```typescript
-import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { goeyToast } from 'goey-toast'
-import { Copy } from 'lucide-react'
-import { type MouseEvent } from 'react'
-
-import { Button } from '@/components/button'
-
-import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
-import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
-import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
-import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
-import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
-import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
-import {
-  parseISODate,
-  toDisplayDate,
-  toISODate,
-} from '@/features/create-pages/create-shared/utils/create-order.utils'
-import { SalesOrderModals } from '@/features/create-pages/sales-order-create/components/sales-order-modals'
-import { SalesOrderProductSection } from '@/features/create-pages/sales-order-create/components/sales-order-product-section'
-import { useSalesOrderCreate } from '@/features/create-pages/sales-order-create/hooks/use-sales-order-create'
-import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
-
-interface SalesOrderCreateProps {
-  mode?: 'create' | 'edit'
-  docNum?: string
-}
-
-/**
- * SalesOrderCreate: Orchestrator for the complex SO creation multi-step flow.
- * State is centralized in useSalesOrderCreate to keep the UI declarative and clean.
- * Leverages CreatePageWrapper for consistent entity layout.
- */
-export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreateProps) {
-  const queryClient = useQueryClient()
-  const state = useSalesOrderCreate(docNum ? { mode, docNum } : { mode })
-
-  const pageTitle = state.isEditMode ? 'Update Sales Order' : 'Create Sales Order'
-  const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
       state.warehousesQuery.isLoading &&
       state.salesEmployeesQuery.isLoading &&
@@ -286,4 +245,4 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
     </div>
   )
 }
-```
+
