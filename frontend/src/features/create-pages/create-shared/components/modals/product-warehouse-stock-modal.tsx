@@ -40,7 +40,8 @@ export function ProductWarehouseStockModal({
   minSelectableStock = 0,
   initialSearch = '',
   onSearchChange,
-}: Omit<ProductWarehouseStockModalProps, 'currentWarehouseCode'>) {
+  currentWarehouseCode,
+}: ProductWarehouseStockModalProps) {
   const [warehouseSearch, setWarehouseSearch] = useState(initialSearch)
   const wasOpenRef = useRef(false)
   useEffect(() => {

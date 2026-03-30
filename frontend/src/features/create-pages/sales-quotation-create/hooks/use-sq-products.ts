@@ -175,33 +175,19 @@ export function useSqProducts({
     })
   }
 
-  const applyProductToRow = (
-    product: ProductLookupItem,
+  const applyProductsToRows = (
+    products: ProductLookupItem[],
     callbacks: { closeProductPopup: () => void },
   ) => {
-    void queryClient.prefetchQuery(salesQuotationCreateQueries.productWarehouseStocks(product.code))
+    products.forEach((product) => {
+      void queryClient.prefetchQuery(salesQuotationCreateQueries.productWarehouseStocks(product.code))
+    })
 
     if (activeProductRowId) {
-      updateProductRow(activeProductRowId, {
-        productCode: product.code,
-        productName: product.name,
-        stock: product.stock,
-        price: product.price,
-        currency: product.currency,
-        taxCode: product.taxCode,
-        taxRate: product.taxRate,
-        uomCode: product.uomCode,
-        uomEntry: product.uomEntry,
-        quantity: 0,
-        discountPercent: 0,
-        discountAmount: 0,
-        warehouseCode: effectiveWarehouseCode ?? '',
-      })
-    } else {
-      setProductRows((prev) => [
-        ...prev,
-        {
-          id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      // If we were editing a specific row, only update that row with the first selected product
+      const product = products[0]
+      if (product) {
+        updateProductRow(activeProductRowId, {
           productCode: product.code,
           productName: product.name,
           stock: product.stock,
@@ -211,16 +197,42 @@ export function useSqProducts({
           taxRate: product.taxRate,
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
-          quantity: 0,
+          quantity: 1,
           discountPercent: 0,
           discountAmount: 0,
-          comment: '',
           warehouseCode: effectiveWarehouseCode ?? '',
-        },
-      ])
+        })
+      }
+    } else {
+      // Add all selected products as new rows
+      const newRows: ProductRow[] = products.map((product, index) => ({
+        id: `row-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        productCode: product.code,
+        productName: product.name,
+        stock: product.stock,
+        price: product.price,
+        currency: product.currency,
+        taxCode: product.taxCode,
+        taxRate: product.taxRate,
+        uomCode: product.uomCode,
+        uomEntry: product.uomEntry,
+        quantity: 1,
+        discountPercent: 0,
+        discountAmount: 0,
+        comment: '',
+        warehouseCode: effectiveWarehouseCode ?? '',
+      }))
+      setProductRows((prev) => [...prev, ...newRows])
     }
     callbacks.closeProductPopup()
     setActiveProductRowId(null)
+  }
+
+  const applyProductToRow = (
+    product: ProductLookupItem,
+    callbacks: { closeProductPopup: () => void },
+  ) => {
+    applyProductsToRows([product], callbacks)
   }
 
   return {
@@ -235,6 +247,7 @@ export function useSqProducts({
     setProductRowDraft,
     clearProductRowDraft,
     applyProductToRow,
+    applyProductsToRows,
 
     productsQuery,
     products,

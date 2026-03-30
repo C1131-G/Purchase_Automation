@@ -680,6 +680,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       productsHook.applyProductToRow(product, {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
+    applyProductsToRows: (products: ProductLookupItem[]) =>
+      productsHook.applyProductsToRows(products, {
+        closeProductPopup: () => modals.setProductPopupOpen(false),
+      }),
     createSalesQuotationMutation: submitSalesQuotationMutation,
     updateSalesQuotationMutation,
     editDetailQuery,
