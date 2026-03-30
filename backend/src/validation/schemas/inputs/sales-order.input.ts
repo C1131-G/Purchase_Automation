@@ -93,6 +93,9 @@ const SalesOrderLineItemSchema = z.object({
   TaxCode: z.string().optional(),
   WarehouseCode: z.string().optional(),
   DiscountPercent: z.number().min(0).max(100).optional(),
+  BaseType: z.number().int().optional(),
+  BaseEntry: z.number().int().optional(),
+  BaseLine: z.number().int().optional(),
 });
 
 // CreateSalesOrderInputSchema: Validates a new sales order submission.

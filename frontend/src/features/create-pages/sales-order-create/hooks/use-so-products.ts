@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 
 import {
-  createSharedKeys,
   createSharedQueries as salesOrderCreateQueries,
 } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
@@ -62,20 +61,21 @@ export function useSoProducts({
   }, [normalizedProductSearch, customerSelected, productPopupOpen])
 
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
-  // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
+  // Enabled as soon as a customer is selected to allow background prefetching.
   const productsQuery = useQuery({
     ...salesOrderCreateQueries.products(
       effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
       productQueryLimit,
     ),
-    enabled: productPopupOpen && customerSelected,
+    enabled: customerSelected,
   })
 
+  // Prefetch products whenever the customer selection (token) changes.
   useEffect(() => {
-    if (!productPopupOpen || !customerSelected) return
-    void queryClient.invalidateQueries({ queryKey: createSharedKeys.products() })
-  }, [customerLookupToken, customerSelected, productPopupOpen, queryClient])
+    if (!customerSelected) return
+    prefetchProducts()
+  }, [customerLookupToken, customerSelected])
 
   const products = useMemo(
     () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
@@ -175,33 +175,19 @@ export function useSoProducts({
     })
   }
 
-  const applyProductToRow = (
-    product: ProductLookupItem,
+  const applyProductsToRows = (
+    products: ProductLookupItem[],
     callbacks: { closeProductPopup: () => void },
   ) => {
-    void queryClient.prefetchQuery(salesOrderCreateQueries.productWarehouseStocks(product.code))
+    products.forEach((product) => {
+      void queryClient.prefetchQuery(salesOrderCreateQueries.productWarehouseStocks(product.code))
+    })
 
     if (activeProductRowId) {
-      updateProductRow(activeProductRowId, {
-        productCode: product.code,
-        productName: product.name,
-        stock: product.stock,
-        price: product.price,
-        currency: product.currency,
-        taxCode: product.taxCode,
-        taxRate: product.taxRate,
-        uomCode: product.uomCode,
-        uomEntry: product.uomEntry,
-        quantity: 0,
-        discountPercent: 0,
-        discountAmount: 0,
-        warehouseCode: effectiveWarehouseCode ?? '',
-      })
-    } else {
-      setProductRows((prev) => [
-        ...prev,
-        {
-          id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      // If we were editing a specific row, only update that row with the first selected product
+      const product = products[0]
+      if (product) {
+        updateProductRow(activeProductRowId, {
           productCode: product.code,
           productName: product.name,
           stock: product.stock,
@@ -211,16 +197,42 @@ export function useSoProducts({
           taxRate: product.taxRate,
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
-          quantity: 0,
+          quantity: 1,
           discountPercent: 0,
           discountAmount: 0,
-          comment: '',
           warehouseCode: effectiveWarehouseCode ?? '',
-        },
-      ])
+        })
+      }
+    } else {
+      // Add all selected products as new rows
+      const newRows: ProductRow[] = products.map((product, index) => ({
+        id: `row-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        productCode: product.code,
+        productName: product.name,
+        stock: product.stock,
+        price: product.price,
+        currency: product.currency,
+        taxCode: product.taxCode,
+        taxRate: product.taxRate,
+        uomCode: product.uomCode,
+        uomEntry: product.uomEntry,
+        quantity: 1,
+        discountPercent: 0,
+        discountAmount: 0,
+        comment: '',
+        warehouseCode: effectiveWarehouseCode ?? '',
+      }))
+      setProductRows((prev) => [...prev, ...newRows])
     }
     callbacks.closeProductPopup()
     setActiveProductRowId(null)
+  }
+
+  const applyProductToRow = (
+    product: ProductLookupItem,
+    callbacks: { closeProductPopup: () => void },
+  ) => {
+    applyProductsToRows([product], callbacks)
   }
 
   return {

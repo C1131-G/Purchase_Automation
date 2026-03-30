@@ -48,6 +48,7 @@ interface BaseProductSectionProps {
   mandatoryFieldsTotal?: number
   isEditMode?: boolean
   secondaryActions?: ReactNode
+  showSubmitButton?: boolean
 }
 
 /**
@@ -81,6 +82,7 @@ export function BaseProductSection({
   mandatoryFieldsTotal = 0,
   isEditMode = false,
   secondaryActions,
+  showSubmitButton = true,
 }: BaseProductSectionProps) {
   const navigate = useNavigate()
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
@@ -218,26 +220,28 @@ export function BaseProductSection({
               ) : null
             ) : null}
             {secondaryActions}
-            <Button
-              type="button"
-              size="md"
-              variant="outline"
-              isLoading={isSubmitting}
-              loadingText={submitLoadingText}
-              onClick={onSubmit}
-              className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
-            >
-              <span className="inline-flex items-center gap-2">
-                <SubmitIcon
-                  className={
-                    isUpdateAction
-                      ? 'h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600'
-                      : 'h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600'
-                  }
-                />
-                {submitLabel}
-              </span>
-            </Button>
+            {showSubmitButton && (
+              <Button
+                type="button"
+                size="md"
+                variant="outline"
+                isLoading={isSubmitting}
+                loadingText={submitLoadingText}
+                onClick={onSubmit}
+                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <SubmitIcon
+                    className={
+                      isUpdateAction
+                        ? 'h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600'
+                        : 'h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600'
+                    }
+                  />
+                  {submitLabel}
+                </span>
+              </Button>
+            )}
           </div>
         </div>
       </div>

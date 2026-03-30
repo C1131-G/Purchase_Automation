@@ -1,4 +1,4 @@
-﻿// Master Data Service: Centralized logic for retrieving organizational lookup data (Products, Partners, Tax, etc.) from SAP HANA.
+// Master Data Service: Centralized logic for retrieving organizational lookup data (Products, Partners, Tax, etc.) from SAP HANA.
 
 import { type EntitySchema, type FindManyOptions, In, type ObjectLiteral } from "typeorm";
 
@@ -187,69 +187,21 @@ export const getProducts = async (
       ? Math.max(1, Math.min(500, limit))
       : undefined;
   const defaultListLimit = 100;
+
+  // We use a more granular cache key to ensure that partial lookups don't collide.
   const cacheLimitToken = normalizedSearch
     ? resolvedLimit !== undefined
       ? String(resolvedLimit)
       : "unlimited"
     : String(resolvedLimit ?? defaultListLimit);
-  const cacheKey = `master:${dbName}:Products:v7:${normalizedWarehouseCode || "default"}:${normalizedSearch || "all"}:${cacheLimitToken}`;
+  const cacheKey = `master:${dbName}:Products:v8:${normalizedWarehouseCode || "default"}:${normalizedSearch || "all"}:${cacheLimitToken}`;
 
   return getCachedData(
     cacheKey,
     async () => {
-      const [items, itemStocks, itemPrices, adminSettings, taxGroups, uoms] = await Promise.all([
-        (async () => {
-          const repository = await getTenantRepository(dbName, ItemSchema);
-          const query = repository
-            .createQueryBuilder("item")
-            .select([
-              "item.ItemCode",
-              "item.ItemName",
-              "item.SalUnitMsr",
-              "item.BuyUnitMsr",
-              "item.AvgPrice",
-              "item.LastPurCur",
-              "item.VatGroupPu",
-              "item.VatGourpSa",
-              "item.DfltWH",
-            ])
-            .where("item.frozenFor = :active", { active: "N" })
-            .orderBy("item.ItemCode", "ASC");
-
-          if (normalizedSearch) {
-            query.andWhere(
-              "(LOWER(item.ItemCode) LIKE :search OR LOWER(item.ItemName) LIKE :search)",
-              {
-                search: `%${normalizedSearch}%`,
-              },
-            );
-            if (resolvedLimit !== undefined) {
-              query.take(resolvedLimit);
-            }
-          }
-
-          return query.getMany();
-        })(),
-        (async () => {
-          const repository = await getTenantRepository(dbName, ItemWarehouseStockSchema);
-          const query = repository
-            .createQueryBuilder("stock")
-            .select("stock.ItemCode", "ItemCode")
-            .addSelect("SUM(stock.OnHand)", "OnHand")
-            .groupBy("stock.ItemCode");
-          if (normalizedWarehouseCode) {
-            query.where("stock.WhsCode = :warehouseCode", {
-              warehouseCode: normalizedWarehouseCode,
-            });
-          }
-          return query.getRawMany<{ ItemCode?: unknown; OnHand?: unknown }>();
-        })(),
-        (async () => {
-          const repository = await getTenantRepository(dbName, ItemPriceSchema);
-          return repository.find({
-            select: ["ItemCode", "Price"] as const,
-          });
-        })(),
+      // Step 1: Pre-fetch setup data that doesn't depend on specific item codes (Tax, UOMs, Currency).
+      // These are relatively small tables and can be fetched in parallel.
+      const [adminSettings, taxGroups, uoms] = await Promise.all([
         (async () => {
           const repository = await getTenantRepository(dbName, AdminSettingsSchema);
           const rows = await repository.find({
@@ -273,20 +225,76 @@ export const getProducts = async (
         })(),
       ]);
 
+      // Step 2: Fetch Item headers based on search and limit.
+      const repository = await getTenantRepository(dbName, ItemSchema);
+      const query = repository
+        .createQueryBuilder("item")
+        .select([
+          "item.ItemCode",
+          "item.ItemName",
+          "item.SalUnitMsr",
+          "item.BuyUnitMsr",
+          "item.AvgPrice",
+          "item.LastPurCur",
+          "item.VatGroupPu",
+          "item.VatGourpSa",
+          "item.DfltWH",
+        ])
+        .where("item.frozenFor = :active", { active: "N" });
+
+      if (normalizedSearch) {
+        query.andWhere("(LOWER(item.ItemCode) LIKE :search OR LOWER(item.ItemName) LIKE :search)", {
+          search: `%${normalizedSearch}%`,
+        });
+      }
+
+      // Default sorting: if no search, sort by ItemCode. 
+      // Pagination: take the requested limit or the default.
+      query.orderBy("item.ItemCode", "ASC").take(resolvedLimit ?? defaultListLimit);
+
+      const items = await query.getMany();
+      if (items.length === 0) return [];
+
       const itemCodes = items.map((item) => toTrimmed(item.ItemCode)).filter(Boolean);
-      const itemCodeSet = new Set(itemCodes);
+
+      // Step 3: Fetch related Stock and Price data ONLY for the identified items.
+      // This is the CRITICAL optimization that prevents full table scans of OITW and ITM1.
+      const [itemStocks, itemPrices] = await Promise.all([
+        (async () => {
+          const stockRepository = await getTenantRepository(dbName, ItemWarehouseStockSchema);
+          const stockQuery = stockRepository
+            .createQueryBuilder("stock")
+            .select("stock.ItemCode", "ItemCode")
+            .addSelect("SUM(stock.OnHand)", "OnHand")
+            .where("stock.ItemCode IN (:...itemCodes)", { itemCodes })
+            .groupBy("stock.ItemCode");
+
+          if (normalizedWarehouseCode) {
+            stockQuery.andWhere("stock.WhsCode = :warehouseCode", {
+              warehouseCode: normalizedWarehouseCode,
+            });
+          }
+          return stockQuery.getRawMany<{ ItemCode?: unknown; OnHand?: unknown }>();
+        })(),
+        (async () => {
+          const priceRepository = await getTenantRepository(dbName, ItemPriceSchema);
+          return priceRepository.find({
+            where: { ItemCode: In(itemCodes) } as Record<string, unknown>,
+            select: ["ItemCode", "Price"] as const,
+          });
+        })(),
+      ]);
 
       const stockMap = new Map<string, number>();
       for (const stockRow of itemStocks) {
         const itemCode = toTrimmed(stockRow.ItemCode);
-        if (!itemCode || !itemCodeSet.has(itemCode)) continue;
-        stockMap.set(itemCode, toNumberOrZero(stockRow.OnHand));
+        if (itemCode) stockMap.set(itemCode, toNumberOrZero(stockRow.OnHand));
       }
 
       const priceMap = new Map<string, number>();
       for (const priceRow of itemPrices) {
         const itemCode = toTrimmed(priceRow.ItemCode);
-        if (!itemCode || !itemCodeSet.has(itemCode)) continue;
+        if (!itemCode) continue;
         const candidatePrice = toNumberOrZero(priceRow.Price);
         const currentPrice = priceMap.get(itemCode) ?? 0;
         if (candidatePrice > currentPrice) {
@@ -298,9 +306,9 @@ export const getProducts = async (
       const taxRateByCode = new Map<string, number>();
       for (const taxGroup of taxGroups) {
         const code = toTrimmed(taxGroup.Code);
-        if (!code) continue;
-        taxRateByCode.set(code, toNumberOrZero(taxGroup.Rate));
+        if (code) taxRateByCode.set(code, toNumberOrZero(taxGroup.Rate));
       }
+
       const uomByNormalizedValue = new Map<string, { code: string; entry?: number }>();
       for (const uom of uoms) {
         const code = toTrimmed(uom.UomCode);
@@ -348,7 +356,6 @@ export const getProducts = async (
           Currency: resolvedCurrency,
           TaxCode: resolvedTaxCode,
           TaxRate: resolvedTaxRate,
-          // Maintains compatibility with older frontend components using snake_case.
           productCode: normalizedItemCode,
           productName: item.ItemName,
           stock: resolvedStock,
@@ -357,19 +364,7 @@ export const getProducts = async (
         };
       });
 
-      if (!normalizedSearch) {
-        mappedItems.sort((a, b) => {
-          const stockDiff = toNumberOrZero(b.OnHand) - toNumberOrZero(a.OnHand);
-          if (stockDiff !== 0) return stockDiff;
-          return String(a.ItemCode).localeCompare(String(b.ItemCode));
-        });
-      }
-
-      if (normalizedSearch) {
-        return resolvedLimit !== undefined ? mappedItems.slice(0, resolvedLimit) : mappedItems;
-      }
-
-      return mappedItems.slice(0, resolvedLimit ?? defaultListLimit);
+      return mappedItems;
     },
     1000 * 60 * 10,
   );

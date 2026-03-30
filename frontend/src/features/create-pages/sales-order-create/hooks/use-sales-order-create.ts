@@ -189,32 +189,33 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       const productByCode = new Map(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
       )
-      const stockByItemCode = new Map<string, number>()
-
+      const stocksByItemCode = new Map<string, any[]>()
       const uniqueItemCodes = [
         ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
       ].filter(Boolean)
 
       await Promise.all(
         uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = await queryClient
+          const warehouseStocks = (await queryClient
             .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])
-
-          const resolvedStock = warehouseCode
-            ? Number(
-                warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                  ?.stock ?? 0,
-              )
-            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
-
-          stockByItemCode.set(itemCode, resolvedStock)
+            .catch(() => [])) as any[]
+          stocksByItemCode.set(itemCode, warehouseStocks)
         }),
       )
 
       const mappedRows = detailLines.map((line: SalesOrderDetailLine, index) => {
         const itemCode = String(line.ItemCode ?? '').trim()
         const productMeta = productByCode.get(itemCode)
+        const lineWarehouse = String(line.WarehouseCode ?? '').trim()
+
+        // Per-line stock derivation
+        const warehouseStocks = stocksByItemCode.get(itemCode) ?? []
+        const lineStock = lineWarehouse
+          ? Number(
+              warehouseStocks.find((s: any) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
+            )
+          : warehouseStocks.reduce((sum, s: any) => sum + Number(s.stock ?? 0), 0)
+
         const quantity = Number(line.Quantity ?? 1)
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
         const discountPercent = Number(line.DiscountPercent ?? 0)
@@ -223,7 +224,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
           productName: String(line.ItemDescription ?? productMeta?.name ?? '').trim(),
-          stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
+          stock: lineStock,
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
           taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
@@ -237,7 +238,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           discountPercent,
           discountAmount,
           comment: '',
-          warehouseCode: String(line.WarehouseCode ?? '').trim(),
+          warehouseCode: lineWarehouse,
         }
       })
 

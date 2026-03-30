@@ -1,4 +1,4 @@
-﻿// Sales Order DAL: Handles HTTP requests for Sales Order operations.
+// Sales Order DAL: Handles HTTP requests for Sales Order operations.
 
 import type { NextFunction, Request, Response } from "express";
 
@@ -168,6 +168,27 @@ export const cancelSalesOrder = async (req: Request, res: Response, next: NextFu
   }
 };
 
+// Fetches all open document lines for a specific customer to support the 'Pull from SO' feature.
+export const getOpenSalesOrderLines = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { cardCode } = authReq.query;
+
+    if (!cardCode || typeof cardCode !== "string") {
+      return res.status(400).json({ success: false, message: "cardCode query parameter is required" });
+    }
+
+    logger.info({ msg: "Fetching Open Sales Order lines", cardCode });
+
+    const data = await salesOrderService.getOpenSalesOrderLines(sessionId, cardCode);
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const salesOrderDal = {
   getSalesOrders,
   getSalesOrderDocNums,
@@ -177,4 +198,5 @@ export const salesOrderDal = {
   updateSalesOrder,
   cancelSalesOrder,
   getSalesEmployees,
+  getOpenSalesOrderLines,
 };

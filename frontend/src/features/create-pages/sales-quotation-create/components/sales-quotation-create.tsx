@@ -86,6 +86,13 @@ export function SalesQuotationCreate({ mode = 'create', docNum }: SalesQuotation
                     : 'Unable to load customers. Please login again.'
                   : null
               }
+              sectionTitle="Customer Info"
+              nameLabel="Customer Name *"
+              codeLabel="Customer Code *"
+              namePlaceholder="Select or Type Customer"
+              codePlaceholder="Select or Type Code"
+              nameLoadingPlaceholder="Loading customer names..."
+              codeLoadingPlaceholder="Loading customer codes..."
               nameInput={state.nameInput}
               codeInput={state.codeInput}
               nameFocused={state.nameFocused}

@@ -14,7 +14,7 @@ export function SalesOrderModals({ state }: SalesOrderModalsProps) {
     <SharedCreateModals
       state={state}
       entityLabels={{
-        vendorPopupTitle: 'Loading customer popup',
+        vendorPopupTitle: 'Search Customers',
         vendorErrorMsg: 'Unable to load customers',
       }}
     />

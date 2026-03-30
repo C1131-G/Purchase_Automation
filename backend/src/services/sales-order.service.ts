@@ -1,4 +1,4 @@
-﻿// Sales Order Service: Orchestrates order processing flows. Interfaces with HANA for high-volume order queries and Service Layer for document lifecycle management (Creation, Update, Cancellation).
+// Sales Order Service: Orchestrates order processing flows. Interfaces with HANA for high-volume order queries and Service Layer for document lifecycle management (Creation, Update, Cancellation).
 
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
@@ -443,6 +443,56 @@ export const getSalesEmployees = async (dbName: string) => {
   );
 };
 
+export const getOpenSalesOrderLines = async (sessionId: string, cardCode: string) => {
+  try {
+    const query = `/Orders?$filter=CardCode eq '${cardCode}' and DocumentStatus eq 'bost_Open'`;
+    const result = (await serviceLayerClient.request(sessionId, "GET", query)) as {
+      value: SAPDocumentResponse[];
+    };
+
+    const orders = result.value || [];
+    const openLines: any[] = [];
+
+    for (const order of orders) {
+      const lines = order.DocumentLines || [];
+      for (const line of lines) {
+        if ((line as any).LineStatus === "bost_Open") {
+          const l = line as any;
+          openLines.push({
+            DocEntry: order.DocEntry,
+            DocNum: order.DocNum,
+            DocDate: order.DocDate,
+            DocCurr: order.DocCurrency,
+            LineNum: l.LineNum,
+            ItemCode: line.ItemCode,
+            ItemDescription: line.ItemDescription,
+            Quantity: line.Quantity,
+            OpenQty: Number(l.OpenQuantity ?? l.RemainingOpenQuantity ?? l.RemainingOpenInventoryQuantity ?? l.RemainingQuantity ?? l.BaseOpenQuantity ?? line.Quantity),
+            Price: line.Price || line.UnitPrice,
+            TaxCode: line.TaxCode,
+            WarehouseCode: line.WarehouseCode,
+            UoMCode: l.UoMCode,
+            UoMEntry: l.UoMEntry,
+            DiscountPercent: line.DiscountPercent,
+          });
+        }
+      }
+    }
+
+    logger.info({ msg: "DEBUG: Mapped Open Lines", count: openLines.length, samples: openLines.slice(0, 2) });
+
+    return openLines;
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error({
+      msg: "Failed to fetch open sales order lines from Service Layer",
+      error: error.message,
+      cardCode,
+    });
+    throw error;
+  }
+};
+
 export const salesOrderService = {
   getSalesOrders,
   getSalesOrderDocNums,
@@ -452,4 +502,5 @@ export const salesOrderService = {
   updateSalesOrder,
   cancelSalesOrder,
   getSalesEmployees,
+  getOpenSalesOrderLines,
 };

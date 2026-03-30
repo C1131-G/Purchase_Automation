@@ -39,6 +39,29 @@ export type SalesOrderDetailLine = {
   LineTotal?: number
 }
 
+export type OpenSalesOrderLine = {
+  DocEntry: number
+  DocNum: number
+  DocDate: string
+  DocCurr: string
+  LineNum: number
+  ItemCode: string
+  ItemDescription: string
+  Quantity: number
+  OpenQty: number
+  Price: number
+  TaxCode: string
+  WarehouseCode: string
+  UoMCode?: string | number
+  UoMEntry?: number
+  DiscountPercent?: number
+}
+
+export type OpenSalesOrderLinesResponse = {
+  success: boolean
+  data: OpenSalesOrderLine[]
+}
+
 export type SalesOrderDetail = {
   id?: number
   DocEntry?: number
@@ -81,5 +104,8 @@ export const salesOrderAPI = {
     const query = toQueryString({ search, limit })
     const path = query ? `/api/v1/sales-orders/docnums?${query}` : '/api/v1/sales-orders/docnums'
     return apiClient<SalesOrderDocNumLookupResponse>(path)
+  },
+  getOpenSalesOrderLines: async (cardCode: string) => {
+    return apiClient<OpenSalesOrderLinesResponse>(`/api/v1/sales-orders/open-lines?cardCode=${cardCode}`)
   },
 }
