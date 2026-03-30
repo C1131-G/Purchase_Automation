@@ -1,6 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, Outlet, useRouterState } from '@tanstack/react-router'
-import { lazy, Suspense } from 'react'
 
 import { NotFound } from '@/components/not-found'
 import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
@@ -17,14 +16,6 @@ export const Route = createRootRouteWithContext<{
   component: RootComponent,
   notFoundComponent: NotFound,
 })
-
-const TanStackRouterDevtools = import.meta.env.DEV
-  ? lazy(() =>
-      import('@tanstack/react-router-devtools').then((module) => ({
-        default: module.TanStackRouterDevtools,
-      })),
-    )
-  : null
 
 function RootComponent() {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
@@ -48,12 +39,6 @@ function RootComponent() {
         {shouldShowCreatePendingSkeleton ? <CreatePageRouteSkeleton /> : <Outlet />}
       </main>
 
-      {/* DevTools - Only visible in development */}
-      {TanStackRouterDevtools ? (
-        <Suspense fallback={null}>
-          <TanStackRouterDevtools initialIsOpen={false} position="bottom-left" />
-        </Suspense>
-      ) : null}
     </div>
   )
 }
