@@ -676,6 +676,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       productsHook.applyProductToRow(product, {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
+    applyProductsToRows: (products: ProductLookupItem[]) =>
+      productsHook.applyProductsToRows(products, {
+        closeProductPopup: () => modals.setProductPopupOpen(false),
+      }),
     createPurchaseOrderMutation: submitPurchaseOrderMutation,
     updatePurchaseOrderMutation,
     editDetailQuery,

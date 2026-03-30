@@ -1,8 +1,6 @@
-import { Link } from '@tanstack/react-router'
-import { Copy } from 'lucide-react'
 import { type MouseEvent } from 'react'
 
-import { Button } from '@/components/button'
+import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
@@ -219,22 +217,11 @@ export function GRPOCreate({
         onEditRestrictedClick={state.showEditRestrictedToast}
         secondaryActions={
           state.isEditMode ? (
-            <Link
-              to="/purchase/create-ap-invoice"
-              search={{
-                sourceDocNum: docNum,
-                sourceDocType: 'GoodsReceiptPO',
-              }}
-            >
-              <Button
-                variant="outline"
-                size="md"
-                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
-              >
-                <Copy className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
-                Copy to AP Invoice
-              </Button>
-            </Link>
+            <CopyToDropdown
+              docNum={docNum!}
+              sourceDocType="GoodsReceiptPO"
+              targets={['AP Invoice']}
+            />
           ) : null
         }
       />

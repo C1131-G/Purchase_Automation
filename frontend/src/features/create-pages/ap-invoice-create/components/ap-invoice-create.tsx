@@ -19,7 +19,7 @@ interface APInvoiceCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
   sourceDocNum?: string | undefined
-  sourceDocType?: 'GoodsReceiptPO' | undefined
+  sourceDocType?: 'GoodsReceiptPO' | 'PurchaseOrder' | undefined
 }
 
 /**

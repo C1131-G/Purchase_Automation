@@ -829,6 +829,35 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
     setActiveProductRowId(null)
   }
 
+  const applyProductsToRows = (products: ProductLookupItem[]) => {
+    setLines((prev) => {
+      const nextRows = products.map((product) => ({
+        id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        productCode: product.code,
+        productName: product.name,
+        stock: Number(product.stock ?? 0),
+        currency: String(product.currency ?? ''),
+        taxCode: String(product.taxCode ?? ''),
+        taxRate: Number(product.taxRate ?? 0),
+        uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
+        uomEntry: product.purchaseUomEntry ?? product.uomEntry,
+        quantity: 1,
+        discountPercent: 0,
+        discountAmount: 0,
+        comment: '',
+        price: Number(product.price ?? 0),
+        warehouseCode: effectiveWarehouseCode || '',
+        baseEntry: undefined,
+        baseLine: undefined,
+        baseType: undefined,
+      }))
+      return [...prev, ...nextRows]
+    })
+    setProductPopupOpen(false)
+    setProductSearch('')
+    setActiveProductRowId(null)
+  }
+
   const handleReferenceNoChange = (value: string) => {
     setHeader({ referenceNo: value })
     setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }))
@@ -1185,6 +1214,7 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
     openProductPopup,
     loadMoreProducts,
     applyProductToRow,
+    applyProductsToRows,
     prefetchProducts: () => (isEditMode ? null : prefetchProducts()),
 
     rows,

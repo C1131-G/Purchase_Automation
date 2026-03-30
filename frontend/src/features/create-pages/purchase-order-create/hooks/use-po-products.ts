@@ -225,6 +225,33 @@ export function usePoProducts({
     setActiveProductRowId(null)
   }
 
+  const applyProductsToRows = (
+    products: ProductLookupItem[],
+    callbacks: { closeProductPopup: () => void },
+  ) => {
+    const nextRows: ProductRow[] = products.map((product) => ({
+      id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      productCode: product.code,
+      productName: product.name,
+      stock: product.stock,
+      price: product.price,
+      currency: product.currency,
+      taxCode: product.taxCode,
+      taxRate: product.taxRate,
+      uomCode: product.purchaseUomCode || product.uomCode,
+      uomEntry: product.purchaseUomEntry ?? product.uomEntry,
+      quantity: 1,
+      discountPercent: 0,
+      discountAmount: 0,
+      comment: '',
+      warehouseCode: effectiveWarehouseCode ?? '',
+    }))
+
+    setProductRows((prev) => [...prev, ...nextRows])
+    callbacks.closeProductPopup()
+    setActiveProductRowId(null)
+  }
+
   return {
     productRows,
     setProductRows,
@@ -237,6 +264,7 @@ export function usePoProducts({
     setProductRowDraft,
     clearProductRowDraft,
     applyProductToRow,
+    applyProductsToRows,
 
     productsQuery,
     products,

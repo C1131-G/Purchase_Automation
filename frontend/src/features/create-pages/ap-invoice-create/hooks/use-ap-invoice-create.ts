@@ -16,6 +16,7 @@ import {
 } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
 import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
+import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
 import {
   AP_INVOICE_FIELD_ERROR_TEXT,
   AP_INVOICE_FIELD_LABEL_TEXT,
@@ -40,7 +41,7 @@ interface UseAPInvoiceCreateOptions {
   mode?: 'create' | 'edit'
   docNum?: string | undefined
   sourceDocNum?: string | undefined
-  sourceDocType?: 'GoodsReceiptPO' | undefined
+  sourceDocType?: 'GoodsReceiptPO' | 'PurchaseOrder' | undefined
 }
 
 const normalizeCodeForCompare = (value: unknown) => {
@@ -119,6 +120,11 @@ export function useAPInvoiceCreate({
   const sourceDetailQueryGRPO = useQuery({
     ...grpoQueries.detailByDocNum(sourceDocNum || ''),
     enabled: mode === 'create' && sourceDocType === 'GoodsReceiptPO' && Boolean(sourceDocNum),
+  })
+  
+  const sourceDetailQueryPO = useQuery({
+    ...purchaseOrderQueries.detailByDocNum(sourceDocNum || ''),
+    enabled: mode === 'create' && sourceDocType === 'PurchaseOrder' && Boolean(sourceDocNum),
   })
 
   // Mutations
@@ -212,20 +218,23 @@ export function useAPInvoiceCreate({
     setLines,
   ])
 
-  // Hydration: Copy from GRPO
+  // Hydration: Copy from Base Document (GRPO or PO)
   useEffect(() => {
     if (mode !== 'create') return
     const currentSourceDocNum = sourceDocNum
     const currentSourceDocType = sourceDocType
     if (!currentSourceDocNum || !currentSourceDocType) return
 
-    const detail = sourceDetailQueryGRPO.data?.data as any
+    const detail =
+      currentSourceDocType === 'GoodsReceiptPO'
+        ? (sourceDetailQueryGRPO.data?.data as any)
+        : (sourceDetailQueryPO.data?.data as any)
     if (!detail) return
     if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}`) return
 
     const vendorCode = String(detail.CardCode ?? '').trim()
     const vendorName = String(detail.CardName ?? '').trim()
-    
+
     const buyerName =
       salesEmployees.find(
         (item) =>
@@ -256,7 +265,7 @@ export function useAPInvoiceCreate({
       warehouseCode: String(line.WarehouseCode ?? '').trim(),
       baseEntry: detail.DocEntry ?? detail.id,
       baseLine: line.LineNum !== undefined ? line.LineNum : index,
-      baseType: 20, // GRPO base type
+      baseType: currentSourceDocType === 'GoodsReceiptPO' ? 20 : 22,
     }))
 
     setVendorCodeInput(vendorCode)
@@ -278,6 +287,7 @@ export function useAPInvoiceCreate({
     hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
   }, [
     sourceDetailQueryGRPO.data,
+    sourceDetailQueryPO.data,
     mode,
     sourceDocNum,
     sourceDocType,
@@ -479,6 +489,25 @@ export function useAPInvoiceCreate({
         warehouseCode: warehouseInput || r.warehouseCode,
       } : r))
       setProductPopupOpen(false)
-    }
+    },
+    applyProductsToRows: (products: any[]) => {
+      const nextRows = products.map((p) => ({
+        id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        productCode: p.code,
+        productName: p.name,
+        stock: Number(p.stock || 0),
+        currency: String(p.currency || ''),
+        taxCode: String(p.taxCode || ''),
+        taxRate: Number(p.taxRate || 0),
+        price: Number(p.price || 0),
+        warehouseCode: warehouseInput || '',
+        quantity: 1,
+        discountPercent: 0,
+        discountAmount: 0,
+        comment: '',
+      }))
+      setLines((prev) => [...prev, ...nextRows])
+      setProductPopupOpen(false)
+    },
   }
 }

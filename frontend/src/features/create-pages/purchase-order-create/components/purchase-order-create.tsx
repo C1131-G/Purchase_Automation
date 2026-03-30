@@ -1,10 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Copy } from 'lucide-react'
 import { type MouseEvent } from 'react'
 
-
-import { Button } from '@/components/button'
+import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
@@ -210,22 +207,11 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
         secondaryActions={
           state.isEditMode ? (
-            <Link
-              to="/purchase/create-grpo"
-              search={{ sourceDocNum: docNum, sourceDocType: 'PurchaseOrder' }}
-            >
-              <Button
-                type="button"
-                size="md"
-                variant="outline"
-                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <Copy className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                  Copy to GRPO
-                </span>
-              </Button>
-            </Link>
+            <CopyToDropdown
+              docNum={docNum!}
+              sourceDocType="PurchaseOrder"
+              targets={['GRPO', 'AP Invoice']}
+            />
           ) : null
         }
       />

@@ -9,7 +9,7 @@ import { APInvoiceCreate } from '@/features/create-pages/ap-invoice-create/compo
 export const Route = createFileRoute('/_layout/purchase/create-ap-invoice')({
   validateSearch: z.object({
     sourceDocNum: z.string().optional(),
-    sourceDocType: z.enum(['GoodsReceiptPO']).optional(),
+    sourceDocType: z.enum(['GoodsReceiptPO', 'PurchaseOrder']).optional(),
   }),
   beforeLoad: async () => {
     await requireActiveSession()
