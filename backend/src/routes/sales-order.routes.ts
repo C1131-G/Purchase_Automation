@@ -1,4 +1,4 @@
-﻿// Sales Order Routes: Endpoints for customers to view and manage their purchase orders (Sales Orders from the system's perspective).
+// Sales Order Routes: Endpoints for customers to view and manage their purchase orders (Sales Orders from the system's perspective).
 
 import express from "express";
 
@@ -24,6 +24,7 @@ router.get(
   validateQuery(SalesOrderDocNumLookupQuerySchema),
   salesOrderDal.getSalesOrderDocNums,
 );
+router.get("/open-lines", salesOrderDal.getOpenSalesOrderLines);
 
 // GET /SalesEmployee: Lookup for finding which sales personnel are assigned to the current tenant.
 router.get("/SalesEmployee", salesOrderDal.getSalesEmployees);

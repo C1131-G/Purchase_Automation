@@ -1,4 +1,4 @@
-﻿// A/R Invoice Service: Logic for A/R Invoices (Sales), utilizing HANA for listings and SAP Service Layer for transaction management.
+// A/R Invoice Service: Logic for A/R Invoices (Sales), utilizing HANA for listings and SAP Service Layer for transaction management.
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
@@ -248,6 +248,8 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
         6,
       )}-${docDueDate.substring(6, 8)}`;
     }
+
+    logger.info({ msg: "DEBUG: SAP Invoice Payload", sapPayload });
 
     const result = (await serviceLayerClient.request(
       sessionId,
