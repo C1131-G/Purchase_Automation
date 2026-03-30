@@ -13,6 +13,7 @@ export const salesOrderKeys = {
   detailByDocNum: (docNum: string) => [...salesOrderKeys.all, 'detail-by-doc-num', docNum] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...salesOrderKeys.all, 'doc-num-suggestions', search ?? '', limit ?? 'all'] as const,
+  openLines: (cardCode: string) => [...salesOrderKeys.all, 'open-lines', cardCode] as const,
 }
 
 export const salesOrderQueries = {
@@ -38,5 +39,11 @@ export const salesOrderQueries = {
       queryFn: () => salesOrderAPI.getSalesOrderByDocNum(docNum),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+    }),
+  openLines: (cardCode: string) =>
+    queryOptions({
+      queryKey: salesOrderKeys.openLines(cardCode),
+      queryFn: () => salesOrderAPI.getOpenSalesOrderLines(cardCode),
+      staleTime: 0, // Always fresh for transactional use
     }),
 }

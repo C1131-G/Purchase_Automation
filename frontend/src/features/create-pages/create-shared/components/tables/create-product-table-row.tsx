@@ -203,19 +203,21 @@ export function CreateProductTableRow({
   const handleSelectWarehouse = (item: CreateLookupOption) => {
     setWarehouseInput(item.name)
     updateProductRow(row.id, { warehouseCode: item.code })
-
-    // Trigger stock update for this product in the new warehouse
-    void queryClient
-      .fetchQuery(createSharedQueries.productWarehouseStocks(row.productCode))
-      .then((stocks) => {
-        const stockItem = Array.isArray(stocks)
-          ? stocks.find((s: any) => s.code === item.code)
-          : null
-        if (stockItem) {
-          updateProductRow(row.id, { stock: Number(stockItem.stock ?? 0) })
-        }
-      })
   }
+
+  // Reactive stock synchronization:
+  // When the warehouse code changes or the underlying stock data is refreshed,
+  // update the row's stock value to keep the badge and validation in sync.
+  React.useEffect(() => {
+    if (!row.productCode || !row.warehouseCode || !stocksQuery.data) return
+    const matched = stocksQuery.data.find(
+      (s: any) => String(s.code).trim() === String(row.warehouseCode).trim(),
+    )
+    const newStock = Number(matched?.stock ?? 0)
+    if (row.stock !== newStock) {
+      updateProductRow(row.id, { stock: newStock })
+    }
+  }, [stocksQuery.data, row.warehouseCode, row.productCode, row.id, row.stock, updateProductRow])
 
   const maxAllowed = Math.max(0, Math.floor(row.stock) - stockLimitReserve)
 

@@ -8,7 +8,6 @@ import {
   rankProductsBySearchRelevance,
 } from '@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils'
 import {
-  createSharedKeys,
   createSharedQueries as arInvoiceCreateQueries,
 } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
@@ -67,13 +66,13 @@ export function useArProducts({
       normalizedProductSearch || undefined,
       productQueryLimit,
     ),
-    enabled: productPopupOpen && customerSelected,
+    enabled: customerSelected,
   })
 
   useEffect(() => {
-    if (!productPopupOpen || !customerSelected) return
-    void queryClient.invalidateQueries({ queryKey: createSharedKeys.products() })
-  }, [customerLookupToken, customerSelected, productPopupOpen, queryClient])
+    if (!customerSelected) return
+    prefetchProducts()
+  }, [customerLookupToken, customerSelected])
 
   const products = useMemo(
     () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
@@ -173,34 +172,19 @@ export function useArProducts({
     })
   }
 
-  const applyProductToRow = (
-    product: ProductLookupItem,
+  const applyProductsToRows = (
+    products: ProductLookupItem[],
     callbacks: { closeProductPopup: () => void },
   ) => {
-    void queryClient.prefetchQuery(arInvoiceCreateQueries.productWarehouseStocks(product.code))
+    products.forEach((product) => {
+      void queryClient.prefetchQuery(arInvoiceCreateQueries.productWarehouseStocks(product.code))
+    })
 
-    const maxAllowed = Math.max(1, Math.floor(product.stock) - 1)
     if (activeProductRowId) {
-      updateProductRow(activeProductRowId, {
-        productCode: product.code,
-        productName: product.name,
-        stock: product.stock,
-        price: product.price,
-        currency: product.currency,
-        taxCode: product.taxCode,
-        taxRate: product.taxRate,
-        uomCode: product.uomCode,
-        uomEntry: product.uomEntry,
-        quantity: Math.min(maxAllowed, 1),
-        discountPercent: 0,
-        discountAmount: 0,
-        warehouseCode: effectiveWarehouseCode || '',
-      })
-    } else {
-      setProductRows((prev) => [
-        ...prev,
-        {
-          id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      // If we were editing a specific row, only update that row with the first selected product
+      const product = products[0]
+      if (product) {
+        updateProductRow(activeProductRowId, {
           productCode: product.code,
           productName: product.name,
           stock: product.stock,
@@ -210,16 +194,42 @@ export function useArProducts({
           taxRate: product.taxRate,
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
-          quantity: Math.min(maxAllowed, 1),
+          quantity: 1,
           discountPercent: 0,
           discountAmount: 0,
-          comment: '',
           warehouseCode: effectiveWarehouseCode || '',
-        },
-      ])
+        })
+      }
+    } else {
+      // Add all selected products as new rows
+      const newRows: ProductRow[] = products.map((product, index) => ({
+        id: `row-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        productCode: product.code,
+        productName: product.name,
+        stock: product.stock,
+        price: product.price,
+        currency: product.currency,
+        taxCode: product.taxCode,
+        taxRate: product.taxRate,
+        uomCode: product.uomCode,
+        uomEntry: product.uomEntry,
+        quantity: 1,
+        discountPercent: 0,
+        discountAmount: 0,
+        comment: '',
+        warehouseCode: effectiveWarehouseCode || '',
+      }))
+      setProductRows((prev) => [...prev, ...newRows])
     }
     callbacks.closeProductPopup()
     setActiveProductRowId(null)
+  }
+
+  const applyProductToRow = (
+    product: ProductLookupItem,
+    callbacks: { closeProductPopup: () => void },
+  ) => {
+    applyProductsToRows([product], callbacks)
   }
 
   return {
@@ -234,6 +244,7 @@ export function useArProducts({
     setProductRowDraft,
     clearProductRowDraft,
     applyProductToRow,
+    applyProductsToRows,
     productsQuery,
     products,
     productWarehouseStocksQuery,
