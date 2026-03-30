@@ -167,7 +167,7 @@ export function ProductPopupModal({
               onClick={handleAddSelected}
               className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 active:scale-95"
             >
-              Add Selected ({selectedCodes.size})
+              Confirm Selection ({selectedCodes.size})
             </button>
           )}
         </div>

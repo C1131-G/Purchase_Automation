@@ -681,6 +681,10 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       productsHook.applyProductToRow(product, {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
+    applyProductsToRows: (products: ProductLookupItem[]) =>
+      productsHook.applyProductsToRows(products, {
+        closeProductPopup: () => modals.setProductPopupOpen(false),
+      }),
     createSalesOrderMutation: submitSalesOrderMutation,
     updateSalesOrderMutation,
     editDetailQuery,

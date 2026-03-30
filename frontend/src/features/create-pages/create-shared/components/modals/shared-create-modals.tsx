@@ -58,6 +58,7 @@ interface SharedCreateModalsProps {
     }
     loadMoreProducts: () => void
     applyProductToRow: (product: ProductLookupItem) => void
+    applyProductsToRows: (products: ProductLookupItem[]) => void
     effectiveWarehouseCode: string
 
     // Stocks
@@ -174,6 +175,7 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
           onReachEnd={state.loadMoreProducts}
           onClose={() => state.setProductPopupOpen(false)}
           onSelect={state.applyProductToRow}
+          onSelectMultiple={state.applyProductsToRows}
         />
       ) : null}
 

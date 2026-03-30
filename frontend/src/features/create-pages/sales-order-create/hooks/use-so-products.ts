@@ -247,6 +247,7 @@ export function useSoProducts({
     setProductRowDraft,
     clearProductRowDraft,
     applyProductToRow,
+    applyProductsToRows,
 
     productsQuery,
     products,

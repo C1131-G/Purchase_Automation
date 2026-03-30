@@ -970,6 +970,12 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         : productsHook.applyProductToRow(product, {
             closeProductPopup: () => modals.setProductPopupOpen(false),
           }),
+    applyProductsToRows: (products: ProductLookupItem[]) =>
+      isEditMode
+        ? notifyRestricted('Products')
+        : productsHook.applyProductsToRows(products, {
+            closeProductPopup: () => modals.setProductPopupOpen(false),
+          }),
     updateProductRow: (id: string, patch: Partial<ProductRow>) =>
       isEditMode ? notifyRestricted('Products') : productsHook.updateProductRow(id, patch),
     removeProductRow: (id: string) =>
