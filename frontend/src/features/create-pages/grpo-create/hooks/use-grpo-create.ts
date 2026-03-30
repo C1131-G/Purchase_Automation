@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { goeyToast } from 'goey-toast'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -36,12 +37,14 @@ import {
   type GRPOMandatoryField,
 } from '@/features/create-pages/grpo-create/utils/grpo-create.utils'
 import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
+import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
 import {
   useGRPOHeader,
   useGRPOLines,
   useResetGRPOCreateAction,
   useSetGRPOHeaderAction,
   useSetGRPOLinesAction,
+  type GRPOLineItemState,
 } from '@/store/create/grpo-create.store'
 
 export type GRPOCreateLine = {
@@ -52,9 +55,9 @@ export type GRPOCreateLine = {
   currency: string
   taxCode: string
   taxRate: number
-  uomCode?: string
-  uomEntry?: number
-  baseQuantity?: number
+  uomCode?: string | undefined
+  uomEntry?: number | undefined
+  baseQuantity?: number | undefined
   quantity: number
   discountPercent: number
   discountAmount: number
@@ -79,6 +82,8 @@ const EMPTY_GRPO_FIELD_ERRORS: GRPOFieldErrors = {
 interface UseGRPOCreateOptions {
   mode?: 'create' | 'edit'
   docNum?: string
+  sourceDocNum?: string | undefined
+  sourceDocType?: 'PurchaseOrder' | undefined
 }
 
 const normalizeCodeForCompare = (value: unknown) => {
@@ -88,7 +93,8 @@ const normalizeCodeForCompare = (value: unknown) => {
   return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase()
 }
 
-export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions) {
+export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDocType }: UseGRPOCreateOptions) {
+  const navigate = useNavigate()
   const isEditMode = mode === 'edit'
   const editDocNum = (docNum ?? '').trim()
   const queryClient = useQueryClient()
@@ -201,6 +207,11 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
   const editDetailQuery = useQuery({
     ...grpoQueries.detailByDocNum(editDocNum),
     enabled: isEditMode && Boolean(editDocNum),
+  })
+
+  const sourceDetailQueryPO = useQuery({
+    ...purchaseOrderQueries.detailByDocNum(sourceDocNum || ''),
+    enabled: mode === 'create' && sourceDocType === 'PurchaseOrder' && Boolean(sourceDocNum),
   })
 
   useEffect(() => {
@@ -341,6 +352,148 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     editDocNum,
     editDetailQuery.data,
     isEditMode,
+    queryClient,
+    salesEmployees,
+    setHeader,
+    setLines,
+    vendors,
+  ])
+
+  useEffect(() => {
+    if (mode !== 'create') return
+    const currentSourceDocNum = sourceDocNum
+    const currentSourceDocType = sourceDocType
+    if (!currentSourceDocNum || !currentSourceDocType) return
+
+    const detail = sourceDetailQueryPO.data?.data
+    if (!detail) return
+    if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}`) return
+
+    const vendorCode = String(detail.CardCode ?? '').trim()
+    const vendorName = String(detail.CardName ?? '').trim()
+    const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode)
+    
+    const buyerFromDocCode =
+      detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+        ? salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(detail.SalesPersonCode),
+          )?.name
+        : ''
+    const buyerFromVendorCode =
+      matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
+        ? salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
+          )?.name
+        : ''
+    const buyerName = buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || ''
+
+    const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+    const rawComments = String(detail.Comments ?? '').trim()
+    const splitComments = rawComments.split(' | ').map((part) => part.trim())
+    const hasReferenceMarker = splitComments.length > 1
+    const originalRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+    
+    const referenceNo = String((detail as any).NumAtCard ?? '')
+    const remarks = originalRemarks || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
+    const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
+    const address = String(detail.Address ?? '').trim()
+
+    void (async () => {
+      const detailLines = detail.DocumentLines ?? []
+      const stockByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
+      ].filter(Boolean)
+
+      await Promise.all(
+        uniqueItemCodes.map(async (itemCode) => {
+          const warehouseStocks = (await queryClient
+            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+            .catch(() => [])) as any[]
+          stockByItemCode.set(
+            itemCode,
+            warehouseStocks.map((stock: any) => ({
+              code: String(stock.code ?? '').trim(),
+              stock: Number(stock.stock ?? 0),
+            })),
+          )
+        }),
+      )
+
+      const mappedLines = detailLines.map((line: any, index: number) => {
+        const itemCode = String(line.ItemCode ?? '').trim()
+        const lineWarehouseCode = String(line.WarehouseCode ?? '').trim()
+        const warehouseStocks = stockByItemCode.get(itemCode) ?? []
+        const lineStock = lineWarehouseCode
+          ? Number(warehouseStocks.find((s) => s.code === lineWarehouseCode)?.stock ?? 0)
+          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
+
+        const quantity = Number(line.Quantity ?? 1)
+        const price = Number(line.Price ?? line.UnitPrice ?? 0)
+        const grossAmount = Math.max(0, price * quantity)
+        const apiDiscountPercent = Number(line.DiscountPercent ?? NaN)
+        const lineTotal = Number(line.LineTotal ?? NaN)
+        const derivedDiscountAmountFromLineTotal =
+          Number.isFinite(lineTotal) && grossAmount > 0
+            ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+            : 0
+        const discountPercent = Number.isFinite(apiDiscountPercent)
+          ? Math.max(0, apiDiscountPercent)
+          : grossAmount > 0
+            ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+            : 0
+        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
+
+        return {
+          id: `row-copy-${currentSourceDocNum}-${index}`,
+          productCode: itemCode,
+          productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
+          stock: lineStock,
+          currency: '',
+          taxCode: '',
+          taxRate: 0,
+          uomCode: String(line.UoMCode ?? '').trim(),
+          uomEntry:
+            typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+              ? line.UoMEntry
+              : undefined,
+          baseQuantity: quantity,
+          quantity,
+          discountPercent,
+          discountAmount,
+          comment: '',
+          price,
+          warehouseCode: lineWarehouseCode,
+          baseEntry: detail.DocEntry ?? detail.id,
+          baseLine: line.LineNum ?? index,
+          baseType: 22, // Purchase Order base type
+        }
+      })
+
+      setVendorCodeInput(vendorCode)
+      setVendorNameInput(vendorName)
+      setBuyerInput(buyerName)
+      setWarehouseInput(warehouseCode)
+      setBillToAddress(address)
+      setShipToAddress(address)
+      setHeader({
+        docDate: getTodayISO(),
+        docDueDate,
+        referenceNo,
+        remarks,
+      })
+      setLines(mappedLines)
+      hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
+    })()
+  }, [
+    sourceDetailQueryPO.data,
+    mode,
+    sourceDocNum,
+    sourceDocType,
     queryClient,
     salesEmployees,
     setHeader,
@@ -755,7 +908,7 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     setLines((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row
-        const next = { ...row, ...patch }
+        const next: GRPOLineItemState = { ...row, ...patch }
         if (typeof next.baseQuantity === 'number' && Number.isFinite(next.baseQuantity)) {
           next.quantity = Math.max(0, Math.min(next.baseQuantity, Number(next.quantity) || 0))
         } else {
@@ -913,6 +1066,14 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
       }
       toastHandle.success()
 
+      // Navigate to list on success
+      setTimeout(() => {
+        void navigate({
+          to: '/purchase/grpo',
+          search: { page: 1, limit: 10 },
+        })
+      }, 1500) // Brief delay for toast visibility
+
       if (isEditMode) {
         const currentDocNum = (docNum ?? '').trim()
         if (currentDocNum) {
@@ -1047,7 +1208,7 @@ export function useGRPOCreate({ mode = 'create', docNum }: UseGRPOCreateOptions)
     requiredCompletionPercent,
     requiredFieldsTotal,
     requiredFieldLabelText: GRPO_FIELD_LABEL_TEXT,
-    handleCreateGRPO,
+    handleCreateOrder: handleCreateGRPO,
 
     setDocDate: (val: string) =>
       isEditMode ? notifyRestricted('Document Date') : setHeader({ docDate: val }),

@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react'
 import { BaseProductSection } from '@/features/create-pages/create-shared/components/sections/base-product-section'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
 import {
@@ -40,6 +41,7 @@ interface GRPOProductSectionProps {
   warehouses: any[]
   warehousesLoading: boolean
   onEditRestrictedClick?: (fieldName: string) => void
+  secondaryActions?: ReactNode
 }
 
 /**
@@ -70,6 +72,7 @@ export function GRPOProductSection({
   warehouses,
   warehousesLoading,
   onEditRestrictedClick,
+  secondaryActions,
 }: GRPOProductSectionProps) {
   const totals = calculateOrderTotals(rows)
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null
@@ -103,6 +106,7 @@ export function GRPOProductSection({
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={requiredFieldsTotal}
       isEditMode={isEditMode}
+      secondaryActions={secondaryActions}
     >
       <div
         onClickCapture={

@@ -15,6 +15,10 @@ export const QUERY_CACHE_POLICY = {
     staleTime: 10 * QUERY_TIME.minute,
     gcTime: 1 * QUERY_TIME.hour,
   },
+  detail: {
+    staleTime: 5 * QUERY_TIME.minute,
+    gcTime: 30 * QUERY_TIME.minute,
+  },
   createDynamicLookup: {
     staleTime: 1 * QUERY_TIME.minute,
     gcTime: 10 * QUERY_TIME.minute,

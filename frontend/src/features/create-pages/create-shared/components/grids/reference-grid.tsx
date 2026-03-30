@@ -37,14 +37,14 @@ export function ReferenceGrid({
   commentsEditableHighlight = false,
 }: ReferenceGridProps) {
   return (
-    <SectionCard title="Reference" className="lg:col-span-1">
+    <SectionCard title="REFERENCE" className="lg:col-span-1">
       <div>
         <label
           htmlFor="po-customer-ref-no"
           className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
         >
           <span className="inline-flex items-center gap-1.5">
-            <span>Customer Ref No</span>
+            <span>CUSTOMER REF NO</span>
             {referenceNoDisabled ? (
               <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
             ) : null}
@@ -88,7 +88,7 @@ export function ReferenceGrid({
           className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
         >
           <span className="inline-flex items-center gap-1.5">
-            <span>Remarks</span>
+            <span>REMARKS</span>
             {commentsDisabled ? (
               <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
             ) : null}

@@ -36,7 +36,7 @@ export function LogisticsGrid({
   onSelectSalesEmployee,
   salesEmployeeInvalid,
   salesEmployeeErrorText,
-  salesEmployeeLabel = 'Buyer',
+  salesEmployeeLabel = 'BUYER',
   salesEmployeePlaceholder = 'Select Buyer',
   salesEmployeeLoadingPlaceholder = 'Loading buyers...',
   error,
@@ -44,7 +44,7 @@ export function LogisticsGrid({
   salesEmployeeEditableHighlight = false,
 }: LogisticsGridProps) {
   return (
-    <SectionCard title="Document Details" className="lg:col-span-1 min-h-[220px]">
+    <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1 min-h-[220px]">
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {error}
@@ -53,7 +53,7 @@ export function LogisticsGrid({
       <div className="grid grid-cols-1 gap-4">
         <div>
           <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-            Doc Number
+            DOC NUMBER
           </label>
           <div className="flex h-10 items-center justify-start rounded-xl border border-blue-200 bg-blue-50 pl-3 text-sm font-semibold text-blue-700">
             Generated on Save

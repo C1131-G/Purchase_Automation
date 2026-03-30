@@ -33,7 +33,7 @@ export function AddressGrid({
   editableHighlight = false,
 }: AddressGridProps) {
   return (
-    <SectionCard title="Address" className={`${className} h-full min-h-55`}>
+    <SectionCard title="ADDRESS" className={`${className} h-full min-h-55`}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div>
           <label
@@ -41,7 +41,7 @@ export function AddressGrid({
             className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
           >
             <span className="inline-flex items-center gap-1.5">
-              <span>Bill To Address</span>
+              <span>BILL TO ADDRESS</span>
               {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
               {!readOnly && editableHighlight ? (
                 <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
@@ -76,7 +76,7 @@ export function AddressGrid({
             className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
           >
             <span className="inline-flex items-center gap-1.5">
-              <span>Ship To Address</span>
+              <span>SHIP TO ADDRESS</span>
               {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
               {!readOnly && editableHighlight ? (
                 <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />

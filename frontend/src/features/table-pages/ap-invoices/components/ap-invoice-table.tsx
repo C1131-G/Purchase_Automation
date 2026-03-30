@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useRouter } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   flexRender,
@@ -55,6 +55,7 @@ import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 const routeApi = getRouteApi('/_layout/purchase/ap-invoice')
 const TABLE_ID = 'ap-invoices'
 const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
+const EDIT_PRODUCTS_PREFETCH_LIMIT = 100
 
 const toAPInvoiceColumnFilters = (filters: ColumnFiltersState): APInvoiceColumnFilter[] => {
   const typedFilters: APInvoiceColumnFilter[] = []
@@ -71,21 +72,93 @@ const toAPInvoiceColumnFilters = (filters: ColumnFiltersState): APInvoiceColumnF
 export function APInvoiceTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
+  const router = useRouter()
   const setSorting = useSetSortingAction()
   const setVisibility = useSetVisibilityAction()
   const setOrder = useSetOrderAction()
   const setPagination = useSetPaginationAction()
   const setColumnFilters = useSetColumnFiltersAction()
   const clearAllFilters = useClearAllFiltersAction()
+  const queryClient = useQueryClient()
 
   /** Tracks which user action last triggered a fetch for action-specific toasts. */
   const lastActionRef = useRef<TableFetchAction>('fetching')
+  const docNumPrefetchRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createAPInvoiceColumns(), [])
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      const normalizedDocNum = docNum.trim()
+      if (!normalizedDocNum) return
+      if (docNumPrefetchRef.current.has(normalizedDocNum)) return
+      docNumPrefetchRef.current.add(normalizedDocNum)
+
+      void queryClient
+        .fetchQuery(apInvoiceQueries.detailByDocNum(normalizedDocNum))
+        .then((response) => {
+          void router.preloadRoute({
+            to: '/purchase/ap-invoice/$docNum/edit',
+            params: { docNum: normalizedDocNum },
+          } as never)
+          void Promise.allSettled([
+            queryClient.prefetchQuery(createSharedQueries.vendors()),
+            queryClient.prefetchQuery(createSharedQueries.warehouses()),
+            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+          ])
+
+          const detail = response?.data
+          if (!detail) return
+
+          const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+          if (warehouseCode) {
+            void queryClient.prefetchQuery(
+              createSharedQueries.products(warehouseCode, undefined, EDIT_PRODUCTS_PREFETCH_LIMIT),
+            )
+          }
+
+          const itemCodes = [
+            ...new Set(
+              (detail.DocumentLines ?? [])
+                .map((line) => String(line.ItemCode ?? '').trim())
+                .filter(Boolean),
+            ),
+          ]
+
+          for (const itemCode of itemCodes) {
+            void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+          }
+        })
+        .catch(() => {
+          docNumPrefetchRef.current.delete(normalizedDocNum)
+        })
+    },
+    [queryClient, router],
+  )
+
+  const columns = useMemo(
+    () =>
+      createAPInvoiceColumns({
+        onDocNumHover: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+        },
+        onDocNumDoubleClick: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+          void navigate({
+            to: '/purchase/ap-invoice/$docNum/edit',
+            params: { docNum: normalized },
+            viewTransition: true,
+          } as never)
+        },
+      }),
+    [navigate, prefetchEditRouteData],
+  )
   const columnIds = useMemo(
     () =>
       columns
@@ -135,7 +208,6 @@ export function APInvoiceTable() {
 
   const listParams = useMemo(() => mapSearchToAPInvoiceListParams(searchParams), [searchParams])
 
-  // Data Pipeline: Derives list params from URL search and triggers server-side query.
   const {
     data: apInvoiceList,
     isLoading,
@@ -144,8 +216,6 @@ export function APInvoiceTable() {
     error,
     refetch,
   } = useQuery(apInvoiceQueries.list(listParams))
-
-  const queryClient = useQueryClient()
 
   const rows = useMemo(() => apInvoiceList?.data ?? [], [apInvoiceList?.data])
   const totalRows = apInvoiceList?.total ?? 0

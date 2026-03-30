@@ -39,6 +39,7 @@ import { Route as LayoutSalesOrdersDocNumEditRouteImport } from './routes/_layou
 import { Route as LayoutSalesArInvoiceDocNumEditRouteImport } from './routes/_layout.sales.ar-invoice.$docNum.edit'
 import { Route as LayoutPurchaseOrdersDocNumEditRouteImport } from './routes/_layout.purchase.orders.$docNum.edit'
 import { Route as LayoutPurchaseGrpoDocNumEditRouteImport } from './routes/_layout.purchase.grpo.$docNum.edit'
+import { Route as LayoutPurchaseApInvoiceDocNumEditRouteImport } from './routes/_layout.purchase.ap-invoice.$docNum.edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -206,6 +207,12 @@ const LayoutPurchaseGrpoDocNumEditRoute =
     path: '/$docNum/edit',
     getParentRoute: () => LayoutPurchaseGrpoRoute,
   } as any)
+const LayoutPurchaseApInvoiceDocNumEditRoute =
+  LayoutPurchaseApInvoiceDocNumEditRouteImport.update({
+    id: '/$docNum/edit',
+    path: '/$docNum/edit',
+    getParentRoute: () => LayoutPurchaseApInvoiceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -213,7 +220,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/purchase/ap-credit-note': typeof LayoutPurchaseApCreditNoteRoute
-  '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRoute
+  '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-note': typeof LayoutPurchaseCreateApCreditNoteRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
   '/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
+  '/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
@@ -244,7 +252,7 @@ export interface FileRoutesByTo {
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/purchase/ap-credit-note': typeof LayoutPurchaseApCreditNoteRoute
-  '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRoute
+  '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-note': typeof LayoutPurchaseCreateApCreditNoteRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -263,6 +271,7 @@ export interface FileRoutesByTo {
   '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
   '/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
+  '/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
@@ -277,7 +286,7 @@ export interface FileRoutesById {
   '/_layout/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/_layout/purchase/ap-credit-note': typeof LayoutPurchaseApCreditNoteRoute
-  '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRoute
+  '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/_layout/purchase/create-ap-credit-note': typeof LayoutPurchaseCreateApCreditNoteRoute
   '/_layout/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/_layout/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -296,6 +305,7 @@ export interface FileRoutesById {
   '/_layout/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
   '/_layout/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
   '/_layout/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
+  '/_layout/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
   '/_layout/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/_layout/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/_layout/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/sales/incoming-payment'
     | '/sales/orders'
     | '/sales/quotations'
+    | '/purchase/ap-invoice/$docNum/edit'
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/sales/incoming-payment'
     | '/sales/orders'
     | '/sales/quotations'
+    | '/purchase/ap-invoice/$docNum/edit'
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
@@ -392,6 +404,7 @@ export interface FileRouteTypes {
     | '/_layout/sales/incoming-payment'
     | '/_layout/sales/orders'
     | '/_layout/sales/quotations'
+    | '/_layout/purchase/ap-invoice/$docNum/edit'
     | '/_layout/purchase/grpo/$docNum/edit'
     | '/_layout/purchase/orders/$docNum/edit'
     | '/_layout/sales/ar-invoice/$docNum/edit'
@@ -617,8 +630,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPurchaseGrpoDocNumEditRouteImport
       parentRoute: typeof LayoutPurchaseGrpoRoute
     }
+    '/_layout/purchase/ap-invoice/$docNum/edit': {
+      id: '/_layout/purchase/ap-invoice/$docNum/edit'
+      path: '/$docNum/edit'
+      fullPath: '/purchase/ap-invoice/$docNum/edit'
+      preLoaderRoute: typeof LayoutPurchaseApInvoiceDocNumEditRouteImport
+      parentRoute: typeof LayoutPurchaseApInvoiceRoute
+    }
   }
 }
+
+interface LayoutPurchaseApInvoiceRouteChildren {
+  LayoutPurchaseApInvoiceDocNumEditRoute: typeof LayoutPurchaseApInvoiceDocNumEditRoute
+}
+
+const LayoutPurchaseApInvoiceRouteChildren: LayoutPurchaseApInvoiceRouteChildren =
+  {
+    LayoutPurchaseApInvoiceDocNumEditRoute:
+      LayoutPurchaseApInvoiceDocNumEditRoute,
+  }
+
+const LayoutPurchaseApInvoiceRouteWithChildren =
+  LayoutPurchaseApInvoiceRoute._addFileChildren(
+    LayoutPurchaseApInvoiceRouteChildren,
+  )
 
 interface LayoutPurchaseGrpoRouteChildren {
   LayoutPurchaseGrpoDocNumEditRoute: typeof LayoutPurchaseGrpoDocNumEditRoute
@@ -681,7 +716,7 @@ interface LayoutRouteChildren {
   LayoutDashboardPurchaseRoute: typeof LayoutDashboardPurchaseRoute
   LayoutDashboardSalesRoute: typeof LayoutDashboardSalesRoute
   LayoutPurchaseApCreditNoteRoute: typeof LayoutPurchaseApCreditNoteRoute
-  LayoutPurchaseApInvoiceRoute: typeof LayoutPurchaseApInvoiceRoute
+  LayoutPurchaseApInvoiceRoute: typeof LayoutPurchaseApInvoiceRouteWithChildren
   LayoutPurchaseCreateApCreditNoteRoute: typeof LayoutPurchaseCreateApCreditNoteRoute
   LayoutPurchaseCreateApInvoiceRoute: typeof LayoutPurchaseCreateApInvoiceRoute
   LayoutPurchaseCreateGrpoRoute: typeof LayoutPurchaseCreateGrpoRoute
@@ -706,7 +741,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardPurchaseRoute: LayoutDashboardPurchaseRoute,
   LayoutDashboardSalesRoute: LayoutDashboardSalesRoute,
   LayoutPurchaseApCreditNoteRoute: LayoutPurchaseApCreditNoteRoute,
-  LayoutPurchaseApInvoiceRoute: LayoutPurchaseApInvoiceRoute,
+  LayoutPurchaseApInvoiceRoute: LayoutPurchaseApInvoiceRouteWithChildren,
   LayoutPurchaseCreateApCreditNoteRoute: LayoutPurchaseCreateApCreditNoteRoute,
   LayoutPurchaseCreateApInvoiceRoute: LayoutPurchaseCreateApInvoiceRoute,
   LayoutPurchaseCreateGrpoRoute: LayoutPurchaseCreateGrpoRoute,

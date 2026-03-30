@@ -1,6 +1,8 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { Copy } from 'lucide-react'
 import { type MouseEvent } from 'react'
 
+import { Button } from '@/components/button'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
@@ -16,68 +18,53 @@ import {
 import { GRPOModals } from '@/features/create-pages/grpo-create/components/grpo-modals'
 import { GRPOProductSection } from '@/features/create-pages/grpo-create/components/grpo-product-section'
 import { useGRPOCreate } from '@/features/create-pages/grpo-create/hooks/use-grpo-create'
-import { REQUIRED_FIELD_LABEL_TEXT } from '@/features/create-pages/grpo-create/utils/grpo-create.utils'
-import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
+import {
+  GRPO_FIELD_LABEL_TEXT,
+} from '@/features/create-pages/grpo-create/utils/grpo-create.utils'
 
 interface GRPOCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
+  sourceDocNum?: string | undefined
+  sourceDocType?: 'PurchaseOrder' | undefined
 }
 
 /**
- * GRPOCreate: Orchestrator for the complex GRPO creation multi-step flow.
- * State is managed by useGRPOCreate.
- * Leverages CreatePageWrapper for consistent entity layout and error boundaries.
+ * GRPOCreate: Handles document logic for Goods Receipt PO.
  */
-export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
-  const queryClient = useQueryClient()
-  const state = useGRPOCreate(docNum ? { mode, docNum } : { mode })
+export function GRPOCreate({
+  mode = 'create',
+  docNum,
+  sourceDocNum,
+  sourceDocType,
+}: GRPOCreateProps) {
+  const isFormHydrating = mode === 'edit' && !!docNum
 
-  const pageTitle = state.isEditMode ? 'Update GRPO' : 'Create GRPO'
+  const state = useGRPOCreate({
+    mode,
+    docNum: docNum || '',
+    sourceDocNum,
+    sourceDocType,
+  })
 
-  const isInitialCreateLoading =
-    !state.isEditMode &&
-    state.vendorsQuery.isLoading &&
-    state.warehousesQuery.isLoading &&
-    state.salesEmployeesQuery.isLoading &&
-    !state.vendorsQuery.data &&
-    !state.warehousesQuery.data &&
-    !state.salesEmployeesQuery.data &&
-    !state.vendorNameInput.trim() &&
-    !state.vendorCodeInput.trim()
-
-  const isEditHydrationPending = state.isEditMode && !state.isEditHydrated
-
-  const isFormHydrating =
-    isInitialCreateLoading ||
-    (state.isEditMode &&
-      ((state.editDetailQuery.isLoading && !state.editDetailQuery.data) || isEditHydrationPending))
-
-  const handleRestrictedClick = state.isEditMode
-    ? (fieldName: string) => (event: MouseEvent<HTMLDivElement>) => {
-        event.preventDefault()
-        event.stopPropagation()
+  const handleRestrictedClick =
+    (fieldName: string) => (event: MouseEvent<HTMLDivElement> | undefined) => {
+      if (state.isEditMode) {
+        event?.preventDefault()
+        event?.stopPropagation()
         state.showEditRestrictedToast(fieldName)
       }
-    : undefined
+    }
 
   return (
     <CreatePageWrapper
       rootLabel="Purchase"
       breadcrumbParent={{
-        label: 'GRPO Data Table',
+        label: 'GRPO',
         to: '/purchase/grpo',
-        onMouseEnter: () =>
-          void queryClient.prefetchQuery(grpoQueries.list({ page: 1, limit: 10 })),
       }}
-      pageTitle={pageTitle}
-      editError={
-        state.isEditMode && state.editDetailQuery.isError
-          ? state.editDetailQuery.error instanceof Error
-            ? state.editDetailQuery.error.message
-            : 'Unable to load GRPO for editing.'
-          : null
-      }
+      pageTitle={state.isEditMode ? `Update GRPO ${docNum}` : 'Create GRPO'}
+      editError={state.createError}
     >
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
@@ -86,7 +73,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <VendorCustomerGrid
-              loading={state.vendorsQuery.isLoading || isFormHydrating}
+              loading={isFormHydrating}
               error={null}
               nameInput={state.vendorNameInput}
               codeInput={state.vendorCodeInput}
@@ -128,7 +115,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
               onSalesEmployeeBlur={() => setTimeout(() => state.setBuyerFocused(false), 120)}
               onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
               onSelectSalesEmployee={state.selectBuyer}
-              salesEmployeeLabel="Buyer"
+              salesEmployeeLabel="BUYER"
               salesEmployeePlaceholder="Select Buyer"
               salesEmployeeLoadingPlaceholder="Loading buyers..."
               salesEmployeeDisabled={state.isEditMode}
@@ -185,22 +172,21 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
             />
           </div>
         </div>
-        <div className="h-full">
-          <ReferenceGrid
-            loading={isFormHydrating}
-            referenceNo={state.referenceNo}
-            comments={state.remarks}
-            referenceNoDisabled={state.isEditMode}
-            onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
-            onReferenceNoChange={state.setReferenceNo}
-            onCommentsChange={state.setRemarks}
-            commentsEditableHighlight={state.isEditMode}
-            referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
-            commentsInvalid={Boolean(state.fieldErrors.comments)}
-            referenceNoErrorText={state.fieldErrors.referenceNo}
-            commentsErrorText={state.fieldErrors.comments}
-          />
-        </div>
+
+        <ReferenceGrid
+          loading={isFormHydrating}
+          referenceNo={state.referenceNo}
+          comments={state.remarks}
+          referenceNoDisabled={state.isEditMode}
+          onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
+          onReferenceNoChange={state.setReferenceNo}
+          onCommentsChange={state.setRemarks}
+          commentsEditableHighlight={state.isEditMode}
+          referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
+          commentsInvalid={Boolean(state.fieldErrors.comments)}
+          referenceNoErrorText={state.fieldErrors.referenceNo}
+          commentsErrorText={state.fieldErrors.comments}
+        />
       </div>
 
       <GRPOProductSection
@@ -214,7 +200,7 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         requiredFieldsTotal={PURCHASE_ORDER_MANDATORY_FIELDS.length}
-        requiredFieldLabelText={REQUIRED_FIELD_LABEL_TEXT}
+        requiredFieldLabelText={GRPO_FIELD_LABEL_TEXT}
         openProductPopup={state.openProductPopup}
         prefetchProducts={state.prefetchProducts}
         isSubmitting={
@@ -231,6 +217,26 @@ export function GRPOCreate({ mode = 'create', docNum }: GRPOCreateProps) {
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}
+        secondaryActions={
+          state.isEditMode ? (
+            <Link
+              to="/purchase/create-ap-invoice"
+              search={{
+                sourceDocNum: docNum,
+                sourceDocType: 'GoodsReceiptPO',
+              }}
+            >
+              <Button
+                variant="outline"
+                size="md"
+                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+              >
+                <Copy className="mr-2 h-4 w-4 transition-transform group-hover:scale-110" />
+                Copy to AP Invoice
+              </Button>
+            </Link>
+          ) : null
+        }
       />
 
       <GRPOModals state={state} />
