@@ -58,6 +58,8 @@ export type GRPOCreatePODetail = {
   CardCode?: string
   CardName?: string
   Address?: string
+  Address2?: string
+  NumAtCard?: string
   DocTotal?: number
   DocumentLines?: GRPOCreatePODetailLine[]
 }
@@ -91,7 +93,9 @@ export type GRPODetail = {
   CardCode?: string
   CardName?: string
   Address?: string
+  Address2?: string
   Comments?: string
+  NumAtCard?: string
   DocTotal?: number
   DocCurr?: string
   DocStatus?: string

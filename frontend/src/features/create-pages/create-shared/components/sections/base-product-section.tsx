@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Plus, RefreshCw, Save } from 'lucide-react'
+import { ArrowLeft, Lock, Plus, RefreshCw, Save } from 'lucide-react'
 import { type ReactNode } from 'react'
 
 import { Button } from '@/components/button'
@@ -13,6 +13,7 @@ interface BaseProductSectionProps {
   onSearchProducts: () => void
   onPrefetchProducts?: () => void
   searchLabel?: string
+  hideSearch?: boolean
 
   // Validation Hints (Search)
   showRequiredHints?: boolean
@@ -49,6 +50,7 @@ interface BaseProductSectionProps {
   isEditMode?: boolean
   secondaryActions?: ReactNode
   showSubmitButton?: boolean
+  isReadOnly?: boolean
 }
 
 /**
@@ -80,20 +82,28 @@ export function BaseProductSection({
   missingMandatoryFields = [],
   mandatoryCompletionPercent = 0,
   mandatoryFieldsTotal = 0,
-  isEditMode = false,
   secondaryActions,
   showSubmitButton = true,
+  isEditMode = false,
+  hideSearch = false,
+  isReadOnly = false,
 }: BaseProductSectionProps) {
   const navigate = useNavigate()
+  const effectiveHideSearch = hideSearch || isEditMode
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
   const SubmitIcon = isUpdateAction ? RefreshCw : Save
 
   return (
     <section id={sectionId} className="mt-3 rounded-2xl border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
-        <h3 className="whitespace-nowrap text-sm font-medium text-zinc-800">{title}</h3>
+        <h3 className="whitespace-nowrap text-sm font-medium text-zinc-800">
+          <span className="inline-flex items-center gap-2">
+            <span>{title}</span>
+            {isReadOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+          </span>
+        </h3>
         <div className="flex items-center gap-2">
-          {showRequiredHints && missingSearchFields.length > 0 && searchFieldsTotal > 0 ? (
+          {showRequiredHints && !effectiveHideSearch && missingSearchFields.length > 0 && searchFieldsTotal > 0 ? (
             <Tooltip
               content={`Required fields: ${missingSearchFields.map((field) => requiredFieldLabels[field] ?? field).join(', ')}`}
               className="block w-auto max-w-none"
@@ -112,7 +122,7 @@ export function BaseProductSection({
               </span>
             </Tooltip>
           ) : null}
-          {!isEditMode && (
+          {!effectiveHideSearch && (
             <button
               type="button"
               onClick={onSearchProducts}

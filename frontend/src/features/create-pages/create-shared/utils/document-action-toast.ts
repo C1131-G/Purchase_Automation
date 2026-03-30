@@ -23,7 +23,7 @@ export function documentActionToast(documentType: string, action: 'create' | 'up
       goeyToast.dismiss(loadingId)
       const docSuffix = docNum ? ` ${docNum}` : ''
       goeyToast.success(`${documentType}${docSuffix} ${successVerb}`, {
-        duration: 86400000, // 24 hours
+        duration: 5000, // 5 seconds
       })
     },
     error: () => {

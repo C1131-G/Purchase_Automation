@@ -27,22 +27,9 @@ export const grpoQueries = {
   detailByDocNum: (docNum: string) =>
     queryOptions({
       queryKey: grpoKeys.detailByDocNum(docNum),
-      queryFn: async () => {
-        const list = await grpoAPI.getGRPOs({
-          page: 1,
-          limit: 10,
-          DocNum: String(docNum).trim(),
-        })
-        const exact = (list.data ?? []).find((item) => String(item.DocNum).trim() === docNum.trim())
-        const fallback = list.data?.[0]
-        const target = exact ?? fallback
-        if (!target?.id && target?.id !== 0) {
-          throw new Error('GRPO not found')
-        }
-        return grpoAPI.getGRPOById(target.id)
-      },
-      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
-      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      queryFn: () => grpoAPI.getGRPOById(docNum),
+      staleTime: QUERY_CACHE_POLICY.detail.staleTime,
+      gcTime: QUERY_CACHE_POLICY.detail.gcTime,
     }),
   detailById: (id: string | number) =>
     queryOptions({

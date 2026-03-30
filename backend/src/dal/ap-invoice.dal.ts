@@ -1,4 +1,4 @@
-﻿// A/P Invoice DAL: Handles HTTP requests for A/P Invoice operations.
+// A/P Invoice DAL: Handles HTTP requests for A/P Invoice operations.
 
 import type { NextFunction, Request, Response } from "express";
 
@@ -59,11 +59,12 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
 
-    logger.info({ msg: "Fetching A/P Invoice detail", id });
+    logger.info({ msg: "Fetching A/P Invoice detail", id, dbName });
 
-    const data = await apInvoiceService.getInvoice(sessionId, id as string);
+    const data = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
 
     if (!data) return res.status(404).json({ success: false, message: "A/P Invoice not found" });
 
@@ -99,17 +100,20 @@ export const updateInvoice = async (req: Request, res: Response, next: NextFunct
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
     const payload = req.body;
 
     // Zod Body Validation ensures only allowed fields are passed to SAP.
     const validatedPayload = UpdateInvoiceInputSchema.parse(payload);
 
-    logger.info({ msg: "Updating A/P Invoice", id: id as string });
+    logger.info({ msg: "Updating A/P Invoice", id: id as string, dbName });
 
-    const result = await apInvoiceService.updateInvoice(sessionId, id as string, validatedPayload);
+    const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+    // Note: getInvoiceByDocNum returns the full detail including internal DocEntry (detail.id)
+    const updateResult = await apInvoiceService.updateInvoice(sessionId, String(detail.id), validatedPayload);
 
-    res.status(200).json({ success: true, message: result.message });
+    res.status(200).json({ success: true, message: updateResult.message });
   } catch (error) {
     next(error);
   }
@@ -120,11 +124,13 @@ export const cancelInvoice = async (req: Request, res: Response, next: NextFunct
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
 
-    logger.info({ msg: "Cancelling A/P Invoice", id });
+    logger.info({ msg: "Cancelling A/P Invoice", id, dbName });
 
-    const result = await apInvoiceService.cancelInvoice(sessionId, id as string);
+    const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+    const result = await apInvoiceService.cancelInvoice(sessionId, String(detail.id));
     res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     next(error);

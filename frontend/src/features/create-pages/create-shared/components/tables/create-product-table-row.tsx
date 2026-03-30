@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Search, Trash2 } from 'lucide-react'
 import React from 'react'
 import ReactDOM from 'react-dom'
@@ -48,7 +48,6 @@ export function CreateProductTableRow({
   stockLimitReserve = 0,
   minStockToSelectWarehouse = 0,
 }: CreateProductTableRowProps) {
-  const queryClient = useQueryClient()
   const [warehouseInput, setWarehouseInput] = React.useState('')
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState('')
   const [warehouseFocused, setWarehouseFocused] = React.useState(false)
@@ -255,10 +254,19 @@ export function CreateProductTableRow({
           >
             <button
               type="button"
-              onClick={() => openProductPopup(row.id)}
+              disabled={disableInputs}
+              onClick={() => {
+                if (disableInputs) {
+                  onInputRestrictedClick?.()
+                  return
+                }
+                openProductPopup(row.id)
+              }}
               onMouseEnter={prefetchProducts}
               onFocus={prefetchProducts}
-              className="block w-full cursor-pointer truncate text-left text-sm text-zinc-800 hover:text-zinc-950"
+              className={`block w-full truncate text-left text-sm text-zinc-800 transition ${
+                disableInputs ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:text-zinc-950'
+              }`}
             >
               {row.productName || 'Select Product'}
             </button>
@@ -540,8 +548,17 @@ export function CreateProductTableRow({
         <Tooltip content="Remove row" className="block w-auto max-w-none">
           <button
             type="button"
-            onClick={() => removeProductRow(row.id)}
-            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 transition hover:bg-zinc-50"
+            disabled={disableInputs}
+            onClick={() => {
+              if (disableInputs) {
+                onInputRestrictedClick?.()
+                return
+              }
+              removeProductRow(row.id)
+            }}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 transition ${
+              disableInputs ? 'cursor-not-allowed bg-zinc-50 opacity-40' : 'cursor-pointer bg-white hover:bg-zinc-50 hover:text-blue-600'
+            }`}
             aria-label="Remove product row"
           >
             <Trash2 className="h-4 w-4" />

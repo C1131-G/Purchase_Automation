@@ -1,10 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
 
 import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { requireActiveSession } from '@/routes/_require-active-session'
 
 /** PurchaseAPCreditNoteCreateRoute: Page for creating new AP Credit Notes. */
 export const Route = createFileRoute('/_layout/purchase/create-ap-credit-note')({
+  validateSearch: (search) =>
+    z
+      .object({
+        sourceDocNum: z.string().optional(),
+        sourceDocType: z.enum(['PurchaseOrder', 'GoodsReceiptPO', 'APInvoice']).optional(),
+      })
+      .parse(search),
   beforeLoad: async () => {
     await requireActiveSession()
   },

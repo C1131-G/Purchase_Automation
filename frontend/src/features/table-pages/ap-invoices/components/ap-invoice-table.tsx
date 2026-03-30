@@ -100,7 +100,7 @@ export function APInvoiceTable() {
         .fetchQuery(apInvoiceQueries.detailByDocNum(normalizedDocNum))
         .then((response) => {
           void router.preloadRoute({
-            to: '/purchase/ap-invoice/$docNum/edit',
+            to: '/_layout/purchase/ap-invoice/$docNum/edit',
             params: { docNum: normalizedDocNum },
           } as never)
           void Promise.allSettled([
@@ -151,7 +151,7 @@ export function APInvoiceTable() {
           if (!normalized) return
           prefetchEditRouteData(normalized)
           void navigate({
-            to: '/purchase/ap-invoice/$docNum/edit',
+            to: './$docNum/edit',
             params: { docNum: normalized },
             viewTransition: true,
           } as never)

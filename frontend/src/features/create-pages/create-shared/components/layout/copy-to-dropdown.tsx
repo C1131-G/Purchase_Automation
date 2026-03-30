@@ -13,8 +13,8 @@ interface CopyToOption {
 
 interface CopyToDropdownProps {
   docNum: string
-  sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO'
-  targets: ('GRPO' | 'AP Invoice')[]
+  sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+  targets: ('GRPO' | 'AP Invoice' | 'AP Credit Note')[]
   className?: string
 }
 
@@ -27,10 +27,17 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
         icon: <Truck className="h-4 w-4" />,
       }
     }
+    if (target === 'AP Invoice') {
+      return {
+        label: 'AP Invoice',
+        to: '/purchase/create-ap-invoice',
+        icon: <StickyNote className="h-4 w-4" />,
+      }
+    }
     return {
-      label: 'AP Invoice',
-      to: '/purchase/create-ap-invoice',
-      icon: <StickyNote className="h-4 w-4" />,
+      label: 'AP Credit Note',
+      to: '/purchase/create-ap-credit-note',
+      icon: <Copy className="h-4 w-4" />, // Fallback icon
     }
   })
 

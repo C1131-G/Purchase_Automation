@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import {
   useCallback,
   useEffect,
@@ -35,7 +34,10 @@ import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { calculateOrderTotals } from '@/features/create-pages/create-shared/utils/create-order.calculations'
-import { type ProductRowDraft } from '@/features/create-pages/create-shared/utils/create-order.types'
+import {
+  type PopupMode,
+  type ProductRowDraft,
+} from '@/features/create-pages/create-shared/utils/create-order.types'
 
 interface UseAPInvoiceCreateOptions {
   mode?: 'create' | 'edit'
@@ -56,7 +58,6 @@ export function useAPInvoiceCreate({
   sourceDocNum,
   sourceDocType,
 }: UseAPInvoiceCreateOptions) {
-  const navigate = useNavigate()
   const isEditMode = mode === 'edit'
   const editDocNum = (docNum ?? '').trim()
   const queryClient = useQueryClient()
@@ -75,12 +76,16 @@ export function useAPInvoiceCreate({
   const [buyerInput, setBuyerInput] = useState('')
   
   const [billToAddress, setBillToAddress] = useState('')
-  const [, setShipToAddress] = useState('') // Maintained for consistency with grids if needed
+  const [shipToAddress, setShipToAddress] = useState('')
+  
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<PopupMode>('vendor-name')
+  const [modalSearch, setModalSearch] = useState('')
   
   type ActiveDatePicker = 'doc' | 'delivery' | null
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null)
   
-  const [, setProductPopupOpen] = useState(false)
+  const [productPopupOpen, setProductPopupOpen] = useState(false)
   const [productSearch, setProductSearch] = useState('')
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null)
 
@@ -117,6 +122,10 @@ export function useAPInvoiceCreate({
     enabled: isEditMode && Boolean(editDocNum),
   })
 
+  // Handle both standard SAP ('C'/'Closed') and sometimes used 'bost_Close' status codes.
+  const rawStatus = String(editDetailQuery.data?.data?.DocStatus ?? '').trim().toLowerCase()
+  const isClosed = rawStatus === 'c' || rawStatus === 'closed' || rawStatus === 'bost_close'
+
   const sourceDetailQueryGRPO = useQuery({
     ...grpoQueries.detailByDocNum(sourceDocNum || ''),
     enabled: mode === 'create' && sourceDocType === 'GoodsReceiptPO' && Boolean(sourceDocNum),
@@ -146,6 +155,12 @@ export function useAPInvoiceCreate({
     resetAPInvoiceCreate()
     setIsEditHydrated(false)
     hydratedDocNumRef.current = null
+    setVendorNameInput('')
+    setVendorCodeInput('')
+    setBuyerInput('')
+    setWarehouseInput('')
+    setBillToAddress('')
+    setShipToAddress('')
   }, [isEditMode, resetAPInvoiceCreate])
 
   // Hydration: Edit Mode
@@ -156,7 +171,9 @@ export function useAPInvoiceCreate({
 
     const detail = editDetailQuery.data?.data
     if (!detail) return
-    if (hydratedDocNumRef.current === currentDocNum) return
+
+    const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
+    if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) return
 
     const vendorCode = String(detail.CardCode ?? '').trim()
     const vendorName = String(detail.CardName ?? '').trim()
@@ -195,19 +212,28 @@ export function useAPInvoiceCreate({
     setVendorNameInput(vendorName)
     setBuyerInput(buyerName)
     setWarehouseInput(warehouseCode)
-    setBillToAddress(String(detail.Address ?? '').trim())
-    setShipToAddress(String(detail.Address ?? '').trim())
+    setBillToAddress(String(detail.Address || '').trim())
+    setShipToAddress(String(detail.Address2 || detail.Address || '').trim())
+    const numAtCard = String(detail.NumAtCard ?? '').trim()
+    const comments = String(detail.Comments ?? '').trim()
+    const splitComments = comments.split(' | ').map((part) => part.trim())
+    const hasReferenceMarker = splitComments.length > 1
+    const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
+    const remarks = hasReferenceMarker && !numAtCard ? splitComments.slice(1).join(' | ') : comments
+
     setHeader({
       vendorCode,
       vendorName,
       docDate: String(detail.DocDate ?? '').slice(0, 10),
       docDueDate: String(detail.DocDueDate ?? '').slice(0, 10),
-      referenceNo: String(detail.NumAtCard ?? ''),
-      remarks: String(detail.Comments ?? ''),
+      referenceNo,
+      remarks,
       warehouseCode,
     })
     setLines(mappedLines)
-    hydratedDocNumRef.current = currentDocNum
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = currentDocNum
+    }
     setIsEditHydrated(true)
   }, [
     editDocNum,
@@ -230,19 +256,41 @@ export function useAPInvoiceCreate({
         ? (sourceDetailQueryGRPO.data?.data as any)
         : (sourceDetailQueryPO.data?.data as any)
     if (!detail) return
-    if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}`) return
+
+    const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
+    // Only return if we have already hydrated with full metadata.
+    if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}` && isMetadataLoaded) return
 
     const vendorCode = String(detail.CardCode ?? '').trim()
     const vendorName = String(detail.CardName ?? '').trim()
 
-    const buyerName =
-      salesEmployees.find(
-        (item) =>
-          normalizeCodeForCompare(item.code) === normalizeCodeForCompare(detail.SalesPersonCode),
-      )?.name || ''
+    const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode)
+    
+    const buyerFromDocCode = detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+      ? salesEmployees.find(
+          (item) => normalizeCodeForCompare(item.code) === normalizeCodeForCompare(detail.SalesPersonCode)
+        )?.name
+      : ''
+    
+    const buyerFromVendorCode = matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
+      ? salesEmployees.find(
+          (item) => normalizeCodeForCompare(item.code) === normalizeCodeForCompare(matchedVendor.salesEmployeeCode)
+        )?.name
+      : ''
+
+    const buyerName = buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || ''
 
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
-    const remarks = `Based on ${currentSourceDocType} ${currentSourceDocNum}`
+    
+    const rawComments = String(detail.Comments ?? '').trim()
+    const splitComments = rawComments.split(' | ').map((part) => part.trim())
+    const hasReferenceMarker = splitComments.length > 1
+    const originalRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+    
+    const numAtCard = String((detail as any).NumAtCard ?? '').trim()
+    const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
+    const remarks = originalRemarks || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
+    
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
     const address = String(detail.Address ?? '').trim()
 
@@ -272,19 +320,21 @@ export function useAPInvoiceCreate({
     setVendorNameInput(vendorName)
     setBuyerInput(buyerName)
     setWarehouseInput(warehouseCode)
-    setBillToAddress(address)
-    setShipToAddress(address)
+    setBillToAddress(String(detail.Address || address || '').trim())
+    setShipToAddress(String(detail.Address2 || detail.Address || address || '').trim())
     setHeader({
       vendorCode,
       vendorName,
       docDate: getTodayISO(),
       docDueDate,
-      referenceNo: String(detail.NumAtCard ?? ''),
+      referenceNo,
       remarks,
       warehouseCode,
     })
     setLines(mappedLines)
-    hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
+    }
   }, [
     sourceDetailQueryGRPO.data,
     sourceDetailQueryPO.data,
@@ -292,8 +342,10 @@ export function useAPInvoiceCreate({
     sourceDocNum,
     sourceDocType,
     salesEmployees,
+    vendors,
     setHeader,
     setLines,
+    queryClient,
   ])
 
   const { vendorNameSuggestions, vendorCodeSuggestions, warehouseSuggestions, buyerSuggestions } =
@@ -306,6 +358,60 @@ export function useAPInvoiceCreate({
       warehouseInput,
       buyerInput,
     })
+
+  const openPopup = (mode: PopupMode) => {
+    const searchVal =
+      mode === 'vendor-name' || mode === 'vendor-code'
+        ? mode === 'vendor-name'
+          ? vendorNameInput
+          : vendorCodeInput
+        : mode === 'warehouse'
+          ? warehouseInput
+          : buyerInput
+
+    setModalMode(mode)
+    setModalSearch(searchVal)
+    setModalOpen(true)
+  }
+
+  const selectVendor = (vendor: LookupItem) => {
+    setVendorNameInput(vendor.name)
+    setVendorCodeInput(vendor.code)
+    setHeader({ vendorCode: vendor.code, vendorName: vendor.name })
+    setBillToAddress(vendor.billToAddress ?? '')
+    setShipToAddress(vendor.shipToAddress ?? vendor.billToAddress ?? '')
+    setModalOpen(false)
+  }
+
+  const selectBuyer = (item: LookupItem) => {
+    setBuyerInput(item.name)
+    setModalOpen(false)
+  }
+
+  const popupResults = useMemo(() => {
+    const term = modalSearch.trim().toLowerCase()
+    const source = (
+      modalMode === 'vendor-name' || modalMode === 'vendor-code'
+        ? vendors
+        : modalMode === 'warehouse'
+          ? warehouses
+          : salesEmployees
+    ) as LookupItem[]
+    if (!term) return source
+    const score = (item: LookupItem) => {
+      const code = (item.code || '').toLowerCase()
+      const name = (item.name || '').toLowerCase()
+      if (code === term || name === term) return 0
+      if (code.startsWith(term) || name.startsWith(term)) return 1
+      if (code.includes(term) || name.includes(term)) return 2
+      return 3
+    }
+    return [...source].sort((a, b) => {
+      const byScore = score(a) - score(b)
+      if (byScore !== 0) return byScore
+      return a.code.localeCompare(b.code, undefined, { sensitivity: 'base', numeric: true })
+    })
+  }, [vendors, warehouses, salesEmployees, modalSearch, modalMode])
 
   const prefetchProducts = useCallback(() => {
     void queryClient.prefetchQuery(createSharedQueries.products())
@@ -334,10 +440,34 @@ export function useAPInvoiceCreate({
       return
     }
 
+    if (isEditMode) {
+      const detail = editDetailQuery.data?.data
+      const existingDocDueDate = String(detail?.DocDueDate ?? '').slice(0, 10).trim()
+      const rawComments = String(detail?.Comments ?? '').trim()
+      const splitComments = rawComments.split(' | ').map((part) => part.trim())
+      const hasReferenceMarker = splitComments.length > 1
+      const existingRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+      const existingReferenceNo = String(detail?.NumAtCard ?? '').trim()
+
+      const currentDocDueDate = String(header.docDueDate ?? '').trim()
+      const currentRemarks = String(header.remarks ?? '').trim()
+      const currentReferenceNo = String(header.referenceNo ?? '').trim()
+
+      if (
+        currentDocDueDate === existingDocDueDate &&
+        currentRemarks === existingRemarks.trim() &&
+        currentReferenceNo === existingReferenceNo
+      ) {
+        setCreateError('Change at least one field before update.')
+        return
+      }
+    }
+
     const payload = isEditMode
       ? {
           DocDueDate: header.docDueDate || undefined,
           Comments: header.remarks.trim() || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
         }
       : {
           CardCode: vendorCodeInput.trim(),
@@ -346,6 +476,7 @@ export function useAPInvoiceCreate({
           Comments: [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join(' | ') || undefined,
           NumAtCard: header.referenceNo.trim(),
           Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
           DocumentLines: filteredRows.map((row) => ({
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -370,13 +501,6 @@ export function useAPInvoiceCreate({
       }
       toastHandle.success()
       
-      // Navigate to list on success
-      setTimeout(() => {
-        void navigate({
-          to: '/purchase/ap-invoice',
-          search: { page: 1, limit: 10 },
-        })
-      }, 1500) // Brief delay for the toast visibility
 
       if (!isEditMode) {
         resetAPInvoiceCreate()
@@ -394,6 +518,7 @@ export function useAPInvoiceCreate({
   return {
     isEditMode,
     isEditHydrated,
+    isClosed,
     header,
     rows,
     totals,
@@ -415,7 +540,7 @@ export function useAPInvoiceCreate({
     setWarehouseInput,
     setBuyerInput,
     billToAddress,
-    shipToAddress: '', // Defaulting for now
+    shipToAddress,
     setBillToAddress,
     setShipToAddress,
     setHeader,
@@ -431,26 +556,31 @@ export function useAPInvoiceCreate({
     requiredFieldLabelText: AP_INVOICE_FIELD_LABEL_TEXT,
     isSubmitting: createMutation.isPending || updateMutation.isPending,
     
+    // Custom Modals
+    modalOpen,
+    modalMode,
+    modalSearch,
+    setModalOpen,
+    setModalSearch,
+    openPopup,
+    selectVendor,
+    selectBuyer,
+    popupResults,
+
     // Callbacks for components
     handleDocDateChange: (val: string) => setHeader({ docDate: val }),
     handleDocDueDateChange: (val: string) => setHeader({ docDueDate: val }),
     handleRemarksChange: (val: string) => setHeader({ remarks: val }),
     handleReferenceNoChange: (val: string) => setHeader({ referenceNo: val }),
     
-    selectVendor: (v: LookupItem) => {
-      setVendorCodeInput(v.code)
-      setVendorNameInput(v.name)
-      setHeader({ vendorCode: v.code, vendorName: v.name })
-    },
     selectWarehouse: (w: LookupItem) => {
       setWarehouseInput(w.code)
       setHeader({ warehouseCode: w.code })
     },
-    selectBuyer: (b: LookupItem) => {
-      setBuyerInput(b.name)
-    },
     
     // Product management
+    productPopupOpen,
+    setProductPopupOpen,
     productSearch,
     setProductSearch,
     products,
@@ -509,5 +639,6 @@ export function useAPInvoiceCreate({
       setLines((prev) => [...prev, ...nextRows])
       setProductPopupOpen(false)
     },
+    productsQuery,
   }
 }

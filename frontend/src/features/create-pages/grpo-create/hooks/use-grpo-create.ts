@@ -1,4 +1,3 @@
-import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { goeyToast } from 'goey-toast'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -94,7 +93,6 @@ const normalizeCodeForCompare = (value: unknown) => {
 }
 
 export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDocType }: UseGRPOCreateOptions) {
-  const navigate = useNavigate()
   const isEditMode = mode === 'edit'
   const editDocNum = (docNum ?? '').trim()
   const queryClient = useQueryClient()
@@ -209,6 +207,11 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
     enabled: isEditMode && Boolean(editDocNum),
   })
 
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === 'Closed' ||
+    editDetailQuery.data?.data?.DocStatus === 'bost_Close' ||
+    editDetailQuery.data?.data?.DocStatus === 'C'
+
   const sourceDetailQueryPO = useQuery({
     ...purchaseOrderQueries.detailByDocNum(sourceDocNum || ''),
     enabled: mode === 'create' && sourceDocType === 'PurchaseOrder' && Boolean(sourceDocNum),
@@ -223,14 +226,18 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
   useEffect(() => {
     if (!isEditMode) return
     const currentDocNum = editDocNum
-    if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) return
+    if (!currentDocNum) return
     const detail = editDetailQuery.data?.data
     if (!detail) return
+
+    const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
+    if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) return
 
     void (async () => {
       setVendorCodeInput(String(detail.CardCode ?? '').trim())
       setVendorNameInput(String(detail.CardName ?? '').trim())
       const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
+      const numAtCard = String((detail as any).NumAtCard ?? '').trim()
       const comments = String(detail.Comments ?? '').trim()
       const splitComments = comments.split(' | ').map((part) => part.trim())
       const hasReferenceMarker = splitComments.length > 1
@@ -254,17 +261,20 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
                 normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
             )?.name
           : ''
+      const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
+      const remarks = hasReferenceMarker && !numAtCard ? splitComments.slice(1).join(' | ') : comments
+
       setBuyerInput(
         buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || '',
       )
       setHeader({
         docDate: loadedDocDate,
         docDueDate: String(detail.DocDueDate ?? '').slice(0, 10) || loadedDocDate,
-        referenceNo: hasReferenceMarker ? (splitComments[0] ?? '') : '',
-        remarks: hasReferenceMarker ? splitComments.slice(1).join(' | ') : comments,
+        referenceNo,
+        remarks,
       })
-      setBillToAddress(address)
-      setShipToAddress(address)
+      setBillToAddress(String(detail.Address || address || '').trim())
+      setShipToAddress(String(detail.Address2 || detail.Address || address || '').trim())
       const detailLines = detail.DocumentLines ?? []
       const stockByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
       const uniqueItemCodes = [
@@ -345,7 +355,9 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       })
       setLines(mappedLines)
       setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim())
-      hydratedDocNumRef.current = currentDocNum
+      if (isMetadataLoaded) {
+        hydratedDocNumRef.current = currentDocNum
+      }
       setHydratedDocNum(currentDocNum)
     })()
   }, [
@@ -367,7 +379,10 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
 
     const detail = sourceDetailQueryPO.data?.data
     if (!detail) return
-    if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}`) return
+
+    const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
+    // Only return if we have already hydrated with full metadata.
+    if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}` && isMetadataLoaded) return
 
     const vendorCode = String(detail.CardCode ?? '').trim()
     const vendorName = String(detail.CardName ?? '').trim()
@@ -397,7 +412,8 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
     const hasReferenceMarker = splitComments.length > 1
     const originalRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
     
-    const referenceNo = String((detail as any).NumAtCard ?? '')
+    const numAtCard = String((detail as any).NumAtCard ?? '').trim()
+    const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
     const remarks = originalRemarks || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
     const address = String(detail.Address ?? '').trim()
@@ -478,8 +494,8 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       setVendorNameInput(vendorName)
       setBuyerInput(buyerName)
       setWarehouseInput(warehouseCode)
-      setBillToAddress(address)
-      setShipToAddress(address)
+      setBillToAddress(String(detail.Address || address || '').trim())
+      setShipToAddress(String(detail.Address2 || detail.Address || address || '').trim())
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -487,7 +503,9 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
         remarks,
       })
       setLines(mappedLines)
-      hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
+      if (isMetadataLoaded) {
+        hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
+      }
     })()
   }, [
     sourceDetailQueryPO.data,
@@ -1028,8 +1046,14 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       const existingRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
       const currentDocDueDate = String(header.docDueDate ?? '').trim()
       const currentRemarks = String(header.remarks ?? '').trim()
+      const currentReferenceNo = String(header.referenceNo ?? '').trim()
+      const existingReferenceNo = String(detail?.NumAtCard ?? '').trim()
 
-      if (currentDocDueDate === existingDocDueDate && currentRemarks === existingRemarks.trim()) {
+      if (
+        currentDocDueDate === existingDocDueDate &&
+        currentRemarks === existingRemarks.trim() &&
+        currentReferenceNo === existingReferenceNo
+      ) {
         const noChangeMessage = 'Change at least one field before update.'
         setCreateError(noChangeMessage)
         goeyToast.error(noChangeMessage, { id: 'no-change-update-toast' })
@@ -1042,6 +1066,7 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       ? {
           DocDueDate: header.docDueDate || undefined,
           Comments: header.remarks.trim() || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
         }
       : {
           CardCode: vendorCodeInput.trim(),
@@ -1051,6 +1076,7 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
           Comments:
             [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join(' | ') ||
             undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocumentLines: filteredRows.map((row) => {
             const hasCompleteBaseLink =
               Number.isFinite(row.baseEntry) &&
@@ -1095,13 +1121,6 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       }
       toastHandle.success()
 
-      // Navigate to list on success
-      setTimeout(() => {
-        void navigate({
-          to: '/purchase/grpo',
-          search: { page: 1, limit: 10 },
-        })
-      }, 1500) // Brief delay for toast visibility
 
       if (isEditMode) {
         const currentDocNum = (docNum ?? '').trim()
@@ -1197,6 +1216,7 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
     remarks: header.remarks,
     billToAddress,
     shipToAddress,
+    isClosed,
 
     modalOpen,
     modalMode,
@@ -1249,8 +1269,7 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       isEditMode ? notifyRestricted('Sales Employee') : handleBuyerChange(val),
     setWarehouseInput: (val: string) =>
       isEditMode ? notifyRestricted('Warehouse') : handleWarehouseInputChange(val),
-    setReferenceNo: (val: string) =>
-      isEditMode ? notifyRestricted('Reference No') : handleReferenceNoChange(val),
+    setReferenceNo: handleReferenceNoChange,
     setRemarks: handleRemarksChange,
     setBillToAddress: (val: string) =>
       isEditMode ? notifyRestricted('Bill To Address') : handleBillToAddressChange(val),

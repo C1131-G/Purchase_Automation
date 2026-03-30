@@ -108,18 +108,35 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
           </div>
         </div>
 
-        <LogisticsGrid
-          salesEmployeeInput={state.salesEmployeeInput}
-          salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
-          error={state.salesEmployeesQuery.isError ? 'Unable to load buyers.' : null}
-          salesEmployeeFocused={state.salesEmployeeFocused}
-          salesEmployeeSuggestions={state.salesEmployeeSuggestions}
-          onSalesEmployeeChange={state.handleSalesEmployeeChange}
-          onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-          onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
-          onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
-          onSelectSalesEmployee={state.selectSalesEmployee}
-        />
+        <div
+          className={`h-full ${state.isClosed ? 'cursor-not-allowed' : ''}`}
+          onClickCapture={
+            state.isClosed
+              ? (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  state.showEditRestrictedToast('Logistics')
+                }
+              : undefined
+          }
+        >
+          <div className={`h-full ${state.isClosed ? 'pointer-events-none' : ''}`}>
+            <LogisticsGrid
+              salesEmployeeInput={state.salesEmployeeInput}
+              salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
+              error={state.salesEmployeesQuery.isError ? 'Unable to load buyers.' : null}
+              salesEmployeeFocused={state.salesEmployeeFocused}
+              salesEmployeeSuggestions={state.salesEmployeeSuggestions}
+              onSalesEmployeeChange={state.handleSalesEmployeeChange}
+              onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
+              onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
+              onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
+              onSelectSalesEmployee={state.selectSalesEmployee}
+              salesEmployeeDisabled={state.isClosed}
+              readOnly={state.isClosed}
+            />
+          </div>
+        </div>
 
         <DocumentDatesGrid
           loading={isFormHydrating}
@@ -132,6 +149,8 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
           toDisplayDate={toDisplayDate}
           parseISODate={parseISODate}
           toISODate={toISODate}
+          docDateReadOnly={false}
+          docDueDateReadOnly={state.isClosed}
           onSetActiveDatePicker={state.setActiveDatePicker}
           onDocDateChange={(value) => state.setHeader({ docDate: value })}
           onDocDueDateChange={(value) => {
@@ -142,25 +161,41 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
       </div>
 
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        <AddressGrid
-          loading={isFormHydrating}
-          billToAddress={state.billToAddress}
-          shipToAddress={state.shipToAddress}
-          onBillToAddressChange={(value) => {
-            state.setBillToAddress(value)
-            state.setProductSearchFieldErrors((prev) => ({
-              ...prev,
-              billToAddress: value.trim() ? undefined : prev.billToAddress,
-            }))
-          }}
-          onShipToAddressChange={(value) => {
-            state.setShipToAddress(value)
-            state.setProductSearchFieldErrors((prev) => ({
-              ...prev,
-              shipToAddress: value.trim() ? undefined : prev.shipToAddress,
-            }))
-          }}
-        />
+        <div
+          className={`h-full lg:col-span-2 ${state.isClosed ? 'cursor-not-allowed' : ''}`}
+          onClickCapture={
+            state.isClosed
+              ? (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  state.showEditRestrictedToast('Address')
+                }
+              : undefined
+          }
+        >
+          <div className={`h-full ${state.isClosed ? 'pointer-events-none' : ''}`}>
+            <AddressGrid
+              loading={isFormHydrating}
+              billToAddress={state.billToAddress}
+              shipToAddress={state.shipToAddress}
+              readOnly={state.isClosed}
+              onBillToAddressChange={(value) => {
+                state.setBillToAddress(value)
+                state.setProductSearchFieldErrors((prev) => ({
+                  ...prev,
+                  billToAddress: value.trim() ? undefined : prev.billToAddress,
+                }))
+              }}
+              onShipToAddressChange={(value) => {
+                state.setShipToAddress(value)
+                state.setProductSearchFieldErrors((prev) => ({
+                  ...prev,
+                  shipToAddress: value.trim() ? undefined : prev.shipToAddress,
+                }))
+              }}
+            />
+          </div>
+        </div>
         <ReferenceGrid
           loading={isFormHydrating}
           referenceNo={state.header.referenceNo}
@@ -203,10 +238,12 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         handleCreateOrder={state.handleCreateOrder}
+        isEditMode={state.isEditMode}
+        isClosed={state.isClosed}
         submitLabel={state.isEditMode ? 'Update' : 'Create'}
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
         secondaryActions={
-          state.isEditMode ? (
+          state.isEditMode && !state.isClosed ? (
             <CopyToDropdown
               docNum={docNum!}
               sourceDocType="PurchaseOrder"

@@ -36,14 +36,14 @@ export function GRPOCreate({
   sourceDocNum,
   sourceDocType,
 }: GRPOCreateProps) {
-  const isFormHydrating = mode === 'edit' && !!docNum
-
   const state = useGRPOCreate({
     mode,
     docNum: docNum || '',
     sourceDocNum,
     sourceDocType,
   })
+
+  const isFormHydrating = mode === 'edit' && !!docNum && !state.isEditHydrated
 
   const handleRestrictedClick =
     (fieldName: string) => (event: MouseEvent<HTMLDivElement> | undefined) => {
@@ -149,7 +149,8 @@ export function GRPOCreate({
           onDocDateChange={state.handleDocDateChange}
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
-          docDueDateEditableHighlight={state.isEditMode}
+          docDueDateReadOnly={state.isEditMode}
+          docDueDateEditableHighlight={false}
         />
       </div>
 
@@ -175,11 +176,11 @@ export function GRPOCreate({
           loading={isFormHydrating}
           referenceNo={state.referenceNo}
           comments={state.remarks}
-          referenceNoDisabled={state.isEditMode}
+          referenceNoDisabled={false}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
-          commentsEditableHighlight={state.isEditMode}
+          commentsEditableHighlight={false}
           referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
           commentsInvalid={Boolean(state.fieldErrors.comments)}
           referenceNoErrorText={state.fieldErrors.referenceNo}
@@ -216,7 +217,7 @@ export function GRPOCreate({
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}
         secondaryActions={
-          state.isEditMode ? (
+          state.isEditMode && !state.isClosed ? (
             <CopyToDropdown
               docNum={docNum!}
               sourceDocType="GoodsReceiptPO"

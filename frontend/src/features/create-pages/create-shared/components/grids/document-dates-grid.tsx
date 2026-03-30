@@ -33,6 +33,7 @@ type DocumentDatesGridProps = {
   docDueDateErrorText?: string | undefined
   error?: string | null
   docDateReadOnly?: boolean
+  docDueDateReadOnly?: boolean
   docDueDateEditableHighlight?: boolean
 }
 
@@ -54,6 +55,7 @@ export function DocumentDatesGrid({
   docDueDateErrorText,
   error,
   docDateReadOnly = false,
+  docDueDateReadOnly = false,
   docDueDateEditableHighlight = false,
 }: DocumentDatesGridProps) {
   return (
@@ -123,6 +125,9 @@ export function DocumentDatesGrid({
           >
             <span className="inline-flex items-center gap-1.5">
               <span>DELIVERY DATE</span>
+              {docDueDateReadOnly ? (
+                <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+              ) : null}
               {docDueDateEditableHighlight ? (
                 <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
               ) : null}
@@ -132,17 +137,19 @@ export function DocumentDatesGrid({
             <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
           ) : (
             <button
-              id="po-delivery-date"
               type="button"
+              disabled={docDueDateReadOnly}
               onClick={() =>
                 onSetActiveDatePicker((prev) => (prev === 'delivery' ? null : 'delivery'))
               }
-              className={`relative flex h-10 w-full cursor-pointer items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
+              className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDueDateInvalid
                   ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                  : docDueDateEditableHighlight
-                    ? 'border-emerald-300 bg-emerald-50/60 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
-                    : 'border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+                  : docDueDateReadOnly
+                    ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
+                    : docDueDateEditableHighlight
+                      ? 'border-emerald-300 bg-emerald-50/60 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
+                      : 'border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
               }`}
             >
               <span className={docDueDate ? 'text-zinc-800' : 'text-zinc-400'}>

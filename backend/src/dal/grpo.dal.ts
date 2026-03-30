@@ -1,4 +1,4 @@
-﻿// GRPO DAL: Handles HTTP requests for Goods Receipt Purchase Order (GRPO) operations.
+// GRPO DAL: Handles HTTP requests for Goods Receipt Purchase Order (GRPO) operations.
 
 import type { NextFunction, Request, Response } from "express";
 
@@ -62,11 +62,12 @@ export const getGRPO = async (req: Request, res: Response, next: NextFunction) =
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
 
-    logger.info({ msg: "Fetching GRPO detail", id });
+    logger.info({ msg: "Fetching GRPO detail", id, dbName });
 
-    const data = await grpoService.getGRPO(sessionId, id as string);
+    const data = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
 
     if (!data) {
       return res.status(404).json({
@@ -89,11 +90,14 @@ export const getPODetail = async (req: Request, res: Response, next: NextFunctio
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
 
-    logger.info({ msg: "Fetching PO detail for GRPO", id });
+    logger.info({ msg: "Fetching PO detail for GRPO", id, dbName });
 
-    const data = await grpoService.getPODetail(sessionId, id as string);
+    // Ensure we resolve the PO by DocNum since the frontend often provides the user-visible number.
+    const { purchaseOrderService } = await import("@/services/purchase-order.service");
+    const data = await purchaseOrderService.getPurchaseOrderByDocNum(sessionId, dbName, id as string);
 
     res.status(200).json({
       success: true,
@@ -167,15 +171,17 @@ export const updateGRPO = async (req: Request, res: Response, next: NextFunction
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
     const payload = req.body;
 
     // Validate the update payload to prevent unauthorized or invalid field modifications.
     const validatedPayload = UpdateGRPOInputSchema.parse(payload);
 
-    logger.info({ msg: "Updating GRPO", id });
+    logger.info({ msg: "Updating GRPO", id, dbName });
 
-    const result = await grpoService.updateGRPO(sessionId, id as string, validatedPayload);
+    const detail = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
+    const result = await grpoService.updateGRPO(sessionId, String(detail.id), validatedPayload);
 
     res.status(200).json({
       success: true,
@@ -191,11 +197,13 @@ export const cancelGRPO = async (req: Request, res: Response, next: NextFunction
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
 
-    logger.info({ msg: "Cancelling GRPO", id });
+    logger.info({ msg: "Cancelling GRPO", id, dbName });
 
-    const result = await grpoService.cancelGRPO(sessionId, id as string);
+    const detail = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
+    const result = await grpoService.cancelGRPO(sessionId, String(detail.id));
 
     res.status(200).json({
       success: true,

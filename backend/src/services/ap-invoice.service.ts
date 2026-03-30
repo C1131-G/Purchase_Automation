@@ -1,5 +1,4 @@
-﻿// A/P Invoice Service: Handles business logic for A/P Invoices, including HANA-based filtered lookups and SAP Service Layer document lifecycle management.
-
+import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
@@ -156,10 +155,14 @@ export const getInvoice = async (sessionId: string, id: string) => {
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
+      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
+      DocDueDate: result.DocDueDate,
+      NumAtCard: result.NumAtCard,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,
@@ -183,6 +186,27 @@ export const getInvoice = async (sessionId: string, id: string) => {
   }
 };
 
+// Resolves an A/P Invoice by its DocNum from the local HANA database to get its Service Layer DocEntry.
+export const getInvoiceByDocNum = async (sessionId: string, dbName: string, id: string) => {
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+  }
+
+  // Resolves DocNum to DocEntry from HANA if necessary, ensuring Service Layer compatibility.
+  const repo = await getTenantRepository(dbName, APInvoiceSchema);
+  const match = await repo
+    .createQueryBuilder("invoice")
+    .select(["invoice.docEntry"])
+    .where("CAST(invoice.docNum AS NVARCHAR) = :id", { id: normalizedId })
+    .getOne();
+
+  // If a match is found in HANA, we use the resolved DocEntry.
+  // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
+  const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
+  return getInvoice(sessionId, finalId);
+};
+
 // Creates a new A/P Invoice in SAP B1. Handles data mapping and date formatting.
 export const createInvoice = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
@@ -191,6 +215,7 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
+      NumAtCard: payload.NumAtCard,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const docLine: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
@@ -257,6 +282,7 @@ export const updateInvoice = async (
   try {
     const sapPayload: Record<string, unknown> = {};
     if (payload.Comments) sapPayload.Comments = payload.Comments;
+    if (payload.NumAtCard) sapPayload.NumAtCard = payload.NumAtCard;
 
     // PATCH request to SAP: Partial updates are standard for meta fields like comments.
     await serviceLayerClient.request(sessionId, "PATCH", `/PurchaseInvoices(${id})`, sapPayload);
@@ -298,6 +324,7 @@ export const apInvoiceService = {
   getInvoices,
   getInvoiceDocNums,
   getInvoice,
+  getInvoiceByDocNum,
   createInvoice,
   updateInvoice,
   cancelInvoice,

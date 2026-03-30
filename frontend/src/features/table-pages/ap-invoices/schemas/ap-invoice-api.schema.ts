@@ -49,6 +49,7 @@ export const apInvoiceDetailSchema = z.object({
   Comments: z.string().nullable().optional(),
   NumAtCard: z.string().nullable().optional(),
   Address: z.string().nullable().optional(),
+  Address2: z.string().nullable().optional(),
   SalesPersonCode: z.number().nullable().optional(),
   DocumentLines: z.array(
     z.object({

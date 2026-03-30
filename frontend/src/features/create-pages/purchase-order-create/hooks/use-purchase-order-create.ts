@@ -683,6 +683,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     createPurchaseOrderMutation: submitPurchaseOrderMutation,
     updatePurchaseOrderMutation,
     editDetailQuery,
+    docStatus: editDetailQuery.data?.data?.DocStatus,
+    isClosed: editDetailQuery.data?.data?.DocStatus === 'Closed' || editDetailQuery.data?.data?.DocStatus === 'C',
     isEditMode,
     isEditHydrated,
     header,

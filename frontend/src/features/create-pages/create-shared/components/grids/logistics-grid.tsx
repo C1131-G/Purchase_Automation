@@ -1,4 +1,4 @@
-// LogisticsGrid: Controls document-level shipping conditions and warehouse routing.
+import { Lock } from 'lucide-react'
 import { FieldBlock } from '@/features/create-pages/create-shared/components/core/field-block'
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
 import { SuggestionList } from '@/features/create-pages/create-shared/components/core/suggestion-list'
@@ -22,6 +22,7 @@ type LogisticsGridProps = {
   error?: string | null
   salesEmployeeDisabled?: boolean
   salesEmployeeEditableHighlight?: boolean
+  readOnly?: boolean
 }
 
 export function LogisticsGrid({
@@ -42,6 +43,7 @@ export function LogisticsGrid({
   error,
   salesEmployeeDisabled = false,
   salesEmployeeEditableHighlight = false,
+  readOnly = false,
 }: LogisticsGridProps) {
   return (
     <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1 min-h-[220px]">
@@ -53,7 +55,10 @@ export function LogisticsGrid({
       <div className="grid grid-cols-1 gap-4">
         <div>
           <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-            DOC NUMBER
+            <span className="inline-flex items-center gap-1.5">
+              <span>DOC NUMBER</span>
+              {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+            </span>
           </label>
           <div className="flex h-10 items-center justify-start rounded-xl border border-blue-200 bg-blue-50 pl-3 text-sm font-semibold text-blue-700">
             Generated on Save

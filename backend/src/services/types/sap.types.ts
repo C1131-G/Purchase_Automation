@@ -22,6 +22,10 @@ export interface SAPDocumentResponse {
   DocTotal: number;
   DocumentStatus: string;
   Comments?: string;
+  Address?: string;
+  Address2?: string;
+  ShipToDescription?: string;
+  ShipToAddress?: string;
   DocumentLines: SAPDocumentLine[];
   [key: string]: unknown; // For other dynamic fields
 }

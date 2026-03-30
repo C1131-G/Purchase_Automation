@@ -33,6 +33,9 @@ export function APInvoiceProductSection({
       requiredFieldLabels={state.requiredFieldLabelText}
       submitLabel={submitLabel}
       submitLoadingText={submitLoadingText}
+      isEditMode={state.isEditMode}
+      isReadOnly={state.isEditMode}
+      hideSearch={state.isEditMode}
     >
       <CreateProductTable
         productRows={state.rows}

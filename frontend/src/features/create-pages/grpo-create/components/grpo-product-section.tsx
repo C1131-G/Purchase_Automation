@@ -106,6 +106,8 @@ export function GRPOProductSection({
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={requiredFieldsTotal}
       isEditMode={isEditMode}
+      isReadOnly={isEditMode}
+      hideSearch={isEditMode}
       secondaryActions={secondaryActions}
     >
       <div

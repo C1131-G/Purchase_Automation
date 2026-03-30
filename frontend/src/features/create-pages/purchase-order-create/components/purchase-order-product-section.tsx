@@ -33,6 +33,8 @@ interface PurchaseOrderProductSectionProps {
   submitLabel?: string
   submitLoadingText?: string
   secondaryActions?: ReactNode
+  isEditMode: boolean
+  isClosed: boolean
 }
 
 /**
@@ -65,6 +67,8 @@ export function PurchaseOrderProductSection({
   submitLabel = 'Create',
   submitLoadingText = 'Creating...',
   secondaryActions,
+  isEditMode,
+  isClosed,
 }: PurchaseOrderProductSectionProps) {
   return (
     <BaseProductSection
@@ -88,6 +92,9 @@ export function PurchaseOrderProductSection({
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={PURCHASE_ORDER_MANDATORY_FIELDS.length}
+      hideSearch={isClosed}
+      isEditMode={isEditMode}
+      isReadOnly={isClosed}
     >
       <CreateProductTable
         productRows={productRows}
@@ -104,6 +111,7 @@ export function PurchaseOrderProductSection({
         createError={createError}
         warehouses={warehouses}
         warehousesLoading={warehousesLoading}
+        disableLineInputs={isClosed}
       />
     </BaseProductSection>
   )

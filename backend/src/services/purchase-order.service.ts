@@ -1,4 +1,4 @@
-﻿// Purchase Order Service: Orchestrates the procurement lifecycle. Manages HANA database queries for high-performance listings and Service Layer requests for PO creation and updates.
+// Purchase Order Service: Orchestrates the procurement lifecycle. Manages HANA database queries for high-performance listings and Service Layer requests for PO creation and updates.
 
 // Core & Utils
 import AppError from "@/core/errors/app-error";
@@ -165,10 +165,12 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
+      NumAtCard: result.NumAtCard,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,
@@ -197,25 +199,25 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
 export const getPurchaseOrderByDocNum = async (
   sessionId: string,
   dbName: string,
-  docNum: string,
+  id: string,
 ) => {
-  const normalizedDocNum = docNum.trim();
-  if (!normalizedDocNum) {
-    throw new AppError("DocNum is required", 400, "VALIDATION_ERROR");
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    throw new AppError("ID is required", 400, "VALIDATION_ERROR");
   }
 
+  // Resolves DocNum to DocEntry from HANA if necessary, ensuring Service Layer compatibility.
   const repo = await getTenantRepository(dbName, PurchaseOrderSchema);
   const match = await repo
     .createQueryBuilder("po")
     .select(["po.docEntry"])
-    .where("CAST(po.docNum AS NVARCHAR) = :docNum", { docNum: normalizedDocNum })
+    .where("CAST(po.docNum AS NVARCHAR) = :id", { id: normalizedId })
     .getOne();
 
-  if (!match?.docEntry) {
-    throw new AppError("Purchase Order not found", 404, "NOT_FOUND");
-  }
-
-  return getPurchaseOrder(sessionId, String(match.docEntry));
+  // If a match is found in HANA, we use the resolved DocEntry.
+  // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
+  const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
+  return getPurchaseOrder(sessionId, finalId);
 };
 
 // Submits a new Purchase Order to SAP B1.

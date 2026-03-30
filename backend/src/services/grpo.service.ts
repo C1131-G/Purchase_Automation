@@ -1,12 +1,11 @@
-﻿// GRPO Service: Handles Goods Receipt Purchase Order logic. Manages the lifecycle of goods receipt, including linking to base Purchase Orders.
-
-// Core & Utils
+import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { GRPOFilters } from "@/dal/types/grpo.types";
 // Data Access & Schemas
 import { type GRPO, GRPOSchema } from "@/db/schemas/grpo.schema";
+import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
@@ -185,8 +184,23 @@ export const getAvailablePOs = async (sessionId: string, vendorCode: string) => 
 
 // Fetches deep document details for a specific PO, including itemized lines.
 // This data is used to pre-populate the GRPO creation form.
-export const getPODetail = async (sessionId: string, poDocEntry: string) => {
+export const getPODetail = async (sessionId: string, dbName: string, id: string) => {
   try {
+    const normalizedId = id.trim();
+    let poDocEntry = normalizedId;
+
+    // Resolves DocNum to DocEntry from HANA if necessary, ensuring Service Layer compatibility.
+    const repo = await getTenantRepository(dbName, PurchaseOrderSchema);
+    const match = await repo
+      .createQueryBuilder("po")
+      .select(["po.docEntry"])
+      .where("CAST(po.docNum AS NVARCHAR) = :id", { id: normalizedId })
+      .getOne();
+
+    if (match?.docEntry) {
+      poDocEntry = String(match.docEntry);
+    }
+
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
@@ -202,12 +216,14 @@ export const getPODetail = async (sessionId: string, poDocEntry: string) => {
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
+      NumAtCard: result.NumAtCard,
       DocTotal: result.DocTotal,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,
         Quantity: line.Quantity,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode, // SAP internal UoM ID.
+        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
         UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
         Price: line.Price || line.UnitPrice,
         WarehouseCode: line.WarehouseCode,
@@ -219,7 +235,7 @@ export const getPODetail = async (sessionId: string, poDocEntry: string) => {
     logger.error({
       msg: "Failed to fetch PO details for GRPO",
       error: error.message,
-      poDocEntry,
+      id,
     });
     throw error;
   }
@@ -242,10 +258,14 @@ export const getGRPO = async (sessionId: string, id: string) => {
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       Comments: result.Comments,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
+      DocDueDate: result.DocDueDate,
+      NumAtCard: result.NumAtCard,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
         ItemCode: line.ItemCode,
         ItemDescription: line.ItemDescription,
@@ -269,6 +289,27 @@ export const getGRPO = async (sessionId: string, id: string) => {
   }
 };
 
+// Resolves a GRPO by its DocNum from the local HANA database to get its Service Layer DocEntry.
+export const getGRPOByDocNum = async (sessionId: string, dbName: string, id: string) => {
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+  }
+
+  // Resolves DocNum to DocEntry from HANA if necessary, ensuring Service Layer compatibility.
+  const repo = await getTenantRepository(dbName, GRPOSchema);
+  const match = await repo
+    .createQueryBuilder("grpo")
+    .select(["grpo.docEntry"])
+    .where("CAST(grpo.docNum AS NVARCHAR) = :id", { id: normalizedId })
+    .getOne();
+
+  // If a match is found in HANA, we use the resolved DocEntry.
+  // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
+  const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
+  return getGRPO(sessionId, finalId);
+};
+
 // Creates a GRPO document in SAP. Crucially, it links each line back to its source Purchase Order.
 export const createGRPO = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
@@ -276,6 +317,7 @@ export const createGRPO = async (sessionId: string, payload: Record<string, unkn
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
+      NumAtCard: payload.NumAtCard,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
@@ -360,6 +402,9 @@ export const updateGRPO = async (
     if (Object.prototype.hasOwnProperty.call(payload, "Comments")) {
       sapPayload.Comments = payload.Comments;
     }
+    if (Object.prototype.hasOwnProperty.call(payload, "NumAtCard")) {
+      sapPayload.NumAtCard = payload.NumAtCard;
+    }
 
     await serviceLayerClient.request(
       sessionId,
@@ -421,6 +466,7 @@ export const grpoService = {
   getAvailablePOs,
   getPODetail,
   getGRPO,
+  getGRPOByDocNum,
   createGRPO,
   updateGRPO,
   cancelGRPO,

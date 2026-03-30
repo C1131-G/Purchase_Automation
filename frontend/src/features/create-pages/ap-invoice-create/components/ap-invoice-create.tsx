@@ -9,6 +9,9 @@ import { VendorCustomerGrid } from '@/features/create-pages/create-shared/compon
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import { APInvoiceProductSection } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section'
 import { useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
+import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
+import { LookupPopupModal } from '@/features/create-pages/create-shared/components/modals/lookup-popup-modal'
+import { ProductPopupModal } from '@/features/create-pages/create-shared/components/modals/product-popup-modal'
 import {
   parseISODate,
   toDisplayDate,
@@ -40,6 +43,8 @@ export function APInvoiceCreate({
     sourceDocType: sourceDocType as any,
   })
 
+  const isFormHydrating = mode === 'edit' && !!docNum && !state.isEditHydrated
+
   const handleRestrictedClick =
     (fieldName: string) => (event: MouseEvent<HTMLDivElement> | undefined) => {
       if (state.isEditMode) {
@@ -66,7 +71,7 @@ export function APInvoiceCreate({
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <VendorCustomerGrid
-              loading={false}
+              loading={isFormHydrating}
               error={null}
               nameInput={state.vendorNameInput}
               codeInput={state.vendorCodeInput}
@@ -80,8 +85,8 @@ export function APInvoiceCreate({
               onCodeFocus={() => {}}
               onNameBlur={() => {}}
               onCodeBlur={() => {}}
-              onOpenNamePopup={() => {}}
-              onOpenCodePopup={() => {}}
+              onOpenNamePopup={() => state.openPopup('vendor-name')}
+              onOpenCodePopup={() => state.openPopup('vendor-code')}
               onSelectVendor={state.selectVendor}
               vendorNameInvalid={Boolean(state.fieldErrors.vendorName)}
               vendorCodeInvalid={Boolean(state.fieldErrors.vendorCode)}
@@ -100,13 +105,13 @@ export function APInvoiceCreate({
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <LogisticsGrid
               salesEmployeeInput={state.buyerInput}
-              salesEmployeesLoading={false}
+              salesEmployeesLoading={isFormHydrating}
               salesEmployeeFocused={false}
               salesEmployeeSuggestions={state.buyerSuggestions}
               onSalesEmployeeChange={state.setBuyerInput}
               onSalesEmployeeFocus={() => {}}
               onSalesEmployeeBlur={() => {}}
-              onOpenSalesEmployeePopup={() => {}}
+              onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
               onSelectSalesEmployee={state.selectBuyer}
               salesEmployeeDisabled={state.isEditMode}
             />
@@ -116,6 +121,7 @@ export function APInvoiceCreate({
         <DocumentDatesGrid
           docDate={state.header.docDate}
           docDueDate={state.header.docDueDate}
+          loading={isFormHydrating}
           today={new Date()}
           activeDatePicker={state.activeDatePicker as any}
           docDateContainerRef={state.docDateContainerRef}
@@ -124,7 +130,8 @@ export function APInvoiceCreate({
           onDocDateChange={state.handleDocDateChange}
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
-          docDueDateEditableHighlight={state.isEditMode}
+          docDueDateReadOnly={state.isEditMode}
+          docDueDateEditableHighlight={false}
           toDisplayDate={toDisplayDate}
           parseISODate={parseISODate}
           toISODate={toISODate}
@@ -138,6 +145,7 @@ export function APInvoiceCreate({
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <AddressGrid
+              loading={isFormHydrating}
               billToAddress={state.billToAddress}
               shipToAddress={state.shipToAddress}
               onBillToAddressChange={state.setBillToAddress}
@@ -147,30 +155,61 @@ export function APInvoiceCreate({
           </div>
         </div>
 
-        <div
-          onClickCapture={handleRestrictedClick('Reference & Comments')}
-          className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
-        >
-          <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
-            <ReferenceGrid
-              loading={false}
-              referenceNo={state.header.referenceNo}
-              comments={state.header.remarks}
-              onReferenceNoChange={state.handleReferenceNoChange}
-              onCommentsChange={state.handleRemarksChange}
-              referenceNoDisabled={state.isEditMode}
-              commentsEditableHighlight={state.isEditMode}
-              referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
-              referenceNoErrorText={state.fieldErrors.referenceNo ?? undefined}
-            />
-          </div>
-        </div>
+        <ReferenceGrid
+          loading={isFormHydrating}
+          referenceNo={state.header.referenceNo}
+          comments={state.header.remarks}
+          onReferenceNoChange={state.handleReferenceNoChange}
+          onCommentsChange={state.handleRemarksChange}
+          referenceNoDisabled={false}
+          commentsEditableHighlight={false}
+          referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
+          referenceNoErrorText={state.fieldErrors.referenceNo ?? undefined}
+        />
       </div>
 
       <APInvoiceProductSection
         state={state}
         submitLabel={state.isEditMode ? 'Update' : 'Create'}
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
+        secondaryActions={
+          state.isEditMode && state.isEditHydrated && !state.isClosed ? (
+            <CopyToDropdown
+              docNum={docNum!}
+              sourceDocType="APInvoice"
+              targets={['AP Credit Note']}
+            />
+          ) : null
+        }
+      />
+      <LookupPopupModal
+        open={state.modalOpen}
+        onClose={() => state.setModalOpen(false)}
+        mode={state.modalMode}
+        search={state.modalSearch}
+        onSearchChange={state.setModalSearch}
+        results={state.popupResults}
+        loading={false}
+        error={null}
+        onSelect={(item) => {
+          if (state.modalMode === 'sales-employee') {
+            state.selectBuyer(item)
+          } else {
+            state.selectVendor(item)
+          }
+        }}
+      />
+      <ProductPopupModal
+        open={state.productPopupOpen}
+        onClose={() => state.setProductPopupOpen(false)}
+        warehouseCode={state.warehouseInput}
+        search={state.productSearch}
+        results={state.products}
+        loading={state.productsQuery.isLoading}
+        error={state.productsQuery.isError ? 'Unable to load products' : null}
+        onSearchChange={state.setProductSearch}
+        onSelect={state.applyProductToRow}
+        onSelectMultiple={state.applyProductsToRows}
       />
     </CreatePageWrapper>
   )

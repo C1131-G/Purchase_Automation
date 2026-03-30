@@ -49,6 +49,8 @@ export type PurchaseOrderDetail = {
   CardCode?: string
   CardName?: string
   Address?: string
+  Address2?: string
+  NumAtCard?: string
   Comments?: string
   DocCurr?: string
   DocStatus?: string
