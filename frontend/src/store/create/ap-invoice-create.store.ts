@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import { type ProductRow } from '@/features/create-pages/create-shared/utils/create-order.types'
 
-export type GRPOLineItemState = ProductRow & {
-  baseQuantity?: number | undefined
+export type APInvoiceLineItemState = ProductRow & {
+  baseQuantity?: number
 }
 
-export type GRPOHeaderState = {
+export type APInvoiceHeaderState = {
   vendorCode: string
   vendorName: string
   docDate: string
@@ -15,15 +15,15 @@ export type GRPOHeaderState = {
   remarks: string
 }
 
-type GRPOCreateState = {
-  header: GRPOHeaderState
-  lines: GRPOLineItemState[]
-  setHeader: (patch: Partial<GRPOHeaderState>) => void
+type APInvoiceCreateState = {
+  header: APInvoiceHeaderState
+  lines: APInvoiceLineItemState[]
+  setHeader: (patch: Partial<APInvoiceHeaderState>) => void
   setLines: (
-    lines: GRPOLineItemState[] | ((prev: GRPOLineItemState[]) => GRPOLineItemState[]),
+    lines: APInvoiceLineItemState[] | ((prev: APInvoiceLineItemState[]) => APInvoiceLineItemState[]),
   ) => void
-  addLine: (line: GRPOLineItemState) => void
-  updateLine: (id: string, patch: Partial<GRPOLineItemState>) => void
+  addLine: (line: APInvoiceLineItemState) => void
+  updateLine: (id: string, patch: Partial<APInvoiceLineItemState>) => void
   removeLine: (id: string) => void
   reset: () => void
 }
@@ -44,7 +44,7 @@ const getAutoDocDueDate = (docDate: string) => {
   return toISODate(base)
 }
 
-const getDefaultHeader = (): GRPOHeaderState => ({
+const getDefaultHeader = (): APInvoiceHeaderState => ({
   vendorCode: '',
   vendorName: '',
   docDate: getToday(),
@@ -54,7 +54,7 @@ const getDefaultHeader = (): GRPOHeaderState => ({
   remarks: '',
 })
 
-export const useGRPOCreateStore = create<GRPOCreateState>((set) => ({
+export const useAPInvoiceCreateStore = create<APInvoiceCreateState>((set) => ({
   header: getDefaultHeader(),
   lines: [],
   setHeader: (patch) =>
@@ -95,8 +95,8 @@ export const useGRPOCreateStore = create<GRPOCreateState>((set) => ({
     }),
 }))
 
-export const useGRPOHeader = () => useGRPOCreateStore((state) => state.header)
-export const useGRPOLines = () => useGRPOCreateStore((state) => state.lines)
-export const useSetGRPOHeaderAction = () => useGRPOCreateStore((state) => state.setHeader)
-export const useSetGRPOLinesAction = () => useGRPOCreateStore((state) => state.setLines)
-export const useResetGRPOCreateAction = () => useGRPOCreateStore((state) => state.reset)
+export const useAPInvoiceHeader = () => useAPInvoiceCreateStore((state) => state.header)
+export const useAPInvoiceLines = () => useAPInvoiceCreateStore((state) => state.lines)
+export const useSetAPInvoiceHeaderAction = () => useAPInvoiceCreateStore((state) => state.setHeader)
+export const useSetAPInvoiceLinesAction = () => useAPInvoiceCreateStore((state) => state.setLines)
+export const useResetAPInvoiceCreateAction = () => useAPInvoiceCreateStore((state) => state.reset)

@@ -18,7 +18,10 @@ const mapDocStatusLabel = (value: string) => {
   return normalized
 }
 
-export const createAPInvoiceColumns = () => [
+export const createAPInvoiceColumns = (options?: {
+  onDocNumDoubleClick?: (docNum: string) => void
+  onDocNumHover?: (docNum: string) => void
+}) => [
   columnHelper.accessor('DocNum', {
     id: 'DocNum',
     header: ({ column, table }) => (
@@ -26,7 +29,11 @@ export const createAPInvoiceColumns = () => [
     ),
     cell: (info) => (
       <Tooltip content="Double click to edit">
-        <span className="block cursor-pointer truncate transition-colors hover:text-blue-600">
+        <span
+          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+          onDoubleClick={() => options?.onDocNumDoubleClick?.(String(info.getValue()))}
+          onMouseEnter={() => options?.onDocNumHover?.(String(info.getValue()))}
+        >
           {info.getValue()}
         </span>
       </Tooltip>

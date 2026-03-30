@@ -42,9 +42,9 @@ type VendorCustomerGridProps = {
 export function VendorCustomerGrid({
   loading,
   error,
-  sectionTitle = 'Vendor Info',
-  nameLabel = 'Vendor Name *',
-  codeLabel = 'Vendor Code *',
+  sectionTitle = 'VENDOR INFO',
+  nameLabel = 'VENDOR NAME *',
+  codeLabel = 'VENDOR CODE *',
   namePlaceholder = 'Select or Type Vendor',
   codePlaceholder = 'Select or Type Code',
   nameLoadingPlaceholder = 'Loading vendor names...',
