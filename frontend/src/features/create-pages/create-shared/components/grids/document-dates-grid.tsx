@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon, Lock, Pencil } from 'lucide-react'
+import { Calendar as CalendarIcon, Lock } from 'lucide-react'
 import { type ComponentProps, type ReactElement, type RefObject } from 'react'
 
 import { Calendar } from '@/components/calendar/calendar'
@@ -34,7 +34,6 @@ type DocumentDatesGridProps = {
   error?: string | null
   docDateReadOnly?: boolean
   docDueDateReadOnly?: boolean
-  docDueDateEditableHighlight?: boolean
 }
 
 export function DocumentDatesGrid({
@@ -56,7 +55,6 @@ export function DocumentDatesGrid({
   error,
   docDateReadOnly = false,
   docDueDateReadOnly = false,
-  docDueDateEditableHighlight = false,
 }: DocumentDatesGridProps) {
   return (
     <SectionCard title="DOCUMENT DATES" className="lg:col-span-1">
@@ -128,9 +126,6 @@ export function DocumentDatesGrid({
               {docDueDateReadOnly ? (
                 <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
               ) : null}
-              {docDueDateEditableHighlight ? (
-                <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
-              ) : null}
             </span>
           </label>
           {loading ? (
@@ -147,15 +142,17 @@ export function DocumentDatesGrid({
                   ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
                   : docDueDateReadOnly
                     ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
-                    : docDueDateEditableHighlight
-                      ? 'border-emerald-300 bg-emerald-50/60 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
-                      : 'border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+                    : 'border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
               }`}
             >
               <span className={docDueDate ? 'text-zinc-800' : 'text-zinc-400'}>
                 {docDueDate ? toDisplayDate(docDueDate) : 'Select delivery date'}
               </span>
-              <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100">
+              <div
+                className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+                  docDueDateReadOnly ? 'opacity-60' : 'hover:bg-zinc-100'
+                }`}
+              >
                 <CalendarIcon className="h-3 w-3" />
               </div>
             </button>

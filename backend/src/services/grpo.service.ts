@@ -122,7 +122,11 @@ export const getGRPODocNums = async (dbName: string, search?: string, limit?: nu
   const queryBuilder = repo.createQueryBuilder("grpo");
   const safeLimit = getSafeDocNumLimit(limit);
 
-  queryBuilder.select("grpo.docNum", "DocNum").distinct(true);
+  queryBuilder.select("grpo.docNum", "DocNum")
+    .addSelect("grpo.cardCode", "CardCode")
+    .addSelect("grpo.cardName", "CardName")
+    .distinct(true);
+
   if (search && search.trim().length > 0) {
     queryBuilder.where("CAST(grpo.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
@@ -131,11 +135,13 @@ export const getGRPODocNums = async (dbName: string, search?: string, limit?: nu
   queryBuilder.orderBy("grpo.docNum", "DESC");
   queryBuilder.take(safeLimit);
 
-  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string; CardCode?: string; CardName?: string }>();
   return rows
-    .map((row) => String(row.DocNum).trim())
-    .filter((value) => value.length > 0)
-    .map((code) => ({ code, name: code }));
+    .map((row) => ({
+      code: String(row.DocNum).trim(),
+      name: row.CardCode ? `[${row.CardCode}] ${row.CardName || ""}`.trim() : String(row.DocNum).trim(),
+    }))
+    .filter((item) => item.code.length > 0);
 };
 
 // Requests a list of open Purchase Orders for a specific vendor from the Service Layer.
@@ -228,6 +234,7 @@ export const getPODetail = async (sessionId: string, dbName: string, id: string)
         Price: line.Price || line.UnitPrice,
         WarehouseCode: line.WarehouseCode,
         TaxCode: line.TaxCode || "",
+        VatPrcnt: line.VatPrcnt,
       })),
     };
   } catch (err: unknown) {
@@ -275,6 +282,8 @@ export const getGRPO = async (sessionId: string, id: string) => {
         UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
         UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
         WarehouseCode: line.WarehouseCode,
+        TaxCode: line.TaxCode,
+        VatPrcnt: line.VatPrcnt,
         LineTotal: line.LineTotal,
       })),
     };

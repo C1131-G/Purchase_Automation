@@ -112,6 +112,7 @@ export function PurchaseOrderProductSection({
         warehouses={warehouses}
         warehousesLoading={warehousesLoading}
         disableLineInputs={isClosed}
+        showExplicitZeroDiscount={true}
       />
     </BaseProductSection>
   )

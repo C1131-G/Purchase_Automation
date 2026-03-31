@@ -2,19 +2,18 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 
 import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
+import APInvoiceCreate from '@/features/create-pages/ap-invoice-create/components/ap-invoice-create'
 import { requireActiveSession } from '@/routes/_require-active-session'
-import { APInvoiceCreate } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-create'
 
-/** PurchaseAPInvoiceCreateRoute: Page for creating new AP Invoices. */
+/** PurchaseAPInvoiceCreateRoute: Page for creating new A/P Invoices. */
 export const Route = createFileRoute('/_layout/purchase/create-ap-invoice')({
   validateSearch: z.object({
     sourceDocNum: z.string().optional(),
-    sourceDocType: z.enum(['GoodsReceiptPO', 'PurchaseOrder']).optional(),
+    sourceDocType: z.enum(['PurchaseOrder', 'GoodsReceiptPO']).optional(),
   }),
   beforeLoad: async () => {
     await requireActiveSession()
   },
-  pendingMs: 0,
   pendingComponent: CreatePageRouteSkeleton,
   component: RouteComponent,
 })

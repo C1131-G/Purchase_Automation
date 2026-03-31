@@ -60,6 +60,8 @@ export const apInvoiceDetailSchema = z.object({
       Price: z.number(),
       UnitPrice: z.number().optional(),
       DiscountPercent: z.number().optional(),
+      TaxCode: z.string().optional(),
+      VatPrcnt: z.number().optional(),
       LineTotal: z.number().optional(),
       WarehouseCode: z.string(),
       UoMCode: z.string().nullable().optional(),
@@ -77,6 +79,7 @@ export const createAPInvoiceInputSchema = z.object({
   DocDueDate: z.string().optional(),
   Comments: z.string().optional(),
   Address: z.string().optional(),
+  Address2: z.string().optional(),
   NumAtCard: z.string().optional(),
   DocumentLines: z.array(
     z.object({
@@ -98,4 +101,5 @@ export const createAPInvoiceInputSchema = z.object({
 export const updateAPInvoiceInputSchema = z.object({
   DocDueDate: z.string().optional(),
   Comments: z.string().optional(),
+  NumAtCard: z.string().optional(),
 })

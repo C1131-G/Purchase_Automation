@@ -29,6 +29,7 @@ interface CreateProductTableRowProps {
   onInputRestrictedClick?: (() => void) | undefined
   stockLimitReserve?: number
   minStockToSelectWarehouse?: number
+  showExplicitZeroDiscount?: boolean
 }
 
 export function CreateProductTableRow({
@@ -47,6 +48,7 @@ export function CreateProductTableRow({
   onInputRestrictedClick,
   stockLimitReserve = 0,
   minStockToSelectWarehouse = 0,
+  showExplicitZeroDiscount = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState('')
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState('')
@@ -240,9 +242,9 @@ export function CreateProductTableRow({
 
   const discountPercentInputValue =
     rowDraft?.discountPercent ??
-    (clampedDiscountPercent === 0 ? '' : String(clampedDiscountPercent))
+    (clampedDiscountPercent === 0 ? (showExplicitZeroDiscount ? '0.00' : '') : String(clampedDiscountPercent))
   const discountAmountInputValue =
-    rowDraft?.discountAmount ?? (clampedDiscountAmount === 0 ? '' : String(clampedDiscountAmount))
+    rowDraft?.discountAmount ?? (clampedDiscountAmount === 0 ? (showExplicitZeroDiscount ? '0.00' : '') : String(clampedDiscountAmount))
 
   return (
     <tr>

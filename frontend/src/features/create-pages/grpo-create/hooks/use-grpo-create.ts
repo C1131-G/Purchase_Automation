@@ -22,6 +22,7 @@ import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import { resolveProductTaxRates } from '@/features/create-pages/create-shared/utils/product-tax-rate'
 import {
   useCreateGRPO,
   useUpdateGRPO,
@@ -296,6 +297,11 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
         }),
       )
 
+      const taxRateByItemCode = await resolveProductTaxRates(
+        queryClient,
+        detailLines.map((line) => String(line.ItemCode ?? '').trim()),
+      )
+
       const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
         const quantity = Math.max(0, Number(line.Quantity ?? 0))
         const price = Number(line.Price ?? line.UnitPrice ?? 0)
@@ -326,7 +332,9 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
           stock: lineStock,
           currency: '',
           taxCode: '',
-          taxRate: 0,
+          taxRate:
+            taxRateByItemCode.get(itemCode) ??
+            (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
           uomCode: String(line.UoMCode ?? '').trim(),
           uomEntry:
             typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
@@ -411,9 +419,9 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
     const splitComments = rawComments.split(' | ').map((part) => part.trim())
     const hasReferenceMarker = splitComments.length > 1
     const originalRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
-    
     const numAtCard = String((detail as any).NumAtCard ?? '').trim()
     const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
+    
     const remarks = originalRemarks || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
     const address = String(detail.Address ?? '').trim()
@@ -438,6 +446,11 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
             })),
           )
         }),
+      )
+
+      const taxRateByItemCode = await resolveProductTaxRates(
+        queryClient,
+        detailLines.map((line) => String(line.ItemCode ?? '').trim()),
       )
 
       const mappedLines = detailLines.map((line: any, index: number) => {
@@ -471,7 +484,9 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
           stock: lineStock,
           currency: '',
           taxCode: '',
-          taxRate: 0,
+          taxRate:
+            taxRateByItemCode.get(itemCode) ??
+            (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
           uomCode: String(line.UoMCode ?? '').trim(),
           uomEntry:
             typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
@@ -902,6 +917,7 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
     return requiredFields.filter((field) => {
       if (field === 'vendorName') return !vendorNameInput.trim()
       if (field === 'vendorCode') return !vendorCodeInput.trim()
+      if (field === 'warehouseCode') return !warehouseInput.trim()
       if (field === 'referenceNo') return !header.referenceNo.trim()
       if (field === 'comments') return !header.remarks.trim()
       return false
@@ -1035,6 +1051,14 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       return
     }
 
+    // Validate warehouse is selected for all lines
+    const linesMissingWarehouse = filteredRows.filter((row) => !row.warehouseCode.trim())
+    if (linesMissingWarehouse.length > 0) {
+      const missingItemCodes = linesMissingWarehouse.map((row) => row.productCode || '<unknown>')
+      setCreateError(`Warehouse is required for: ${missingItemCodes.join(', ')}`)
+      return
+    }
+
     if (isEditMode) {
       const detail = editDetailQuery.data?.data
       const existingDocDueDate = String(detail?.DocDueDate ?? '')
@@ -1159,11 +1183,22 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       ])
     } catch (error) {
       toastHandle.error()
-      const errorMessage = normalizeCreateOrderErrorMessage(
+      const errorMsg = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? 'update' : 'create'} GRPO. Try again.`,
       )
-      setCreateError(errorMessage)
+      setCreateError(errorMsg)
+
+      // Map SAP duplicate reference errors (NumAtCard) to the UI field
+      if (
+        errorMsg.toLowerCase().includes('already exists') &&
+        (errorMsg.toLowerCase().includes('numatcard') || errorMsg.toLowerCase().includes('reference'))
+      ) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          referenceNo: 'Customer Ref No already exists for this vendor.',
+        }))
+      }
     }
   }
 
@@ -1288,3 +1323,7 @@ export function useGRPOCreate({ mode = 'create', docNum, sourceDocNum, sourceDoc
       isEditMode ? notifyRestricted('Vendor Code') : handleVendorCodeChange(val),
   }
 }
+
+
+
+

@@ -100,7 +100,7 @@ export function APInvoiceTable() {
         .fetchQuery(apInvoiceQueries.detailByDocNum(normalizedDocNum))
         .then((response) => {
           void router.preloadRoute({
-            to: '/_layout/purchase/ap-invoice/$docNum/edit',
+            to: '/purchase/ap-invoice/$docNum/edit',
             params: { docNum: normalizedDocNum },
           } as never)
           void Promise.allSettled([
@@ -151,7 +151,7 @@ export function APInvoiceTable() {
           if (!normalized) return
           prefetchEditRouteData(normalized)
           void navigate({
-            to: './$docNum/edit',
+            to: '/purchase/ap-invoice/$docNum/edit',
             params: { docNum: normalized },
             viewTransition: true,
           } as never)
@@ -385,12 +385,6 @@ export function APInvoiceTable() {
     })
   }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate])
 
-  const handleCreateClickPrefetch = useCallback(() => {
-    void Promise.allSettled([
-      queryClient.prefetchQuery(createSharedQueries.warehouses()),
-      queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
-    ])
-  }, [queryClient])
 
   if (showInitialSkeleton) {
     return <TableSkeleton />
@@ -412,7 +406,6 @@ export function APInvoiceTable() {
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
-        onCreateClick={handleCreateClickPrefetch}
       />
 
       <div className="flex-1 overflow-auto w-full px-1.5">

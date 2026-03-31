@@ -35,6 +35,7 @@ export type PurchaseOrderDetailLine = {
   UoMEntry?: number
   DiscountPercent?: number
   TaxCode?: string
+  VatPrcnt?: number
   WarehouseCode?: string
   LineTotal?: number
 }

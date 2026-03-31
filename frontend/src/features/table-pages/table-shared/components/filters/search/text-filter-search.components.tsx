@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { cn } from '@/shared/utils/cn'
 
+const LOOKUP_STYLE_COLUMNS = new Set(['DocNum', 'CardCode', 'CardName'])
+
 type SearchLeftIconProps = {
   visible: boolean
 }
@@ -178,8 +180,12 @@ export function SuggestionsDropdown({
     <div className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden py-1">
       <div ref={listRef} className="max-h-64 overflow-auto" onScroll={handleScroll}>
         {visibleSuggestions.map((item) => {
-          const isNameOnly = activeColumnId === 'CardName'
-          const displayValue = isNameOnly ? item.name : item.code
+          const isCardName = activeColumnId === 'CardName'
+          const isDocLookupStyle = LOOKUP_STYLE_COLUMNS.has(activeColumnId)
+          
+          // Show both if we have data and it's a lookup column (DocNum/CardCode/CardName)
+          const hasRichData = item.name && item.name !== item.code
+          const showBoth = isDocLookupStyle && hasRichData
 
           return (
             <button
@@ -191,14 +197,21 @@ export function SuggestionsDropdown({
               }}
               onClick={() => onSelectSuggestion(item)}
             >
-              <span
-                className={cn(
-                  'text-[13px] leading-5 transition-colors font-medium group-hover/item:text-blue-600',
-                  isNameOnly ? 'text-zinc-800' : 'text-zinc-600',
+              <div className="flex items-baseline justify-between gap-3 overflow-hidden">
+                <span
+                  className={cn(
+                    'text-[13px] leading-5 transition-colors font-medium group-hover/item:text-blue-600 truncate',
+                    isCardName ? 'text-zinc-800' : 'text-zinc-600',
+                  )}
+                >
+                  {isCardName ? item.name : item.code}
+                </span>
+                {showBoth && (
+                  <span className="text-[11px] leading-4 text-zinc-400 font-normal truncate max-w-[65%]">
+                    {isCardName ? item.code : item.name}
+                  </span>
                 )}
-              >
-                {displayValue}
-              </span>
+              </div>
             </button>
           )
         })}

@@ -69,7 +69,13 @@ export function TextFilterSearch<TData>({
       const value = raw === null || raw === undefined ? '' : String(raw).trim()
       if (!value || unique.has(value)) continue
       unique.add(value)
-      values.push({ code: value, name: value })
+
+      // Suggestion Enhancement: Include vendor details from the same row if present.
+      const cardCode = row.getValue('CardCode')
+      const cardName = row.getValue('CardName')
+      const name = cardCode ? `[${cardCode}] ${cardName || ''}`.trim() : value
+
+      values.push({ code: value, name })
     }
     return preserveDocNumSuggestionOrder ? values : sortLookupByCodeDesc(values)
   }, [table, activeColumnId, preserveDocNumSuggestionOrder])

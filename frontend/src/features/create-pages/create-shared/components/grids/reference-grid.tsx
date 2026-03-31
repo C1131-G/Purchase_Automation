@@ -1,4 +1,4 @@
-import { Lock, Pencil } from 'lucide-react'
+import { Lock } from 'lucide-react'
 
 // ReferenceGrid: Capture and display document-level remarks and attachments.
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
@@ -17,7 +17,6 @@ type ReferenceGridProps = {
   commentsInvalid?: boolean | undefined
   referenceNoErrorText?: string | undefined
   commentsErrorText?: string | undefined
-  commentsEditableHighlight?: boolean
 }
 
 export function ReferenceGrid({
@@ -34,7 +33,6 @@ export function ReferenceGrid({
   commentsInvalid,
   referenceNoErrorText,
   commentsErrorText,
-  commentsEditableHighlight = false,
 }: ReferenceGridProps) {
   return (
     <SectionCard title="REFERENCE" className="lg:col-span-1">
@@ -92,9 +90,6 @@ export function ReferenceGrid({
             {commentsDisabled ? (
               <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
             ) : null}
-            {!commentsDisabled && commentsEditableHighlight ? (
-              <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
-            ) : null}
             <span className="text-red-500" aria-hidden="true">
               *
             </span>
@@ -120,9 +115,7 @@ export function ReferenceGrid({
             className={`h-11 w-full rounded-xl border px-4 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
               commentsInvalid
                 ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                : commentsEditableHighlight
-                  ? 'border-emerald-300 bg-emerald-50/60 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
-                  : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+                : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
             } ${commentsDisabled ? 'cursor-not-allowed opacity-70' : ''}`}
           />
         )}

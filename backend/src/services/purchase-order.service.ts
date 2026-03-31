@@ -126,7 +126,10 @@ export const getPurchaseOrderDocNums = async (dbName: string, search?: string, l
   const queryBuilder = repo.createQueryBuilder("po");
   const safeLimit = getSafeDocNumLimit(limit);
 
-  queryBuilder.select("po.docNum", "DocNum").distinct(true);
+  queryBuilder.select("po.docNum", "DocNum")
+    .addSelect("po.cardCode", "CardCode")
+    .addSelect("po.cardName", "CardName")
+    .distinct(true);
 
   if (search && search.trim().length > 0) {
     queryBuilder.where("CAST(po.docNum AS NVARCHAR) LIKE :search", {
@@ -137,12 +140,14 @@ export const getPurchaseOrderDocNums = async (dbName: string, search?: string, l
   queryBuilder.orderBy("po.docNum", "DESC");
   queryBuilder.take(safeLimit);
 
-  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string; CardCode?: string; CardName?: string }>();
 
   return rows
-    .map((row) => String(row.DocNum).trim())
-    .filter((value) => value.length > 0)
-    .map((code) => ({ code, name: code }));
+    .map((row) => ({
+      code: String(row.DocNum).trim(),
+      name: row.CardCode ? `[${row.CardCode}] ${row.CardName || ""}`.trim() : String(row.DocNum).trim(),
+    }))
+    .filter((item) => item.code.length > 0);
 };
 
 // Requests a specific PO document from the Service Layer, including item lines.

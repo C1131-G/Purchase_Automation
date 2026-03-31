@@ -220,6 +220,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
         const discountPercent = Number(line.DiscountPercent ?? 0)
         const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
+
         return {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
@@ -378,6 +379,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     () => ({
       vendorCode: lookups.codeInput.trim() || header.vendorCode.trim(),
       vendorName: lookups.nameInput.trim() || header.vendorName.trim(),
+      warehouseCode: lookups.effectiveWarehouseCode.trim(),
       docDueDate: header.docDueDate,
       salesEmployee: lookups.salesEmployeeInput.trim(),
       billToAddress: lookups.billToAddress.trim(),
@@ -390,8 +392,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       header.vendorCode,
       lookups.nameInput,
       header.vendorName,
-      header.docDueDate,
       lookups.effectiveWarehouseCode,
+      header.docDueDate,
       lookups.salesEmployeeInput,
       lookups.billToAddress,
       lookups.shipToAddress,
@@ -475,6 +477,14 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     )
     if (validRows.length === 0) {
       setCreateError(rowsErrorText)
+      return
+    }
+
+    // Validate warehouse is selected for all lines
+    const linesMissingWarehouse = validRows.filter((row) => !row.warehouseCode.trim())
+    if (linesMissingWarehouse.length > 0) {
+      const missingItemCodes = linesMissingWarehouse.map((row) => row.productCode || '<unknown>')
+      setCreateError(`Warehouse is required for: ${missingItemCodes.join(', ')}`)
       return
     }
 
@@ -643,11 +653,22 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       setCreateError(null)
     } catch (error) {
       toastHandle.error()
-      const errorMessage = normalizeCreateOrderErrorMessage(
+      const errorMsg = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? 'update' : 'create'} purchase order. Try again.`,
       )
-      setCreateError(errorMessage)
+      setCreateError(errorMsg)
+
+      // Map SAP duplicate reference errors (NumAtCard) to the UI field
+      if (
+        errorMsg.toLowerCase().includes('already exists') &&
+        (errorMsg.toLowerCase().includes('numatcard') || errorMsg.toLowerCase().includes('reference'))
+      ) {
+        setProductSearchFieldErrors((prev) => ({
+          ...prev,
+          referenceNo: 'Reference already exists for this vendor.',
+        }))
+      }
     }
   }
 
@@ -711,3 +732,5 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
   }
 }
+
+

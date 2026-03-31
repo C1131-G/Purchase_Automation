@@ -9,6 +9,7 @@ export interface SAPDocumentLine {
   Price?: number;
   UnitPrice?: number;
   TaxCode?: string;
+  VatPrcnt?: number;
   WarehouseCode?: string;
   DiscountPercent?: number;
   LineTotal?: number;

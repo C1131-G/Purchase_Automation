@@ -121,7 +121,11 @@ export const getInvoiceDocNums = async (dbName: string, search?: string, limit?:
   const queryBuilder = repo.createQueryBuilder("invoice");
   const safeLimit = getSafeDocNumLimit(limit);
 
-  queryBuilder.select("invoice.docNum", "DocNum").distinct(true);
+  queryBuilder.select("invoice.docNum", "DocNum")
+    .addSelect("invoice.cardCode", "CardCode")
+    .addSelect("invoice.cardName", "CardName")
+    .distinct(true);
+
   if (search && search.trim().length > 0) {
     queryBuilder.where("CAST(invoice.docNum AS NVARCHAR) LIKE :search", {
       search: `%${search.trim()}%`,
@@ -130,11 +134,13 @@ export const getInvoiceDocNums = async (dbName: string, search?: string, limit?:
   queryBuilder.orderBy("invoice.docNum", "DESC");
   queryBuilder.take(safeLimit);
 
-  const rows = await queryBuilder.getRawMany<{ DocNum: number | string }>();
+  const rows = await queryBuilder.getRawMany<{ DocNum: number | string; CardCode?: string; CardName?: string }>();
   return rows
-    .map((row) => String(row.DocNum).trim())
-    .filter((value) => value.length > 0)
-    .map((code) => ({ code, name: code }));
+    .map((row) => ({
+      code: String(row.DocNum).trim(),
+      name: row.CardCode ? `[${row.CardCode}] ${row.CardName || ""}`.trim() : String(row.DocNum).trim(),
+    }))
+    .filter((item) => item.code.length > 0);
 };
 
 // Fetches full document details for a specific A/P Invoice directly from the SAP Service Layer.
@@ -169,9 +175,11 @@ export const getInvoice = async (sessionId: string, id: string) => {
         Quantity: line.Quantity,
         UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
         UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        Price: line.Price,
+        Price: line.Price ?? line.UnitPrice,
         TaxCode: line.TaxCode,
+        VatPrcnt: line.VatPrcnt,
         WarehouseCode: line.WarehouseCode,
+        DiscountPercent: line.DiscountPercent,
         LineTotal: line.LineTotal,
       })),
     };
@@ -225,6 +233,7 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           TaxCode: item.TaxCode as string,
           WarehouseCode: item.WarehouseCode as string,
+          DiscountPercent: item.DiscountPercent as number,
         };
 
         if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
@@ -283,6 +292,7 @@ export const updateInvoice = async (
     const sapPayload: Record<string, unknown> = {};
     if (payload.Comments) sapPayload.Comments = payload.Comments;
     if (payload.NumAtCard) sapPayload.NumAtCard = payload.NumAtCard;
+    if (payload.DocDueDate) sapPayload.DocDueDate = payload.DocDueDate;
 
     // PATCH request to SAP: Partial updates are standard for meta fields like comments.
     await serviceLayerClient.request(sessionId, "PATCH", `/PurchaseInvoices(${id})`, sapPayload);

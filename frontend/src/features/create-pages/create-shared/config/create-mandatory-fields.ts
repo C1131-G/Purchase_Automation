@@ -1,6 +1,7 @@
 export const PURCHASE_ORDER_MANDATORY_FIELDS = [
   'vendorCode',
   'vendorName',
+  'warehouseCode',
   'referenceNo',
   'comments',
 ] as const

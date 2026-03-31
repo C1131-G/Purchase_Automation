@@ -1,58 +1,152 @@
 import { type ReactNode } from 'react'
+
 import { BaseProductSection } from '@/features/create-pages/create-shared/components/sections/base-product-section'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
-import { AP_INVOICE_MANDATORY_FIELDS } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
+import {
+  calculateOrderTotals,
+  calculateSummaryCurrency,
+} from '@/features/create-pages/create-shared/utils/create-order.calculations'
+import { type APInvoiceCreateLine } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
 
 interface APInvoiceProductSectionProps {
-  state: any
+  rows: APInvoiceCreateLine[]
+  productRowDrafts: Record<
+    string,
+    { quantity?: string; discountPercent?: string; discountAmount?: string }
+  >
+  createError: string | null
+  createDisabledReason: string | null
+  missingSearchMandatoryFields: string[]
+  searchRequiredCompletionPercent: number
+  searchMandatoryFields: readonly string[]
+  missingMandatoryFields: string[]
+  requiredCompletionPercent: number
+  requiredFieldsTotal: number
+  requiredFieldLabelText: Record<string, string>
+  openProductPopup: (rowId: string | null) => void
+  prefetchProducts: () => void
+  isSubmitting: boolean
+  isEditMode: boolean
+  onUpdateProductRow: (rowId: string, patch: Partial<APInvoiceCreateLine>) => void
+  onRemoveProductRow: (rowId: string) => void
+  onSetProductRowDraft: (
+    rowId: string,
+    field: 'quantity' | 'discountPercent' | 'discountAmount',
+    value: string,
+  ) => void
+  onClearProductRowDraft: (
+    rowId: string,
+    field: 'quantity' | 'discountPercent' | 'discountAmount',
+  ) => void
+  onSubmit: () => void
+  warehouses: any[]
+  warehousesLoading: boolean
+  onEditRestrictedClick?: (fieldName: string) => void
   secondaryActions?: ReactNode
-  submitLabel?: string
-  submitLoadingText?: string
+  isClosed?: boolean
 }
 
+/**
+ * APInvoiceProductSection: Management of AP Invoice line items, totals, and submission.
+ * Inherits shared UI patterns via BaseProductSection.
+ */
 export function APInvoiceProductSection({
-  state,
+  rows,
+  productRowDrafts,
+  createError,
+  createDisabledReason,
+  missingSearchMandatoryFields,
+  searchRequiredCompletionPercent,
+  searchMandatoryFields,
+  missingMandatoryFields,
+  requiredCompletionPercent,
+  requiredFieldsTotal,
+  requiredFieldLabelText,
+  openProductPopup,
+  prefetchProducts,
+  isSubmitting,
+  isEditMode,
+  onUpdateProductRow,
+  onRemoveProductRow,
+  onSetProductRowDraft,
+  onClearProductRowDraft,
+  onSubmit,
+  warehouses,
+  warehousesLoading,
+  onEditRestrictedClick,
   secondaryActions,
-  submitLabel = 'Create',
-  submitLoadingText = 'Creating...',
+  isClosed = false,
 }: APInvoiceProductSectionProps) {
+  const totals = calculateOrderTotals(rows)
+  const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null
+
+  const isReadOnlyMode = isEditMode || isClosed
+
   return (
     <BaseProductSection
-      title="Invoiced Items"
-      onSearchProducts={() => state.openProductPopup(null)}
-      onPrefetchProducts={state.prefetchProducts}
-      totals={state.totals}
+      sectionId="ap-invoice-product-section"
+      onSearchProducts={() => {
+        if (isReadOnlyMode) {
+          onEditRestrictedClick?.('Products')
+          return
+        }
+        openProductPopup(null)
+      }}
+      onPrefetchProducts={prefetchProducts}
+      missingSearchFields={missingSearchMandatoryFields}
+      searchCompletionPercent={searchRequiredCompletionPercent}
+      searchFieldsTotal={searchMandatoryFields.length}
+      requiredFieldLabels={requiredFieldLabelText}
+      totals={totals}
+      currencyLabel={summaryCurrencyLabel}
+      createError={createError}
       backToUrl="/purchase/ap-invoice"
-      isSubmitting={state.isSubmitting}
-      onSubmit={state.handleCreateOrder}
-      disabledReason={state.createError}
+      backToLabel="Back to Table"
+      submitLabel={isEditMode ? 'Update' : 'Create'}
+      submitLoadingText={isEditMode ? 'Updating...' : 'Creating...'}
+      isSubmitting={isSubmitting}
+      onSubmit={onSubmit}
+      disabledReason={createDisabledReason}
+      missingMandatoryFields={missingMandatoryFields}
+      mandatoryCompletionPercent={requiredCompletionPercent}
+      mandatoryFieldsTotal={requiredFieldsTotal}
+      isEditMode={isEditMode}
+      isReadOnly={isReadOnlyMode}
+      hideSearch={isReadOnlyMode}
+      showSubmitButton={!isClosed}
       secondaryActions={secondaryActions}
-      missingMandatoryFields={state.missingMandatoryFields}
-      mandatoryCompletionPercent={state.requiredCompletionPercent}
-      mandatoryFieldsTotal={AP_INVOICE_MANDATORY_FIELDS.length}
-      requiredFieldLabels={state.requiredFieldLabelText}
-      submitLabel={submitLabel}
-      submitLoadingText={submitLoadingText}
-      isEditMode={state.isEditMode}
-      isReadOnly={state.isEditMode}
-      hideSearch={state.isEditMode}
     >
-      <CreateProductTable
-        productRows={state.rows}
-        productRowDrafts={state.productRowDrafts}
-        openProductPopup={state.openProductPopup}
-        updateProductRow={state.updateProductRow}
-        removeProductRow={state.removeProductRow}
-        setProductRowDraft={state.setProductRowDraft}
-        clearProductRowDraft={state.clearProductRowDraft}
-        prefetchProducts={state.prefetchProducts}
-        warehouses={state.warehouses}
-        warehousesLoading={state.warehousesLoading}
-        disableLineInputs={state.isEditMode}
-        totals={state.totals}
-        summaryCurrencyLabel={null}
-        createError={state.createError}
-      />
+      <div
+        onClickCapture={
+          isReadOnlyMode
+            ? (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                onEditRestrictedClick?.('Products')
+              }
+            : undefined
+        }
+      >
+        <CreateProductTable
+          productRows={rows as any}
+          productRowDrafts={productRowDrafts as any}
+          enforceStockLimit={false}
+          disableLineInputs={isReadOnlyMode}
+          onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
+          openProductPopup={openProductPopup}
+          updateProductRow={onUpdateProductRow as any}
+          removeProductRow={onRemoveProductRow}
+          setProductRowDraft={onSetProductRowDraft}
+          clearProductRowDraft={onClearProductRowDraft}
+          prefetchProducts={prefetchProducts}
+          totals={totals}
+          summaryCurrencyLabel={summaryCurrencyLabel}
+          createError={createError}
+          warehouses={warehouses}
+          warehousesLoading={warehousesLoading}
+          showExplicitZeroDiscount={true}
+        />
+      </div>
     </BaseProductSection>
   )
 }

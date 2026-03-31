@@ -5,6 +5,8 @@ import {
   type ProductWarehouseStockItem,
 } from '@/features/create-pages/create-shared/api/create-shared.types'
 
+import { reconcileAddresses } from '@/features/create-pages/create-shared/utils/address.utils'
+
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : null
 
@@ -32,11 +34,14 @@ export const mapLookup = (item: unknown): LookupItem => {
 
 export const mapVendorLookup = (item: unknown): LookupItem => {
   const record = asRecord(item) ?? {}
+  const billTo = String(record.billToAddress ?? record.BillToAddress ?? record.Address ?? '').trim()
+  const shipTo = String(record.shipToAddress ?? record.ShipToAddress ?? '').trim()
+
   return {
     code: String(record.CardCode ?? record.cardCode ?? record.code ?? record.Code ?? ''),
     name: String(record.CardName ?? record.cardName ?? record.name ?? record.Name ?? ''),
-    billToAddress: String(record.billToAddress ?? record.BillToAddress ?? record.Address ?? ''),
-    shipToAddress: String(record.shipToAddress ?? record.ShipToAddress ?? record.Address ?? ''),
+    billToAddress: billTo,
+    shipToAddress: reconcileAddresses(billTo, shipTo),
     salesEmployeeCode:
       (record.salesEmployeeCode as string | number | undefined) ??
       (record.SalesEmployeeCode as string | number | undefined) ??

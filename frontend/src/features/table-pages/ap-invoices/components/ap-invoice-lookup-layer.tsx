@@ -27,7 +27,7 @@ const toOrderedUniqueDocNumSuggestions = (items: LookupItem[]): LookupItem[] => 
     const code = item.code.trim()
     if (!code || seen.has(code)) continue
     seen.add(code)
-    result.push({ code, name: code })
+    result.push({ code, name: item.name || code })
   }
   return result
 }
@@ -36,14 +36,12 @@ export type APInvoiceLookupLayerProps = {
   tableId: string
   table: ReturnType<typeof useReactTable<APInvoiceListItem>>
   onReset: () => void
-  onCreateClick: () => void
 }
 
 export function APInvoiceLookupLayer({
   tableId,
   table,
   onReset,
-  onCreateClick,
 }: APInvoiceLookupLayerProps) {
   const setActiveFilter = useSetActiveFilterAction()
   const queryClient = useQueryClient()
@@ -88,7 +86,12 @@ export function APInvoiceLookupLayer({
       const code = raw === null || raw === undefined ? '' : String(raw).trim()
       if (!code || seen.has(code)) continue
       seen.add(code)
-      result.push({ code, name: code })
+      
+      const cardCode = row.getValue('CardCode')
+      const cardName = row.getValue('CardName')
+      const name = cardCode ? `[${cardCode}] ${cardName || ''}`.trim() : code
+      
+      result.push({ code, name })
     }
     // Suggestion Logic: Merges table data with background API for immediate feedback.
     return result
@@ -155,9 +158,9 @@ export function APInvoiceLookupLayer({
         tableId={tableId}
         table={table}
         onReset={onReset}
-        onCreateClick={onCreateClick}
-        createLink="/purchase/create-ap-invoice"
         breadcrumb={AP_INVOICE_BREADCRUMB}
+        createLink="/purchase/create-ap-invoice"
+        createLabel="Create"
         lookupSuggestions={vendors}
         docNumSuggestions={docNumSuggestions}
         enableDocNumPopup
@@ -169,6 +172,7 @@ export function APInvoiceLookupLayer({
       />
       <LookupPopup
         open={lookupPopupOpen}
+        showBothColumns
         mode={
           lookupColumnId === 'DocNum'
             ? 'vendor-code'

@@ -170,7 +170,6 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
             onDocDateChange={state.setDocDate}
             onDocDueDateChange={state.setDocDueDate}
             docDateReadOnly={state.isEditMode}
-            docDueDateEditableHighlight={state.isEditMode}
           />
         </div>
 
@@ -190,7 +189,6 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
             referenceNoDisabled={state.isEditMode}
             onReferenceNoChange={(value) => state.setHeader({ referenceNo: value })}
             onCommentsChange={(value) => state.setHeader({ comments: value })}
-            commentsEditableHighlight={state.isEditMode}
             referenceNoInvalid={Boolean(state.productSearchFieldErrors.referenceNo)}
             commentsInvalid={Boolean(state.productSearchFieldErrors.comments)}
             referenceNoErrorText={state.productSearchFieldErrors.referenceNo}

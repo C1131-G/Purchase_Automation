@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { type ProductRow } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 export type APInvoiceLineItemState = ProductRow & {
-  baseQuantity?: number
+  baseQuantity?: number | undefined
 }
 
 export type APInvoiceHeaderState = {
@@ -39,6 +39,7 @@ const getAutoDocDueDate = (docDate: string) => {
   if (!docDate) return ''
   const base = new Date(`${docDate}T00:00:00`)
   if (Number.isNaN(base.getTime())) return ''
+  // 32-day offset for invoices as seen in other invoice logic
   base.setMonth(base.getMonth() + 1)
   base.setDate(base.getDate() + 2)
   return toISODate(base)

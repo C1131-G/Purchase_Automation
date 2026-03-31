@@ -142,6 +142,7 @@ export const UpdateGRPOInputSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
     Comments: z.string().optional(),
+    NumAtCard: z.string().optional(),
   })
   .strict();
 

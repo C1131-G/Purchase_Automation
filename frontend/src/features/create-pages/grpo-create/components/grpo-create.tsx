@@ -150,7 +150,6 @@ export function GRPOCreate({
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
-          docDueDateEditableHighlight={false}
         />
       </div>
 
@@ -180,7 +179,6 @@ export function GRPOCreate({
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
-          commentsEditableHighlight={false}
           referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
           commentsInvalid={Boolean(state.fieldErrors.comments)}
           referenceNoErrorText={state.fieldErrors.referenceNo}

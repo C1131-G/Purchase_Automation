@@ -1,56 +1,54 @@
 import { type MouseEvent } from 'react'
-import { goeyToast } from 'goey-toast'
 
+import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
-import { APInvoiceProductSection } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section'
-import { useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
-import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
-import { LookupPopupModal } from '@/features/create-pages/create-shared/components/modals/lookup-popup-modal'
-import { ProductPopupModal } from '@/features/create-pages/create-shared/components/modals/product-popup-modal'
 import {
   parseISODate,
   toDisplayDate,
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
+import { APInvoiceModals } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-modals'
+import { APInvoiceProductSection } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section'
+import { useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
+import {
+  AP_INVOICE_FIELD_LABEL_TEXT,
+} from '@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils'
 
 interface APInvoiceCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
   sourceDocNum?: string | undefined
-  sourceDocType?: 'GoodsReceiptPO' | 'PurchaseOrder' | undefined
+  sourceDocType?: 'PurchaseOrder' | 'GoodsReceiptPO' | undefined
 }
 
-/**
- * APInvoiceCreate: Main orchestrator for creating and editing AP Invoices.
- * Handles document-level data, line items, and submission logic.
- */
 export function APInvoiceCreate({
   mode = 'create',
   docNum,
   sourceDocNum,
   sourceDocType,
 }: APInvoiceCreateProps) {
-
   const state = useAPInvoiceCreate({
     mode,
-    docNum,
-    sourceDocNum: sourceDocNum as string | undefined,
-    sourceDocType: sourceDocType as any,
+    docNum: docNum || '',
+    sourceDocNum,
+    sourceDocType,
   })
 
   const isFormHydrating = mode === 'edit' && !!docNum && !state.isEditHydrated
 
   const handleRestrictedClick =
-    (fieldName: string) => (event: MouseEvent<HTMLDivElement> | undefined) => {
-      if (state.isEditMode) {
+    (fieldName: string, forceLock = false) =>
+    (event: MouseEvent<HTMLDivElement> | undefined) => {
+      const isLocked = forceLock ? state.isEditMode : state.isClosed
+      if (isLocked) {
         event?.preventDefault()
         event?.stopPropagation()
-        goeyToast.error(`Editing ${fieldName} is not allowed in Edit mode.`)
+        state.showEditRestrictedToast(fieldName)
       }
     }
 
@@ -66,7 +64,7 @@ export function APInvoiceCreate({
     >
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
-          onClickCapture={handleRestrictedClick('Vendor Info')}
+          onClickCapture={handleRestrictedClick?.('Vendor Info', true)}
           className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
@@ -75,23 +73,23 @@ export function APInvoiceCreate({
               error={null}
               nameInput={state.vendorNameInput}
               codeInput={state.vendorCodeInput}
-              nameFocused={false}
-              codeFocused={false}
+              nameFocused={state.vendorNameFocused}
+              codeFocused={state.vendorCodeFocused}
               nameSuggestions={state.vendorNameSuggestions}
               codeSuggestions={state.vendorCodeSuggestions}
-              onNameChange={state.setVendorNameInput}
-              onCodeChange={state.setVendorCodeInput}
-              onNameFocus={() => {}}
-              onCodeFocus={() => {}}
-              onNameBlur={() => {}}
-              onCodeBlur={() => {}}
+              onNameChange={state.handleVendorNameChange}
+              onCodeChange={state.handleVendorCodeChange}
+              onNameFocus={() => state.setVendorNameFocused(true)}
+              onCodeFocus={() => state.setVendorCodeFocused(true)}
+              onNameBlur={() => setTimeout(() => state.setVendorNameFocused(false), 120)}
+              onCodeBlur={() => setTimeout(() => state.setVendorCodeFocused(false), 120)}
               onOpenNamePopup={() => state.openPopup('vendor-name')}
               onOpenCodePopup={() => state.openPopup('vendor-code')}
               onSelectVendor={state.selectVendor}
-              vendorNameInvalid={Boolean(state.fieldErrors.vendorName)}
-              vendorCodeInvalid={Boolean(state.fieldErrors.vendorCode)}
-              vendorNameErrorText={state.fieldErrors.vendorName ?? undefined}
-              vendorCodeErrorText={state.fieldErrors.vendorCode ?? undefined}
+              vendorNameInvalid={Boolean((state.fieldErrors as any).vendorName)}
+              vendorCodeInvalid={Boolean((state.fieldErrors as any).vendorCode)}
+              vendorNameErrorText={(state.fieldErrors as any).vendorName}
+              vendorCodeErrorText={(state.fieldErrors as any).vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
             />
@@ -99,81 +97,126 @@ export function APInvoiceCreate({
         </div>
 
         <div
-          onClickCapture={handleRestrictedClick('Logistics')}
+          onClickCapture={handleRestrictedClick?.('Warehouse & Logistics', true)}
           className={`h-full ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <LogisticsGrid
               salesEmployeeInput={state.buyerInput}
-              salesEmployeesLoading={isFormHydrating}
-              salesEmployeeFocused={false}
+              salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
+              salesEmployeeFocused={state.buyerFocused}
               salesEmployeeSuggestions={state.buyerSuggestions}
               onSalesEmployeeChange={state.setBuyerInput}
-              onSalesEmployeeFocus={() => {}}
-              onSalesEmployeeBlur={() => {}}
+              onSalesEmployeeFocus={() => state.setBuyerFocused(true)}
+              onSalesEmployeeBlur={() => setTimeout(() => state.setBuyerFocused(false), 120)}
               onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
-              onSelectSalesEmployee={state.selectBuyer}
+              onSelectSalesEmployee={state.selectSalesEmployee}
+              salesEmployeeLabel="BUYER"
+              salesEmployeePlaceholder="Select Buyer"
+              salesEmployeeLoadingPlaceholder="Loading buyers..."
               salesEmployeeDisabled={state.isEditMode}
             />
           </div>
         </div>
 
         <DocumentDatesGrid
-          docDate={state.header.docDate}
-          docDueDate={state.header.docDueDate}
+          docDate={state.docDate}
+          docDueDate={state.docDueDate}
           loading={isFormHydrating}
-          today={new Date()}
-          activeDatePicker={state.activeDatePicker as any}
+          today={state.today}
+          activeDatePicker={state.activeDatePicker}
           docDateContainerRef={state.docDateContainerRef}
           deliveryDateContainerRef={state.deliveryDateContainerRef}
-          onSetActiveDatePicker={state.setActiveDatePicker as any}
+          toDisplayDate={toDisplayDate}
+          parseISODate={parseISODate}
+          toISODate={toISODate}
+          onSetActiveDatePicker={(value) => {
+            if (!state.isEditMode) {
+              state.setActiveDatePicker(value)
+              return
+            }
+            state.setActiveDatePicker((prev) => {
+              const next = typeof value === 'function' ? value(prev) : value
+              if (next === 'doc') {
+                state.showEditRestrictedToast('Document Date')
+                return null
+              }
+              return next
+            })
+          }}
           onDocDateChange={state.handleDocDateChange}
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
-          docDueDateEditableHighlight={false}
-          toDisplayDate={toDisplayDate}
-          parseISODate={parseISODate}
-          toISODate={toISODate}
         />
       </div>
 
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
           className={`h-full lg:col-span-2 ${state.isEditMode ? 'cursor-not-allowed' : ''}`}
-          onClickCapture={handleRestrictedClick('Address')}
+          onClickCapture={handleRestrictedClick?.('Address', true)}
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <AddressGrid
+              className="h-full"
               loading={isFormHydrating}
               billToAddress={state.billToAddress}
               shipToAddress={state.shipToAddress}
+              readOnly={state.isEditMode}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
-              readOnly={state.isEditMode}
             />
           </div>
         </div>
 
         <ReferenceGrid
           loading={isFormHydrating}
-          referenceNo={state.header.referenceNo}
-          comments={state.header.remarks}
-          onReferenceNoChange={state.handleReferenceNoChange}
-          onCommentsChange={state.handleRemarksChange}
-          referenceNoDisabled={false}
-          commentsEditableHighlight={false}
-          referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
-          referenceNoErrorText={state.fieldErrors.referenceNo ?? undefined}
+          referenceNo={state.referenceNo}
+          comments={state.remarks}
+          referenceNoDisabled={state.isClosed}
+          onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
+          onReferenceNoChange={state.setReferenceNo}
+          onCommentsChange={state.setRemarks}
+          referenceNoInvalid={Boolean((state.fieldErrors as any).referenceNo)}
+          commentsInvalid={Boolean((state.fieldErrors as any).comments)}
+          referenceNoErrorText={(state.fieldErrors as any).referenceNo}
+          commentsErrorText={(state.fieldErrors as any).comments}
+          commentsDisabled={state.isClosed}
+          onCommentsDisabledClick={() => state.setRemarks(state.remarks)}
         />
       </div>
 
       <APInvoiceProductSection
-        state={state}
-        submitLabel={state.isEditMode ? 'Update' : 'Create'}
-        submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
+        rows={state.rows}
+        productRowDrafts={state.productRowDrafts}
+        createError={state.createError}
+        createDisabledReason={state.createDisabledReason}
+        missingSearchMandatoryFields={state.missingSearchMandatoryFields}
+        searchRequiredCompletionPercent={state.searchRequiredCompletionPercent}
+        searchMandatoryFields={state.searchMandatoryFields}
+        missingMandatoryFields={state.missingMandatoryFields}
+        requiredCompletionPercent={state.requiredCompletionPercent}
+        requiredFieldsTotal={state.requiredFieldsTotal}
+        requiredFieldLabelText={AP_INVOICE_FIELD_LABEL_TEXT}
+        openProductPopup={state.openProductPopup}
+        prefetchProducts={state.prefetchProducts}
+        isSubmitting={
+          state.isEditMode
+            ? (state.updateMutation as any).isPending
+            : (state.createMutation as any).isPending
+        }
+        isEditMode={state.isEditMode}
+        onUpdateProductRow={state.updateProductRow}
+        onRemoveProductRow={state.removeProductRow}
+        onSetProductRowDraft={state.setProductRowDraft}
+        onClearProductRowDraft={state.clearProductRowDraft}
+        onSubmit={state.handleCreateOrder}
+        warehouses={state.warehouses}
+        warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
+        onEditRestrictedClick={state.showEditRestrictedToast}
+        isClosed={state.isClosed}
         secondaryActions={
-          state.isEditMode && state.isEditHydrated && !state.isClosed ? (
+          state.isEditMode && !state.isClosed ? (
             <CopyToDropdown
               docNum={docNum!}
               sourceDocType="APInvoice"
@@ -182,35 +225,10 @@ export function APInvoiceCreate({
           ) : null
         }
       />
-      <LookupPopupModal
-        open={state.modalOpen}
-        onClose={() => state.setModalOpen(false)}
-        mode={state.modalMode}
-        search={state.modalSearch}
-        onSearchChange={state.setModalSearch}
-        results={state.popupResults}
-        loading={false}
-        error={null}
-        onSelect={(item) => {
-          if (state.modalMode === 'sales-employee') {
-            state.selectBuyer(item)
-          } else {
-            state.selectVendor(item)
-          }
-        }}
-      />
-      <ProductPopupModal
-        open={state.productPopupOpen}
-        onClose={() => state.setProductPopupOpen(false)}
-        warehouseCode={state.warehouseInput}
-        search={state.productSearch}
-        results={state.products}
-        loading={state.productsQuery.isLoading}
-        error={state.productsQuery.isError ? 'Unable to load products' : null}
-        onSearchChange={state.setProductSearch}
-        onSelect={state.applyProductToRow}
-        onSelectMultiple={state.applyProductsToRows}
-      />
+
+      <APInvoiceModals state={state} />
     </CreatePageWrapper>
   )
 }
+
+export default APInvoiceCreate

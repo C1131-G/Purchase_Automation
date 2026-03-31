@@ -44,6 +44,7 @@ export type GRPOCreatePODetailLine = {
   Price?: number
   WarehouseCode?: string
   TaxCode?: string
+  VatPrcnt?: number
   BaseEntry?: number
   BaseLine?: number
   BaseType?: number
@@ -77,6 +78,8 @@ export type GRPODetailLine = {
   UoMCode?: string | number
   UoMEntry?: number
   WarehouseCode?: string
+  TaxCode?: string
+  VatPrcnt?: number
   LineTotal?: number
   BaseEntry?: number
   BaseLine?: number

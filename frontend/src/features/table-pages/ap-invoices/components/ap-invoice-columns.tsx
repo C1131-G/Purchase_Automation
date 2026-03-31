@@ -28,15 +28,13 @@ export const createAPInvoiceColumns = (options?: {
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc Number" />
     ),
     cell: (info) => (
-      <Tooltip content="Double click to edit">
-        <span
-          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
-          onDoubleClick={() => options?.onDocNumDoubleClick?.(String(info.getValue()))}
-          onMouseEnter={() => options?.onDocNumHover?.(String(info.getValue()))}
-        >
-          {info.getValue()}
-        </span>
-      </Tooltip>
+      <span
+        className="block truncate transition-colors hover:text-blue-600"
+        onDoubleClick={() => options?.onDocNumDoubleClick?.(String(info.getValue()))}
+        onMouseEnter={() => options?.onDocNumHover?.(String(info.getValue()))}
+      >
+        {info.getValue()}
+      </span>
     ),
     filterFn: 'includesString',
     enableSorting: true,

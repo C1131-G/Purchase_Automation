@@ -138,6 +138,7 @@ export function GRPOProductSection({
           createError={createError}
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
+          showExplicitZeroDiscount={true}
         />
       </div>
     </BaseProductSection>

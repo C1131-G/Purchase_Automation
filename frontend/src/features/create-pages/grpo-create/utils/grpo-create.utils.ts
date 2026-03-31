@@ -3,6 +3,7 @@ import { type LookupItem } from '@/features/create-pages/create-shared/api/creat
 export const GRPO_MANDATORY_FIELDS = [
   'vendorName',
   'vendorCode',
+  'warehouseCode',
   'referenceNo',
   'comments',
 ] as const
@@ -12,6 +13,7 @@ export type GRPOMandatoryField = (typeof GRPO_MANDATORY_FIELDS)[number]
 export const GRPO_FIELD_ERROR_TEXT: Record<GRPOMandatoryField, string> = {
   vendorName: 'Vendor Name is required.',
   vendorCode: 'Vendor Code is required.',
+  warehouseCode: 'Warehouse is required.',
   referenceNo: 'Reference is required.',
   comments: 'Remarks is required.',
 }
@@ -19,6 +21,7 @@ export const GRPO_FIELD_ERROR_TEXT: Record<GRPOMandatoryField, string> = {
 export const GRPO_FIELD_LABEL_TEXT: Record<GRPOMandatoryField, string> = {
   vendorName: 'Vendor Name',
   vendorCode: 'Vendor Code',
+  warehouseCode: 'Warehouse',
   referenceNo: 'Reference',
   comments: 'Remarks',
 }

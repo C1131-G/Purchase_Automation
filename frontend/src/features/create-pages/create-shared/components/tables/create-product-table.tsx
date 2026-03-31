@@ -26,6 +26,7 @@ interface CreateProductTableProps {
   onLineInputRestrictedClick?: () => void
   stockLimitReserve?: number
   minStockToSelectWarehouse?: number
+  showExplicitZeroDiscount?: boolean
 }
 
 export function CreateProductTable({
@@ -44,6 +45,7 @@ export function CreateProductTable({
   onLineInputRestrictedClick,
   stockLimitReserve = 0,
   minStockToSelectWarehouse = 0,
+  showExplicitZeroDiscount = false,
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
@@ -93,6 +95,7 @@ export function CreateProductTable({
               onInputRestrictedClick={onLineInputRestrictedClick}
               stockLimitReserve={stockLimitReserve}
               minStockToSelectWarehouse={minStockToSelectWarehouse}
+              showExplicitZeroDiscount={showExplicitZeroDiscount}
             />
           ))}
         </tbody>
