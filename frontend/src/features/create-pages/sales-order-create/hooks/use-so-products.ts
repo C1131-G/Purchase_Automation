@@ -1,9 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 
-import {
-  createSharedQueries as salesOrderCreateQueries,
-} from '@/features/create-pages/create-shared/api/create-shared.queries'
+import { createSharedQueries as salesOrderCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   type ProductRow,
@@ -72,21 +70,6 @@ export function useSoProducts({
   })
 
   // Prefetch products whenever the customer selection (token) changes.
-  useEffect(() => {
-    if (!customerSelected) return
-    prefetchProducts()
-  }, [customerLookupToken, customerSelected])
-
-  const products = useMemo(
-    () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
-    [productsQuery.data, normalizedProductSearch],
-  )
-
-  const productWarehouseStocksQuery = useQuery({
-    ...salesOrderCreateQueries.productWarehouseStocks(stockPreviewProductCode),
-    enabled: Boolean(stockPreviewProductCode),
-  })
-
   const prefetchProducts = () => {
     if (!customerSelected) return
     void queryClient.prefetchQuery(
@@ -97,6 +80,21 @@ export function useSoProducts({
       ),
     )
   }
+
+  useEffect(() => {
+    if (!customerSelected) return
+    prefetchProducts()
+  }, [customerLookupToken, customerSelected, prefetchProducts])
+
+  const products = useMemo(
+    () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
+    [productsQuery.data, normalizedProductSearch],
+  )
+
+  const productWarehouseStocksQuery = useQuery({
+    ...salesOrderCreateQueries.productWarehouseStocks(stockPreviewProductCode),
+    enabled: Boolean(stockPreviewProductCode),
+  })
 
   const openProductPopup = (
     rowId: string | null,

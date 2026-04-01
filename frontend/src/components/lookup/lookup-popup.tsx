@@ -163,10 +163,19 @@ export function LookupPopup({
     })
   }, [safeResults, search, mode])
 
+  const prevSearchRef = useRef(search)
+  const prevModeRef = useRef(mode)
+
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setVisibleCount(INITIAL_LIMIT)
-    setLoadingMore(false)
+    if (prevSearchRef.current !== search || prevModeRef.current !== mode) {
+      setVisibleCount(INITIAL_LIMIT)
+      setLoadingMore(false)
+      prevSearchRef.current = search
+      prevModeRef.current = mode
+    }
   }, [search, mode, safeResults.length])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const isSearchMode = search.trim().length > 0
   const cappedResults = useMemo(

@@ -4,8 +4,6 @@ export const AP_INVOICE_MANDATORY_FIELDS = [
   'vendorName',
   'vendorCode',
   'warehouseCode',
-  'referenceNo',
-  'comments',
 ] as const
 
 export type APInvoiceMandatoryField = (typeof AP_INVOICE_MANDATORY_FIELDS)[number]
@@ -14,16 +12,12 @@ export const AP_INVOICE_FIELD_ERROR_TEXT: Record<APInvoiceMandatoryField, string
   vendorName: 'Vendor Name is required.',
   vendorCode: 'Vendor Code is required.',
   warehouseCode: 'Warehouse is required.',
-  referenceNo: 'Reference is required.',
-  comments: 'Remarks is required.',
 }
 
 export const AP_INVOICE_FIELD_LABEL_TEXT: Record<APInvoiceMandatoryField, string> = {
   vendorName: 'Vendor Name',
   vendorCode: 'Vendor Code',
   warehouseCode: 'Warehouse',
-  referenceNo: 'Reference',
-  comments: 'Remarks',
 }
 
 export const getTodayISO = () => new Date().toISOString().slice(0, 10)

@@ -662,7 +662,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       // Map SAP duplicate reference errors (NumAtCard) to the UI field
       if (
         errorMsg.toLowerCase().includes('already exists') &&
-        (errorMsg.toLowerCase().includes('numatcard') || errorMsg.toLowerCase().includes('reference'))
+        (errorMsg.toLowerCase().includes('numatcard') ||
+          errorMsg.toLowerCase().includes('reference'))
       ) {
         setProductSearchFieldErrors((prev) => ({
           ...prev,
@@ -704,8 +705,15 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     createPurchaseOrderMutation: submitPurchaseOrderMutation,
     updatePurchaseOrderMutation,
     editDetailQuery,
-    docStatus: editDetailQuery.data?.data?.DocStatus,
-    isClosed: editDetailQuery.data?.data?.DocStatus === 'Closed' || editDetailQuery.data?.data?.DocStatus === 'C',
+    docStatus:
+      editDetailQuery.data?.data?.DocStatus === 'O'
+        ? 'Open'
+        : editDetailQuery.data?.data?.DocStatus === 'C'
+          ? 'Closed'
+          : (editDetailQuery.data?.data?.DocStatus ?? 'Open'),
+    isClosed:
+      editDetailQuery.data?.data?.DocStatus === 'Closed' ||
+      editDetailQuery.data?.data?.DocStatus === 'C',
     isEditMode,
     isEditHydrated,
     header,
@@ -732,5 +740,3 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     showEditRestrictedToast: (fieldName = 'Field') => notifyRestricted(fieldName),
   }
 }
-
-

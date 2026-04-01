@@ -71,7 +71,11 @@ export const mapSearchToPurchaseOrderListParams = (
 
   const docDate = getDateRangeFilter(filters, 'DocDate')
   const docTotal = getDocTotalFilter(filters)
-  const docStatus = getEnumFilter<PurchaseOrderStatus>(filters, 'DocStatus', ['Open', 'Closed'])
+  const docStatus = getEnumFilter<PurchaseOrderStatus>(filters, 'DocStatus', [
+    'Open',
+    'Partial',
+    'Closed',
+  ])
 
   // For date single-pick semantics, one boundary means exact day.
   const start = docDate?.from ?? docDate?.to

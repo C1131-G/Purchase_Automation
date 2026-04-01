@@ -40,16 +40,17 @@ export function ProductWarehouseStockModal({
   minSelectableStock = 0,
   initialSearch = '',
   onSearchChange,
-  currentWarehouseCode,
 }: ProductWarehouseStockModalProps) {
   const [warehouseSearch, setWarehouseSearch] = useState(initialSearch)
   const wasOpenRef = useRef(false)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       setWarehouseSearch(initialSearch)
     }
     wasOpenRef.current = open
   }, [open, initialSearch])
+  /* eslint-enable react-hooks/set-state-in-effect */
   const safeStocks = useMemo(() => (Array.isArray(stocks) ? stocks : []), [stocks])
   const sortedStocks = useMemo(
     () => [...safeStocks].sort((a, b) => b.stock - a.stock || a.code.localeCompare(b.code)),

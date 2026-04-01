@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+
 import { BaseProductSection } from '@/features/create-pages/create-shared/components/sections/base-product-section'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
 import { PURCHASE_ORDER_MANDATORY_FIELDS } from '@/features/create-pages/create-shared/config/create-mandatory-fields'

@@ -6,9 +6,9 @@ import type { NextFunction, Request, Response } from "express";
 import { logger } from "@/core/logger/pino-logger";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
 import type { SalesQuotationQuery } from "@/dal/types/sales-quotation.types";
+import { salesOrderService } from "@/services/sales-order.service"; // For getSalesEmployees
 // Services
 import { salesQuotationService } from "@/services/sales-quotation.service";
-import { salesOrderService } from "@/services/sales-order.service"; // For getSalesEmployees
 // Validation
 import {
   CreateSalesQuotationInputSchema,
@@ -32,7 +32,11 @@ export const getSalesQuotations = async (req: Request, res: Response, next: Next
 
     const result = await salesQuotationService.getSalesQuotations(dbName, filters);
 
-    logger.info({ msg: "Fetched Sales Quotations", count: result.data.length, total: result.total });
+    logger.info({
+      msg: "Fetched Sales Quotations",
+      count: result.data.length,
+      total: result.total,
+    });
 
     res.status(200).json({ success: true, ...result });
   } catch (error) {
@@ -67,7 +71,8 @@ export const getSalesQuotation = async (req: Request, res: Response, next: NextF
     logger.info({ msg: "Fetching Sales Quotation detail", id });
 
     const data = await salesQuotationService.getSalesQuotation(sessionId, id as string);
-    if (!data) return res.status(404).json({ success: false, message: "Sales Quotation not found" });
+    if (!data)
+      return res.status(404).json({ success: false, message: "Sales Quotation not found" });
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
@@ -75,7 +80,11 @@ export const getSalesQuotation = async (req: Request, res: Response, next: NextF
 };
 
 // Retrieves sales quotation details by DocNum.
-export const getSalesQuotationByDocNum = async (req: Request, res: Response, next: NextFunction) => {
+export const getSalesQuotationByDocNum = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
@@ -84,8 +93,13 @@ export const getSalesQuotationByDocNum = async (req: Request, res: Response, nex
 
     logger.info({ msg: "Fetching Sales Quotation detail by DocNum", docNum });
 
-    const data = await salesQuotationService.getSalesQuotationByDocNum(sessionId, dbName, docNum as string);
-    if (!data) return res.status(404).json({ success: false, message: "Sales Quotation not found" });
+    const data = await salesQuotationService.getSalesQuotationByDocNum(
+      sessionId,
+      dbName,
+      docNum as string,
+    );
+    if (!data)
+      return res.status(404).json({ success: false, message: "Sales Quotation not found" });
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

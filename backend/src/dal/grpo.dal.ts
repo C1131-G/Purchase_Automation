@@ -97,7 +97,11 @@ export const getPODetail = async (req: Request, res: Response, next: NextFunctio
 
     // Ensure we resolve the PO by DocNum since the frontend often provides the user-visible number.
     const { purchaseOrderService } = await import("@/services/purchase-order.service");
-    const data = await purchaseOrderService.getPurchaseOrderByDocNum(sessionId, dbName, id as string);
+    const data = await purchaseOrderService.getPurchaseOrderByDocNum(
+      sessionId,
+      dbName,
+      id as string,
+    );
 
     res.status(200).json({
       success: true,

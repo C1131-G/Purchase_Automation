@@ -112,7 +112,9 @@ export function CreateProductTableRow({
 
     // Merge warehouse list with live stock data
     const withStock: CreateLookupOption[] = warehouses.map((w) => {
-      const stockItem = Array.isArray(stocks) ? stocks.find((s: any) => s.code === w.code) : null
+      const stockItem = Array.isArray(stocks)
+        ? stocks.find((s: { code: string; stock?: number }) => s.code === w.code)
+        : null
       const stockQty = typeof stockItem?.stock === 'number' ? stockItem.stock : undefined
       return {
         ...w,
@@ -212,7 +214,8 @@ export function CreateProductTableRow({
   React.useEffect(() => {
     if (!row.productCode || !row.warehouseCode || !stocksQuery.data) return
     const matched = stocksQuery.data.find(
-      (s: any) => String(s.code).trim() === String(row.warehouseCode).trim(),
+      (s: { code?: string; stock?: number }) =>
+        String(s.code).trim() === String(row.warehouseCode).trim(),
     )
     const newStock = Number(matched?.stock ?? 0)
     if (row.stock !== newStock) {
@@ -242,9 +245,18 @@ export function CreateProductTableRow({
 
   const discountPercentInputValue =
     rowDraft?.discountPercent ??
-    (clampedDiscountPercent === 0 ? (showExplicitZeroDiscount ? '0.00' : '') : String(clampedDiscountPercent))
+    (clampedDiscountPercent === 0
+      ? showExplicitZeroDiscount
+        ? '0.00'
+        : ''
+      : String(clampedDiscountPercent))
   const discountAmountInputValue =
-    rowDraft?.discountAmount ?? (clampedDiscountAmount === 0 ? (showExplicitZeroDiscount ? '0.00' : '') : String(clampedDiscountAmount))
+    rowDraft?.discountAmount ??
+    (clampedDiscountAmount === 0
+      ? showExplicitZeroDiscount
+        ? '0.00'
+        : ''
+      : String(clampedDiscountAmount))
 
   return (
     <tr>
@@ -267,7 +279,9 @@ export function CreateProductTableRow({
               onMouseEnter={prefetchProducts}
               onFocus={prefetchProducts}
               className={`block w-full truncate text-left text-sm text-zinc-800 transition ${
-                disableInputs ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:text-zinc-950'
+                disableInputs
+                  ? 'cursor-not-allowed opacity-70'
+                  : 'cursor-pointer hover:text-zinc-950'
               }`}
             >
               {row.productName || 'Select Product'}
@@ -559,7 +573,9 @@ export function CreateProductTableRow({
               removeProductRow(row.id)
             }}
             className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 transition ${
-              disableInputs ? 'cursor-not-allowed bg-zinc-50 opacity-40' : 'cursor-pointer bg-white hover:bg-zinc-50 hover:text-blue-600'
+              disableInputs
+                ? 'cursor-not-allowed bg-zinc-50 opacity-40'
+                : 'cursor-pointer bg-white hover:bg-zinc-50 hover:text-blue-600'
             }`}
             aria-label="Remove product row"
           >

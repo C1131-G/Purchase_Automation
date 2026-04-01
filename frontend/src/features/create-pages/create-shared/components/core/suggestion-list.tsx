@@ -29,15 +29,21 @@ export function SuggestionList({
   const STEP = 10
   const MAX_LIMIT = 100
   const listRef = useRef<HTMLDivElement>(null)
+  const prevQueryRef = useRef(query.trim())
   const [visibleCount, setVisibleCount] = useState(INITIAL_LIMIT)
   const [loadingMore, setLoadingMore] = useState(false)
   const trimmedQuery = query.trim()
   const isSearchMode = trimmedQuery.length > 0
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setVisibleCount(INITIAL_LIMIT)
-    setLoadingMore(false)
+    if (prevQueryRef.current !== trimmedQuery) {
+      setVisibleCount(INITIAL_LIMIT)
+      setLoadingMore(false)
+      prevQueryRef.current = trimmedQuery
+    }
   }, [trimmedQuery, items.length])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const cappedItems = useMemo(() => {
     if (isSearchMode) return items

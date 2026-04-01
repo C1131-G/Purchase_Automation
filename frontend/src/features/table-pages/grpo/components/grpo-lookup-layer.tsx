@@ -83,11 +83,11 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
       const code = raw === null || raw === undefined ? '' : String(raw).trim()
       if (!code || seen.has(code)) continue
       seen.add(code)
-      
+
       const cardCode = row.getValue('CardCode')
       const cardName = row.getValue('CardName')
       const name = cardCode ? `[${cardCode}] ${cardName || ''}`.trim() : code
-      
+
       result.push({ code, name })
     }
     // Suggestion Logic: Merges table data with background API for immediate feedback.

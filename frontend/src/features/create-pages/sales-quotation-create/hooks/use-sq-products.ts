@@ -180,7 +180,9 @@ export function useSqProducts({
     callbacks: { closeProductPopup: () => void },
   ) => {
     products.forEach((product) => {
-      void queryClient.prefetchQuery(salesQuotationCreateQueries.productWarehouseStocks(product.code))
+      void queryClient.prefetchQuery(
+        salesQuotationCreateQueries.productWarehouseStocks(product.code),
+      )
     })
 
     if (activeProductRowId) {

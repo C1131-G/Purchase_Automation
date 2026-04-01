@@ -126,7 +126,8 @@ export const getPurchaseOrderDocNums = async (dbName: string, search?: string, l
   const queryBuilder = repo.createQueryBuilder("po");
   const safeLimit = getSafeDocNumLimit(limit);
 
-  queryBuilder.select("po.docNum", "DocNum")
+  queryBuilder
+    .select("po.docNum", "DocNum")
     .addSelect("po.cardCode", "CardCode")
     .addSelect("po.cardName", "CardName")
     .distinct(true);
@@ -140,12 +141,18 @@ export const getPurchaseOrderDocNums = async (dbName: string, search?: string, l
   queryBuilder.orderBy("po.docNum", "DESC");
   queryBuilder.take(safeLimit);
 
-  const rows = await queryBuilder.getRawMany<{ DocNum: number | string; CardCode?: string; CardName?: string }>();
+  const rows = await queryBuilder.getRawMany<{
+    DocNum: number | string;
+    CardCode?: string;
+    CardName?: string;
+  }>();
 
   return rows
     .map((row) => ({
       code: String(row.DocNum).trim(),
-      name: row.CardCode ? `[${row.CardCode}] ${row.CardName || ""}`.trim() : String(row.DocNum).trim(),
+      name: row.CardCode
+        ? `[${row.CardCode}] ${row.CardName || ""}`.trim()
+        : String(row.DocNum).trim(),
     }))
     .filter((item) => item.code.length > 0);
 };
@@ -201,11 +208,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
 };
 
 // Resolves a PO by DocNum from tenant DB and fetches full details from Service Layer.
-export const getPurchaseOrderByDocNum = async (
-  sessionId: string,
-  dbName: string,
-  id: string,
-) => {
+export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string, id: string) => {
   const normalizedId = id.trim();
   if (!normalizedId) {
     throw new AppError("ID is required", 400, "VALIDATION_ERROR");

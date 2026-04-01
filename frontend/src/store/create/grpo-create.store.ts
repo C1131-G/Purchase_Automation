@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+
 import { type ProductRow } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 export type GRPOLineItemState = ProductRow & {
@@ -13,6 +14,7 @@ export type GRPOHeaderState = {
   warehouseCode: string
   referenceNo: string
   remarks: string
+  referenceAutoFilled: boolean
 }
 
 type GRPOCreateState = {
@@ -52,6 +54,7 @@ const getDefaultHeader = (): GRPOHeaderState => ({
   warehouseCode: '',
   referenceNo: '',
   remarks: '',
+  referenceAutoFilled: false,
 })
 
 export const useGRPOCreateStore = create<GRPOCreateState>((set) => ({

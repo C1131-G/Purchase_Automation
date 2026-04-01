@@ -38,7 +38,6 @@ function RootComponent() {
       <main className="relative z-10">
         {shouldShowCreatePendingSkeleton ? <CreatePageRouteSkeleton /> : <Outlet />}
       </main>
-
     </div>
   )
 }

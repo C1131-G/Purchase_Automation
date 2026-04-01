@@ -176,7 +176,9 @@ export const getOpenSalesOrderLines = async (req: Request, res: Response, next: 
     const { cardCode } = authReq.query;
 
     if (!cardCode || typeof cardCode !== "string") {
-      return res.status(400).json({ success: false, message: "cardCode query parameter is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "cardCode query parameter is required" });
     }
 
     logger.info({ msg: "Fetching Open Sales Order lines", cardCode });

@@ -385,7 +385,6 @@ export function APInvoiceTable() {
     })
   }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate])
 
-
   if (showInitialSkeleton) {
     return <TableSkeleton />
   }
@@ -402,11 +401,7 @@ export function APInvoiceTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <APInvoiceLookupLayer
-        tableId={TABLE_ID}
-        table={table}
-        onReset={handleResetTable}
-      />
+      <APInvoiceLookupLayer tableId={TABLE_ID} table={table} onReset={handleResetTable} />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
         <Table className="w-full min-w-300">

@@ -69,7 +69,11 @@ export const mapSearchToAPInvoiceListParams = (search: APInvoiceSearch): APInvoi
 
   const docDate = getDateRangeFilter(filters, 'DocDate')
   const docTotal = getDocTotalFilter(filters)
-  const docStatus = getEnumFilter<APInvoiceStatus>(filters, 'DocStatus', ['Open', 'Closed'])
+  const docStatus = getEnumFilter<APInvoiceStatus>(filters, 'DocStatus', [
+    'Open',
+    'Partial',
+    'Closed',
+  ])
 
   const start = docDate?.from ?? docDate?.to
   const end = docDate?.to ?? docDate?.from

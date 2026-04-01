@@ -14,7 +14,9 @@ const normalizeCodeForCompare = (value: unknown) => {
 
 export const resolveProductTaxRates = async (queryClient: QueryClient, itemCodes: string[]) => {
   const taxRateByItemCode = new Map<string, number>()
-  const uniqueItemCodes = [...new Set(itemCodes.map((code) => String(code ?? '').trim()))].filter(Boolean)
+  const uniqueItemCodes = [...new Set(itemCodes.map((code) => String(code ?? '').trim()))].filter(
+    Boolean,
+  )
 
   await Promise.all(
     uniqueItemCodes.map(async (itemCode) => {
@@ -24,8 +26,7 @@ export const resolveProductTaxRates = async (queryClient: QueryClient, itemCodes
 
       const matchedProduct =
         products.find(
-          (product) =>
-            normalizeCodeForCompare(product.code) === normalizeCodeForCompare(itemCode),
+          (product) => normalizeCodeForCompare(product.code) === normalizeCodeForCompare(itemCode),
         ) ?? products[0]
 
       if (!matchedProduct) return

@@ -1,11 +1,13 @@
-import { type MouseEvent } from 'react'
+import { type MouseEvent, useState } from 'react'
 
-import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
+import { CopyFromDialog } from '@/features/create-pages/create-shared/components/modals/copy-from-dialog'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
+import { CopyFromDropdown } from '@/features/create-pages/create-shared/components/layout/copy-from-dropdown'
+import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import { PURCHASE_ORDER_MANDATORY_FIELDS } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
 import {
@@ -16,9 +18,7 @@ import {
 import { GRPOModals } from '@/features/create-pages/grpo-create/components/grpo-modals'
 import { GRPOProductSection } from '@/features/create-pages/grpo-create/components/grpo-product-section'
 import { useGRPOCreate } from '@/features/create-pages/grpo-create/hooks/use-grpo-create'
-import {
-  GRPO_FIELD_LABEL_TEXT,
-} from '@/features/create-pages/grpo-create/utils/grpo-create.utils'
+import { GRPO_FIELD_LABEL_TEXT } from '@/features/create-pages/grpo-create/utils/grpo-create.utils'
 
 interface GRPOCreateProps {
   mode?: 'create' | 'edit'
@@ -43,6 +43,8 @@ export function GRPOCreate({
     sourceDocType,
   })
 
+  const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
+
   const isFormHydrating = mode === 'edit' && !!docNum && !state.isEditHydrated
 
   const handleRestrictedClick =
@@ -54,6 +56,16 @@ export function GRPOCreate({
       }
     }
 
+  const handleCopyFromSelect = (
+    selected: Array<{ docNum: string; docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' }>,
+  ) => {
+    if (selected.length === 0) return
+    // Navigate to create page with first selected document
+    // Multi-document merge would require backend support
+    const first = selected[0]!
+    window.location.href = `/purchase/create-grpo?sourceDocNum=${first.docNum}&sourceDocType=${first.docType}`
+  }
+
   return (
     <CreatePageWrapper
       rootLabel="Purchase"
@@ -63,7 +75,24 @@ export function GRPOCreate({
       }}
       pageTitle={state.isEditMode ? `Update GRPO ${docNum}` : 'Create GRPO'}
       editError={state.createError}
+      topActions={
+        !state.isEditMode ? (
+          <CopyFromDropdown
+            vendorCode={state.vendorCodeInput}
+            vendorName={state.vendorNameInput}
+            onClick={() => setCopyFromDialogOpen(true)}
+          />
+        ) : null
+      }
     >
+      <CopyFromDialog
+        open={copyFromDialogOpen}
+        onClose={() => setCopyFromDialogOpen(false)}
+        sourceDocTypes={['PurchaseOrder']}
+        vendorCode={state.vendorCodeInput}
+        vendorName={state.vendorNameInput}
+        onSelectDocuments={handleCopyFromSelect}
+      />
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
           onClickCapture={handleRestrictedClick?.('Vendor Info')}
@@ -175,14 +204,10 @@ export function GRPOCreate({
           loading={isFormHydrating}
           referenceNo={state.referenceNo}
           comments={state.remarks}
-          referenceNoDisabled={false}
+          referenceNoDisabled={state.referenceAutoFilled}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
-          referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
-          commentsInvalid={Boolean(state.fieldErrors.comments)}
-          referenceNoErrorText={state.fieldErrors.referenceNo}
-          commentsErrorText={state.fieldErrors.comments}
         />
       </div>
 
@@ -201,9 +226,7 @@ export function GRPOCreate({
         openProductPopup={state.openProductPopup}
         prefetchProducts={state.prefetchProducts}
         isSubmitting={
-          state.isEditMode
-            ? (state.updateMutation as any).isPending
-            : (state.createMutation as any).isPending
+          state.isEditMode ? state.updateMutation.isPending : state.createMutation.isPending
         }
         isEditMode={state.isEditMode}
         onUpdateProductRow={state.updateProductRow}
@@ -220,6 +243,7 @@ export function GRPOCreate({
               docNum={docNum!}
               sourceDocType="GoodsReceiptPO"
               targets={['AP Invoice']}
+              docStatus={state.docStatus ?? 'Open'}
             />
           ) : null
         }

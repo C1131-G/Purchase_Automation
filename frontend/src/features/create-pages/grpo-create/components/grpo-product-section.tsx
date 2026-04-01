@@ -1,10 +1,12 @@
 import { type ReactNode } from 'react'
+
 import { BaseProductSection } from '@/features/create-pages/create-shared/components/sections/base-product-section'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
 import {
   calculateOrderTotals,
   calculateSummaryCurrency,
 } from '@/features/create-pages/create-shared/utils/create-order.calculations'
+import { type CreateLookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { type GRPOCreateLine } from '@/features/create-pages/grpo-create/hooks/use-grpo-create'
 
 interface GRPOProductSectionProps {
@@ -38,7 +40,7 @@ interface GRPOProductSectionProps {
     field: 'quantity' | 'discountPercent' | 'discountAmount',
   ) => void
   onSubmit: () => void
-  warehouses: any[]
+  warehouses: CreateLookupOption[]
   warehousesLoading: boolean
   onEditRestrictedClick?: (fieldName: string) => void
   secondaryActions?: ReactNode

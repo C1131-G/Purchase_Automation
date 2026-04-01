@@ -8,7 +8,7 @@ export const apInvoiceListItemSchema = z.object({
   CardName: z.string(),
   DocTotal: z.union([z.number(), z.string()]),
   DocCurr: z.string(),
-  DocStatus: z.enum(['Open', 'Closed']),
+  DocStatus: z.enum(['Open', 'Partial', 'Closed']),
 })
 
 export const apInvoiceListResponseSchema = z.object({
@@ -26,7 +26,7 @@ export const apInvoiceListParamsSchema = z.object({
   DocNum: z.string().optional(),
   CardCode: z.string().optional(),
   CardName: z.string().optional(),
-  DocStatus: z.enum(['Open', 'Closed']).optional(),
+  DocStatus: z.enum(['Open', 'Partial', 'Closed']).optional(),
   DocDateStart: z.string().optional(),
   DocDateEnd: z.string().optional(),
   DocTotalOperator: z.enum(['eq', 'lt', 'gt']).optional(),
@@ -45,7 +45,7 @@ export const apInvoiceDetailSchema = z.object({
   CardName: z.string(),
   DocTotal: z.union([z.number(), z.string()]),
   DocCurr: z.string(),
-  DocStatus: z.enum(['O', 'C', 'Open', 'Closed']),
+  DocStatus: z.enum(['O', 'C', 'Open', 'Partial', 'Closed']),
   Comments: z.string().nullable().optional(),
   NumAtCard: z.string().nullable().optional(),
   Address: z.string().nullable().optional(),

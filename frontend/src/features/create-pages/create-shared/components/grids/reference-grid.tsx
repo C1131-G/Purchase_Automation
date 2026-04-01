@@ -46,9 +46,6 @@ export function ReferenceGrid({
             {referenceNoDisabled ? (
               <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
             ) : null}
-            <span className="text-red-500" aria-hidden="true">
-              *
-            </span>
           </span>
         </label>
         {loading ? (
@@ -90,9 +87,6 @@ export function ReferenceGrid({
             {commentsDisabled ? (
               <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
             ) : null}
-            <span className="text-red-500" aria-hidden="true">
-              *
-            </span>
           </span>
         </label>
         {loading ? (

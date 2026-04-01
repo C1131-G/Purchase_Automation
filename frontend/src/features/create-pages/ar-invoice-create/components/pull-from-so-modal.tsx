@@ -1,11 +1,11 @@
-import { Loader2, Search, X, ClipboardList } from 'lucide-react'
-import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ClipboardList, Loader2, Search, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 import { AnimatedModalShell } from '@/features/create-pages/create-shared/components/core/animated-modal-shell'
+import { toDisplayDate } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
 import { type OpenSalesOrderLine } from '@/features/table-pages/sales-orders/api/sales-order.service'
-import { toDisplayDate } from '@/features/create-pages/create-shared/utils/create-order.utils'
 
 interface PullFromSOModalProps {
   open: boolean
@@ -37,8 +37,8 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
 
   const groupedOrders = useMemo(() => {
     const map = new Map<number, GroupedOrder>()
-    
-    lines.forEach(line => {
+
+    lines.forEach((line) => {
       if (!map.has(line.DocNum)) {
         map.set(line.DocNum, {
           DocEntry: line.DocEntry,
@@ -47,7 +47,7 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
           DocCurr: line.DocCurr,
           ItemCount: 0,
           TotalQty: 0,
-          lines: []
+          lines: [],
         })
       }
       const order = map.get(line.DocNum)!
@@ -55,7 +55,7 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
       order.TotalQty += line.OpenQty
       order.lines.push(line)
     })
-    
+
     return Array.from(map.values()).sort((a, b) => b.DocNum - a.DocNum)
   }, [lines])
 
@@ -65,10 +65,11 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
     return groupedOrders.filter(
       (order) =>
         order.DocNum.toString().includes(term) ||
-        order.lines.some(l => 
-          l.ItemCode.toLowerCase().includes(term) || 
-          l.ItemDescription.toLowerCase().includes(term)
-        )
+        order.lines.some(
+          (l) =>
+            l.ItemCode.toLowerCase().includes(term) ||
+            l.ItemDescription.toLowerCase().includes(term),
+        ),
     )
   }, [groupedOrders, search])
 
@@ -108,7 +109,9 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
           </div>
           <div>
             <h3 className="text-lg font-semibold text-zinc-900">Pull from Sales Orders</h3>
-            <p className="text-xs text-zinc-500">Select orders to pull all their products into your invoice</p>
+            <p className="text-xs text-zinc-500">
+              Select orders to pull all their products into your invoice
+            </p>
           </div>
         </div>
         <button
@@ -147,7 +150,9 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
                   <th className="px-4 py-3 font-semibold text-zinc-700">SO #</th>
                   <th className="px-4 py-3 font-semibold text-zinc-700">Order Date</th>
                   <th className="px-4 py-3 font-semibold text-zinc-700">Total Items</th>
-                  <th className="px-4 py-3 font-semibold text-zinc-700 text-right">Total Open Qty</th>
+                  <th className="px-4 py-3 font-semibold text-zinc-700 text-right">
+                    Total Open Qty
+                  </th>
                   <th className="px-4 py-3 font-semibold text-zinc-700">Currency</th>
                 </tr>
               </thead>
@@ -166,7 +171,9 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
                     <td colSpan={6} className="py-20 text-center">
                       <div className="flex flex-col items-center gap-2 text-red-500">
                         <p className="font-medium">Failed to load open orders</p>
-                        <p className="text-xs">{(error as Error)?.message || 'Something went wrong'}</p>
+                        <p className="text-xs">
+                          {(error as Error)?.message || 'Something went wrong'}
+                        </p>
                       </div>
                     </td>
                   </tr>
@@ -201,7 +208,7 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
                           {order.DocDate ? toDisplayDate(new Date(order.DocDate)) : 'N/A'}
                         </td>
                         <td className="px-4 py-3">
-                           <span className="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800">
+                          <span className="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800">
                             {order.ItemCount} Products
                           </span>
                         </td>
@@ -221,7 +228,9 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-zinc-100 pt-6">
           <div className="text-sm text-zinc-500">
             {selectedDocNums.size > 0 ? (
-              <span className="font-medium text-blue-600">{selectedDocNums.size} Sales Orders selected</span>
+              <span className="font-medium text-blue-600">
+                {selectedDocNums.size} Sales Orders selected
+              </span>
             ) : (
               'Select orders to proceed'
             )}

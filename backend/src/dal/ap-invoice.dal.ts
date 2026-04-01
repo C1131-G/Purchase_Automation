@@ -111,7 +111,11 @@ export const updateInvoice = async (req: Request, res: Response, next: NextFunct
 
     const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
     // Note: getInvoiceByDocNum returns the full detail including internal DocEntry (detail.id)
-    const updateResult = await apInvoiceService.updateInvoice(sessionId, String(detail.id), validatedPayload);
+    const updateResult = await apInvoiceService.updateInvoice(
+      sessionId,
+      String(detail.id),
+      validatedPayload,
+    );
 
     res.status(200).json({ success: true, message: updateResult.message });
   } catch (error) {

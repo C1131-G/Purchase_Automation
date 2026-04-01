@@ -20,10 +20,5 @@ export const Route = createFileRoute('/_layout/purchase/create-grpo')({
 
 function RouteComponent() {
   const { sourceDocNum, sourceDocType } = Route.useSearch()
-  return (
-    <GRPOCreate
-      sourceDocNum={sourceDocNum}
-      sourceDocType={sourceDocType}
-    />
-  )
+  return <GRPOCreate sourceDocNum={sourceDocNum} sourceDocType={sourceDocType} />
 }

@@ -38,6 +38,7 @@ export type PurchaseOrderDetailLine = {
   VatPrcnt?: number
   WarehouseCode?: string
   LineTotal?: number
+  LineNum?: number
 }
 
 export type PurchaseOrderDetail = {
@@ -54,7 +55,7 @@ export type PurchaseOrderDetail = {
   NumAtCard?: string
   Comments?: string
   DocCurr?: string
-  DocStatus?: string
+  DocStatus?: 'Open' | 'Partial' | 'Closed' | 'O' | 'C'
   DocumentLines?: PurchaseOrderDetailLine[]
 }
 export type PurchaseOrderDetailResponse = { success: boolean; data: PurchaseOrderDetail }

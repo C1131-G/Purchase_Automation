@@ -1,4 +1,5 @@
 import { Lock } from 'lucide-react'
+
 import { FieldBlock } from '@/features/create-pages/create-shared/components/core/field-block'
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
 import { SuggestionList } from '@/features/create-pages/create-shared/components/core/suggestion-list'

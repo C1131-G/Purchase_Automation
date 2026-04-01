@@ -1,12 +1,13 @@
 import { type ReactNode } from 'react'
 
+import { type APInvoiceCreateLine } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
 import { BaseProductSection } from '@/features/create-pages/create-shared/components/sections/base-product-section'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
 import {
   calculateOrderTotals,
   calculateSummaryCurrency,
 } from '@/features/create-pages/create-shared/utils/create-order.calculations'
-import { type APInvoiceCreateLine } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
+import { type CreateLookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 interface APInvoiceProductSectionProps {
   rows: APInvoiceCreateLine[]
@@ -39,7 +40,7 @@ interface APInvoiceProductSectionProps {
     field: 'quantity' | 'discountPercent' | 'discountAmount',
   ) => void
   onSubmit: () => void
-  warehouses: any[]
+  warehouses: CreateLookupOption[]
   warehousesLoading: boolean
   onEditRestrictedClick?: (fieldName: string) => void
   secondaryActions?: ReactNode
@@ -128,13 +129,13 @@ export function APInvoiceProductSection({
         }
       >
         <CreateProductTable
-          productRows={rows as any}
-          productRowDrafts={productRowDrafts as any}
+          productRows={rows}
+          productRowDrafts={productRowDrafts}
           enforceStockLimit={false}
           disableLineInputs={isReadOnlyMode}
           onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
           openProductPopup={openProductPopup}
-          updateProductRow={onUpdateProductRow as any}
+          updateProductRow={onUpdateProductRow}
           removeProductRow={onRemoveProductRow}
           setProductRowDraft={onSetProductRowDraft}
           clearProductRowDraft={onClearProductRowDraft}

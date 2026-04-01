@@ -103,7 +103,10 @@ export function BaseProductSection({
           </span>
         </h3>
         <div className="flex items-center gap-2">
-          {showRequiredHints && !effectiveHideSearch && missingSearchFields.length > 0 && searchFieldsTotal > 0 ? (
+          {showRequiredHints &&
+          !effectiveHideSearch &&
+          missingSearchFields.length > 0 &&
+          searchFieldsTotal > 0 ? (
             <Tooltip
               content={`Required fields: ${missingSearchFields.map((field) => requiredFieldLabels[field] ?? field).join(', ')}`}
               className="block w-auto max-w-none"

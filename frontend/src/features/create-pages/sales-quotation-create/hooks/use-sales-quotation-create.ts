@@ -377,6 +377,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     () => ({
       vendorCode: lookups.codeInput.trim() || header.vendorCode.trim(),
       vendorName: lookups.nameInput.trim() || header.vendorName.trim(),
+      warehouseCode: lookups.effectiveWarehouseCode.trim(),
       docDueDate: header.docDueDate,
       salesEmployee: lookups.salesEmployeeInput.trim(),
       billToAddress: lookups.billToAddress.trim(),
@@ -389,8 +390,8 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       header.vendorCode,
       lookups.nameInput,
       header.vendorName,
-      header.docDueDate,
       lookups.effectiveWarehouseCode,
+      header.docDueDate,
       lookups.salesEmployeeInput,
       lookups.billToAddress,
       lookups.shipToAddress,
@@ -400,7 +401,8 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   )
 
   const missingMandatoryFields = useMemo(
-    () => getMissingMandatoryCreateFieldsTyped(createMandatoryValues, SALES_QUOTATION_MANDATORY_FIELDS),
+    () =>
+      getMissingMandatoryCreateFieldsTyped(createMandatoryValues, SALES_QUOTATION_MANDATORY_FIELDS),
     [createMandatoryValues],
   )
 
@@ -602,8 +604,8 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         await updateSalesQuotationMutation.mutateAsync({ id: docEntry, payload })
         createdDocNum = detail?.DocNum
       } else {
-        const result = (await createSalesQuotationMutation.mutateAsync({ payload })) as any
-        createdDocNum = result?.data?.DocNum
+        const result = await createSalesQuotationMutation.mutateAsync({ payload })
+        createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum
       }
       toastHandle.success(createdDocNum)
 
@@ -657,7 +659,9 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     }
   }
 
-  const submitSalesQuotationMutation = isEditMode ? updateSalesQuotationMutation : createSalesQuotationMutation
+  const submitSalesQuotationMutation = isEditMode
+    ? updateSalesQuotationMutation
+    : createSalesQuotationMutation
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),

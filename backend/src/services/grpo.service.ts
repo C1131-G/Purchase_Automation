@@ -122,7 +122,8 @@ export const getGRPODocNums = async (dbName: string, search?: string, limit?: nu
   const queryBuilder = repo.createQueryBuilder("grpo");
   const safeLimit = getSafeDocNumLimit(limit);
 
-  queryBuilder.select("grpo.docNum", "DocNum")
+  queryBuilder
+    .select("grpo.docNum", "DocNum")
     .addSelect("grpo.cardCode", "CardCode")
     .addSelect("grpo.cardName", "CardName")
     .distinct(true);
@@ -135,11 +136,17 @@ export const getGRPODocNums = async (dbName: string, search?: string, limit?: nu
   queryBuilder.orderBy("grpo.docNum", "DESC");
   queryBuilder.take(safeLimit);
 
-  const rows = await queryBuilder.getRawMany<{ DocNum: number | string; CardCode?: string; CardName?: string }>();
+  const rows = await queryBuilder.getRawMany<{
+    DocNum: number | string;
+    CardCode?: string;
+    CardName?: string;
+  }>();
   return rows
     .map((row) => ({
       code: String(row.DocNum).trim(),
-      name: row.CardCode ? `[${row.CardCode}] ${row.CardName || ""}`.trim() : String(row.DocNum).trim(),
+      name: row.CardCode
+        ? `[${row.CardCode}] ${row.CardName || ""}`.trim()
+        : String(row.DocNum).trim(),
     }))
     .filter((item) => item.code.length > 0);
 };

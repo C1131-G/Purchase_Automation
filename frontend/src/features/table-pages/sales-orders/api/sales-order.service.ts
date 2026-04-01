@@ -106,6 +106,8 @@ export const salesOrderAPI = {
     return apiClient<SalesOrderDocNumLookupResponse>(path)
   },
   getOpenSalesOrderLines: async (cardCode: string) => {
-    return apiClient<OpenSalesOrderLinesResponse>(`/api/v1/sales-orders/open-lines?cardCode=${cardCode}`)
+    return apiClient<OpenSalesOrderLinesResponse>(
+      `/api/v1/sales-orders/open-lines?cardCode=${cardCode}`,
+    )
   },
 }

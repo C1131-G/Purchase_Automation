@@ -84,6 +84,7 @@ export type GRPODetailLine = {
   BaseEntry?: number
   BaseLine?: number
   BaseType?: number
+  LineNum?: number
 }
 
 export type GRPODetail = {
@@ -101,7 +102,7 @@ export type GRPODetail = {
   NumAtCard?: string
   DocTotal?: number
   DocCurr?: string
-  DocStatus?: string
+  DocStatus?: 'Open' | 'Partial' | 'Closed' | 'O' | 'C' | 'bost_Open' | 'bost_Close'
   DocumentLines?: GRPODetailLine[]
 }
 

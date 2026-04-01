@@ -451,35 +451,72 @@ export const getOpenSalesOrderLines = async (sessionId: string, cardCode: string
     };
 
     const orders = result.value || [];
-    const openLines: any[] = [];
+    const openLines: {
+      DocEntry: number;
+      DocNum: number;
+      DocDate: string;
+      DocCurr: string;
+      LineNum: number;
+      ItemCode: string;
+      ItemDescription?: string;
+      Quantity: number;
+      OpenQty: number;
+      Price?: number;
+      TaxCode?: string;
+      WarehouseCode?: string;
+      UoMCode?: string | number;
+      UoMEntry?: number;
+      DiscountPercent?: number;
+    }[] = [];
 
     for (const order of orders) {
       const lines = order.DocumentLines || [];
       for (const line of lines) {
-        if ((line as any).LineStatus === "bost_Open") {
-          const l = line as any;
+        const lineWithStatus = line as SAPDocumentLine & { LineStatus?: string };
+        if (lineWithStatus.LineStatus === "bost_Open") {
+          const lineWithOpenQty = lineWithStatus as SAPDocumentLine & {
+            LineStatus?: string;
+            OpenQuantity?: number;
+            RemainingOpenQuantity?: number;
+            RemainingOpenInventoryQuantity?: number;
+            RemainingQuantity?: number;
+            BaseOpenQuantity?: number;
+            UoMCode?: string | number;
+            UoMEntry?: number;
+          };
           openLines.push({
             DocEntry: order.DocEntry,
             DocNum: order.DocNum,
             DocDate: order.DocDate,
             DocCurr: order.DocCurrency,
-            LineNum: l.LineNum,
+            LineNum: lineWithOpenQty.LineNum ?? 0,
             ItemCode: line.ItemCode,
             ItemDescription: line.ItemDescription,
             Quantity: line.Quantity,
-            OpenQty: Number(l.OpenQuantity ?? l.RemainingOpenQuantity ?? l.RemainingOpenInventoryQuantity ?? l.RemainingQuantity ?? l.BaseOpenQuantity ?? line.Quantity),
+            OpenQty: Number(
+              lineWithOpenQty.OpenQuantity ??
+                lineWithOpenQty.RemainingOpenQuantity ??
+                lineWithOpenQty.RemainingOpenInventoryQuantity ??
+                lineWithOpenQty.RemainingQuantity ??
+                lineWithOpenQty.BaseOpenQuantity ??
+                line.Quantity,
+            ),
             Price: line.Price || line.UnitPrice,
             TaxCode: line.TaxCode,
             WarehouseCode: line.WarehouseCode,
-            UoMCode: l.UoMCode,
-            UoMEntry: l.UoMEntry,
+            UoMCode: lineWithOpenQty.UoMCode,
+            UoMEntry: lineWithOpenQty.UoMEntry,
             DiscountPercent: line.DiscountPercent,
           });
         }
       }
     }
 
-    logger.info({ msg: "DEBUG: Mapped Open Lines", count: openLines.length, samples: openLines.slice(0, 2) });
+    logger.info({
+      msg: "DEBUG: Mapped Open Lines",
+      count: openLines.length,
+      samples: openLines.slice(0, 2),
+    });
 
     return openLines;
   } catch (err: unknown) {

@@ -142,11 +142,19 @@ export function SuggestionsDropdown({
   const [visibleCount, setVisibleCount] = useState(INITIAL_LIMIT)
   const [loadingMore, setLoadingMore] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
+  const prevQueryRef = useRef(trimmedQuery)
+  const prevActiveColumnRef = useRef(activeColumnId)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setVisibleCount(INITIAL_LIMIT)
-    setLoadingMore(false)
+    if (prevQueryRef.current !== trimmedQuery || prevActiveColumnRef.current !== activeColumnId) {
+      setVisibleCount(INITIAL_LIMIT)
+      setLoadingMore(false)
+      prevQueryRef.current = trimmedQuery
+      prevActiveColumnRef.current = activeColumnId
+    }
   }, [trimmedQuery, suggestions.length, activeColumnId, isVisible])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const cappedSuggestions = useMemo(() => {
     if (isSearchMode) return suggestions
@@ -182,7 +190,7 @@ export function SuggestionsDropdown({
         {visibleSuggestions.map((item) => {
           const isCardName = activeColumnId === 'CardName'
           const isDocLookupStyle = LOOKUP_STYLE_COLUMNS.has(activeColumnId)
-          
+
           // Show both if we have data and it's a lookup column (DocNum/CardCode/CardName)
           const hasRichData = item.name && item.name !== item.code
           const showBoth = isDocLookupStyle && hasRichData

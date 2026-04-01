@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+
 import { type ProductRow } from '@/features/create-pages/create-shared/utils/create-order.types'
 
 export type APInvoiceLineItemState = ProductRow & {
@@ -13,6 +14,7 @@ export type APInvoiceHeaderState = {
   warehouseCode: string
   referenceNo: string
   remarks: string
+  referenceAutoFilled: boolean
 }
 
 type APInvoiceCreateState = {
@@ -20,7 +22,9 @@ type APInvoiceCreateState = {
   lines: APInvoiceLineItemState[]
   setHeader: (patch: Partial<APInvoiceHeaderState>) => void
   setLines: (
-    lines: APInvoiceLineItemState[] | ((prev: APInvoiceLineItemState[]) => APInvoiceLineItemState[]),
+    lines:
+      | APInvoiceLineItemState[]
+      | ((prev: APInvoiceLineItemState[]) => APInvoiceLineItemState[]),
   ) => void
   addLine: (line: APInvoiceLineItemState) => void
   updateLine: (id: string, patch: Partial<APInvoiceLineItemState>) => void
@@ -53,6 +57,7 @@ const getDefaultHeader = (): APInvoiceHeaderState => ({
   warehouseCode: '',
   referenceNo: '',
   remarks: '',
+  referenceAutoFilled: false,
 })
 
 export const useAPInvoiceCreateStore = create<APInvoiceCreateState>((set) => ({

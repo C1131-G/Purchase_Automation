@@ -20,10 +20,5 @@ export const Route = createFileRoute('/_layout/purchase/create-ap-invoice')({
 
 function RouteComponent() {
   const { sourceDocNum, sourceDocType } = Route.useSearch()
-  return (
-    <APInvoiceCreate
-      sourceDocNum={sourceDocNum}
-      sourceDocType={sourceDocType}
-    />
-  )
+  return <APInvoiceCreate sourceDocNum={sourceDocNum} sourceDocType={sourceDocType} />
 }

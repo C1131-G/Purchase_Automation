@@ -23,12 +23,13 @@ export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
   referenceNo: undefined,
   comments: undefined,
 }
-export const MANDATORY_ERROR_TEXT: Record<(typeof SALES_QUOTATION_MANDATORY_FIELDS)[number], string> = {
+export const MANDATORY_ERROR_TEXT: Record<
+  (typeof SALES_QUOTATION_MANDATORY_FIELDS)[number],
+  string
+> = {
   vendorCode: 'Customer Code is required.',
   vendorName: 'Customer Name is required.',
   warehouseCode: 'Warehouse is required.',
-  referenceNo: 'Reference is required.',
-  comments: 'Remarks is required.',
 }
 export const REQUIRED_FIELD_LABEL_TEXT: Record<
   (typeof SALES_QUOTATION_MANDATORY_FIELDS)[number],
@@ -37,8 +38,6 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
   vendorCode: 'Customer Code',
   vendorName: 'Customer Name',
   warehouseCode: 'Warehouse',
-  referenceNo: 'Reference',
-  comments: 'Remarks',
 }
 export const QUICK_PRODUCT_LIMIT = 10
 export const FULL_PRODUCT_LIMIT = 100

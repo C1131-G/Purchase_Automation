@@ -5,9 +5,11 @@ import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { salesQuotationSearchSchema } from '@/features/table-pages/sales-quotations/schemas/sales-quotation-search.schema'
 
 const SalesQuotationTable = lazy(() =>
-  import('@/features/table-pages/sales-quotations/components/sales-quotation-table').then((module) => ({
-    default: module.SalesQuotationTable,
-  })),
+  import('@/features/table-pages/sales-quotations/components/sales-quotation-table').then(
+    (module) => ({
+      default: module.SalesQuotationTable,
+    }),
+  ),
 )
 
 export const Route = createFileRoute('/_layout/sales/quotations')({

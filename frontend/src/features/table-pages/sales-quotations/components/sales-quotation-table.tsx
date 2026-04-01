@@ -57,7 +57,9 @@ const TABLE_ID = 'sales-quotations'
 const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 const EDIT_PRODUCTS_PREFETCH_LIMIT = 100
 
-const toSalesQuotationColumnFilters = (filters: ColumnFiltersState): SalesQuotationColumnFilter[] => {
+const toSalesQuotationColumnFilters = (
+  filters: ColumnFiltersState,
+): SalesQuotationColumnFilter[] => {
   const typedFilters: SalesQuotationColumnFilter[] = []
   for (const filter of filters) {
     const parsed = salesQuotationColumnFilterSchema.safeParse(filter)
@@ -207,7 +209,10 @@ export function SalesQuotationTable() {
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
-  const listParams = useMemo(() => mapSearchToSalesQuotationListParams(searchParams), [searchParams])
+  const listParams = useMemo(
+    () => mapSearchToSalesQuotationListParams(searchParams),
+    [searchParams],
+  )
 
   const {
     data: salesQuotationList,

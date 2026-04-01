@@ -85,7 +85,6 @@ export function ProductPopupModal({
   onSearchChange,
   onReachEnd,
   onClose,
-  onSelect,
   onSelectMultiple,
 }: ProductPopupModalProps) {
   const safeResults = useMemo(() => (Array.isArray(results) ? results : []), [results])
@@ -98,11 +97,13 @@ export function ProductPopupModal({
       ? 'No products available for selected warehouse.'
       : 'Select warehouse first to load products.'
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setSelectedCodes(new Set())
     }
   }, [open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!open) return
@@ -213,7 +214,9 @@ export function ProductPopupModal({
                     <button
                       onClick={toggleAll}
                       className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all ${
-                        allSelected ? 'border-blue-500 bg-blue-500 text-white' : 'border-zinc-300 bg-white'
+                        allSelected
+                          ? 'border-blue-500 bg-blue-500 text-white'
+                          : 'border-zinc-300 bg-white'
                       }`}
                     >
                       {allSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}

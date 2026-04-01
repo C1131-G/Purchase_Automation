@@ -8,7 +8,7 @@ export const purchaseOrderListItemSchema = z.object({
   CardName: z.string(),
   DocTotal: z.union([z.number(), z.string()]),
   DocCurr: z.string(),
-  DocStatus: z.enum(['Open', 'Closed']),
+  DocStatus: z.enum(['Open', 'Partial', 'Closed']),
 })
 
 export const purchaseOrderListResponseSchema = z.object({
@@ -26,7 +26,7 @@ export const purchaseOrderListParamsSchema = z.object({
   DocNum: z.string().optional(),
   CardCode: z.string().optional(),
   CardName: z.string().optional(),
-  DocStatus: z.enum(['Open', 'Closed']).optional(),
+  DocStatus: z.enum(['Open', 'Partial', 'Closed']).optional(),
   DocDateStart: z.string().optional(),
   DocDateEnd: z.string().optional(),
   DocTotalOperator: z.enum(['eq', 'lt', 'gt']).optional(),

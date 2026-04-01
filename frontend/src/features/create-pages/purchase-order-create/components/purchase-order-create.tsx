@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { type MouseEvent } from 'react'
 
-import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
+import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import {
   parseISODate,
@@ -129,7 +129,9 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
               salesEmployeeSuggestions={state.salesEmployeeSuggestions}
               onSalesEmployeeChange={state.handleSalesEmployeeChange}
               onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-              onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
+              onSalesEmployeeBlur={() =>
+                setTimeout(() => state.setSalesEmployeeFocused(false), 120)
+              }
               onOpenSalesEmployeePopup={() => state.openPopup('sales-employee')}
               onSelectSalesEmployee={state.selectSalesEmployee}
               salesEmployeeDisabled={state.isClosed}
@@ -248,6 +250,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
               docNum={docNum!}
               sourceDocType="PurchaseOrder"
               targets={['GRPO', 'AP Invoice']}
+              docStatus={state.docStatus ?? 'Open'}
             />
           ) : null
         }

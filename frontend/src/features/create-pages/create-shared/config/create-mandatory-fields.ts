@@ -2,8 +2,6 @@ export const PURCHASE_ORDER_MANDATORY_FIELDS = [
   'vendorCode',
   'vendorName',
   'warehouseCode',
-  'referenceNo',
-  'comments',
 ] as const
 
 export const SALES_ORDER_MANDATORY_FIELDS = [...PURCHASE_ORDER_MANDATORY_FIELDS] as const

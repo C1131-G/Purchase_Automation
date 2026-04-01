@@ -64,7 +64,9 @@ const SORTABLE_FIELDS = new Set([
   'DocStatus',
 ])
 
-export const mapSearchToSalesQuotationListParams = (search: SalesQuotationSearch): SalesQuotationListParams => {
+export const mapSearchToSalesQuotationListParams = (
+  search: SalesQuotationSearch,
+): SalesQuotationListParams => {
   const filters = normalizeColumnFilters(search.columnFilters)
 
   const docDate = getDateRangeFilter(filters, 'DocDate')

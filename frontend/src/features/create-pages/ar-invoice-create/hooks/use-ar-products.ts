@@ -7,9 +7,7 @@ import {
   QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from '@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils'
-import {
-  createSharedQueries as arInvoiceCreateQueries,
-} from '@/features/create-pages/create-shared/api/create-shared.queries'
+import { createSharedQueries as arInvoiceCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
   type ProductRow,
@@ -69,21 +67,6 @@ export function useArProducts({
     enabled: customerSelected,
   })
 
-  useEffect(() => {
-    if (!customerSelected) return
-    prefetchProducts()
-  }, [customerLookupToken, customerSelected])
-
-  const products = useMemo(
-    () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
-    [productsQuery.data, normalizedProductSearch],
-  )
-
-  const productWarehouseStocksQuery = useQuery({
-    ...arInvoiceCreateQueries.productWarehouseStocks(stockPreviewProductCode),
-    enabled: Boolean(stockPreviewProductCode),
-  })
-
   const prefetchProducts = () => {
     if (!customerSelected) return
     void queryClient.prefetchQuery(
@@ -94,6 +77,21 @@ export function useArProducts({
       ),
     )
   }
+
+  useEffect(() => {
+    if (!customerSelected) return
+    prefetchProducts()
+  }, [customerLookupToken, customerSelected, prefetchProducts])
+
+  const products = useMemo(
+    () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
+    [productsQuery.data, normalizedProductSearch],
+  )
+
+  const productWarehouseStocksQuery = useQuery({
+    ...arInvoiceCreateQueries.productWarehouseStocks(stockPreviewProductCode),
+    enabled: Boolean(stockPreviewProductCode),
+  })
 
   const openProductPopup = (
     rowId: string | null,

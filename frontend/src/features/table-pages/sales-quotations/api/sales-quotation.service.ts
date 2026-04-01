@@ -79,7 +79,9 @@ export const salesQuotationAPI = {
   },
   getSalesQuotationDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit })
-    const path = query ? `/api/v1/sales-quotations/docnums?${query}` : '/api/v1/sales-quotations/docnums'
+    const path = query
+      ? `/api/v1/sales-quotations/docnums?${query}`
+      : '/api/v1/sales-quotations/docnums'
     return apiClient<SalesQuotationDocNumLookupResponse>(path)
   },
 }

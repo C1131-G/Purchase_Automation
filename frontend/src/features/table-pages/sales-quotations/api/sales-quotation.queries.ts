@@ -10,7 +10,8 @@ import { QUERY_CACHE_POLICY } from '@/shared/constants/query.constants'
 export const salesQuotationKeys = {
   all: ['sales-quotations'] as const,
   list: (params: SalesQuotationListParams) => [...salesQuotationKeys.all, 'list', params] as const,
-  detailByDocNum: (docNum: string) => [...salesQuotationKeys.all, 'detail-by-doc-num', docNum] as const,
+  detailByDocNum: (docNum: string) =>
+    [...salesQuotationKeys.all, 'detail-by-doc-num', docNum] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...salesQuotationKeys.all, 'doc-num-suggestions', search ?? '', limit ?? 'all'] as const,
 }

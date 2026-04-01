@@ -146,12 +146,18 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
   const sourceDetailQuerySQ = useQuery({
     ...salesQuotationQueries.detailByDocNum(options?.sourceDocNum ?? ''),
-    enabled: mode === 'create' && options?.sourceDocType === 'SalesQuotation' && Boolean(options?.sourceDocNum),
+    enabled:
+      mode === 'create' &&
+      options?.sourceDocType === 'SalesQuotation' &&
+      Boolean(options?.sourceDocNum),
   })
 
   const sourceDetailQuerySO = useQuery({
     ...salesOrderQueries.detailByDocNum(options?.sourceDocNum ?? ''),
-    enabled: mode === 'create' && options?.sourceDocType === 'SalesOrder' && Boolean(options?.sourceDocNum),
+    enabled:
+      mode === 'create' &&
+      options?.sourceDocType === 'SalesOrder' &&
+      Boolean(options?.sourceDocNum),
   })
 
   useEffect(() => {
@@ -211,7 +217,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const productByCode = new Map<string, ProductLookupItem>(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
       )
-      const stocksByItemCode = new Map<string, any[]>()
+      const stocksByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
       const uniqueItemCodes = [
         ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
       ].filter(Boolean)
@@ -220,7 +226,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         uniqueItemCodes.map(async (itemCode) => {
           const warehouseStocks = (await queryClient
             .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])) as any[]
+            .catch(() => [])) as Array<{ code: string; stock: number }>
           stocksByItemCode.set(itemCode, warehouseStocks)
         }),
       )
@@ -232,10 +238,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const warehouseStocks = stocksByItemCode.get(itemCode) ?? []
         // Use line-specific stock lookup
         const lineStock = lineWarehouse
-          ? Number(
-              warehouseStocks.find((s: any) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
-            )
-          : warehouseStocks.reduce((sum, s: any) => sum + Number(s.stock ?? 0), 0)
+          ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
+          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
         const quantity = Number(line.Quantity ?? 1)
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
@@ -357,14 +361,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       ''
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
     const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode)
-    
+
     // Original doc comments might have markers, just preserve the simple part or indicate copy.
     const rawComments = String(detail.Comments ?? '').trim()
     const splitComments = rawComments.split(' | ').map((part) => part.trim())
     const hasReferenceMarker = splitComments.length > 1
     const originalComments = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
-    
-    const referenceNo = String((detail as any).NumAtCard ?? '')
+
+    const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '')
     const comments = originalComments || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
     const address = String(detail.Address ?? '').trim()
@@ -384,23 +388,23 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const productByCode = new Map<string, ProductLookupItem>(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
       )
-      const stocksByItemCode = new Map<string, any[]>()
+      const stocksByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
       const uniqueItemCodes = [
-        ...new Set(detailLines.map((line: any) => String(line.ItemCode ?? '').trim())),
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
       ].filter(Boolean)
 
       await Promise.all(
         uniqueItemCodes.map(async (itemCode) => {
           const warehouseStocks = (await queryClient
             .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])) as any[]
+            .catch(() => [])) as Array<{ code: string; stock: number }>
           stocksByItemCode.set(itemCode, warehouseStocks)
         }),
       )
 
       const baseType = currentSourceDocType === 'SalesQuotation' ? 23 : 17
 
-      const mappedRows = detailLines.map((line: any, index: number) => {
+      const mappedRows = detailLines.map((line, index: number) => {
         const itemCode = String(line.ItemCode ?? '').trim()
         const productMeta = productByCode.get(itemCode)
         const lineWarehouse = String(line.WarehouseCode ?? '').trim()
@@ -408,10 +412,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         // Per-line stock derivation
         const warehouseStocks = stocksByItemCode.get(itemCode) ?? []
         const lineStock = lineWarehouse
-          ? Number(
-              warehouseStocks.find((s: any) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
-            )
-          : warehouseStocks.reduce((sum, s: any) => sum + Number(s.stock ?? 0), 0)
+          ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
+          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
         const quantity = Number(line.Quantity ?? 1)
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
@@ -770,8 +772,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         await updateARInvoiceMutation.mutateAsync({ id: docEntry, payload })
         createdDocNum = detail?.DocNum
       } else {
-        const result = (await createARInvoiceMutation.mutateAsync({ payload })) as any
-        createdDocNum = result?.data?.DocNum
+        const result = await createARInvoiceMutation.mutateAsync({ payload })
+        createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum
       }
       toastHandle.success(createdDocNum)
 
@@ -837,9 +839,23 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const summaryCurrencyLabel = summaryCurrency === 'MULTI' ? 'MULTI' : summaryCurrency
   const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
 
-  const addProductsFromSOs = async (selectedLines: any[]) => {
+  const addProductsFromSOs = async (
+    selectedLines: Array<{
+      ItemCode: string
+      ItemDescription?: string
+      Quantity?: number
+      Price?: number
+      DocCurr?: string
+      TaxCode?: string
+      UoMCode?: string
+      UoMEntry?: number
+      WarehouseCode?: string
+      LineNum?: number
+      DocNum?: number
+    }>,
+  ) => {
     const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))]
-    const stocksByItemCode = new Map<string, any[]>()
+    const stocksByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
 
     await Promise.all(
       uniqueItemCodes.map(async (code) => {
@@ -856,10 +872,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const warehouseStocks = stocksByItemCode.get(itemCode) ?? []
 
       const lineStock = lineWarehouse
-        ? Number(
-            warehouseStocks.find((s: any) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
-          )
-        : warehouseStocks.reduce((sum, s: any) => sum + Number(s.stock ?? 0), 0)
+        ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
+        : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
       return {
         id: `so-pull-${line.DocNum}-${line.LineNum}-${Date.now()}-${index}`,

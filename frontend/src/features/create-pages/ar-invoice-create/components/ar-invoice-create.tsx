@@ -32,7 +32,7 @@ interface ARInvoiceCreateProps {
  */
 export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProps) {
   const queryClient = useQueryClient()
-  const search: any = useSearch({ strict: false })
+  const search = useSearch({ strict: false })
   const sourceDocNum = mode === 'create' ? search.sourceDocNum : undefined
   const sourceDocType = mode === 'create' ? search.sourceDocType : undefined
 

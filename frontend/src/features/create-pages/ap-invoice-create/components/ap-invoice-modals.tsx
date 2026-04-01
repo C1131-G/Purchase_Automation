@@ -1,10 +1,10 @@
+import { type useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
 import {
   type LookupItem,
   type ProductLookupItem,
 } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { LookupPopupModal } from '@/features/create-pages/create-shared/components/modals/lookup-popup-modal'
 import { ProductPopupModal } from '@/features/create-pages/create-shared/components/modals/product-popup-modal'
-import { type useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
 
 interface APInvoiceModalsProps {
   state: ReturnType<typeof useAPInvoiceCreate>

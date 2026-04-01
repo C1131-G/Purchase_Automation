@@ -49,7 +49,11 @@ export const apInvoiceAPI = {
     return apiClient<APInvoiceDocNumLookupResponse>(path)
   },
   createAPInvoice: async (payload: CreateAPInvoiceInput) => {
-    return apiClient<{ success: boolean; message: string; data: any }>('/api/v1/ap-invoices', {
+    return apiClient<{
+      success: boolean
+      message: string
+      data: { DocEntry: number; DocNum: number }
+    }>('/api/v1/ap-invoices', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

@@ -8,8 +8,11 @@ export function useCreateSalesQuotation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ payload }: { payload: Parameters<typeof salesQuotationAPI.createSalesQuotation>[0] }) =>
-      salesQuotationAPI.createSalesQuotation(payload),
+    mutationFn: ({
+      payload,
+    }: {
+      payload: Parameters<typeof salesQuotationAPI.createSalesQuotation>[0]
+    }) => salesQuotationAPI.createSalesQuotation(payload),
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() })
       queryClient.removeQueries({ queryKey: createSharedKeys.productWarehouseStocks() })

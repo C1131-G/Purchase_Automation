@@ -2,11 +2,10 @@
 
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
-import { getCachedData, purgeCache } from "@/core/utils/cache";
+import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { SalesQuotationFilters } from "@/dal/types/sales-quotation.types";
-import { SalesQuotationSchema, type SalesQuotation } from "@/db/schemas/sales-quotation.schema";
-import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
+import { type SalesQuotation, SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
@@ -187,7 +186,11 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
 };
 
 // Resolves a Sales Quotation by DocNum from tenant DB and fetches full details from Service Layer.
-export const getSalesQuotationByDocNum = async (sessionId: string, dbName: string, docNum: string) => {
+export const getSalesQuotationByDocNum = async (
+  sessionId: string,
+  dbName: string,
+  docNum: string,
+) => {
   const normalizedDocNum = docNum.trim();
   if (!normalizedDocNum) {
     throw new AppError("DocNum is required", 400, "VALIDATION_ERROR");

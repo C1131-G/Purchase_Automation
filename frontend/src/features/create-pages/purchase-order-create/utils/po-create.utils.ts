@@ -32,8 +32,6 @@ export const MANDATORY_ERROR_TEXT: Record<
   vendorCode: 'Vendor Code is required.',
   vendorName: 'Vendor Name is required.',
   warehouseCode: 'Warehouse is required.',
-  referenceNo: 'Reference is required.',
-  comments: 'Remarks is required.',
 }
 
 export const REQUIRED_FIELD_LABEL_TEXT: Record<
@@ -43,8 +41,6 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
   vendorCode: 'Vendor Code',
   vendorName: 'Vendor Name',
   warehouseCode: 'Warehouse',
-  referenceNo: 'Reference',
-  comments: 'Remarks',
 }
 
 export const QUICK_PRODUCT_LIMIT = 10

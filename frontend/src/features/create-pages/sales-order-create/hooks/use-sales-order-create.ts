@@ -189,7 +189,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       const productByCode = new Map(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
       )
-      const stocksByItemCode = new Map<string, any[]>()
+      const stocksByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
       const uniqueItemCodes = [
         ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
       ].filter(Boolean)
@@ -198,7 +198,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         uniqueItemCodes.map(async (itemCode) => {
           const warehouseStocks = (await queryClient
             .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])) as any[]
+            .catch(() => [])) as Array<{ code: string; stock: number }>
           stocksByItemCode.set(itemCode, warehouseStocks)
         }),
       )
@@ -211,10 +211,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         // Per-line stock derivation
         const warehouseStocks = stocksByItemCode.get(itemCode) ?? []
         const lineStock = lineWarehouse
-          ? Number(
-              warehouseStocks.find((s: any) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
-            )
-          : warehouseStocks.reduce((sum, s: any) => sum + Number(s.stock ?? 0), 0)
+          ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
+          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
         const quantity = Number(line.Quantity ?? 1)
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
@@ -378,6 +376,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     () => ({
       vendorCode: lookups.codeInput.trim() || header.vendorCode.trim(),
       vendorName: lookups.nameInput.trim() || header.vendorName.trim(),
+      warehouseCode: lookups.effectiveWarehouseCode.trim(),
       docDueDate: header.docDueDate,
       salesEmployee: lookups.salesEmployeeInput.trim(),
       billToAddress: lookups.billToAddress.trim(),
@@ -390,8 +389,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       header.vendorCode,
       lookups.nameInput,
       header.vendorName,
-      header.docDueDate,
       lookups.effectiveWarehouseCode,
+      header.docDueDate,
       lookups.salesEmployeeInput,
       lookups.billToAddress,
       lookups.shipToAddress,
@@ -603,8 +602,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         await updateSalesOrderMutation.mutateAsync({ id: docEntry, payload })
         createdDocNum = detail?.DocNum
       } else {
-        const result = (await createSalesOrderMutation.mutateAsync({ payload })) as any
-        createdDocNum = result?.data?.DocNum
+        const result = await createSalesOrderMutation.mutateAsync({ payload })
+        createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum
       }
       toastHandle.success(createdDocNum)
 

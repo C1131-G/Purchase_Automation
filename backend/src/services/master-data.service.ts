@@ -248,7 +248,7 @@ export const getProducts = async (
         });
       }
 
-      // Default sorting: if no search, sort by ItemCode. 
+      // Default sorting: if no search, sort by ItemCode.
       // Pagination: take the requested limit or the default.
       query.orderBy("item.ItemCode", "ASC").take(resolvedLimit ?? defaultListLimit);
 
