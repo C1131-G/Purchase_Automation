@@ -29,10 +29,7 @@ const DOC_TYPE_PLURALS: Record<string, string> = {
  * Generates a reference string for a single source document.
  * Format: "Based on <Source Document Type> <Doc Num>"
  */
-export function generateSingleSourceReference(
-  docType: string,
-  docNum: string,
-): string {
+export function generateSingleSourceReference(docType: string, docNum: string): string {
   const displayName = DOC_TYPE_DISPLAY_NAMES[docType] || docType
   return `Based on ${displayName} ${docNum}`
 }
@@ -82,9 +79,7 @@ export function generateShortDocListSummary(
   const firstType = documents[0]!.docType
   const allSameType = documents.every((doc) => doc.docType === firstType)
 
-  const displayName = allSameType
-    ? DOC_TYPE_DISPLAY_NAMES[firstType] || firstType
-    : 'Documents'
+  const displayName = allSameType ? DOC_TYPE_DISPLAY_NAMES[firstType] || firstType : 'Documents'
 
   if (count <= 3) {
     const docNums = documents.map((doc) => doc.docNum).join(', ')
@@ -92,7 +87,10 @@ export function generateShortDocListSummary(
   }
 
   // More than 3 documents - show count and first few numbers
-  const shownNums = documents.slice(0, 3).map((doc) => doc.docNum).join(', ')
+  const shownNums = documents
+    .slice(0, 3)
+    .map((doc) => doc.docNum)
+    .join(', ')
   const remaining = count - 3
   return `Based on ${displayName} ${shownNums} (+${remaining} more)`
 }

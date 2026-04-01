@@ -161,24 +161,24 @@ export function ProductPopupModal({
   return (
     <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-4xl">
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold text-zinc-900">Search Products</h3>
+        <h3 className="text-sm font-semibold text-zinc-900">Search Products</h3>
+        <div className="flex items-center gap-2">
           {selectedCodes.size > 0 && onSelectMultiple && (
             <button
               onClick={handleAddSelected}
-              className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 active:scale-95"
+              className="flex h-8 items-center rounded-full border border-blue-600 bg-blue-600 px-4 text-xs font-medium text-white transition hover:bg-blue-700"
             >
-              Confirm Selection ({selectedCodes.size})
+              Confirm ({selectedCodes.size})
             </button>
           )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Close
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100"
-        >
-          Close
-        </button>
       </div>
 
       <div className="p-4">

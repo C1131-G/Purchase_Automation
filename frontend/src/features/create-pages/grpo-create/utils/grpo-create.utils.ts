@@ -1,10 +1,6 @@
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 
-export const GRPO_MANDATORY_FIELDS = [
-  'vendorName',
-  'vendorCode',
-  'warehouseCode',
-] as const
+export const GRPO_MANDATORY_FIELDS = ['vendorName', 'vendorCode', 'warehouseCode'] as const
 
 export type GRPOMandatoryField = (typeof GRPO_MANDATORY_FIELDS)[number]
 
