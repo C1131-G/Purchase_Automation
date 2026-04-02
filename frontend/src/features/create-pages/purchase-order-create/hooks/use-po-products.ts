@@ -28,6 +28,7 @@ interface UsePoProductsProps {
   setProductSearch: (search: string) => void
   stockPreviewProductCode: string | undefined
   vendorSelected: boolean
+  isEditMode?: boolean
 }
 
 export function usePoProducts({
@@ -39,6 +40,7 @@ export function usePoProducts({
   setProductSearch,
   stockPreviewProductCode,
   vendorSelected,
+  isEditMode = false,
 }: UsePoProductsProps) {
   const queryClient = useQueryClient()
   const [productRows, setProductRows] = useState<ProductRow[]>([])
@@ -65,9 +67,10 @@ export function usePoProducts({
 
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
   // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
+  // In edit mode, fetch products WITHOUT warehouse filter to show total stock across all warehouses.
   const productsQuery = useQuery({
     ...purchaseOrderCreateQueries.products(
-      effectiveWarehouseCode || undefined,
+      isEditMode ? undefined : effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
       productQueryLimit,
     ),
@@ -93,7 +96,7 @@ export function usePoProducts({
     if (!vendorSelected) return
     void queryClient.prefetchQuery(
       purchaseOrderCreateQueries.products(
-        effectiveWarehouseCode || undefined,
+        isEditMode ? undefined : effectiveWarehouseCode || undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
       ),
@@ -183,6 +186,10 @@ export function usePoProducts({
   ) => {
     void queryClient.prefetchQuery(purchaseOrderCreateQueries.productWarehouseStocks(product.code))
 
+    // In edit mode, leave warehouse empty so user can select per product.
+    // In create mode, use effectiveWarehouseCode from header.
+    const resolvedWarehouseCode = isEditMode ? '' : effectiveWarehouseCode || ''
+
     if (activeProductRowId) {
       updateProductRow(activeProductRowId, {
         productCode: product.code,
@@ -197,7 +204,7 @@ export function usePoProducts({
         quantity: 1,
         discountPercent: 0,
         discountAmount: 0,
-        warehouseCode: effectiveWarehouseCode ?? '',
+        warehouseCode: resolvedWarehouseCode,
       })
     } else {
       setProductRows((prev) => [
@@ -217,7 +224,7 @@ export function usePoProducts({
           discountPercent: 0,
           discountAmount: 0,
           comment: '',
-          warehouseCode: effectiveWarehouseCode ?? '',
+          warehouseCode: resolvedWarehouseCode,
         },
       ])
     }
@@ -229,23 +236,29 @@ export function usePoProducts({
     products: ProductLookupItem[],
     callbacks: { closeProductPopup: () => void },
   ) => {
-    const nextRows: ProductRow[] = products.map((product) => ({
-      id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      productCode: product.code,
-      productName: product.name,
-      stock: product.stock,
-      price: product.price,
-      currency: product.currency,
-      taxCode: product.taxCode,
-      taxRate: product.taxRate,
-      uomCode: product.purchaseUomCode || product.uomCode,
-      uomEntry: product.purchaseUomEntry ?? product.uomEntry,
-      quantity: 1,
-      discountPercent: 0,
-      discountAmount: 0,
-      comment: '',
-      warehouseCode: effectiveWarehouseCode ?? '',
-    }))
+    const nextRows: ProductRow[] = products.map((product) => {
+      // In edit mode, leave warehouse empty so user can select per product.
+      // In create mode, use effectiveWarehouseCode from header.
+      const resolvedWarehouseCode = isEditMode ? '' : effectiveWarehouseCode || ''
+
+      return {
+        id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        productCode: product.code,
+        productName: product.name,
+        stock: product.stock,
+        price: product.price,
+        currency: product.currency,
+        taxCode: product.taxCode,
+        taxRate: product.taxRate,
+        uomCode: product.purchaseUomCode || product.uomCode,
+        uomEntry: product.purchaseUomEntry ?? product.uomEntry,
+        quantity: 1,
+        discountPercent: 0,
+        discountAmount: 0,
+        comment: '',
+        warehouseCode: resolvedWarehouseCode,
+      }
+    })
 
     setProductRows((prev) => [...prev, ...nextRows])
     callbacks.closeProductPopup()

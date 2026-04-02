@@ -9,7 +9,7 @@ export const Route = createFileRoute('/_layout/purchase/create-ap-credit-note')(
   validateSearch: (search) =>
     z
       .object({
-        sourceDocNum: z.string().optional(),
+        sourceDocNum: z.string().or(z.number()).transform(String).optional(),
         sourceDocType: z.enum(['PurchaseOrder', 'GoodsReceiptPO', 'APInvoice']).optional(),
       })
       .parse(search),

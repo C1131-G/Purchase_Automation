@@ -36,6 +36,7 @@ interface PurchaseOrderProductSectionProps {
   secondaryActions?: ReactNode
   isEditMode: boolean
   isClosed: boolean
+  allowSearchInEditMode?: boolean
 }
 
 /**
@@ -70,6 +71,7 @@ export function PurchaseOrderProductSection({
   secondaryActions,
   isEditMode,
   isClosed,
+  allowSearchInEditMode = false,
 }: PurchaseOrderProductSectionProps) {
   return (
     <BaseProductSection
@@ -96,6 +98,7 @@ export function PurchaseOrderProductSection({
       hideSearch={isClosed}
       isEditMode={isEditMode}
       isReadOnly={isClosed}
+      allowSearchInEditMode={allowSearchInEditMode}
     >
       <CreateProductTable
         productRows={productRows}

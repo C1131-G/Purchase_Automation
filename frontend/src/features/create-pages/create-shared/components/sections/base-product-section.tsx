@@ -5,6 +5,10 @@ import { type ReactNode } from 'react'
 import { Button } from '@/components/button'
 import { Tooltip } from '@/components/tooltip'
 
+function Pulse({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />
+}
+
 interface BaseProductSectionProps {
   sectionId?: string
   title?: string
@@ -14,6 +18,7 @@ interface BaseProductSectionProps {
   onPrefetchProducts?: () => void
   searchLabel?: string
   hideSearch?: boolean
+  allowSearchInEditMode?: boolean
 
   // Validation Hints (Search)
   showRequiredHints?: boolean
@@ -24,6 +29,9 @@ interface BaseProductSectionProps {
 
   // Main Table Area
   children: ReactNode
+
+  // Loading state for edit hydration
+  loading?: boolean
 
   // Totals
   totals: {
@@ -69,6 +77,7 @@ export function BaseProductSection({
   searchFieldsTotal = 0,
   requiredFieldLabels = {},
   children,
+  loading = false,
   totals,
   currencyLabel,
   createError,
@@ -86,12 +95,113 @@ export function BaseProductSection({
   showSubmitButton = true,
   isEditMode = false,
   hideSearch = false,
+  allowSearchInEditMode = false,
   isReadOnly = false,
 }: BaseProductSectionProps) {
   const navigate = useNavigate()
-  const effectiveHideSearch = hideSearch || isEditMode
+  const effectiveHideSearch = hideSearch || (isEditMode && !allowSearchInEditMode)
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
   const SubmitIcon = isUpdateAction ? RefreshCw : Save
+
+  // Show skeleton when loading (edit hydration)
+  if (loading) {
+    return (
+      <section id={sectionId} className="mt-3 rounded-2xl border border-zinc-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+          <h3 className="whitespace-nowrap text-sm font-medium text-zinc-800">
+            <span className="inline-flex items-center gap-2">
+              <span>{title}</span>
+              {isReadOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+            </span>
+          </h3>
+          {!effectiveHideSearch && <Pulse className="h-11 w-40 rounded-xl" />}
+        </div>
+        <div className="overflow-x-auto px-2 py-2">
+          <table className="min-w-245 w-full text-left text-sm text-zinc-700">
+            <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              <tr>
+                {[
+                  'Product',
+                  'Qty',
+                  'Price',
+                  'Disc %',
+                  'Disc Amt',
+                  'Net',
+                  'Total',
+                  'Comments',
+                  'Actions',
+                ].map((key) => (
+                  <th key={key} className="whitespace-nowrap px-3 py-2">
+                    <Pulse className="h-3 w-14" />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {['row-1', 'row-2', 'row-3'].map((rowKey) => (
+                <tr key={rowKey} className="border-b border-zinc-100 last:border-b-0">
+                  <td className="px-3 py-2">
+                    <Pulse className="h-4 w-56" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Pulse className="h-9 w-16 rounded-lg" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Pulse className="h-4 w-16" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Pulse className="h-9 w-16 rounded-lg" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Pulse className="h-9 w-20 rounded-lg" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Pulse className="h-4 w-16" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Pulse className="h-4 w-20" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Pulse className="h-9 w-36 rounded-lg" />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Pulse className="ml-auto h-9 w-20 rounded-lg" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="border-t border-zinc-100 px-4 py-3">
+          <div className="ml-auto w-full max-w-sm">
+            <div className="space-y-1">
+              <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
+                <Pulse className="h-3 w-16" />
+                <Pulse className="h-3 w-10" />
+                <Pulse className="h-4 w-20" />
+              </div>
+              <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
+                <Pulse className="h-3 w-16" />
+                <Pulse className="h-3 w-10" />
+                <Pulse className="h-4 w-20" />
+              </div>
+              <div className="flex items-center justify-end gap-3 py-1">
+                <Pulse className="h-3 w-20" />
+                <Pulse className="h-3 w-10" />
+                <Pulse className="h-5 w-20" />
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <Pulse className="h-11 w-36 rounded-xl" />
+            <div className="flex items-center gap-2">
+              <Pulse className="h-11 w-28 rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id={sectionId} className="mt-3 rounded-2xl border border-zinc-200 bg-white">

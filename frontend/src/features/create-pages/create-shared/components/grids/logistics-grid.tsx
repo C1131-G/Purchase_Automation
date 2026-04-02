@@ -19,7 +19,6 @@ type LogisticsGridProps = {
   salesEmployeeErrorText?: string | undefined
   salesEmployeeLabel?: string
   salesEmployeePlaceholder?: string
-  salesEmployeeLoadingPlaceholder?: string
   error?: string | null
   salesEmployeeDisabled?: boolean
   salesEmployeeEditableHighlight?: boolean
@@ -40,7 +39,6 @@ export function LogisticsGrid({
   salesEmployeeErrorText,
   salesEmployeeLabel = 'BUYER',
   salesEmployeePlaceholder = 'Select Buyer',
-  salesEmployeeLoadingPlaceholder = 'Loading buyers...',
   error,
   salesEmployeeDisabled = false,
   salesEmployeeEditableHighlight = false,
@@ -70,7 +68,6 @@ export function LogisticsGrid({
           <FieldBlock
             label={salesEmployeeLabel}
             placeholder={salesEmployeePlaceholder}
-            loadingPlaceholder={salesEmployeeLoadingPlaceholder}
             value={salesEmployeeInput}
             onChange={onSalesEmployeeChange}
             onFocus={onSalesEmployeeFocus}

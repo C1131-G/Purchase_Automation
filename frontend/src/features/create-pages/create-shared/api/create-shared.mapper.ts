@@ -127,6 +127,15 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
       toNumberOrZero(
         record.PurchaseUoMEntry ?? record.purchaseUomEntry ?? record.PurchaseUomEntry,
       ) || undefined,
+    defaultWarehouse: String(
+      record.Warehouse ??
+        record.warehouse ??
+        record.DfltWH ??
+        record.dfltWH ??
+        record.DefaultWH ??
+        record.defaultWarehouse ??
+        '',
+    ).trim(),
   }
 }
 

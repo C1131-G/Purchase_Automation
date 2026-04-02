@@ -1,8 +1,8 @@
 import { SharedCreateModals } from '@/features/create-pages/create-shared/components/modals/shared-create-modals'
-import { type useGRPOCreate } from '@/features/create-pages/grpo-create/hooks/use-grpo-create'
+import { type UseGRPOCreateReturn } from '@/features/create-pages/grpo-create/hooks/use-grpo-create'
 
 interface GRPOModalsProps {
-  state: ReturnType<typeof useGRPOCreate>
+  state: UseGRPOCreateReturn
 }
 
 export function GRPOModals({ state }: GRPOModalsProps) {

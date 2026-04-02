@@ -19,6 +19,10 @@ type ReferenceGridProps = {
   commentsErrorText?: string | undefined
 }
 
+function Pulse({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />
+}
+
 export function ReferenceGrid({
   referenceNo,
   comments,
@@ -49,7 +53,7 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <div className="h-11 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+          <Pulse className="h-11 w-full rounded-xl" />
         ) : (
           <input
             id="po-customer-ref-no"
@@ -90,7 +94,7 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <div className="h-11 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+          <Pulse className="h-11 w-full rounded-xl" />
         ) : (
           <input
             id="po-remarks"

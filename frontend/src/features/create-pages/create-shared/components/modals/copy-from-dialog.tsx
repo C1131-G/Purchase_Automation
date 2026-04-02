@@ -114,7 +114,7 @@ export function CopyFromDialog({
 
         const newDocs = (result.data || []).map((doc: any) => ({
           code: String(doc.DocNum),
-          name: `${label} ${doc.DocNum} - ${doc.DocDate ? new Date(doc.DocDate).toLocaleDateString() : ''}`,
+          name: `${label} - ${doc.DocNum} - ${doc.DocDate ? new Date(doc.DocDate).toLocaleDateString('en-GB') : ''}`,
           docType: selectedDocType,
           docEntry: doc.DocEntry,
         })) as DocumentOption[]
@@ -398,7 +398,6 @@ export function CopyFromDialog({
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-medium text-zinc-900">{doc.name}</div>
-                      <div className="text-xs text-zinc-500">Doc #{doc.code}</div>
                     </div>
                   </button>
                 )
@@ -428,15 +427,6 @@ export function CopyFromDialog({
               {selectedDocs.size} of {filteredDocuments.length} document
               {filteredDocuments.length !== 1 ? 's' : ''} selected
             </span>
-            {hasMore && (
-              <button
-                onClick={handleLoadMore}
-                disabled={isLoading}
-                className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Load More
-              </button>
-            )}
           </div>
         )}
       </div>

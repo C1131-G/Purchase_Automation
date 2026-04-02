@@ -45,7 +45,8 @@ export function GRPOCreate({
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
 
-  const isFormHydrating = mode === 'edit' && !!docNum && !state.isEditHydrated
+  const isFormHydrating =
+    (mode === 'edit' && !!docNum && !state.isEditHydrated) || state.isSourceHydrating
 
   const handleRestrictedClick =
     (fieldName: string) => (event: MouseEvent<HTMLDivElement> | undefined) => {
@@ -144,7 +145,6 @@ export function GRPOCreate({
               onSelectSalesEmployee={state.selectBuyer}
               salesEmployeeLabel="BUYER"
               salesEmployeePlaceholder="Select Buyer"
-              salesEmployeeLoadingPlaceholder="Loading buyers..."
               salesEmployeeDisabled={state.isEditMode}
             />
           </div>
@@ -204,7 +204,7 @@ export function GRPOCreate({
           loading={isFormHydrating}
           referenceNo={state.referenceNo}
           comments={state.remarks}
-          referenceNoDisabled={state.referenceAutoFilled}
+          referenceNoDisabled={false}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
@@ -229,6 +229,7 @@ export function GRPOCreate({
           state.isEditMode ? state.updateMutation.isPending : state.createMutation.isPending
         }
         isEditMode={state.isEditMode}
+        loading={isFormHydrating}
         onUpdateProductRow={state.updateProductRow}
         onRemoveProductRow={state.removeProductRow}
         onSetProductRowDraft={state.setProductRowDraft}

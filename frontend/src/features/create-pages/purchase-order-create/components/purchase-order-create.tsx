@@ -242,6 +242,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
         handleCreateOrder={state.handleCreateOrder}
         isEditMode={state.isEditMode}
         isClosed={state.isClosed}
+        allowSearchInEditMode={state.isEditMode}
         submitLabel={state.isEditMode ? 'Update' : 'Create'}
         submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
         secondaryActions={

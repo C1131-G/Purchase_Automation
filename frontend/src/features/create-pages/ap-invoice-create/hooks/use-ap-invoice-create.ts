@@ -28,6 +28,7 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
+import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import { resolveProductTaxRates } from '@/features/create-pages/create-shared/utils/product-tax-rate'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
@@ -106,7 +107,9 @@ export function useAPInvoiceCreate({
   const updateMutation = useUpdateAPInvoice()
   const hydratedDocNumRef = useRef<string | null>(null)
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
+  const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false)
   const lastRestrictedToastAtRef = useRef(0)
+  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null)
 
   const [vendorNameInput, setVendorNameInput] = useState('')
   const [vendorCodeInput, setVendorCodeInput] = useState('')
@@ -217,6 +220,7 @@ export function useAPInvoiceCreate({
     if (isEditMode) return
     resetAPInvoiceCreate()
     hydratedDocNumRef.current = null
+    setSourceHydrationComplete(false)
   }, [isEditMode, resetAPInvoiceCreate])
 
   // Edit Mode Hydration
@@ -229,6 +233,11 @@ export function useAPInvoiceCreate({
 
     const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
     if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) return
+
+    // Show loading toast when starting edit hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast('A/P Invoice', 'edit')
+    }
 
     void (async () => {
       setVendorCodeInput(String(detail.CardCode ?? '').trim())
@@ -309,6 +318,9 @@ export function useAPInvoiceCreate({
         hydratedDocNumRef.current = currentDocNum
       }
       setHydratedDocNum(currentDocNum)
+      // Dismiss loading toast when edit hydration is complete
+      loadingToastRef.current?.dismiss()
+      loadingToastRef.current = null
     })()
   }, [
     editDocNum,
@@ -328,6 +340,9 @@ export function useAPInvoiceCreate({
     const currentSourceDocType = sourceDocType
     if (!currentSourceDocNum || !currentSourceDocType) return
 
+    // Reset source hydration state when source changes
+    setSourceHydrationComplete(false)
+
     const detail =
       sourceDocType === 'GoodsReceiptPO'
         ? sourceDetailQueryGRPO.data?.data
@@ -340,6 +355,11 @@ export function useAPInvoiceCreate({
       isMetadataLoaded
     )
       return
+
+    // Show loading toast when starting copy-from hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast('A/P Invoice', 'create')
+    }
 
     const vendorCode = String(detail.CardCode ?? '').trim()
     const vendorName = String(detail.CardName ?? '').trim()
@@ -370,11 +390,18 @@ export function useAPInvoiceCreate({
     const finalReferenceNo = sourceReferenceNo || autoReference
     const referenceWasAutoFilled = !sourceReferenceNo
 
-    const remarks = originalRemarks || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
+    const remarks = originalRemarks
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
 
     void (async () => {
       const detailLines = detail.DocumentLines ?? []
+
+      // Fetch tax rates BEFORE mapping lines (must be awaited first)
+      const taxRateByItemCode = await resolveProductTaxRates(
+        queryClient,
+        detailLines.map((line) => String(line.ItemCode ?? '').trim()),
+      )
+
       const mappedLines = (detail.DocumentLines ?? []).map((line, index: number) => {
         const quantity = Number(line.Quantity ?? 1)
         const price = Number(line.Price ?? line.UnitPrice ?? 0)
@@ -416,10 +443,6 @@ export function useAPInvoiceCreate({
       const shipAddress = String(detail.Address ?? '').trim()
       setBillToAddress(shipAddress)
       setShipToAddress(shipAddress)
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        detailLines.map((line) => String(line.ItemCode ?? '').trim()),
-      )
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -432,6 +455,10 @@ export function useAPInvoiceCreate({
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
       }
+      setSourceHydrationComplete(true)
+      // Dismiss loading toast when copy-from hydration is complete
+      loadingToastRef.current?.dismiss()
+      loadingToastRef.current = null
     })()
   }, [
     sourceDetailQueryGRPO.data,
@@ -691,7 +718,10 @@ export function useAPInvoiceCreate({
     const missing = AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
       if (field === 'vendorName') return !vendorNameInput.trim()
       if (field === 'vendorCode') return !vendorCodeInput.trim()
-      if (field === 'warehouseCode') return !header.warehouseCode.trim()
+      if (field === 'warehouseCode') {
+        // Check if ANY row has a warehouseCode selected
+        return !rows.some((row) => row.warehouseCode?.trim())
+      }
       return false
     })
 
@@ -782,12 +812,13 @@ export function useAPInvoiceCreate({
       AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
         if (field === 'vendorName') return !vendorNameInput.trim()
         if (field === 'vendorCode') return !vendorCodeInput.trim()
-        if (field === 'warehouseCode') return !warehouseInput.trim()
-        if (field === 'referenceNo') return !header.referenceNo.trim()
-        if (field === 'comments') return !header.remarks.trim()
+        if (field === 'warehouseCode') {
+          // Check if ANY row has a warehouseCode selected
+          return !rows.some((row) => row.warehouseCode?.trim())
+        }
         return false
       }),
-    [vendorNameInput, vendorCodeInput, warehouseInput, header.referenceNo, header.remarks],
+    [vendorNameInput, vendorCodeInput, rows],
   )
 
   const requiredCompletionPercent = useMemo(
@@ -801,6 +832,7 @@ export function useAPInvoiceCreate({
   return {
     isEditMode,
     isEditHydrated: !isEditMode || hydratedDocNum === editDocNum,
+    isSourceHydrating: mode === 'create' && Boolean(sourceDocNum) && !sourceHydrationComplete,
     today,
     activeDatePicker,
     setActiveDatePicker,

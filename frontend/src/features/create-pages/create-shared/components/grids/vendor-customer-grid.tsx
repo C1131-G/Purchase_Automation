@@ -12,8 +12,6 @@ type VendorCustomerGridProps = {
   codeLabel?: string
   namePlaceholder?: string
   codePlaceholder?: string
-  nameLoadingPlaceholder?: string
-  codeLoadingPlaceholder?: string
   nameInput: string
   codeInput: string
   nameFocused: boolean
@@ -47,8 +45,6 @@ export function VendorCustomerGrid({
   codeLabel = 'VENDOR CODE *',
   namePlaceholder = 'Select or Type Vendor',
   codePlaceholder = 'Select or Type Code',
-  nameLoadingPlaceholder = 'Loading vendor names...',
-  codeLoadingPlaceholder = 'Loading vendor codes...',
   nameInput,
   codeInput,
   nameFocused,
@@ -84,7 +80,6 @@ export function VendorCustomerGrid({
         <FieldBlock
           label={nameLabel}
           placeholder={namePlaceholder}
-          loadingPlaceholder={nameLoadingPlaceholder}
           value={nameInput}
           onChange={onNameChange}
           onFocus={onNameFocus}
@@ -110,7 +105,6 @@ export function VendorCustomerGrid({
         <FieldBlock
           label={codeLabel}
           placeholder={codePlaceholder}
-          loadingPlaceholder={codeLoadingPlaceholder}
           value={codeInput}
           onChange={onCodeChange}
           onFocus={onCodeFocus}

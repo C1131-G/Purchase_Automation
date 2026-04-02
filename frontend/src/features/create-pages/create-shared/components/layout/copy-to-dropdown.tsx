@@ -116,20 +116,20 @@ export function CopyToDropdown({
           </span>
         </Button>
       </Popover.Trigger>
-      <Popover.Content side="bottom" align="end" unstyled className="z-[1001]">
-        <div className="min-w-[160px] overflow-hidden rounded-lg border border-zinc-200 bg-white py-1.5 text-zinc-900 shadow-lg ring-1 ring-black/5">
+      <Popover.Content side="top" align="end" unstyled className="z-[1001]">
+        <div className="min-w-[160px] overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-zinc-900 shadow-lg ring-1 ring-black/5">
           <div className="flex flex-col">
             {options.map((option) => {
               if (option.disabled) {
                 return (
                   <div
                     key={option.label}
-                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-zinc-300 cursor-not-allowed"
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-300 cursor-not-allowed"
                   >
                     <span className="text-zinc-300">{option.icon}</span>
                     {option.label}
                     {option.disabledReason && (
-                      <span className="ml-auto text-[10px] text-zinc-400 italic max-w-[140px] truncate">
+                      <span className="ml-auto text-[10px] text-zinc-400 italic max-w-[120px] truncate">
                         {option.disabledReason}
                       </span>
                     )}
@@ -142,7 +142,7 @@ export function CopyToDropdown({
                   key={option.label}
                   to={option.to}
                   search={{ sourceDocNum: docNum, sourceDocType }}
-                  className="group flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                  className="group flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
                 >
                   <span className="text-zinc-400 group-hover:text-zinc-600 transition-colors">
                     {option.icon}
@@ -153,7 +153,7 @@ export function CopyToDropdown({
             })}
           </div>
           {docStatus === 'Partial' && (
-            <div className="mt-0.5 border-t border-zinc-100 pt-2 px-3.5 pb-1.5">
+            <div className="mt-0.5 border-t border-zinc-100 pt-1.5 px-3 pb-1">
               <p className="text-[10px] text-amber-600 font-medium leading-tight">
                 Partial document - only next step allowed
               </p>

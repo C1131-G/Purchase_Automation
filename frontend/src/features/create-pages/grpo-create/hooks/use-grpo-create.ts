@@ -18,6 +18,7 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
+import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -87,6 +88,8 @@ interface UseGRPOCreateOptions {
   sourceDocType?: 'PurchaseOrder' | undefined
 }
 
+export type UseGRPOCreateReturn = ReturnType<typeof useGRPOCreate>
+
 const normalizeCodeForCompare = (value: unknown) => {
   const raw = String(value ?? '').trim()
   if (!raw) return ''
@@ -112,7 +115,9 @@ export function useGRPOCreate({
   const updateMutation = useUpdateGRPO()
   const hydratedDocNumRef = useRef<string | null>(null)
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
+  const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false)
   const lastRestrictedToastAtRef = useRef(0)
+  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null)
 
   const [vendorNameInput, setVendorNameInput] = useState('')
   const [vendorCodeInput, setVendorCodeInput] = useState('')
@@ -248,145 +253,156 @@ export function useGRPOCreate({
     const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
     if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) return
 
+    // Show loading toast when starting edit hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast('GRPO', 'edit')
+    }
+
     void (async () => {
-      setVendorCodeInput(String(detail.CardCode ?? '').trim())
-      setVendorNameInput(String(detail.CardName ?? '').trim())
-      const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
-      const numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-      const comments = String(detail.Comments ?? '').trim()
-      const splitComments = comments.split(' | ').map((part) => part.trim())
-      const hasReferenceMarker = splitComments.length > 1
-      const matchedVendor = vendors.find(
-        (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? '').trim(),
-      )
-      const buyerFromDocCode =
-        detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(detail.SalesPersonCode),
-            )?.name
-          : ''
-      const buyerFromVendorCode =
-        matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
-            )?.name
-          : ''
-      const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
-      const remarks =
-        hasReferenceMarker && !numAtCard ? splitComments.slice(1).join(' | ') : comments
+      try {
+        setVendorCodeInput(String(detail.CardCode ?? '').trim())
+        setVendorNameInput(String(detail.CardName ?? '').trim())
+        const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
+        const numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+        const comments = String(detail.Comments ?? '').trim()
+        const splitComments = comments.split(' | ').map((part) => part.trim())
+        const hasReferenceMarker = splitComments.length > 1
+        const matchedVendor = vendors.find(
+          (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? '').trim(),
+        )
+        const buyerFromDocCode =
+          detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(detail.SalesPersonCode),
+              )?.name
+            : ''
+        const buyerFromVendorCode =
+          matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
+              )?.name
+            : ''
+        const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
+        const remarks =
+          hasReferenceMarker && !numAtCard ? splitComments.slice(1).join(' | ') : comments
 
-      setBuyerInput(
-        buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || '',
-      )
-      setHeader({
-        docDate: loadedDocDate,
-        docDueDate: String(detail.DocDueDate ?? '').slice(0, 10) || loadedDocDate,
-        referenceNo,
-        remarks,
-      })
-      // Set addresses from document (matching PO behavior)
-      const shipAddress = String(detail.Address ?? '').trim()
-      setBillToAddress(shipAddress)
-      setShipToAddress(shipAddress)
-      const detailLines = detail.DocumentLines ?? []
-      const stockByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
-      ].filter(Boolean)
+        setBuyerInput(
+          buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || '',
+        )
+        setHeader({
+          docDate: loadedDocDate,
+          docDueDate: String(detail.DocDueDate ?? '').slice(0, 10) || loadedDocDate,
+          referenceNo,
+          remarks,
+        })
+        // Set addresses from document (matching PO behavior)
+        const shipAddress = String(detail.Address ?? '').trim()
+        setBillToAddress(shipAddress)
+        setShipToAddress(shipAddress)
+        const detailLines = detail.DocumentLines ?? []
+        const stockByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
+        ].filter(Boolean)
 
-      await Promise.all(
-        uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = await queryClient
-            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])
-          stockByItemCode.set(
-            itemCode,
-            warehouseStocks.map((stock) => ({
-              code: String(stock.code ?? '').trim(),
-              stock: Number(stock.stock ?? 0),
-            })),
-          )
-        }),
-      )
+        await Promise.all(
+          uniqueItemCodes.map(async (itemCode) => {
+            const warehouseStocks = await queryClient
+              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+              .catch(() => [])
+            stockByItemCode.set(
+              itemCode,
+              warehouseStocks.map((stock) => ({
+                code: String(stock.code ?? '').trim(),
+                stock: Number(stock.stock ?? 0),
+              })),
+            )
+          }),
+        )
 
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        detailLines.map((line) => String(line.ItemCode ?? '').trim()),
-      )
+        const taxRateByItemCode = await resolveProductTaxRates(
+          queryClient,
+          detailLines.map((line) => String(line.ItemCode ?? '').trim()),
+        )
 
-      const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
-        const quantity = Math.max(0, Number(line.Quantity ?? 0))
-        const price = Number(line.Price ?? line.UnitPrice ?? 0)
-        const grossAmount = Math.max(0, price * quantity)
-        const itemCode = String(line.ItemCode ?? '').trim()
-        const lineWarehouseCode = String(line.WarehouseCode ?? '').trim()
-        const warehouseStocks = stockByItemCode.get(itemCode) ?? []
-        const lineStock = lineWarehouseCode
-          ? Number(warehouseStocks.find((stock) => stock.code === lineWarehouseCode)?.stock ?? 0)
-          : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
-        const apiDiscountPercent = Number(line.DiscountPercent ?? NaN)
-        const lineTotal = Number(line.LineTotal ?? NaN)
-        const derivedDiscountAmountFromLineTotal =
-          Number.isFinite(lineTotal) && grossAmount > 0
-            ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
-            : 0
-        const discountPercent = Number.isFinite(apiDiscountPercent)
-          ? Math.max(0, apiDiscountPercent)
-          : grossAmount > 0
-            ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
-            : 0
-        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
+        const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
+          const quantity = Math.max(0, Number(line.Quantity ?? 0))
+          const price = Number(line.Price ?? line.UnitPrice ?? 0)
+          const grossAmount = Math.max(0, price * quantity)
+          const itemCode = String(line.ItemCode ?? '').trim()
+          const lineWarehouseCode = String(line.WarehouseCode ?? '').trim()
+          const warehouseStocks = stockByItemCode.get(itemCode) ?? []
+          const lineStock = lineWarehouseCode
+            ? Number(warehouseStocks.find((stock) => stock.code === lineWarehouseCode)?.stock ?? 0)
+            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
+          const apiDiscountPercent = Number(line.DiscountPercent ?? NaN)
+          const lineTotal = Number(line.LineTotal ?? NaN)
+          const derivedDiscountAmountFromLineTotal =
+            Number.isFinite(lineTotal) && grossAmount > 0
+              ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+              : 0
+          const discountPercent = Number.isFinite(apiDiscountPercent)
+            ? Math.max(0, apiDiscountPercent)
+            : grossAmount > 0
+              ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+              : 0
+          const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
 
-        return {
-          id: `${currentDocNum}-${index}`,
-          productCode: itemCode,
-          productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
-          stock: lineStock,
-          currency: '',
-          taxCode: '',
-          taxRate:
-            taxRateByItemCode.get(itemCode) ??
-            (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
-          uomCode: String(line.UoMCode ?? '').trim(),
-          uomEntry:
-            typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
-              ? line.UoMEntry
-              : undefined,
-          baseQuantity: quantity,
-          quantity,
-          discountPercent,
-          discountAmount,
-          comment: '',
-          price,
-          warehouseCode: lineWarehouseCode,
-          baseEntry:
-            typeof line.BaseEntry === 'number' && Number.isFinite(line.BaseEntry)
-              ? line.BaseEntry
-              : undefined,
-          baseLine:
-            typeof line.BaseLine === 'number' && Number.isFinite(line.BaseLine)
-              ? line.BaseLine
-              : undefined,
-          baseType:
-            typeof line.BaseType === 'number' && Number.isFinite(line.BaseType)
-              ? line.BaseType
-              : undefined,
+          return {
+            id: `${currentDocNum}-${index}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
+            stock: lineStock,
+            currency: '',
+            taxCode: '',
+            taxRate:
+              taxRateByItemCode.get(itemCode) ??
+              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
+            uomCode: String(line.UoMCode ?? '').trim(),
+            uomEntry:
+              typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+                ? line.UoMEntry
+                : undefined,
+            baseQuantity: quantity,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: '',
+            price,
+            warehouseCode: lineWarehouseCode,
+            baseEntry:
+              typeof line.BaseEntry === 'number' && Number.isFinite(line.BaseEntry)
+                ? line.BaseEntry
+                : undefined,
+            baseLine:
+              typeof line.BaseLine === 'number' && Number.isFinite(line.BaseLine)
+                ? line.BaseLine
+                : undefined,
+            baseType:
+              typeof line.BaseType === 'number' && Number.isFinite(line.BaseType)
+                ? line.BaseType
+                : undefined,
+          }
+        })
+        setLines(mappedLines)
+        setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim())
+        // Set addresses from document (matching PO behavior)
+        const address = String(detail.Address ?? '').trim()
+        setBillToAddress(address)
+        setShipToAddress(address)
+        if (isMetadataLoaded) {
+          hydratedDocNumRef.current = currentDocNum
         }
-      })
-      setLines(mappedLines)
-      setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim())
-      // Set addresses from document (matching PO behavior)
-      const address = String(detail.Address ?? '').trim()
-      setBillToAddress(address)
-      setShipToAddress(address)
-      if (isMetadataLoaded) {
-        hydratedDocNumRef.current = currentDocNum
+        setHydratedDocNum(currentDocNum)
+      } finally {
+        // Dismiss loading toast when edit hydration is complete (success or error)
+        loadingToastRef.current?.dismiss()
+        loadingToastRef.current = null
       }
-      setHydratedDocNum(currentDocNum)
     })()
   }, [
     editDocNum,
@@ -405,6 +421,9 @@ export function useGRPOCreate({
     const currentSourceDocType = sourceDocType
     if (!currentSourceDocNum || !currentSourceDocType) return
 
+    // Reset source hydration state when source changes
+    setSourceHydrationComplete(false)
+
     const detail = sourceDetailQueryPO.data?.data
     if (!detail) return
 
@@ -415,6 +434,11 @@ export function useGRPOCreate({
       isMetadataLoaded
     )
       return
+
+    // Show loading toast when starting copy-from hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast('GRPO', 'create')
+    }
 
     const vendorCode = String(detail.CardCode ?? '').trim()
     const vendorName = String(detail.CardName ?? '').trim()
@@ -451,7 +475,7 @@ export function useGRPOCreate({
     const autoReference = generateSingleSourceReference(currentSourceDocType, currentSourceDocNum)
     const finalReferenceNo = referenceNo || autoReference
     const referenceWasAutoFilled = !referenceNo
-    const remarks = originalRemarks || `Based on ${currentSourceDocType} ${currentSourceDocNum}`
+    const remarks = originalRemarks
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
 
     void (async () => {
@@ -552,6 +576,10 @@ export function useGRPOCreate({
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
       }
+      setSourceHydrationComplete(true)
+      // Dismiss loading toast when copy-from hydration is complete
+      loadingToastRef.current?.dismiss()
+      loadingToastRef.current = null
     })()
   }, [
     sourceDetailQueryPO.data,
@@ -949,17 +977,13 @@ export function useGRPOCreate({
     return requiredFields.filter((field) => {
       if (field === 'vendorName') return !vendorNameInput.trim()
       if (field === 'vendorCode') return !vendorCodeInput.trim()
-      if (field === 'warehouseCode') return !warehouseInput.trim()
+      if (field === 'warehouseCode') {
+        // Check if ANY row has a warehouseCode selected
+        return !rows.some((row) => row.warehouseCode?.trim())
+      }
       return false
     })
-  }, [
-    vendorNameInput,
-    vendorCodeInput,
-    warehouseInput,
-    header.docDueDate,
-    billToAddress,
-    shipToAddress,
-  ])
+  }, [vendorNameInput, vendorCodeInput, rows, header.docDueDate, billToAddress, shipToAddress])
 
   const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
   const missingSearchMandatoryFields = useMemo(
@@ -984,6 +1008,7 @@ export function useGRPOCreate({
 
   const requiredFieldsTotal = GRPO_MANDATORY_FIELDS.length
   const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
+  const isSourceHydrating = mode === 'create' && Boolean(sourceDocNum) && !sourceHydrationComplete
 
   const createDisabledReason = useMemo(() => {
     if (missingMandatoryFields.length > 0) {
@@ -1232,6 +1257,7 @@ export function useGRPOCreate({
   return {
     isEditMode,
     isEditHydrated,
+    isSourceHydrating,
     today,
     activeDatePicker,
     setActiveDatePicker,

@@ -5,7 +5,6 @@ import { useId, useRef } from 'react'
 type FieldBlockProps = {
   label: string
   placeholder: string
-  loadingPlaceholder?: string
   value: string
   onChange: (value: string) => void
   onFocus: () => void
@@ -19,10 +18,13 @@ type FieldBlockProps = {
   editableHighlight?: boolean | undefined
 }
 
+function Pulse({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />
+}
+
 export function FieldBlock({
   label,
   placeholder,
-  loadingPlaceholder,
   value,
   onChange,
   onFocus,
@@ -50,6 +52,29 @@ export function FieldBlock({
   const isRequired = trimmedLabel.endsWith('*')
   const displayLabel = isRequired ? trimmedLabel.slice(0, -1).trimEnd() : label
 
+  // Show skeleton placeholder when loading
+  if (loading) {
+    return (
+      <div>
+        <label
+          htmlFor={inputId}
+          className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <span>{displayLabel}</span>
+            {isRequired ? <span className="text-red-500">*</span> : null}
+          </span>
+        </label>
+        <div className="relative">
+          <Pulse className="h-10 w-full rounded-xl" />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <Pulse className="h-7 w-7 rounded-full" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <label
@@ -75,7 +100,7 @@ export function FieldBlock({
                 ? 'border-emerald-300 bg-emerald-50/60 text-zinc-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
                 : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
           } ${disabled ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100' : ''}`}
-          placeholder={loading ? (loadingPlaceholder ?? 'Loading...') : placeholder}
+          placeholder={placeholder}
           value={value}
           readOnly={disabled}
           onChange={(event) => {
@@ -105,7 +130,7 @@ export function FieldBlock({
             }
             onOpenPopup()
           }}
-          className={`absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+          className={`absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
             disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-zinc-100'
           }`}
         >

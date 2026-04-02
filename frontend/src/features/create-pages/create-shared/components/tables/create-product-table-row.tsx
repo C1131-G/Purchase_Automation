@@ -303,7 +303,7 @@ export function CreateProductTableRow({
               if (disableInputs) onInputRestrictedClick?.()
             }}
             disabled={warehousesLoading}
-            placeholder={warehousesLoading ? 'Loading...' : 'Select Warehouse'}
+            placeholder="Select Warehouse"
             className={`h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs text-zinc-800 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
               disableInputs ? 'cursor-not-allowed opacity-70' : 'cursor-text'
             } ${row.warehouseCode ? 'pr-[4.5rem]' : 'pr-10'}`}

@@ -28,6 +28,7 @@ interface GRPOProductSectionProps {
   prefetchProducts: () => void
   isSubmitting: boolean
   isEditMode: boolean
+  loading?: boolean
   onUpdateProductRow: (rowId: string, patch: Partial<GRPOCreateLine>) => void
   onRemoveProductRow: (rowId: string) => void
   onSetProductRowDraft: (
@@ -66,6 +67,7 @@ export function GRPOProductSection({
   prefetchProducts,
   isSubmitting,
   isEditMode,
+  loading = false,
   onUpdateProductRow,
   onRemoveProductRow,
   onSetProductRowDraft,
@@ -94,6 +96,7 @@ export function GRPOProductSection({
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}
       requiredFieldLabels={requiredFieldLabelText}
+      loading={loading}
       totals={totals}
       currencyLabel={summaryCurrencyLabel}
       createError={createError}

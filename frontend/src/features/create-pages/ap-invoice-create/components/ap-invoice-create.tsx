@@ -41,7 +41,8 @@ export function APInvoiceCreate({
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
 
-  const isFormHydrating = mode === 'edit' && !!docNum && !state.isEditHydrated
+  const isFormHydrating =
+    (mode === 'edit' && !!docNum && !state.isEditHydrated) || state.isSourceHydrating
 
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>
@@ -142,7 +143,6 @@ export function APInvoiceCreate({
               onSelectSalesEmployee={state.selectSalesEmployee}
               salesEmployeeLabel="BUYER"
               salesEmployeePlaceholder="Select Buyer"
-              salesEmployeeLoadingPlaceholder="Loading buyers..."
               salesEmployeeDisabled={state.isEditMode}
             />
           </div>
@@ -202,7 +202,7 @@ export function APInvoiceCreate({
           loading={isFormHydrating}
           referenceNo={state.referenceNo}
           comments={state.remarks}
-          referenceNoDisabled={state.isClosed || state.referenceAutoFilled}
+          referenceNoDisabled={state.isClosed}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}

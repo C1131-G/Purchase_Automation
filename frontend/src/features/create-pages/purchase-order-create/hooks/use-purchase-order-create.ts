@@ -19,6 +19,7 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
+import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -86,6 +87,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const hydratedDocNumRef = useRef<string | null>(null)
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
   const lastRestrictedToastAtRef = useRef(0)
+  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null)
   const editDocNum = (options?.docNum ?? '').trim()
 
   const docDateContainerRef = useRef<HTMLDivElement>(null)
@@ -122,6 +124,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     setProductSearch: modals.setProductSearch,
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
+    isEditMode,
   })
 
   useEffect(() => {
@@ -176,93 +179,105 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     const docDate = String(detail.DocDate ?? '').slice(0, 10)
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
     const address = String(detail.Address ?? '').trim()
+
+    // Show loading toast when starting edit hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast('Purchase Order', 'edit')
+    }
+
     void (async () => {
-      const detailLines = detail.DocumentLines ?? []
-      const productsForWarehouse =
-        warehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(
-                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
-              )
+      try {
+        const detailLines = detail.DocumentLines ?? []
+        const productsForWarehouse =
+          warehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(
+                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+                )
+                .catch(() => [])
+            : []
+
+        const productByCode = new Map(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        )
+        const stockByItemCode = new Map<string, number>()
+
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
+        ].filter(Boolean)
+
+        await Promise.all(
+          uniqueItemCodes.map(async (itemCode) => {
+            const warehouseStocks = await queryClient
+              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
               .catch(() => [])
-          : []
 
-      const productByCode = new Map(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      )
-      const stockByItemCode = new Map<string, number>()
+            const resolvedStock = warehouseCode
+              ? Number(
+                  warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
+                    ?.stock ?? 0,
+                )
+              : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
 
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
-      ].filter(Boolean)
+            stockByItemCode.set(itemCode, resolvedStock)
+          }),
+        )
 
-      await Promise.all(
-        uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = await queryClient
-            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])
+        const mappedRows = detailLines.map((line: PurchaseOrderDetailLine, index) => {
+          const itemCode = String(line.ItemCode ?? '').trim()
+          const productMeta = productByCode.get(itemCode)
+          const quantity = Number(line.Quantity ?? 1)
+          const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
+          const discountPercent = Number(line.DiscountPercent ?? 0)
+          const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
 
-          const resolvedStock = warehouseCode
-            ? Number(
-                warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                  ?.stock ?? 0,
-              )
-            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0)
+          return {
+            id: `row-${currentDocNum}-${index}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? productMeta?.name ?? '').trim(),
+            stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
+            price,
+            currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
+            taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
+            taxRate: Number(productMeta?.taxRate ?? 0),
+            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
+            uomEntry:
+              typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+                ? line.UoMEntry
+                : productMeta?.uomEntry,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: '',
+            warehouseCode: String(line.WarehouseCode ?? '').trim(),
+          }
+        })
 
-          stockByItemCode.set(itemCode, resolvedStock)
-        }),
-      )
+        setHeader({
+          vendorCode,
+          vendorName,
+          docDate: docDate || header.docDate,
+          docDueDate,
+          warehouseCode,
+          referenceNo,
+          comments,
+        })
+        lookups.setNameInput(vendorName)
+        lookups.setCodeInput(vendorCode)
+        lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
+        lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
+        lookups.setBillToAddress(address)
+        lookups.setShipToAddress(address)
+        productsHook.setProductRows(mappedRows)
+        productsHook.setProductRowDrafts({})
 
-      const mappedRows = detailLines.map((line: PurchaseOrderDetailLine, index) => {
-        const itemCode = String(line.ItemCode ?? '').trim()
-        const productMeta = productByCode.get(itemCode)
-        const quantity = Number(line.Quantity ?? 1)
-        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
-        const discountPercent = Number(line.DiscountPercent ?? 0)
-        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
-
-        return {
-          id: `row-${currentDocNum}-${index}`,
-          productCode: itemCode,
-          productName: String(line.ItemDescription ?? productMeta?.name ?? '').trim(),
-          stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
-          price,
-          currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-          taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
-          taxRate: Number(productMeta?.taxRate ?? 0),
-          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
-          uomEntry:
-            typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
-              ? line.UoMEntry
-              : productMeta?.uomEntry,
-          quantity,
-          discountPercent,
-          discountAmount,
-          comment: '',
-          warehouseCode: String(line.WarehouseCode ?? '').trim(),
-        }
-      })
-
-      setHeader({
-        vendorCode,
-        vendorName,
-        docDate: docDate || header.docDate,
-        docDueDate,
-        warehouseCode,
-        referenceNo,
-        comments,
-      })
-      lookups.setNameInput(vendorName)
-      lookups.setCodeInput(vendorCode)
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
-      lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
-      lookups.setBillToAddress(address)
-      lookups.setShipToAddress(address)
-      productsHook.setProductRows(mappedRows)
-      productsHook.setProductRowDrafts({})
-
-      hydratedDocNumRef.current = currentDocNum
-      setHydratedDocNum(currentDocNum)
+        hydratedDocNumRef.current = currentDocNum
+        setHydratedDocNum(currentDocNum)
+      } finally {
+        // Dismiss loading toast when edit hydration is complete (success or error)
+        loadingToastRef.current?.dismiss()
+        loadingToastRef.current = null
+      }
     })()
   }, [
     queryClient,
@@ -379,7 +394,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     () => ({
       vendorCode: lookups.codeInput.trim() || header.vendorCode.trim(),
       vendorName: lookups.nameInput.trim() || header.vendorName.trim(),
-      warehouseCode: lookups.effectiveWarehouseCode.trim(),
+      // Check if ANY row has a warehouseCode selected (row-level warehouse)
+      warehouseCode: productsHook.productRows.some((row) => row.warehouseCode?.trim())
+        ? lookups.effectiveWarehouseCode.trim() || 'selected'
+        : lookups.effectiveWarehouseCode.trim(),
       docDueDate: header.docDueDate,
       salesEmployee: lookups.salesEmployeeInput.trim(),
       billToAddress: lookups.billToAddress.trim(),
@@ -399,6 +417,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       lookups.shipToAddress,
       header.referenceNo,
       header.comments,
+      productsHook.productRows,
     ],
   )
 

@@ -8,7 +8,7 @@ import { requireActiveSession } from '@/routes/_require-active-session'
 /** PurchaseAPInvoiceCreateRoute: Page for creating new A/P Invoices. */
 export const Route = createFileRoute('/_layout/purchase/create-ap-invoice')({
   validateSearch: z.object({
-    sourceDocNum: z.string().optional(),
+    sourceDocNum: z.string().or(z.number()).transform(String).optional(),
     sourceDocType: z.enum(['PurchaseOrder', 'GoodsReceiptPO']).optional(),
   }),
   beforeLoad: async () => {

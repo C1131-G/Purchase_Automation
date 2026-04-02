@@ -20,6 +20,7 @@ export const productLookupItemSchema = lookupItemSchema.extend({
   uomEntry: z.number().optional(),
   purchaseUomCode: z.string().optional(),
   purchaseUomEntry: z.number().optional(),
+  defaultWarehouse: z.string().optional(),
 })
 
 export const productWarehouseStockItemSchema = z.object({
