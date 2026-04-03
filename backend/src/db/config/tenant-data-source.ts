@@ -18,6 +18,8 @@ import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
 import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
 import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
+import { PCH1Schema } from "@/db/schemas/pch1.schema";
+import { PDN1Schema } from "@/db/schemas/pdn1.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
@@ -89,6 +91,8 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       ARCreditNoteSchema,
       IncomingPaymentSchema,
       SalesEmployeeSchema,
+      PDN1Schema,
+      PCH1Schema,
     ],
     subscribers: [],
     migrations: [],

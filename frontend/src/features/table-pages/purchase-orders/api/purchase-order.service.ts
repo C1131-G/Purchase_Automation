@@ -29,6 +29,7 @@ export type PurchaseOrderDetailLine = {
   ItemCode?: string
   ItemDescription?: string
   Quantity?: number
+  OpenQty?: number
   Price?: number
   UnitPrice?: number
   UoMCode?: string | number
@@ -37,8 +38,8 @@ export type PurchaseOrderDetailLine = {
   TaxCode?: string
   VatPrcnt?: number
   WarehouseCode?: string
-  LineTotal?: number
   LineNum?: number
+  LineTotal?: number
 }
 
 export type PurchaseOrderDetail = {

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   FULL_PRODUCT_LIMIT,
@@ -67,7 +67,7 @@ export function useArProducts({
     enabled: customerSelected,
   })
 
-  const prefetchProducts = () => {
+  const prefetchProducts = useCallback(() => {
     if (!customerSelected) return
     void queryClient.prefetchQuery(
       arInvoiceCreateQueries.products(
@@ -76,7 +76,7 @@ export function useArProducts({
         QUICK_PRODUCT_LIMIT,
       ),
     )
-  }
+  }, [customerSelected, effectiveWarehouseCode, normalizedProductSearch, queryClient])
 
   useEffect(() => {
     if (!customerSelected) return

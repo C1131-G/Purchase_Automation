@@ -228,6 +228,7 @@ export function SalesQuotationTable() {
   const totalPages = Math.max(salesQuotationList?.totalPages ?? 1, 1)
   const showInitialSkeleton = isLoading && !salesQuotationList
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table's useReactTable returns functions that cannot be memoized
   const table = useReactTable<SalesQuotationListItem>({
     data: rows,
     columns,

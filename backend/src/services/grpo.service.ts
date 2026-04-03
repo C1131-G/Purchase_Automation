@@ -5,6 +5,7 @@ import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { GRPOFilters } from "@/dal/types/grpo.types";
 // Data Access & Schemas
 import { type GRPO, GRPOSchema } from "@/db/schemas/grpo.schema";
+import { PCH1Schema } from "@/db/schemas/pch1.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
@@ -280,19 +281,31 @@ export const getGRPO = async (sessionId: string, id: string) => {
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDueDate: result.DocDueDate,
       NumAtCard: result.NumAtCard,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        Price: line.Price || line.UnitPrice,
-        DiscountPercent: line.DiscountPercent,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        WarehouseCode: line.WarehouseCode,
-        TaxCode: line.TaxCode,
-        VatPrcnt: line.VatPrcnt,
-        LineTotal: line.LineTotal,
-      })),
+      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+        const lineData = line as unknown as Record<string, unknown>;
+        return {
+          ItemCode: line.ItemCode,
+          ItemDescription: line.ItemDescription,
+          Quantity: line.Quantity,
+          OpenQty: Number(
+            lineData.OpenQuantity ??
+              lineData.RemainingOpenQuantity ??
+              lineData.RemainingQuantity ??
+              lineData.BaseOpenQuantity ??
+              line.Quantity ??
+              0,
+          ),
+          Price: line.Price || line.UnitPrice,
+          DiscountPercent: line.DiscountPercent,
+          UoMCode: lineData.UoMCode,
+          UoMEntry: lineData.UoMEntry,
+          WarehouseCode: line.WarehouseCode,
+          TaxCode: line.TaxCode,
+          VatPrcnt: line.VatPrcnt,
+          LineNum: line.LineNum ?? 0,
+          LineTotal: line.LineTotal,
+        };
+      }),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -322,8 +335,42 @@ export const getGRPOByDocNum = async (sessionId: string, dbName: string, id: str
 
   // If a match is found in HANA, we use the resolved DocEntry.
   // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
-  const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
-  return getGRPO(sessionId, finalId);
+  const grpoDocEntry = match?.docEntry ? String(match.docEntry) : normalizedId;
+  const grpoDetail = await getGRPO(sessionId, grpoDocEntry);
+
+  // Calculate remaining open quantity per line by querying consumed quantities from PCH1 (AP Invoice lines).
+  const pch1Repo = await getTenantRepository(dbName, PCH1Schema);
+  const consumedLines = await pch1Repo
+    .createQueryBuilder("pch1")
+    .select("pch1.baseLine", "baseLine")
+    .addSelect("SUM(pch1.quantity)", "consumedQty")
+    .where("pch1.baseEntry = :baseEntry", { baseEntry: grpoDetail.DocEntry })
+    .andWhere("pch1.baseType = 20")
+    .groupBy("pch1.baseLine")
+    .getRawMany<{ baseLine: number; consumedQty: string }>();
+
+  const consumedByLine = new Map<number, number>();
+  for (const row of consumedLines) {
+    consumedByLine.set(Number(row.baseLine), Number(row.consumedQty ?? 0));
+  }
+
+  // Enrich lines with calculated OpenQty.
+  const enrichedLines = (grpoDetail.DocumentLines || []).map((line: SAPDocumentLine) => {
+    const lineNum = line.LineNum ?? 0;
+    const orderedQty = Number(line.Quantity ?? 0);
+    const consumedQty = consumedByLine.get(lineNum) ?? 0;
+    const openQty = Math.max(0, orderedQty - consumedQty);
+
+    return {
+      ...line,
+      OpenQty: openQty,
+    };
+  });
+
+  return {
+    ...grpoDetail,
+    DocumentLines: enrichedLines,
+  };
 };
 
 // Creates a GRPO document in SAP. Crucially, it links each line back to its source Purchase Order.

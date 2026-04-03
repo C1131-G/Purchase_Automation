@@ -1,10 +1,10 @@
 import { Check, ChevronLeft, FileText, Loader2, StickyNote } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { purchaseOrderAPI } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
-import { grpoAPI } from '@/features/table-pages/grpo/api/grpo.service'
-import { apInvoiceAPI } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
 import { type CreateLookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
+import { apInvoiceAPI } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
+import { grpoAPI } from '@/features/table-pages/grpo/api/grpo.service'
+import { purchaseOrderAPI } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
 
 interface CopyFromDialogProps {
   open: boolean
@@ -88,19 +88,16 @@ export function CopyFromDialog({
         if (selectedDocType === 'PurchaseOrder') {
           result = await purchaseOrderAPI.getPurchaseOrders({
             CardCode: vendorCode,
-            DocStatus: 'Open',
             limit: currentLimit,
           })
         } else if (selectedDocType === 'GoodsReceiptPO') {
           result = await grpoAPI.getGRPOs({
             CardCode: vendorCode,
-            DocStatus: 'Open',
             limit: currentLimit,
           })
         } else {
           result = await apInvoiceAPI.getAPInvoices({
             CardCode: vendorCode,
-            DocStatus: 'Open',
             limit: currentLimit,
           })
         }
@@ -112,12 +109,22 @@ export function CopyFromDialog({
               ? 'GRPO'
               : 'AP Invoice'
 
-        const newDocs = (result.data || []).map((doc: any) => ({
-          code: String(doc.DocNum),
-          name: `${label} - ${doc.DocNum} - ${doc.DocDate ? new Date(doc.DocDate).toLocaleDateString('en-GB') : ''}`,
-          docType: selectedDocType,
-          docEntry: doc.DocEntry,
-        })) as DocumentOption[]
+        // Filter out closed documents (Open and Partial are copyable)
+        const isOpenOrPartial = (doc: { DocStatus?: string }) => {
+          const status = String(doc.DocStatus ?? '').trim()
+          return (
+            status === 'Open' || status === 'O' || status === 'Partial' || status === 'bost_Open'
+          )
+        }
+
+        const newDocs = (result.data || [])
+          .filter(isOpenOrPartial)
+          .map((doc: { DocNum: string | number; DocDate?: string; DocEntry?: number }) => ({
+            code: String(doc.DocNum),
+            name: `${label} - ${doc.DocNum} - ${doc.DocDate ? new Date(doc.DocDate).toLocaleDateString('en-GB') : ''}`,
+            docType: selectedDocType,
+            docEntry: doc.DocEntry,
+          })) as DocumentOption[]
 
         if (isLoadMore) {
           setDocuments((prev) => [...prev, ...newDocs])
@@ -131,7 +138,7 @@ export function CopyFromDialog({
           setLoadedCount(newDocs.length)
           setHasMore(newDocs.length === currentLimit && newDocs.length < MAX_RESULTS)
         }
-      } catch (err) {
+      } catch {
         setError('Failed to load documents. Please try again.')
       } finally {
         setIsLoading(false)
@@ -221,11 +228,11 @@ export function CopyFromDialog({
     setError(null)
   }
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (!isLoading && hasMore) {
       void fetchDocuments(true)
     }
-  }
+  }, [isLoading, hasMore, fetchDocuments])
 
   // Scroll to top when step changes
   useEffect(() => {
@@ -250,7 +257,7 @@ export function CopyFromDialog({
 
     container.addEventListener('scroll', handleScroll)
     return () => container.removeEventListener('scroll', handleScroll)
-  }, [hasMore, isLoading])
+  }, [hasMore, isLoading, handleLoadMore])
 
   if (!open) return null
 

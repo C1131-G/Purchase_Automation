@@ -1,6 +1,5 @@
 import { type MouseEvent, useState } from 'react'
 
-import { CopyFromDialog } from '@/features/create-pages/create-shared/components/modals/copy-from-dialog'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
@@ -9,6 +8,7 @@ import { VendorCustomerGrid } from '@/features/create-pages/create-shared/compon
 import { CopyFromDropdown } from '@/features/create-pages/create-shared/components/layout/copy-from-dropdown'
 import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
+import { CopyFromDialog } from '@/features/create-pages/create-shared/components/modals/copy-from-dialog'
 import { PURCHASE_ORDER_MANDATORY_FIELDS } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
 import {
   parseISODate,
@@ -244,7 +244,6 @@ export function GRPOCreate({
               docNum={docNum!}
               sourceDocType="GoodsReceiptPO"
               targets={['AP Invoice']}
-              docStatus={state.docStatus ?? 'Open'}
             />
           ) : null
         }

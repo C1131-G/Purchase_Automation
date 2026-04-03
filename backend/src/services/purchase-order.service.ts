@@ -6,6 +6,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PurchaseOrderFilters } from "@/dal/types/purchase-order.types";
+import { PDN1Schema } from "@/db/schemas/pdn1.schema";
 // Data Access & Schemas
 import { type PurchaseOrder, PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
@@ -183,18 +184,30 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
       NumAtCard: result.NumAtCard,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        Price: line.Price || line.UnitPrice,
-        DiscountPercent: line.DiscountPercent,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        WarehouseCode: line.WarehouseCode,
-        TaxCode: line.TaxCode,
-        LineTotal: line.LineTotal,
-      })),
+      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+        const lineData = line as unknown as Record<string, unknown>;
+        return {
+          ItemCode: line.ItemCode,
+          ItemDescription: line.ItemDescription,
+          Quantity: line.Quantity,
+          OpenQty: Number(
+            lineData.OpenQuantity ??
+              lineData.RemainingOpenQuantity ??
+              lineData.RemainingQuantity ??
+              lineData.BaseOpenQuantity ??
+              line.Quantity ??
+              0,
+          ),
+          Price: line.Price || line.UnitPrice,
+          DiscountPercent: line.DiscountPercent,
+          UoMCode: lineData.UoMCode,
+          UoMEntry: lineData.UoMEntry,
+          WarehouseCode: line.WarehouseCode,
+          TaxCode: line.TaxCode,
+          LineNum: line.LineNum ?? 0,
+          LineTotal: line.LineTotal,
+        };
+      }),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -224,8 +237,52 @@ export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string
 
   // If a match is found in HANA, we use the resolved DocEntry.
   // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
-  const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
-  return getPurchaseOrder(sessionId, finalId);
+  const poDocEntry = match?.docEntry ? String(match.docEntry) : normalizedId;
+  const poDetail = await getPurchaseOrder(sessionId, poDocEntry);
+
+  // Calculate remaining open quantity per line by querying delivered quantities from PDN1 (GRPO lines).
+  const pdn1Repo = await getTenantRepository(dbName, PDN1Schema);
+  const deliveredLines = await pdn1Repo
+    .createQueryBuilder("pdn1")
+    .select("pdn1.baseLine", "baseLine")
+    .addSelect("SUM(pdn1.quantity)", "deliveredQty")
+    .where("pdn1.baseEntry = :baseEntry", { baseEntry: poDetail.DocEntry })
+    .andWhere("pdn1.baseType = 22")
+    .groupBy("pdn1.baseLine")
+    .getRawMany<{ baseLine: number; deliveredQty: string }>();
+
+  const deliveredByLine = new Map<number, number>();
+  for (const row of deliveredLines) {
+    deliveredByLine.set(Number(row.baseLine), Number(row.deliveredQty ?? 0));
+  }
+
+  // Enrich lines with calculated OpenQty.
+  // Prefer the SAP-provided OpenQty (from Service Layer) as the authoritative source,
+  // but use the PDN1-calculated value if it shows less remaining (i.e., more delivered).
+  // This handles cases where PDN1 sync is faster or SAP's OpenQuantity hasn't been updated yet.
+  const enrichedLines = (poDetail.DocumentLines || []).map((line: SAPDocumentLine) => {
+    const lineNum = line.LineNum ?? 0;
+    const orderedQty = Number(line.Quantity ?? 0);
+    const deliveredQty = deliveredByLine.get(lineNum) ?? 0;
+    const pdn1OpenQty = Math.max(0, orderedQty - deliveredQty);
+
+    // The line already has OpenQty from getPurchaseOrder() (SAP Service Layer fields).
+    // Use the minimum of SAP's OpenQty and PDN1-calculated OpenQty as the safer value.
+    const existingOpenQty = Number(
+      (line as unknown as Record<string, unknown>).OpenQty ?? orderedQty,
+    );
+    const openQty = Math.min(existingOpenQty, pdn1OpenQty);
+
+    return {
+      ...line,
+      OpenQty: openQty,
+    };
+  });
+
+  return {
+    ...poDetail,
+    DocumentLines: enrichedLines,
+  };
 };
 
 // Submits a new Purchase Order to SAP B1.

@@ -28,8 +28,8 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
-import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import { resolveProductTaxRates } from '@/features/create-pages/create-shared/utils/product-tax-rate'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
 import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
@@ -107,7 +107,6 @@ export function useAPInvoiceCreate({
   const updateMutation = useUpdateAPInvoice()
   const hydratedDocNumRef = useRef<string | null>(null)
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
-  const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false)
   const lastRestrictedToastAtRef = useRef(0)
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null)
 
@@ -209,18 +208,21 @@ export function useAPInvoiceCreate({
   const sourceDetailQueryGRPO = useQuery({
     ...grpoQueries.detailByDocNum(sourceDocNum || ''),
     enabled: mode === 'create' && sourceDocType === 'GoodsReceiptPO' && Boolean(sourceDocNum),
+    staleTime: 0,
+    refetchOnMount: true,
   })
 
   const sourceDetailQueryPO = useQuery({
     ...purchaseOrderQueries.detailByDocNum(sourceDocNum || ''),
     enabled: mode === 'create' && sourceDocType === 'PurchaseOrder' && Boolean(sourceDocNum),
+    staleTime: 0,
+    refetchOnMount: true,
   })
 
   useEffect(() => {
     if (isEditMode) return
     resetAPInvoiceCreate()
     hydratedDocNumRef.current = null
-    setSourceHydrationComplete(false)
   }, [isEditMode, resetAPInvoiceCreate])
 
   // Edit Mode Hydration
@@ -243,10 +245,18 @@ export function useAPInvoiceCreate({
       setVendorCodeInput(String(detail.CardCode ?? '').trim())
       setVendorNameInput(String(detail.CardName ?? '').trim())
       const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
-      const numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-      const comments = String(detail.Comments ?? '').trim()
-      const splitComments = comments.split(' | ').map((part) => part.trim())
-      const hasReferenceMarker = splitComments.length > 1
+      let referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+      let remarks = String(detail.Comments ?? '').trim()
+
+      // SAP Service Layer auto-generates "Based on ..." in Comments for copy-from flows,
+      // and may not store NumAtCard. If NumAtCard is empty but Comments has the
+      // auto-generated reference pattern, treat Comments as the reference.
+      const autoRefPattern = /^based on /i
+      if (!referenceNo && autoRefPattern.test(remarks)) {
+        referenceNo = remarks
+        remarks = ''
+      }
+
       const matchedVendor = vendors.find(
         (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? '').trim(),
       )
@@ -258,8 +268,6 @@ export function useAPInvoiceCreate({
                 normalizeCodeForCompare(detail.SalesPersonCode),
             )?.name
           : ''
-      const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
-      const remarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : comments
 
       setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || '')
       setHeader({
@@ -340,9 +348,6 @@ export function useAPInvoiceCreate({
     const currentSourceDocType = sourceDocType
     if (!currentSourceDocNum || !currentSourceDocType) return
 
-    // Reset source hydration state when source changes
-    setSourceHydrationComplete(false)
-
     const detail =
       sourceDocType === 'GoodsReceiptPO'
         ? sourceDetailQueryGRPO.data?.data
@@ -350,11 +355,8 @@ export function useAPInvoiceCreate({
     if (!detail) return
 
     const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
-    if (
-      hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}` &&
-      isMetadataLoaded
-    )
-      return
+    const hydrationKey = `${currentSourceDocType}-${currentSourceDocNum}`
+    if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) return
 
     // Show loading toast when starting copy-from hydration
     if (!loadingToastRef.current) {
@@ -403,7 +405,10 @@ export function useAPInvoiceCreate({
       )
 
       const mappedLines = (detail.DocumentLines ?? []).map((line, index: number) => {
-        const quantity = Number(line.Quantity ?? 1)
+        // Use open quantity (remaining balance) for copy-to, fall back to original quantity
+        const lineData = line as Record<string, unknown>
+        const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1)
+        const quantity = openQty
         const price = Number(line.Price ?? line.UnitPrice ?? 0)
         const grossAmount = Math.max(0, price * quantity)
         const discountPercent = Number(line.DiscountPercent ?? 0)
@@ -455,7 +460,6 @@ export function useAPInvoiceCreate({
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
       }
-      setSourceHydrationComplete(true)
       // Dismiss loading toast when copy-from hydration is complete
       loadingToastRef.current?.dismiss()
       loadingToastRef.current = null
@@ -755,9 +759,7 @@ export function useAPInvoiceCreate({
         const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry
         const updatePayload = {
           DocDueDate: header.docDueDate || undefined,
-          Comments:
-            [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join(' | ') ||
-            undefined,
+          Comments: header.remarks.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
         }
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload })
@@ -766,9 +768,7 @@ export function useAPInvoiceCreate({
           CardCode: vendorCodeInput.trim(),
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
-          Comments:
-            [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join(' | ') ||
-            undefined,
+          Comments: header.remarks.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
@@ -787,7 +787,31 @@ export function useAPInvoiceCreate({
         await createMutation.mutateAsync({ payload: createPayload })
       }
       toastHandle.success()
-      if (!isEditMode) resetAPInvoiceCreate()
+      if (!isEditMode) {
+        resetAPInvoiceCreate()
+
+        // Invalidate PO and GRPO queries so source docs show updated quantities after AP Invoice save
+        void queryClient.invalidateQueries({
+          queryKey: purchaseOrderQueries.list({ page: 1, limit: 10 }).queryKey,
+        })
+        void queryClient.invalidateQueries({
+          queryKey: grpoQueries.list({ page: 1, limit: 10 }).queryKey,
+        })
+
+        // Invalidate specific PO detail query if source was PO
+        if (sourceDocNum && sourceDocType === 'PurchaseOrder') {
+          void queryClient.invalidateQueries({
+            queryKey: purchaseOrderQueries.detailByDocNum(sourceDocNum).queryKey,
+          })
+        }
+
+        // Invalidate specific GRPO detail query if source was GRPO
+        if (sourceDocNum && sourceDocType === 'GoodsReceiptPO') {
+          void queryClient.invalidateQueries({
+            queryKey: grpoQueries.detailByDocNum(sourceDocNum).queryKey,
+          })
+        }
+      }
     } catch (error) {
       toastHandle.error()
       const errorMsg = normalizeCreateOrderErrorMessage(error, 'Failed to process A/P Invoice.')
@@ -832,7 +856,12 @@ export function useAPInvoiceCreate({
   return {
     isEditMode,
     isEditHydrated: !isEditMode || hydratedDocNum === editDocNum,
-    isSourceHydrating: mode === 'create' && Boolean(sourceDocNum) && !sourceHydrationComplete,
+    isSourceHydrating:
+      mode === 'create' &&
+      Boolean(sourceDocNum) &&
+      (sourceDocType === 'PurchaseOrder'
+        ? sourceDetailQueryPO.isLoading
+        : sourceDetailQueryGRPO.isLoading),
     today,
     activeDatePicker,
     setActiveDatePicker,

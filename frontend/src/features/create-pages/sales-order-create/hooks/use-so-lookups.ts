@@ -246,22 +246,22 @@ export function useSoLookups({
   const nameSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(vendors as ProductLookupItem[], nameInput)
     return limitInlineSuggestions(ranked)
-  }, [vendors, nameInput, vendorsQuery.isFetching])
+  }, [vendors, nameInput])
 
   const codeSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(vendors as ProductLookupItem[], codeInput)
     return limitInlineSuggestions(ranked)
-  }, [vendors, codeInput, vendorsQuery.isFetching])
+  }, [vendors, codeInput])
 
   const warehouseSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(warehouses as ProductLookupItem[], warehouseInput)
     return limitInlineSuggestions(ranked)
-  }, [warehouses, warehouseInput, warehousesQuery.isFetching])
+  }, [warehouses, warehouseInput])
 
   const salesEmployeeSuggestions = useMemo(() => {
     const ranked = rankLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput)
     return limitInlineSuggestions(ranked)
-  }, [salesEmployees, salesEmployeeInput, salesEmployeesQuery.isFetching])
+  }, [salesEmployees, salesEmployeeInput])
 
   return {
     vendorsQuery,

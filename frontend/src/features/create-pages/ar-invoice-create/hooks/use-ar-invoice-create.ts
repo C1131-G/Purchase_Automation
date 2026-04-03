@@ -543,10 +543,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     lookups.nameInput,
     lookups.salesEmployeeInput,
     lookups.warehouseInput,
-    modals.modalMode,
-    modals.modalOpen,
-    modals.modalSearch,
-    modals.setModalSearch,
+    modals,
   ])
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>

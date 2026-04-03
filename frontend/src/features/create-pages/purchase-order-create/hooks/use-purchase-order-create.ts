@@ -19,11 +19,11 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
-import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import {
   useCreatePurchaseOrder,
   useUpdatePurchaseOrder,
@@ -170,11 +170,17 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       matchedVendor?.salesEmployeeName?.trim() ||
       ''
 
-    const rawComments = String(detail.Comments ?? '').trim()
-    const splitComments = rawComments.split(' | ').map((part) => part.trim())
-    const hasReferenceMarker = splitComments.length > 1
-    const referenceNo = hasReferenceMarker ? (splitComments[0] ?? '') : ''
-    const comments = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+    let referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+    let comments = String(detail.Comments ?? '').trim()
+
+    // SAP Service Layer auto-generates "Based on ..." in Comments for copy-from flows,
+    // and may not store NumAtCard. If NumAtCard is empty but Comments has the
+    // auto-generated reference pattern, treat Comments as the reference.
+    const autoRefPattern = /^based on /i
+    if (!referenceNo && autoRefPattern.test(comments)) {
+      referenceNo = comments
+      comments = ''
+    }
 
     const docDate = String(detail.DocDate ?? '').slice(0, 10)
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
@@ -227,6 +233,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           const itemCode = String(line.ItemCode ?? '').trim()
           const productMeta = productByCode.get(itemCode)
           const quantity = Number(line.Quantity ?? 1)
+          const openQty = Number(line.OpenQty ?? quantity)
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
           const discountPercent = Number(line.DiscountPercent ?? 0)
           const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
@@ -246,10 +253,12 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                 ? line.UoMEntry
                 : productMeta?.uomEntry,
             quantity,
+            openQty,
             discountPercent,
             discountAmount,
             comment: '',
             warehouseCode: String(line.WarehouseCode ?? '').trim(),
+            lineNum: typeof line.LineNum === 'number' ? line.LineNum : index,
           }
         })
 
@@ -346,10 +355,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     lookups.nameInput,
     lookups.salesEmployeeInput,
     lookups.warehouseInput,
-    modals.modalMode,
-    modals.modalOpen,
-    modals.modalSearch,
-    modals.setModalSearch,
+    modals,
   ])
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>

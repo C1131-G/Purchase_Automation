@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { createSharedQueries as salesOrderCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
@@ -70,7 +70,7 @@ export function useSoProducts({
   })
 
   // Prefetch products whenever the customer selection (token) changes.
-  const prefetchProducts = () => {
+  const prefetchProducts = useCallback(() => {
     if (!customerSelected) return
     void queryClient.prefetchQuery(
       salesOrderCreateQueries.products(
@@ -79,7 +79,7 @@ export function useSoProducts({
         QUICK_PRODUCT_LIMIT,
       ),
     )
-  }
+  }, [customerSelected, effectiveWarehouseCode, normalizedProductSearch, queryClient])
 
   useEffect(() => {
     if (!customerSelected) return

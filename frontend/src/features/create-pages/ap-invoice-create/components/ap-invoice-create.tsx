@@ -2,17 +2,17 @@ import { type MouseEvent, useState } from 'react'
 
 import { APInvoiceModals } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-modals'
 import { APInvoiceProductSection } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section'
-import { CopyFromDialog } from '@/features/create-pages/create-shared/components/modals/copy-from-dialog'
-import { CopyFromDropdown } from '@/features/create-pages/create-shared/components/layout/copy-from-dropdown'
+import { useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
+import { AP_INVOICE_FIELD_LABEL_TEXT } from '@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
+import { CopyFromDropdown } from '@/features/create-pages/create-shared/components/layout/copy-from-dropdown'
 import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
-import { useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
-import { AP_INVOICE_FIELD_LABEL_TEXT } from '@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils'
+import { CopyFromDialog } from '@/features/create-pages/create-shared/components/modals/copy-from-dialog'
 import {
   parseISODate,
   toDisplayDate,
@@ -244,7 +244,6 @@ export function APInvoiceCreate({
               docNum={docNum!}
               sourceDocType="APInvoice"
               targets={['AP Credit Note']}
-              docStatus={state.docStatus ?? 'Open'}
             />
           ) : null
         }

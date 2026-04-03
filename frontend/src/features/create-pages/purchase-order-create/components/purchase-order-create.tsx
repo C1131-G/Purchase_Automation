@@ -251,7 +251,6 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
               docNum={docNum!}
               sourceDocType="PurchaseOrder"
               targets={['GRPO', 'AP Invoice']}
-              docStatus={state.docStatus ?? 'Open'}
             />
           ) : null
         }

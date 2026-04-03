@@ -18,11 +18,11 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
-import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import { resolveProductTaxRates } from '@/features/create-pages/create-shared/utils/product-tax-rate'
 import {
   useCreateGRPO,
@@ -235,6 +235,8 @@ export function useGRPOCreate({
   const sourceDetailQueryPO = useQuery({
     ...purchaseOrderQueries.detailByDocNum(sourceDocNum || ''),
     enabled: mode === 'create' && sourceDocType === 'PurchaseOrder' && Boolean(sourceDocNum),
+    staleTime: 0,
+    refetchOnMount: true,
   })
 
   useEffect(() => {
@@ -263,10 +265,18 @@ export function useGRPOCreate({
         setVendorCodeInput(String(detail.CardCode ?? '').trim())
         setVendorNameInput(String(detail.CardName ?? '').trim())
         const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
-        const numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-        const comments = String(detail.Comments ?? '').trim()
-        const splitComments = comments.split(' | ').map((part) => part.trim())
-        const hasReferenceMarker = splitComments.length > 1
+        let numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+        let remarks = String(detail.Comments ?? '').trim()
+
+        // SAP Service Layer auto-generates "Based on ..." in Comments for GRPO from PO,
+        // and may not store NumAtCard. If NumAtCard is empty but Comments has the
+        // auto-generated reference pattern, treat Comments as the reference.
+        const autoRefPattern = /^based on /i
+        if (!numAtCard && autoRefPattern.test(remarks)) {
+          numAtCard = remarks
+          remarks = ''
+        }
+
         const matchedVendor = vendors.find(
           (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? '').trim(),
         )
@@ -286,9 +296,7 @@ export function useGRPOCreate({
                   normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
               )?.name
             : ''
-        const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
-        const remarks =
-          hasReferenceMarker && !numAtCard ? splitComments.slice(1).join(' | ') : comments
+        const referenceNo = numAtCard
 
         setBuyerInput(
           buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || '',
@@ -423,6 +431,7 @@ export function useGRPOCreate({
 
     // Reset source hydration state when source changes
     setSourceHydrationComplete(false)
+    hydratedDocNumRef.current = null
 
     const detail = sourceDetailQueryPO.data?.data
     if (!detail) return
@@ -513,7 +522,10 @@ export function useGRPOCreate({
           ? Number(warehouseStocks.find((s) => s.code === lineWarehouseCode)?.stock ?? 0)
           : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
-        const quantity = Number(line.Quantity ?? 1)
+        // Use open quantity (remaining balance) for copy-to, fall back to original quantity
+        const lineData = line as Record<string, unknown>
+        const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1)
+        const quantity = openQty
         const price = Number(line.Price ?? line.UnitPrice ?? 0)
         const grossAmount = Math.max(0, price * quantity)
         const apiDiscountPercent = Number(line.DiscountPercent ?? NaN)
@@ -644,7 +656,6 @@ export function useGRPOCreate({
     setModalOpen(true)
   }
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!modalOpen) return
     const nextSearch = getLookupInlineSearchByMode(modalMode, {
@@ -983,7 +994,7 @@ export function useGRPOCreate({
       }
       return false
     })
-  }, [vendorNameInput, vendorCodeInput, rows, header.docDueDate, billToAddress, shipToAddress])
+  }, [vendorNameInput, vendorCodeInput, rows])
 
   const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
   const missingSearchMandatoryFields = useMemo(
@@ -993,7 +1004,7 @@ export function useGRPOCreate({
         if (field === 'vendorCode') return !vendorCodeInput.trim()
         return false
       }),
-    [searchMandatoryFields, vendorNameInput, vendorCodeInput, warehouseInput, buyerInput],
+    [searchMandatoryFields, vendorNameInput, vendorCodeInput],
   )
   const searchRequiredCompletionPercent = useMemo(() => {
     const completed = searchMandatoryFields.length - missingSearchMandatoryFields.length
@@ -1149,9 +1160,7 @@ export function useGRPOCreate({
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           SalesPersonCode: resolvedSalesEmployeeCode,
-          Comments:
-            [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join(' | ') ||
-            undefined,
+          Comments: header.remarks.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocumentLines: filteredRows.map((row) => {
             const hasCompleteBaseLink =
@@ -1225,6 +1234,20 @@ export function useGRPOCreate({
       setStockPreviewProduct(null)
       setFieldErrors(EMPTY_GRPO_FIELD_ERRORS)
       setCreateError(null)
+
+      // Invalidate PO queries so PO edit shows updated quantities after GRPO save
+      void queryClient.invalidateQueries({
+        queryKey: purchaseOrderQueries.list({ page: 1, limit: 10 }).queryKey,
+      })
+
+      // Invalidate the specific PO detail query used by copy-from hydration
+      // so the next GRPO copy reads fresh OpenQty from the backend
+      if (sourceDocNum && sourceDocType === 'PurchaseOrder') {
+        void queryClient.invalidateQueries({
+          queryKey: purchaseOrderQueries.detailByDocNum(sourceDocNum).queryKey,
+        })
+      }
+
       void Promise.allSettled([
         queryClient.invalidateQueries({
           queryKey: grpoQueries.list({ page: 1, limit: 10 }).queryKey,
