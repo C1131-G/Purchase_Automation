@@ -86,6 +86,7 @@ interface UseGRPOCreateOptions {
   docNum?: string
   sourceDocNum?: string | undefined
   sourceDocType?: 'PurchaseOrder' | undefined
+  onCreateSuccess?: () => void
 }
 
 export type UseGRPOCreateReturn = ReturnType<typeof useGRPOCreate>
@@ -102,6 +103,7 @@ export function useGRPOCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  onCreateSuccess,
 }: UseGRPOCreateOptions) {
   const isEditMode = mode === 'edit'
   const editDocNum = (docNum ?? '').trim()
@@ -265,17 +267,45 @@ export function useGRPOCreate({
         setVendorCodeInput(String(detail.CardCode ?? '').trim())
         setVendorNameInput(String(detail.CardName ?? '').trim())
         const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
-        let numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-        let remarks = String(detail.Comments ?? '').trim()
+        let referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+        const rawComments = String(detail.Comments ?? '').trim()
 
-        // SAP Service Layer auto-generates "Based on ..." in Comments for GRPO from PO,
-        // and may not store NumAtCard. If NumAtCard is empty but Comments has the
-        // auto-generated reference pattern, treat Comments as the reference.
-        const autoRefPattern = /^based on /i
-        if (!numAtCard && autoRefPattern.test(remarks)) {
-          numAtCard = remarks
-          remarks = ''
+        // Comments now stores the full reference chain (multi-line "Based on" trail) + remarks.
+        // Extract all "Based on" lines and merge with NumAtCard to build complete reference chain.
+        // Keep non-"Based on" lines as remarks.
+        const commentLines = rawComments
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+        const autoRefLines: string[] = []
+        const remarkLines: string[] = []
+        for (const line of commentLines) {
+          if (/^based on /i.test(line)) {
+            autoRefLines.push(line)
+          } else {
+            remarkLines.push(line)
+          }
         }
+        
+        // Merge auto-ref lines from Comments with existing NumAtCard, avoiding duplicates
+        // Build a set of lines already present in NumAtCard
+        const existingRefLineSet = new Set(
+          referenceNo
+            ? referenceNo.split('\n').map((l) => l.trim()).filter(Boolean)
+            : []
+        )
+        
+        // Add any new auto-ref lines from Comments that aren't already in NumAtCard
+        for (const autoLine of autoRefLines) {
+          if (!existingRefLineSet.has(autoLine)) {
+            referenceNo = referenceNo
+              ? `${referenceNo}\n${autoLine}`
+              : autoLine
+            existingRefLineSet.add(autoLine)
+          }
+        }
+        
+        const remarks = remarkLines.join('\n').trim()
 
         const matchedVendor = vendors.find(
           (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? '').trim(),
@@ -296,7 +326,6 @@ export function useGRPOCreate({
                   normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
               )?.name
             : ''
-        const referenceNo = numAtCard
 
         setBuyerInput(
           buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || '',
@@ -473,18 +502,45 @@ export function useGRPOCreate({
       buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || ''
 
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
-    const rawComments = String(detail.Comments ?? '').trim()
-    const splitComments = rawComments.split(' | ').map((part) => part.trim())
-    const hasReferenceMarker = splitComments.length > 1
-    const originalRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
-    const numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-    const referenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
+    const sourceComments = String(detail.Comments ?? '').trim()
+    const sourceNumAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
 
-    // Auto-generate reference if not present in source document
+    // Auto-generate reference for this copy step
     const autoReference = generateSingleSourceReference(currentSourceDocType, currentSourceDocNum)
-    const finalReferenceNo = referenceNo || autoReference
-    const referenceWasAutoFilled = !referenceNo
-    const remarks = originalRemarks
+
+    // Build reference chain: preserve existing reference + append new one
+    // Recover reference chain from Comments if NumAtCard is empty
+    // Comments stores: [referenceChain, remarks].join('\n'), so extract "Based on" lines
+    const commentLines = sourceComments
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+    const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line))
+
+    // Use NumAtCard if available, otherwise recover from Comments
+    const existingChain = sourceNumAtCard || refLinesFromComments.join('\n')
+    
+    const finalReferenceNo = existingChain
+      ? `${existingChain}\n${autoReference}`
+      : autoReference
+    const referenceWasAutoFilled = !existingChain
+
+    // Remarks comes from source Comments, but NOT auto-generated reference lines
+    // Filter out lines that start with "Based on" to keep only user-entered remarks
+    // Also filter out lines that already exist in the reference chain (to avoid duplication)
+    const existingRefLines = existingChain
+      ? existingChain.split('\n').map((l) => l.trim())
+      : []
+    const remarks = commentLines
+      .filter((line) => {
+        // Exclude "Based on" lines (auto-generated references)
+        if (/^based on /i.test(line)) return false
+        // Exclude lines that are already in the reference chain
+        if (existingRefLines.includes(line)) return false
+        return true
+      })
+      .join('\n')
+      .trim()
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
 
     void (async () => {
@@ -1127,18 +1183,12 @@ export function useGRPOCreate({
       const existingDocDueDate = String(detail?.DocDueDate ?? '')
         .slice(0, 10)
         .trim()
-      const rawComments = String(detail?.Comments ?? '').trim()
-      const splitComments = rawComments.split(' | ').map((part) => part.trim())
-      const hasReferenceMarker = splitComments.length > 1
-      const existingRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
       const currentDocDueDate = String(header.docDueDate ?? '').trim()
-      const currentRemarks = String(header.remarks ?? '').trim()
       const currentReferenceNo = String(header.referenceNo ?? '').trim()
       const existingReferenceNo = String(detail?.NumAtCard ?? '').trim()
 
       if (
         currentDocDueDate === existingDocDueDate &&
-        currentRemarks === existingRemarks.trim() &&
         currentReferenceNo === existingReferenceNo
       ) {
         const noChangeMessage = 'Change at least one field before update.'
@@ -1152,7 +1202,9 @@ export function useGRPOCreate({
     const payload = isEditMode
       ? {
           DocDueDate: header.docDueDate || undefined,
-          Comments: header.remarks.trim() || undefined,
+          Comments: [header.referenceNo.trim(), header.remarks.trim()]
+            .filter(Boolean)
+            .join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
         }
       : {
@@ -1160,7 +1212,9 @@ export function useGRPOCreate({
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           SalesPersonCode: resolvedSalesEmployeeCode,
-          Comments: header.remarks.trim() || undefined,
+          Comments: [header.referenceNo.trim(), header.remarks.trim()]
+            .filter(Boolean)
+            .join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
           DocumentLines: filteredRows.map((row) => {
             const hasCompleteBaseLink =
@@ -1234,6 +1288,8 @@ export function useGRPOCreate({
       setStockPreviewProduct(null)
       setFieldErrors(EMPTY_GRPO_FIELD_ERRORS)
       setCreateError(null)
+      hydratedDocNumRef.current = null
+      setHydratedDocNum(null)
 
       // Invalidate PO queries so PO edit shows updated quantities after GRPO save
       void queryClient.invalidateQueries({
@@ -1255,6 +1311,11 @@ export function useGRPOCreate({
         queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 10)),
         queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 100)),
       ])
+
+      // Notify parent to navigate away after successful create
+      if (!isEditMode) {
+        onCreateSuccess?.()
+      }
     } catch (error) {
       toastHandle.error()
       const errorMsg = normalizeCreateOrderErrorMessage(
@@ -1262,18 +1323,6 @@ export function useGRPOCreate({
         `Failed to ${isEditMode ? 'update' : 'create'} GRPO. Try again.`,
       )
       setCreateError(errorMsg)
-
-      // Map SAP duplicate reference errors (NumAtCard) to the UI field
-      if (
-        errorMsg.toLowerCase().includes('already exists') &&
-        (errorMsg.toLowerCase().includes('numatcard') ||
-          errorMsg.toLowerCase().includes('reference'))
-      ) {
-        setFieldErrors((prev) => ({
-          ...prev,
-          referenceNo: 'Customer Ref No already exists for this vendor.',
-        }))
-      }
     }
   }
 

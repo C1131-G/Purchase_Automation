@@ -1,4 +1,5 @@
 import { Lock } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
 // ReferenceGrid: Capture and display document-level remarks and attachments.
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
@@ -21,6 +22,65 @@ type ReferenceGridProps = {
 
 function Pulse({ className }: { className: string }) {
   return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />
+}
+
+function AutoResizeTextarea({
+  value,
+  disabled,
+  placeholder,
+  onChange,
+  onClick,
+  onFocus,
+  invalid,
+  invalidStyles,
+  disabledStyles,
+}: {
+  value: string
+  disabled: boolean
+  placeholder: string
+  onChange: (value: string) => void
+  onClick?: () => void
+  onFocus?: () => void
+  invalid?: boolean
+  invalidStyles: string
+  disabledStyles: string
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-resize based on content
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    
+    // Reset height to calculate scrollHeight
+    textarea.style.height = 'auto'
+    // Set height to scrollHeight (content height)
+    const newHeight = Math.max(72, textarea.scrollHeight) // min 72px (4.5rem)
+    textarea.style.height = `${newHeight}px`
+  }, [value])
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      readOnly={disabled}
+      aria-disabled={disabled}
+      onClick={() => {
+        if (disabled) onClick?.()
+      }}
+      onFocus={() => {
+        if (disabled) onFocus?.()
+      }}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      rows={1}
+      className={`w-full resize-y rounded-xl border px-4 py-2 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
+        invalid
+          ? invalidStyles
+          : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
+      } ${disabled ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100' : ''}`}
+    />
+  )
 }
 
 export function ReferenceGrid({
@@ -53,27 +113,18 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <Pulse className="h-11 w-full rounded-xl" />
+          <Pulse className="min-h-[4.5rem] w-full rounded-xl" />
         ) : (
-          <input
-            id="po-customer-ref-no"
-            type="text"
+          <AutoResizeTextarea
             value={referenceNo}
-            readOnly={referenceNoDisabled}
-            aria-disabled={referenceNoDisabled}
-            onClick={() => {
-              if (referenceNoDisabled) onReferenceNoDisabledClick?.()
-            }}
-            onFocus={() => {
-              if (referenceNoDisabled) onReferenceNoDisabledClick?.()
-            }}
-            onChange={(event) => onReferenceNoChange(event.target.value)}
+            disabled={referenceNoDisabled}
             placeholder="Reference"
-            className={`h-11 w-full rounded-xl border px-4 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
-              referenceNoInvalid
-                ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-            } ${referenceNoDisabled ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100' : ''}`}
+            onChange={onReferenceNoChange}
+            onClick={onReferenceNoDisabledClick}
+            onFocus={onReferenceNoDisabledClick}
+            invalid={referenceNoInvalid}
+            invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+            disabledStyles="border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100"
           />
         )}
         {referenceNoInvalid && referenceNoErrorText ? (
@@ -94,27 +145,18 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <Pulse className="h-11 w-full rounded-xl" />
+          <Pulse className="min-h-[4.5rem] w-full rounded-xl" />
         ) : (
-          <input
-            id="po-remarks"
-            type="text"
+          <AutoResizeTextarea
             value={comments}
-            readOnly={commentsDisabled}
-            aria-disabled={commentsDisabled}
-            onClick={() => {
-              if (commentsDisabled) onCommentsDisabledClick?.()
-            }}
-            onFocus={() => {
-              if (commentsDisabled) onCommentsDisabledClick?.()
-            }}
-            onChange={(event) => onCommentsChange(event.target.value)}
+            disabled={commentsDisabled}
             placeholder="Transaction Remarks"
-            className={`h-11 w-full rounded-xl border px-4 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
-              commentsInvalid
-                ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
-                : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-            } ${commentsDisabled ? 'cursor-not-allowed opacity-70' : ''}`}
+            onChange={onCommentsChange}
+            onClick={onCommentsDisabledClick}
+            onFocus={onCommentsDisabledClick}
+            invalid={commentsInvalid}
+            invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+            disabledStyles="cursor-not-allowed opacity-70"
           />
         )}
         {commentsInvalid && commentsErrorText ? (

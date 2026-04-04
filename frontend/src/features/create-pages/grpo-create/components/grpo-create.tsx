@@ -1,3 +1,4 @@
+import { useRouter } from '@tanstack/react-router'
 import { type MouseEvent, useState } from 'react'
 
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
@@ -36,11 +37,15 @@ export function GRPOCreate({
   sourceDocNum,
   sourceDocType,
 }: GRPOCreateProps) {
+  const router = useRouter()
   const state = useGRPOCreate({
     mode,
     docNum: docNum || '',
     sourceDocNum,
     sourceDocType,
+    onCreateSuccess: () => {
+      router.navigate({ to: '/purchase/grpo', replace: true })
+    },
   })
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)

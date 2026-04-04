@@ -80,6 +80,7 @@ interface UseAPInvoiceCreateOptions {
   docNum?: string
   sourceDocNum?: string | undefined
   sourceDocType?: 'PurchaseOrder' | 'GoodsReceiptPO' | undefined
+  onCreateSuccess?: () => void
 }
 
 const normalizeCodeForCompare = (value: unknown) => {
@@ -94,6 +95,7 @@ export function useAPInvoiceCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  onCreateSuccess,
 }: UseAPInvoiceCreateOptions) {
   const isEditMode = mode === 'edit'
   const editDocNum = (docNum ?? '').trim()
@@ -246,16 +248,44 @@ export function useAPInvoiceCreate({
       setVendorNameInput(String(detail.CardName ?? '').trim())
       const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
       let referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-      let remarks = String(detail.Comments ?? '').trim()
+      const rawComments = String(detail.Comments ?? '').trim()
 
-      // SAP Service Layer auto-generates "Based on ..." in Comments for copy-from flows,
-      // and may not store NumAtCard. If NumAtCard is empty but Comments has the
-      // auto-generated reference pattern, treat Comments as the reference.
-      const autoRefPattern = /^based on /i
-      if (!referenceNo && autoRefPattern.test(remarks)) {
-        referenceNo = remarks
-        remarks = ''
+      // Comments now stores the full reference chain (multi-line "Based on" trail) + remarks.
+      // Extract all "Based on" lines and merge with NumAtCard to build complete reference chain.
+      // Keep non-"Based on" lines as remarks.
+      const commentLines = rawComments
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+      const autoRefLines: string[] = []
+      const remarkLines: string[] = []
+      for (const line of commentLines) {
+        if (/^based on /i.test(line)) {
+          autoRefLines.push(line)
+        } else {
+          remarkLines.push(line)
+        }
       }
+      
+      // Merge auto-ref lines from Comments with existing NumAtCard, avoiding duplicates
+      // Build a set of lines already present in NumAtCard
+      const existingRefLineSet = new Set(
+        referenceNo
+          ? referenceNo.split('\n').map((l) => l.trim()).filter(Boolean)
+          : []
+      )
+      
+      // Add any new auto-ref lines from Comments that aren't already in NumAtCard
+      for (const autoLine of autoRefLines) {
+        if (!existingRefLineSet.has(autoLine)) {
+          referenceNo = referenceNo
+            ? `${referenceNo}\n${autoLine}`
+            : autoLine
+          existingRefLineSet.add(autoLine)
+        }
+      }
+      
+      const remarks = remarkLines.join('\n').trim()
 
       const matchedVendor = vendors.find(
         (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? '').trim(),
@@ -378,21 +408,45 @@ export function useAPInvoiceCreate({
     const buyerName = buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || ''
 
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
-    const rawComments = String(detail.Comments ?? '').trim()
-    const splitComments = rawComments.split(' | ').map((part) => part.trim())
-    const hasReferenceMarker = splitComments.length > 1
-    const originalRemarks = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+    const sourceComments = String(detail.Comments ?? '').trim()
+    const sourceNumAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
 
-    // Extract reference from source document if available
-    const numAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-    const sourceReferenceNo = numAtCard || (hasReferenceMarker ? (splitComments[0] ?? '') : '')
-
-    // Auto-generate reference if not present in source document
+    // Auto-generate reference for this copy step
     const autoReference = generateSingleSourceReference(currentSourceDocType, currentSourceDocNum)
-    const finalReferenceNo = sourceReferenceNo || autoReference
-    const referenceWasAutoFilled = !sourceReferenceNo
 
-    const remarks = originalRemarks
+    // Build reference chain: preserve existing reference + append new one
+    // Recover reference chain from Comments if NumAtCard is empty
+    // Comments stores: [referenceChain, remarks].join('\n'), so extract "Based on" lines
+    const commentLines = sourceComments
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+    const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line))
+
+    // Use NumAtCard if available, otherwise recover from Comments
+    const existingChain = sourceNumAtCard || refLinesFromComments.join('\n')
+    
+    const finalReferenceNo = existingChain
+      ? `${existingChain}\n${autoReference}`
+      : autoReference
+    const referenceWasAutoFilled = !existingChain
+
+    // Remarks comes from source Comments, but NOT auto-generated reference lines
+    // Filter out lines that start with "Based on" to keep only user-entered remarks
+    // Also filter out lines that already exist in the reference chain (to avoid duplication)
+    const existingRefLines = existingChain
+      ? existingChain.split('\n').map((l) => l.trim())
+      : []
+    const remarks = commentLines
+      .filter((line) => {
+        // Exclude "Based on" lines (auto-generated references)
+        if (/^based on /i.test(line)) return false
+        // Exclude lines that are already in the reference chain
+        if (existingRefLines.includes(line)) return false
+        return true
+      })
+      .join('\n')
+      .trim()
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
 
     void (async () => {
@@ -759,7 +813,9 @@ export function useAPInvoiceCreate({
         const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry
         const updatePayload = {
           DocDueDate: header.docDueDate || undefined,
-          Comments: header.remarks.trim() || undefined,
+          Comments: [header.referenceNo.trim(), header.remarks.trim()]
+            .filter(Boolean)
+            .join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
         }
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload })
@@ -768,7 +824,9 @@ export function useAPInvoiceCreate({
           CardCode: vendorCodeInput.trim(),
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
-          Comments: header.remarks.trim() || undefined,
+          Comments: [header.referenceNo.trim(), header.remarks.trim()]
+            .filter(Boolean)
+            .join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
@@ -789,6 +847,8 @@ export function useAPInvoiceCreate({
       toastHandle.success()
       if (!isEditMode) {
         resetAPInvoiceCreate()
+        hydratedDocNumRef.current = null
+        setHydratedDocNum(null)
 
         // Invalidate PO and GRPO queries so source docs show updated quantities after AP Invoice save
         void queryClient.invalidateQueries({
@@ -811,23 +871,14 @@ export function useAPInvoiceCreate({
             queryKey: grpoQueries.detailByDocNum(sourceDocNum).queryKey,
           })
         }
+
+        // Notify parent to navigate away after successful create
+        onCreateSuccess?.()
       }
     } catch (error) {
       toastHandle.error()
       const errorMsg = normalizeCreateOrderErrorMessage(error, 'Failed to process A/P Invoice.')
       setCreateError(errorMsg)
-
-      // Specifically handle SAP Business One duplicate reference errors (NumAtCard)
-      if (
-        errorMsg.toLowerCase().includes('already exists') &&
-        (errorMsg.toLowerCase().includes('numatcard') ||
-          errorMsg.toLowerCase().includes('reference'))
-      ) {
-        setFieldErrors((prev) => ({
-          ...prev,
-          referenceNo: 'Customer Ref No already exists for this vendor.',
-        }))
-      }
     }
   }
 

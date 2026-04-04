@@ -1,3 +1,4 @@
+import { useRouter } from '@tanstack/react-router'
 import { type MouseEvent, useState } from 'react'
 
 import { APInvoiceModals } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-modals'
@@ -32,11 +33,15 @@ export function APInvoiceCreate({
   sourceDocNum,
   sourceDocType,
 }: APInvoiceCreateProps) {
+  const router = useRouter()
   const state = useAPInvoiceCreate({
     mode,
     docNum: docNum || '',
     sourceDocNum,
     sourceDocType,
+    onCreateSuccess: () => {
+      router.navigate({ to: '/purchase/ap-invoice', replace: true })
+    },
   })
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)

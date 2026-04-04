@@ -224,35 +224,35 @@ export const getInvoiceByDocNum = async (sessionId: string, dbName: string, id: 
 
 // Creates a new A/P Invoice in SAP B1. Handles data mapping and date formatting.
 export const createInvoice = async (sessionId: string, payload: Record<string, unknown>) => {
+  // Build SAP payload in function scope so it's accessible in both try and catch blocks
+  const sapPayload: Record<string, unknown> = {
+    CardCode: payload.CardCode,
+    DocDate: payload.DocDate,
+    Comments: payload.Comments,
+    NumAtCard: payload.NumAtCard,
+    DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+      const docLine: Record<string, unknown> = {
+        ItemCode: item.ItemCode as string,
+        Quantity: item.Quantity as number,
+        UnitPrice: (item.UnitPrice || item.Price) as number,
+        UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
+        UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+        TaxCode: item.TaxCode as string,
+        WarehouseCode: item.WarehouseCode as string,
+        DiscountPercent: item.DiscountPercent as number,
+      };
+
+      if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
+        docLine.BaseType = item.BaseType;
+        docLine.BaseEntry = item.BaseEntry;
+        docLine.BaseLine = item.BaseLine;
+      }
+
+      return docLine;
+    }),
+  };
+
   try {
-    // Map the internal payload to the strict SAP Service Layer document format.
-    const sapPayload: Record<string, unknown> = {
-      CardCode: payload.CardCode,
-      DocDate: payload.DocDate,
-      Comments: payload.Comments,
-      NumAtCard: payload.NumAtCard,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
-        const docLine: Record<string, unknown> = {
-          ItemCode: item.ItemCode as string,
-          Quantity: item.Quantity as number,
-          UnitPrice: (item.UnitPrice || item.Price) as number,
-          UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
-          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-          TaxCode: item.TaxCode as string,
-          WarehouseCode: item.WarehouseCode as string,
-          DiscountPercent: item.DiscountPercent as number,
-        };
-
-        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
-          docLine.BaseType = item.BaseType;
-          docLine.BaseEntry = item.BaseEntry;
-          docLine.BaseLine = item.BaseLine;
-        }
-
-        return docLine;
-      }),
-    };
-
     // Ensure DocDate is in ISO YYYY-MM-DD format as required by SAP Service Layer.
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
@@ -284,6 +284,57 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
+    const errorMessage = error.message || "";
+
+    // SAP B1 enforces uniqueness on NumAtCard (Customer/Vendor Reference).
+    // For copy-to flows (PO/GRPO -> AP Invoice), the same source reference may be reused.
+    // Detect duplicate reference errors and retry with a unique suffix.
+    const isDuplicateRefError =
+      errorMessage.includes("duplicate") &&
+      (errorMessage.toLowerCase().includes("reference") ||
+        errorMessage.toLowerCase().includes("numatcard"));
+
+    if (isDuplicateRefError && sapPayload.NumAtCard) {
+      try {
+        // Append a timestamp-based suffix to make the reference unique
+        const originalRef = sapPayload.NumAtCard as string;
+        const uniqueSuffix = new Date().getTime().toString().slice(-6);
+        sapPayload.NumAtCard = `${originalRef} (${uniqueSuffix})`;
+
+        logger.info({
+          msg: "Retrying AP Invoice create with unique reference due to duplicate NumAtCard",
+          originalRef,
+          newRef: sapPayload.NumAtCard,
+        });
+
+        const result = (await serviceLayerClient.request(
+          sessionId,
+          "POST",
+          "/PurchaseInvoices",
+          sapPayload,
+        )) as SAPDocumentResponse;
+
+        const session = serviceLayerClient.getSession(sessionId);
+        if (session?.companyDB) {
+          purgeCache(`dash:purchase:${session.companyDB}:`);
+        }
+
+        return {
+          success: true,
+          message: "A/P Invoice created successfully",
+          DocEntry: result.DocEntry,
+          DocNum: result.DocNum,
+        };
+      } catch (retryErr: unknown) {
+        const retryError = retryErr instanceof Error ? retryErr : new Error(String(retryErr));
+        logger.error({
+          msg: "Failed to create A/P Invoice even after retry with unique reference",
+          error: retryError.message,
+        });
+        throw retryError;
+      }
+    }
+
     logger.error({ msg: "Failed to create A/P Invoice in Service Layer", error: error.message });
     throw error;
   }

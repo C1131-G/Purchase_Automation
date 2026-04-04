@@ -19,8 +19,9 @@ export const PCH1Schema = new EntitySchema<PCH1Line>({
   name: "PCH1",
   tableName: "PCH1",
   columns: {
-    docEntry: { type: "int" as HANAColumnType, name: "DocEntry" },
-    lineNum: { type: "int" as HANAColumnType, name: "LineNum" },
+    // Composite primary key: DocEntry + LineNum uniquely identifies each AP Invoice line.
+    docEntry: { primary: true, type: "int" as HANAColumnType, name: "DocEntry" },
+    lineNum: { primary: true, type: "int" as HANAColumnType, name: "LineNum" },
     itemCode: { type: "nvarchar" as HANAColumnType, length: 50, name: "ItemCode" },
     quantity: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "Quantity" },
     baseEntry: { type: "int" as HANAColumnType, name: "BaseEntry" },

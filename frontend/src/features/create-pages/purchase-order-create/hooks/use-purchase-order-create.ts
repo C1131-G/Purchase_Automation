@@ -55,6 +55,7 @@ type PurchaseOrderCreateMode = 'create' | 'edit'
 type UsePurchaseOrderCreateOptions = {
   mode?: PurchaseOrderCreateMode
   docNum?: string
+  onCreateSuccess?: () => void
 }
 
 export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) {
@@ -676,6 +677,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       modals.setProductPopupOpen(false)
       modals.setStockPreviewProduct(null)
       setCreateError(null)
+      hydratedDocNumRef.current = null
+      setHydratedDocNum(null)
+
+      // Notify parent to navigate away after successful create
+      if (!isEditMode) {
+        options?.onCreateSuccess?.()
+      }
     } catch (error) {
       toastHandle.error()
       const errorMsg = normalizeCreateOrderErrorMessage(
@@ -683,18 +691,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         `Failed to ${isEditMode ? 'update' : 'create'} purchase order. Try again.`,
       )
       setCreateError(errorMsg)
-
-      // Map SAP duplicate reference errors (NumAtCard) to the UI field
-      if (
-        errorMsg.toLowerCase().includes('already exists') &&
-        (errorMsg.toLowerCase().includes('numatcard') ||
-          errorMsg.toLowerCase().includes('reference'))
-      ) {
-        setProductSearchFieldErrors((prev) => ({
-          ...prev,
-          referenceNo: 'Reference already exists for this vendor.',
-        }))
-      }
     }
   }
 
