@@ -655,6 +655,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         if (currentDocNum) {
           void queryClient.prefetchQuery(purchaseOrderQueries.detailByDocNum(currentDocNum))
         }
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         return
       }
 
@@ -684,6 +685,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       setCreateError(null)
       hydratedDocNumRef.current = null
       setHydratedDocNum(null)
+
+      // Scroll to top after successful save
+      window.scrollTo({ top: 0, behavior: 'smooth' })
 
       // Notify parent to navigate away after successful create
       if (!isEditMode) {

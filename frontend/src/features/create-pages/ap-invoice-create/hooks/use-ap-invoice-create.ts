@@ -884,8 +884,13 @@ export function useAPInvoiceCreate({
             queryKey: grpoQueries.detailByDocNum(sourceDocNum).queryKey,
           })
         }
+      }
 
-        // Notify parent to navigate away after successful create
+      // Scroll to top after successful save
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+
+      // Notify parent to navigate away after successful create
+      if (!isEditMode) {
         onCreateSuccess?.()
       }
     } catch (error) {

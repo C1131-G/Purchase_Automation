@@ -1254,6 +1254,7 @@ export function useGRPOCreate({
         if (currentDocNum) {
           void queryClient.prefetchQuery(grpoQueries.detailByDocNum(currentDocNum))
         }
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         return
       }
 
@@ -1300,6 +1301,9 @@ export function useGRPOCreate({
         queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 10)),
         queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 100)),
       ])
+
+      // Scroll to top after successful save
+      window.scrollTo({ top: 0, behavior: 'smooth' })
 
       // Notify parent to navigate away after successful create
       if (!isEditMode) {
