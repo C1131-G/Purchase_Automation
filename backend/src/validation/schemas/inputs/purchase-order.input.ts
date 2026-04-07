@@ -151,7 +151,8 @@ export const CreatePurchaseOrderInputSchema = z.object({
     .string()
     .optional()
     .openapi({ example: "Urgent delivery required", description: "Comments" }),
-  Address: z.string().optional().openapi({ description: "Shipping/Billing Address" }),
+  Address: z.string().optional().openapi({ description: "Bill To Address" }),
+  Address2: z.string().optional().openapi({ description: "Ship To Address" }),
   DocumentLines: z
     .array(PurchaseOrderLineItemSchema)
     .min(1)
@@ -172,6 +173,7 @@ export const UpdatePurchaseOrderInputSchema = z
       .optional(),
     Comments: z.string().optional(),
     Address: z.string().optional(),
+    Address2: z.string().optional(),
     DocumentLines: z.array(PurchaseOrderLineItemSchema).min(1).optional(),
   })
   .strict();

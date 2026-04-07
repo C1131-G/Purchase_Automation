@@ -12,6 +12,9 @@ import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
+import { resolveBaseLineQuantities } from "./base-qty-validation.util";
+import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
+
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
   try {
@@ -374,13 +377,27 @@ export const getGRPOByDocNum = async (sessionId: string, dbName: string, id: str
 };
 
 // Creates a GRPO document in SAP. Crucially, it links each line back to its source Purchase Order.
-export const createGRPO = async (sessionId: string, payload: Record<string, unknown>) => {
+export const createGRPO = async (
+  sessionId: string,
+  payload: Record<string, unknown>,
+  dbName?: string,
+) => {
   try {
+    // Resolve base document quantities for copy-to flows before submitting to SAP.
+    // Lines exceeding their base open quantity will have their base linkage stripped
+    // so SAP accepts them as unlinked override rows.
+    const documentLines = (payload.DocumentLines as Array<Record<string, unknown>>) ?? [];
+    if (dbName && documentLines.length > 0) {
+      await resolveBaseLineQuantities(sessionId, documentLines);
+    }
+
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
       NumAtCard: payload.NumAtCard,
+      Address: payload.Address,
+      Address2: payload.Address2,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
@@ -435,6 +452,12 @@ export const createGRPO = async (sessionId: string, payload: Record<string, unkn
       purgeCache(`dash:purchase:${session.companyDB}:`);
     }
 
+    // Reconcile originating PO(s) after GRPO save.
+    // Walks back to the PO from base linkage and closes it if fully consumed.
+    if (dbName) {
+      await reconcilePOAfterCopyTo(sessionId, dbName, documentLines);
+    }
+
     return {
       success: true,
       message: "GRPO created successfully",
@@ -467,6 +490,12 @@ export const updateGRPO = async (
     }
     if (Object.prototype.hasOwnProperty.call(payload, "NumAtCard")) {
       sapPayload.NumAtCard = payload.NumAtCard;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "Address")) {
+      sapPayload.Address = payload.Address;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "Address2")) {
+      sapPayload.Address2 = payload.Address2;
     }
 
     await serviceLayerClient.request(

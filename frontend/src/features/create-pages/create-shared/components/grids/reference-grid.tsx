@@ -51,7 +51,7 @@ function AutoResizeTextarea({
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
-    
+
     // Reset height to calculate scrollHeight
     textarea.style.height = 'auto'
     // Set height to scrollHeight (content height)
@@ -78,7 +78,7 @@ function AutoResizeTextarea({
         invalid
           ? invalidStyles
           : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-      } ${disabled ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100' : ''}`}
+      } ${disabled ? disabledStyles : ''}`}
     />
   )
 }

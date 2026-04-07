@@ -76,8 +76,10 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
 
 // Creates a new A/P Invoice in SAP B1.
 export const createInvoice = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
   try {
-    const { sessionId } = req.session;
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const payload = req.body;
 
     // Validate the payload against the creation schema.
@@ -85,7 +87,7 @@ export const createInvoice = async (req: Request, res: Response, next: NextFunct
 
     logger.info({ msg: "Creating AP Invoice", vendor: validatedPayload.CardCode });
 
-    const result = await apInvoiceService.createInvoice(sessionId, validatedPayload);
+    const result = await apInvoiceService.createInvoice(sessionId, validatedPayload, dbName);
 
     logger.info({ msg: "A/P Invoice Created", docNum: result.DocNum });
 

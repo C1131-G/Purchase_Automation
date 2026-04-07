@@ -37,9 +37,7 @@ export function useGrpoProducts() {
     setRows((prev) =>
       prev.map((item) => {
         if (item.id !== rowId) return item
-        const max = typeof item.baseQuantity === 'number' ? item.baseQuantity : nextQuantity
-        const next = Math.max(0, Math.min(max, nextQuantity))
-        return { ...item, quantity: next }
+        return { ...item, quantity: Math.max(0, nextQuantity) }
       }),
     )
   }

@@ -185,7 +185,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
     const docDate = String(detail.DocDate ?? '').slice(0, 10)
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
-    const address = String(detail.Address ?? '').trim()
+    const billToAddress = String(detail.Address ?? '').trim()
+    const shipToAddress = String((detail as Record<string, unknown>).Address2 ?? '').trim()
 
     // Show loading toast when starting edit hydration
     if (!loadingToastRef.current) {
@@ -276,8 +277,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         lookups.setCodeInput(vendorCode)
         lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
-        lookups.setBillToAddress(address)
-        lookups.setShipToAddress(address)
+        lookups.setBillToAddress(billToAddress)
+        lookups.setShipToAddress(shipToAddress)
         productsHook.setProductRows(mappedRows)
         productsHook.setProductRowDrafts({})
 
@@ -538,6 +539,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             .filter(Boolean)
             .join(' | '),
           Address: String(detail.Address ?? '').trim() || undefined,
+          Address2: String((detail as Record<string, unknown>).Address2 ?? '').trim() || undefined,
           DocumentLines: (detail.DocumentLines ?? [])
             .filter((line) => Number(line.Quantity ?? 0) > 0)
             .map((line) => ({
@@ -560,7 +562,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -590,7 +593,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -608,7 +612,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             ItemCode: row.productCode,
             Quantity: row.quantity,

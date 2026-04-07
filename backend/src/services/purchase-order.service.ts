@@ -317,6 +317,7 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       DocDueDate: payload.DocDueDate || payload.DocDate,
       Comments: payload.Comments,
       Address: payload.Address,
+      Address2: payload.Address2,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const docLine: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
@@ -422,6 +423,7 @@ export const updatePurchaseOrder = async (
 
     if (payload.Comments !== undefined) sapPayload.Comments = payload.Comments;
     if (payload.Address !== undefined) sapPayload.Address = payload.Address;
+    if (payload.Address2 !== undefined) sapPayload.Address2 = payload.Address2;
     if (payload.DocDate !== undefined) sapPayload.DocDate = payload.DocDate;
     if (payload.DocDueDate !== undefined) sapPayload.DocDueDate = payload.DocDueDate;
     if (payload.SalesPersonCode !== undefined) sapPayload.SalesPersonCode = payload.SalesPersonCode;

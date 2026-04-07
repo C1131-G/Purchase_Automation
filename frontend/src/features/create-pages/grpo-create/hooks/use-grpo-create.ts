@@ -286,25 +286,26 @@ export function useGRPOCreate({
             remarkLines.push(line)
           }
         }
-        
+
         // Merge auto-ref lines from Comments with existing NumAtCard, avoiding duplicates
         // Build a set of lines already present in NumAtCard
         const existingRefLineSet = new Set(
           referenceNo
-            ? referenceNo.split('\n').map((l) => l.trim()).filter(Boolean)
-            : []
+            ? referenceNo
+                .split('\n')
+                .map((l) => l.trim())
+                .filter(Boolean)
+            : [],
         )
-        
+
         // Add any new auto-ref lines from Comments that aren't already in NumAtCard
         for (const autoLine of autoRefLines) {
           if (!existingRefLineSet.has(autoLine)) {
-            referenceNo = referenceNo
-              ? `${referenceNo}\n${autoLine}`
-              : autoLine
+            referenceNo = referenceNo ? `${referenceNo}\n${autoLine}` : autoLine
             existingRefLineSet.add(autoLine)
           }
         }
-        
+
         const remarks = remarkLines.join('\n').trim()
 
         const matchedVendor = vendors.find(
@@ -336,10 +337,11 @@ export function useGRPOCreate({
           referenceNo,
           remarks,
         })
-        // Set addresses from document (matching PO behavior)
-        const shipAddress = String(detail.Address ?? '').trim()
-        setBillToAddress(shipAddress)
-        setShipToAddress(shipAddress)
+        // Set addresses from document: Address = Bill To, Address2 = Ship To
+        const billAddr = String(detail.Address ?? '').trim()
+        const shipAddr = String((detail as Record<string, unknown>).Address2 ?? '').trim()
+        setBillToAddress(billAddr)
+        setShipToAddress(shipAddr)
         const detailLines = detail.DocumentLines ?? []
         const stockByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
         const uniqueItemCodes = [
@@ -427,10 +429,9 @@ export function useGRPOCreate({
         })
         setLines(mappedLines)
         setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim())
-        // Set addresses from document (matching PO behavior)
-        const address = String(detail.Address ?? '').trim()
-        setBillToAddress(address)
-        setShipToAddress(address)
+        // Set addresses from document: Address = Bill To, Address2 = Ship To
+        setBillToAddress(String(detail.Address ?? '').trim())
+        setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? '').trim())
         if (isMetadataLoaded) {
           hydratedDocNumRef.current = currentDocNum
         }
@@ -519,18 +520,14 @@ export function useGRPOCreate({
 
     // Use NumAtCard if available, otherwise recover from Comments
     const existingChain = sourceNumAtCard || refLinesFromComments.join('\n')
-    
-    const finalReferenceNo = existingChain
-      ? `${existingChain}\n${autoReference}`
-      : autoReference
+
+    const finalReferenceNo = existingChain ? `${existingChain}\n${autoReference}` : autoReference
     const referenceWasAutoFilled = !existingChain
 
     // Remarks comes from source Comments, but NOT auto-generated reference lines
     // Filter out lines that start with "Based on" to keep only user-entered remarks
     // Also filter out lines that already exist in the reference chain (to avoid duplication)
-    const existingRefLines = existingChain
-      ? existingChain.split('\n').map((l) => l.trim())
-      : []
+    const existingRefLines = existingChain ? existingChain.split('\n').map((l) => l.trim()) : []
     const remarks = commentLines
       .filter((line) => {
         // Exclude "Based on" lines (auto-generated references)
@@ -629,10 +626,9 @@ export function useGRPOCreate({
       setVendorNameInput(vendorName)
       setBuyerInput(buyerName)
       setWarehouseInput(warehouseCode)
-      // Set addresses from source document (matching PO behavior)
-      const shipAddress = String(detail.Address ?? '').trim()
-      setBillToAddress(shipAddress)
-      setShipToAddress(shipAddress)
+      // Set addresses from source document: Address = Bill To, Address2 = Ship To
+      setBillToAddress(String(detail.Address ?? '').trim())
+      setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? '').trim())
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -1091,11 +1087,7 @@ export function useGRPOCreate({
       prev.map((row) => {
         if (row.id !== id) return row
         const next: GRPOLineItemState = { ...row, ...patch }
-        if (typeof next.baseQuantity === 'number' && Number.isFinite(next.baseQuantity)) {
-          next.quantity = Math.max(0, Math.min(next.baseQuantity, Number(next.quantity) || 0))
-        } else {
-          next.quantity = Math.max(0, Number(next.quantity) || 0)
-        }
+        next.quantity = Math.max(0, Number(next.quantity) || 0)
         return next
       }),
     )
@@ -1187,10 +1179,7 @@ export function useGRPOCreate({
       const currentReferenceNo = String(header.referenceNo ?? '').trim()
       const existingReferenceNo = String(detail?.NumAtCard ?? '').trim()
 
-      if (
-        currentDocDueDate === existingDocDueDate &&
-        currentReferenceNo === existingReferenceNo
-      ) {
+      if (currentDocDueDate === existingDocDueDate && currentReferenceNo === existingReferenceNo) {
         const noChangeMessage = 'Change at least one field before update.'
         setCreateError(noChangeMessage)
         goeyToast.error(noChangeMessage, { id: 'no-change-update-toast' })
@@ -1202,20 +1191,20 @@ export function useGRPOCreate({
     const payload = isEditMode
       ? {
           DocDueDate: header.docDueDate || undefined,
-          Comments: [header.referenceNo.trim(), header.remarks.trim()]
-            .filter(Boolean)
-            .join('\n'),
+          Comments: [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
         }
       : {
           CardCode: vendorCodeInput.trim(),
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           SalesPersonCode: resolvedSalesEmployeeCode,
-          Comments: [header.referenceNo.trim(), header.remarks.trim()]
-            .filter(Boolean)
-            .join('\n'),
+          Comments: [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
           DocumentLines: filteredRows.map((row) => {
             const hasCompleteBaseLink =
               Number.isFinite(row.baseEntry) &&

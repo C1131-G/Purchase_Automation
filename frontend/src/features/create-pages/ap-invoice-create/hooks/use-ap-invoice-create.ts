@@ -266,25 +266,26 @@ export function useAPInvoiceCreate({
           remarkLines.push(line)
         }
       }
-      
+
       // Merge auto-ref lines from Comments with existing NumAtCard, avoiding duplicates
       // Build a set of lines already present in NumAtCard
       const existingRefLineSet = new Set(
         referenceNo
-          ? referenceNo.split('\n').map((l) => l.trim()).filter(Boolean)
-          : []
+          ? referenceNo
+              .split('\n')
+              .map((l) => l.trim())
+              .filter(Boolean)
+          : [],
       )
-      
+
       // Add any new auto-ref lines from Comments that aren't already in NumAtCard
       for (const autoLine of autoRefLines) {
         if (!existingRefLineSet.has(autoLine)) {
-          referenceNo = referenceNo
-            ? `${referenceNo}\n${autoLine}`
-            : autoLine
+          referenceNo = referenceNo ? `${referenceNo}\n${autoLine}` : autoLine
           existingRefLineSet.add(autoLine)
         }
       }
-      
+
       const remarks = remarkLines.join('\n').trim()
 
       const matchedVendor = vendors.find(
@@ -306,10 +307,9 @@ export function useAPInvoiceCreate({
         referenceNo,
         remarks,
       })
-      // Set addresses from document (matching PO behavior)
-      const shipAddress = String(detail.Address ?? '').trim()
-      setBillToAddress(shipAddress)
-      setShipToAddress(shipAddress)
+      // Set addresses from document: Address = Bill To, Address2 = Ship To
+      setBillToAddress(String(detail.Address ?? '').trim())
+      setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? '').trim())
       const detailLines = detail.DocumentLines ?? []
 
       const taxRateByItemCode = await resolveProductTaxRates(
@@ -425,18 +425,14 @@ export function useAPInvoiceCreate({
 
     // Use NumAtCard if available, otherwise recover from Comments
     const existingChain = sourceNumAtCard || refLinesFromComments.join('\n')
-    
-    const finalReferenceNo = existingChain
-      ? `${existingChain}\n${autoReference}`
-      : autoReference
+
+    const finalReferenceNo = existingChain ? `${existingChain}\n${autoReference}` : autoReference
     const referenceWasAutoFilled = !existingChain
 
     // Remarks comes from source Comments, but NOT auto-generated reference lines
     // Filter out lines that start with "Based on" to keep only user-entered remarks
     // Also filter out lines that already exist in the reference chain (to avoid duplication)
-    const existingRefLines = existingChain
-      ? existingChain.split('\n').map((l) => l.trim())
-      : []
+    const existingRefLines = existingChain ? existingChain.split('\n').map((l) => l.trim()) : []
     const remarks = commentLines
       .filter((line) => {
         // Exclude "Based on" lines (auto-generated references)
@@ -498,10 +494,9 @@ export function useAPInvoiceCreate({
       setVendorNameInput(vendorName)
       setBuyerInput(buyerName)
       setWarehouseInput(warehouseCode)
-      // Set addresses from source document (matching PO behavior)
-      const shipAddress = String(detail.Address ?? '').trim()
-      setBillToAddress(shipAddress)
-      setShipToAddress(shipAddress)
+      // Set addresses from source document: Address = Bill To, Address2 = Ship To
+      setBillToAddress(String(detail.Address ?? '').trim())
+      setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? '').trim())
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -813,9 +808,7 @@ export function useAPInvoiceCreate({
         const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry
         const updatePayload = {
           DocDueDate: header.docDueDate || undefined,
-          Comments: [header.referenceNo.trim(), header.remarks.trim()]
-            .filter(Boolean)
-            .join('\n'),
+          Comments: [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
         }
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload })
@@ -824,9 +817,7 @@ export function useAPInvoiceCreate({
           CardCode: vendorCodeInput.trim(),
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
-          Comments: [header.referenceNo.trim(), header.remarks.trim()]
-            .filter(Boolean)
-            .join('\n'),
+          Comments: [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join('\n'),
           NumAtCard: header.referenceNo.trim() || undefined,
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,

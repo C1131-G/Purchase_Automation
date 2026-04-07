@@ -149,6 +149,7 @@ export const createGRPO = async (req: Request, res: Response, next: NextFunction
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const payload = req.body;
 
     // Validate the payload to ensure all required fields for document creation are present.
@@ -156,7 +157,7 @@ export const createGRPO = async (req: Request, res: Response, next: NextFunction
 
     logger.info({ msg: "Creating GRPO", vendor: validatedPayload.CardCode });
 
-    const result = await grpoService.createGRPO(sessionId, validatedPayload);
+    const result = await grpoService.createGRPO(sessionId, validatedPayload, dbName);
 
     logger.info({ msg: "GRPO Created", docNum: result.DocNum });
 

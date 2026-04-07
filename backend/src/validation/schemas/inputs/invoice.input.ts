@@ -115,7 +115,8 @@ export const CreateInvoiceInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
   Comments: z.string().optional(),
-  Address: z.string().optional(),
+  Address: z.string().optional().openapi({ description: "Bill To Address" }),
+  Address2: z.string().optional().openapi({ description: "Ship To Address" }),
   NumAtCard: z.string().optional(), // Customer/Vendor reference number (BP Ref No).
   DocumentLines: z.array(InvoiceLineItemSchema).min(1),
 });
