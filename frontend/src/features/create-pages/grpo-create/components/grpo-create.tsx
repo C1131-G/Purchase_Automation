@@ -44,7 +44,7 @@ export function GRPOCreate({
     sourceDocNum,
     sourceDocType,
     onCreateSuccess: () => {
-      router.navigate({ to: '/purchase/grpo', replace: true })
+      router.navigate({ to: '/purchase/create-grpo', search: {}, replace: true })
     },
   })
 

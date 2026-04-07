@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useRouter } from '@tanstack/react-router'
 import { type MouseEvent } from 'react'
 
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
@@ -31,15 +30,11 @@ interface PurchaseOrderCreateProps {
  */
 export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCreateProps) {
   const queryClient = useQueryClient()
-  const router = useRouter()
   const state = usePurchaseOrderCreate(
     docNum
       ? {
           mode,
           docNum,
-          onCreateSuccess: () => {
-            router.navigate({ to: '/purchase/orders', replace: true })
-          },
         }
       : { mode },
   )

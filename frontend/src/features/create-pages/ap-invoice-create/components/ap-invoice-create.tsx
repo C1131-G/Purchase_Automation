@@ -40,7 +40,7 @@ export function APInvoiceCreate({
     sourceDocNum,
     sourceDocType,
     onCreateSuccess: () => {
-      router.navigate({ to: '/purchase/ap-invoice', replace: true })
+      router.navigate({ to: '/purchase/create-ap-invoice', search: {}, replace: true })
     },
   })
 

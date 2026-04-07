@@ -135,16 +135,6 @@ export function ProductPopupModal({
     }
   }
 
-  const allSelected = safeResults.length > 0 && safeResults.every((p) => selectedCodes.has(p.code))
-
-  const toggleAll = () => {
-    if (allSelected) {
-      setSelectedCodes(new Set())
-    } else {
-      setSelectedCodes(new Set(safeResults.map((p) => p.code)))
-    }
-  }
-
   const renderedRows = useMemo(
     () =>
       safeResults.map((product) => (
@@ -210,18 +200,7 @@ export function ProductPopupModal({
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 z-10 bg-zinc-50 text-zinc-600">
                 <tr>
-                  <th className="w-10 px-3 py-2">
-                    <button
-                      onClick={toggleAll}
-                      className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all ${
-                        allSelected
-                          ? 'border-blue-500 bg-blue-500 text-white'
-                          : 'border-zinc-300 bg-white'
-                      }`}
-                    >
-                      {allSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                    </button>
-                  </th>
+                  <th className="w-10 px-3 py-2" />
                   <th className="whitespace-nowrap px-3 py-2">Code</th>
                   <th className="whitespace-nowrap px-3 py-2">Name</th>
                   <th className="whitespace-nowrap px-3 py-2">Stock</th>
