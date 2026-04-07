@@ -129,6 +129,7 @@ export function GRPOCreate({
               vendorCodeErrorText={state.fieldErrors.vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -151,6 +152,7 @@ export function GRPOCreate({
               salesEmployeeLabel="BUYER"
               salesEmployeePlaceholder="Select Buyer"
               salesEmployeeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -184,6 +186,7 @@ export function GRPOCreate({
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
+          uniformReadOnlyAppearance={state.isEditMode}
         />
       </div>
 
@@ -199,6 +202,7 @@ export function GRPOCreate({
               billToAddress={state.billToAddress}
               shipToAddress={state.shipToAddress}
               readOnly={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
             />
@@ -210,6 +214,7 @@ export function GRPOCreate({
           referenceNo={state.referenceNo}
           comments={state.remarks}
           referenceNoDisabled={false}
+          uniformReadOnlyAppearance={state.isEditMode}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}

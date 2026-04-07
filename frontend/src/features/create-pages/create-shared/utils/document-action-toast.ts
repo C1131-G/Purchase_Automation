@@ -7,8 +7,13 @@ import { goeyToast } from 'goey-toast'
  *
  * @param documentType - Human-readable document name, e.g. "Purchase Order".
  * @param action - Mutation intent, either create or update.
+ * @param docNum - Optional document number, shown in the success message.
  */
-export function documentActionToast(documentType: string, action: 'create' | 'update' = 'create') {
+export function documentActionToast(
+  documentType: string,
+  action: 'create' | 'update' = 'create',
+  docNum?: string | number,
+) {
   const verb = action === 'update' ? 'Updating' : 'Creating'
   const successVerb = action === 'update' ? 'updated' : 'created'
   const failureText = action === 'update' ? 'Update failed' : 'Create failed'
@@ -19,9 +24,10 @@ export function documentActionToast(documentType: string, action: 'create' | 'up
   })
 
   return {
-    success: (docNum?: string | number) => {
+    success: (docNumOverride?: string | number) => {
       goeyToast.dismiss(loadingId)
-      const docSuffix = docNum ? ` ${docNum}` : ''
+      const resolvedDocNum = docNumOverride ?? docNum
+      const docSuffix = resolvedDocNum ? ` ${resolvedDocNum}` : ''
       goeyToast.success(`${documentType}${docSuffix} ${successVerb}`, {
         duration: 5000, // 5 seconds
       })

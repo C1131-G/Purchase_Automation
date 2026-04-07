@@ -35,6 +35,7 @@ type VendorCustomerGridProps = {
   codeDisabled?: boolean
   nameEditableHighlight?: boolean
   codeEditableHighlight?: boolean
+  uniformReadOnlyAppearance?: boolean
 }
 
 export function VendorCustomerGrid({
@@ -68,6 +69,7 @@ export function VendorCustomerGrid({
   codeDisabled = false,
   nameEditableHighlight = false,
   codeEditableHighlight = false,
+  uniformReadOnlyAppearance = false,
 }: VendorCustomerGridProps) {
   return (
     <SectionCard title={sectionTitle} className="lg:col-span-1">
@@ -90,6 +92,7 @@ export function VendorCustomerGrid({
           errorText={vendorNameErrorText}
           disabled={nameDisabled}
           editableHighlight={nameEditableHighlight}
+          uniformReadOnlyAppearance={uniformReadOnlyAppearance}
         />
         {nameFocused ? (
           <SuggestionList
@@ -115,6 +118,7 @@ export function VendorCustomerGrid({
           errorText={vendorCodeErrorText}
           disabled={codeDisabled}
           editableHighlight={codeEditableHighlight}
+          uniformReadOnlyAppearance={uniformReadOnlyAppearance}
         />
         {codeFocused ? (
           <SuggestionList

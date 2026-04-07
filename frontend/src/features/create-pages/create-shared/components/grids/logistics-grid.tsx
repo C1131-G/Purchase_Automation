@@ -23,6 +23,7 @@ type LogisticsGridProps = {
   salesEmployeeDisabled?: boolean
   salesEmployeeEditableHighlight?: boolean
   readOnly?: boolean
+  uniformReadOnlyAppearance?: boolean
 }
 
 export function LogisticsGrid({
@@ -43,6 +44,7 @@ export function LogisticsGrid({
   salesEmployeeDisabled = false,
   salesEmployeeEditableHighlight = false,
   readOnly = false,
+  uniformReadOnlyAppearance = false,
 }: LogisticsGridProps) {
   return (
     <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1 min-h-[220px]">
@@ -78,6 +80,7 @@ export function LogisticsGrid({
             errorText={salesEmployeeErrorText}
             disabled={salesEmployeeDisabled}
             editableHighlight={salesEmployeeEditableHighlight}
+            uniformReadOnlyAppearance={uniformReadOnlyAppearance}
           />
           {salesEmployeeFocused ? (
             <SuggestionList

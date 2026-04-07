@@ -1232,6 +1232,7 @@ export function useGRPOCreate({
 
     const toastHandle = documentActionToast('GRPO', isEditMode ? 'update' : 'create')
     try {
+      let createdDocNum: number | undefined
       if (isEditMode) {
         const detail = editDetailQuery.data?.data
         const id = detail?.id ?? detail?.DocEntry
@@ -1245,9 +1246,10 @@ export function useGRPOCreate({
           payload,
         })
       } else {
-        await createMutation.mutateAsync({ payload })
+        const result = await createMutation.mutateAsync({ payload })
+        createdDocNum = result?.data?.DocNum
       }
-      toastHandle.success()
+      toastHandle.success(createdDocNum)
 
       if (isEditMode) {
         const currentDocNum = (docNum ?? '').trim()

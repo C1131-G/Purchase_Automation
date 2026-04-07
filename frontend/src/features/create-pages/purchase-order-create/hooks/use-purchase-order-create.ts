@@ -628,6 +628,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
     const toastHandle = documentActionToast('Purchase Order', isEditMode ? 'update' : 'create')
     try {
+      let createdDocNum: number | undefined
       if (isEditMode) {
         const detail = editDetailQuery.data?.data
         const docEntry = detail?.DocEntry ?? detail?.id
@@ -638,9 +639,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         }
         await updatePurchaseOrderMutation.mutateAsync({ id: docEntry, payload })
       } else {
-        await createPurchaseOrderMutation.mutateAsync({ payload })
+        const result = await createPurchaseOrderMutation.mutateAsync({ payload })
+        createdDocNum = result?.data?.DocNum
       }
-      toastHandle.success()
+      toastHandle.success(createdDocNum)
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all })

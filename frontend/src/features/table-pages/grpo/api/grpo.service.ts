@@ -67,6 +67,10 @@ export type GRPOCreatePODetail = {
 export type GRPOCreatePODetailResponse = { success: boolean; data: GRPOCreatePODetail }
 export type CreateGRPOPayload = Record<string, unknown>
 export type UpdateGRPOPayload = Record<string, unknown>
+export type CreateGRPOResponse = {
+  success: boolean
+  data: { DocEntry: number; DocNum: number }
+}
 
 export type GRPODetailLine = {
   ItemCode?: string
@@ -128,7 +132,7 @@ export const grpoAPI = {
     return apiClient<GRPOCreatePODetailResponse>(`/api/v1/grpos/po-detail/${id}`)
   },
   createGRPO: async (payload: CreateGRPOPayload) => {
-    return apiClient<unknown>('/api/v1/grpos', {
+    return apiClient<CreateGRPOResponse>('/api/v1/grpos', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

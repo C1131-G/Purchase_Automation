@@ -804,6 +804,7 @@ export function useAPInvoiceCreate({
 
     const toastHandle = documentActionToast('A/P Invoice', isEditMode ? 'update' : 'create')
     try {
+      let createdDocNum: number | undefined
       if (isEditMode) {
         const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry
         const updatePayload = {
@@ -833,9 +834,10 @@ export function useAPInvoiceCreate({
             BaseLine: row.baseLine,
           })),
         }
-        await createMutation.mutateAsync({ payload: createPayload })
+        const result = await createMutation.mutateAsync({ payload: createPayload })
+        createdDocNum = result?.data?.DocNum
       }
-      toastHandle.success()
+      toastHandle.success(createdDocNum)
       if (!isEditMode) {
         resetAPInvoiceCreate()
         setVendorNameInput('')

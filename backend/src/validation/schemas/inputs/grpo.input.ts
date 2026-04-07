@@ -130,6 +130,10 @@ export const CreateGRPOInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
+  DocDueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
   Comments: z.string().optional(),
   NumAtCard: z.string().optional(),
   Address: z.string().optional().openapi({ description: "Bill To Address" }),

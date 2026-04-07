@@ -127,6 +127,7 @@ export function APInvoiceCreate({
               vendorCodeErrorText={state.fieldErrors.vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -149,6 +150,7 @@ export function APInvoiceCreate({
               salesEmployeeLabel="BUYER"
               salesEmployeePlaceholder="Select Buyer"
               salesEmployeeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -182,6 +184,7 @@ export function APInvoiceCreate({
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
+          uniformReadOnlyAppearance={state.isEditMode}
         />
       </div>
 
@@ -197,6 +200,7 @@ export function APInvoiceCreate({
               billToAddress={state.billToAddress}
               shipToAddress={state.shipToAddress}
               readOnly={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
             />
@@ -208,6 +212,7 @@ export function APInvoiceCreate({
           referenceNo={state.referenceNo}
           comments={state.remarks}
           referenceNoDisabled={state.isClosed}
+          uniformReadOnlyAppearance={state.isEditMode}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}

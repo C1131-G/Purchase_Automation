@@ -235,6 +235,7 @@ export const createInvoice = async (
   const sapPayload: Record<string, unknown> = {
     CardCode: payload.CardCode,
     DocDate: payload.DocDate,
+    DocDueDate: payload.DocDueDate || payload.DocDate,
     Comments: payload.Comments,
     NumAtCard: payload.NumAtCard,
     Address: payload.Address,
@@ -277,6 +278,13 @@ export const createInvoice = async (
         4,
         6,
       )}-${docDate.substring(6, 8)}`;
+    }
+    const docDueDate = sapPayload.DocDueDate as string;
+    if (docDueDate && docDueDate.length === 8) {
+      sapPayload.DocDueDate = `${docDueDate.substring(0, 4)}-${docDueDate.substring(
+        4,
+        6,
+      )}-${docDueDate.substring(6, 8)}`;
     }
 
     // Create the purchase invoice document in SAP.
