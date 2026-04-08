@@ -226,7 +226,7 @@ export function APInvoiceLookupLayer({ tableId, table, onReset }: APInvoiceLooku
         }
         onSearchChange={handleLookupSearchChange}
         onClose={handleLookupPopupClose}
-        onSelect={handleLookupSelect}
+        onSelect={(item) => handleLookupSelect(item, lookupColumnId)}
       />
     </>
   )

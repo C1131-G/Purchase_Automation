@@ -236,7 +236,7 @@ export function PurchaseOrderLookupLayer({
         }
         onSearchChange={handleLookupSearchChange}
         onClose={handleLookupPopupClose}
-        onSelect={handleLookupSelect}
+        onSelect={(item) => handleLookupSelect(item, lookupColumnId)}
       />
     </>
   )

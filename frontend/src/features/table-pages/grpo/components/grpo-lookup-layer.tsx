@@ -224,7 +224,7 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
         }
         onSearchChange={handleLookupSearchChange}
         onClose={handleLookupPopupClose}
-        onSelect={handleLookupSelect}
+        onSelect={(item) => handleLookupSelect(item, lookupColumnId)}
       />
     </>
   )

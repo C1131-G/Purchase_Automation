@@ -1,4 +1,4 @@
-import { type FormEvent, type KeyboardEvent, useMemo, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 
 import { DebouncedInput } from '@/components/input/debounced-input'
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
@@ -45,8 +45,52 @@ export function TextFilterSearch<TData>({
   externalSelection,
   className,
 }: TextFilterSearchProps<TData>) {
-  const [liveValue, setLiveValue] = useState('')
+  const initialLiveValue = useMemo(() => {
+    return activeFilterValue === undefined || activeFilterValue === null
+      ? ''
+      : String(activeFilterValue)
+  }, [activeFilterValue])
+
+  const [liveValue, setLiveValue] = useState(initialLiveValue)
   const [isFocused, setIsFocused] = useState(false)
+  const [explicitlyCleared, setExplicitlyCleared] = useState(false)
+
+  // Sync liveValue when the active column changes (column switch) or when the filter
+  // value changes to something materially different from what we're displaying.
+  // This prevents stale state from leaking across columns while preserving the
+  // displayed value during normal interaction.
+  const prevActiveColumnIdRef = useRef<string | undefined>(activeColumnId)
+  const prevActiveFilterValueRef = useRef<unknown>(activeFilterValue)
+
+  useEffect(() => {
+    const columnChanged = prevActiveColumnIdRef.current !== activeColumnId
+    const filterChanged = prevActiveFilterValueRef.current !== activeFilterValue
+
+    if (columnChanged) {
+      prevActiveColumnIdRef.current = activeColumnId
+      prevActiveFilterValueRef.current = activeFilterValue
+      const newVal =
+        activeFilterValue === undefined || activeFilterValue === null
+          ? ''
+          : String(activeFilterValue)
+      setLiveValue(newVal)
+      setExplicitlyCleared(false)
+    } else if (filterChanged) {
+      prevActiveFilterValueRef.current = activeFilterValue
+      // Only sync if the filter was cleared externally (e.g., reset) and we haven't
+      // explicitly cleared ourselves — this catches the reset-to-default case.
+      const currentFilter =
+        activeFilterValue === undefined || activeFilterValue === null ? '' : String(activeFilterValue)
+      if (currentFilter === '' && !explicitlyCleared) {
+        setLiveValue('')
+      } else if (currentFilter !== '' && explicitlyCleared) {
+        // Filter was re-applied after explicit clear — reset the flag.
+        setExplicitlyCleared(false)
+        setLiveValue(currentFilter)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeColumnId, activeFilterValue, explicitlyCleared])
 
   const mirroredExternalValue = useMemo(() => {
     if (!externalSelection || externalSelection.columnId !== activeColumnId) return null
@@ -55,10 +99,11 @@ export function TextFilterSearch<TData>({
       : externalSelection.item.code
   }, [externalSelection, activeColumnId])
 
-  const activeFilterText =
-    activeFilterValue === undefined || activeFilterValue === null ? '' : String(activeFilterValue)
-  const effectiveInputValue = mirroredExternalValue ?? activeFilterText
-  const effectiveLiveValue = mirroredExternalValue ?? (isFocused ? liveValue : effectiveInputValue)
+  // liveValue is the stable source of truth for the input display.
+  // It is set on column switch, on selection, on clear, and on external filter changes.
+  // mirroredExternalValue is only used during active popup typing to sync typed text.
+  const effectiveInputValue = liveValue || mirroredExternalValue || ''
+  const effectiveLiveValue = isFocused ? liveValue : effectiveInputValue
 
   const tableDocNumSuggestions = useMemo(() => {
     if (!DOC_NUM_COLUMNS.has(activeColumnId)) return []
@@ -167,20 +212,12 @@ export function TextFilterSearch<TData>({
     CARD_NAME_COLUMNS.has(activeColumnId) ? item.name : item.code
 
   /**
-   * Applies a lookup item selection uniformly across all lookup column types.
-   * For CardCode/CardName, also syncs the partner column.
+   * Applies a lookup item selection to the active column only.
+   * Each column is independent — CardCode does not touch CardName, and vice versa.
    */
   const applyLookupSelection = (item: LookupItem) => {
     setIsFocused(false)
     const displayValue = getLookupDisplayValue(item)
-
-    // Cross-column sync for vendor columns
-    if (CARD_CODE_COLUMNS.has(activeColumnId) || CARD_NAME_COLUMNS.has(activeColumnId)) {
-      const codeColumn = table.getColumn('CardCode')
-      const nameColumn = table.getColumn('CardName')
-      if (codeColumn) codeColumn.setFilterValue(item.code)
-      if (nameColumn) nameColumn.setFilterValue(item.name)
-    }
 
     applySearchImmediately(displayValue)
     onSelectSuggestion?.(item, activeColumnId)
@@ -189,14 +226,7 @@ export function TextFilterSearch<TData>({
   const handleSelectSuggestion = (item: LookupItem) => applyLookupSelection(item)
 
   const handleClearInput = () => {
-    // For vendor columns, also clear the partner column
-    if (CARD_CODE_COLUMNS.has(activeColumnId) || CARD_NAME_COLUMNS.has(activeColumnId)) {
-      const codeColumn = table.getColumn('CardCode')
-      const nameColumn = table.getColumn('CardName')
-      if (codeColumn) codeColumn.setFilterValue(undefined)
-      if (nameColumn) nameColumn.setFilterValue(undefined)
-    }
-    // Unified clear — applies to DocNum and vendor columns alike
+    setExplicitlyCleared(true)
     applySearchImmediately('')
     // Reopen suggestions for all lookup-style columns
     if (isDocLookupStyleColumn) {

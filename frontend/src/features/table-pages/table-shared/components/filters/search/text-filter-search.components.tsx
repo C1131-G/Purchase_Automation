@@ -4,8 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { cn } from '@/shared/utils/cn'
 
-const LOOKUP_STYLE_COLUMNS = new Set(['DocNum', 'CardCode', 'CardName'])
-
 type SearchLeftIconProps = {
   visible: boolean
 }
@@ -189,11 +187,6 @@ export function SuggestionsDropdown({
       <div ref={listRef} className="max-h-64 overflow-auto" onScroll={handleScroll}>
         {visibleSuggestions.map((item) => {
           const isCardName = activeColumnId === 'CardName'
-          const isDocLookupStyle = LOOKUP_STYLE_COLUMNS.has(activeColumnId)
-
-          // Show both if we have data and it's a lookup column (DocNum/CardCode/CardName)
-          const hasRichData = item.name && item.name !== item.code
-          const showBoth = isDocLookupStyle && hasRichData
 
           return (
             <button
@@ -214,11 +207,6 @@ export function SuggestionsDropdown({
                 >
                   {isCardName ? item.name : item.code}
                 </span>
-                {showBoth && (
-                  <span className="text-[11px] leading-4 text-zinc-400 font-normal truncate max-w-[65%]">
-                    {isCardName ? item.code : item.name}
-                  </span>
-                )}
               </div>
             </button>
           )
