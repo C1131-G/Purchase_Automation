@@ -1,4 +1,4 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useMemo, useState } from 'react'
 
 import { DebouncedInput } from '@/components/input/debounced-input'
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
@@ -45,52 +45,11 @@ export function TextFilterSearch<TData>({
   externalSelection,
   className,
 }: TextFilterSearchProps<TData>) {
-  const initialLiveValue = useMemo(() => {
-    return activeFilterValue === undefined || activeFilterValue === null
-      ? ''
-      : String(activeFilterValue)
-  }, [activeFilterValue])
-
-  const [liveValue, setLiveValue] = useState(initialLiveValue)
+  const [liveValue, setLiveValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
-  const [explicitlyCleared, setExplicitlyCleared] = useState(false)
 
-  // Sync liveValue when the active column changes (column switch) or when the filter
-  // value changes to something materially different from what we're displaying.
-  // This prevents stale state from leaking across columns while preserving the
-  // displayed value during normal interaction.
-  const prevActiveColumnIdRef = useRef<string | undefined>(activeColumnId)
-  const prevActiveFilterValueRef = useRef<unknown>(activeFilterValue)
-
-  useEffect(() => {
-    const columnChanged = prevActiveColumnIdRef.current !== activeColumnId
-    const filterChanged = prevActiveFilterValueRef.current !== activeFilterValue
-
-    if (columnChanged) {
-      prevActiveColumnIdRef.current = activeColumnId
-      prevActiveFilterValueRef.current = activeFilterValue
-      const newVal =
-        activeFilterValue === undefined || activeFilterValue === null
-          ? ''
-          : String(activeFilterValue)
-      setLiveValue(newVal)
-      setExplicitlyCleared(false)
-    } else if (filterChanged) {
-      prevActiveFilterValueRef.current = activeFilterValue
-      // Only sync if the filter was cleared externally (e.g., reset) and we haven't
-      // explicitly cleared ourselves — this catches the reset-to-default case.
-      const currentFilter =
-        activeFilterValue === undefined || activeFilterValue === null ? '' : String(activeFilterValue)
-      if (currentFilter === '' && !explicitlyCleared) {
-        setLiveValue('')
-      } else if (currentFilter !== '' && explicitlyCleared) {
-        // Filter was re-applied after explicit clear — reset the flag.
-        setExplicitlyCleared(false)
-        setLiveValue(currentFilter)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeColumnId, activeFilterValue, explicitlyCleared])
+  const activeFilterText =
+    activeFilterValue === undefined || activeFilterValue === null ? '' : String(activeFilterValue)
 
   const mirroredExternalValue = useMemo(() => {
     if (!externalSelection || externalSelection.columnId !== activeColumnId) return null
@@ -99,10 +58,10 @@ export function TextFilterSearch<TData>({
       : externalSelection.item.code
   }, [externalSelection, activeColumnId])
 
-  // liveValue is the stable source of truth for the input display.
-  // It is set on column switch, on selection, on clear, and on external filter changes.
-  // mirroredExternalValue is only used during active popup typing to sync typed text.
-  const effectiveInputValue = liveValue || mirroredExternalValue || ''
+  // When focused, show the local draft (liveValue).
+  // When idle, show the committed filter value from the table.
+  // Popup mirroring takes priority when it is the active source.
+  const effectiveInputValue = liveValue || mirroredExternalValue || activeFilterText
   const effectiveLiveValue = isFocused ? liveValue : effectiveInputValue
 
   const tableDocNumSuggestions = useMemo(() => {
@@ -226,7 +185,6 @@ export function TextFilterSearch<TData>({
   const handleSelectSuggestion = (item: LookupItem) => applyLookupSelection(item)
 
   const handleClearInput = () => {
-    setExplicitlyCleared(true)
     applySearchImmediately('')
     // Reopen suggestions for all lookup-style columns
     if (isDocLookupStyleColumn) {
@@ -270,7 +228,7 @@ export function TextFilterSearch<TData>({
           }
         }}
         onFocus={() => {
-          setLiveValue(effectiveInputValue)
+          setLiveValue(activeFilterText)
           setIsFocused(true)
         }}
         onBlur={() => setTimeout(() => setIsFocused(false), 150)}
