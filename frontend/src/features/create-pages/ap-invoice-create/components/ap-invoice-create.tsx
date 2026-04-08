@@ -34,6 +34,11 @@ export function APInvoiceCreate({
   sourceDocType,
 }: APInvoiceCreateProps) {
   const router = useRouter()
+  const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
+  const [copyFromSourceType, setCopyFromSourceType] = useState<
+    'PurchaseOrder' | 'GoodsReceiptPO' | null
+  >(null)
+
   const state = useAPInvoiceCreate({
     mode,
     docNum: docNum || '',
@@ -43,8 +48,6 @@ export function APInvoiceCreate({
       router.navigate({ to: '/purchase/create-ap-invoice', search: {}, replace: true })
     },
   })
-
-  const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
 
   const isFormHydrating =
     (mode === 'edit' && !!docNum && !state.isEditHydrated) || state.isSourceHydrating
@@ -64,10 +67,9 @@ export function APInvoiceCreate({
     selected: Array<{ docNum: string; docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' }>,
   ) => {
     if (selected.length === 0) return
-    // Navigate to create page with first selected document
-    // Multi-document merge would require backend support
-    const first = selected[0]!
-    window.location.href = `/purchase/create-ap-invoice?sourceDocNum=${first.docNum}&sourceDocType=${first.docType}`
+    const docNums = selected.map((s) => s.docNum).join(',')
+    const docType = selected[0]!.docType
+    window.location.href = `/purchase/create-ap-invoice?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`
   }
 
   return (
@@ -84,15 +86,22 @@ export function APInvoiceCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            onClick={() => setCopyFromDialogOpen(true)}
+            sourceDocTypes={['PurchaseOrder', 'GoodsReceiptPO']}
+            onSelectSource={(sourceType) => {
+              setCopyFromSourceType(sourceType)
+              setCopyFromDialogOpen(true)
+            }}
           />
         ) : null
       }
     >
       <CopyFromDialog
         open={copyFromDialogOpen}
-        onClose={() => setCopyFromDialogOpen(false)}
-        sourceDocTypes={['PurchaseOrder', 'GoodsReceiptPO']}
+        onClose={() => {
+          setCopyFromDialogOpen(false)
+          setCopyFromSourceType(null)
+        }}
+        sourceDocType={copyFromSourceType ?? 'PurchaseOrder'}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
         onSelectDocuments={handleCopyFromSelect}

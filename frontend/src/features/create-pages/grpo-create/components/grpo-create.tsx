@@ -66,10 +66,9 @@ export function GRPOCreate({
     selected: Array<{ docNum: string; docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' }>,
   ) => {
     if (selected.length === 0) return
-    // Navigate to create page with first selected document
-    // Multi-document merge would require backend support
-    const first = selected[0]!
-    window.location.href = `/purchase/create-grpo?sourceDocNum=${first.docNum}&sourceDocType=${first.docType}`
+    const docNums = selected.map((s) => s.docNum).join(',')
+    const docType = selected[0]!.docType
+    window.location.href = `/purchase/create-grpo?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`
   }
 
   return (
@@ -86,7 +85,8 @@ export function GRPOCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            onClick={() => setCopyFromDialogOpen(true)}
+            sourceDocTypes={['PurchaseOrder']}
+            onSelectSource={() => setCopyFromDialogOpen(true)}
           />
         ) : null
       }
@@ -94,7 +94,7 @@ export function GRPOCreate({
       <CopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => setCopyFromDialogOpen(false)}
-        sourceDocTypes={['PurchaseOrder']}
+        sourceDocType="PurchaseOrder"
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
         onSelectDocuments={handleCopyFromSelect}

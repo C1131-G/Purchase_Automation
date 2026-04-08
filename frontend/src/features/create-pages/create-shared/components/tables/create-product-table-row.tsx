@@ -278,10 +278,10 @@ export function CreateProductTableRow({
               }}
               onMouseEnter={prefetchProducts}
               onFocus={prefetchProducts}
-              className={`block w-full truncate text-left text-sm text-zinc-800 transition ${
+              className={`block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm transition-all duration-150 ${
                 disableInputs
                   ? 'cursor-not-allowed opacity-70'
-                  : 'cursor-pointer hover:text-zinc-950'
+                  : 'cursor-pointer text-zinc-800 hover:bg-blue-50/50 hover:text-blue-700 active:bg-blue-100/60 active:text-blue-900'
               }`}
             >
               {row.productName || 'Select Product'}

@@ -207,20 +207,6 @@ export function useAPInvoiceCreate({
         ? 'Closed'
         : (editDetailQuery.data?.data?.DocStatus ?? 'Open')
 
-  const sourceDetailQueryGRPO = useQuery({
-    ...grpoQueries.detailByDocNum(sourceDocNum || ''),
-    enabled: mode === 'create' && sourceDocType === 'GoodsReceiptPO' && Boolean(sourceDocNum),
-    staleTime: 0,
-    refetchOnMount: true,
-  })
-
-  const sourceDetailQueryPO = useQuery({
-    ...purchaseOrderQueries.detailByDocNum(sourceDocNum || ''),
-    enabled: mode === 'create' && sourceDocType === 'PurchaseOrder' && Boolean(sourceDocNum),
-    staleTime: 0,
-    refetchOnMount: true,
-  })
-
   useEffect(() => {
     if (isEditMode) return
     resetAPInvoiceCreate()
@@ -371,132 +357,141 @@ export function useAPInvoiceCreate({
     vendors,
   ])
 
-  // Copy-From Hydration (GRPO or PO)
+  // Copy-From Hydration (GRPO or PO) — supports multi-doc, single type
   useEffect(() => {
     if (mode !== 'create') return
     const currentSourceDocNum = sourceDocNum
     const currentSourceDocType = sourceDocType
     if (!currentSourceDocNum || !currentSourceDocType) return
 
-    const detail =
-      sourceDocType === 'GoodsReceiptPO'
-        ? sourceDetailQueryGRPO.data?.data
-        : sourceDetailQueryPO.data?.data
-    if (!detail) return
+    const sourceDocNums = currentSourceDocNum
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (sourceDocNums.length === 0) return
 
     const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0
     const hydrationKey = `${currentSourceDocType}-${currentSourceDocNum}`
     if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) return
 
-    // Show loading toast when starting copy-from hydration
+    const detailQuery =
+      currentSourceDocType === 'GoodsReceiptPO'
+        ? grpoQueries.detailByDocNum
+        : purchaseOrderQueries.detailByDocNum
+
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast('A/P Invoice', 'create')
     }
 
-    const vendorCode = String(detail.CardCode ?? '').trim()
-    const vendorName = String(detail.CardName ?? '').trim()
-    const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode)
-
-    const buyerFromDocCode =
-      detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
-        ? salesEmployees.find(
-            (item) =>
-              normalizeCodeForCompare(item.code) ===
-              normalizeCodeForCompare(detail.SalesPersonCode),
-          )?.name
-        : ''
-    const buyerName = buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || ''
-
-    const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
-    const sourceComments = String(detail.Comments ?? '').trim()
-    const sourceNumAtCard = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-
-    // Auto-generate reference for this copy step
-    const autoReference = generateSingleSourceReference(currentSourceDocType, currentSourceDocNum)
-
-    // Build reference chain: preserve existing reference + append new one
-    // Recover reference chain from Comments if NumAtCard is empty
-    // Comments stores: [referenceChain, remarks].join('\n'), so extract "Based on" lines
-    const commentLines = sourceComments
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-    const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line))
-
-    // Use NumAtCard if available, otherwise recover from Comments
-    const existingChain = sourceNumAtCard || refLinesFromComments.join('\n')
-
-    const finalReferenceNo = existingChain ? `${existingChain}\n${autoReference}` : autoReference
-    const referenceWasAutoFilled = !existingChain
-
-    // Remarks comes from source Comments, but NOT auto-generated reference lines
-    // Filter out lines that start with "Based on" to keep only user-entered remarks
-    // Also filter out lines that already exist in the reference chain (to avoid duplication)
-    const existingRefLines = existingChain ? existingChain.split('\n').map((l) => l.trim()) : []
-    const remarks = commentLines
-      .filter((line) => {
-        // Exclude "Based on" lines (auto-generated references)
-        if (/^based on /i.test(line)) return false
-        // Exclude lines that are already in the reference chain
-        if (existingRefLines.includes(line)) return false
-        return true
-      })
-      .join('\n')
-      .trim()
-    const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
-
-    void (async () => {
-      const detailLines = detail.DocumentLines ?? []
-
-      // Fetch tax rates BEFORE mapping lines (must be awaited first)
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        detailLines.map((line) => String(line.ItemCode ?? '').trim()),
+    const fetchAllSources = async () => {
+      const details = await Promise.all(
+        sourceDocNums.map(async (num) => {
+          const res = await queryClient.fetchQuery(detailQuery(num))
+          return res.data
+        }),
       )
 
-      const mappedLines = (detail.DocumentLines ?? []).map((line, index: number) => {
-        // Use open quantity (remaining balance) for copy-to, fall back to original quantity
-        const lineData = line as Record<string, unknown>
-        const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1)
-        const quantity = openQty
-        const price = Number(line.Price ?? line.UnitPrice ?? 0)
-        const grossAmount = Math.max(0, price * quantity)
-        const discountPercent = Number(line.DiscountPercent ?? 0)
-        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
-        const itemCode = String(line.ItemCode ?? '').trim()
+      const primaryDetail = details[0]!
+      const vendorCode = String(primaryDetail.CardCode ?? '').trim()
+      const vendorName = String(primaryDetail.CardName ?? '').trim()
+      const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode)
 
-        return {
-          id: `row-copy-${currentSourceDocNum}-${index}`,
-          productCode: String(line.ItemCode ?? '').trim(),
-          productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
-          stock: 0,
-          currency: String(detail.DocCurr ?? '').trim(),
-          taxCode: String(line.TaxCode ?? '').trim(),
-          taxRate:
-            taxRateByItemCode.get(itemCode) ??
-            (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
-          uomCode: String(line.UoMCode ?? '').trim(),
-          uomEntry: typeof line.UoMEntry === 'number' ? line.UoMEntry : undefined,
-          baseQuantity: quantity,
-          quantity,
-          discountPercent,
-          discountAmount,
-          comment: '',
-          price,
-          warehouseCode: String(line.WarehouseCode ?? warehouseCode).trim(),
-          baseEntry: detail.DocEntry ?? (detail as { id?: number }).id,
-          baseLine: line.LineNum ?? index,
-          baseType: sourceDocType === 'GoodsReceiptPO' ? 20 : 22,
-        }
+      const buyerFromDocCode =
+        primaryDetail.SalesPersonCode !== undefined && primaryDetail.SalesPersonCode !== null
+          ? salesEmployees.find(
+              (item) =>
+                normalizeCodeForCompare(item.code) ===
+                normalizeCodeForCompare(primaryDetail.SalesPersonCode),
+            )?.name
+          : ''
+      const buyerName = buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || ''
+
+      const warehouseCode = String(primaryDetail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+      const sourceComments = String(primaryDetail.Comments ?? '').trim()
+      const sourceNumAtCard = String(
+        (primaryDetail as { NumAtCard?: string }).NumAtCard ?? '',
+      ).trim()
+
+      const refs = sourceDocNums.map((num) =>
+        generateSingleSourceReference(currentSourceDocType, num),
+      )
+      const autoReference = refs.length === 1 ? refs[0]! : refs.join('\n')
+
+      const commentLines = sourceComments
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+      const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line))
+      const existingChain = sourceNumAtCard || refLinesFromComments.join('\n')
+      const finalReferenceNo = existingChain ? `${existingChain}\n${autoReference}` : autoReference
+      const referenceWasAutoFilled = !existingChain
+
+      const existingRefLines = existingChain ? existingChain.split('\n').map((l) => l.trim()) : []
+      const remarks = commentLines
+        .filter((line) => {
+          if (/^based on /i.test(line)) return false
+          if (existingRefLines.includes(line)) return false
+          return true
+        })
+        .join('\n')
+        .trim()
+      const docDueDate = String(primaryDetail.DocDueDate ?? '').slice(0, 10)
+
+      const allDetailLines = details.flatMap((d) => d.DocumentLines ?? [])
+      const baseType = currentSourceDocType === 'GoodsReceiptPO' ? 20 : 22
+      const currency = String(primaryDetail.DocCurr ?? '').trim()
+
+      const taxRateByItemCode = await resolveProductTaxRates(
+        queryClient,
+        allDetailLines.map((line) => String(line.ItemCode ?? '').trim()),
+      )
+
+      let lineIndex = 0
+      const mappedLines = details.flatMap((detail) => {
+        const detailLines = detail.DocumentLines ?? []
+        return detailLines.map((line) => {
+          const idx = lineIndex++
+          const lineData = line as Record<string, unknown>
+          const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1)
+          const quantity = openQty
+          const price = Number(line.Price ?? line.UnitPrice ?? 0)
+          const grossAmount = Math.max(0, price * quantity)
+          const discountPercent = Number(line.DiscountPercent ?? 0)
+          const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100)
+          const itemCode = String(line.ItemCode ?? '').trim()
+
+          return {
+            id: `row-copy-${detail.DocEntry ?? detail.id ?? 'unknown'}-${idx}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
+            stock: 0,
+            currency,
+            taxCode: String(line.TaxCode ?? '').trim(),
+            taxRate:
+              taxRateByItemCode.get(itemCode) ??
+              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
+            uomCode: String(line.UoMCode ?? '').trim(),
+            uomEntry: typeof line.UoMEntry === 'number' ? line.UoMEntry : undefined,
+            baseQuantity: quantity,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: '',
+            price,
+            warehouseCode: String(line.WarehouseCode ?? warehouseCode).trim(),
+            baseEntry: detail.DocEntry ?? (detail as { id?: number }).id,
+            baseLine: line.LineNum ?? idx,
+            baseType,
+          }
+        })
       })
 
       setVendorCodeInput(vendorCode)
       setVendorNameInput(vendorName)
       setBuyerInput(buyerName)
       setWarehouseInput(warehouseCode)
-      // Set addresses from source document: Address = Bill To, Address2 = Ship To
-      setBillToAddress(String(detail.Address ?? '').trim())
-      setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? '').trim())
+      setBillToAddress(String(primaryDetail.Address ?? '').trim())
+      setShipToAddress(String((primaryDetail as Record<string, unknown>).Address2 ?? '').trim())
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -507,15 +502,14 @@ export function useAPInvoiceCreate({
       setLines(mappedLines)
       setProductRowDrafts({})
       if (isMetadataLoaded) {
-        hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`
+        hydratedDocNumRef.current = hydrationKey
       }
-      // Dismiss loading toast when copy-from hydration is complete
       loadingToastRef.current?.dismiss()
       loadingToastRef.current = null
-    })()
+    }
+
+    void fetchAllSources()
   }, [
-    sourceDetailQueryGRPO.data,
-    sourceDetailQueryPO.data,
     mode,
     sourceDocNum,
     sourceDocType,
@@ -523,6 +517,7 @@ export function useAPInvoiceCreate({
     salesEmployees,
     setHeader,
     setLines,
+    setProductRowDrafts,
     vendors,
   ])
 
@@ -814,6 +809,51 @@ export function useAPInvoiceCreate({
         }
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload })
       } else {
+        const buildDocumentLines = () => {
+          const lines: Array<Record<string, unknown>> = []
+          for (const row of filteredRows) {
+            const hasCompleteBaseLink =
+              Number.isFinite(row.baseEntry) &&
+              Number.isFinite(row.baseLine) &&
+              Number.isFinite(row.baseType)
+            const baseQty = row.baseQuantity ?? 0
+
+            // Base-linked portion: up to source qty
+            const linkedQty = Math.min(row.quantity, baseQty)
+            lines.push({
+              ItemCode: row.productCode,
+              Quantity: linkedQty,
+              UnitPrice: row.price,
+              DiscountPercent: row.discountPercent,
+              UoMCode: row.uomCode || undefined,
+              WarehouseCode: row.warehouseCode || undefined,
+              TaxCode: row.taxCode || undefined,
+              ...(hasCompleteBaseLink
+                ? {
+                    BaseType: row.baseType,
+                    BaseEntry: row.baseEntry,
+                    BaseLine: row.baseLine,
+                  }
+                : {}),
+            })
+
+            // Excess portion: manual line without base linkage
+            const excessQty = row.quantity - baseQty
+            if (excessQty > 0 && hasCompleteBaseLink) {
+              lines.push({
+                ItemCode: row.productCode,
+                Quantity: excessQty,
+                UnitPrice: row.price,
+                DiscountPercent: row.discountPercent,
+                UoMCode: row.uomCode || undefined,
+                WarehouseCode: row.warehouseCode || undefined,
+                TaxCode: row.taxCode || undefined,
+              })
+            }
+          }
+          return lines
+        }
+
         const createPayload = {
           CardCode: vendorCodeInput.trim(),
           DocDate: header.docDate || undefined,
@@ -822,17 +862,7 @@ export function useAPInvoiceCreate({
           NumAtCard: header.referenceNo.trim() || undefined,
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
-          DocumentLines: filteredRows.map((row) => ({
-            ItemCode: row.productCode,
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            DiscountPercent: row.discountPercent,
-            UoMCode: row.uomCode || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
-            BaseType: row.baseType,
-            BaseEntry: row.baseEntry,
-            BaseLine: row.baseLine,
-          })),
+          DocumentLines: buildDocumentLines(),
         }
         const result = await createMutation.mutateAsync({ payload: createPayload })
         createdDocNum = result?.data?.DocNum
@@ -873,17 +903,27 @@ export function useAPInvoiceCreate({
           queryKey: grpoQueries.list({ page: 1, limit: 10 }).queryKey,
         })
 
-        // Invalidate specific PO detail query if source was PO
+        // Invalidate specific PO detail queries if source was PO
         if (sourceDocNum && sourceDocType === 'PurchaseOrder') {
-          void queryClient.invalidateQueries({
-            queryKey: purchaseOrderQueries.detailByDocNum(sourceDocNum).queryKey,
+          sourceDocNum.split(',').forEach((num) => {
+            const trimmed = num.trim()
+            if (trimmed) {
+              void queryClient.invalidateQueries({
+                queryKey: purchaseOrderQueries.detailByDocNum(trimmed).queryKey,
+              })
+            }
           })
         }
 
-        // Invalidate specific GRPO detail query if source was GRPO
+        // Invalidate specific GRPO detail queries if source was GRPO
         if (sourceDocNum && sourceDocType === 'GoodsReceiptPO') {
-          void queryClient.invalidateQueries({
-            queryKey: grpoQueries.detailByDocNum(sourceDocNum).queryKey,
+          sourceDocNum.split(',').forEach((num) => {
+            const trimmed = num.trim()
+            if (trimmed) {
+              void queryClient.invalidateQueries({
+                queryKey: grpoQueries.detailByDocNum(trimmed).queryKey,
+              })
+            }
           })
         }
       }
@@ -927,12 +967,7 @@ export function useAPInvoiceCreate({
   return {
     isEditMode,
     isEditHydrated: !isEditMode || hydratedDocNum === editDocNum,
-    isSourceHydrating:
-      mode === 'create' &&
-      Boolean(sourceDocNum) &&
-      (sourceDocType === 'PurchaseOrder'
-        ? sourceDetailQueryPO.isLoading
-        : sourceDetailQueryGRPO.isLoading),
+    isSourceHydrating: mode === 'create' && Boolean(sourceDocNum) && !hydratedDocNumRef.current,
     today,
     activeDatePicker,
     setActiveDatePicker,

@@ -1,115 +1,186 @@
-import { Check, ChevronLeft, FileText, Loader2, StickyNote } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Check, FileText, Loader2, StickyNote } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { type CreateLookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
-import { apInvoiceAPI } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
+import {
+  apInvoiceAPI,
+  type APInvoiceDetail,
+} from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
+import type { GRPODetail } from '@/features/table-pages/grpo/api/grpo.service'
 import { grpoAPI } from '@/features/table-pages/grpo/api/grpo.service'
+import type { PurchaseOrderDetail } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
 import { purchaseOrderAPI } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
+
+type SourceDocType = 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+
+const VISIBLE_LINES = 6
+
+const BROWSE_INCREMENT = 10
+const BROWSE_CAP = 100
+const SEARCH_LIMIT = 100
 
 interface CopyFromDialogProps {
   open: boolean
   onClose: () => void
-  sourceDocTypes: ('PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice')[]
   vendorCode: string
   vendorName: string
-  onSelectDocuments: (
-    selected: Array<{ docNum: string; docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' }>,
-  ) => void
+  sourceDocType: SourceDocType
+  onSelectDocuments: (selected: Array<{ docNum: string; docType: SourceDocType }>) => void
 }
 
-interface DocumentOption extends CreateLookupOption {
-  docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+interface DocumentOption {
+  code: string
+  name: string
+  docType: SourceDocType
   docEntry?: number
+  docDate?: string
 }
 
-type DialogStep = 'select-type' | 'select-document'
-
-const INITIAL_LOAD_SIZE = 10
-const INCREMENTAL_LOAD_SIZE = 10
-const MAX_RESULTS = 100
+interface DocDetailCache {
+  lines: Array<{ itemName: string; openQty: number }>
+  totalOpenQty: number
+}
 
 const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const
+
+const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
+  PurchaseOrder: 'PO',
+  GoodsReceiptPO: 'GRPO',
+  APInvoice: 'AP Invoice',
+}
+
+const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
+  PurchaseOrder: <FileText className="h-4 w-4" />,
+  GoodsReceiptPO: <StickyNote className="h-4 w-4" />,
+  APInvoice: <FileText className="h-4 w-4" />,
+}
+
+function detailCacheKey(docType: SourceDocType, docCode: string): string {
+  return `${docType}:${docCode}`
+}
+
+function computeDetail(
+  _docType: SourceDocType,
+  data: PurchaseOrderDetail | GRPODetail | APInvoiceDetail,
+): DocDetailCache {
+  const lines = data.DocumentLines ?? []
+  const result: DocDetailCache = { lines: [], totalOpenQty: 0 }
+  for (const line of lines) {
+    const openQty =
+      (line as { OpenQty?: number }).OpenQty ?? (line as { Quantity?: number }).Quantity ?? 0
+    result.totalOpenQty += openQty
+    result.lines.push({
+      itemName:
+        (line as { ItemDescription?: string }).ItemDescription ??
+        (line as { ItemCode?: string }).ItemCode ??
+        'Unknown',
+      openQty,
+    })
+  }
+  return result
+}
 
 export function CopyFromDialog({
   open,
   onClose,
-  sourceDocTypes,
   vendorCode,
   vendorName,
+  sourceDocType,
   onSelectDocuments,
 }: CopyFromDialogProps) {
-  const [step, setStep] = useState<DialogStep>('select-type')
-  const [selectedDocType, setSelectedDocType] = useState<
-    'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' | null
-  >(null)
   const [search, setSearch] = useState('')
-  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set())
   const [documents, setDocuments] = useState<DocumentOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadedCount, setLoadedCount] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const pageRef = useRef(1)
 
-  // Document type options
-  const docTypeOptions = useMemo(
-    () =>
-      sourceDocTypes.map((docType) => ({
-        code: docType,
-        name:
-          docType === 'PurchaseOrder'
-            ? 'Purchase Order'
-            : docType === 'GoodsReceiptPO'
-              ? 'GRPO'
-              : 'AP Invoice',
-        icon:
-          docType === 'PurchaseOrder' ? (
-            <FileText className="h-4 w-4" />
-          ) : docType === 'GoodsReceiptPO' ? (
-            <StickyNote className="h-4 w-4" />
-          ) : (
-            <FileText className="h-4 w-4" />
-          ),
-      })),
-    [sourceDocTypes],
-  )
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set())
+
+  // Hover preview state
+  const [hoveredDoc, setHoveredDoc] = useState<DocumentOption | null>(null)
+  const [hoverDetail, setHoverDetail] = useState<DocDetailCache | null>(null)
+  const [hoverDetailLoading, setHoverDetailLoading] = useState(false)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const detailCacheRef = useRef<Map<string, DocDetailCache>>(new Map())
+  const detailLoadingRef = useRef<Set<string>>(new Set())
+
+  const label = DOC_TYPE_LABELS[sourceDocType] ?? 'Document'
+  const isSearching = search.trim().length > 0
+
+  // Reset state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setSearch('')
+      setSelectedDocs(new Set())
+      setDocuments([])
+      setLoadedCount(0)
+      setHasMore(false)
+      setError(null)
+      detailCacheRef.current.clear()
+      detailLoadingRef.current.clear()
+      pageRef.current = 1
+      setHoveredDoc(null)
+      setHoverDetail(null)
+      setHoverDetailLoading(false)
+    }
+  }, [open, sourceDocType])
+
+  // Debounced search
+  const searchQuery = useDebouncedValue(search, 300)
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    if (!open) return
+    pageRef.current = 1
+  }, [searchQuery, open])
 
   const fetchDocuments = useCallback(
     async (isLoadMore = false) => {
-      if (!selectedDocType || !vendorCode) return
+      if (!vendorCode) return
 
       setIsLoading(true)
       setError(null)
 
       try {
-        const currentLimit = isLoadMore ? INCREMENTAL_LOAD_SIZE : INITIAL_LOAD_SIZE
+        const query = searchQuery.trim()
 
-        let result
-        if (selectedDocType === 'PurchaseOrder') {
-          result = await purchaseOrderAPI.getPurchaseOrders({
-            CardCode: vendorCode,
-            limit: currentLimit,
-          })
-        } else if (selectedDocType === 'GoodsReceiptPO') {
-          result = await grpoAPI.getGRPOs({
-            CardCode: vendorCode,
-            limit: currentLimit,
-          })
-        } else {
-          result = await apInvoiceAPI.getAPInvoices({
-            CardCode: vendorCode,
-            limit: currentLimit,
-          })
+        if (!query && !isLoadMore) {
+          pageRef.current = 1
         }
 
-        const label =
-          selectedDocType === 'PurchaseOrder'
-            ? 'PO'
-            : selectedDocType === 'GoodsReceiptPO'
-              ? 'GRPO'
-              : 'AP Invoice'
+        const page = isLoadMore && !query ? pageRef.current : 1
+        const limit = query ? SEARCH_LIMIT : BROWSE_INCREMENT
 
-        // Filter out closed documents (Open and Partial are copyable)
+        let result
+        if (sourceDocType === 'PurchaseOrder') {
+          const params: Record<string, unknown> = {
+            CardCode: vendorCode,
+            limit,
+          }
+          if (query) params.DocNum = query
+          if (!query && isLoadMore) params.page = page
+          result = await purchaseOrderAPI.getPurchaseOrders(params)
+        } else if (sourceDocType === 'GoodsReceiptPO') {
+          const params: Record<string, unknown> = {
+            CardCode: vendorCode,
+            limit,
+          }
+          if (query) params.DocNum = query
+          if (!query && isLoadMore) params.page = page
+          result = await grpoAPI.getGRPOs(params)
+        } else {
+          const params: Record<string, unknown> = {
+            CardCode: vendorCode,
+            limit,
+          }
+          if (query) params.DocNum = query
+          if (!query && isLoadMore) params.page = page
+          result = await apInvoiceAPI.getAPInvoices(params)
+        }
+
         const isOpenOrPartial = (doc: { DocStatus?: string }) => {
           const status = String(doc.DocStatus ?? '').trim()
           return (
@@ -117,26 +188,34 @@ export function CopyFromDialog({
           )
         }
 
-        const newDocs = (result.data || [])
-          .filter(isOpenOrPartial)
-          .map((doc: { DocNum: string | number; DocDate?: string; DocEntry?: number }) => ({
-            code: String(doc.DocNum),
-            name: `${label} - ${doc.DocNum} - ${doc.DocDate ? new Date(doc.DocDate).toLocaleDateString('en-GB') : ''}`,
-            docType: selectedDocType,
-            docEntry: doc.DocEntry,
-          })) as DocumentOption[]
+        const newDocs = (result.data || []).filter(isOpenOrPartial).map(
+          (doc: { DocNum: string | number; DocDate?: string; DocEntry?: number; id?: number }) =>
+            ({
+              code: String(doc.DocNum),
+              name: `${label} - ${doc.DocNum}`,
+              docType: sourceDocType,
+              docEntry: doc.DocEntry ?? doc.id,
+              docDate: doc.DocDate ? new Date(doc.DocDate).toLocaleDateString('en-GB') : '',
+            }) as DocumentOption,
+        )
 
-        if (isLoadMore) {
+        if (query) {
+          // Search mode: replace list, no pagination cap
+          setDocuments(newDocs)
+          setHasMore(false)
+          setLoadedCount(newDocs.length)
+        } else if (isLoadMore) {
           setDocuments((prev) => [...prev, ...newDocs])
+          pageRef.current = page + 1
           setLoadedCount((prev) => {
             const newCount = prev + newDocs.length
-            setHasMore(newDocs.length === currentLimit && newCount < MAX_RESULTS)
+            setHasMore(newDocs.length === limit && newCount < BROWSE_CAP)
             return newCount
           })
         } else {
           setDocuments(newDocs)
           setLoadedCount(newDocs.length)
-          setHasMore(newDocs.length === currentLimit && newDocs.length < MAX_RESULTS)
+          setHasMore(newDocs.length === limit && newDocs.length < BROWSE_CAP)
         }
       } catch {
         setError('Failed to load documents. Please try again.')
@@ -144,48 +223,38 @@ export function CopyFromDialog({
         setIsLoading(false)
       }
     },
-    [selectedDocType, vendorCode],
+    [sourceDocType, vendorCode, label, searchQuery],
   )
 
-  // Reset documents only when vendor or document type changes (not on load-more)
+  // Reset + fetch when source type, vendor, or search changes
   useEffect(() => {
-    if (step === 'select-document' && selectedDocType && vendorCode) {
-      setDocuments([])
-      setLoadedCount(0)
-      setHasMore(false)
-      setError(null)
-    }
-  }, [step, selectedDocType, vendorCode])
-
-  // Fetch documents after reset completes
-  useEffect(() => {
-    if (
-      step === 'select-document' &&
-      selectedDocType &&
-      vendorCode &&
-      documents.length === 0 &&
-      !isLoading &&
-      !error
-    ) {
+    if (!open) return
+    setDocuments([])
+    setLoadedCount(0)
+    setHasMore(false)
+    setError(null)
+    if (vendorCode) {
       void fetchDocuments(false)
     }
-  }, [step, selectedDocType, vendorCode, fetchDocuments, documents.length, isLoading, error])
+  }, [open, sourceDocType, vendorCode, fetchDocuments, searchQuery])
 
-  // Filter documents by search (live search, no button needed)
-  const filteredDocuments = useMemo(() => {
-    if (!search.trim()) return documents
-    const term = search.toLowerCase()
-    return documents.filter(
-      (doc) => doc.code.toLowerCase().includes(term) || doc.name.toLowerCase().includes(term),
-    )
-  }, [documents, search])
+  // Infinite scroll for browse mode
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
 
-  const handleSelectDocType = (docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice') => {
-    setSelectedDocType(docType)
-    setStep('select-document')
-    setSearch('')
-    setSelectedDocs(new Set())
-  }
+    const handleScroll = () => {
+      const threshold = 32
+      const reachedEnd =
+        container.scrollHeight - container.scrollTop - container.clientHeight <= threshold
+      if (reachedEnd && hasMore && !isLoading && !isSearching) {
+        void fetchDocuments(true)
+      }
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [hasMore, isLoading, isSearching, fetchDocuments])
 
   const handleToggleDocument = (docCode: string) => {
     setSelectedDocs((prev) => {
@@ -200,64 +269,78 @@ export function CopyFromDialog({
   }
 
   const handleConfirm = () => {
-    const selected = filteredDocuments.filter((doc) => selectedDocs.has(doc.code))
+    const selected = documents.filter((doc) => selectedDocs.has(doc.code))
     onSelectDocuments(selected.map((doc) => ({ docNum: doc.code, docType: doc.docType })))
     handleCancel()
   }
 
-  const handleBack = () => {
-    setStep('select-type')
-    setSelectedDocType(null)
-    setSearch('')
-    setSelectedDocs(new Set())
-    setDocuments([])
-    setLoadedCount(0)
-    setHasMore(false)
-    setError(null)
-  }
-
   const handleCancel = () => {
     onClose()
-    setSearch('')
-    setStep('select-type')
-    setSelectedDocType(null)
-    setSelectedDocs(new Set())
-    setDocuments([])
-    setLoadedCount(0)
-    setHasMore(false)
-    setError(null)
   }
 
-  const handleLoadMore = useCallback(() => {
-    if (!isLoading && hasMore) {
-      void fetchDocuments(true)
+  const fetchDetailForDoc = useCallback(async (doc: DocumentOption) => {
+    const key = detailCacheKey(doc.docType, doc.code)
+
+    if (detailCacheRef.current.has(key)) {
+      setHoverDetail(detailCacheRef.current.get(key)!)
+      setHoverDetailLoading(false)
+      return
     }
-  }, [isLoading, hasMore, fetchDocuments])
 
-  // Scroll to top when step changes
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0
-    }
-  }, [step])
+    if (detailLoadingRef.current.has(key)) return
+    detailLoadingRef.current.add(key)
+    setHoverDetailLoading(true)
 
-  // Scroll-based load more
-  useEffect(() => {
-    const container = scrollContainerRef.current
-    if (!container) return
-
-    const handleScroll = () => {
-      const threshold = 32
-      const reachedEnd =
-        container.scrollHeight - container.scrollTop - container.clientHeight <= threshold
-      if (reachedEnd && hasMore && !isLoading) {
-        handleLoadMore()
+    try {
+      let data: PurchaseOrderDetail | GRPODetail | APInvoiceDetail | null = null
+      if (doc.docType === 'PurchaseOrder') {
+        const res = await purchaseOrderAPI.getPurchaseOrderByDocNum(doc.code)
+        data = res.data
+      } else if (doc.docType === 'GoodsReceiptPO') {
+        if (doc.docEntry) {
+          const res = await grpoAPI.getGRPOById(doc.docEntry)
+          data = res.data
+        }
+      } else {
+        const res = await apInvoiceAPI.getAPInvoice(doc.code)
+        data = res.data
       }
-    }
 
-    container.addEventListener('scroll', handleScroll)
-    return () => container.removeEventListener('scroll', handleScroll)
-  }, [hasMore, isLoading, handleLoadMore])
+      if (data) {
+        const detail = computeDetail(doc.docType, data)
+        detailCacheRef.current.set(key, detail)
+        setHoverDetail(detail)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      detailLoadingRef.current.delete(key)
+      setHoverDetailLoading(false)
+    }
+  }, [])
+
+  const handleRowMouseEnter = useCallback(
+    (doc: DocumentOption) => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = setTimeout(() => {
+        setHoveredDoc(doc)
+        setHoverDetail(null)
+        setHoverDetailLoading(false)
+        void fetchDetailForDoc(doc)
+      }, 200)
+    },
+    [fetchDetailForDoc],
+  )
+
+  const handleRowMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+    setHoveredDoc(null)
+    setHoverDetail(null)
+    setHoverDetailLoading(false)
+  }, [])
 
   if (!open) return null
 
@@ -267,31 +350,14 @@ export function CopyFromDialog({
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
           <div className="flex items-center gap-2">
-            {step === 'select-document' && (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-              >
-                <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-                Back
-              </button>
-            )}
+            <span className="text-zinc-400">{DOC_TYPE_ICONS[sourceDocType]}</span>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900">
-                {step === 'select-type'
-                  ? 'Copy From Document'
-                  : `Select ${selectedDocType === 'PurchaseOrder' ? 'PO' : selectedDocType === 'GoodsReceiptPO' ? 'GRPO' : 'AP Invoice'}`}
-              </h3>
-              <p className="text-xs text-zinc-500">
-                {step === 'select-type'
-                  ? `Select source for ${vendorName}`
-                  : `Open documents from ${vendorName}`}
-              </p>
+              <h3 className="text-sm font-semibold text-zinc-900">Select {label}</h3>
+              <p className="text-xs text-zinc-500">Open documents from {vendorName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {step === 'select-document' && selectedDocs.size > 0 && (
+            {selectedDocs.size > 0 && (
               <button
                 onClick={handleConfirm}
                 className="flex h-8 items-center rounded-full border border-blue-600 bg-blue-600 px-4 text-xs font-medium text-white transition hover:bg-blue-700"
@@ -309,134 +375,185 @@ export function CopyFromDialog({
           </div>
         </div>
 
-        {/* Search - only show in document selection step (live search, no button) */}
-        {step === 'select-document' && (
-          <div className="shrink-0 border-b border-zinc-100 px-4 py-3">
-            <div className="relative">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by document number or name"
-                className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
-              />
+        {/* Search */}
+        <div className="shrink-0 border-b border-zinc-100 px-4 py-3">
+          <div className="relative">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by document number or name"
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+        </div>
+
+        {/* Content: split list + preview rail */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="flex h-full">
+            {/* Document list */}
+            <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
+              {isLoading && documents.length === 0 ? (
+                <div className="flex flex-col p-2">
+                  {SKELETON_ROW_KEYS.map((slot) => (
+                    <div
+                      key={`doc-skeleton-${slot}`}
+                      className="flex items-center gap-3 border-t border-zinc-100 px-4 py-3"
+                    >
+                      <div className="h-5 w-5 animate-pulse rounded-md bg-zinc-100" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
+                        <div className="h-3 w-1/4 animate-pulse rounded bg-zinc-100" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : error && documents.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-zinc-600">{error}</p>
+                  <button
+                    onClick={() => void fetchDocuments(false)}
+                    className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : documents.length === 0 && !isLoading ? (
+                <div className="flex flex-col items-center gap-1 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-8 text-center">
+                  <p className="text-xs font-medium text-zinc-500">
+                    {isSearching
+                      ? `No documents match "${search.trim()}".`
+                      : 'No Open documents found for this vendor.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  {documents.map((doc) => {
+                    const isSelected = selectedDocs.has(doc.code)
+
+                    return (
+                      <button
+                        key={doc.code}
+                        type="button"
+                        onClick={() => handleToggleDocument(doc.code)}
+                        onMouseEnter={() => handleRowMouseEnter(doc)}
+                        onMouseLeave={handleRowMouseLeave}
+                        className={`relative flex w-full items-center border-t border-zinc-100 px-4 py-2.5 text-left transition ${
+                          isSelected ? 'bg-blue-50' : 'bg-white hover:bg-zinc-50'
+                        }`}
+                      >
+                        <span className="w-[160px] shrink-0 flex items-center gap-2">
+                          <div
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-500 text-white'
+                                : 'border-zinc-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                          </div>
+                          <span className="text-sm font-medium text-zinc-900 truncate">
+                            {doc.code}
+                          </span>
+                        </span>
+                        <span className="w-28 shrink-0 pl-3 text-sm text-zinc-500 tabular-nums">
+                          {doc.docDate || '—'}
+                        </span>
+                      </button>
+                    )
+                  })}
+
+                  {isLoading && documents.length > 0 && (
+                    <div className="flex items-center justify-center gap-2 border-t border-zinc-100 py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                      <p className="text-xs text-zinc-500">Loading more...</p>
+                    </div>
+                  )}
+                  {!hasMore && documents.length > 0 && !isSearching && (
+                    <div className="border-t border-zinc-100 px-4 py-2 text-center text-xs text-zinc-500">
+                      {loadedCount} document{loadedCount !== 1 ? 's' : ''} loaded
+                      {loadedCount >= BROWSE_CAP && ' (browse cap reached)'}
+                    </div>
+                  )}
+                  {isSearching && documents.length > 0 && (
+                    <div className="border-t border-zinc-100 px-4 py-2 text-center text-xs text-zinc-500">
+                      {documents.length} result{documents.length !== 1 ? 's' : ''} found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Preview rail */}
+            <div className="w-80 shrink-0 border-l border-zinc-100 overflow-auto">
+              {hoverDetailLoading ? (
+                <div className="flex flex-col gap-1.5 p-4 pt-3">
+                  <div className="h-3.5 w-2/5 animate-pulse rounded bg-zinc-100" />
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="h-3 flex-1 animate-pulse rounded bg-zinc-100" />
+                      <div className="h-3 w-10 animate-pulse rounded bg-zinc-100" />
+                    </div>
+                  ))}
+                </div>
+              ) : hoverDetail ? (
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                    {DOC_TYPE_ICONS[hoveredDoc?.docType ?? sourceDocType]}
+                    <span>
+                      {hoveredDoc ? DOC_TYPE_LABELS[hoveredDoc.docType] : label} #
+                      {hoveredDoc?.code ?? ''}
+                    </span>
+                  </div>
+                  {hoverDetail.lines.slice(0, VISIBLE_LINES).map((line, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start justify-between gap-3 border-t border-zinc-100 px-4 py-2"
+                    >
+                      <span className="flex-1 text-[13px] font-medium leading-snug text-zinc-900">
+                        {line.itemName}
+                      </span>
+                      <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-blue-700">
+                        {line.openQty}
+                      </span>
+                    </div>
+                  ))}
+                  {hoverDetail.lines.length > VISIBLE_LINES && (
+                    <div className="border-t border-zinc-100 px-4 py-1.5 text-[11px] text-zinc-400">
+                      +
+                      <span className="font-semibold text-blue-600">
+                        {hoverDetail.lines.length - VISIBLE_LINES}
+                      </span>{' '}
+                      more
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-full items-center justify-center px-4 py-8 text-center">
+                  <p className="text-xs text-zinc-400">Hover a document to see details</p>
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Content - scrollable area */}
-        <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
-          {step === 'select-type' ? (
-            <div className="flex flex-col gap-1 p-2">
-              {docTypeOptions.map((option) => (
-                <button
-                  key={option.code}
-                  type="button"
-                  onClick={() =>
-                    handleSelectDocType(
-                      option.code as 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice',
-                    )
-                  }
-                  className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-left transition hover:border-blue-300 hover:bg-blue-50"
-                >
-                  <span className="text-zinc-500">{option.icon}</span>
-                  <span className="text-sm font-medium text-zinc-700">{option.name}</span>
-                </button>
-              ))}
-            </div>
-          ) : isLoading && documents.length === 0 ? (
-            // Initial loading skeleton
-            <div className="flex flex-col p-2">
-              {SKELETON_ROW_KEYS.map((slot) => (
-                <div
-                  key={`doc-skeleton-${slot}`}
-                  className="flex items-center gap-3 border-t border-zinc-100 px-4 py-3"
-                >
-                  <div className="h-5 w-5 animate-pulse rounded-md bg-zinc-100" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
-                    <div className="h-3 w-1/4 animate-pulse rounded bg-zinc-100" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : error && documents.length === 0 ? (
-            // Error state
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-8 text-center">
-              <p className="text-sm font-medium text-zinc-600">{error}</p>
-              <button
-                onClick={() => void fetchDocuments(false)}
-                className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-              >
-                Retry
-              </button>
-            </div>
-          ) : filteredDocuments.length === 0 && !isLoading ? (
-            // Empty state
-            <div className="flex flex-col items-center gap-1 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-8 text-center">
-              <p className="text-xs font-medium text-zinc-500">
-                {search
-                  ? `No documents match "${search.trim()}".`
-                  : 'No Open documents found for this vendor.'}
-              </p>
-            </div>
-          ) : (
-            // Document list
-            <div className="flex flex-col">
-              {filteredDocuments.map((doc) => {
-                const isSelected = selectedDocs.has(doc.code)
-                return (
-                  <button
-                    key={doc.code}
-                    type="button"
-                    onClick={() => handleToggleDocument(doc.code)}
-                    className={`flex items-center gap-3 border-t border-zinc-100 px-4 py-3 text-left transition hover:bg-zinc-50 ${
-                      isSelected ? 'bg-blue-50' : 'bg-white'
-                    }`}
-                  >
-                    <div
-                      className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-500 text-white'
-                          : 'border-zinc-300 bg-white'
-                      }`}
-                    >
-                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-zinc-900">{doc.name}</div>
-                    </div>
-                  </button>
-                )
-              })}
-              {isLoading && documents.length > 0 && (
-                // Loading more indicator
-                <div className="flex items-center justify-center gap-2 border-t border-zinc-100 py-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
-                  <p className="text-xs text-zinc-500">Loading more...</p>
-                </div>
-              )}
-              {!hasMore && documents.length > 0 && (
-                // Completion message
-                <div className="border-t border-zinc-100 px-4 py-2 text-center text-xs text-zinc-500">
-                  {documents.length} document{documents.length !== 1 ? 's' : ''} loaded
-                  {loadedCount >= MAX_RESULTS && ' (max reached)'}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Footer */}
-        {step === 'select-document' && (
-          <div className="shrink-0 flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-2">
-            <span className="text-xs text-zinc-500">
-              {selectedDocs.size} of {filteredDocuments.length} document
-              {filteredDocuments.length !== 1 ? 's' : ''} selected
-            </span>
-          </div>
-        )}
+        <div className="shrink-0 flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-2">
+          <span className="text-xs text-zinc-500">
+            {selectedDocs.size} of {documents.length} document
+            {documents.length !== 1 ? 's' : ''} selected
+          </span>
+        </div>
       </div>
     </div>
   )
+}
+
+function useDebouncedValue(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(timer)
+  }, [value, delayMs])
+  return debounced
 }

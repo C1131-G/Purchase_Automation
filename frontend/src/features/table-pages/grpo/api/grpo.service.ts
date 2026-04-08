@@ -76,6 +76,7 @@ export type GRPODetailLine = {
   ItemCode?: string
   ItemDescription?: string
   Quantity?: number
+  OpenQty?: number
   Price?: number
   UnitPrice?: number
   DiscountPercent?: number

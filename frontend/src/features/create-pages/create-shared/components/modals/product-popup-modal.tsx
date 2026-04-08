@@ -50,7 +50,9 @@ const ProductPopupRow = memo(function ProductPopupRow({
   return (
     <tr
       key={`${product.code}-${product.name}`}
-      className="cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50"
+      className={`cursor-pointer border-t border-zinc-100 transition-all duration-150 ${
+        selected ? 'bg-blue-50/60 hover:bg-blue-100/70' : 'hover:bg-blue-50/40'
+      }`}
       onClick={(e) => {
         e.preventDefault()
         onToggle()
@@ -58,17 +60,35 @@ const ProductPopupRow = memo(function ProductPopupRow({
     >
       <td className="w-10 px-3 py-2">
         <div
-          className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all ${
-            selected ? 'border-blue-500 bg-blue-500 text-white' : 'border-zinc-300 bg-white'
+          className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-150 ${
+            selected
+              ? 'border-blue-500 bg-blue-500 text-white shadow-sm shadow-blue-500/20'
+              : 'border-zinc-300 bg-white group-hover:border-blue-300'
           }`}
         >
           {selected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
         </div>
       </td>
-      <td className="px-3 py-2 font-medium text-zinc-800">{product.code}</td>
-      <td className="px-3 py-2 text-zinc-700">{product.name}</td>
-      <td className="px-3 py-2 text-zinc-700">{product.stock}</td>
-      <td className="px-3 py-2 text-zinc-700">{product.price.toFixed(2)}</td>
+      <td
+        className={`px-3 py-2 font-medium transition-colors duration-150 ${selected ? 'text-blue-900' : 'text-zinc-800'}`}
+      >
+        {product.code}
+      </td>
+      <td
+        className={`px-3 py-2 transition-colors duration-150 ${selected ? 'text-blue-800' : 'text-zinc-700'}`}
+      >
+        {product.name}
+      </td>
+      <td
+        className={`px-3 py-2 transition-colors duration-150 ${selected ? 'text-blue-700/80' : 'text-zinc-700'}`}
+      >
+        {product.stock}
+      </td>
+      <td
+        className={`px-3 py-2 transition-colors duration-150 ${selected ? 'text-blue-700/80' : 'text-zinc-700'}`}
+      >
+        {product.price.toFixed(2)}
+      </td>
     </tr>
   )
 })
