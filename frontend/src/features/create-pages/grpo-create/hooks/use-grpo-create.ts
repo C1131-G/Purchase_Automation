@@ -391,9 +391,11 @@ export function useGRPOCreate({
             stock: lineStock,
             currency: '',
             taxCode: '',
+            // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
-              taxRateByItemCode.get(itemCode) ??
-              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
+              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+              taxRateByItemCode.get(itemCode) ||
+              0,
             uomCode: String(line.UoMCode ?? '').trim(),
             uomEntry:
               typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
@@ -603,9 +605,11 @@ export function useGRPOCreate({
             stock: lineStock,
             currency: '',
             taxCode: '',
+            // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
-              taxRateByItemCode.get(itemCode) ??
-              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
+              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+              taxRateByItemCode.get(itemCode) ||
+              0,
             uomCode: String(line.UoMCode ?? '').trim(),
             uomEntry:
               typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
@@ -900,6 +904,7 @@ export function useGRPOCreate({
       setFieldErrors(nextErrors)
       return
     }
+
     setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     setProductPopupOpen(true)
   }
@@ -937,6 +942,26 @@ export function useGRPOCreate({
   }
 
   const applyProductToRow = (product: ProductLookupItem) => {
+    // Compute existing product codes for duplicate check
+    const existingCodes = new Set(rows.map((r) => r.productCode))
+
+    if (activeProductRowId) {
+      // Editing an existing row — check if the product exists in a DIFFERENT row
+      const duplicateRow = rows.find(
+        (r) => r.id !== activeProductRowId && r.productCode === product.code,
+      )
+      if (duplicateRow) {
+        goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
+        return
+      }
+    } else {
+      // Adding a new row — check if the product already exists
+      if (existingCodes.has(product.code)) {
+        goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
+        return
+      }
+    }
+
     setLines((prev) => {
       if (activeProductRowId) {
         return prev.map((row) =>
@@ -994,8 +1019,28 @@ export function useGRPOCreate({
   }
 
   const applyProductsToRows = (products: ProductLookupItem[]) => {
+    // Build set of existing product codes
+    const existingCodes = new Set(rows.map((r) => r.productCode))
+
+    // Filter out duplicates
+    const freshProducts = products.filter((p) => {
+      if (existingCodes.has(p.code)) {
+        goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
+        return false
+      }
+      existingCodes.add(p.code)
+      return true
+    })
+
+    if (freshProducts.length === 0) {
+      setProductPopupOpen(false)
+      setProductSearch('')
+      setActiveProductRowId(null)
+      return
+    }
+
     setLines((prev) => {
-      const nextRows = products.map((product) => ({
+      const nextRows = freshProducts.map((product) => ({
         id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         productCode: product.code,
         productName: product.name,
@@ -1216,34 +1261,51 @@ export function useGRPOCreate({
           DocumentLines: (() => {
             const lines: Array<Record<string, unknown>> = []
             for (const row of filteredRows) {
+              // Guard: never send zero-quantity lines
+              if (row.quantity <= 0) continue
+
               const hasCompleteBaseLink =
                 Number.isFinite(row.baseEntry) &&
                 Number.isFinite(row.baseLine) &&
                 Number.isFinite(row.baseType)
-              const baseQty = row.baseQuantity ?? 0
 
-              // Base-linked portion: up to source qty
+              // Manual rows (no base link): send single line with actual quantity
+              if (!hasCompleteBaseLink) {
+                lines.push({
+                  ItemCode: row.productCode,
+                  Quantity: row.quantity,
+                  UnitPrice: row.price,
+                  DiscountPercent: row.discountPercent,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                })
+                continue
+              }
+
+              // Base-linked rows: split into base qty and excess portions
+              const baseQty = row.baseQuantity ?? 0
               const linkedQty = Math.min(row.quantity, baseQty)
-              lines.push({
-                ItemCode: row.productCode,
-                Quantity: linkedQty,
-                UnitPrice: row.price,
-                DiscountPercent: row.discountPercent,
-                UoMCode: row.uomCode || undefined,
-                UoMEntry: row.uomEntry ?? undefined,
-                WarehouseCode: row.warehouseCode || undefined,
-                ...(hasCompleteBaseLink
-                  ? {
-                      BaseType: row.baseType,
-                      BaseEntry: row.baseEntry,
-                      BaseLine: row.baseLine,
-                    }
-                  : {}),
-              })
+
+              // Only push base-linked portion if quantity is positive
+              if (linkedQty > 0) {
+                lines.push({
+                  ItemCode: row.productCode,
+                  Quantity: linkedQty,
+                  UnitPrice: row.price,
+                  DiscountPercent: row.discountPercent,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                  BaseType: row.baseType,
+                  BaseEntry: row.baseEntry,
+                  BaseLine: row.baseLine,
+                })
+              }
 
               // Excess portion: manual line without base linkage
               const excessQty = row.quantity - baseQty
-              if (excessQty > 0 && hasCompleteBaseLink) {
+              if (excessQty > 0) {
                 lines.push({
                   ItemCode: row.productCode,
                   Quantity: excessQty,
@@ -1422,11 +1484,22 @@ export function useGRPOCreate({
     productSearch,
     setProductPopupOpen,
     setProductSearch,
+    activeProductRowId,
     openProductPopup,
     loadMoreProducts,
     applyProductToRow,
     applyProductsToRows,
+    existingProductCodes: useMemo(() => new Set(rows.map((r) => r.productCode)), [rows]),
+    onBlockDuplicate: () => {
+      goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
+    },
     prefetchProducts: () => (isEditMode ? null : prefetchProducts()),
+    // Derive the product code of the currently active row for seeding modal selection
+    activeRowProductCode: (() => {
+      if (!activeProductRowId) return null
+      const activeRow = rows.find((r) => r.id === activeProductRowId)
+      return activeRow?.productCode ?? null
+    })(),
 
     rows,
     productRowDrafts,

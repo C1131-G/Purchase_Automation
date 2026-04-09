@@ -29,9 +29,9 @@ import { Route as LayoutPurchaseCreateOutgoingPaymentRouteImport } from './route
 import { Route as LayoutPurchaseCreateOrderRouteImport } from './routes/_layout.purchase.create-order'
 import { Route as LayoutPurchaseCreateGrpoRouteImport } from './routes/_layout.purchase.create-grpo'
 import { Route as LayoutPurchaseCreateApInvoiceRouteImport } from './routes/_layout.purchase.create-ap-invoice'
-import { Route as LayoutPurchaseCreateApCreditNoteRouteImport } from './routes/_layout.purchase.create-ap-credit-note'
+import { Route as LayoutPurchaseCreateApCreditMemoRouteImport } from './routes/_layout.purchase.create-ap-credit-memo'
 import { Route as LayoutPurchaseApInvoiceRouteImport } from './routes/_layout.purchase.ap-invoice'
-import { Route as LayoutPurchaseApCreditNoteRouteImport } from './routes/_layout.purchase.ap-credit-note'
+import { Route as LayoutPurchaseApCreditMemoRouteImport } from './routes/_layout.purchase.ap-credit-memo'
 import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout.dashboard.sales'
 import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout.dashboard.purchase'
 import { Route as LayoutSalesQuotationsDocNumEditRouteImport } from './routes/_layout.sales.quotations.$docNum.edit'
@@ -150,10 +150,10 @@ const LayoutPurchaseCreateApInvoiceRoute =
     path: '/purchase/create-ap-invoice',
     getParentRoute: () => LayoutRoute,
   } as any)
-const LayoutPurchaseCreateApCreditNoteRoute =
-  LayoutPurchaseCreateApCreditNoteRouteImport.update({
-    id: '/purchase/create-ap-credit-note',
-    path: '/purchase/create-ap-credit-note',
+const LayoutPurchaseCreateApCreditMemoRoute =
+  LayoutPurchaseCreateApCreditMemoRouteImport.update({
+    id: '/purchase/create-ap-credit-memo',
+    path: '/purchase/create-ap-credit-memo',
     getParentRoute: () => LayoutRoute,
   } as any)
 const LayoutPurchaseApInvoiceRoute = LayoutPurchaseApInvoiceRouteImport.update({
@@ -161,10 +161,10 @@ const LayoutPurchaseApInvoiceRoute = LayoutPurchaseApInvoiceRouteImport.update({
   path: '/purchase/ap-invoice',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutPurchaseApCreditNoteRoute =
-  LayoutPurchaseApCreditNoteRouteImport.update({
-    id: '/purchase/ap-credit-note',
-    path: '/purchase/ap-credit-note',
+const LayoutPurchaseApCreditMemoRoute =
+  LayoutPurchaseApCreditMemoRouteImport.update({
+    id: '/purchase/ap-credit-memo',
+    path: '/purchase/ap-credit-memo',
     getParentRoute: () => LayoutRoute,
   } as any)
 const LayoutDashboardSalesRoute = LayoutDashboardSalesRouteImport.update({
@@ -219,9 +219,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
-  '/purchase/ap-credit-note': typeof LayoutPurchaseApCreditNoteRoute
+  '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRoute
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
-  '/purchase/create-ap-credit-note': typeof LayoutPurchaseCreateApCreditNoteRoute
+  '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
@@ -251,9 +251,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
-  '/purchase/ap-credit-note': typeof LayoutPurchaseApCreditNoteRoute
+  '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRoute
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
-  '/purchase/create-ap-credit-note': typeof LayoutPurchaseCreateApCreditNoteRoute
+  '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
@@ -285,9 +285,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_layout/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
-  '/_layout/purchase/ap-credit-note': typeof LayoutPurchaseApCreditNoteRoute
+  '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRoute
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
-  '/_layout/purchase/create-ap-credit-note': typeof LayoutPurchaseCreateApCreditNoteRoute
+  '/_layout/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/_layout/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/_layout/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/_layout/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
@@ -319,9 +319,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/dashboard/purchase'
     | '/dashboard/sales'
-    | '/purchase/ap-credit-note'
+    | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
-    | '/purchase/create-ap-credit-note'
+    | '/purchase/create-ap-credit-memo'
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
     | '/purchase/create-order'
@@ -351,9 +351,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/dashboard/purchase'
     | '/dashboard/sales'
-    | '/purchase/ap-credit-note'
+    | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
-    | '/purchase/create-ap-credit-note'
+    | '/purchase/create-ap-credit-memo'
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
     | '/purchase/create-order'
@@ -384,9 +384,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/_layout/dashboard/purchase'
     | '/_layout/dashboard/sales'
-    | '/_layout/purchase/ap-credit-note'
+    | '/_layout/purchase/ap-credit-memo'
     | '/_layout/purchase/ap-invoice'
-    | '/_layout/purchase/create-ap-credit-note'
+    | '/_layout/purchase/create-ap-credit-memo'
     | '/_layout/purchase/create-ap-invoice'
     | '/_layout/purchase/create-grpo'
     | '/_layout/purchase/create-order'
@@ -560,11 +560,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPurchaseCreateApInvoiceRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/purchase/create-ap-credit-note': {
-      id: '/_layout/purchase/create-ap-credit-note'
-      path: '/purchase/create-ap-credit-note'
-      fullPath: '/purchase/create-ap-credit-note'
-      preLoaderRoute: typeof LayoutPurchaseCreateApCreditNoteRouteImport
+    '/_layout/purchase/create-ap-credit-memo': {
+      id: '/_layout/purchase/create-ap-credit-memo'
+      path: '/purchase/create-ap-credit-memo'
+      fullPath: '/purchase/create-ap-credit-memo'
+      preLoaderRoute: typeof LayoutPurchaseCreateApCreditMemoRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/purchase/ap-invoice': {
@@ -574,11 +574,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPurchaseApInvoiceRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/purchase/ap-credit-note': {
-      id: '/_layout/purchase/ap-credit-note'
-      path: '/purchase/ap-credit-note'
-      fullPath: '/purchase/ap-credit-note'
-      preLoaderRoute: typeof LayoutPurchaseApCreditNoteRouteImport
+    '/_layout/purchase/ap-credit-memo': {
+      id: '/_layout/purchase/ap-credit-memo'
+      path: '/purchase/ap-credit-memo'
+      fullPath: '/purchase/ap-credit-memo'
+      preLoaderRoute: typeof LayoutPurchaseApCreditMemoRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/dashboard/sales': {
@@ -715,9 +715,9 @@ const LayoutSalesQuotationsRouteWithChildren =
 interface LayoutRouteChildren {
   LayoutDashboardPurchaseRoute: typeof LayoutDashboardPurchaseRoute
   LayoutDashboardSalesRoute: typeof LayoutDashboardSalesRoute
-  LayoutPurchaseApCreditNoteRoute: typeof LayoutPurchaseApCreditNoteRoute
+  LayoutPurchaseApCreditMemoRoute: typeof LayoutPurchaseApCreditMemoRoute
   LayoutPurchaseApInvoiceRoute: typeof LayoutPurchaseApInvoiceRouteWithChildren
-  LayoutPurchaseCreateApCreditNoteRoute: typeof LayoutPurchaseCreateApCreditNoteRoute
+  LayoutPurchaseCreateApCreditMemoRoute: typeof LayoutPurchaseCreateApCreditMemoRoute
   LayoutPurchaseCreateApInvoiceRoute: typeof LayoutPurchaseCreateApInvoiceRoute
   LayoutPurchaseCreateGrpoRoute: typeof LayoutPurchaseCreateGrpoRoute
   LayoutPurchaseCreateOrderRoute: typeof LayoutPurchaseCreateOrderRoute
@@ -740,9 +740,9 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardPurchaseRoute: LayoutDashboardPurchaseRoute,
   LayoutDashboardSalesRoute: LayoutDashboardSalesRoute,
-  LayoutPurchaseApCreditNoteRoute: LayoutPurchaseApCreditNoteRoute,
+  LayoutPurchaseApCreditMemoRoute: LayoutPurchaseApCreditMemoRoute,
   LayoutPurchaseApInvoiceRoute: LayoutPurchaseApInvoiceRouteWithChildren,
-  LayoutPurchaseCreateApCreditNoteRoute: LayoutPurchaseCreateApCreditNoteRoute,
+  LayoutPurchaseCreateApCreditMemoRoute: LayoutPurchaseCreateApCreditMemoRoute,
   LayoutPurchaseCreateApInvoiceRoute: LayoutPurchaseCreateApInvoiceRoute,
   LayoutPurchaseCreateGrpoRoute: LayoutPurchaseCreateGrpoRoute,
   LayoutPurchaseCreateOrderRoute: LayoutPurchaseCreateOrderRoute,

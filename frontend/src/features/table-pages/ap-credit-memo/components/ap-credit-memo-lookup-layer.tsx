@@ -1,21 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-// APCreditNoteLookupLayer: Orchestrates lookup popups and suggestions for credit note filtering.
+// APCreditMemoLookupLayer: Orchestrates lookup popups and suggestions for credit memo filtering.
 import { type useReactTable } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 
 import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
-import { apCreditNoteQueries } from '@/features/table-pages/ap-credit-note/api/ap-credit-note.queries'
-import { type APCreditNoteListItem } from '@/features/table-pages/ap-credit-note/api/ap-credit-note.service'
+import { apCreditMemoQueries } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries'
+import { type APCreditMemoListItem } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.service'
 import { TableToolbar } from '@/features/table-pages/table-shared/components/core/table-toolbar'
 import { useTableLookupPopupSync } from '@/features/table-pages/table-shared/hooks/use-table-lookup-popup-sync'
 import { useSetActiveFilterAction } from '@/store/table/table-filter.store'
 
-const AP_CREDIT_NOTE_BREADCRUMB = {
+const AP_CREDIT_MEMO_BREADCRUMB = {
   section: 'Purchase',
-  page: 'AP Credit Notes Data Table',
-  href: '/purchase/ap-credit-note',
+  page: 'AP Credit Memos Data Table',
+  href: '/purchase/ap-credit-memo',
 } as const
 const DOC_NUM_QUICK_LIMIT = 10
 const DOC_NUM_BACKGROUND_LIMIT = 100
@@ -32,19 +32,19 @@ const toOrderedUniqueDocNumSuggestions = (items: LookupItem[]): LookupItem[] => 
   return result
 }
 
-export type APCreditNoteLookupLayerProps = {
+export type APCreditMemoLookupLayerProps = {
   tableId: string
-  table: ReturnType<typeof useReactTable<APCreditNoteListItem>>
+  table: ReturnType<typeof useReactTable<APCreditMemoListItem>>
   onReset: () => void
   onCreateClick: () => void
 }
 
-export function APCreditNoteLookupLayer({
+export function APCreditMemoLookupLayer({
   tableId,
   table,
   onReset,
   onCreateClick,
-}: APCreditNoteLookupLayerProps) {
+}: APCreditMemoLookupLayerProps) {
   const setActiveFilter = useSetActiveFilterAction()
   const queryClient = useQueryClient()
 
@@ -74,10 +74,10 @@ export function APCreditNoteLookupLayer({
   const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length >= 2
 
   const docNumSuggestionsQuery = useQuery(
-    apCreditNoteQueries.docNumSuggestions(undefined, DOC_NUM_QUICK_LIMIT),
+    apCreditMemoQueries.docNumSuggestions(undefined, DOC_NUM_QUICK_LIMIT),
   )
   const docNumSuggestionsBackgroundQuery = useQuery({
-    ...apCreditNoteQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
+    ...apCreditMemoQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
     enabled: docNumSuggestionsQuery.isFetched,
   })
   const tableOrderedDocNumSuggestions = useMemo<LookupItem[]>(() => {
@@ -122,7 +122,7 @@ export function APCreditNoteLookupLayer({
   ])
 
   const docNumLookupSearchQuery = useQuery({
-    ...apCreditNoteQueries.docNumSuggestions(
+    ...apCreditMemoQueries.docNumSuggestions(
       docNumLookupSearchTerm || undefined,
       DOC_NUM_BACKGROUND_LIMIT,
     ),
@@ -132,7 +132,7 @@ export function APCreditNoteLookupLayer({
   useEffect(() => {
     if (lookupColumnId !== 'DocNum') return
     void queryClient.prefetchQuery(
-      apCreditNoteQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
+      apCreditMemoQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
     )
   }, [lookupColumnId, queryClient])
 
@@ -156,8 +156,8 @@ export function APCreditNoteLookupLayer({
         table={table}
         onReset={onReset}
         onCreateClick={onCreateClick}
-        createLink="/purchase/create-ap-credit-note"
-        breadcrumb={AP_CREDIT_NOTE_BREADCRUMB}
+        createLink="/purchase/create-ap-credit-memo"
+        breadcrumb={AP_CREDIT_MEMO_BREADCRUMB}
         lookupSuggestions={vendors}
         docNumSuggestions={docNumSuggestions}
         enableDocNumPopup

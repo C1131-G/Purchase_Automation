@@ -11,6 +11,7 @@ import { PDN1Schema } from "@/db/schemas/pdn1.schema";
 import { type PurchaseOrder, PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -186,10 +187,9 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       NumAtCard: result.NumAtCard,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
+        const normalized = normalizeSAPLineData(lineData);
         return {
-          ItemCode: line.ItemCode,
-          ItemDescription: line.ItemDescription,
-          Quantity: line.Quantity,
+          ...normalized,
           OpenQty: Number(
             lineData.OpenQuantity ??
               lineData.RemainingOpenQuantity ??
@@ -198,14 +198,6 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
               line.Quantity ??
               0,
           ),
-          Price: line.Price || line.UnitPrice,
-          DiscountPercent: line.DiscountPercent,
-          UoMCode: lineData.UoMCode,
-          UoMEntry: lineData.UoMEntry,
-          WarehouseCode: line.WarehouseCode,
-          TaxCode: line.TaxCode,
-          LineNum: line.LineNum ?? 0,
-          LineTotal: line.LineTotal,
         };
       }),
     };

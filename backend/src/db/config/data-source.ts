@@ -8,7 +8,7 @@ import { DataSource } from "typeorm";
 import { config } from "@/config/env";
 // Core & Utils
 import { logger } from "@/core/logger/pino-logger";
-import { APCreditNoteSchema } from "@/db/schemas/ap-credit-note.schema";
+import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { ARCreditNoteSchema } from "@/db/schemas/ar-credit-note.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
@@ -58,7 +58,7 @@ export const AppDataSource = new DataSource({
     PurchaseOrderSchema,
     GRPOSchema,
     APInvoiceSchema,
-    APCreditNoteSchema,
+    APCreditMemoSchema,
     OutgoingPaymentSchema,
     UserSchema,
     ItemSchema,

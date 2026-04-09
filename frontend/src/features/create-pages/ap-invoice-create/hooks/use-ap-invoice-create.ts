@@ -32,6 +32,7 @@ import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/ut
 import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import { resolveProductTaxRates } from '@/features/create-pages/create-shared/utils/product-tax-rate'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
+import type { CreateAPInvoiceInput } from '@/features/table-pages/ap-invoices/api/ap-invoice.service'
 import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
 import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
 import {
@@ -318,9 +319,11 @@ export function useAPInvoiceCreate({
           stock: 0, // In edit mode, stock is less relevant for invoices
           currency: String(detail.DocCurr ?? '').trim(),
           taxCode: String(line.TaxCode ?? '').trim(),
+          // SAP line tax is authoritative; fall back to product master only when missing
           taxRate:
-            taxRateByItemCode.get(itemCode) ??
-            (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
+            (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+            taxRateByItemCode.get(itemCode) ||
+            0,
           uomCode: String(line.UoMCode ?? '').trim(),
           uomEntry: typeof line.UoMEntry === 'number' ? line.UoMEntry : undefined,
           baseQuantity: quantity,
@@ -374,11 +377,6 @@ export function useAPInvoiceCreate({
     const hydrationKey = `${currentSourceDocType}-${currentSourceDocNum}`
     if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) return
 
-    const detailQuery =
-      currentSourceDocType === 'GoodsReceiptPO'
-        ? grpoQueries.detailByDocNum
-        : purchaseOrderQueries.detailByDocNum
-
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast('A/P Invoice', 'create')
     }
@@ -386,7 +384,11 @@ export function useAPInvoiceCreate({
     const fetchAllSources = async () => {
       const details = await Promise.all(
         sourceDocNums.map(async (num) => {
-          const res = await queryClient.fetchQuery(detailQuery(num))
+          if (currentSourceDocType === 'GoodsReceiptPO') {
+            const res = await queryClient.fetchQuery(grpoQueries.detailByDocNum(num))
+            return res.data
+          }
+          const res = await queryClient.fetchQuery(purchaseOrderQueries.detailByDocNum(num))
           return res.data
         }),
       )
@@ -467,9 +469,11 @@ export function useAPInvoiceCreate({
             stock: 0,
             currency,
             taxCode: String(line.TaxCode ?? '').trim(),
+            // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
-              taxRateByItemCode.get(itemCode) ??
-              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0),
+              (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+              taxRateByItemCode.get(itemCode) ||
+              0,
             uomCode: String(line.UoMCode ?? '').trim(),
             uomEntry: typeof line.UoMEntry === 'number' ? line.UoMEntry : undefined,
             baseQuantity: quantity,
@@ -679,6 +683,7 @@ export function useAPInvoiceCreate({
       }))
       return
     }
+
     setProductPopupOpen(true)
   }
 
@@ -694,6 +699,26 @@ export function useAPInvoiceCreate({
   }
 
   const applyProductToRow = (product: ProductLookupItem) => {
+    // Compute existing product codes for duplicate check
+    const existingCodes = new Set(rows.map((r) => r.productCode))
+
+    if (activeProductRowId) {
+      // Editing an existing row — check if the product exists in a DIFFERENT row
+      const duplicateRow = rows.find(
+        (r) => r.id !== activeProductRowId && r.productCode === product.code,
+      )
+      if (duplicateRow) {
+        goeyToast.error('Duplicate product already exists', { id: 'ap-invoice-duplicate-product' })
+        return
+      }
+    } else {
+      // Adding a new row — check if the product already exists
+      if (existingCodes.has(product.code)) {
+        goeyToast.error('Duplicate product already exists', { id: 'ap-invoice-duplicate-product' })
+        return
+      }
+    }
+
     setLines((prev) => {
       if (activeProductRowId) {
         return prev.map((row) =>
@@ -738,9 +763,28 @@ export function useAPInvoiceCreate({
   }
 
   const applyProductsToRows = (products: ProductLookupItem[]) => {
+    // Build set of existing product codes
+    const existingCodes = new Set(rows.map((r) => r.productCode))
+
+    // Filter out duplicates
+    const freshProducts = products.filter((p) => {
+      if (existingCodes.has(p.code)) {
+        goeyToast.error('Duplicate product already exists', { id: 'ap-invoice-duplicate-product' })
+        return false
+      }
+      existingCodes.add(p.code)
+      return true
+    })
+
+    if (freshProducts.length === 0) {
+      setProductPopupOpen(false)
+      setProductSearch('')
+      return
+    }
+
     setLines((prev) => [
       ...prev,
-      ...products.map((product) => ({
+      ...freshProducts.map((product) => ({
         id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         productCode: product.code,
         productName: product.name,
@@ -809,37 +853,52 @@ export function useAPInvoiceCreate({
         }
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload })
       } else {
-        const buildDocumentLines = () => {
-          const lines: Array<Record<string, unknown>> = []
+        const buildDocumentLines = (): CreateAPInvoiceInput['DocumentLines'] => {
+          const lines: CreateAPInvoiceInput['DocumentLines'] = []
           for (const row of filteredRows) {
+            // Guard: never send zero-quantity lines
+            if (row.quantity <= 0) continue
+
             const hasCompleteBaseLink =
               Number.isFinite(row.baseEntry) &&
               Number.isFinite(row.baseLine) &&
               Number.isFinite(row.baseType)
-            const baseQty = row.baseQuantity ?? 0
 
-            // Base-linked portion: up to source qty
+            // Manual rows (no base link): send single line with actual quantity
+            if (!hasCompleteBaseLink) {
+              lines.push({
+                ItemCode: row.productCode,
+                Quantity: row.quantity,
+                UnitPrice: row.price,
+                DiscountPercent: row.discountPercent,
+                UoMCode: row.uomCode || undefined,
+                WarehouseCode: row.warehouseCode || undefined,
+              })
+              continue
+            }
+
+            // Base-linked rows: split into base qty and excess portions
+            const baseQty = row.baseQuantity ?? 0
             const linkedQty = Math.min(row.quantity, baseQty)
-            lines.push({
-              ItemCode: row.productCode,
-              Quantity: linkedQty,
-              UnitPrice: row.price,
-              DiscountPercent: row.discountPercent,
-              UoMCode: row.uomCode || undefined,
-              WarehouseCode: row.warehouseCode || undefined,
-              TaxCode: row.taxCode || undefined,
-              ...(hasCompleteBaseLink
-                ? {
-                    BaseType: row.baseType,
-                    BaseEntry: row.baseEntry,
-                    BaseLine: row.baseLine,
-                  }
-                : {}),
-            })
+
+            // Only push base-linked portion if quantity is positive
+            if (linkedQty > 0) {
+              lines.push({
+                ItemCode: row.productCode,
+                Quantity: linkedQty,
+                UnitPrice: row.price,
+                DiscountPercent: row.discountPercent,
+                UoMCode: row.uomCode || undefined,
+                WarehouseCode: row.warehouseCode || undefined,
+                BaseType: row.baseType,
+                BaseEntry: row.baseEntry,
+                BaseLine: row.baseLine,
+              })
+            }
 
             // Excess portion: manual line without base linkage
             const excessQty = row.quantity - baseQty
-            if (excessQty > 0 && hasCompleteBaseLink) {
+            if (excessQty > 0) {
               lines.push({
                 ItemCode: row.productCode,
                 Quantity: excessQty,
@@ -847,7 +906,6 @@ export function useAPInvoiceCreate({
                 DiscountPercent: row.discountPercent,
                 UoMCode: row.uomCode || undefined,
                 WarehouseCode: row.warehouseCode || undefined,
-                TaxCode: row.taxCode || undefined,
               })
             }
           }
@@ -1041,11 +1099,22 @@ export function useAPInvoiceCreate({
     productSearch,
     setProductPopupOpen,
     setProductSearch,
+    activeProductRowId,
     openProductPopup,
     loadMoreProducts: () => setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT)),
     applyProductToRow,
     applyProductsToRows,
+    existingProductCodes: useMemo(() => new Set(rows.map((r) => r.productCode)), [rows]),
+    onBlockDuplicate: () => {
+      goeyToast.error('Duplicate product already exists', { id: 'ap-invoice-duplicate-product' })
+    },
     prefetchProducts: () => {}, // Simplified
+    // Derive the product code of the currently active row for seeding modal selection
+    activeRowProductCode: (() => {
+      if (!activeProductRowId) return null
+      const activeRow = rows.find((r) => r.id === activeProductRowId)
+      return activeRow?.productCode ?? null
+    })(),
     isLookupLoading: modalMode.includes('vendor')
       ? vendorsQuery.isLoading
       : modalMode === 'warehouse'

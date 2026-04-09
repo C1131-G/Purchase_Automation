@@ -34,10 +34,21 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
   const queryClient = useQueryClient()
   const search = useSearch({ strict: false })
   const sourceDocNum = mode === 'create' ? search.sourceDocNum : undefined
-  const sourceDocType = mode === 'create' ? search.sourceDocType : undefined
+  const sourceDocType =
+    mode === 'create'
+      ? search.sourceDocType === 'SalesQuotation' || search.sourceDocType === 'SalesOrder'
+        ? search.sourceDocType
+        : undefined
+      : undefined
 
   const state = useARInvoiceCreate(
-    docNum ? { mode, docNum } : { mode, sourceDocNum, sourceDocType },
+    docNum
+      ? { mode, docNum }
+      : {
+          mode,
+          ...(sourceDocNum ? { sourceDocNum } : {}),
+          ...(sourceDocType ? { sourceDocType } : {}),
+        },
   )
 
   const pageTitle = state.isEditMode ? 'Update A/R Invoice' : 'Create A/R Invoice'

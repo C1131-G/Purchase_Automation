@@ -12,7 +12,7 @@ export interface SapDocument {
 export type PurchaseOrder = SapDocument;
 export type GRPO = SapDocument;
 export type APInvoice = SapDocument;
-export type APCreditNote = SapDocument;
+export type APCreditMemo = SapDocument;
 export type SalesOrder = SapDocument;
 export type ARCreditNote = SapDocument;
 

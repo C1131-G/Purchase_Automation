@@ -1,5 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
-import { type MouseEvent, useState } from 'react'
+import { goeyToast } from 'goey-toast'
+import { type MouseEvent, useMemo, useState } from 'react'
 
 import { APInvoiceModals } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-modals'
 import { APInvoiceProductSection } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section'
@@ -36,7 +37,7 @@ export function APInvoiceCreate({
   const router = useRouter()
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
   const [copyFromSourceType, setCopyFromSourceType] = useState<
-    'PurchaseOrder' | 'GoodsReceiptPO' | null
+    'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' | null
   >(null)
 
   const state = useAPInvoiceCreate({
@@ -51,6 +52,24 @@ export function APInvoiceCreate({
 
   const isFormHydrating =
     (mode === 'edit' && !!docNum && !state.isEditHydrated) || state.isSourceHydrating
+
+  // Derive the active source family from draft rows to lock the opposite family.
+  // SAP BaseType: 22 = Purchase Order, 20 = Goods Receipt PO (GRPO)
+  const lockedSourceFamily = useMemo<'PurchaseOrder' | 'GoodsReceiptPO' | null>(() => {
+    const hasPORows = state.rows.some((row) => row.baseType === 22 && row.baseEntry != null)
+    const hasGRPORows = state.rows.some((row) => row.baseType === 20 && row.baseEntry != null)
+
+    if (hasPORows) return 'GoodsReceiptPO' // Lock GRPO if PO rows exist
+    if (hasGRPORows) return 'PurchaseOrder' // Lock PO if GRPO rows exist
+    return null
+  }, [state.rows])
+
+  const handleLockedFamilyClick = () => {
+    goeyToast.warning(
+      'SAP does not allow mixing Purchase Order and GRPO documents in one A/P Invoice.',
+      { duration: 4000 },
+    )
+  }
 
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>
@@ -91,6 +110,8 @@ export function APInvoiceCreate({
               setCopyFromSourceType(sourceType)
               setCopyFromDialogOpen(true)
             }}
+            lockedSourceFamily={lockedSourceFamily}
+            onLockedFamilyClick={handleLockedFamilyClick}
           />
         ) : null
       }
@@ -262,7 +283,7 @@ export function APInvoiceCreate({
             <CopyToDropdown
               docNum={docNum!}
               sourceDocType="APInvoice"
-              targets={['AP Credit Note']}
+              targets={['AP Credit Memo']}
             />
           ) : null
         }

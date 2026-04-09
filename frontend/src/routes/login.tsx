@@ -60,8 +60,8 @@ function LoginComponent() {
 
   useEffect(() => {
     let isMounted = true
-    let checkTimeoutId: number | null = null
-    let idleCallbackId: number | null = null
+    let checkTimeoutId: ReturnType<typeof setTimeout> | null = null
+    let idleCallbackId: ReturnType<typeof requestIdleCallback> | null = null
     const params = new URLSearchParams(window.location.search)
     const reason = params.get('reason')
     const isSessionEndedReason = reason === 'session_ended'
@@ -127,10 +127,11 @@ function LoginComponent() {
     }
 
     // Keep first paint uninterrupted and run session probe in idle time.
+    const runProbeSession = () => void probeSession()
     if ('requestIdleCallback' in window) {
-      idleCallbackId = window.requestIdleCallback(probeSession, { timeout: 1200 })
+      idleCallbackId = window.requestIdleCallback(runProbeSession, { timeout: 1200 })
     } else {
-      checkTimeoutId = window.setTimeout(probeSession, 300)
+      checkTimeoutId = globalThis.setTimeout(runProbeSession, 300)
     }
 
     return () => {

@@ -6,6 +6,7 @@ import type { InvoiceFilters } from "@/dal/types/ap-invoice.types";
 import { type APInvoice, APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -179,19 +180,10 @@ export const getInvoice = async (sessionId: string, id: string) => {
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDueDate: result.DocDueDate,
       NumAtCard: result.NumAtCard,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        Price: line.Price ?? line.UnitPrice,
-        TaxCode: line.TaxCode,
-        VatPrcnt: line.VatPrcnt,
-        WarehouseCode: line.WarehouseCode,
-        DiscountPercent: line.DiscountPercent,
-        LineTotal: line.LineTotal,
-      })),
+      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+        const lineData = line as unknown as Record<string, unknown>;
+        return normalizeSAPLineData(lineData);
+      }),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));

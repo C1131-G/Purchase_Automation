@@ -1,20 +1,20 @@
-﻿// A/P Credit Note Service: Logic for A/P Credit Notes, combining HANA database queries for lists and SAP Service Layer for detailed document operations.
+﻿// A/P Credit Memo Service: Logic for A/P Credit Memos, combining HANA database queries for lists and SAP Service Layer for detailed document operations.
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
-import type { CreditNoteFilters } from "@/dal/types/ap-credit-note.types";
-import { APCreditNote, APCreditNoteSchema } from "@/db/schemas/ap-credit-note.schema";
+import type { CreditNoteFilters } from "@/dal/types/ap-credit-memo.types";
+import { APCreditMemo, APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
-// Fetches a paginated list of A/P Credit Notes from HANA.
+// Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, APCreditNoteSchema);
+    const repo = await getTenantRepository(dbName, APCreditMemoSchema);
     const queryBuilder = repo.createQueryBuilder("cn");
     queryBuilder.where("1=1");
 
@@ -87,12 +87,12 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
       : ({ "cn.docDate": "DESC", "cn.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Executes the query with pagination logic (offset/limit) and results sorting.
-    const result = await PageService.getPagedData<APCreditNote>({
+    const result = await PageService.getPagedData<APCreditMemo>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
       sort,
-      entityName: "APCreditNotes",
+      entityName: "APCreditMemos",
       dbName,
     });
 
@@ -117,7 +117,7 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
 };
 
 export const getCreditNoteDocNums = async (dbName: string, search?: string, limit?: number) => {
-  const repo = await getTenantRepository(dbName, APCreditNoteSchema);
+  const repo = await getTenantRepository(dbName, APCreditMemoSchema);
   const queryBuilder = repo.createQueryBuilder("cn");
   const safeLimit = getSafeDocNumLimit(limit);
 
@@ -137,7 +137,7 @@ export const getCreditNoteDocNums = async (dbName: string, search?: string, limi
     .map((code) => ({ code, name: code }));
 };
 
-// Obtains full document detail for an A/P Credit Note from the SAP Service Layer.
+// Obtains full document detail for an A/P Credit Memo from the SAP Service Layer.
 export const getCreditNote = async (sessionId: string, id: string) => {
   try {
     const result = (await serviceLayerClient.request(
@@ -172,7 +172,7 @@ export const getCreditNote = async (sessionId: string, id: string) => {
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({
-      msg: "Failed to fetch A/P Credit Note from Service Layer",
+      msg: "Failed to fetch A/P Credit Memo from Service Layer",
       error: error.message,
       id,
     });
@@ -180,7 +180,7 @@ export const getCreditNote = async (sessionId: string, id: string) => {
   }
 };
 
-// Creates a formal A/P Credit Note in SAP. Handles payload conversion.
+// Creates a formal A/P Credit Memo in SAP. Handles payload conversion.
 export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     // Construct the SAP Service Layer compatible payload.
@@ -224,21 +224,21 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
 
     return {
       success: true,
-      message: "A/P Credit Note created successfully",
+      message: "A/P Credit Memo created successfully",
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({
-      msg: "Failed to create A/P Credit Note in Service Layer",
+      msg: "Failed to create A/P Credit Memo in Service Layer",
       error: error.message,
     });
     throw error;
   }
 };
 
-// Updates meta-fields (like Comments) on an existing A/P Credit Note.
+// Updates meta-fields (like Comments) on an existing A/P Credit Memo.
 export const updateCreditNote = async (
   sessionId: string,
   id: string,
@@ -256,15 +256,15 @@ export const updateCreditNote = async (
       purgeCache(`dash:purchase:${session.companyDB}:`);
     }
 
-    return { success: true, message: "A/P Credit Note updated successfully" };
+    return { success: true, message: "A/P Credit Memo updated successfully" };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.error({ msg: "Failed to update A/P Credit Note", error: error.message, id });
+    logger.error({ msg: "Failed to update A/P Credit Memo", error: error.message, id });
     throw error;
   }
 };
 
-// Triggers the cancellation procedure for an A/P Credit Note in SAP B1.
+// Triggers the cancellation procedure for an A/P Credit Memo in SAP B1.
 export const cancelCreditNote = async (sessionId: string, id: string) => {
   try {
     await serviceLayerClient.request(sessionId, "POST", `/PurchaseCreditNotes(${id})/Cancel`);
@@ -275,15 +275,15 @@ export const cancelCreditNote = async (sessionId: string, id: string) => {
       purgeCache(`dash:purchase:${session.companyDB}:`);
     }
 
-    return { success: true, message: "A/P Credit Note cancelled successfully" };
+    return { success: true, message: "A/P Credit Memo cancelled successfully" };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.error({ msg: "Failed to cancel A/P Credit Note", error: error.message, id });
+    logger.error({ msg: "Failed to cancel A/P Credit Memo", error: error.message, id });
     throw error;
   }
 };
 
-export const apCreditNoteService = {
+export const apCreditMemoService = {
   getCreditNotes,
   getCreditNoteDocNums,
   getCreditNote,

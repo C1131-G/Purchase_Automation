@@ -5,7 +5,7 @@ import { EntitySchema } from "typeorm";
 
 import type { HANAColumnType } from "@/db/schemas/types/base.types";
 
-export type APCreditNote = {
+export type APCreditMemo = {
   docEntry: number; // Internal SAP key (Primary).
   docNum: number; // Visible SAP document number.
   docDate: Date;
@@ -16,8 +16,8 @@ export type APCreditNote = {
   docStatus: string; // 'O' = Open, 'C' = Closed.
 };
 
-export const APCreditNoteSchema = new EntitySchema<APCreditNote>({
-  name: "APCreditNote",
+export const APCreditMemoSchema = new EntitySchema<APCreditMemo>({
+  name: "APCreditMemo",
   tableName: "ORPC",
   columns: {
     docEntry: { primary: true, type: "int" as HANAColumnType, name: "DocEntry" },

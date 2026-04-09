@@ -10,7 +10,7 @@ const DOC_TYPE_DISPLAY_NAMES: Record<string, string> = {
   PurchaseOrder: 'Purchase Order',
   GoodsReceiptPO: 'GRPO',
   APInvoice: 'A/P Invoice',
-  APCreditNote: 'A/P Credit Note',
+  APCreditMemo: 'A/P Credit Memo',
   OutgoingPayment: 'Outgoing Payment',
 }
 
@@ -21,7 +21,7 @@ const DOC_TYPE_PLURALS: Record<string, string> = {
   PurchaseOrder: 'Purchase Orders',
   GoodsReceiptPO: 'GRPOs',
   APInvoice: 'A/P Invoices',
-  APCreditNote: 'A/P Credit Notes',
+  APCreditMemo: 'A/P Credit Memos',
   OutgoingPayment: 'Outgoing Payments',
 }
 

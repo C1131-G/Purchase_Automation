@@ -1,4 +1,4 @@
-import { ChevronRight, ClipboardList, FileText, StickyNote } from 'lucide-react'
+import { ChevronRight, ClipboardList, FileText, Lock, StickyNote } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/button'
@@ -6,20 +6,27 @@ import { Popover } from '@/components/popover'
 import { cn } from '@/shared/utils/cn'
 
 type SourceDocType = 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+type SourceFamily = 'PurchaseOrder' | 'GoodsReceiptPO'
 
 interface CopyFromSourceOption {
   label: string
   code: SourceDocType
   icon: React.ReactNode
+  meta: string
+  disabled?: boolean | undefined
 }
 
 interface CopyFromDropdownProps {
-  vendorCode?: string
-  vendorName?: string
+  vendorCode?: string | undefined
+  vendorName?: string | undefined
   disabled?: boolean
   onSelectSource?: (sourceType: SourceDocType) => void
-  className?: string
+  className?: string | undefined
   sourceDocTypes?: SourceDocType[]
+  /** When set, this source family is disabled (visible but non-selectable). */
+  lockedSourceFamily?: SourceFamily | null | undefined
+  /** Called when user clicks a disabled/locked source option. */
+  onLockedFamilyClick?: () => void | undefined
 }
 
 const sourceIcon = (code: string) => {
@@ -52,10 +59,12 @@ function CopyFromPanel({
   options,
   panelWidth,
   onSelect,
+  onDisabledClick,
 }: {
   options: CopyFromSourceOption[]
   panelWidth: number | null
   onSelect: (code: SourceDocType) => void
+  onDisabledClick?: (code: SourceDocType) => void
 }) {
   return (
     <div
@@ -70,10 +79,19 @@ function CopyFromPanel({
           <button
             key={option.code}
             type="button"
-            onClick={() => onSelect(option.code)}
+            aria-disabled={option.disabled}
+            onClick={() => {
+              if (option.disabled) {
+                onDisabledClick?.(option.code)
+              } else {
+                onSelect(option.code)
+              }
+            }}
             className={cn(
               'group/row relative flex w-full items-start gap-2.5 px-2.5 py-2 text-left transition-all duration-150',
-              'hover:bg-zinc-50',
+              option.disabled
+                ? 'cursor-not-allowed opacity-50 pointer-events-auto'
+                : 'hover:bg-zinc-50',
               'focus-visible:outline-none focus-visible:bg-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-300',
               index === 0 ? 'mt-0' : '-mt-px border-t border-zinc-100/80',
             )}
@@ -82,8 +100,9 @@ function CopyFromPanel({
               {option.icon}
             </span>
             <span className="flex min-w-0 flex-col">
-              <span className="text-[13px] font-medium text-zinc-700 transition-colors group-hover/row:text-zinc-900">
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-700 transition-colors group-hover/row:text-zinc-900">
                 {option.label}
+                {option.disabled && <Lock className="h-3 w-3 text-zinc-400" />}
               </span>
               <span className="text-[11px] leading-tight text-zinc-400 transition-colors group-hover/row:text-zinc-500">
                 {option.meta}
@@ -103,13 +122,17 @@ function CopyFromDropdownInner({
   onSelectSource,
   className,
   sourceDocTypes,
+  lockedSourceFamily,
+  onLockedFamilyClick,
 }: {
-  vendorCode?: string
-  vendorName?: string
+  vendorCode?: string | undefined
+  vendorName?: string | undefined
   disabled?: boolean
   onSelectSource?: (sourceType: SourceDocType) => void
-  className?: string
+  className?: string | undefined
   sourceDocTypes: SourceDocType[]
+  lockedSourceFamily?: SourceFamily | null | undefined
+  onLockedFamilyClick?: () => void | undefined
 }) {
   const { open, setOpen } = Popover.usePopoverContext()
   const [panelWidth, setPanelWidth] = useState<number | null>(null)
@@ -139,23 +162,35 @@ function CopyFromDropdownInner({
 
   const options: CopyFromSourceOption[] = useMemo(
     () =>
-      sourceDocTypes.map((code) => ({
-        label:
-          code === 'PurchaseOrder'
-            ? 'Purchase Order'
-            : code === 'GoodsReceiptPO'
-              ? 'GRPO'
-              : 'A/P Invoice',
-        code,
-        icon: sourceIcon(code),
-        meta: sourceMeta(code),
-      })),
-    [sourceDocTypes],
+      sourceDocTypes.map((code) => {
+        const isLocked = lockedSourceFamily != null && code === lockedSourceFamily
+        const option: CopyFromSourceOption = {
+          label:
+            code === 'PurchaseOrder'
+              ? 'Purchase Order'
+              : code === 'GoodsReceiptPO'
+                ? 'GRPO'
+                : 'A/P Invoice',
+          code,
+          icon: sourceIcon(code),
+          meta: sourceMeta(code),
+        }
+        if (isLocked) {
+          option.disabled = true
+        }
+        return option
+      }),
+    [sourceDocTypes, lockedSourceFamily],
   )
 
   const handleSelect = (code: SourceDocType) => {
     onSelectSource?.(code)
     setOpen(false)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleDisabledClick = (_code: SourceDocType) => {
+    onLockedFamilyClick?.()
   }
 
   const handleTriggerClick = useCallback(() => {
@@ -197,7 +232,12 @@ function CopyFromDropdownInner({
         </span>
       </Button>
       <Popover.Content side="bottom" align="end" unstyled className="z-[1001]">
-        <CopyFromPanel options={options} panelWidth={panelWidth} onSelect={handleSelect} />
+        <CopyFromPanel
+          options={options}
+          panelWidth={panelWidth}
+          onSelect={handleSelect}
+          onDisabledClick={handleDisabledClick}
+        />
       </Popover.Content>
     </>
   )
@@ -210,6 +250,8 @@ export function CopyFromDropdown({
   onSelectSource,
   className,
   sourceDocTypes,
+  lockedSourceFamily,
+  onLockedFamilyClick,
 }: CopyFromDropdownProps) {
   const defaultSourceTypes: SourceDocType[] = sourceDocTypes ?? ['PurchaseOrder']
 
@@ -219,9 +261,11 @@ export function CopyFromDropdown({
         vendorCode={vendorCode}
         vendorName={vendorName}
         disabled={disabled}
-        onSelectSource={onSelectSource}
+        {...(onSelectSource ? { onSelectSource } : {})}
         className={className}
         sourceDocTypes={defaultSourceTypes}
+        {...(lockedSourceFamily !== undefined ? { lockedSourceFamily } : {})}
+        {...(onLockedFamilyClick ? { onLockedFamilyClick } : {})}
       />
     </Popover.Root>
   )

@@ -171,7 +171,9 @@ export const runSmartPrefetch = async <
   }
 
   const queryState = queryClient.getQueryState(queryKey)
-  const staleTime = getStaleTime(options as FetchQueryOptions<unknown, unknown, unknown, QueryKey>)
+  const staleTime = getStaleTime(
+    options as unknown as FetchQueryOptions<unknown, unknown, unknown, QueryKey>,
+  )
   const isFresh =
     staleTime > 0 &&
     !!queryState?.dataUpdatedAt &&

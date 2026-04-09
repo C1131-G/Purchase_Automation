@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const apCreditNoteListItemSchema = z.object({
+export const apCreditMemoListItemSchema = z.object({
   id: z.number(),
   DocNum: z.number(),
   DocDate: z.string(),
@@ -11,16 +11,16 @@ export const apCreditNoteListItemSchema = z.object({
   DocStatus: z.enum(['Open', 'Closed']),
 })
 
-export const apCreditNoteListResponseSchema = z.object({
+export const apCreditMemoListResponseSchema = z.object({
   success: z.boolean(),
-  data: z.array(apCreditNoteListItemSchema),
+  data: z.array(apCreditMemoListItemSchema),
   total: z.number(),
   page: z.number(),
   limit: z.number(),
   totalPages: z.number(),
 })
 
-export const apCreditNoteListParamsSchema = z.object({
+export const apCreditMemoListParamsSchema = z.object({
   page: z.number().optional(),
   limit: z.number().optional(),
   DocNum: z.string().optional(),

@@ -1,10 +1,18 @@
 import { Check, Loader2 } from 'lucide-react'
-import { type ComponentProps, memo, useEffect, useMemo, useRef, useState } from 'react'
+import { type ComponentProps, memo, useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { LookupErrorState } from '@/components/lookup/lookup-error-state'
 // ProductPopupModal: Orchestrates item selection, stock validation, and price lookup.
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import { AnimatedModalShell } from '@/features/create-pages/create-shared/components/core/animated-modal-shell'
+import {
+  EMPTY_SET,
+  useClosePickerAction,
+  useOpenPickerAction,
+  useSelectedCodesForKey,
+  useSelectSingleAction,
+  useToggleCodeAction,
+} from '@/store/create/product-picker.store'
 
 type ProductPopupModalProps = {
   open: ComponentProps<typeof AnimatedModalShell>['open']
@@ -20,6 +28,14 @@ type ProductPopupModalProps = {
   onClose: ComponentProps<typeof AnimatedModalShell>['onClose']
   onSelect: (product: ProductLookupItem) => void
   onSelectMultiple?: (products: ProductLookupItem[]) => void
+  /** The product code of the currently active row, used to seed selection state. */
+  selectedProductCode?: string | null | undefined
+  /** The row ID being edited — used as key for persisted selection state. */
+  selectedProductRowId?: string | null | undefined
+  /** Product codes already in the document (for duplicate blocking). */
+  existingProductCodes?: Set<string> | undefined
+  /** Called when the user clicks a disabled (duplicate) product row. */
+  onBlockDuplicate?: (() => void) | undefined
 }
 
 const popupScrollState = new Map<string, number>()
@@ -41,20 +57,30 @@ const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'sl
 const ProductPopupRow = memo(function ProductPopupRow({
   product,
   selected,
+  disabled = false,
   onToggle,
+  onBlockDuplicate,
 }: {
   product: ProductLookupItem
   selected: boolean
+  disabled?: boolean
   onToggle: () => void
+  onBlockDuplicate?: (() => void) | undefined
 }) {
   return (
     <tr
       key={`${product.code}-${product.name}`}
-      className={`cursor-pointer border-t border-zinc-100 transition-all duration-150 ${
-        selected ? 'bg-blue-50/60 hover:bg-blue-100/70' : 'hover:bg-blue-50/40'
+      className={`border-t border-zinc-100 transition-all duration-150 ${
+        disabled
+          ? 'cursor-not-allowed opacity-40'
+          : `cursor-pointer ${selected ? 'bg-blue-50/60 hover:bg-blue-100/70' : 'hover:bg-blue-50/40'}`
       }`}
       onClick={(e) => {
         e.preventDefault()
+        if (disabled) {
+          onBlockDuplicate?.()
+          return
+        }
         onToggle()
       }}
     >
@@ -69,26 +95,10 @@ const ProductPopupRow = memo(function ProductPopupRow({
           {selected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
         </div>
       </td>
-      <td
-        className={`px-3 py-2 font-medium transition-colors duration-150 ${selected ? 'text-blue-900' : 'text-zinc-800'}`}
-      >
-        {product.code}
-      </td>
-      <td
-        className={`px-3 py-2 transition-colors duration-150 ${selected ? 'text-blue-800' : 'text-zinc-700'}`}
-      >
-        {product.name}
-      </td>
-      <td
-        className={`px-3 py-2 transition-colors duration-150 ${selected ? 'text-blue-700/80' : 'text-zinc-700'}`}
-      >
-        {product.stock}
-      </td>
-      <td
-        className={`px-3 py-2 transition-colors duration-150 ${selected ? 'text-blue-700/80' : 'text-zinc-700'}`}
-      >
-        {product.price.toFixed(2)}
-      </td>
+      <td className="px-3 py-2 font-medium text-zinc-800">{product.code}</td>
+      <td className="px-3 py-2 text-zinc-700">{product.name}</td>
+      <td className="px-3 py-2 text-zinc-700">{product.stock}</td>
+      <td className="px-3 py-2 text-zinc-700">{product.price.toFixed(2)}</td>
     </tr>
   )
 })
@@ -105,10 +115,14 @@ export function ProductPopupModal({
   onSearchChange,
   onReachEnd,
   onClose,
+  onSelect,
   onSelectMultiple,
+  selectedProductCode,
+  selectedProductRowId,
+  existingProductCodes = EMPTY_SET,
+  onBlockDuplicate,
 }: ProductPopupModalProps) {
   const safeResults = useMemo(() => (Array.isArray(results) ? results : []), [results])
-  const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set())
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const scrollKey = warehouseCode?.trim() || '__no_warehouse__'
   const emptyMessage = search.trim()
@@ -117,14 +131,43 @@ export function ProductPopupModal({
       ? 'No products available for selected warehouse.'
       : 'Select warehouse first to load products.'
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (open) {
-      setSelectedCodes(new Set())
-    }
-  }, [open])
-  /* eslint-enable react-hooks/set-state-in-effect */
+  /* ---------- normalize optional props ---------- */
+  const normalizedProductCode = selectedProductCode ?? null
+  // Use a stable fallback key for document-level search so selection works
+  // even when no row ID is provided.
+  const normalizedRowId = selectedProductRowId ?? '__document_search__'
 
+  /* ---------- store hooks ---------- */
+  const pickerKey = normalizedRowId
+  const selectedCodes = useSelectedCodesForKey(pickerKey)
+  const openPicker = useOpenPickerAction()
+  const toggleCode = useToggleCodeAction()
+  const selectSingle = useSelectSingleAction()
+  const closePicker = useClosePickerAction()
+
+  /* ---------- detect mode ---------- */
+  // Row-level editing: single-select — click replaces and auto-applies.
+  // Document-level search: multi-select — click toggles, Confirm applies.
+  const isRowLevel = selectedProductRowId != null && selectedProductRowId !== '__document_search__'
+
+  /* ---------- always seed fresh on open — no persistence ---------- */
+  useEffect(() => {
+    if (!open) return
+
+    let targetCodes: Set<string>
+
+    if (normalizedProductCode) {
+      // Row-level: seed with the row's current product code so user sees what's selected
+      targetCodes = new Set([normalizedProductCode])
+    } else {
+      // Document-level or empty row: start fresh
+      targetCodes = EMPTY_SET
+    }
+
+    openPicker(pickerKey, targetCodes)
+  }, [open, pickerKey, normalizedProductCode, openPicker])
+
+  /* ---------- scroll restore ---------- */
   useEffect(() => {
     if (!open) return
     const node = scrollContainerRef.current
@@ -135,41 +178,62 @@ export function ProductPopupModal({
     }
   }, [open, scrollKey])
 
-  const toggleProduct = (code: string) => {
-    setSelectedCodes((prev) => {
-      const next = new Set(prev)
-      if (next.has(code)) {
-        next.delete(code)
-      } else {
-        next.add(code)
-      }
-      return next
-    })
-  }
+  /* ---------- close handler ---------- */
+  const handleInternalClose = useCallback(() => {
+    closePicker(pickerKey)
+    onClose()
+  }, [pickerKey, closePicker, onClose])
 
-  const handleAddSelected = () => {
+  const handleAddSelected = useCallback(() => {
     if (!onSelectMultiple) return
     const selectedProducts = safeResults.filter((p) => selectedCodes.has(p.code))
-    if (selectedProducts.length > 0) {
-      onSelectMultiple(selectedProducts)
-    }
-  }
+    if (selectedProducts.length > 0) onSelectMultiple(selectedProducts)
+  }, [onSelectMultiple, safeResults, selectedCodes])
+
+  /* ---------- row click handler ---------- */
+  const handleProductSelect = useCallback(
+    (product: ProductLookupItem) => {
+      if (isRowLevel) {
+        // Single-select: replace selection, apply immediately, close
+        selectSingle(pickerKey, product.code)
+        onSelect(product)
+        closePicker(pickerKey)
+        onClose()
+      } else {
+        // Multi-select: toggle selection, user clicks Confirm to apply
+        toggleCode(pickerKey, product.code)
+      }
+    },
+    [isRowLevel, pickerKey, selectSingle, toggleCode, onSelect, closePicker, onClose],
+  )
 
   const renderedRows = useMemo(
     () =>
-      safeResults.map((product) => (
-        <ProductPopupRow
-          key={`${product.code}-${product.name}`}
-          product={product}
-          selected={selectedCodes.has(product.code)}
-          onToggle={() => toggleProduct(product.code)}
-        />
-      )),
-    [safeResults, selectedCodes],
+      safeResults.map((product) => {
+        const isDuplicate = !isRowLevel && existingProductCodes.has(product.code)
+        return (
+          <ProductPopupRow
+            key={`${product.code}-${product.name}`}
+            product={product}
+            selected={selectedCodes.has(product.code)}
+            disabled={isDuplicate}
+            onToggle={() => handleProductSelect(product)}
+            onBlockDuplicate={onBlockDuplicate}
+          />
+        )
+      }),
+    [
+      safeResults,
+      selectedCodes,
+      handleProductSelect,
+      isRowLevel,
+      existingProductCodes,
+      onBlockDuplicate,
+    ],
   )
 
   return (
-    <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-4xl">
+    <AnimatedModalShell open={open} onClose={handleInternalClose} panelClassName="max-w-4xl">
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
         <h3 className="text-sm font-semibold text-zinc-900">Search Products</h3>
         <div className="flex items-center gap-2">
@@ -183,7 +247,7 @@ export function ProductPopupModal({
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleInternalClose}
             className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
           >
             Close

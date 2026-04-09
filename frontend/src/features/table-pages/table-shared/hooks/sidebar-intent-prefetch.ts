@@ -1,6 +1,6 @@
 import { type QueryClient } from '@tanstack/react-query'
 
-import { apCreditNoteQueries } from '@/features/table-pages/ap-credit-note/api/ap-credit-note.queries'
+import { apCreditMemoQueries } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
 import { arCreditNoteQueries } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.queries'
 import { arInvoiceQueries } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
@@ -16,7 +16,7 @@ export type TableRoutePath =
   | '/purchase/orders'
   | '/purchase/grpo'
   | '/purchase/ap-invoice'
-  | '/purchase/ap-credit-note'
+  | '/purchase/ap-credit-memo'
   | '/purchase/outgoing-payment'
   | '/sales/quotations'
   | '/sales/orders'
@@ -34,14 +34,17 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     '/purchase/orders': purchaseOrderQueries.list(DEFAULT_TABLE_PARAMS),
     '/purchase/grpo': grpoQueries.list(DEFAULT_TABLE_PARAMS),
     '/purchase/ap-invoice': apInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
-    '/purchase/ap-credit-note': apCreditNoteQueries.list(DEFAULT_TABLE_PARAMS),
+    '/purchase/ap-credit-memo': apCreditMemoQueries.list(DEFAULT_TABLE_PARAMS),
     '/purchase/outgoing-payment': outgoingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/quotations': salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/orders': salesOrderQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/ar-invoice': arInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/ar-credit-note': arCreditNoteQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/incoming-payment': incomingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
-  } as const
+  }
 
-  void runSmartPrefetch(queryClient, queryOptionsByPath[routePath])
+  void runSmartPrefetch(
+    queryClient,
+    queryOptionsByPath[routePath] as unknown as Parameters<typeof runSmartPrefetch>[1],
+  )
 }

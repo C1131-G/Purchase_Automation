@@ -126,6 +126,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
     isEditMode,
+    onDuplicateProductToast: () => {
+      goeyToast.error('Duplicate product already exists', { id: 'po-duplicate-product' })
+    },
   })
 
   useEffect(() => {
@@ -202,10 +205,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                 .fetchQuery(
                   createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
                 )
-                .catch(() => [])
+                .catch((): ProductLookupItem[] => [])
             : []
 
-        const productByCode = new Map(
+        const productByCode = new Map<string, ProductLookupItem>(
           productsForWarehouse.map((item) => [String(item.code).trim(), item]),
         )
         const stockByItemCode = new Map<string, number>()
@@ -248,7 +251,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             price,
             currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
             taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
-            taxRate: Number(productMeta?.taxRate ?? 0),
+            // SAP line tax is authoritative; fall back to product master only when missing
+            taxRate: Number(
+              (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
+                ? (line as Record<string, unknown>).VatPrcnt
+                : Number((line as Record<string, unknown>).VatPrcnt) || 0) ||
+                Number(productMeta?.taxRate ?? 0),
+            ),
             uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
             uomEntry:
               typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
@@ -720,10 +729,22 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const summaryCurrencyLabel = summaryCurrency === 'MULTI' ? 'MULTI' : summaryCurrency
   const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
 
+  // Derive the product code of the currently active row for seeding modal selection
+  const activeRowProductCode = useMemo(() => {
+    if (!productsHook.activeProductRowId) return null
+    const activeRow = productsHook.productRows.find((r) => r.id === productsHook.activeProductRowId)
+    return activeRow?.productCode ?? null
+  }, [productsHook.activeProductRowId, productsHook.productRows])
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
+    activeRowProductCode,
+    existingProductCodes: productsHook.existingProductCodes,
+    onBlockDuplicate: () => {
+      goeyToast.error('Duplicate product already exists', { id: 'po-duplicate-product' })
+    },
     openProductPopup: handleOpenProductPopup,
     openPopup: openPopupWithContext,
     applyProductToRow: (product: ProductLookupItem) =>

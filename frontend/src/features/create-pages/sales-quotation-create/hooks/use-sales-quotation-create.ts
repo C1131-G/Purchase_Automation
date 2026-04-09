@@ -183,10 +183,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
               .fetchQuery(
                 createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
               )
-              .catch(() => [])
+              .catch((): ProductLookupItem[] => [])
           : []
 
-      const productByCode = new Map(
+      const productByCode = new Map<string, ProductLookupItem>(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
       )
       const stockByItemCode = new Map<string, number>()
@@ -227,7 +227,13 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
           taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
-          taxRate: Number(productMeta?.taxRate ?? 0),
+          // SAP line tax is authoritative; fall back to product master only when missing
+          taxRate: Number(
+            (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
+              ? (line as Record<string, unknown>).VatPrcnt
+              : Number((line as Record<string, unknown>).VatPrcnt) || 0) ||
+              Number(productMeta?.taxRate ?? 0),
+          ),
           uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
           uomEntry:
             typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)

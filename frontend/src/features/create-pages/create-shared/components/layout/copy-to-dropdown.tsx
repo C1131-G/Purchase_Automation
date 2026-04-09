@@ -16,7 +16,7 @@ interface CopyToOption {
 interface CopyToDropdownProps {
   docNum: string
   sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
-  targets: ('GRPO' | 'AP Invoice' | 'AP Credit Note')[]
+  targets: ('GRPO' | 'AP Invoice' | 'AP Credit Memo')[]
   className?: string
 }
 
@@ -26,7 +26,7 @@ const targetIcon = (target: string) => {
       return <Truck className="h-4 w-4" />
     case 'AP Invoice':
       return <StickyNote className="h-4 w-4" />
-    case 'AP Credit Note':
+    case 'AP Credit Memo':
       return <FileText className="h-4 w-4" />
     default:
       return <ClipboardList className="h-4 w-4" />
@@ -41,8 +41,8 @@ const targetMeta = (target: string, sourceDocType: string) => {
       return sourceDocType === 'PurchaseOrder'
         ? 'Create A/P Invoice from this PO'
         : 'Create A/P Invoice from this GRPO'
-    case 'AP Credit Note':
-      return 'Create A/P Credit Note from this invoice'
+    case 'AP Credit Memo':
+      return 'Create A/P Credit Memo from this invoice'
     default:
       return ''
   }
@@ -207,7 +207,7 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
         ? '/purchase/create-grpo'
         : target === 'AP Invoice'
           ? '/purchase/create-ap-invoice'
-          : '/purchase/create-ap-credit-note',
+          : '/purchase/create-ap-credit-memo',
     icon: targetIcon(target),
   }))
 
@@ -217,7 +217,7 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
         docNum={docNum}
         sourceDocType={sourceDocType}
         options={options}
-        className={className}
+        {...(className ? { className } : {})}
       />
     </Popover.Root>
   )
