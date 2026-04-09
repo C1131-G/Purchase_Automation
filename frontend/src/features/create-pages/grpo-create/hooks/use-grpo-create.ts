@@ -145,6 +145,16 @@ export function useGRPOCreate({
   const [stockPreviewProduct, setStockPreviewProduct] = useState<StockPreviewProduct | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<GRPOFieldErrors>(EMPTY_GRPO_FIELD_ERRORS)
+
+  /* ---------- vendor-change confirmation (copy-from guard) ---------- */
+  const [pendingVendorChange, setPendingVendorChange] = useState<{
+    vendor: LookupItem
+  } | null>(null)
+  const hasCopiedRows = useMemo(
+    () => rows.some((r) => r.baseEntry != null && r.baseType != null),
+    [rows],
+  )
+
   const today = useMemo(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -260,46 +270,12 @@ export function useGRPOCreate({
         setVendorCodeInput(String(detail.CardCode ?? '').trim())
         setVendorNameInput(String(detail.CardName ?? '').trim())
         const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
-        let referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+        const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
         const rawComments = String(detail.Comments ?? '').trim()
 
-        // Comments now stores the full reference chain (multi-line "Based on" trail) + remarks.
-        // Extract all "Based on" lines and merge with NumAtCard to build complete reference chain.
-        // Keep non-"Based on" lines as remarks.
-        const commentLines = rawComments
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean)
-        const autoRefLines: string[] = []
-        const remarkLines: string[] = []
-        for (const line of commentLines) {
-          if (/^based on /i.test(line)) {
-            autoRefLines.push(line)
-          } else {
-            remarkLines.push(line)
-          }
-        }
-
-        // Merge auto-ref lines from Comments with existing NumAtCard, avoiding duplicates
-        // Build a set of lines already present in NumAtCard
-        const existingRefLineSet = new Set(
-          referenceNo
-            ? referenceNo
-                .split('\n')
-                .map((l) => l.trim())
-                .filter(Boolean)
-            : [],
-        )
-
-        // Add any new auto-ref lines from Comments that aren't already in NumAtCard
-        for (const autoLine of autoRefLines) {
-          if (!existingRefLineSet.has(autoLine)) {
-            referenceNo = referenceNo ? `${referenceNo}\n${autoLine}` : autoLine
-            existingRefLineSet.add(autoLine)
-          }
-        }
-
-        const remarks = remarkLines.join('\n').trim()
+        // Keep the full Comments content as remarks (including any "Based on" lines).
+        // referenceNo stays as-is from NumAtCard (manual user entry only).
+        const remarks = rawComments
 
         const matchedVendor = vendors.find(
           (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? '').trim(),
@@ -510,35 +486,31 @@ export function useGRPOCreate({
 
       const warehouseCode = String(primaryDetail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
       const sourceComments = String(primaryDetail.Comments ?? '').trim()
-      const sourceNumAtCard = String(
-        (primaryDetail as { NumAtCard?: string }).NumAtCard ?? '',
-      ).trim()
 
-      // Build multi-source reference
+      // Build multi-source reference — put into remarks, not referenceNo
       const refs = sourceDocNums.map((num) =>
         generateSingleSourceReference(currentSourceDocType, num),
       )
       const autoReference = refs.length === 1 ? refs[0]! : refs.join('\n')
 
-      // Build reference chain
+      // Extract existing "Based on" chain from source comments
       const commentLines = sourceComments
         .split('\n')
         .map((l) => l.trim())
         .filter(Boolean)
       const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line))
-      const existingChain = sourceNumAtCard || refLinesFromComments.join('\n')
-      const finalReferenceNo = existingChain ? `${existingChain}\n${autoReference}` : autoReference
-      const referenceWasAutoFilled = !existingChain
 
-      const existingRefLines = existingChain ? existingChain.split('\n').map((l) => l.trim()) : []
-      const remarks = commentLines
-        .filter((line) => {
-          if (/^based on /i.test(line)) return false
-          if (existingRefLines.includes(line)) return false
-          return true
-        })
+      // Build remarks: existing ref chain + new auto-ref + user remarks from source
+      const userRemarks = commentLines
+        .filter((line) => !/^based on /i.test(line))
         .join('\n')
         .trim()
+      const remarksParts = [refLinesFromComments.join('\n'), autoReference, userRemarks]
+        .filter(Boolean)
+        .join('\n')
+        .trim()
+
+      const referenceWasAutoFilled = true
       const docDueDate = String(primaryDetail.DocDueDate ?? '').slice(0, 10)
 
       // Merge all lines from all source documents
@@ -638,8 +610,8 @@ export function useGRPOCreate({
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
-        referenceNo: finalReferenceNo,
-        remarks,
+        referenceNo: '',
+        remarks: remarksParts,
         referenceAutoFilled: referenceWasAutoFilled,
       })
       setLines(mappedLines)
@@ -776,6 +748,15 @@ export function useGRPOCreate({
   const filteredRows = useMemo(() => rows.filter((row) => row.quantity > 0), [rows])
 
   const selectVendor = (vendor: LookupItem) => {
+    // If document has copied rows, confirm before breaking the link
+    if (hasCopiedRows) {
+      setPendingVendorChange({ vendor })
+      return
+    }
+    applyVendorChange(vendor)
+  }
+
+  const applyVendorChange = (vendor: LookupItem) => {
     setVendorNameInput(vendor.name)
     setVendorCodeInput(vendor.code)
     setBillToAddress(vendor.billToAddress ?? '')
@@ -825,6 +806,8 @@ export function useGRPOCreate({
       setBuyerInput(buyerByCode || matchedByName.salesEmployeeName?.trim() || '')
       return
     }
+    // Typing a non-matching name — if copied rows exist, guard
+    if (hasCopiedRows) return
     setVendorCodeInput('')
     setBuyerInput('')
     setWarehouseInput('')
@@ -838,6 +821,11 @@ export function useGRPOCreate({
       (item) => item.code.trim().toLowerCase() === value.trim().toLowerCase(),
     )
     if (matchedByCode) {
+      // Switching to a different matched vendor with copied rows — confirm
+      if (hasCopiedRows) {
+        setPendingVendorChange({ vendor: matchedByCode })
+        return
+      }
       setVendorNameInput(matchedByCode.name)
       setBillToAddress(matchedByCode.billToAddress ?? '')
       setShipToAddress(matchedByCode.shipToAddress ?? matchedByCode.billToAddress ?? '')
@@ -852,10 +840,35 @@ export function useGRPOCreate({
       setBuyerInput(buyerByCode || matchedByCode.salesEmployeeName?.trim() || '')
       return
     }
+    // Typing a non-matching code — if copied rows exist, guard
+    if (hasCopiedRows) return
     setVendorNameInput('')
     setBuyerInput('')
     setWarehouseInput('')
     setLines([])
+  }
+
+  /* ---------- vendor-change confirmation handlers ---------- */
+  const confirmVendorChange = () => {
+    const pending = pendingVendorChange
+    if (!pending) return
+    setPendingVendorChange(null)
+
+    // Clear base linkage from all rows (break copy-from link)
+    setLines((prev) =>
+      prev.map((row) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { baseEntry, baseLine, baseType, ...rest } = row
+        return rest
+      }),
+    )
+
+    // Apply the new vendor
+    applyVendorChange(pending.vendor)
+  }
+
+  const cancelVendorChange = () => {
+    setPendingVendorChange(null)
   }
 
   const handleWarehouseInputChange = (value: string) => {
@@ -1244,8 +1257,7 @@ export function useGRPOCreate({
     const payload = isEditMode
       ? {
           DocDueDate: header.docDueDate || undefined,
-          Comments: [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join('\n'),
-          NumAtCard: header.referenceNo.trim() || undefined,
+          Comments: header.remarks.trim() || undefined,
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
         }
@@ -1254,8 +1266,7 @@ export function useGRPOCreate({
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           SalesPersonCode: resolvedSalesEmployeeCode,
-          Comments: [header.referenceNo.trim(), header.remarks.trim()].filter(Boolean).join('\n'),
-          NumAtCard: header.referenceNo.trim() || undefined,
+          Comments: header.remarks.trim() || undefined,
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
           DocumentLines: (() => {
@@ -1550,5 +1561,11 @@ export function useGRPOCreate({
       isEditMode ? notifyRestricted('Vendor Name') : handleVendorNameChange(val),
     handleVendorCodeChange: (val: string) =>
       isEditMode ? notifyRestricted('Vendor Code') : handleVendorCodeChange(val),
+
+    // Vendor-change confirmation (copy-from guard)
+    pendingVendorChange,
+    hasCopiedRows,
+    confirmVendorChange,
+    cancelVendorChange,
   }
 }

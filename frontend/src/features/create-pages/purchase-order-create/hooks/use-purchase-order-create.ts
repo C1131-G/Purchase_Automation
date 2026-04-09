@@ -174,17 +174,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       matchedVendor?.salesEmployeeName?.trim() ||
       ''
 
-    let referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-    let comments = String(detail.Comments ?? '').trim()
-
-    // SAP Service Layer auto-generates "Based on ..." in Comments for copy-from flows,
-    // and may not store NumAtCard. If NumAtCard is empty but Comments has the
-    // auto-generated reference pattern, treat Comments as the reference.
-    const autoRefPattern = /^based on /i
-    if (!referenceNo && autoRefPattern.test(comments)) {
-      referenceNo = comments
-      comments = ''
-    }
+    const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+    const comments = String(detail.Comments ?? '').trim()
 
     const docDate = String(detail.DocDate ?? '').slice(0, 10)
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
