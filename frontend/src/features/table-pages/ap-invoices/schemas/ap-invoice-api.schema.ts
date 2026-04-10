@@ -94,6 +94,7 @@ export const createAPInvoiceInputSchema = z.object({
       BaseType: z.number().optional(),
       BaseEntry: z.number().optional(),
       BaseLine: z.number().optional(),
+      VatGroup: z.string().optional(),
     }),
   ),
 })

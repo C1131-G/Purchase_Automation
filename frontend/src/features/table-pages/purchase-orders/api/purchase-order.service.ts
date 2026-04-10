@@ -40,6 +40,7 @@ export type PurchaseOrderDetailLine = {
   UoMEntry?: number
   DiscountPercent?: number
   TaxCode?: string
+  VatGroup?: string
   VatPrcnt?: number
   WarehouseCode?: string
   LineNum?: number
@@ -60,6 +61,7 @@ export type PurchaseOrderDetail = {
   NumAtCard?: string
   Comments?: string
   DocCurr?: string
+  DocTotal?: number
   DocStatus?: 'Open' | 'Partial' | 'Closed' | 'O' | 'C'
   DocumentLines?: PurchaseOrderDetailLine[]
 }

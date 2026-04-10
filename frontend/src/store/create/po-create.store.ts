@@ -7,7 +7,7 @@ export type POLineItemState = {
   itemName: string
   quantity: number
   unitPrice: number
-  taxCode: string
+  vatGroup: string
   taxRate: number
   warehouseCode: string
   discountPercent: number

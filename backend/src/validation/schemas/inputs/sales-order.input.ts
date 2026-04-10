@@ -90,7 +90,7 @@ const SalesOrderLineItemSchema = z.object({
   UnitPrice: z.number().nonnegative().optional(),
   UoMCode: z.union([z.string(), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
-  TaxCode: z.string().optional(),
+  VatGroup: z.string().optional(),
   WarehouseCode: z.string().optional(),
   DiscountPercent: z.number().min(0).max(100).optional(),
   BaseType: z.number().int().optional(),

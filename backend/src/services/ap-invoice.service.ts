@@ -239,7 +239,7 @@ export const createInvoice = async (
         UnitPrice: (item.UnitPrice || item.Price) as number,
         UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
         UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-        TaxCode: item.TaxCode as string,
+        VatGroup: item.VatGroup as string,
         WarehouseCode: item.WarehouseCode as string,
         DiscountPercent: item.DiscountPercent as number,
       };

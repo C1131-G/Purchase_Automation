@@ -54,7 +54,7 @@ export type APInvoiceCreateLine = {
   productName: string
   stock: number
   currency: string
-  taxCode: string
+  vatGroup: string
   taxRate: number
   uomCode?: string | undefined
   uomEntry?: number | undefined
@@ -297,7 +297,7 @@ export function useAPInvoiceCreate({
           productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
           stock: 0, // In edit mode, stock is less relevant for invoices
           currency: String(detail.DocCurr ?? '').trim(),
-          taxCode: String(line.TaxCode ?? '').trim(),
+          vatGroup: String(line.TaxCode ?? '').trim(),
           // SAP line tax is authoritative; fall back to product master only when missing
           taxRate:
             (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
@@ -320,6 +320,7 @@ export function useAPInvoiceCreate({
       setLines(mappedLines)
       setProductRowDrafts({})
       setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim())
+
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = currentDocNum
       }
@@ -444,7 +445,7 @@ export function useAPInvoiceCreate({
             productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
             stock: 0,
             currency,
-            taxCode: String(line.TaxCode ?? '').trim(),
+            vatGroup: String(line.TaxCode ?? '').trim(),
             // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
               (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
@@ -787,7 +788,7 @@ export function useAPInvoiceCreate({
           productName: product.name,
           stock: Number(product.stock ?? 0),
           currency: String(product.currency ?? ''),
-          taxCode: String(product.taxCode ?? ''),
+          vatGroup: String(product.vatGroup ?? ''),
           taxRate: Number(product.taxRate ?? 0),
           uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
@@ -832,7 +833,7 @@ export function useAPInvoiceCreate({
         productName: product.name,
         stock: Number(product.stock ?? 0),
         currency: String(product.currency ?? ''),
-        taxCode: String(product.taxCode ?? ''),
+        vatGroup: String(product.vatGroup ?? ''),
         taxRate: Number(product.taxRate ?? 0),
         uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
@@ -914,6 +915,7 @@ export function useAPInvoiceCreate({
                 DiscountPercent: row.discountPercent,
                 UoMCode: row.uomCode || undefined,
                 WarehouseCode: row.warehouseCode || undefined,
+                VatGroup: row.vatGroup || undefined,
               })
               continue
             }
@@ -934,6 +936,7 @@ export function useAPInvoiceCreate({
                 BaseType: row.baseType,
                 BaseEntry: row.baseEntry,
                 BaseLine: row.baseLine,
+                VatGroup: row.vatGroup || undefined,
               })
             }
 
@@ -947,6 +950,7 @@ export function useAPInvoiceCreate({
                 DiscountPercent: row.discountPercent,
                 UoMCode: row.uomCode || undefined,
                 WarehouseCode: row.warehouseCode || undefined,
+                VatGroup: row.vatGroup || undefined,
               })
             }
           }

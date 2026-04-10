@@ -6,7 +6,7 @@ type GRPOCreateLine = {
   productName: string
   stock: number
   currency: string
-  taxCode: string
+  vatGroup: string
   taxRate: number
   baseQuantity?: number
   quantity: number

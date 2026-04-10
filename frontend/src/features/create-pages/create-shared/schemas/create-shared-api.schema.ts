@@ -14,7 +14,7 @@ export const productLookupItemSchema = lookupItemSchema.extend({
   stock: z.number(),
   price: z.number(),
   currency: z.string(),
-  taxCode: z.string(),
+  vatGroup: z.string(),
   taxRate: z.number(),
   uomCode: z.string().optional(),
   uomEntry: z.number().optional(),

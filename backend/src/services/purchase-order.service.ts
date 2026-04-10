@@ -188,8 +188,16 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         const normalized = normalizeSAPLineData(lineData);
+
+        // Use TaxPercentagePerRow (the actual rate SAP applied) as the authoritative tax rate.
+        // This is what SAP actually uses (e.g. 15 for "FJIN-15"), not our input TaxCode.
+        const sapTaxRate = Number(
+          lineData.TaxPercentagePerRow ?? lineData.TaxPrcnt ?? lineData.VatPrcnt ?? 0,
+        );
+
         return {
           ...normalized,
+          VatPrcnt: sapTaxRate,
           OpenQty: Number(
             lineData.OpenQuantity ??
               lineData.RemainingOpenQuantity ??
@@ -231,6 +239,7 @@ export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string
   // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
   const poDocEntry = match?.docEntry ? String(match.docEntry) : normalizedId;
   const poDetail = await getPurchaseOrder(sessionId, poDocEntry);
+  // Tax rates are already populated in getPurchaseOrder() from TaxPercentagePerRow.
 
   // Calculate remaining open quantity per line by querying delivered quantities from PDN1 (GRPO lines).
   const pdn1Repo = await getTenantRepository(dbName, PDN1Schema);
@@ -252,17 +261,15 @@ export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string
   // Prefer the SAP-provided OpenQty (from Service Layer) as the authoritative source,
   // but use the PDN1-calculated value if it shows less remaining (i.e., more delivered).
   // This handles cases where PDN1 sync is faster or SAP's OpenQuantity hasn't been updated yet.
-  const enrichedLines = (poDetail.DocumentLines || []).map((line: SAPDocumentLine) => {
-    const lineNum = line.LineNum ?? 0;
+  const enrichedLines = (poDetail.DocumentLines || []).map((line: Record<string, unknown>) => {
+    const lineNum = Number(line.LineNum ?? 0);
     const orderedQty = Number(line.Quantity ?? 0);
     const deliveredQty = deliveredByLine.get(lineNum) ?? 0;
     const pdn1OpenQty = Math.max(0, orderedQty - deliveredQty);
 
     // The line already has OpenQty from getPurchaseOrder() (SAP Service Layer fields).
     // Use the minimum of SAP's OpenQty and PDN1-calculated OpenQty as the safer value.
-    const existingOpenQty = Number(
-      (line as unknown as Record<string, unknown>).OpenQty ?? orderedQty,
-    );
+    const existingOpenQty = Number(line.OpenQty ?? orderedQty);
     const openQty = Math.min(existingOpenQty, pdn1OpenQty);
 
     return {
@@ -280,6 +287,7 @@ export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string
 // Submits a new Purchase Order to SAP B1.
 export const createPurchaseOrder = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
+    // Validate UoM before sending to SAP
     const inputLines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const linesMissingUom = inputLines
       .map((line) => ({
@@ -316,7 +324,7 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-          TaxCode: item.TaxCode as string,
+          VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
           DiscountPercent: item.DiscountPercent as number,
         };
@@ -340,19 +348,6 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       }),
     };
 
-    logger.info({
-      msg: "Purchase order line UoM payload",
-      lines: ((sapPayload.DocumentLines as Record<string, unknown>[]) || []).map((line) => ({
-        ItemCode: String(line.ItemCode ?? ""),
-        UoMCode: String(line.UoMCode ?? "").trim(),
-        UoMEntry:
-          typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-            ? line.UoMEntry
-            : undefined,
-        WarehouseCode: String(line.WarehouseCode ?? "").trim(),
-      })),
-    });
-
     // Formats DocDate into SAP-compliant YYYY-MM-DD.
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
@@ -375,12 +370,6 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       "/PurchaseOrders",
       sapPayload,
     )) as SAPDocumentResponse;
-
-    logger.info({
-      msg: "Purchase order created in SAP",
-      docEntry: result.DocEntry,
-      docNum: result.DocNum,
-    });
 
     // Invalidate the procurement dashboard metrics for this tenant.
     const dbName = result.CompanyDB || result.DBName;
@@ -428,7 +417,7 @@ export const updatePurchaseOrder = async (
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-          TaxCode: item.TaxCode as string,
+          VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
           DiscountPercent: item.DiscountPercent as number,
         };
@@ -451,13 +440,6 @@ export const updatePurchaseOrder = async (
         return docLine;
       });
     }
-
-    logger.info({
-      msg: "Purchase order update payload prepared",
-      id,
-      changedFields: Object.keys(sapPayload),
-      lineCount: Array.isArray(sapPayload.DocumentLines) ? sapPayload.DocumentLines.length : 0,
-    });
 
     await serviceLayerClient.request(sessionId, "PATCH", `/PurchaseOrders(${id})`, sapPayload);
 

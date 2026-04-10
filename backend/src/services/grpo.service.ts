@@ -225,6 +225,25 @@ export const getPODetail = async (sessionId: string, dbName: string, id: string)
       `/PurchaseOrders(${poDocEntry})`,
     )) as SAPDocumentResponse;
 
+    const mappedLines = (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+      const lineData = line as unknown as Record<string, unknown>;
+      const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
+      const vatGroup = line.VatGroup || String(lineData.TaxCode ?? "").trim();
+
+      return {
+        ItemCode: line.ItemCode,
+        ItemDescription: line.ItemDescription,
+        Quantity: line.Quantity,
+        UoMCode: lineData.UoMCode,
+        UoMEntry: lineData.UoMEntry,
+        Price: line.Price || line.UnitPrice,
+        WarehouseCode: line.WarehouseCode,
+        TaxCode: String(lineData.TaxCode ?? "").trim(),
+        VatGroup: vatGroup,
+        VatPrcnt: sapTaxRate,
+      };
+    });
+
     return {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
@@ -237,17 +256,7 @@ export const getPODetail = async (sessionId: string, dbName: string, id: string)
       Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       NumAtCard: result.NumAtCard,
       DocTotal: result.DocTotal,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        Price: line.Price || line.UnitPrice,
-        WarehouseCode: line.WarehouseCode,
-        TaxCode: line.TaxCode || "",
-        VatPrcnt: line.VatPrcnt,
-      })),
+      DocumentLines: mappedLines,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -269,6 +278,27 @@ export const getGRPO = async (sessionId: string, id: string) => {
       `/PurchaseDeliveryNotes(${id})`,
     )) as SAPDocumentResponse;
 
+    const enrichedLines = (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+      const lineData = line as unknown as Record<string, unknown>;
+      const normalized = normalizeSAPLineData(lineData);
+      const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
+      const vatGroup = normalized.VatGroup || String(lineData.TaxCode ?? "").trim();
+
+      return {
+        ...normalized,
+        VatGroup: vatGroup,
+        VatPrcnt: sapTaxRate,
+        OpenQty: Number(
+          lineData.OpenQuantity ??
+            lineData.RemainingOpenQuantity ??
+            lineData.RemainingQuantity ??
+            lineData.BaseOpenQuantity ??
+            line.Quantity ??
+            0,
+        ),
+      };
+    });
+
     return {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
@@ -285,21 +315,7 @@ export const getGRPO = async (sessionId: string, id: string) => {
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDueDate: result.DocDueDate,
       NumAtCard: result.NumAtCard,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
-        const lineData = line as unknown as Record<string, unknown>;
-        const normalized = normalizeSAPLineData(lineData);
-        return {
-          ...normalized,
-          OpenQty: Number(
-            lineData.OpenQuantity ??
-              lineData.RemainingOpenQuantity ??
-              lineData.RemainingQuantity ??
-              lineData.BaseOpenQuantity ??
-              line.Quantity ??
-              0,
-          ),
-        };
-      }),
+      DocumentLines: enrichedLines,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -396,6 +412,7 @@ export const createGRPO = async (
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+          VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
           DiscountPercent: item.DiscountPercent as number,
         };

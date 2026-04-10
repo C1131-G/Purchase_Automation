@@ -90,7 +90,7 @@ const CreditNoteLineItemSchema = z.object({
   UnitPrice: z.number().nonnegative(),
   UoMCode: z.union([z.string(), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
-  TaxCode: z.string().optional(),
+  VatGroup: z.string().optional(),
   WarehouseCode: z.string().optional(),
 });
 

@@ -267,7 +267,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           stock: lineStock,
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-          taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
+          vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
           // SAP line tax is authoritative; fall back to product master only when missing
           taxRate: Number(
             (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
@@ -446,7 +446,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           stock: lineStock,
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-          taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
+          vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
           // SAP line tax is authoritative; fall back to product master only when missing
           taxRate: Number(
             (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
@@ -756,7 +756,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
               WarehouseCode: row.warehouseCode || undefined,
-              TaxCode: row.taxCode || undefined,
+              VatGroup: row.vatGroup || undefined,
               ...(hasCompleteBaseLink
                 ? {
                     BaseType: row.baseType,
@@ -878,7 +878,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         stock: lineStock,
         price: Number(line.Price ?? 0),
         currency: line.DocCurr ?? '',
-        taxCode: line.TaxCode ?? '',
+        vatGroup: line.TaxCode ?? '',
         taxRate: 0,
         uomCode: typeof line.UoMCode === 'string' ? line.UoMCode : undefined,
         uomEntry: line.UoMEntry,

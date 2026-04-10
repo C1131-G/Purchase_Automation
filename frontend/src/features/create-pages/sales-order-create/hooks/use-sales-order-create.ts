@@ -225,7 +225,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           stock: lineStock,
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-          taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
+          vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
           // SAP line tax is authoritative; fall back to product master only when missing
           taxRate: Number(
             (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
@@ -521,7 +521,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
                   ? line.UoMEntry
                   : undefined,
               WarehouseCode: String(line.WarehouseCode ?? '').trim() || undefined,
-              TaxCode: String(line.TaxCode ?? '').trim() || undefined,
+              VatGroup: String(line.TaxCode ?? '').trim() || undefined,
             })),
         }
 
@@ -539,7 +539,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
 
@@ -569,7 +569,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
       : {
@@ -587,7 +587,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
 

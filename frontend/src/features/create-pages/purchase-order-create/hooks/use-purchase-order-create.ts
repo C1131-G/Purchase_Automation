@@ -233,6 +233,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
           const discountPercent = Number(line.DiscountPercent ?? 0)
           const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
+          // SAP line VatPrcnt is authoritative; fall back to product master only when missing
+          const sapVatPrcnt = Number(line.VatPrcnt ?? 0)
 
           return {
             id: `row-${currentDocNum}-${index}`,
@@ -241,14 +243,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
             price,
             currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-            taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
-            // SAP line tax is authoritative; fall back to product master only when missing
-            taxRate: Number(
-              (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
-                ? (line as Record<string, unknown>).VatPrcnt
-                : Number((line as Record<string, unknown>).VatPrcnt) || 0) ||
-                Number(productMeta?.taxRate ?? 0),
-            ),
+            vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
+            taxRate: sapVatPrcnt > 0 ? sapVatPrcnt : Number(productMeta?.taxRate ?? 0),
             uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
             uomEntry:
               typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
@@ -553,7 +549,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                   ? line.UoMEntry
                   : undefined,
               WarehouseCode: String(line.WarehouseCode ?? '').trim() || undefined,
-              TaxCode: String(line.TaxCode ?? '').trim() || undefined,
+              VatGroup: String(line.TaxCode ?? '').trim() || undefined,
             })),
         }
 
@@ -572,7 +568,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
 
@@ -603,7 +599,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
       : {
@@ -622,11 +618,12 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
 
     const toastHandle = documentActionToast('Purchase Order', isEditMode ? 'update' : 'create')
+
     try {
       let createdDocNum: number | undefined
       if (isEditMode) {

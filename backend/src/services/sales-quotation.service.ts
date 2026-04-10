@@ -161,18 +161,23 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       // normalizes SAP's internal string status.
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        Price: line.Price || line.UnitPrice,
-        DiscountPercent: line.DiscountPercent,
-        TaxCode: line.TaxCode,
-        WarehouseCode: line.WarehouseCode,
-        LineTotal: line.LineTotal,
-      })),
+      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+        const lineData = line as unknown as Record<string, unknown>;
+        const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
+        return {
+          ItemCode: line.ItemCode,
+          ItemDescription: line.ItemDescription,
+          Quantity: line.Quantity,
+          UoMCode: lineData.UoMCode,
+          UoMEntry: lineData.UoMEntry,
+          Price: line.Price || line.UnitPrice,
+          DiscountPercent: line.DiscountPercent,
+          VatGroup: line.VatGroup || String(lineData.TaxCode ?? "").trim(),
+          VatPrcnt: sapTaxRate,
+          WarehouseCode: line.WarehouseCode,
+          LineTotal: line.LineTotal,
+        };
+      }),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -226,7 +231,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
-          TaxCode: line.TaxCode as string,
+          VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
           DiscountPercent: line.DiscountPercent as number,
         };
@@ -324,7 +329,7 @@ export const updateSalesQuotation = async (
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
-          TaxCode: line.TaxCode as string,
+          VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
           DiscountPercent: line.DiscountPercent as number,
         };

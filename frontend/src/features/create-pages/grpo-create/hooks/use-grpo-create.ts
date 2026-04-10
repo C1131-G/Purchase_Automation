@@ -59,7 +59,7 @@ export type GRPOCreateLine = {
   productName: string
   stock: number
   currency: string
-  taxCode: string
+  vatGroup: string
   taxRate: number
   uomCode?: string | undefined
   uomEntry?: number | undefined
@@ -369,7 +369,7 @@ export function useGRPOCreate({
             productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
             stock: lineStock,
             currency: '',
-            taxCode: '',
+            vatGroup: String(line.VatGroup ?? line.TaxCode ?? '').trim(),
             // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
               (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
@@ -406,6 +406,7 @@ export function useGRPOCreate({
         // Set addresses from document: Address = Bill To, Address2 = Ship To
         setBillToAddress(String(detail.Address ?? '').trim())
         setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? '').trim())
+
         if (isMetadataLoaded) {
           hydratedDocNumRef.current = currentDocNum
         }
@@ -579,7 +580,7 @@ export function useGRPOCreate({
             productName: String(line.ItemDescription ?? line.ItemCode ?? '').trim(),
             stock: lineStock,
             currency: '',
-            taxCode: '',
+            vatGroup: String(line.VatGroup ?? line.TaxCode ?? '').trim(),
             // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
               (typeof line.VatPrcnt === 'number' ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
@@ -1020,7 +1021,7 @@ export function useGRPOCreate({
                 productName: product.name,
                 stock: Number(product.stock ?? 0),
                 currency: String(product.currency ?? ''),
-                taxCode: String(product.taxCode ?? ''),
+                vatGroup: String(product.vatGroup ?? ''),
                 taxRate: Number(product.taxRate ?? 0),
                 uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
@@ -1045,7 +1046,7 @@ export function useGRPOCreate({
           productName: product.name,
           stock: Number(product.stock ?? 0),
           currency: String(product.currency ?? ''),
-          taxCode: String(product.taxCode ?? ''),
+          vatGroup: String(product.vatGroup ?? ''),
           taxRate: Number(product.taxRate ?? 0),
           uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
@@ -1094,7 +1095,7 @@ export function useGRPOCreate({
         productName: product.name,
         stock: Number(product.stock ?? 0),
         currency: String(product.currency ?? ''),
-        taxCode: String(product.taxCode ?? ''),
+        vatGroup: String(product.vatGroup ?? ''),
         taxRate: Number(product.taxRate ?? 0),
         uomCode: String(product.purchaseUomCode ?? product.uomCode ?? '').trim(),
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
@@ -1325,6 +1326,7 @@ export function useGRPOCreate({
                   UoMCode: row.uomCode || undefined,
                   UoMEntry: row.uomEntry ?? undefined,
                   WarehouseCode: row.warehouseCode || undefined,
+                  VatGroup: row.vatGroup || undefined,
                 })
                 continue
               }
@@ -1346,6 +1348,7 @@ export function useGRPOCreate({
                   BaseType: row.baseType,
                   BaseEntry: row.baseEntry,
                   BaseLine: row.baseLine,
+                  VatGroup: row.vatGroup || undefined,
                 })
               }
 
@@ -1360,6 +1363,7 @@ export function useGRPOCreate({
                   UoMCode: row.uomCode || undefined,
                   UoMEntry: row.uomEntry ?? undefined,
                   WarehouseCode: row.warehouseCode || undefined,
+                  VatGroup: row.vatGroup || undefined,
                 })
               }
             }
