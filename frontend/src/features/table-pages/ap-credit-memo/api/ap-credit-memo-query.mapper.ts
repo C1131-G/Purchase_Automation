@@ -1,12 +1,12 @@
-/** AP Credit Note Search Mapper: Bridges URL search state with API request parameters. */
+/** AP Credit Memo Search Mapper: Bridges URL search state with API request parameters. */
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import {
-  type APCreditNoteListParams,
-  type APCreditNoteStatus,
-} from '@/features/table-pages/ap-credit-note/api/ap-credit-note.service'
-import { type APCreditNoteSearch } from '@/features/table-pages/ap-credit-note/schemas/ap-credit-note-search.schema'
+  type APCreditMemoListParams,
+  type APCreditMemoStatus,
+} from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.service'
+import { type APCreditMemoSearch } from '@/features/table-pages/ap-credit-memo/schemas/ap-credit-memo-search.schema'
 import {
   type DateRangeFilter,
   isDateRangeFilter,
@@ -64,14 +64,14 @@ const SORTABLE_FIELDS = new Set([
   'DocStatus',
 ])
 
-export const mapSearchToAPCreditNoteListParams = (
-  search: APCreditNoteSearch,
-): APCreditNoteListParams => {
+export const mapSearchToAPCreditMemoListParams = (
+  search: APCreditMemoSearch,
+): APCreditMemoListParams => {
   const filters = normalizeColumnFilters(search.columnFilters)
 
   const docDate = getDateRangeFilter(filters, 'DocDate')
   const docTotal = getDocTotalFilter(filters)
-  const docStatus = getEnumFilter<APCreditNoteStatus>(filters, 'DocStatus', ['Open', 'Closed'])
+  const docStatus = getEnumFilter<APCreditMemoStatus>(filters, 'DocStatus', ['Open', 'Closed'])
 
   const start = docDate?.from ?? docDate?.to
   const end = docDate?.to ?? docDate?.from
@@ -79,7 +79,7 @@ export const mapSearchToAPCreditNoteListParams = (
   const firstSort = Array.isArray(search.sorting) ? search.sorting[0] : undefined
   const sortBy =
     firstSort && SORTABLE_FIELDS.has(firstSort.id)
-      ? (firstSort.id as APCreditNoteListParams['sortBy'])
+      ? (firstSort.id as APCreditMemoListParams['sortBy'])
       : undefined
   const sortOrder = firstSort ? (firstSort.desc ? 'desc' : 'asc') : undefined
 

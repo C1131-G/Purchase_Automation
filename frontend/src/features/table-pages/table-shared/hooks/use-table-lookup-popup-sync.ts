@@ -20,7 +20,7 @@ type UseTableLookupPopupSyncResult = {
   onLookupPopupOpen: (columnId: string, initialSearch?: string) => void
   onLookupSearchChange: (value: string) => void
   onLookupPopupClose: () => void
-  onLookupSelect: (item: LookupItem) => void
+  onLookupSelect: (item: LookupItem, columnId: string) => void
 }
 
 const DEFAULT_LOOKUP_COLUMNS = ['CardCode', 'CardName', 'DocNum']
@@ -105,29 +105,29 @@ export function useTableLookupPopupSync<TData>({
   }, [lookupSearch])
 
   const onLookupSelect = useCallback(
-    (item: LookupItem) => {
-      if (!lookupColumnId) return
+    (item: LookupItem, columnId: string) => {
+      if (!columnId) return
 
-      if (lookupColumnId === 'CardCode' || lookupColumnId === 'CardName') {
-        const codeColumn = table.getColumn('CardCode')
-        const nameColumn = table.getColumn('CardName')
-        if (codeColumn) codeColumn.setFilterValue(item.code)
-        if (nameColumn) nameColumn.setFilterValue(item.name)
+      const column = table.getColumn(columnId)
+      if (!column) return
+
+      if (columnId === 'DocNum') {
+        column.setFilterValue(item.code)
+      } else if (columnId === 'CardCode') {
+        column.setFilterValue(item.code)
+      } else if (columnId === 'CardName') {
+        column.setFilterValue(item.name)
       } else {
-        const column = table.getColumn(lookupColumnId)
-        if (column) {
-          const value = lookupColumnId === 'DocNum' ? item.code : item.name
-          column.setFilterValue(value)
-        }
+        column.setFilterValue(item.name)
       }
 
-      onSetActiveFilter?.(tableId, lookupColumnId)
+      onSetActiveFilter?.(tableId, columnId)
 
       // Immediate input sync for toolbar input without effect-based mirroring.
-      setExternalSelection({ item, columnId: lookupColumnId })
+      setExternalSelection({ item, columnId })
       setLookupPopupOpen(false)
     },
-    [lookupColumnId, onSetActiveFilter, table, tableId],
+    [onSetActiveFilter, table, tableId],
   )
 
   return {

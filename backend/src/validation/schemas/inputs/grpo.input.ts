@@ -117,6 +117,7 @@ const GRPOLineItemSchema = z.object({
   UoMCode: z.union([z.string(), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
   DiscountPercent: z.number().min(0).max(100).optional(),
+  VatGroup: z.string().optional(),
   BaseType: z.number().optional(), // SAP Object Type (e.g., 22 for PO).
   BaseEntry: z.number().optional(), // docEntry of the originating PO.
   BaseLine: z.number().optional(), // LineNum of the item in the base PO.
@@ -130,7 +131,14 @@ export const CreateGRPOInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
+  DocDueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
   Comments: z.string().optional(),
+  NumAtCard: z.string().optional(),
+  Address: z.string().optional().openapi({ description: "Bill To Address" }),
+  Address2: z.string().optional().openapi({ description: "Ship To Address" }),
   DocumentLines: z.array(GRPOLineItemSchema).min(1),
 });
 
@@ -143,6 +151,8 @@ export const UpdateGRPOInputSchema = z
       .optional(),
     Comments: z.string().optional(),
     NumAtCard: z.string().optional(),
+    Address: z.string().optional(),
+    Address2: z.string().optional(),
   })
   .strict();
 

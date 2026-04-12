@@ -205,7 +205,7 @@ export function PullFromSOModal({ open, onClose, cardCode, onConfirm }: PullFrom
                         </td>
                         <td className="px-4 py-3 font-bold text-zinc-900">{order.DocNum}</td>
                         <td className="px-4 py-3 text-zinc-600">
-                          {order.DocDate ? toDisplayDate(new Date(order.DocDate)) : 'N/A'}
+                          {order.DocDate ? toDisplayDate(order.DocDate) : 'N/A'}
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800">

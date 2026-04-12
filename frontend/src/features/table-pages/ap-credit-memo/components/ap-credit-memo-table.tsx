@@ -13,16 +13,16 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
-import { apCreditNoteQueries } from '@/features/table-pages/ap-credit-note/api/ap-credit-note.queries'
-import { type APCreditNoteListItem } from '@/features/table-pages/ap-credit-note/api/ap-credit-note.service'
-import { mapSearchToAPCreditNoteListParams } from '@/features/table-pages/ap-credit-note/api/ap-credit-note-query.mapper'
-import { createAPCreditNoteColumns } from '@/features/table-pages/ap-credit-note/components/ap-credit-note-columns'
-import { APCreditNoteLookupLayer } from '@/features/table-pages/ap-credit-note/components/ap-credit-note-lookup-layer'
+import { apCreditMemoQueries } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries'
+import { type APCreditMemoListItem } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.service'
+import { mapSearchToAPCreditMemoListParams } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo-query.mapper'
+import { createAPCreditMemoColumns } from '@/features/table-pages/ap-credit-memo/components/ap-credit-memo-columns'
+import { APCreditMemoLookupLayer } from '@/features/table-pages/ap-credit-memo/components/ap-credit-memo-lookup-layer'
 import {
-  type APCreditNoteColumnFilter,
-  apCreditNoteColumnFilterSchema,
-  type APCreditNoteSearch,
-} from '@/features/table-pages/ap-credit-note/schemas/ap-credit-note-search.schema'
+  type APCreditMemoColumnFilter,
+  apCreditMemoColumnFilterSchema,
+  type APCreditMemoSearch,
+} from '@/features/table-pages/ap-credit-memo/schemas/ap-credit-memo-search.schema'
 import { TablePagination } from '@/features/table-pages/table-shared/components/controls/pagination'
 import { TableErrorState } from '@/features/table-pages/table-shared/components/core/table-error-state'
 import {
@@ -52,14 +52,14 @@ import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-const routeApi = getRouteApi('/_layout/purchase/ap-credit-note')
-const TABLE_ID = 'ap-credit-notes'
+const routeApi = getRouteApi('/_layout/purchase/ap-credit-memo')
+const TABLE_ID = 'ap-credit-memos'
 const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 
-const toAPCreditNoteColumnFilters = (filters: ColumnFiltersState): APCreditNoteColumnFilter[] => {
-  const typedFilters: APCreditNoteColumnFilter[] = []
+const toAPCreditMemoColumnFilters = (filters: ColumnFiltersState): APCreditMemoColumnFilter[] => {
+  const typedFilters: APCreditMemoColumnFilter[] = []
   for (const filter of filters) {
-    const parsed = apCreditNoteColumnFilterSchema.safeParse(filter)
+    const parsed = apCreditMemoColumnFilterSchema.safeParse(filter)
     if (!parsed.success) continue
     typedFilters.push(parsed.data)
   }
@@ -67,10 +67,10 @@ const toAPCreditNoteColumnFilters = (filters: ColumnFiltersState): APCreditNoteC
 }
 
 /**
- * APCreditNoteTable: Orchestrates the AP Credit Note listing with integrated lookups and URL state.
+ * APCreditMemoTable: Orchestrates the AP Credit Memo listing with integrated lookups and URL state.
  * Follows the unified architectural pattern for financial document grids.
  */
-export function APCreditNoteTable() {
+export function APCreditMemoTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const setSorting = useSetSortingAction()
@@ -87,7 +87,7 @@ export function APCreditNoteTable() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createAPCreditNoteColumns(), [])
+  const columns = useMemo(() => createAPCreditMemoColumns(), [])
   const columnIds = useMemo(
     () =>
       columns
@@ -135,27 +135,27 @@ export function APCreditNoteTable() {
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
-  const listParams = useMemo(() => mapSearchToAPCreditNoteListParams(searchParams), [searchParams])
+  const listParams = useMemo(() => mapSearchToAPCreditMemoListParams(searchParams), [searchParams])
 
   // Data Fetching: Reactive query derived from URL search state.
   const {
-    data: apCreditNoteList,
+    data: apCreditMemoList,
     isLoading,
     isFetching,
     isError,
     error,
     refetch,
-  } = useQuery(apCreditNoteQueries.list(listParams))
+  } = useQuery(apCreditMemoQueries.list(listParams))
 
   const queryClient = useQueryClient()
 
-  const rows = useMemo(() => apCreditNoteList?.data ?? [], [apCreditNoteList?.data])
-  const totalRows = apCreditNoteList?.total ?? 0
-  const totalPages = Math.max(apCreditNoteList?.totalPages ?? 1, 1)
-  const showInitialSkeleton = isLoading && !apCreditNoteList
+  const rows = useMemo(() => apCreditMemoList?.data ?? [], [apCreditMemoList?.data])
+  const totalRows = apCreditMemoList?.total ?? 0
+  const totalPages = Math.max(apCreditMemoList?.totalPages ?? 1, 1)
+  const showInitialSkeleton = isLoading && !apCreditMemoList
 
   // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable<APCreditNoteListItem>({
+  const table = useReactTable<APCreditMemoListItem>({
     data: rows,
     columns,
     pageCount: totalPages,
@@ -167,7 +167,7 @@ export function APCreditNoteTable() {
       const nextSorting = cloneSorting(next)
       setSorting(TABLE_ID, nextSorting)
       navigate({
-        search: (prev: APCreditNoteSearch) => ({
+        search: (prev: APCreditMemoSearch) => ({
           ...prev,
           sorting: nextSorting.length > 0 ? nextSorting : [],
         }),
@@ -179,7 +179,7 @@ export function APCreditNoteTable() {
       const nextVisibility = normalizeVisibility(cloneVisibility(next))
       setVisibility(TABLE_ID, nextVisibility)
       navigate({
-        search: (prev: APCreditNoteSearch) => ({
+        search: (prev: APCreditMemoSearch) => ({
           ...prev,
           columnVisibility: { ...nextVisibility },
         }),
@@ -190,7 +190,7 @@ export function APCreditNoteTable() {
       const next = typeof updater === 'function' ? updater(columnOrder) : updater
       setOrder(TABLE_ID, cloneOrder(next))
       navigate({
-        search: (prev: APCreditNoteSearch) => ({ ...prev, columnOrder: [...next] }),
+        search: (prev: APCreditMemoSearch) => ({ ...prev, columnOrder: [...next] }),
         replace: true,
       })
     },
@@ -203,7 +203,7 @@ export function APCreditNoteTable() {
       }
       setPagination(TABLE_ID, nextPagination)
       navigate({
-        search: (prev: APCreditNoteSearch) => ({
+        search: (prev: APCreditMemoSearch) => ({
           ...prev,
           page: nextPagination.pageIndex + 1,
           limit: nextPagination.pageSize,
@@ -218,9 +218,9 @@ export function APCreditNoteTable() {
       const nextFilters = cloneFilters(normalized)
       setColumnFilters(TABLE_ID, nextFilters)
       setPagination(TABLE_ID, { pageIndex: 0 })
-      const nextSearchColumnFilters = toAPCreditNoteColumnFilters(nextFilters)
+      const nextSearchColumnFilters = toAPCreditMemoColumnFilters(nextFilters)
       navigate({
-        search: (prev: APCreditNoteSearch) => ({
+        search: (prev: APCreditMemoSearch) => ({
           ...prev,
           page: 1,
           columnFilters: nextSearchColumnFilters,
@@ -268,7 +268,7 @@ export function APCreditNoteTable() {
     const clampedPageIndex = maxPageIndex
     setPagination(TABLE_ID, { pageIndex: clampedPageIndex, totalRows: filteredTotalRows })
     navigate({
-      search: (prev: APCreditNoteSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
+      search: (prev: APCreditMemoSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
       replace: true,
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
@@ -276,13 +276,13 @@ export function APCreditNoteTable() {
   // Aggressive Background Prefetching (Shared Global Hook)
   const getQueryOptions = useCallback(
     (params: { page: number; limit: number }) =>
-      apCreditNoteQueries.list({ ...listParams, ...params }),
+      apCreditMemoQueries.list({ ...listParams, ...params }),
     [listParams],
   )
 
   const { prefetchPage } = useTablePrefetch({
     queryClient,
-    hasData: !!apCreditNoteList,
+    hasData: !!apCreditMemoList,
     pagination,
     maxPageIndex,
     getQueryOptions,
@@ -290,7 +290,7 @@ export function APCreditNoteTable() {
 
   useTableToast({
     isFetching,
-    hasData: !!apCreditNoteList,
+    hasData: !!apCreditMemoList,
     action: lastActionRef.current,
   })
 
@@ -302,7 +302,7 @@ export function APCreditNoteTable() {
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 })
 
     navigate({
-      search: (prev: APCreditNoteSearch) => ({
+      search: (prev: APCreditMemoSearch) => ({
         ...prev,
         page: 1,
         limit: 10,
@@ -328,10 +328,10 @@ export function APCreditNoteTable() {
     return <TableSkeleton />
   }
 
-  if (isError && !apCreditNoteList) {
+  if (isError && !apCreditMemoList) {
     return (
       <TableErrorState
-        title="AP credit notes unavailable"
+        title="AP credit memos unavailable"
         message={error instanceof Error ? error.message : undefined}
         onRetry={() => refetch()}
       />
@@ -340,7 +340,7 @@ export function APCreditNoteTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <APCreditNoteLookupLayer
+      <APCreditMemoLookupLayer
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}

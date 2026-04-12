@@ -1,19 +1,34 @@
 /** Create Order Calculations: Business logic for computing totals, taxes, and line items. */
 import { type ProductRow } from '@/features/create-pages/create-shared/utils/create-order.types'
 
+/** Calculate totals for a single product line with tax-exclusive unit price. */
+export const calculateLineTotals = (row: ProductRow) => {
+  const gross = row.price * row.quantity
+  const discount = Math.max(0, Math.min(gross, row.discountAmount))
+  // Net line subtotal (pre-tax)
+  const lineNet = gross - discount
+  const taxRate = Math.max(0, row.taxRate ?? 0)
+  // Tax derived from net subtotal
+  const lineTax = taxRate > 0 ? lineNet * (taxRate / 100) : 0
+  // Inclusive line total (what SAP uses)
+  const lineTotal = lineNet + lineTax
+
+  return {
+    gross,
+    discount,
+    lineNet,
+    lineTax,
+    lineTotal,
+  }
+}
+
 export const calculateOrderTotals = (productRows: ProductRow[]) => {
   let taxTotal = 0
   let netTotal = 0
   let grandTotal = 0
 
   for (const row of productRows) {
-    const gross = row.price * row.quantity
-    const discount = Math.max(0, Math.min(gross, row.discountAmount))
-    // Product price is tax-inclusive: derive tax from final line amount.
-    const lineTotal = gross - discount
-    const taxRate = Math.max(0, row.taxRate ?? 0)
-    const lineTax = taxRate > 0 ? lineTotal * (taxRate / (100 + taxRate)) : 0
-    const lineNet = lineTotal - lineTax
+    const { lineNet, lineTax, lineTotal } = calculateLineTotals(row)
     taxTotal += lineTax
     netTotal += lineNet
     grandTotal += lineTotal

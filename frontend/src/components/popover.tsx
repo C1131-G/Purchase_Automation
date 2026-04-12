@@ -150,4 +150,5 @@ export const Popover = {
   Root: PopoverRoot,
   Trigger: PopoverTrigger,
   Content: PopoverContent,
+  usePopoverContext: usePopover,
 }

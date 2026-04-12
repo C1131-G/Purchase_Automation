@@ -28,7 +28,7 @@ export type ProductGridRow = {
   stock: number
   price: number
   currency: string
-  taxCode: string
+  vatGroup: string
   taxRate: number
   uomCode?: string | undefined
   uomEntry?: number | undefined

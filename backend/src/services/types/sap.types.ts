@@ -10,6 +10,9 @@ export interface SAPDocumentLine {
   UnitPrice?: number;
   TaxCode?: string;
   VatPrcnt?: number;
+  VatGroup?: string;
+  /** The actual tax percentage SAP applied to this line (e.g. 15 when we sent "IN-12.5" but SAP resolved to "FJIN-15"). */
+  TaxPercentagePerRow?: number;
   WarehouseCode?: string;
   DiscountPercent?: number;
   LineTotal?: number;

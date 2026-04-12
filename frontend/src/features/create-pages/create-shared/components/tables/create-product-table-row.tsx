@@ -7,6 +7,7 @@ import { Tooltip } from '@/components/tooltip'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { SuggestionList } from '@/features/create-pages/create-shared/components/core/suggestion-list'
 import { ProductWarehouseStockModal } from '@/features/create-pages/create-shared/components/modals/product-warehouse-stock-modal'
+import { calculateLineTotals } from '@/features/create-pages/create-shared/utils/create-order.calculations'
 import {
   type CreateLookupOption,
   type ProductRow,
@@ -234,14 +235,13 @@ export function CreateProductTableRow({
     ) : (
       <span className="font-bold text-rose-500">Item is out of stock</span>
     )
-  const grossAmount = row.price * (row.quantity || 0)
-  const clampedDiscountPercent = Math.max(0, Math.min(100, row.discountPercent))
-  const derivedDiscountAmountFromPercent = (grossAmount * clampedDiscountPercent) / 100
-  const persistedDiscountAmount =
-    row.discountAmount > 0 ? row.discountAmount : derivedDiscountAmountFromPercent
-  const clampedDiscountAmount = Math.max(0, Math.min(grossAmount, persistedDiscountAmount))
-  const lineNetTotal = grossAmount - clampedDiscountAmount
-  const unitNetPrice = (row.quantity || 0) > 0 ? lineNetTotal / (row.quantity || 1) : 0
+
+  // Use centralized line math for consistency with SAP totals
+  const lineTotals = calculateLineTotals(row)
+  const { gross: grossAmount, discount: clampedDiscountAmount, lineNet, lineTotal } = lineTotals
+  // Unit net price for display (pre-tax per unit)
+  const unitNetPrice = (row.quantity || 0) > 0 ? lineNet / (row.quantity || 1) : 0
+  const clampedDiscountPercent = grossAmount > 0 ? (clampedDiscountAmount / grossAmount) * 100 : 0
 
   const discountPercentInputValue =
     rowDraft?.discountPercent ??
@@ -278,10 +278,10 @@ export function CreateProductTableRow({
               }}
               onMouseEnter={prefetchProducts}
               onFocus={prefetchProducts}
-              className={`block w-full truncate text-left text-sm text-zinc-800 transition ${
+              className={`block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm transition-all duration-150 ${
                 disableInputs
                   ? 'cursor-not-allowed opacity-70'
-                  : 'cursor-pointer hover:text-zinc-950'
+                  : 'cursor-pointer text-zinc-800 hover:bg-blue-50/50 hover:text-blue-700 active:bg-blue-100/60 active:text-blue-900'
               }`}
             >
               {row.productName || 'Select Product'}
@@ -558,7 +558,7 @@ export function CreateProductTableRow({
         {unitNetPrice.toFixed(2)}
       </td>
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm font-medium text-zinc-900">
-        {lineNetTotal.toFixed(2)}
+        {lineTotal.toFixed(2)}
       </td>
       <td className="min-w-0 px-2 py-2">
         <Tooltip content="Remove row" className="block w-auto max-w-none">

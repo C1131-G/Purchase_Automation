@@ -73,13 +73,13 @@ export function ShellLayoutNavigation({
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/purchase/ap-credit-note"
-                  onMouseEnter={() => onTableNavIntent('/purchase/ap-credit-note')}
-                  onFocus={() => onTableNavIntent('/purchase/ap-credit-note')}
-                  onTouchStart={() => onTableNavIntent('/purchase/ap-credit-note')}
-                  isActive={pathname === '/purchase/ap-credit-note'}
+                  to="/purchase/ap-credit-memo"
+                  onMouseEnter={() => onTableNavIntent('/purchase/ap-credit-memo')}
+                  onFocus={() => onTableNavIntent('/purchase/ap-credit-memo')}
+                  onTouchStart={() => onTableNavIntent('/purchase/ap-credit-memo')}
+                  isActive={pathname === '/purchase/ap-credit-memo'}
                 >
-                  A/P Credit Note
+                  A/P Credit Memo
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>

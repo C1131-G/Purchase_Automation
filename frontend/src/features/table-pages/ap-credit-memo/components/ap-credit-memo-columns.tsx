@@ -1,15 +1,15 @@
-// APCreditNoteColumns: Column definitions (accessors, headers, cell renderers) for the credit note grid.
+// APCreditMemoColumns: Column definitions (accessors, headers, cell renderers) for the credit memo grid.
 import { createColumnHelper } from '@tanstack/react-table'
 
 import { Tooltip } from '@/components/tooltip'
-import { type APCreditNoteListItem } from '@/features/table-pages/ap-credit-note/api/ap-credit-note.service'
+import { type APCreditMemoListItem } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.service'
 import { TableColumnSort } from '@/features/table-pages/table-shared/components/core/table-column-sort'
 import {
   matchesDateRange,
   matchesNumberComparison,
 } from '@/features/table-pages/table-shared/utils/table-filter-values'
 
-const columnHelper = createColumnHelper<APCreditNoteListItem>()
+const columnHelper = createColumnHelper<APCreditMemoListItem>()
 
 const mapDocStatusLabel = (value: string) => {
   const normalized = value?.toString().trim()
@@ -18,7 +18,7 @@ const mapDocStatusLabel = (value: string) => {
   return normalized
 }
 
-export const createAPCreditNoteColumns = () => [
+export const createAPCreditMemoColumns = () => [
   columnHelper.accessor('DocNum', {
     id: 'DocNum',
     header: ({ column, table }) => (

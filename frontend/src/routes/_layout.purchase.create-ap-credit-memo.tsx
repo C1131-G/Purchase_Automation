@@ -4,13 +4,15 @@ import { z } from 'zod'
 import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { requireActiveSession } from '@/routes/_require-active-session'
 
-/** PurchaseAPCreditNoteCreateRoute: Page for creating new AP Credit Notes. */
-export const Route = createFileRoute('/_layout/purchase/create-ap-credit-note')({
+/** PurchaseAPCreditMemoCreateRoute: Page for creating new AP Credit Memos. */
+export const Route = createFileRoute('/_layout/purchase/create-ap-credit-memo')({
   validateSearch: (search) =>
     z
       .object({
         sourceDocNum: z.string().or(z.number()).transform(String).optional(),
-        sourceDocType: z.enum(['PurchaseOrder', 'GoodsReceiptPO', 'APInvoice']).optional(),
+        sourceDocType: z
+          .enum(['PurchaseOrder', 'GoodsReceiptPO', 'APInvoice', 'APCreditMemo'])
+          .optional(),
       })
       .parse(search),
   beforeLoad: async () => {
@@ -22,5 +24,5 @@ export const Route = createFileRoute('/_layout/purchase/create-ap-credit-note')(
 })
 
 function RouteComponent() {
-  return <div className="p-6">Create AP Credit Note Page (Coming Soon)</div>
+  return <div className="p-6">Create AP Credit Memo Page (Coming Soon)</div>
 }

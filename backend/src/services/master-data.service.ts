@@ -420,7 +420,7 @@ export const getProductWarehouseStocks = async (dbName: string, itemCode: string
 
 // Fetches active Vendors (Business Partners with type 'S' = Supplier).
 export const getVendors = async (dbName: string) => {
-  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v2", {
+  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
     where: { CardType: "S", frozenFor: "N" } as Record<string, unknown>,
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
     select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,
@@ -461,7 +461,7 @@ export const getVendors = async (dbName: string) => {
 
 // Fetches active Customers (Business Partners with type 'C' = Customer).
 export const getCustomers = async (dbName: string) => {
-  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v2", {
+  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
     where: { CardType: "C", frozenFor: "N" } as Record<string, unknown>,
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
     select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,

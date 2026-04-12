@@ -193,9 +193,9 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/APCreditNote",
-  summary: "List A/P Credit Notes",
-  tags: ["Credit Notes"],
+  path: "/APCreditMemo",
+  summary: "List A/P Credit Memos",
+  tags: ["Credit Memos"],
   security: [{ SessionCookie: [] }],
   request: { query: CreditNoteQuerySchema },
   responses: {

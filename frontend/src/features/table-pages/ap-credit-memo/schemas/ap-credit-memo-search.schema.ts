@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const apCreditNoteColumnFilterValueSchema = z.union([
+export const apCreditMemoColumnFilterValueSchema = z.union([
   z.string(),
   z.number(),
   z.boolean(),
@@ -19,18 +19,18 @@ export const apCreditNoteColumnFilterValueSchema = z.union([
     .strict(),
 ])
 
-export const apCreditNoteColumnFilterSchema = z.object({
+export const apCreditMemoColumnFilterSchema = z.object({
   id: z.string(),
-  value: apCreditNoteColumnFilterValueSchema,
+  value: apCreditMemoColumnFilterValueSchema,
 })
 
-export const apCreditNoteSearchSchema = z.object({
+export const apCreditMemoSearchSchema = z.object({
   page: z.coerce.number().int().min(1).catch(1),
   limit: z.coerce.number().int().min(1).catch(10),
   sorting: z.array(z.object({ id: z.string(), desc: z.boolean() })).optional(),
   columnVisibility: z.record(z.string(), z.boolean()).optional(),
   columnOrder: z.array(z.string()).optional(),
-  columnFilters: z.array(apCreditNoteColumnFilterSchema).optional(),
+  columnFilters: z.array(apCreditMemoColumnFilterSchema).optional(),
   filter: z.string().optional(),
   DocNum: z.string().optional(),
   CardCode: z.string().optional(),
@@ -42,5 +42,5 @@ export const apCreditNoteSearchSchema = z.object({
   DocTotal: z.coerce.number().optional(),
 })
 
-export type APCreditNoteSearch = z.infer<typeof apCreditNoteSearchSchema>
-export type APCreditNoteColumnFilter = z.infer<typeof apCreditNoteColumnFilterSchema>
+export type APCreditMemoSearch = z.infer<typeof apCreditMemoSearchSchema>
+export type APCreditMemoColumnFilter = z.infer<typeof apCreditMemoColumnFilterSchema>

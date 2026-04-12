@@ -125,3 +125,15 @@ html:active-view-transition-type(slide-right) {
   background-size: 200% 100%;
   animation: shimmer 2.2s infinite linear;
 }
+
+/* Popover Enter: Light fade/translate for action sheets */
+@keyframes popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

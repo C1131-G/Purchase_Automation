@@ -44,6 +44,7 @@ export type GRPOCreatePODetailLine = {
   Price?: number
   WarehouseCode?: string
   TaxCode?: string
+  VatGroup?: string
   VatPrcnt?: number
   BaseEntry?: number
   BaseLine?: number
@@ -67,11 +68,16 @@ export type GRPOCreatePODetail = {
 export type GRPOCreatePODetailResponse = { success: boolean; data: GRPOCreatePODetail }
 export type CreateGRPOPayload = Record<string, unknown>
 export type UpdateGRPOPayload = Record<string, unknown>
+export type CreateGRPOResponse = {
+  success: boolean
+  data: { DocEntry: number; DocNum: number }
+}
 
 export type GRPODetailLine = {
   ItemCode?: string
   ItemDescription?: string
   Quantity?: number
+  OpenQty?: number
   Price?: number
   UnitPrice?: number
   DiscountPercent?: number
@@ -79,6 +85,7 @@ export type GRPODetailLine = {
   UoMEntry?: number
   WarehouseCode?: string
   TaxCode?: string
+  VatGroup?: string
   VatPrcnt?: number
   LineTotal?: number
   BaseEntry?: number
@@ -128,7 +135,7 @@ export const grpoAPI = {
     return apiClient<GRPOCreatePODetailResponse>(`/api/v1/grpos/po-detail/${id}`)
   },
   createGRPO: async (payload: CreateGRPOPayload) => {
-    return apiClient<unknown>('/api/v1/grpos', {
+    return apiClient<CreateGRPOResponse>('/api/v1/grpos', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

@@ -111,6 +111,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
               vendorCodeErrorText={state.productSearchFieldErrors.vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -143,6 +144,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
               onSelectSalesEmployee={state.selectSalesEmployee}
               salesEmployeeDisabled={state.isClosed}
               readOnly={state.isClosed}
+              uniformReadOnlyAppearance={state.isClosed}
             />
           </div>
         </div>
@@ -160,6 +162,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
           toISODate={toISODate}
           docDateReadOnly={false}
           docDueDateReadOnly={state.isClosed}
+          uniformReadOnlyAppearance={state.isEditMode}
           onSetActiveDatePicker={state.setActiveDatePicker}
           onDocDateChange={(value) => state.setHeader({ docDate: value })}
           onDocDueDateChange={(value) => {
@@ -188,6 +191,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
               billToAddress={state.billToAddress}
               shipToAddress={state.shipToAddress}
               readOnly={state.isClosed}
+              uniformReadOnlyAppearance={state.isEditMode}
               onBillToAddressChange={(value) => {
                 state.setBillToAddress(value)
                 state.setProductSearchFieldErrors((prev) => ({
@@ -209,6 +213,7 @@ export function PurchaseOrderCreate({ mode = 'create', docNum }: PurchaseOrderCr
           loading={isFormHydrating}
           referenceNo={state.header.referenceNo}
           comments={state.header.comments}
+          uniformReadOnlyAppearance={state.isEditMode}
           onReferenceNoChange={(value) => {
             state.setHeader({ referenceNo: value })
             state.setProductSearchFieldErrors((prev) => ({ ...prev, referenceNo: undefined }))

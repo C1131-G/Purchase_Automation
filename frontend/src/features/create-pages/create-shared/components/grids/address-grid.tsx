@@ -16,6 +16,8 @@ type AddressGridProps = {
   shipToAddressErrorText?: string | undefined
   readOnly?: boolean
   editableHighlight?: boolean
+  /** Visual-only override: read-only fields render with the same background as editable fields. */
+  uniformReadOnlyAppearance?: boolean
 }
 
 export function AddressGrid({
@@ -31,6 +33,7 @@ export function AddressGrid({
   shipToAddressErrorText,
   readOnly = false,
   editableHighlight = false,
+  uniformReadOnlyAppearance = false,
 }: AddressGridProps) {
   return (
     <SectionCard title="ADDRESS" className={`${className} h-full min-h-55`}>
@@ -63,7 +66,13 @@ export function AddressGrid({
                   : editableHighlight
                     ? 'border-emerald-300 bg-emerald-50/60 text-zinc-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
                     : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-              } ${readOnly ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500' : ''}`}
+              } ${
+                readOnly
+                  ? uniformReadOnlyAppearance
+                    ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800'
+                    : 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500'
+                  : ''
+              }`}
             />
           )}
           {billToAddressInvalid && billToAddressErrorText ? (
@@ -98,7 +107,13 @@ export function AddressGrid({
                   : editableHighlight
                     ? 'border-emerald-300 bg-emerald-50/60 text-zinc-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
                     : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-              } ${readOnly ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500' : ''}`}
+              } ${
+                readOnly
+                  ? uniformReadOnlyAppearance
+                    ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800'
+                    : 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500'
+                  : ''
+              }`}
             />
           )}
           {shipToAddressInvalid && shipToAddressErrorText ? (

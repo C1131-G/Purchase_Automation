@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, Copy, StickyNote, Truck } from 'lucide-react'
+import { ChevronRight, ClipboardList, FileText, StickyNote, Truck } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/button'
 import { Popover } from '@/components/popover'
@@ -7,6 +8,7 @@ import { cn } from '@/shared/utils/cn'
 
 interface CopyToOption {
   label: string
+  meta: string
   to: string
   icon: React.ReactNode
 }
@@ -14,67 +16,209 @@ interface CopyToOption {
 interface CopyToDropdownProps {
   docNum: string
   sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
-  targets: ('GRPO' | 'AP Invoice' | 'AP Credit Note')[]
+  targets: ('GRPO' | 'AP Invoice' | 'AP Credit Memo')[]
   className?: string
+}
+
+const targetIcon = (target: string) => {
+  switch (target) {
+    case 'GRPO':
+      return <Truck className="h-4 w-4" />
+    case 'AP Invoice':
+      return <StickyNote className="h-4 w-4" />
+    case 'AP Credit Memo':
+      return <FileText className="h-4 w-4" />
+    default:
+      return <ClipboardList className="h-4 w-4" />
+  }
+}
+
+const targetMeta = (target: string, sourceDocType: string) => {
+  switch (target) {
+    case 'GRPO':
+      return 'Create GRPO from this PO'
+    case 'AP Invoice':
+      return sourceDocType === 'PurchaseOrder'
+        ? 'Create A/P Invoice from this PO'
+        : 'Create A/P Invoice from this GRPO'
+    case 'AP Credit Memo':
+      return 'Create A/P Credit Memo from this invoice'
+    default:
+      return ''
+  }
+}
+
+function CopyToPanel({
+  docNum,
+  sourceDocType,
+  options,
+  panelWidth,
+}: {
+  docNum: string
+  sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+  options: CopyToOption[]
+  panelWidth: number | null
+}) {
+  return (
+    <div
+      className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg ring-1 ring-black/[0.04]"
+      style={{
+        width: panelWidth ?? undefined,
+        animation: 'popover-enter 180ms ease-in-out both',
+      }}
+    >
+      <div className="flex flex-col py-1">
+        {options.map((option, index) => (
+          <Link
+            key={option.label}
+            to={option.to}
+            search={{ sourceDocNum: docNum, sourceDocType }}
+            className={cn(
+              'group/row relative flex items-start gap-3 px-3 py-2.5 transition-all duration-150',
+              'hover:bg-zinc-50',
+              'focus-visible:outline-none focus-visible:bg-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-300',
+              index === 0 ? 'mt-0' : '-mt-px border-t border-zinc-100/80',
+            )}
+          >
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 transition-all duration-150 group-hover/row:bg-zinc-100 group-hover/row:text-zinc-600">
+              {option.icon}
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="text-[13px] font-medium text-zinc-700 transition-colors group-hover/row:text-zinc-900">
+                {option.label}
+              </span>
+              <span className="text-[12px] leading-tight text-zinc-400 transition-colors group-hover/row:text-zinc-500">
+                {option.meta}
+              </span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CopyToDropdownInner({
+  docNum,
+  sourceDocType,
+  options,
+  className,
+}: {
+  docNum: string
+  sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+  options: CopyToOption[]
+  className?: string
+}) {
+  const { open, setOpen } = Popover.usePopoverContext()
+  const [panelWidth, setPanelWidth] = useState<number | null>(null)
+  const triggerNodeRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPanelWidth(null)
+      return
+    }
+    const el = triggerNodeRef.current
+    if (!el) return
+
+    const measure = () => {
+      const rect = el.getBoundingClientRect()
+      setPanelWidth(Math.round(rect.width))
+    }
+    measure()
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [open])
+
+  const handleTriggerClick = useCallback(() => {
+    setOpen(!open)
+  }, [open, setOpen])
+
+  return (
+    <>
+      <Button
+        ref={triggerNodeRef}
+        type="button"
+        size="md"
+        variant="outline"
+        onClick={handleTriggerClick}
+        className={cn(
+          'group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all duration-200 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none disabled:cursor-not-allowed disabled:opacity-50',
+          open
+            ? 'border-zinc-300 bg-zinc-50 text-zinc-900 ring-1 ring-zinc-200'
+            : 'hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900',
+          className,
+        )}
+      >
+        <span className="inline-flex items-center gap-2">
+          <ClipboardList className="h-4 w-4 text-zinc-400 group-hover:text-zinc-500 transition-colors" />
+          <span>Copy To</span>
+        </span>
+        <span className="mx-2 h-4 w-px bg-zinc-200" />
+        <span className="flex items-center gap-1.5 transition-colors duration-200">
+          {options.length === 1 ? (
+            <>
+              <span className="text-sm font-medium text-zinc-400 group-hover:text-zinc-600 transition-colors">
+                {options[0]!.label}
+              </span>
+              <ChevronRight
+                className={cn(
+                  'h-3.5 w-3.5 transition-transform duration-200 text-zinc-400',
+                  open && 'translate-x-0.5',
+                )}
+              />
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-zinc-400 group-hover:text-zinc-600 transition-colors">
+                Choose target
+              </span>
+              <ChevronRight
+                className={cn(
+                  'h-3.5 w-3.5 transition-transform duration-200 text-zinc-400',
+                  open && 'translate-x-0.5',
+                )}
+              />
+            </>
+          )}
+        </span>
+      </Button>
+      <Popover.Content side="top" align="end" unstyled className="z-[1001]">
+        <CopyToPanel
+          docNum={docNum}
+          sourceDocType={sourceDocType}
+          options={options}
+          panelWidth={panelWidth}
+        />
+      </Popover.Content>
+    </>
+  )
 }
 
 export function CopyToDropdown({ docNum, sourceDocType, targets, className }: CopyToDropdownProps) {
   const options: CopyToOption[] = targets.map((target) => ({
-    label: target === 'GRPO' ? 'GRPO' : target === 'AP Invoice' ? 'AP Invoice' : 'AP Credit Note',
+    label: target,
+    meta: targetMeta(target, sourceDocType),
     to:
       target === 'GRPO'
         ? '/purchase/create-grpo'
         : target === 'AP Invoice'
           ? '/purchase/create-ap-invoice'
-          : '/purchase/create-ap-credit-note',
-    icon:
-      target === 'GRPO' ? (
-        <Truck className="h-3.5 w-3.5" />
-      ) : target === 'AP Invoice' ? (
-        <StickyNote className="h-3.5 w-3.5" />
-      ) : (
-        <Copy className="h-3.5 w-3.5" />
-      ),
+          : '/purchase/create-ap-credit-memo',
+    icon: targetIcon(target),
   }))
 
   return (
     <Popover.Root>
-      <Popover.Trigger asChild>
-        <Button
-          type="button"
-          size="md"
-          variant="outline"
-          className={cn(
-            'group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none',
-            className,
-          )}
-        >
-          <span className="inline-flex items-center gap-2">
-            <Copy className="h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
-            <span>Copy To</span>
-            <ChevronDown className="h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-          </span>
-        </Button>
-      </Popover.Trigger>
-      <Popover.Content side="top" align="end" unstyled className="z-[1001]">
-        <div className="min-w-[160px] overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-zinc-900 shadow-lg ring-1 ring-black/5">
-          <div className="flex flex-col">
-            {options.map((option) => (
-              <Link
-                key={option.label}
-                to={option.to}
-                search={{ sourceDocNum: docNum, sourceDocType }}
-                className="group flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-              >
-                <span className="text-zinc-400 group-hover:text-zinc-600 transition-colors">
-                  {option.icon}
-                </span>
-                {option.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </Popover.Content>
+      <CopyToDropdownInner
+        docNum={docNum}
+        sourceDocType={sourceDocType}
+        options={options}
+        {...(className ? { className } : {})}
+      />
     </Popover.Root>
   )
 }

@@ -9,8 +9,12 @@ import { PCH1Schema } from "@/db/schemas/pch1.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
+
+import { resolveBaseLineQuantities } from "./base-qty-validation.util";
+import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
@@ -221,6 +225,25 @@ export const getPODetail = async (sessionId: string, dbName: string, id: string)
       `/PurchaseOrders(${poDocEntry})`,
     )) as SAPDocumentResponse;
 
+    const mappedLines = (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+      const lineData = line as unknown as Record<string, unknown>;
+      const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
+      const vatGroup = line.VatGroup || String(lineData.TaxCode ?? "").trim();
+
+      return {
+        ItemCode: line.ItemCode,
+        ItemDescription: line.ItemDescription,
+        Quantity: line.Quantity,
+        UoMCode: lineData.UoMCode,
+        UoMEntry: lineData.UoMEntry,
+        Price: line.Price || line.UnitPrice,
+        WarehouseCode: line.WarehouseCode,
+        TaxCode: String(lineData.TaxCode ?? "").trim(),
+        VatGroup: vatGroup,
+        VatPrcnt: sapTaxRate,
+      };
+    });
+
     return {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
@@ -233,17 +256,7 @@ export const getPODetail = async (sessionId: string, dbName: string, id: string)
       Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       NumAtCard: result.NumAtCard,
       DocTotal: result.DocTotal,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        Price: line.Price || line.UnitPrice,
-        WarehouseCode: line.WarehouseCode,
-        TaxCode: line.TaxCode || "",
-        VatPrcnt: line.VatPrcnt,
-      })),
+      DocumentLines: mappedLines,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -265,6 +278,27 @@ export const getGRPO = async (sessionId: string, id: string) => {
       `/PurchaseDeliveryNotes(${id})`,
     )) as SAPDocumentResponse;
 
+    const enrichedLines = (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+      const lineData = line as unknown as Record<string, unknown>;
+      const normalized = normalizeSAPLineData(lineData);
+      const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
+      const vatGroup = normalized.VatGroup || String(lineData.TaxCode ?? "").trim();
+
+      return {
+        ...normalized,
+        VatGroup: vatGroup,
+        VatPrcnt: sapTaxRate,
+        OpenQty: Number(
+          lineData.OpenQuantity ??
+            lineData.RemainingOpenQuantity ??
+            lineData.RemainingQuantity ??
+            lineData.BaseOpenQuantity ??
+            line.Quantity ??
+            0,
+        ),
+      };
+    });
+
     return {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
@@ -281,31 +315,7 @@ export const getGRPO = async (sessionId: string, id: string) => {
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDueDate: result.DocDueDate,
       NumAtCard: result.NumAtCard,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
-        const lineData = line as unknown as Record<string, unknown>;
-        return {
-          ItemCode: line.ItemCode,
-          ItemDescription: line.ItemDescription,
-          Quantity: line.Quantity,
-          OpenQty: Number(
-            lineData.OpenQuantity ??
-              lineData.RemainingOpenQuantity ??
-              lineData.RemainingQuantity ??
-              lineData.BaseOpenQuantity ??
-              line.Quantity ??
-              0,
-          ),
-          Price: line.Price || line.UnitPrice,
-          DiscountPercent: line.DiscountPercent,
-          UoMCode: lineData.UoMCode,
-          UoMEntry: lineData.UoMEntry,
-          WarehouseCode: line.WarehouseCode,
-          TaxCode: line.TaxCode,
-          VatPrcnt: line.VatPrcnt,
-          LineNum: line.LineNum ?? 0,
-          LineTotal: line.LineTotal,
-        };
-      }),
+      DocumentLines: enrichedLines,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -374,19 +384,35 @@ export const getGRPOByDocNum = async (sessionId: string, dbName: string, id: str
 };
 
 // Creates a GRPO document in SAP. Crucially, it links each line back to its source Purchase Order.
-export const createGRPO = async (sessionId: string, payload: Record<string, unknown>) => {
+export const createGRPO = async (
+  sessionId: string,
+  payload: Record<string, unknown>,
+  dbName?: string,
+) => {
   try {
+    // Resolve base document quantities for copy-to flows before submitting to SAP.
+    // Lines exceeding their base open quantity will have their base linkage stripped
+    // so SAP accepts them as unlinked override rows.
+    const documentLines = (payload.DocumentLines as Array<Record<string, unknown>>) ?? [];
+    if (dbName && documentLines.length > 0) {
+      await resolveBaseLineQuantities(sessionId, documentLines);
+    }
+
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
+      DocDueDate: payload.DocDueDate || payload.DocDate,
       Comments: payload.Comments,
       NumAtCard: payload.NumAtCard,
+      Address: payload.Address,
+      Address2: payload.Address2,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+          VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
           DiscountPercent: item.DiscountPercent as number,
         };
@@ -420,6 +446,13 @@ export const createGRPO = async (sessionId: string, payload: Record<string, unkn
         6,
       )}-${docDate.substring(6, 8)}`;
     }
+    const docDueDate = sapPayload.DocDueDate as string;
+    if (docDueDate && docDueDate.length === 8) {
+      sapPayload.DocDueDate = `${docDueDate.substring(0, 4)}-${docDueDate.substring(
+        4,
+        6,
+      )}-${docDueDate.substring(6, 8)}`;
+    }
 
     // Submit the creation request to the PurchaseDeliveryNotes endpoint.
     const result = (await serviceLayerClient.request(
@@ -433,6 +466,12 @@ export const createGRPO = async (sessionId: string, payload: Record<string, unkn
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:purchase:${session.companyDB}:`);
+    }
+
+    // Reconcile originating PO(s) after GRPO save.
+    // Walks back to the PO from base linkage and closes it if fully consumed.
+    if (dbName) {
+      await reconcilePOAfterCopyTo(sessionId, dbName, documentLines);
     }
 
     return {
@@ -467,6 +506,12 @@ export const updateGRPO = async (
     }
     if (Object.prototype.hasOwnProperty.call(payload, "NumAtCard")) {
       sapPayload.NumAtCard = payload.NumAtCard;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "Address")) {
+      sapPayload.Address = payload.Address;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "Address2")) {
+      sapPayload.Address2 = payload.Address2;
     }
 
     await serviceLayerClient.request(

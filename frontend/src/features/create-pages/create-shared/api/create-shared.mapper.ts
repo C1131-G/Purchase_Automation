@@ -94,13 +94,13 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
     stock: toNumberOrZero(stockValue),
     price: toNumberOrZero(record.Price ?? record.price ?? record.AvgPrice),
     currency: rawCurrency,
-    taxCode: String(
-      record.TaxCode ||
-        record.taxCode ||
-        record.VatGroupPu ||
+    vatGroup: String(
+      record.VatGroupPu ||
         record.vatGroupPu ||
         record.VatGourpPu ||
         record.vatGourpPu ||
+        record.TaxCode ||
+        record.taxCode ||
         '',
     ).trim(),
     taxRate: toNumberOrZero(record.TaxRate ?? record.taxRate ?? record.Rate),

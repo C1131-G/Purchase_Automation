@@ -1,5 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
-import { type MouseEvent, useState } from 'react'
+import { goeyToast } from 'goey-toast'
+import { type MouseEvent, useMemo, useState } from 'react'
 
 import { APInvoiceModals } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-modals'
 import { APInvoiceProductSection } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section'
@@ -34,6 +35,11 @@ export function APInvoiceCreate({
   sourceDocType,
 }: APInvoiceCreateProps) {
   const router = useRouter()
+  const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
+  const [copyFromSourceType, setCopyFromSourceType] = useState<
+    'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' | null
+  >(null)
+
   const state = useAPInvoiceCreate({
     mode,
     docNum: docNum || '',
@@ -44,10 +50,26 @@ export function APInvoiceCreate({
     },
   })
 
-  const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
-
   const isFormHydrating =
     (mode === 'edit' && !!docNum && !state.isEditHydrated) || state.isSourceHydrating
+
+  // Derive the active source family from draft rows to lock the opposite family.
+  // SAP BaseType: 22 = Purchase Order, 20 = Goods Receipt PO (GRPO)
+  const lockedSourceFamily = useMemo<'PurchaseOrder' | 'GoodsReceiptPO' | null>(() => {
+    const hasPORows = state.rows.some((row) => row.baseType === 22 && row.baseEntry != null)
+    const hasGRPORows = state.rows.some((row) => row.baseType === 20 && row.baseEntry != null)
+
+    if (hasPORows) return 'GoodsReceiptPO' // Lock GRPO if PO rows exist
+    if (hasGRPORows) return 'PurchaseOrder' // Lock PO if GRPO rows exist
+    return null
+  }, [state.rows])
+
+  const handleLockedFamilyClick = () => {
+    goeyToast.warning(
+      'SAP does not allow mixing Purchase Order and GRPO documents in one A/P Invoice.',
+      { duration: 4000 },
+    )
+  }
 
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>
@@ -64,10 +86,9 @@ export function APInvoiceCreate({
     selected: Array<{ docNum: string; docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' }>,
   ) => {
     if (selected.length === 0) return
-    // Navigate to create page with first selected document
-    // Multi-document merge would require backend support
-    const first = selected[0]!
-    window.location.href = `/purchase/create-ap-invoice?sourceDocNum=${first.docNum}&sourceDocType=${first.docType}`
+    const docNums = selected.map((s) => s.docNum).join(',')
+    const docType = selected[0]!.docType
+    window.location.href = `/purchase/create-ap-invoice?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`
   }
 
   return (
@@ -84,15 +105,24 @@ export function APInvoiceCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            onClick={() => setCopyFromDialogOpen(true)}
+            sourceDocTypes={['PurchaseOrder', 'GoodsReceiptPO']}
+            onSelectSource={(sourceType) => {
+              setCopyFromSourceType(sourceType)
+              setCopyFromDialogOpen(true)
+            }}
+            lockedSourceFamily={lockedSourceFamily}
+            onLockedFamilyClick={handleLockedFamilyClick}
           />
         ) : null
       }
     >
       <CopyFromDialog
         open={copyFromDialogOpen}
-        onClose={() => setCopyFromDialogOpen(false)}
-        sourceDocTypes={['PurchaseOrder', 'GoodsReceiptPO']}
+        onClose={() => {
+          setCopyFromDialogOpen(false)
+          setCopyFromSourceType(null)
+        }}
+        sourceDocType={copyFromSourceType ?? 'PurchaseOrder'}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
         onSelectDocuments={handleCopyFromSelect}
@@ -127,6 +157,7 @@ export function APInvoiceCreate({
               vendorCodeErrorText={state.fieldErrors.vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -149,6 +180,7 @@ export function APInvoiceCreate({
               salesEmployeeLabel="BUYER"
               salesEmployeePlaceholder="Select Buyer"
               salesEmployeeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -182,6 +214,7 @@ export function APInvoiceCreate({
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
+          uniformReadOnlyAppearance={state.isEditMode}
         />
       </div>
 
@@ -197,6 +230,7 @@ export function APInvoiceCreate({
               billToAddress={state.billToAddress}
               shipToAddress={state.shipToAddress}
               readOnly={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
             />
@@ -208,6 +242,7 @@ export function APInvoiceCreate({
           referenceNo={state.referenceNo}
           comments={state.remarks}
           referenceNoDisabled={state.isClosed}
+          uniformReadOnlyAppearance={state.isEditMode}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
@@ -248,13 +283,40 @@ export function APInvoiceCreate({
             <CopyToDropdown
               docNum={docNum!}
               sourceDocType="APInvoice"
-              targets={['AP Credit Note']}
+              targets={['AP Credit Memo']}
             />
           ) : null
         }
       />
 
       <APInvoiceModals state={state} />
+
+      {state.pendingVendorChange && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-5 shadow-lg">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900">Confirm Vendor Change</h3>
+            <p className="mb-4 text-sm text-zinc-600">
+              Changing vendor will affect copied document data. Continue?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={state.cancelVendorChange}
+                className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={state.confirmVendorChange}
+                className="rounded-full border border-blue-600 bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </CreatePageWrapper>
   )
 }

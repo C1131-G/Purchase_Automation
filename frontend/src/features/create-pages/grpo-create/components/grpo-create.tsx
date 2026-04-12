@@ -66,10 +66,9 @@ export function GRPOCreate({
     selected: Array<{ docNum: string; docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' }>,
   ) => {
     if (selected.length === 0) return
-    // Navigate to create page with first selected document
-    // Multi-document merge would require backend support
-    const first = selected[0]!
-    window.location.href = `/purchase/create-grpo?sourceDocNum=${first.docNum}&sourceDocType=${first.docType}`
+    const docNums = selected.map((s) => s.docNum).join(',')
+    const docType = selected[0]!.docType
+    window.location.href = `/purchase/create-grpo?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`
   }
 
   return (
@@ -86,7 +85,8 @@ export function GRPOCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            onClick={() => setCopyFromDialogOpen(true)}
+            sourceDocTypes={['PurchaseOrder']}
+            onSelectSource={() => setCopyFromDialogOpen(true)}
           />
         ) : null
       }
@@ -94,7 +94,7 @@ export function GRPOCreate({
       <CopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => setCopyFromDialogOpen(false)}
-        sourceDocTypes={['PurchaseOrder']}
+        sourceDocType="PurchaseOrder"
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
         onSelectDocuments={handleCopyFromSelect}
@@ -129,6 +129,7 @@ export function GRPOCreate({
               vendorCodeErrorText={state.fieldErrors.vendorCode}
               nameDisabled={state.isEditMode}
               codeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -151,6 +152,7 @@ export function GRPOCreate({
               salesEmployeeLabel="BUYER"
               salesEmployeePlaceholder="Select Buyer"
               salesEmployeeDisabled={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
             />
           </div>
         </div>
@@ -184,6 +186,7 @@ export function GRPOCreate({
           onDocDueDateChange={state.handleDocDueDateChange}
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
+          uniformReadOnlyAppearance={state.isEditMode}
         />
       </div>
 
@@ -199,6 +202,7 @@ export function GRPOCreate({
               billToAddress={state.billToAddress}
               shipToAddress={state.shipToAddress}
               readOnly={state.isEditMode}
+              uniformReadOnlyAppearance={state.isEditMode}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
             />
@@ -210,6 +214,7 @@ export function GRPOCreate({
           referenceNo={state.referenceNo}
           comments={state.remarks}
           referenceNoDisabled={false}
+          uniformReadOnlyAppearance={state.isEditMode}
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
@@ -255,6 +260,33 @@ export function GRPOCreate({
       />
 
       <GRPOModals state={state} />
+
+      {state.pendingVendorChange && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-5 shadow-lg">
+            <h3 className="mb-2 text-sm font-semibold text-zinc-900">Confirm Vendor Change</h3>
+            <p className="mb-4 text-sm text-zinc-600">
+              Changing vendor will affect copied document data. Continue?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={state.cancelVendorChange}
+                className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={state.confirmVendorChange}
+                className="rounded-full border border-blue-600 bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </CreatePageWrapper>
   )
 }

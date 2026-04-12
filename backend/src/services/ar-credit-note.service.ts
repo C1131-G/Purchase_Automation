@@ -158,17 +158,22 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        Price: line.Price,
-        TaxCode: line.TaxCode,
-        WarehouseCode: line.WarehouseCode,
-        LineTotal: line.LineTotal,
-      })),
+      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+        const lineData = line as unknown as Record<string, unknown>;
+        const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
+        return {
+          ItemCode: line.ItemCode,
+          ItemDescription: line.ItemDescription,
+          Quantity: line.Quantity,
+          UoMCode: lineData.UoMCode,
+          UoMEntry: lineData.UoMEntry,
+          Price: line.Price,
+          VatGroup: line.VatGroup || String(lineData.TaxCode ?? "").trim(),
+          VatPrcnt: sapTaxRate,
+          WarehouseCode: line.WarehouseCode,
+          LineTotal: line.LineTotal,
+        };
+      }),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -195,7 +200,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
         UnitPrice: (item.UnitPrice || item.Price) as number,
         UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
         UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-        TaxCode: item.TaxCode as string,
+        VatGroup: item.VatGroup as string,
         WarehouseCode: item.WarehouseCode as string,
       })),
     };

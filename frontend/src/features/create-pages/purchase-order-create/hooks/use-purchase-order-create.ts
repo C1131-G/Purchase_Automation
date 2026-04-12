@@ -126,6 +126,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
     isEditMode,
+    onDuplicateProductToast: () => {
+      goeyToast.error('Duplicate product already exists', { id: 'po-duplicate-product' })
+    },
   })
 
   useEffect(() => {
@@ -171,21 +174,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       matchedVendor?.salesEmployeeName?.trim() ||
       ''
 
-    let referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
-    let comments = String(detail.Comments ?? '').trim()
-
-    // SAP Service Layer auto-generates "Based on ..." in Comments for copy-from flows,
-    // and may not store NumAtCard. If NumAtCard is empty but Comments has the
-    // auto-generated reference pattern, treat Comments as the reference.
-    const autoRefPattern = /^based on /i
-    if (!referenceNo && autoRefPattern.test(comments)) {
-      referenceNo = comments
-      comments = ''
-    }
+    const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
+    const comments = String(detail.Comments ?? '').trim()
 
     const docDate = String(detail.DocDate ?? '').slice(0, 10)
     const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
-    const address = String(detail.Address ?? '').trim()
+    const billToAddress = String(detail.Address ?? '').trim()
+    const shipToAddress = String((detail as Record<string, unknown>).Address2 ?? '').trim()
 
     // Show loading toast when starting edit hydration
     if (!loadingToastRef.current) {
@@ -201,10 +196,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                 .fetchQuery(
                   createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
                 )
-                .catch(() => [])
+                .catch((): ProductLookupItem[] => [])
             : []
 
-        const productByCode = new Map(
+        const productByCode = new Map<string, ProductLookupItem>(
           productsForWarehouse.map((item) => [String(item.code).trim(), item]),
         )
         const stockByItemCode = new Map<string, number>()
@@ -238,6 +233,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
           const discountPercent = Number(line.DiscountPercent ?? 0)
           const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
+          // SAP line VatPrcnt is authoritative; fall back to product master only when missing
+          const sapVatPrcnt = Number(line.VatPrcnt ?? 0)
 
           return {
             id: `row-${currentDocNum}-${index}`,
@@ -246,8 +243,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
             price,
             currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-            taxCode: String(line.TaxCode ?? productMeta?.taxCode ?? '').trim(),
-            taxRate: Number(productMeta?.taxRate ?? 0),
+            vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
+            taxRate: sapVatPrcnt > 0 ? sapVatPrcnt : Number(productMeta?.taxRate ?? 0),
             uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
             uomEntry:
               typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
@@ -276,8 +273,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         lookups.setCodeInput(vendorCode)
         lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
-        lookups.setBillToAddress(address)
-        lookups.setShipToAddress(address)
+        lookups.setBillToAddress(billToAddress)
+        lookups.setShipToAddress(shipToAddress)
         productsHook.setProductRows(mappedRows)
         productsHook.setProductRowDrafts({})
 
@@ -538,6 +535,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             .filter(Boolean)
             .join(' | '),
           Address: String(detail.Address ?? '').trim() || undefined,
+          Address2: String((detail as Record<string, unknown>).Address2 ?? '').trim() || undefined,
           DocumentLines: (detail.DocumentLines ?? [])
             .filter((line) => Number(line.Quantity ?? 0) > 0)
             .map((line) => ({
@@ -551,7 +549,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                   ? line.UoMEntry
                   : undefined,
               WarehouseCode: String(line.WarehouseCode ?? '').trim() || undefined,
-              TaxCode: String(line.TaxCode ?? '').trim() || undefined,
+              VatGroup: String(line.TaxCode ?? '').trim() || undefined,
             })),
         }
 
@@ -560,7 +558,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -569,7 +568,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
 
@@ -590,7 +589,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -599,7 +599,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
       : {
@@ -608,7 +608,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -617,12 +618,14 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             WarehouseCode: row.warehouseCode || undefined,
-            TaxCode: row.taxCode || undefined,
+            VatGroup: row.vatGroup || undefined,
           })),
         }
 
     const toastHandle = documentActionToast('Purchase Order', isEditMode ? 'update' : 'create')
+
     try {
+      let createdDocNum: number | undefined
       if (isEditMode) {
         const detail = editDetailQuery.data?.data
         const docEntry = detail?.DocEntry ?? detail?.id
@@ -633,9 +636,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         }
         await updatePurchaseOrderMutation.mutateAsync({ id: docEntry, payload })
       } else {
-        await createPurchaseOrderMutation.mutateAsync({ payload })
+        const result = await createPurchaseOrderMutation.mutateAsync({ payload })
+        createdDocNum = result?.data?.DocNum
       }
-      toastHandle.success()
+      toastHandle.success(createdDocNum)
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all })
@@ -650,6 +654,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         if (currentDocNum) {
           void queryClient.prefetchQuery(purchaseOrderQueries.detailByDocNum(currentDocNum))
         }
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         return
       }
 
@@ -680,6 +685,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       hydratedDocNumRef.current = null
       setHydratedDocNum(null)
 
+      // Scroll to top after successful save
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+
       // Notify parent to navigate away after successful create
       if (!isEditMode) {
         options?.onCreateSuccess?.()
@@ -709,10 +717,22 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const summaryCurrencyLabel = summaryCurrency === 'MULTI' ? 'MULTI' : summaryCurrency
   const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
 
+  // Derive the product code of the currently active row for seeding modal selection
+  const activeRowProductCode = useMemo(() => {
+    if (!productsHook.activeProductRowId) return null
+    const activeRow = productsHook.productRows.find((r) => r.id === productsHook.activeProductRowId)
+    return activeRow?.productCode ?? null
+  }, [productsHook.activeProductRowId, productsHook.productRows])
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
+    activeRowProductCode,
+    existingProductCodes: productsHook.existingProductCodes,
+    onBlockDuplicate: () => {
+      goeyToast.error('Duplicate product already exists', { id: 'po-duplicate-product' })
+    },
     openProductPopup: handleOpenProductPopup,
     openPopup: openPopupWithContext,
     applyProductToRow: (product: ProductLookupItem) =>

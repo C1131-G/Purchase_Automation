@@ -1,3 +1,4 @@
+import { type UseQueryResult } from '@tanstack/react-query'
 import { lazy, Suspense } from 'react'
 
 import { CreateModalSkeleton } from '@/components/skeleton/create-modal-skeleton'
@@ -60,17 +61,19 @@ interface SharedCreateModalsProps {
     applyProductToRow: (product: ProductLookupItem) => void
     applyProductsToRows: (products: ProductLookupItem[]) => void
     effectiveWarehouseCode: string
+    /** The product code of the currently active row, used to seed modal selection. */
+    activeRowProductCode?: string | null
+    /** The row ID being edited — used as key for persisted selection state. */
+    activeProductRowId?: string | null
+    /** Product codes already in the document (for duplicate blocking). */
+    existingProductCodes?: Set<string>
+    /** Called when the user clicks a disabled (duplicate) product row. */
+    onBlockDuplicate?: (() => void) | undefined
 
     // Stocks
     stockPreviewProduct: { code: string; name: string } | null
     setStockPreviewProduct: (product: { code: string; name: string } | null) => void
-    productWarehouseStocksQuery: {
-      isLoading: boolean
-      isError: boolean
-      error: unknown
-      data: ProductWarehouseStockItem[]
-      refetch: () => void
-    }
+    productWarehouseStocksQuery: UseQueryResult<ProductWarehouseStockItem[], Error>
   }
   entityLabels?: {
     vendorPopupTitle?: string
@@ -176,6 +179,10 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
           onClose={() => state.setProductPopupOpen(false)}
           onSelect={state.applyProductToRow}
           onSelectMultiple={state.applyProductsToRows}
+          selectedProductCode={state.activeRowProductCode}
+          selectedProductRowId={state.activeProductRowId}
+          existingProductCodes={state.existingProductCodes}
+          onBlockDuplicate={state.onBlockDuplicate}
         />
       ) : null}
 

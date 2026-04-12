@@ -16,6 +16,8 @@ type FieldBlockProps = {
   disabled?: boolean | undefined
   onDisabledClick?: (() => void) | undefined
   editableHighlight?: boolean | undefined
+  /** Visual-only override: disabled fields render with the same background as editable fields. */
+  uniformReadOnlyAppearance?: boolean | undefined
 }
 
 function Pulse({ className }: { className: string }) {
@@ -36,6 +38,7 @@ export function FieldBlock({
   disabled,
   onDisabledClick,
   editableHighlight,
+  uniformReadOnlyAppearance,
 }: FieldBlockProps) {
   const lastDisabledFeedbackAtRef = useRef(0)
   const inputId = useId()
@@ -99,7 +102,15 @@ export function FieldBlock({
               : editableHighlight
                 ? 'border-emerald-300 bg-emerald-50/60 text-zinc-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200'
                 : 'border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-          } ${disabled ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100' : ''}`}
+          } ${
+            disabled
+              ? `cursor-not-allowed opacity-100 ${
+                  uniformReadOnlyAppearance
+                    ? 'border-zinc-200 bg-zinc-50 text-zinc-800'
+                    : 'border-zinc-300 bg-zinc-100 text-zinc-500'
+                }`
+              : ''
+          }`}
           placeholder={placeholder}
           value={value}
           readOnly={disabled}

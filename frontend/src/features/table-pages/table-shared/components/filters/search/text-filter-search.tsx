@@ -48,6 +48,9 @@ export function TextFilterSearch<TData>({
   const [liveValue, setLiveValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
 
+  const activeFilterText =
+    activeFilterValue === undefined || activeFilterValue === null ? '' : String(activeFilterValue)
+
   const mirroredExternalValue = useMemo(() => {
     if (!externalSelection || externalSelection.columnId !== activeColumnId) return null
     return CARD_NAME_COLUMNS.has(activeColumnId)
@@ -55,10 +58,11 @@ export function TextFilterSearch<TData>({
       : externalSelection.item.code
   }, [externalSelection, activeColumnId])
 
-  const activeFilterText =
-    activeFilterValue === undefined || activeFilterValue === null ? '' : String(activeFilterValue)
-  const effectiveInputValue = mirroredExternalValue ?? activeFilterText
-  const effectiveLiveValue = mirroredExternalValue ?? (isFocused ? liveValue : effectiveInputValue)
+  // When focused, show the local draft (liveValue).
+  // When idle, show the committed filter value from the table.
+  // Popup mirroring takes priority when it is the active source.
+  const effectiveInputValue = liveValue || mirroredExternalValue || activeFilterText
+  const effectiveLiveValue = isFocused ? liveValue : effectiveInputValue
 
   const tableDocNumSuggestions = useMemo(() => {
     if (!DOC_NUM_COLUMNS.has(activeColumnId)) return []
@@ -167,20 +171,12 @@ export function TextFilterSearch<TData>({
     CARD_NAME_COLUMNS.has(activeColumnId) ? item.name : item.code
 
   /**
-   * Applies a lookup item selection uniformly across all lookup column types.
-   * For CardCode/CardName, also syncs the partner column.
+   * Applies a lookup item selection to the active column only.
+   * Each column is independent — CardCode does not touch CardName, and vice versa.
    */
   const applyLookupSelection = (item: LookupItem) => {
     setIsFocused(false)
     const displayValue = getLookupDisplayValue(item)
-
-    // Cross-column sync for vendor columns
-    if (CARD_CODE_COLUMNS.has(activeColumnId) || CARD_NAME_COLUMNS.has(activeColumnId)) {
-      const codeColumn = table.getColumn('CardCode')
-      const nameColumn = table.getColumn('CardName')
-      if (codeColumn) codeColumn.setFilterValue(item.code)
-      if (nameColumn) nameColumn.setFilterValue(item.name)
-    }
 
     applySearchImmediately(displayValue)
     onSelectSuggestion?.(item, activeColumnId)
@@ -189,14 +185,6 @@ export function TextFilterSearch<TData>({
   const handleSelectSuggestion = (item: LookupItem) => applyLookupSelection(item)
 
   const handleClearInput = () => {
-    // For vendor columns, also clear the partner column
-    if (CARD_CODE_COLUMNS.has(activeColumnId) || CARD_NAME_COLUMNS.has(activeColumnId)) {
-      const codeColumn = table.getColumn('CardCode')
-      const nameColumn = table.getColumn('CardName')
-      if (codeColumn) codeColumn.setFilterValue(undefined)
-      if (nameColumn) nameColumn.setFilterValue(undefined)
-    }
-    // Unified clear — applies to DocNum and vendor columns alike
     applySearchImmediately('')
     // Reopen suggestions for all lookup-style columns
     if (isDocLookupStyleColumn) {
@@ -240,7 +228,7 @@ export function TextFilterSearch<TData>({
           }
         }}
         onFocus={() => {
-          setLiveValue(effectiveInputValue)
+          setLiveValue(activeFilterText)
           setIsFocused(true)
         }}
         onBlur={() => setTimeout(() => setIsFocused(false), 150)}

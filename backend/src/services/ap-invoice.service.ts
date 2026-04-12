@@ -6,8 +6,12 @@ import type { InvoiceFilters } from "@/dal/types/ap-invoice.types";
 import { type APInvoice, APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
+
+import { resolveBaseLineQuantities } from "./base-qty-validation.util";
+import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
 
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses TypeORM QueryBuilder for dynamic SQL generation based on provided filters.
@@ -176,19 +180,10 @@ export const getInvoice = async (sessionId: string, id: string) => {
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDueDate: result.DocDueDate,
       NumAtCard: result.NumAtCard,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => ({
-        ItemCode: line.ItemCode,
-        ItemDescription: line.ItemDescription,
-        Quantity: line.Quantity,
-        UoMCode: (line as unknown as Record<string, unknown>).UoMCode,
-        UoMEntry: (line as unknown as Record<string, unknown>).UoMEntry,
-        Price: line.Price ?? line.UnitPrice,
-        TaxCode: line.TaxCode,
-        VatPrcnt: line.VatPrcnt,
-        WarehouseCode: line.WarehouseCode,
-        DiscountPercent: line.DiscountPercent,
-        LineTotal: line.LineTotal,
-      })),
+      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+        const lineData = line as unknown as Record<string, unknown>;
+        return normalizeSAPLineData(lineData);
+      }),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -223,13 +218,20 @@ export const getInvoiceByDocNum = async (sessionId: string, dbName: string, id: 
 };
 
 // Creates a new A/P Invoice in SAP B1. Handles data mapping and date formatting.
-export const createInvoice = async (sessionId: string, payload: Record<string, unknown>) => {
+export const createInvoice = async (
+  sessionId: string,
+  payload: Record<string, unknown>,
+  dbName?: string,
+) => {
   // Build SAP payload in function scope so it's accessible in both try and catch blocks
   const sapPayload: Record<string, unknown> = {
     CardCode: payload.CardCode,
     DocDate: payload.DocDate,
+    DocDueDate: payload.DocDueDate || payload.DocDate,
     Comments: payload.Comments,
     NumAtCard: payload.NumAtCard,
+    Address: payload.Address,
+    Address2: payload.Address2,
     DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
       const docLine: Record<string, unknown> = {
         ItemCode: item.ItemCode as string,
@@ -237,7 +239,7 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
         UnitPrice: (item.UnitPrice || item.Price) as number,
         UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
         UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-        TaxCode: item.TaxCode as string,
+        VatGroup: item.VatGroup as string,
         WarehouseCode: item.WarehouseCode as string,
         DiscountPercent: item.DiscountPercent as number,
       };
@@ -252,6 +254,14 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
     }),
   };
 
+  // Resolve base document quantities for copy-to flows before submitting to SAP.
+  // Lines exceeding their base open quantity will have their base linkage stripped
+  // so SAP accepts them as unlinked override rows.
+  const documentLines = (sapPayload.DocumentLines as Array<Record<string, unknown>>) ?? [];
+  if (dbName && documentLines.length > 0) {
+    await resolveBaseLineQuantities(sessionId, documentLines);
+  }
+
   try {
     // Ensure DocDate is in ISO YYYY-MM-DD format as required by SAP Service Layer.
     const docDate = sapPayload.DocDate as string;
@@ -260,6 +270,13 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
         4,
         6,
       )}-${docDate.substring(6, 8)}`;
+    }
+    const docDueDate = sapPayload.DocDueDate as string;
+    if (docDueDate && docDueDate.length === 8) {
+      sapPayload.DocDueDate = `${docDueDate.substring(0, 4)}-${docDueDate.substring(
+        4,
+        6,
+      )}-${docDueDate.substring(6, 8)}`;
     }
 
     // Create the purchase invoice document in SAP.
@@ -274,6 +291,12 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:purchase:${session.companyDB}:`);
+    }
+
+    // Reconcile originating PO(s) after A/P Invoice save.
+    // Walks back to the PO from base linkage (direct or via GRPO) and closes it if fully consumed.
+    if (dbName) {
+      await reconcilePOAfterCopyTo(sessionId, dbName, documentLines);
     }
 
     return {
@@ -317,6 +340,11 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
         const session = serviceLayerClient.getSession(sessionId);
         if (session?.companyDB) {
           purgeCache(`dash:purchase:${session.companyDB}:`);
+        }
+
+        // Reconcile originating PO(s) after A/P Invoice save (retry path).
+        if (dbName) {
+          await reconcilePOAfterCopyTo(sessionId, dbName, documentLines);
         }
 
         return {

@@ -226,7 +226,7 @@ export function ARInvoiceLookupLayer({
         }
         onSearchChange={handleLookupSearchChange}
         onClose={handleLookupPopupClose}
-        onSelect={handleLookupSelect}
+        onSelect={(item) => handleLookupSelect(item, lookupColumnId)}
       />
     </>
   )

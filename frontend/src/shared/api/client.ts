@@ -2,14 +2,14 @@
 const BASE_URL: string = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 export class ApiError extends Error {
-  status?: number
-  code?: string
+  status: number | undefined
+  code: string | undefined
 
   constructor(message: string, options?: { status?: number; code?: string }) {
     super(message)
     this.name = 'ApiError'
-    this.status = options?.status
-    this.code = options?.code
+    if (options?.status !== undefined) this.status = options.status
+    if (options?.code !== undefined) this.code = options.code
   }
 }
 

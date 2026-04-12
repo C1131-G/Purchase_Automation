@@ -111,6 +111,7 @@ export function TableSearch<TData>({
 
   return (
     <TextFilterSearch
+      key={activeColumnId}
       {...commonProps}
       activeFilterValue={activeFilterValue}
       suggestions={suggestions ?? EMPTY_SUGGESTIONS}

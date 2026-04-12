@@ -18,6 +18,8 @@ type ReferenceGridProps = {
   commentsInvalid?: boolean | undefined
   referenceNoErrorText?: string | undefined
   commentsErrorText?: string | undefined
+  /** Visual-only override: read-only fields render with the same background as editable fields. */
+  uniformReadOnlyAppearance?: boolean
 }
 
 function Pulse({ className }: { className: string }) {
@@ -51,7 +53,7 @@ function AutoResizeTextarea({
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
-    
+
     // Reset height to calculate scrollHeight
     textarea.style.height = 'auto'
     // Set height to scrollHeight (content height)
@@ -78,7 +80,7 @@ function AutoResizeTextarea({
         invalid
           ? invalidStyles
           : 'border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
-      } ${disabled ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100' : ''}`}
+      } ${disabled ? disabledStyles : ''}`}
     />
   )
 }
@@ -97,6 +99,7 @@ export function ReferenceGrid({
   commentsInvalid,
   referenceNoErrorText,
   commentsErrorText,
+  uniformReadOnlyAppearance = false,
 }: ReferenceGridProps) {
   return (
     <SectionCard title="REFERENCE" className="lg:col-span-1">
@@ -120,11 +123,15 @@ export function ReferenceGrid({
             disabled={referenceNoDisabled}
             placeholder="Reference"
             onChange={onReferenceNoChange}
-            onClick={onReferenceNoDisabledClick}
-            onFocus={onReferenceNoDisabledClick}
-            invalid={referenceNoInvalid}
+            {...(onReferenceNoDisabledClick ? { onClick: onReferenceNoDisabledClick } : {})}
+            {...(onReferenceNoDisabledClick ? { onFocus: onReferenceNoDisabledClick } : {})}
+            {...(referenceNoInvalid !== undefined ? { invalid: referenceNoInvalid } : {})}
             invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
-            disabledStyles="border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100"
+            disabledStyles={
+              uniformReadOnlyAppearance
+                ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800'
+                : 'border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
+            }
           />
         )}
         {referenceNoInvalid && referenceNoErrorText ? (
@@ -152,11 +159,15 @@ export function ReferenceGrid({
             disabled={commentsDisabled}
             placeholder="Transaction Remarks"
             onChange={onCommentsChange}
-            onClick={onCommentsDisabledClick}
-            onFocus={onCommentsDisabledClick}
-            invalid={commentsInvalid}
+            {...(onCommentsDisabledClick ? { onClick: onCommentsDisabledClick } : {})}
+            {...(onCommentsDisabledClick ? { onFocus: onCommentsDisabledClick } : {})}
+            {...(commentsInvalid !== undefined ? { invalid: commentsInvalid } : {})}
             invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
-            disabledStyles="cursor-not-allowed opacity-70"
+            disabledStyles={
+              uniformReadOnlyAppearance
+                ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800'
+                : 'cursor-not-allowed opacity-70'
+            }
           />
         )}
         {commentsInvalid && commentsErrorText ? (

@@ -14,7 +14,10 @@ import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { purchaseOrderQueries } from '@/features/table-pages/purchase-orders/api/purchase-order.queries'
-import { type PurchaseOrderListItem } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
+import {
+  type PurchaseOrderDetail,
+  type PurchaseOrderListItem,
+} from '@/features/table-pages/purchase-orders/api/purchase-order.service'
 import { mapSearchToPurchaseOrderListParams } from '@/features/table-pages/purchase-orders/api/purchase-order-query.mapper'
 import { createPurchaseOrderColumns } from '@/features/table-pages/purchase-orders/components/purchase-order-columns'
 import { PurchaseOrderLookupLayer } from '@/features/table-pages/purchase-orders/components/purchase-order-lookup-layer'
@@ -99,6 +102,8 @@ export function PurchaseOrderTable() {
       void queryClient
         .fetchQuery(purchaseOrderQueries.detailByDocNum(normalizedDocNum))
         .then((response) => {
+          const detail: PurchaseOrderDetail | undefined = response?.data
+
           void router.preloadRoute({
             to: '/purchase/orders/$docNum/edit',
             params: { docNum: normalizedDocNum },
@@ -109,7 +114,6 @@ export function PurchaseOrderTable() {
             queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
           ])
 
-          const detail = response?.data
           if (!detail) return
 
           const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()

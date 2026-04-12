@@ -24,6 +24,10 @@ export type PurchaseOrderDocNumLookupResponse = {
 
 export type CreatePurchaseOrderPayload = Record<string, unknown>
 export type UpdatePurchaseOrderPayload = Record<string, unknown>
+export type CreatePurchaseOrderResponse = {
+  success: boolean
+  data: { DocEntry: number; DocNum: number }
+}
 
 export type PurchaseOrderDetailLine = {
   ItemCode?: string
@@ -36,6 +40,7 @@ export type PurchaseOrderDetailLine = {
   UoMEntry?: number
   DiscountPercent?: number
   TaxCode?: string
+  VatGroup?: string
   VatPrcnt?: number
   WarehouseCode?: string
   LineNum?: number
@@ -56,6 +61,7 @@ export type PurchaseOrderDetail = {
   NumAtCard?: string
   Comments?: string
   DocCurr?: string
+  DocTotal?: number
   DocStatus?: 'Open' | 'Partial' | 'Closed' | 'O' | 'C'
   DocumentLines?: PurchaseOrderDetailLine[]
 }
@@ -75,7 +81,7 @@ export const purchaseOrderAPI = {
     return apiClient<PurchaseOrderDocNumLookupResponse>(path)
   },
   createPurchaseOrder: async (payload: CreatePurchaseOrderPayload) => {
-    return apiClient<unknown>('/api/v1/purchase-orders', {
+    return apiClient<CreatePurchaseOrderResponse>('/api/v1/purchase-orders', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

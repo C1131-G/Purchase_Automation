@@ -34,6 +34,8 @@ type DocumentDatesGridProps = {
   error?: string | null
   docDateReadOnly?: boolean
   docDueDateReadOnly?: boolean
+  /** Visual-only override: read-only fields render with the same background as editable fields. */
+  uniformReadOnlyAppearance?: boolean
 }
 
 export function DocumentDatesGrid({
@@ -55,6 +57,7 @@ export function DocumentDatesGrid({
   error,
   docDateReadOnly = false,
   docDueDateReadOnly = false,
+  uniformReadOnlyAppearance = false,
 }: DocumentDatesGridProps) {
   return (
     <SectionCard title="DOCUMENT DATES" className="lg:col-span-1">
@@ -86,7 +89,9 @@ export function DocumentDatesGrid({
               onClick={() => onSetActiveDatePicker((prev) => (prev === 'doc' ? null : 'doc'))}
               className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDateReadOnly
-                  ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
+                  ? uniformReadOnlyAppearance
+                    ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800 opacity-100'
+                    : 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
                   : 'cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
               }`}
             >
@@ -141,7 +146,9 @@ export function DocumentDatesGrid({
                 docDueDateInvalid
                   ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'
                   : docDueDateReadOnly
-                    ? 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
+                    ? uniformReadOnlyAppearance
+                      ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800 opacity-100'
+                      : 'cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100'
                     : 'border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200'
               }`}
             >
