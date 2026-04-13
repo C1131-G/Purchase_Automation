@@ -225,10 +225,21 @@ export function TextFilterSearch<TData>({
             applySearchImmediately(value)
           } else if (event.key === 'Escape') {
             setIsFocused(false)
+          } else if (
+            isDocNumberColumn &&
+            event.key === 'Backspace' &&
+            activeFilterText &&
+            !liveValue
+          ) {
+            // DocNum: Backspace on an applied-but-not-edited value clears the filter
+            event.preventDefault()
+            applySearchImmediately('')
           }
         }}
         onFocus={() => {
-          setLiveValue(activeFilterText)
+          if (!isDocNumberColumn) {
+            setLiveValue(activeFilterText)
+          }
           setIsFocused(true)
         }}
         onBlur={() => setTimeout(() => setIsFocused(false), 150)}

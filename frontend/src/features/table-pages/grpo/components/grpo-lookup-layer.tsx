@@ -166,7 +166,6 @@ export function GRPOLookupLayer({ tableId, table, onReset, onCreateClick }: GRPO
       />
       <LookupPopup
         open={lookupPopupOpen}
-        showBothColumns
         mode={
           lookupColumnId === 'DocNum'
             ? 'vendor-code'

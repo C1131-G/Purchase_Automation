@@ -1201,18 +1201,29 @@ export function useAPInvoiceCreate({
         : rows.length === 0
           ? 'No lines'
           : null,
-    missingSearchMandatoryFields:
-      !vendorCodeInput || !vendorNameInput ? ['vendorName', 'vendorCode'] : [],
-    searchRequiredCompletionPercent: !vendorCodeInput || !vendorNameInput ? 50 : 100,
-    searchMandatoryFields: ['vendorName', 'vendorCode'] as const,
+    searchMandatoryFields: useMemo(
+      () => ['vendorName', 'vendorCode'] as const,
+      [],
+    ),
+    missingSearchMandatoryFields: useMemo(
+      () =>
+        ['vendorName', 'vendorCode'].filter(
+          (field) =>
+            !String(field === 'vendorName' ? vendorNameInput : vendorCodeInput ?? '').trim(),
+        ),
+      [vendorNameInput, vendorCodeInput],
+    ),
+    searchRequiredCompletionPercent: useMemo(() => {
+      const filled = (vendorNameInput.trim() ? 1 : 0) + (vendorCodeInput.trim() ? 1 : 0)
+      return (filled / 2) * 100
+    }, [vendorNameInput, vendorCodeInput]),
     missingMandatoryFields,
     requiredCompletionPercent,
     requiredFieldsTotal: AP_INVOICE_MANDATORY_FIELDS.length,
     requiredFieldLabelText: AP_INVOICE_FIELD_LABEL_TEXT,
     handleCreateOrder: handleCreateAPInvoice,
 
-    setDocDate: (val: string) =>
-      isEditMode ? notifyRestricted('Document Date') : setHeader({ docDate: val }),
+    setDocDate: (val: string) => setHeader({ docDate: val }),
     setDocDueDate: (val: string) =>
       isClosed ? notifyRestricted('Due Date') : setHeader({ docDueDate: val }),
     setBuyerInput: (val: string) =>
