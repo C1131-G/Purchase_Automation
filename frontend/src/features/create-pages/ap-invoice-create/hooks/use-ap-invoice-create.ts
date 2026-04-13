@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { goeyToast } from 'goey-toast'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   useCreateAPInvoice,
@@ -27,6 +27,7 @@ import {
   type StockPreviewProduct,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
+import { formatAddressForDisplay } from '@/features/create-pages/create-shared/utils/address.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
 import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
@@ -133,8 +134,15 @@ export function useAPInvoiceCreate({
   const [warehouseInput, setWarehouseInput] = useState('')
   const [warehouseFocused, setWarehouseFocused] = useState(false)
 
-  const [billToAddress, setBillToAddress] = useState('')
-  const [shipToAddress, setShipToAddress] = useState('')
+  const [billToAddress, setBillToAddressRaw] = useState('')
+  const [shipToAddress, setShipToAddressRaw] = useState('')
+
+  const setBillToAddress = useCallback((value: string) => {
+    setBillToAddressRaw(formatAddressForDisplay(value))
+  }, [])
+  const setShipToAddress = useCallback((value: string) => {
+    setShipToAddressRaw(formatAddressForDisplay(value))
+  }, [])
 
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({})
   const [stockPreviewProduct, setStockPreviewProduct] = useState<StockPreviewProduct | null>(null)
