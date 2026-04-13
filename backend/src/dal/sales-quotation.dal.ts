@@ -182,6 +182,30 @@ export const getSalesEmployees = async (req: Request, res: Response, next: NextF
   }
 };
 
+export const getOpenSalesQuotationLines = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { cardCode?: string }
+  >;
+  try {
+    const { sessionId } = authReq.session;
+    const { cardCode } = authReq.query;
+
+    if (!cardCode) {
+      return res.status(400).json({ success: false, message: "cardCode is required" });
+    }
+
+    logger.info({ msg: "Fetching Open Sales Quotation lines", cardCode });
+
+    const data = await salesQuotationService.getOpenSalesQuotationLines(sessionId, cardCode as string);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const salesQuotationDal = {
   getSalesQuotations,
   getSalesQuotationDocNums,
@@ -191,4 +215,5 @@ export const salesQuotationDal = {
   updateSalesQuotation,
   cancelSalesQuotation,
   getSalesEmployees,
+  getOpenSalesQuotationLines,
 };

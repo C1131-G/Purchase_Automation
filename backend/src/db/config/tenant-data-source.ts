@@ -7,7 +7,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
-import { ARCreditNoteSchema } from "@/db/schemas/ar-credit-note.schema";
+import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
@@ -88,7 +88,7 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       SalesOrderSchema,
       SalesQuotationSchema,
       ARInvoiceSchema,
-      ARCreditNoteSchema,
+      ARCreditMemoSchema,
       IncomingPaymentSchema,
       SalesEmployeeSchema,
       PDN1Schema,

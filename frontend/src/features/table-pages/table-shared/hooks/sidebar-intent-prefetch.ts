@@ -2,7 +2,7 @@ import { type QueryClient } from '@tanstack/react-query'
 
 import { apCreditMemoQueries } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
-import { arCreditNoteQueries } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.queries'
+import { arCreditMemoQueries } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries'
 import { arInvoiceQueries } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
 import { grpoQueries } from '@/features/table-pages/grpo/api/grpo.queries'
 import { incomingPaymentQueries } from '@/features/table-pages/incoming-payment/api/incoming-payment.queries'
@@ -21,7 +21,7 @@ export type TableRoutePath =
   | '/sales/quotations'
   | '/sales/orders'
   | '/sales/ar-invoice'
-  | '/sales/ar-credit-note'
+  | '/sales/ar-credit-memo'
   | '/sales/incoming-payment'
 
 const DEFAULT_TABLE_PARAMS = {
@@ -39,7 +39,7 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     '/sales/quotations': salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/orders': salesOrderQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/ar-invoice': arInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
-    '/sales/ar-credit-note': arCreditNoteQueries.list(DEFAULT_TABLE_PARAMS),
+    '/sales/ar-credit-memo': arCreditMemoQueries.list(DEFAULT_TABLE_PARAMS),
     '/sales/incoming-payment': incomingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
   }
 

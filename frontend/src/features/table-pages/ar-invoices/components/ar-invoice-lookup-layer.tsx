@@ -37,6 +37,8 @@ export type ARInvoiceLookupLayerProps = {
   table: ReturnType<typeof useReactTable<ARInvoiceListItem>>
   onReset: () => void
   onCreateClick: () => void
+  titleOverride?: string | undefined
+  hideCreate?: boolean | undefined
 }
 
 export function ARInvoiceLookupLayer({
@@ -44,6 +46,8 @@ export function ARInvoiceLookupLayer({
   table,
   onReset,
   onCreateClick,
+  titleOverride,
+  hideCreate,
 }: ARInvoiceLookupLayerProps) {
   const setActiveFilter = useSetActiveFilterAction()
   const queryClient = useQueryClient()
@@ -149,6 +153,14 @@ export function ARInvoiceLookupLayer({
       .slice(0, DOC_NUM_BACKGROUND_LIMIT)
   }, [lookupColumnId, docNumLookupSearchQuery.data, docNumSuggestions, docNumLookupSearchTerm])
 
+  const breadcrumb = useMemo(
+    () => ({
+      ...AR_INVOICE_BREADCRUMB,
+      page: titleOverride ?? AR_INVOICE_BREADCRUMB.page,
+    }),
+    [titleOverride],
+  )
+
   return (
     <>
       <TableToolbar
@@ -157,7 +169,7 @@ export function ARInvoiceLookupLayer({
         onReset={onReset}
         onCreateClick={onCreateClick}
         createLink="/sales/create-ar-invoice"
-        breadcrumb={AR_INVOICE_BREADCRUMB}
+        breadcrumb={breadcrumb}
         lookupSuggestions={customers}
         docNumSuggestions={docNumSuggestions}
         enableDocNumPopup
@@ -166,6 +178,7 @@ export function ARInvoiceLookupLayer({
         onLookupPopupOpen={handleLookupPopupOpen}
         onLookupSelect={handleLookupSelect}
         lookupExternalSelection={externalSelection}
+        hideCreate={hideCreate}
       />
       <LookupPopup
         open={lookupPopupOpen}

@@ -35,6 +35,7 @@ type TableToolbarProps<TData> = {
   onLookupPopupOpen?: (columnId: string, initialSearch?: string) => void
   onLookupPopupIntent?: (columnId: string, initialSearch?: string) => void
   lookupExternalSelection?: { item: LookupItem; columnId: string } | null
+  hideCreate?: boolean | undefined
 }
 
 export function TableToolbar<TData>({
@@ -53,6 +54,7 @@ export function TableToolbar<TData>({
   onLookupPopupOpen,
   onLookupPopupIntent,
   lookupExternalSelection,
+  hideCreate = false,
 }: TableToolbarProps<TData>) {
   const resolvedLookupSuggestions = lookupSuggestions ?? EMPTY_SUGGESTIONS
   const resolvedDocNumSuggestions = docNumSuggestions ?? EMPTY_SUGGESTIONS
@@ -147,25 +149,26 @@ export function TableToolbar<TData>({
           <Separator orientation="vertical" className="mx-1 h-6" />
           <TableViewOptions tableId={tableId} table={table} onReset={onReset} />
           <Separator orientation="vertical" className="mx-1 h-6" />
-          <Link
-            to={createLink}
-            preload="intent"
-            preloadDelay={0}
-            viewTransition
-            onPointerEnter={triggerCreatePrefetch}
-            onMouseEnter={triggerCreatePrefetch}
-            onMouseOver={triggerCreatePrefetch}
-            onFocus={triggerCreatePrefetch}
-            onTouchStart={triggerCreatePrefetch}
-            onClick={() => {
-              onReset()
-              triggerCreatePrefetch()
-            }}
-            className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
-          >
-            {createLabel}
-            <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
-          </Link>
+          {!hideCreate && (
+            <Link
+              to={createLink}
+              preload="intent"
+              preloadDelay={0}
+              viewTransition
+              onPointerEnter={triggerCreatePrefetch}
+              onMouseEnter={triggerCreatePrefetch}
+              onFocus={triggerCreatePrefetch}
+              onTouchStart={triggerCreatePrefetch}
+              onClick={() => {
+                onReset()
+                triggerCreatePrefetch()
+              }}
+              className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
+            >
+              {createLabel}
+              <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+            </Link>
+          )}
         </div>
       </div>
     </div>

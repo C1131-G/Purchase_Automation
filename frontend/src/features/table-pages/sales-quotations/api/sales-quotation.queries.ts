@@ -40,4 +40,11 @@ export const salesQuotationQueries = {
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),
+  openLines: (cardCode: string) =>
+    queryOptions({
+      queryKey: [...salesQuotationKeys.all, 'open-lines', cardCode],
+      queryFn: () => salesQuotationAPI.getOpenSalesQuotationLines(cardCode),
+      staleTime: 0,
+      gcTime: 1000 * 60 * 5,
+    }),
 }

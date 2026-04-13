@@ -31,6 +31,8 @@ interface CreateProductTableRowProps {
   stockLimitReserve?: number
   minStockToSelectWarehouse?: number
   showExplicitZeroDiscount?: boolean
+  showSelection?: boolean
+  showReturnReason?: boolean
 }
 
 export function CreateProductTableRow({
@@ -50,6 +52,8 @@ export function CreateProductTableRow({
   stockLimitReserve = 0,
   minStockToSelectWarehouse = 0,
   showExplicitZeroDiscount = false,
+  showSelection = false,
+  showReturnReason = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState('')
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState('')
@@ -258,8 +262,22 @@ export function CreateProductTableRow({
         : ''
       : String(clampedDiscountAmount))
 
+  const isRowActive = !showSelection || row.selected === true
+  const effectiveDisableInputs = disableInputs || !isRowActive
+
   return (
-    <tr>
+    <tr className={`transition-opacity duration-200 ${!isRowActive ? 'opacity-50' : 'opacity-100'}`}>
+      {showSelection && (
+        <td className="px-2 py-2 text-center">
+          <input
+            type="checkbox"
+            checked={row.selected ?? false}
+            disabled={disableInputs}
+            onChange={(e) => updateProductRow(row.id, { selected: e.target.checked })}
+            className={`h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 ${disableInputs ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+          />
+        </td>
+      )}
       <td className="min-w-0 px-2 py-2">
         <div className="space-y-1">
           <Tooltip
@@ -278,8 +296,8 @@ export function CreateProductTableRow({
               }}
               onMouseEnter={prefetchProducts}
               onFocus={prefetchProducts}
-              className={`block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm transition-all duration-150 ${
-                disableInputs
+              className={`block w-full truncate text-left text-sm text-zinc-800 transition ${
+                effectiveDisableInputs
                   ? 'cursor-not-allowed opacity-70'
                   : 'cursor-pointer text-zinc-800 hover:bg-blue-50/50 hover:text-blue-700 active:bg-blue-100/60 active:text-blue-900'
               }`}
@@ -295,14 +313,14 @@ export function CreateProductTableRow({
             ref={warehouseInputRef}
             type="text"
             value={warehouseInput}
-            readOnly={disableInputs}
+            readOnly={effectiveDisableInputs}
             onChange={(e) => handleWarehouseChange(e.target.value)}
             onFocus={handleWarehouseFocus}
             onBlur={handleWarehouseBlur}
             onClick={() => {
-              if (disableInputs) onInputRestrictedClick?.()
+              if (effectiveDisableInputs) onInputRestrictedClick?.()
             }}
-            disabled={warehousesLoading}
+            disabled={warehousesLoading || effectiveDisableInputs}
             placeholder="Select Warehouse"
             className={`h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs text-zinc-800 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
               disableInputs ? 'cursor-not-allowed opacity-70' : 'cursor-text'
@@ -323,7 +341,7 @@ export function CreateProductTableRow({
           )}
           <button
             type="button"
-            disabled={disableInputs}
+            disabled={effectiveDisableInputs}
             onClick={() => {
               if (blurTimerRef.current) clearTimeout(blurTimerRef.current)
               const liveValue = warehouseInputRef.current?.value ?? warehouseInput
@@ -332,7 +350,7 @@ export function CreateProductTableRow({
               setLookupOpen(true)
             }}
             className={`absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
-              disableInputs ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:bg-zinc-100'
+              effectiveDisableInputs ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:bg-zinc-100'
             }`}
           >
             <Search className="h-3 w-3" />
@@ -390,16 +408,16 @@ export function CreateProductTableRow({
                     ? ''
                     : String(row.quantity)
               }
-              readOnly={disableInputs}
+              readOnly={effectiveDisableInputs}
               onClick={() => {
-                if (disableInputs) onInputRestrictedClick?.()
+                if (effectiveDisableInputs) onInputRestrictedClick?.()
               }}
               onChange={(event) => {
-                if (disableInputs) return
+                if (effectiveDisableInputs) return
                 setProductRowDraft(row.id, 'quantity', event.target.value)
               }}
               onBlur={(event) => {
-                if (disableInputs) return
+                if (effectiveDisableInputs) return
                 const rawValue = event.target.value.trim()
 
                 if (rawValue === '') {
@@ -414,7 +432,7 @@ export function CreateProductTableRow({
                 updateProductRow(row.id, { quantity: clamped })
                 clearProductRowDraft(row.id, 'quantity')
               }}
-              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
+              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
             />
           </Tooltip>
         ) : (
@@ -429,16 +447,16 @@ export function CreateProductTableRow({
                   ? ''
                   : String(row.quantity)
             }
-            readOnly={disableInputs}
+            readOnly={effectiveDisableInputs}
             onClick={() => {
-              if (disableInputs) onInputRestrictedClick?.()
+              if (effectiveDisableInputs) onInputRestrictedClick?.()
             }}
             onChange={(event) => {
-              if (disableInputs) return
+              if (effectiveDisableInputs) return
               setProductRowDraft(row.id, 'quantity', event.target.value)
             }}
             onBlur={(event) => {
-              if (disableInputs) return
+              if (effectiveDisableInputs) return
               const rawValue = event.target.value.trim()
 
               if (rawValue === '') {
@@ -451,7 +469,7 @@ export function CreateProductTableRow({
               updateProductRow(row.id, { quantity: typedQuantity })
               clearProductRowDraft(row.id, 'quantity')
             }}
-            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
+            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
           />
         )}
       </td>
@@ -465,12 +483,12 @@ export function CreateProductTableRow({
           step="0.01"
           inputMode="decimal"
           value={discountPercentInputValue}
-          readOnly={disableInputs}
+          readOnly={effectiveDisableInputs}
           onClick={() => {
-            if (disableInputs) onInputRestrictedClick?.()
+            if (effectiveDisableInputs) onInputRestrictedClick?.()
           }}
           onChange={(event) => {
-            if (disableInputs) return
+            if (effectiveDisableInputs) return
             const rawValue = event.target.value
             setProductRowDraft(row.id, 'discountPercent', rawValue)
 
@@ -491,7 +509,7 @@ export function CreateProductTableRow({
             })
           }}
           onBlur={(event) => {
-            if (disableInputs) return
+            if (effectiveDisableInputs) return
             const rawValue = event.target.value.trim()
             const nextPercent = rawValue === '' ? 0 : Math.max(0, Number(rawValue) || 0)
             const nextAmount = (grossAmount * nextPercent) / 100
@@ -501,7 +519,7 @@ export function CreateProductTableRow({
             })
             clearProductRowDraft(row.id, 'discountPercent')
           }}
-          className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
+          className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
         />
       </td>
       <td className="min-w-0 px-2 py-2">
@@ -513,12 +531,12 @@ export function CreateProductTableRow({
           max={grossAmount}
           title=""
           value={discountAmountInputValue}
-          readOnly={disableInputs}
+          readOnly={effectiveDisableInputs}
           onClick={() => {
-            if (disableInputs) onInputRestrictedClick?.()
+            if (effectiveDisableInputs) onInputRestrictedClick?.()
           }}
           onChange={(event) => {
-            if (disableInputs) return
+            if (effectiveDisableInputs) return
             const rawValue = event.target.value
             setProductRowDraft(row.id, 'discountAmount', rawValue)
 
@@ -540,7 +558,7 @@ export function CreateProductTableRow({
             })
           }}
           onBlur={(event) => {
-            if (disableInputs) return
+            if (effectiveDisableInputs) return
             const rawValue = event.target.value.trim()
             const nextAmount = rawValue === '' ? 0 : Math.max(0, Number(rawValue) || 0)
             const safeAmount = Math.min(grossAmount, nextAmount)
@@ -551,7 +569,7 @@ export function CreateProductTableRow({
             })
             clearProductRowDraft(row.id, 'discountAmount')
           }}
-          className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${disableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
+          className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
         />
       </td>
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
@@ -560,20 +578,38 @@ export function CreateProductTableRow({
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm font-medium text-zinc-900">
         {lineTotal.toFixed(2)}
       </td>
+      {showReturnReason && (
+        <td className="min-w-0 px-2 py-2">
+          <select
+            value={row.returnReason ?? ''}
+            disabled={effectiveDisableInputs}
+            onChange={(e) => updateProductRow(row.id, { returnReason: e.target.value })}
+            className={`h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs text-zinc-800 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
+              effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+            }`}
+          >
+            <option value="">Select a Reason</option>
+            <option value="Item Damaged">Item Damaged</option>
+            <option value="Changed mind">Changed mind</option>
+            <option value="Dissatisfaction with quality">Dissatisfaction with quality</option>
+            <option value="Ordered wrong item">Ordered wrong item</option>
+          </select>
+        </td>
+      )}
       <td className="min-w-0 px-2 py-2">
         <Tooltip content="Remove row" className="block w-auto max-w-none">
           <button
             type="button"
-            disabled={disableInputs}
+            disabled={effectiveDisableInputs}
             onClick={() => {
-              if (disableInputs) {
+              if (effectiveDisableInputs) {
                 onInputRestrictedClick?.()
                 return
               }
               removeProductRow(row.id)
             }}
             className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 transition ${
-              disableInputs
+              effectiveDisableInputs
                 ? 'cursor-not-allowed bg-zinc-50 opacity-40'
                 : 'cursor-pointer bg-white hover:bg-zinc-50 hover:text-blue-600'
             }`}

@@ -408,6 +408,67 @@ export const cancelSalesQuotation = async (sessionId: string, id: string) => {
   }
 };
 
+export const getOpenSalesQuotationLines = async (sessionId: string, cardCode: string) => {
+  try {
+    const query = `/Quotations?$filter=CardCode eq '${cardCode}' and DocumentStatus eq 'bost_Open'`;
+    const result = (await serviceLayerClient.request(sessionId, "GET", query)) as {
+      value: SAPDocumentResponse[];
+    };
+
+    const quotations = result.value || [];
+    const openLines: any[] = [];
+
+    for (const quotation of quotations) {
+      const lines = quotation.DocumentLines || [];
+      for (const line of lines) {
+        if ((line as any).LineStatus === "bost_Open") {
+          const l = line as any;
+          openLines.push({
+            DocEntry: quotation.DocEntry,
+            DocNum: quotation.DocNum,
+            DocDate: quotation.DocDate,
+            DocCurr: quotation.DocCurrency,
+            LineNum: l.LineNum,
+            ItemCode: line.ItemCode,
+            ItemDescription: line.ItemDescription,
+            Quantity: line.Quantity,
+            OpenQty: Number(
+              l.OpenQuantity ??
+                l.RemainingOpenQuantity ??
+                l.RemainingOpenInventoryQuantity ??
+                l.RemainingQuantity ??
+                l.BaseOpenQuantity ??
+                line.Quantity,
+            ),
+            Price: line.Price || line.UnitPrice,
+            TaxCode: line.TaxCode,
+            WarehouseCode: line.WarehouseCode,
+            UoMCode: l.UoMCode,
+            UoMEntry: l.UoMEntry,
+            DiscountPercent: line.DiscountPercent,
+          });
+        }
+      }
+    }
+
+    logger.info({
+      msg: "DEBUG: Mapped Open Quotation Lines",
+      count: openLines.length,
+      samples: openLines.slice(0, 2),
+    });
+
+    return openLines;
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error({
+      msg: "Failed to fetch open sales quotation lines from Service Layer",
+      error: error.message,
+      cardCode,
+    });
+    throw error;
+  }
+};
+
 export const salesQuotationService = {
   getSalesQuotations,
   getSalesQuotationDocNums,
@@ -416,4 +477,5 @@ export const salesQuotationService = {
   createSalesQuotation,
   updateSalesQuotation,
   cancelSalesQuotation,
+  getOpenSalesQuotationLines,
 };

@@ -1,10 +1,12 @@
+import { ChevronDown, FileText, ClipboardList } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
-import { type MouseEvent } from 'react'
+import { type MouseEvent, useState, useRef, useEffect } from 'react'
 
 import { ARInvoiceProductSection } from '@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section'
 import { PullFromSOModal } from '@/features/create-pages/ar-invoice-create/components/pull-from-so-modal'
+import { PullFromSQModal } from '@/features/create-pages/ar-invoice-create/components/pull-from-sq-modal'
 import { useARInvoiceCreate } from '@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
@@ -51,6 +53,19 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         },
   )
 
+  const [copyFromOpen, setCopyFromOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setCopyFromOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside as any)
+    return () => document.removeEventListener('mousedown', handleClickOutside as any)
+  }, [])
+
   const pageTitle = state.isEditMode ? 'Update A/R Invoice' : 'Create A/R Invoice'
   const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
@@ -93,14 +108,46 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-zinc-900">{pageTitle}</h1>
           {!state.isEditMode && (
-            <button
-              type="button"
-              onClick={() => state.setPullFromSOModalOpen(true)}
-              disabled={!state.codeInput.trim()}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-zinc-300 disabled:cursor-not-allowed"
-            >
-              Pull from SO
-            </button>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setCopyFromOpen(!copyFromOpen)}
+                disabled={!state.codeInput.trim()}
+                className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-blue-700 hover:shadow-blue-200 active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none disabled:cursor-not-allowed group"
+              >
+                <span>Copy from</span>
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${copyFromOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {copyFromOpen && (
+                <div className="absolute right-0 top-full z-[60] mt-2 w-56 origin-top-right overflow-hidden rounded-2xl border border-zinc-100 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in duration-150">
+                   <button
+                    onClick={() => {
+                      state.setPullFromSOModalOpen(true)
+                      setCopyFromOpen(false)
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-blue-600"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <FileText className="h-4.5 w-4.5" />
+                    </div>
+                    <span>Sales Orders</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      state.setPullFromSQModalOpen(true)
+                      setCopyFromOpen(false)
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-orange-600"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                      <ClipboardList className="h-4.5 w-4.5" />
+                    </div>
+                    <span>Sales Quotations</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -241,12 +288,20 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
         />
 
         {!state.isEditMode && (
-          <PullFromSOModal
-            open={state.pullFromSOModalOpen}
-            onClose={() => state.setPullFromSOModalOpen(false)}
-            cardCode={state.codeInput}
-            onConfirm={state.addProductsFromSOs}
-          />
+          <>
+            <PullFromSOModal
+              open={state.pullFromSOModalOpen}
+              onClose={() => state.setPullFromSOModalOpen(false)}
+              cardCode={state.codeInput}
+              onConfirm={state.addProductsFromSOs}
+            />
+            <PullFromSQModal
+              open={state.pullFromSQModalOpen}
+              onClose={() => state.setPullFromSQModalOpen(false)}
+              cardCode={state.codeInput}
+              onConfirm={state.addProductsFromSQs}
+            />
+          </>
         )}
       </CreatePageWrapper>
     </div>

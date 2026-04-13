@@ -6,7 +6,7 @@ import express from "express";
 import { authenticatedApiLimiter } from "@/core/middleware/rate-limit.middleware";
 import { apCreditMemoRoutes } from "@/routes/ap-credit-memo.routes";
 import { apInvoiceRoutes } from "@/routes/ap-invoice.routes";
-import { arCreditNoteRoutes } from "@/routes/ar-credit-note.routes";
+import { arCreditMemoRoutes } from "@/routes/ar-credit-memo.routes";
 import { arInvoiceRoutes } from "@/routes/ar-invoice.routes";
 import { authRoutes } from "@/routes/auth.routes";
 import { dashboardRoutes } from "@/routes/dashboard.routes";
@@ -42,7 +42,7 @@ import { salesQuotationRoutes } from "@/routes/sales-quotation.routes";
 router.use("/sales-quotations", salesQuotationRoutes);
 router.use("/sales-orders", salesOrderRoutes);
 router.use("/ar-invoices", arInvoiceRoutes);
-router.use("/ar-credit-notes", arCreditNoteRoutes);
+router.use("/ar-credit-memos", arCreditMemoRoutes);
 router.use("/incoming-payments", incomingPaymentRoutes);
 
 // Utility: Read-only master data lookups for dropdowns and UI auto-completion.

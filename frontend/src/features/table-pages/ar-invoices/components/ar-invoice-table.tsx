@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi, useRouter } from '@tanstack/react-router'
+import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   flexRender,
@@ -52,7 +52,7 @@ import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-const routeApi = getRouteApi('/_layout/sales/ar-invoice')
+
 const TABLE_ID = 'ar-invoices'
 const DEFAULT_COLUMN_ORDER = [
   'DocNum',
@@ -74,11 +74,40 @@ const toARInvoiceColumnFilters = (filters: ColumnFiltersState): ARInvoiceColumnF
   return typedFilters
 }
 
+export type ARInvoiceTableProps = {
+  /** Optional search parameters to override route-based state (e.g. for selection mode) */
+  searchParams?: ARInvoiceSearch
+  /** Optional navigation function to override route-based state */
+  navigate?: (options: {
+    search: (prev: ARInvoiceSearch) => ARInvoiceSearch
+    replace?: boolean
+  }) => void
+  /** Optional callback for row clicks (enables row selection behavior) */
+  onRowClick?: (invoice: ARInvoiceListItem) => void
+  titleOverride?: string | undefined
+  /** Optional subtitle to display just above the table grid */
+  subtitle?: string | undefined
+  /** Whether to hide the create button in the toolbar */
+  hideCreate?: boolean | undefined
+}
+
 // ARInvoiceTable: Accounts Receivable invoice listing orchestrator.
 // Employs a URL-first entry pattern to maintain state across reloads and navigation.
-export function ARInvoiceTable() {
-  const searchParams = routeApi.useSearch()
-  const navigate = routeApi.useNavigate()
+export function ARInvoiceTable({
+  searchParams: searchParamsProp,
+  navigate: navigateProp,
+  onRowClick,
+  titleOverride,
+  subtitle,
+  hideCreate,
+}: ARInvoiceTableProps) {
+  // Use props if provided, otherwise fallback to route-based state
+  const searchParamsFromRoute = useSearch({ strict: false }) as ARInvoiceSearch
+  const navigateFromRoute = useNavigate()
+
+  const searchParams = searchParamsProp ?? searchParamsFromRoute
+  const navigate = navigateProp ?? (navigateFromRoute as any)
+
   const router = useRouter()
   const setSorting = useSetSortingAction()
   const setVisibility = useSetVisibilityAction()
@@ -132,6 +161,7 @@ export function ARInvoiceTable() {
           prefetchEditRouteData(normalized)
         },
         onDocNumDoubleClick: (docNum) => {
+          if (onRowClick) return // Disable double-click edit in selection mode
           const normalized = String(docNum).trim()
           if (!normalized) return
           prefetchEditRouteData(normalized)
@@ -142,7 +172,7 @@ export function ARInvoiceTable() {
           } as never)
         },
       }),
-    [navigate, prefetchEditRouteData],
+    [navigate, prefetchEditRouteData, onRowClick],
   )
   const columnIds = useMemo(
     () =>
@@ -400,7 +430,17 @@ export function ARInvoiceTable() {
         table={table}
         onReset={handleResetTable}
         onCreateClick={handleCreateClickPrefetch}
+        titleOverride={titleOverride}
+        hideCreate={hideCreate}
       />
+
+      {subtitle && (
+        <div className="px-6 py-4 bg-white border-b border-zinc-50">
+          <h2 className="text-lg font-bold text-zinc-900 tracking-tight">
+            {subtitle}
+          </h2>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto w-full px-1.5">
         <Table className="w-full min-w-300">
@@ -426,7 +466,11 @@ export function ARInvoiceTable() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  className={onRowClick ? 'cursor-pointer hover:bg-slate-100' : ''}
+                  onClick={() => onRowClick?.(row.original)}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

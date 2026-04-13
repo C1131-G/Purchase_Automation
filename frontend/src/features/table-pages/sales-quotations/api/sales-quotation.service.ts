@@ -56,6 +56,29 @@ export type SalesQuotationDetail = {
 }
 export type SalesQuotationDetailResponse = { success: boolean; data: SalesQuotationDetail }
 
+export type OpenSalesQuotationLine = {
+  DocEntry: number
+  DocNum: number
+  DocDate: string
+  DocCurr: string
+  LineNum: number
+  ItemCode: string
+  ItemDescription: string
+  Quantity: number
+  OpenQty: number
+  Price: number
+  TaxCode: string
+  WarehouseCode: string
+  UoMCode?: string | number
+  UoMEntry?: number
+  DiscountPercent?: number
+}
+
+export type OpenSalesQuotationLinesResponse = {
+  success: boolean
+  data: OpenSalesQuotationLine[]
+}
+
 export const salesQuotationAPI = {
   getSalesQuotations: async (params: SalesQuotationListParams) => {
     const query = toQueryString(params)
@@ -83,5 +106,8 @@ export const salesQuotationAPI = {
       ? `/api/v1/sales-quotations/docnums?${query}`
       : '/api/v1/sales-quotations/docnums'
     return apiClient<SalesQuotationDocNumLookupResponse>(path)
+  },
+  getOpenSalesQuotationLines: async (cardCode: string) => {
+    return apiClient<OpenSalesQuotationLinesResponse>(`/api/v1/sales-quotations/open-lines?cardCode=${cardCode}`)
   },
 }
