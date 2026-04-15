@@ -1,4 +1,4 @@
-﻿// A/P Invoice Routes: Endpoints for vendors to track and manage their accounts payable invoices.
+// A/P Invoice Routes: Endpoints for vendors to track and manage their accounts payable invoices.
 
 import express from "express";
 

@@ -1,4 +1,4 @@
-﻿// Purchase Order DAL: Handles HTTP requests for Purchase Order (PO) operations.
+// Purchase Order DAL: Handles HTTP requests for Purchase Order (PO) operations.
 
 import type { NextFunction, Request, Response } from "express";
 

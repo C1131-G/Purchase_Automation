@@ -1,4 +1,4 @@
-﻿// User Schema: Maps to the native SAP B1 'OUSR' table.
+// User Schema: Maps to the native SAP B1 'OUSR' table.
 // We augment the standard SAP user record with custom fields (U_PortalPassword) to support secure portal authentication without modifying SAP core logic.
 
 import { EntitySchema } from "typeorm";

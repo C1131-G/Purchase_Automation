@@ -1,4 +1,4 @@
-﻿// Sales Employee Schema: Maps to the native SAP B1 'OSLP' table.
+// Sales Employee Schema: Maps to the native SAP B1 'OSLP' table.
 // Represents sales personnel responsible for managing customer/vendor accounts.
 
 import { EntitySchema } from "typeorm";

@@ -1,4 +1,4 @@
-﻿// Incoming Payment Routes: Endpoints for tracking payments received from customers.
+// Incoming Payment Routes: Endpoints for tracking payments received from customers.
 
 import express from "express";
 

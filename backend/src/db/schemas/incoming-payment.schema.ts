@@ -1,4 +1,4 @@
-﻿// Incoming Payment Schema: Maps to the native SAP B1 'ORCT' table.
+// Incoming Payment Schema: Maps to the native SAP B1 'ORCT' table.
 // Tracks payments received from customers.
 
 import { EntitySchema } from "typeorm";

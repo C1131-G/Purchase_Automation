@@ -34,9 +34,12 @@ export type SalesOrderDetailLine = {
   DiscountPercent?: number
   UoMCode?: string | number
   UoMEntry?: number
+  VatGroup?: string
+  VatPrcnt?: number
   TaxCode?: string
   WarehouseCode?: string
   LineTotal?: number
+  LineNum?: number
 }
 
 export type OpenSalesOrderLine = {
@@ -50,7 +53,9 @@ export type OpenSalesOrderLine = {
   Quantity: number
   OpenQty: number
   Price: number
-  TaxCode: string
+  VatGroup?: string
+  VatPrcnt?: number
+  TaxCode?: string
   WarehouseCode: string
   UoMCode?: string | number
   UoMEntry?: number

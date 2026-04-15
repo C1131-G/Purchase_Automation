@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import type { ZodError } from "zod";
 
 import type { RequestWithSession } from "@/core/errors/types/error.types";

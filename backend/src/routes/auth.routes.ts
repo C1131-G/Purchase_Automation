@@ -1,4 +1,4 @@
-﻿// Auth Routes: Endpoints for managing user sessions and retrieving profile information.
+// Auth Routes: Endpoints for managing user sessions and retrieving profile information.
 
 import express from "express";
 

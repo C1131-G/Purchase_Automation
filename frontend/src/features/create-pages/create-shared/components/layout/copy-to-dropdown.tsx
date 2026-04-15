@@ -13,20 +13,39 @@ interface CopyToOption {
   icon: React.ReactNode
 }
 
+type SourceDocType =
+  | 'PurchaseOrder'
+  | 'GoodsReceiptPO'
+  | 'APInvoice'
+  | 'SalesQuotation'
+  | 'SalesOrder'
+  | 'ARInvoice'
+
+type TargetType =
+  | 'GRPO'
+  | 'AP Invoice'
+  | 'AP Credit Memo'
+  | 'Sales Order'
+  | 'A/R Invoice'
+  | 'A/R Credit Note'
+
 interface CopyToDropdownProps {
   docNum: string
-  sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
-  targets: ('GRPO' | 'AP Invoice' | 'AP Credit Memo')[]
+  sourceDocType: SourceDocType
+  targets: TargetType[]
   className?: string
 }
 
 const targetIcon = (target: string) => {
   switch (target) {
     case 'GRPO':
+    case 'Sales Order':
       return <Truck className="h-4 w-4" />
     case 'AP Invoice':
+    case 'A/R Invoice':
       return <StickyNote className="h-4 w-4" />
     case 'AP Credit Memo':
+    case 'A/R Credit Note':
       return <FileText className="h-4 w-4" />
     default:
       return <ClipboardList className="h-4 w-4" />
@@ -43,6 +62,14 @@ const targetMeta = (target: string, sourceDocType: string) => {
         : 'Create A/P Invoice from this GRPO'
     case 'AP Credit Memo':
       return 'Create A/P Credit Memo from this invoice'
+    case 'Sales Order':
+      return 'Create Sales Order from this quotation'
+    case 'A/R Invoice':
+      return sourceDocType === 'SalesQuotation'
+        ? 'Create A/R Invoice from this quotation'
+        : 'Create A/R Invoice from this order'
+    case 'A/R Credit Note':
+      return 'Create A/R Credit Note from this invoice'
     default:
       return ''
   }
@@ -55,7 +82,7 @@ function CopyToPanel({
   panelWidth,
 }: {
   docNum: string
-  sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+  sourceDocType: SourceDocType
   options: CopyToOption[]
   panelWidth: number | null
 }) {
@@ -105,7 +132,7 @@ function CopyToDropdownInner({
   className,
 }: {
   docNum: string
-  sourceDocType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+  sourceDocType: SourceDocType
   options: CopyToOption[]
   className?: string
 }) {
@@ -207,7 +234,13 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
         ? '/purchase/create-grpo'
         : target === 'AP Invoice'
           ? '/purchase/create-ap-invoice'
-          : '/purchase/create-ap-credit-memo',
+          : target === 'AP Credit Memo'
+            ? '/purchase/create-ap-credit-memo'
+            : target === 'Sales Order'
+              ? '/sales/create-order'
+              : target === 'A/R Invoice'
+                ? '/sales/create-ar-invoice'
+                : '/sales/ar-credit-memo/create',
     icon: targetIcon(target),
   }))
 

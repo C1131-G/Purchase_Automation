@@ -1,4 +1,4 @@
-﻿// Session Validation Middleware: Gatekeeper for all protected routes. Ensures the user has a valid local Express session that is synchronized with a live SAP Service Layer session.
+// Session Validation Middleware: Gatekeeper for all protected routes. Ensures the user has a valid local Express session that is synchronized with a live SAP Service Layer session.
 
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 

@@ -16,10 +16,13 @@ export interface SAPDocumentLine {
   WarehouseCode?: string;
   DiscountPercent?: number;
   LineTotal?: number;
+  LineNum?: number;
 }
 
 export interface SAPDocumentResponse {
+  DocEntry: number;
   DocNum: number;
+  DocCurrency: string;
   CardCode: string;
   CardName: string;
   DocDate: string;

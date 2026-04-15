@@ -1,4 +1,4 @@
-﻿// Generic Page Service: Centralized utility for handling server-side pagination, dynamic sorting, and metadata calculation across the application.
+// Generic Page Service: Centralized utility for handling server-side pagination, dynamic sorting, and metadata calculation across the application.
 
 import type {
   FindOptionsOrder,

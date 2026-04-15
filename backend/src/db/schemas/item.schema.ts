@@ -1,4 +1,4 @@
-﻿// Item Schema: Maps to the native SAP B1 'OITM' table.
+// Item Schema: Maps to the native SAP B1 'OITM' table.
 // Represents the Master Data for all products and services available for purchase or sale.
 
 import { EntitySchema } from "typeorm";
@@ -13,7 +13,7 @@ export type Item = {
   AvgPrice?: number; // Calculated average cost from SAP for inventory valuation.
   LastPurCur?: string; // Item master purchase currency.
   VatGroupPu?: string; // Purchase tax group code.
-  VatGourpSa?: string; // Sales tax group code fallback.
+  VatGroupSa?: string; // Sales tax group code fallback.
   DfltWH?: string; // Default warehouse where this item is normally stored.
   frozenFor?: string; // 'Y' if the item is inactive.
 };
@@ -55,7 +55,7 @@ export const ItemSchema = new EntitySchema<Item>({
       name: "VatGroupPu",
       nullable: true,
     },
-    VatGourpSa: {
+    VatGroupSa: {
       type: "nvarchar" as HANAColumnType,
       length: 8,
       name: "VatGourpSa",

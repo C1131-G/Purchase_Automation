@@ -182,7 +182,11 @@ export const getSalesEmployees = async (req: Request, res: Response, next: NextF
   }
 };
 
-export const getOpenSalesQuotationLines = async (req: Request, res: Response, next: NextFunction) => {
+export const getOpenSalesQuotationLines = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const authReq = req as unknown as AuthenticatedRequest<
     Record<string, never>,
     unknown,
@@ -190,7 +194,8 @@ export const getOpenSalesQuotationLines = async (req: Request, res: Response, ne
     { cardCode?: string }
   >;
   try {
-    const { sessionId } = authReq.session;
+    const { sessionId: _sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { cardCode } = authReq.query;
 
     if (!cardCode) {
@@ -199,7 +204,7 @@ export const getOpenSalesQuotationLines = async (req: Request, res: Response, ne
 
     logger.info({ msg: "Fetching Open Sales Quotation lines", cardCode });
 
-    const data = await salesQuotationService.getOpenSalesQuotationLines(sessionId, cardCode as string);
+    const data = await salesQuotationService.getOpenSalesQuotationLines(dbName, cardCode as string);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

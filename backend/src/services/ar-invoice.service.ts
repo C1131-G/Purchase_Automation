@@ -7,6 +7,7 @@ import type { InvoiceFilters } from "@/dal/types/ar-invoice.types";
 import { type ARInvoice, ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -166,26 +167,16 @@ export const getInvoice = async (sessionId: string, id: string) => {
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: (result as unknown as Record<string, unknown>).Address2 || "",
+      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
+      NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard || "",
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
-        const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
-        return {
-          ItemCode: line.ItemCode,
-          ItemDescription: line.ItemDescription,
-          Quantity: line.Quantity,
-          UoMCode: lineData.UoMCode,
-          UoMEntry: lineData.UoMEntry,
-          Price: line.Price || line.UnitPrice,
-          DiscountPercent: line.DiscountPercent,
-          VatGroup: line.VatGroup || String(lineData.TaxCode ?? "").trim(),
-          VatPrcnt: sapTaxRate,
-          WarehouseCode: line.WarehouseCode,
-          LineTotal: line.LineTotal,
-        };
+        return normalizeSAPLineData(lineData);
       }),
     };
   } catch (err: unknown) {

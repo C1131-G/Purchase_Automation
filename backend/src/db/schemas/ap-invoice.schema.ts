@@ -1,4 +1,4 @@
-﻿// AP Invoice Schema: Maps to the native SAP B1 'OPCH' table (Accounts Payable Invoice).
+// AP Invoice Schema: Maps to the native SAP B1 'OPCH' table (Accounts Payable Invoice).
 // This schema is used for high-performance read operations from the HANA tenant database.
 
 import { EntitySchema } from "typeorm";

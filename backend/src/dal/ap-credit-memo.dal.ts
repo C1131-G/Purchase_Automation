@@ -1,4 +1,4 @@
-﻿// A/P Credit Memo DAL: Manages HTTP requests for A/P Credit Memo operations.
+// A/P Credit Memo DAL: Manages HTTP requests for A/P Credit Memo operations.
 
 import type { NextFunction, Request, Response } from "express";
 

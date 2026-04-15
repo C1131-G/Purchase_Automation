@@ -1,4 +1,4 @@
-﻿// Swagger Configuration: Orchestrates the generation of the OpenAPI v3 specification.
+// Swagger Configuration: Orchestrates the generation of the OpenAPI v3 specification.
 // It acts as a central registry where all request/response schemas are declared for the docs.
 
 import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";

@@ -1,4 +1,4 @@
-﻿// AR Invoice Schema: Maps to the native SAP B1 'OINV' table (Accounts Receivable Invoice).
+// AR Invoice Schema: Maps to the native SAP B1 'OINV' table (Accounts Receivable Invoice).
 // This schema tracks customer billing and includes payment progress via 'PaidSum'.
 
 import { EntitySchema } from "typeorm";

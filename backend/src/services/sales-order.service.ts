@@ -9,6 +9,7 @@ import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { type SalesOrder, SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -164,20 +165,7 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
-        const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
-        return {
-          ItemCode: line.ItemCode,
-          ItemDescription: line.ItemDescription,
-          Quantity: line.Quantity,
-          UoMCode: lineData.UoMCode,
-          UoMEntry: lineData.UoMEntry,
-          Price: line.Price || line.UnitPrice,
-          DiscountPercent: line.DiscountPercent,
-          VatGroup: line.VatGroup || String(lineData.TaxCode ?? "").trim(),
-          VatPrcnt: sapTaxRate,
-          WarehouseCode: line.WarehouseCode,
-          LineTotal: line.LineTotal,
-        };
+        return normalizeSAPLineData(lineData);
       }),
     };
   } catch (err: unknown) {
@@ -472,6 +460,8 @@ export const getOpenSalesOrderLines = async (sessionId: string, cardCode: string
       UoMCode?: string | number;
       UoMEntry?: number;
       DiscountPercent?: number;
+      VatGroup?: string;
+      VatPrcnt?: number;
     }[] = [];
 
     for (const order of orders) {
@@ -507,9 +497,8 @@ export const getOpenSalesOrderLines = async (sessionId: string, cardCode: string
                 line.Quantity,
             ),
             Price: line.Price || line.UnitPrice,
-            VatGroup:
-              line.VatGroup ||
-              String((line as unknown as Record<string, unknown>).TaxCode ?? "").trim(),
+            VatGroup: lineWithOpenQty.VatGroup || String(lineWithOpenQty.TaxCode ?? "").trim(),
+            VatPrcnt: Number(lineWithOpenQty.TaxPercentagePerRow ?? lineWithOpenQty.VatPrcnt ?? 0),
             WarehouseCode: line.WarehouseCode,
             UoMCode: lineWithOpenQty.UoMCode,
             UoMEntry: lineWithOpenQty.UoMEntry,

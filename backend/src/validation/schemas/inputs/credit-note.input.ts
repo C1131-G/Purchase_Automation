@@ -95,7 +95,7 @@ const CreditNoteLineItemSchema = z.object({
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
   BaseType: z.number().int().optional(),
-  ReturnReason: z.string().optional(),
+  U_ReturnReason: z.string().optional(),
 });
 
 // CreateCreditNoteInputSchema: Validates new credit note creation.

@@ -173,7 +173,7 @@ export const getOpenSalesOrderLines = async (req: Request, res: Response, next: 
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
-    const { cardCode } = authReq.query;
+    const { cardCode } = authReq.query as { cardCode?: string };
 
     if (!cardCode || typeof cardCode !== "string") {
       return res

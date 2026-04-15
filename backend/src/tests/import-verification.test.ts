@@ -1,4 +1,4 @@
-﻿import "@/config/zod";
+import "@/config/zod";
 
 import { readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";

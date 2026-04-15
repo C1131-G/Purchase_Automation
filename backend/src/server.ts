@@ -1,4 +1,4 @@
-﻿// Server Entry Point: Bootstraps the entire application stack.
+// Server Entry Point: Bootstraps the entire application stack.
 // It handles initialization of the HANA pool, TypeORM data sources, SAP Service Layer clients, and the HTTP server itself.
 
 import "dotenv/config";

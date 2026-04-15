@@ -33,6 +33,7 @@ interface CreateProductTableRowProps {
   showExplicitZeroDiscount?: boolean
   showSelection?: boolean
   showReturnReason?: boolean
+  showTaxCode?: boolean
 }
 
 export function CreateProductTableRow({
@@ -54,6 +55,7 @@ export function CreateProductTableRow({
   showExplicitZeroDiscount = false,
   showSelection = false,
   showReturnReason = false,
+  showTaxCode = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState('')
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState('')
@@ -266,7 +268,9 @@ export function CreateProductTableRow({
   const effectiveDisableInputs = disableInputs || !isRowActive
 
   return (
-    <tr className={`transition-opacity duration-200 ${!isRowActive ? 'opacity-50' : 'opacity-100'}`}>
+    <tr
+      className={`transition-opacity duration-200 ${!isRowActive ? 'opacity-50' : 'opacity-100'}`}
+    >
       {showSelection && (
         <td className="px-2 py-2 text-center">
           <input
@@ -296,7 +300,7 @@ export function CreateProductTableRow({
               }}
               onMouseEnter={prefetchProducts}
               onFocus={prefetchProducts}
-              className={`block w-full truncate text-left text-sm text-zinc-800 transition ${
+              className={`block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-zinc-800 transition-all duration-150 ${
                 effectiveDisableInputs
                   ? 'cursor-not-allowed opacity-70'
                   : 'cursor-pointer text-zinc-800 hover:bg-blue-50/50 hover:text-blue-700 active:bg-blue-100/60 active:text-blue-900'
@@ -350,7 +354,9 @@ export function CreateProductTableRow({
               setLookupOpen(true)
             }}
             className={`absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
-              effectiveDisableInputs ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:bg-zinc-100'
+              effectiveDisableInputs
+                ? 'cursor-not-allowed opacity-40'
+                : 'cursor-pointer hover:bg-zinc-100'
             }`}
           >
             <Search className="h-3 w-3" />
@@ -578,6 +584,11 @@ export function CreateProductTableRow({
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm font-medium text-zinc-900">
         {lineTotal.toFixed(2)}
       </td>
+      {showTaxCode && (
+        <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
+          {row.vatGroup || '-'}
+        </td>
+      )}
       {showReturnReason && (
         <td className="min-w-0 px-2 py-2">
           <select

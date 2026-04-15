@@ -1,4 +1,4 @@
-﻿// Business Partner Schema: Maps to the native SAP B1 'OCRD' table.
+// Business Partner Schema: Maps to the native SAP B1 'OCRD' table.
 // Represents Customers ('C') and Vendors ('S') in the system.
 
 import { EntitySchema } from "typeorm";

@@ -1,4 +1,4 @@
-﻿// Authentication DAL: Handles HTTP requests for user authentication, managing login and logout cycles.
+// Authentication DAL: Handles HTTP requests for user authentication, managing login and logout cycles.
 
 import type { RequestHandler } from "express";
 

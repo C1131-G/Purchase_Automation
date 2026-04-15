@@ -1,4 +1,4 @@
-﻿// A/R Invoice Routes: Endpoints for customers to view and pay their accounts receivable invoices.
+// A/R Invoice Routes: Endpoints for customers to view and pay their accounts receivable invoices.
 
 import express from "express";
 

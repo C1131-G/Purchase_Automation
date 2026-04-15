@@ -68,6 +68,7 @@ export function useSqProducts({
       effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
       productQueryLimit,
+      'sales',
     ),
     enabled: productPopupOpen && customerSelected,
   })
@@ -94,6 +95,7 @@ export function useSqProducts({
         effectiveWarehouseCode || undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
+        'sales',
       ),
     )
   }

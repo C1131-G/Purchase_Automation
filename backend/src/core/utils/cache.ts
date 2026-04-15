@@ -1,4 +1,4 @@
-﻿// LRU Cache Utility: Provides a performance-optimized, in-memory store to reduce redundant database queries and SAP Service Layer roundtrips.
+// LRU Cache Utility: Provides a performance-optimized, in-memory store to reduce redundant database queries and SAP Service Layer roundtrips.
 
 import { LRUCache } from "lru-cache";
 

@@ -3,11 +3,12 @@
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { executeTenantQuery, getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { SalesQuotationFilters } from "@/dal/types/sales-quotation.types";
 import { type SalesQuotation, SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -163,20 +164,7 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
-        const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
-        return {
-          ItemCode: line.ItemCode,
-          ItemDescription: line.ItemDescription,
-          Quantity: line.Quantity,
-          UoMCode: lineData.UoMCode,
-          UoMEntry: lineData.UoMEntry,
-          Price: line.Price || line.UnitPrice,
-          DiscountPercent: line.DiscountPercent,
-          VatGroup: line.VatGroup || String(lineData.TaxCode ?? "").trim(),
-          VatPrcnt: sapTaxRate,
-          WarehouseCode: line.WarehouseCode,
-          LineTotal: line.LineTotal,
-        };
+        return normalizeSAPLineData(lineData);
       }),
     };
   } catch (err: unknown) {
@@ -408,60 +396,67 @@ export const cancelSalesQuotation = async (sessionId: string, id: string) => {
   }
 };
 
-export const getOpenSalesQuotationLines = async (sessionId: string, cardCode: string) => {
+export const getOpenSalesQuotationLines = async (dbName: string, cardCode: string) => {
   try {
-    const query = `/Quotations?$filter=CardCode eq '${cardCode}' and DocumentStatus eq 'bost_Open'`;
-    const result = (await serviceLayerClient.request(sessionId, "GET", query)) as {
-      value: SAPDocumentResponse[];
-    };
+    logger.info({ msg: "Fetching Open SQ Lines via HANA", cardCode, dbName });
 
-    const quotations = result.value || [];
-    const openLines: any[] = [];
+    // Query HANA QUT1 (quotation lines) joined with OQUT (quotation header).
+    // QUT1.OpenQty is the SAP-maintained remaining open quantity — it decrements automatically
+    // as Sales Orders or AR Invoices are created against the quotation.
+    const rows = (await executeTenantQuery(
+      dbName,
+      `SELECT
+        h."DocEntry",
+        h."DocNum",
+        h."DocDate",
+        h."DocCur"   AS "DocCurr",
+        l."LineNum",
+        l."ItemCode",
+        l."Dscription" AS "ItemDescription",
+        l."Quantity",
+        l."OpenQty",
+        l."Price",
+        l."VatGroup",
+        l."VatPrcnt",
+        l."WhsCode"   AS "WarehouseCode",
+        l."UomCode"   AS "UoMCode",
+        l."UomEntry"  AS "UoMEntry",
+        l."DiscPrcnt" AS "DiscountPercent"
+      FROM "OQUT" h
+      INNER JOIN "QUT1" l ON l."DocEntry" = h."DocEntry"
+      WHERE h."CardCode" = ?
+        AND h."DocStatus" = 'O'
+        AND l."OpenQty" > 0
+      ORDER BY h."DocNum" DESC, l."LineNum" ASC`,
+      [cardCode],
+    )) as Array<Record<string, unknown>>;
 
-    for (const quotation of quotations) {
-      const lines = quotation.DocumentLines || [];
-      for (const line of lines) {
-        if ((line as any).LineStatus === "bost_Open") {
-          const l = line as any;
-          openLines.push({
-            DocEntry: quotation.DocEntry,
-            DocNum: quotation.DocNum,
-            DocDate: quotation.DocDate,
-            DocCurr: quotation.DocCurrency,
-            LineNum: l.LineNum,
-            ItemCode: line.ItemCode,
-            ItemDescription: line.ItemDescription,
-            Quantity: line.Quantity,
-            OpenQty: Number(
-              l.OpenQuantity ??
-                l.RemainingOpenQuantity ??
-                l.RemainingOpenInventoryQuantity ??
-                l.RemainingQuantity ??
-                l.BaseOpenQuantity ??
-                line.Quantity,
-            ),
-            Price: line.Price || line.UnitPrice,
-            TaxCode: line.TaxCode,
-            WarehouseCode: line.WarehouseCode,
-            UoMCode: l.UoMCode,
-            UoMEntry: l.UoMEntry,
-            DiscountPercent: line.DiscountPercent,
-          });
-        }
-      }
-    }
+    const openLines = rows.map((row) => ({
+      DocEntry: Number(row["DocEntry"]),
+      DocNum: Number(row["DocNum"]),
+      DocDate: String(row["DocDate"] ?? ""),
+      DocCurr: String(row["DocCurr"] ?? ""),
+      LineNum: Number(row["LineNum"]),
+      ItemCode: String(row["ItemCode"] ?? ""),
+      ItemDescription: String(row["ItemDescription"] ?? ""),
+      Quantity: Number(row["Quantity"] ?? 0),
+      OpenQty: Number(row["OpenQty"] ?? 0),
+      Price: Number(row["Price"] ?? 0),
+      VatGroup: String(row["VatGroup"] ?? ""),
+      VatPrcnt: Number(row["VatPrcnt"] ?? 0),
+      WarehouseCode: String(row["WarehouseCode"] ?? ""),
+      UoMCode: row["UoMCode"],
+      UoMEntry: row["UoMEntry"] != null ? Number(row["UoMEntry"]) : undefined,
+      DiscountPercent: Number(row["DiscountPercent"] ?? 0),
+    }));
 
-    logger.info({
-      msg: "DEBUG: Mapped Open Quotation Lines",
-      count: openLines.length,
-      samples: openLines.slice(0, 2),
-    });
+    logger.info({ msg: "Open SQ lines from HANA", count: openLines.length });
 
     return openLines;
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({
-      msg: "Failed to fetch open sales quotation lines from Service Layer",
+      msg: "Failed to fetch open SQ lines from HANA",
       error: error.message,
       cardCode,
     });

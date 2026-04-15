@@ -1,4 +1,4 @@
-﻿// Master Data DAL: Handles requests for master data lookups (Products, Venodrs, Tax Codes, etc.).
+// Master Data DAL: Handles requests for master data lookups (Products, Venodrs, Tax Codes, etc.).
 
 import type { NextFunction, Request, Response } from "express";
 
@@ -20,8 +20,9 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
       typeof req.query.limit === "string" && req.query.limit.trim() !== ""
         ? Number(req.query.limit)
         : undefined;
-    logger.info({ msg: "Fetching products", dbName, warehouseCode, search, limit });
-    const data = await masterDataService.getProducts(dbName, warehouseCode, search, limit);
+    const type = req.query.type as "sales" | "purchase" | undefined;
+    logger.info({ msg: "Fetching products", dbName, warehouseCode, search, limit, type });
+    const data = await masterDataService.getProducts(dbName, warehouseCode, search, limit, type);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

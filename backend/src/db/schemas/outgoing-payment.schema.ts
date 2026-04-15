@@ -1,4 +1,4 @@
-﻿// Outgoing Payment Schema: Maps to the native SAP B1 'OVPM' table.
+// Outgoing Payment Schema: Maps to the native SAP B1 'OVPM' table.
 // Tracks payments made to vendors.
 
 import { EntitySchema } from "typeorm";

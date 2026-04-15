@@ -1,4 +1,4 @@
-﻿import type { z } from "zod";
+import type { z } from "zod";
 
 import type { PaymentQuerySchema } from "@/validation/schemas/inputs/payments.input";
 

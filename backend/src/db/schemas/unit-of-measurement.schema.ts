@@ -1,4 +1,4 @@
-﻿// Unit of Measurement Schema: Maps to the native SAP B1 'OUOM' table.
+// Unit of Measurement Schema: Maps to the native SAP B1 'OUOM' table.
 // Defines standard units used for stock and pricing (e.g., 'Each', 'KG', 'Hour').
 
 import { EntitySchema } from "typeorm";

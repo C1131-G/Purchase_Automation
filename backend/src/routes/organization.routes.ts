@@ -1,4 +1,4 @@
-﻿// Organization Routes: Endpoints for tenant discovery and metadata retrieval.
+// Organization Routes: Endpoints for tenant discovery and metadata retrieval.
 
 import express from "express";
 

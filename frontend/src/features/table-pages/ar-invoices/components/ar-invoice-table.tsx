@@ -52,7 +52,6 @@ import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-
 const TABLE_ID = 'ar-invoices'
 const DEFAULT_COLUMN_ORDER = [
   'DocNum',
@@ -106,7 +105,7 @@ export function ARInvoiceTable({
   const navigateFromRoute = useNavigate()
 
   const searchParams = searchParamsProp ?? searchParamsFromRoute
-  const navigate = navigateProp ?? (navigateFromRoute as any)
+  const navigate = navigateProp ?? (navigateFromRoute as unknown as NonNullable<typeof navigateProp>)
 
   const router = useRouter()
   const setSorting = useSetSortingAction()
@@ -436,9 +435,7 @@ export function ARInvoiceTable({
 
       {subtitle && (
         <div className="px-6 py-4 bg-white border-b border-zinc-50">
-          <h2 className="text-lg font-bold text-zinc-900 tracking-tight">
-            {subtitle}
-          </h2>
+          <h2 className="text-lg font-bold text-zinc-900 tracking-tight">{subtitle}</h2>
         </div>
       )}
 

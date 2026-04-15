@@ -1,4 +1,4 @@
-﻿import "@/dal/types/session.types";
+import "@/dal/types/session.types";
 
 import type { Request } from "express";
 

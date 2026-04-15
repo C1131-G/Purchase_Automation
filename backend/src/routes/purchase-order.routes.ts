@@ -1,4 +1,4 @@
-﻿// Purchase Order Routes: Endpoints for vendors to interact with procurement documents.
+// Purchase Order Routes: Endpoints for vendors to interact with procurement documents.
 
 import express from "express";
 

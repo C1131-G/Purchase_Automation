@@ -1,4 +1,4 @@
-﻿// AP Credit Note Schema: Maps to the native SAP B1 'ORPC' table (Accounts Payable Credit Memo).
+// AP Credit Note Schema: Maps to the native SAP B1 'ORPC' table (Accounts Payable Credit Memo).
 // Used to track vendor credits and returns.
 
 import { EntitySchema } from "typeorm";

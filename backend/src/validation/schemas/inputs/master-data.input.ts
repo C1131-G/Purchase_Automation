@@ -8,6 +8,7 @@ export const MasterDataQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
   warehouseCode: z.string().optional(),
   itemCode: z.string().trim().optional(),
+  type: z.enum(["sales", "purchase"]).optional(),
 });
 
 export type MasterDataQuery = z.infer<typeof MasterDataQuerySchema>;

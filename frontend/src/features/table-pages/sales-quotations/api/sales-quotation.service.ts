@@ -34,9 +34,12 @@ export type SalesQuotationDetailLine = {
   DiscountPercent?: number
   UoMCode?: string | number
   UoMEntry?: number
+  VatGroup?: string
+  VatPrcnt?: number
   TaxCode?: string
   WarehouseCode?: string
   LineTotal?: number
+  LineNum?: number
 }
 
 export type SalesQuotationDetail = {
@@ -67,7 +70,8 @@ export type OpenSalesQuotationLine = {
   Quantity: number
   OpenQty: number
   Price: number
-  TaxCode: string
+  VatGroup?: string
+  VatPrcnt?: number
   WarehouseCode: string
   UoMCode?: string | number
   UoMEntry?: number
@@ -108,6 +112,8 @@ export const salesQuotationAPI = {
     return apiClient<SalesQuotationDocNumLookupResponse>(path)
   },
   getOpenSalesQuotationLines: async (cardCode: string) => {
-    return apiClient<OpenSalesQuotationLinesResponse>(`/api/v1/sales-quotations/open-lines?cardCode=${cardCode}`)
+    return apiClient<OpenSalesQuotationLinesResponse>(
+      `/api/v1/sales-quotations/open-lines?cardCode=${cardCode}`,
+    )
   },
 }

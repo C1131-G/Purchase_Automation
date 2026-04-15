@@ -1,4 +1,4 @@
-﻿// Organization Service: Manages the discovery of tenant databases. Acts as a bridge between the core app and the central 'SBO-COMMON' style registry.
+// Organization Service: Manages the discovery of tenant databases. Acts as a bridge between the core app and the central 'SBO-COMMON' style registry.
 
 import type { Repository } from "typeorm";
 

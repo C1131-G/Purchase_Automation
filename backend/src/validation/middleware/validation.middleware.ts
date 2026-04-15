@@ -1,4 +1,4 @@
-﻿// Validation Middleware: Higher-order middleware to validate request data using Zod schemas.
+// Validation Middleware: Higher-order middleware to validate request data using Zod schemas.
 // Integrates with AppError for consistent error handling across the application.
 
 import type { NextFunction, Request, Response } from "express";
