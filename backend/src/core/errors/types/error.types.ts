@@ -1,4 +1,4 @@
-﻿import type { Request } from "express";
+import type { Request } from "express";
 
 import { logger } from "@/core/logger/pino-logger";
 

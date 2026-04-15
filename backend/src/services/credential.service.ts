@@ -1,4 +1,4 @@
-﻿// Credential Service: Specialized logic for retrieving Service Layer authentication details (User, Pass) for a specific tenant from the master organization table.
+// Credential Service: Specialized logic for retrieving Service Layer authentication details (User, Pass) for a specific tenant from the master organization table.
 
 import type { Repository } from "typeorm";
 

@@ -179,6 +179,7 @@ export const getProducts = async (
   warehouseCode?: string,
   search?: string,
   limit?: number,
+  type?: "sales" | "purchase",
 ) => {
   const normalizedWarehouseCode = toTrimmed(warehouseCode);
   const normalizedSearch = toTrimmed(search).toLowerCase();
@@ -194,7 +195,7 @@ export const getProducts = async (
       ? String(resolvedLimit)
       : "unlimited"
     : String(resolvedLimit ?? defaultListLimit);
-  const cacheKey = `master:${dbName}:Products:v8:${normalizedWarehouseCode || "default"}:${normalizedSearch || "all"}:${cacheLimitToken}`;
+  const cacheKey = `master:${dbName}:Products:v9:${normalizedWarehouseCode || "default"}:${normalizedSearch || "all"}:${cacheLimitToken}:${type || "default"}`;
 
   return getCachedData(
     cacheKey,
@@ -237,7 +238,7 @@ export const getProducts = async (
           "item.AvgPrice",
           "item.LastPurCur",
           "item.VatGroupPu",
-          "item.VatGourpSa",
+          "item.VatGroupSa",
           "item.DfltWH",
         ])
         .where("item.frozenFor = :active", { active: "N" });
@@ -329,7 +330,14 @@ export const getProducts = async (
         const resolvedStock = stockMap.get(normalizedItemCode) ?? 0;
         const resolvedPrice = priceMap.get(normalizedItemCode) ?? toNumberOrZero(item.AvgPrice);
         const resolvedCurrency = defaultCurrency || "";
-        const resolvedTaxCode = toTrimmed(item.VatGroupPu) || toTrimmed(item.VatGourpSa);
+
+        // Selection: Default to Sales if type is not specified or set to 'sales'.
+        // This ensures the portal primarily behaves as a sales application unless explicitly in a purchase flow.
+        const resolvedTaxCode =
+          type === "purchase"
+            ? toTrimmed(item.VatGroupPu) || toTrimmed(item.VatGroupSa)
+            : toTrimmed(item.VatGroupSa) || toTrimmed(item.VatGroupPu);
+
         const resolvedTaxRate = taxRateByCode.get(resolvedTaxCode) ?? 0;
         const salesUomText = toTrimmed(item.SalUnitMsr);
         const purchaseUomText = toTrimmed(item.BuyUnitMsr);

@@ -1,4 +1,4 @@
-﻿// Authentication Service: Manages security flows including multi-tenant login, session validation, and logout.
+// Authentication Service: Manages security flows including multi-tenant login, session validation, and logout.
 
 import { Raw } from "typeorm";
 

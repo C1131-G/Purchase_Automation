@@ -1,4 +1,4 @@
-﻿// Purchase Order Schema: Maps to the native SAP B1 'OPOR' table (Procurement/Purchasing document).
+// Purchase Order Schema: Maps to the native SAP B1 'OPOR' table (Procurement/Purchasing document).
 
 import { EntitySchema } from "typeorm";
 

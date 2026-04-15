@@ -7,6 +7,7 @@ import { DocumentDatesGrid } from '@/features/create-pages/create-shared/compone
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
+import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import {
   parseISODate,
@@ -220,6 +221,15 @@ export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreatePr
           handleCreateOrder={state.handleCreateOrder}
           submitLabel={state.isEditMode ? 'Update' : 'Create'}
           submitLoadingText={state.isEditMode ? 'Updating...' : 'Creating...'}
+          secondaryActions={
+            state.isEditMode && docNum ? (
+              <CopyToDropdown
+                docNum={docNum}
+                sourceDocType="SalesOrder"
+                targets={['A/R Invoice']}
+              />
+            ) : null
+          }
         />
         <SalesOrderModals state={state} />
       </CreatePageWrapper>

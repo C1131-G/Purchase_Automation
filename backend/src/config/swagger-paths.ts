@@ -1,4 +1,4 @@
-﻿// API Path Documentation: Registers all endpoint metadata (methods, paths, tags, and schemas) with the OpenAPI registry.
+// API Path Documentation: Registers all endpoint metadata (methods, paths, tags, and schemas) with the OpenAPI registry.
 
 import { registry } from "@/config/swagger-registry";
 import { LoginInputSchema } from "@/validation/schemas/inputs/auth.input";
@@ -208,8 +208,8 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/ARCreditNote",
-  summary: "List A/R Credit Notes",
+  path: "/ARCreditMemo",
+  summary: "List A/R Credit Memos",
   tags: ["Credit Notes"],
   security: [{ SessionCookie: [] }],
   request: { query: CreditNoteQuerySchema },

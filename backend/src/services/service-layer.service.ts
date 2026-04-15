@@ -1,4 +1,4 @@
-﻿// SAP Business One Service Layer Client: High-level HTTP controller for interacting with the SAP B1 REST API. Manages session persistence, automatic retries using exponential backoff, and binary file transmissions.
+// SAP Business One Service Layer Client: High-level HTTP controller for interacting with the SAP B1 REST API. Manages session persistence, automatic retries using exponential backoff, and binary file transmissions.
 
 import https from "node:https";
 

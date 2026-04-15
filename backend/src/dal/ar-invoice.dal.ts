@@ -1,4 +1,4 @@
-﻿// A/R Invoice DAL: Handles HTTP requests for A/R Invoice operations.
+// A/R Invoice DAL: Handles HTTP requests for A/R Invoice operations.
 
 import type { NextFunction, Request, Response } from "express";
 

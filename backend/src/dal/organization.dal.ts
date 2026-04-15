@@ -1,4 +1,4 @@
-﻿// Organization DAL: Manages HTTP requests related to organization and database discovery.
+// Organization DAL: Manages HTTP requests related to organization and database discovery.
 
 import type { NextFunction, Request, Response } from "express";
 

@@ -1,4 +1,4 @@
-﻿// Outgoing Payment Service: Manages payment transactions to vendors. Handles list retrieval from HANA and transaction processing via the SAP VendorPayments service.
+// Outgoing Payment Service: Manages payment transactions to vendors. Handles list retrieval from HANA and transaction processing via the SAP VendorPayments service.
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";

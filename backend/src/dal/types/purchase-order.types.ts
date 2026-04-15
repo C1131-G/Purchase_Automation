@@ -1,4 +1,4 @@
-﻿import type { z } from "zod";
+import type { z } from "zod";
 
 import type { PurchaseOrderQuerySchema } from "@/validation/schemas/inputs/purchase-order.input";
 

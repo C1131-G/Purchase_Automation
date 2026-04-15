@@ -1,15 +1,15 @@
-// ARCreditNoteColumns: Column definitions (accessors, headers, cell renderers) for the accounts receivable credit grid.
+// ArCreditMemoColumns: Column definitions (accessors, headers, cell renderers) for the accounts receivable credit grid.
 import { createColumnHelper } from '@tanstack/react-table'
 
 import { Tooltip } from '@/components/tooltip'
-import { type ARCreditNoteListItem } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.service'
+import { type ArCreditMemoListItem } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.service'
 import { TableColumnSort } from '@/features/table-pages/table-shared/components/core/table-column-sort'
 import {
   matchesDateRange,
   matchesNumberComparison,
 } from '@/features/table-pages/table-shared/utils/table-filter-values'
 
-const columnHelper = createColumnHelper<ARCreditNoteListItem>()
+const columnHelper = createColumnHelper<ArCreditMemoListItem>()
 
 const mapDocStatusLabel = (value: string) => {
   const normalized = value?.toString().trim()
@@ -18,7 +18,12 @@ const mapDocStatusLabel = (value: string) => {
   return normalized
 }
 
-export const createARCreditNoteColumns = () => [
+interface CreateArCreditMemoColumnsOptions {
+  onDocNumDoubleClick?: (docNum: string | number) => void
+  onDocNumHover?: (docNum: string | number) => void
+}
+
+export const createArCreditMemoColumns = (options?: CreateArCreditMemoColumnsOptions) => [
   columnHelper.accessor('DocNum', {
     id: 'DocNum',
     header: ({ column, table }) => (
@@ -26,7 +31,12 @@ export const createARCreditNoteColumns = () => [
     ),
     cell: (info) => (
       <Tooltip content="Double click to edit">
-        <span className="block cursor-pointer truncate transition-colors hover:text-blue-600">
+        <span
+          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+          onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
+          onFocus={() => options?.onDocNumHover?.(info.getValue())}
+          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
+        >
           {info.getValue()}
         </span>
       </Tooltip>

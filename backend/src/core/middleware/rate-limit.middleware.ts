@@ -4,7 +4,7 @@ import type { Request } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 const WINDOW_MS = 15 * 60 * 1000;
 
-const rateLimitIpKey = (req: Request) => ipKeyGenerator(req.ip);
+const rateLimitIpKey = (req: Request) => ipKeyGenerator(req.ip ?? "unknown");
 
 const authenticatedKey = (req: Request) => {
   const user = (req as Request & { session?: { user?: Record<string, unknown> } }).session?.user;

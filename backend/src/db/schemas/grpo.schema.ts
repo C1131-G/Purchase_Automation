@@ -1,4 +1,4 @@
-﻿// GRPO Schema: Maps to the native SAP B1 'OPDN' table (Goods Receipt PO).
+// GRPO Schema: Maps to the native SAP B1 'OPDN' table (Goods Receipt PO).
 // Tracks receiving of items against purchase orders.
 
 import { EntitySchema } from "typeorm";

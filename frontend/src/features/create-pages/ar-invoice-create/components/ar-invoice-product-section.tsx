@@ -32,6 +32,7 @@ interface ARInvoiceProductSectionProps {
   onEditRestrictedClick?: (fieldName: string) => void
   warehouses: ARInvoiceState['warehouses']
   warehousesLoading: boolean
+  secondaryActions?: React.ReactNode
 }
 
 /**
@@ -64,6 +65,7 @@ export function ARInvoiceProductSection({
   onEditRestrictedClick,
   warehouses,
   warehousesLoading,
+  secondaryActions,
 }: ARInvoiceProductSectionProps) {
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
 
@@ -97,6 +99,7 @@ export function ARInvoiceProductSection({
       mandatoryFieldsTotal={SALES_ORDER_MANDATORY_FIELDS.length}
       isEditMode={isUpdateAction}
       showSubmitButton={!isUpdateAction}
+      secondaryActions={secondaryActions}
     >
       <div
         onClickCapture={

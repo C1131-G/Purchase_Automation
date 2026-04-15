@@ -28,6 +28,17 @@ export const arCreditNoteAPI = {
     const path = query ? `/api/v1/ar-credit-notes?${query}` : '/api/v1/ar-credit-notes'
     return apiClient<ARCreditNoteListResponse>(path)
   },
+  createARCreditNote: async (payload: Record<string, unknown>) => {
+    return apiClient<unknown>('/api/v1/ar-credit-notes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+  getARCreditNoteByDocNum: async (docNum: string | number) => {
+    return apiClient<{ success: boolean; data: unknown }>(
+      `/api/v1/ar-credit-notes/by-doc-num/${docNum}`,
+    )
+  },
   getARCreditNoteDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit })
     const path = query

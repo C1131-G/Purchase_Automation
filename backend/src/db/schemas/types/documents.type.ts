@@ -14,7 +14,7 @@ export type GRPO = SapDocument;
 export type APInvoice = SapDocument;
 export type APCreditMemo = SapDocument;
 export type SalesOrder = SapDocument;
-export type ARCreditNote = SapDocument;
+export type ARCreditMemo = SapDocument;
 
 export interface ARInvoice extends SapDocument {
   paidSum: number;

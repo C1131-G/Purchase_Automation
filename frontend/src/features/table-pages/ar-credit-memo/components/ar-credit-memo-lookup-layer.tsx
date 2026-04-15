@@ -1,21 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-// ARCreditNoteLookupLayer: Orchestrates lookup popups and suggestions for accounts receivable credit filtering.
+// ArCreditMemoLookupLayer: Orchestrates lookup popups and suggestions for accounts receivable credit filtering.
 import { type useReactTable } from '@tanstack/react-table'
 import { useEffect, useMemo } from 'react'
 
 import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
-import { arCreditNoteQueries } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.queries'
-import { type ARCreditNoteListItem } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.service'
+import { arCreditMemoQueries } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries'
+import { type ArCreditMemoListItem } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.service'
 import { TableToolbar } from '@/features/table-pages/table-shared/components/core/table-toolbar'
 import { useTableLookupPopupSync } from '@/features/table-pages/table-shared/hooks/use-table-lookup-popup-sync'
 import { useSetActiveFilterAction } from '@/store/table/table-filter.store'
 
-const AR_CREDIT_NOTE_BREADCRUMB = {
+const AR_CREDIT_MEMO_BREADCRUMB = {
   section: 'Sales',
-  page: 'AR Credit Notes Data Table',
-  href: '/sales/ar-credit-note',
+  page: 'AR Credit Memos Data Table',
+  href: '/sales/ar-credit-memo',
 } as const
 const DOC_NUM_QUICK_LIMIT = 10
 const DOC_NUM_BACKGROUND_LIMIT = 100
@@ -32,19 +32,19 @@ const toOrderedUniqueDocNumSuggestions = (items: LookupItem[]): LookupItem[] => 
   return result
 }
 
-export type ARCreditNoteLookupLayerProps = {
+export type ArCreditMemoLookupLayerProps = {
   tableId: string
-  table: ReturnType<typeof useReactTable<ARCreditNoteListItem>>
+  table: ReturnType<typeof useReactTable<ArCreditMemoListItem>>
   onReset: () => void
   onCreateClick: () => void
 }
 
-export function ARCreditNoteLookupLayer({
+export function ArCreditMemoLookupLayer({
   tableId,
   table,
   onReset,
   onCreateClick,
-}: ARCreditNoteLookupLayerProps) {
+}: ArCreditMemoLookupLayerProps) {
   const setActiveFilter = useSetActiveFilterAction()
   const queryClient = useQueryClient()
 
@@ -74,10 +74,10 @@ export function ARCreditNoteLookupLayer({
   const shouldQueryDocNumSearch = lookupColumnId === 'DocNum' && docNumLookupSearchTerm.length >= 2
 
   const docNumSuggestionsQuery = useQuery(
-    arCreditNoteQueries.docNumSuggestions(undefined, DOC_NUM_QUICK_LIMIT),
+    arCreditMemoQueries.docNumSuggestions(undefined, DOC_NUM_QUICK_LIMIT),
   )
   const docNumSuggestionsBackgroundQuery = useQuery({
-    ...arCreditNoteQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
+    ...arCreditMemoQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
     enabled: docNumSuggestionsQuery.isFetched,
   })
   const tableOrderedDocNumSuggestions = useMemo<LookupItem[]>(() => {
@@ -122,7 +122,7 @@ export function ARCreditNoteLookupLayer({
   ])
 
   const docNumLookupSearchQuery = useQuery({
-    ...arCreditNoteQueries.docNumSuggestions(
+    ...arCreditMemoQueries.docNumSuggestions(
       docNumLookupSearchTerm || undefined,
       DOC_NUM_BACKGROUND_LIMIT,
     ),
@@ -132,7 +132,7 @@ export function ARCreditNoteLookupLayer({
   useEffect(() => {
     if (lookupColumnId !== 'DocNum') return
     void queryClient.prefetchQuery(
-      arCreditNoteQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
+      arCreditMemoQueries.docNumSuggestions(undefined, DOC_NUM_BACKGROUND_LIMIT),
     )
   }, [lookupColumnId, queryClient])
 
@@ -156,8 +156,8 @@ export function ARCreditNoteLookupLayer({
         table={table}
         onReset={onReset}
         onCreateClick={onCreateClick}
-        createLink="/sales/create-ar-credit-note"
-        breadcrumb={AR_CREDIT_NOTE_BREADCRUMB}
+        createLink="/sales/ar-credit-memo/select-invoice"
+        breadcrumb={AR_CREDIT_MEMO_BREADCRUMB}
         lookupSuggestions={customers}
         docNumSuggestions={docNumSuggestions}
         enableDocNumPopup

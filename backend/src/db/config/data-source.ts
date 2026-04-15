@@ -1,4 +1,4 @@
-﻿// Global Data Source: Configures primary TypeORM connection to SAP HANA.
+// Global Data Source: Configures primary TypeORM connection to SAP HANA.
 
 import "reflect-metadata";
 
@@ -10,7 +10,7 @@ import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
-import { ARCreditNoteSchema } from "@/db/schemas/ar-credit-note.schema";
+import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
@@ -68,7 +68,7 @@ export const AppDataSource = new DataSource({
     WarehouseSchema,
     SalesOrderSchema,
     ARInvoiceSchema,
-    ARCreditNoteSchema,
+    ARCreditMemoSchema,
     IncomingPaymentSchema,
     SalesEmployeeSchema,
     OrganizationSchema,

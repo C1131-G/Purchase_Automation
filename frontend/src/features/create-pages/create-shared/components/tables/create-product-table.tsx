@@ -27,6 +27,9 @@ interface CreateProductTableProps {
   stockLimitReserve?: number
   minStockToSelectWarehouse?: number
   showExplicitZeroDiscount?: boolean
+  showSelection?: boolean
+  showReturnReason?: boolean
+  showTaxCode?: boolean
 }
 
 export function CreateProductTable({
@@ -46,12 +49,16 @@ export function CreateProductTable({
   stockLimitReserve = 0,
   minStockToSelectWarehouse = 0,
   showExplicitZeroDiscount = false,
+  showSelection = false,
+  showReturnReason = false,
+  showTaxCode = false,
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
       <table className="min-w-300 w-full table-fixed text-left text-sm text-zinc-700">
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
+            {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
             <th className="w-[20%] px-2 py-2">Product</th>
             <th className="w-[26%] px-2 py-2">Warehouse</th>
             <th className="w-[8%] px-2 py-2 text-left">Quantity</th>
@@ -60,13 +67,20 @@ export function CreateProductTable({
             <th className="w-[8%] px-2 py-2 text-left text-wrap">Disc Amt</th>
             <th className="w-[8%] px-2 py-2 text-left text-wrap">Net Price</th>
             <th className="w-[8%] px-2 py-2 text-left">Total</th>
+            {showTaxCode && <th className="w-[10%] px-2 py-2 text-left">Tax Code</th>}
+            {showReturnReason && <th className="w-[12%] px-2 py-2 text-left">Return Reason</th>}
             <th className="w-[8%] px-2 py-2 text-left">Actions</th>
           </tr>
         </thead>
         <tbody>
           {productRows.length === 0 ? (
             <tr>
-              <td className="px-3 py-8" colSpan={9}>
+              <td
+                className="px-3 py-8"
+                colSpan={
+                  9 + (showSelection ? 1 : 0) + (showReturnReason ? 1 : 0) + (showTaxCode ? 1 : 0)
+                }
+              >
                 <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
                   <div className="text-sm font-medium text-zinc-700">No products yet</div>
                   <div className="text-xs text-zinc-500">
@@ -96,6 +110,9 @@ export function CreateProductTable({
               stockLimitReserve={stockLimitReserve}
               minStockToSelectWarehouse={minStockToSelectWarehouse}
               showExplicitZeroDiscount={showExplicitZeroDiscount}
+              showSelection={showSelection}
+              showReturnReason={showReturnReason}
+              showTaxCode={showTaxCode}
             />
           ))}
         </tbody>

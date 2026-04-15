@@ -65,6 +65,7 @@ export function useSoProducts({
       effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
       productQueryLimit,
+      'sales',
     ),
     enabled: customerSelected,
   })
@@ -77,6 +78,7 @@ export function useSoProducts({
         effectiveWarehouseCode || undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
+        'sales',
       ),
     )
   }, [customerSelected, effectiveWarehouseCode, normalizedProductSearch, queryClient])

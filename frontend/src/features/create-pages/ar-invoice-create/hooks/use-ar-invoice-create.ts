@@ -19,8 +19,8 @@ import {
   type ProductLookupItem,
 } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
+  AR_INVOICE_MANDATORY_FIELDS,
   getMissingMandatoryCreateFieldsTyped,
-  SALES_ORDER_MANDATORY_FIELDS,
 } from '@/features/create-pages/create-shared/config/create-mandatory-fields'
 import {
   calculateOrderTotals,
@@ -43,7 +43,6 @@ import {
 } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
 import { type ARInvoiceDetailLine } from '@/features/table-pages/ar-invoices/api/ar-invoice.service'
 import { salesOrderQueries } from '@/features/table-pages/sales-orders/api/sales-order.queries'
-import { type OpenSalesOrderLine } from '@/features/table-pages/sales-orders/api/sales-order.service'
 import { salesQuotationQueries } from '@/features/table-pages/sales-quotations/api/sales-quotation.queries'
 import {
   type ARInvoiceHeaderState,
@@ -61,8 +60,8 @@ type ARInvoiceCreateMode = 'create' | 'edit'
 type UseARInvoiceCreateOptions = {
   mode?: ARInvoiceCreateMode
   docNum?: string
-  sourceDocNum?: string
-  sourceDocType?: 'SalesQuotation' | 'SalesOrder'
+  sourceDocNum?: string | undefined
+  sourceDocType?: 'SalesQuotation' | 'SalesOrder' | undefined
 }
 
 export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
@@ -93,6 +92,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   )
   const [createError, setCreateError] = useState<string | null>(null)
   const [pullFromSOModalOpen, setPullFromSOModalOpen] = useState(false)
+  const [pullFromSQModalOpen, setPullFromSQModalOpen] = useState(false)
   const hydratedDocNumRef = useRef<string | null>(null)
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null)
   const lastRestrictedToastAtRef = useRef(0)
@@ -205,14 +205,15 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     void (async () => {
       const detailLines = detail.DocumentLines ?? []
-      const productsForWarehouse =
+      const productsForWarehouse = (
         warehouseCode.trim().length > 0
           ? await queryClient
               .fetchQuery(
                 createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
               )
-              .catch((): ProductLookupItem[] => [])
+              .catch(() => [])
           : []
+      ) as ProductLookupItem[]
 
       const productByCode = new Map<string, ProductLookupItem>(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
@@ -267,14 +268,12 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           stock: lineStock,
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-          vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
-          // SAP line tax is authoritative; fall back to product master only when missing
-          taxRate: Number(
-            (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
-              ? (line as Record<string, unknown>).VatPrcnt
-              : Number((line as Record<string, unknown>).VatPrcnt) || 0) ||
-              Number(productMeta?.taxRate ?? 0),
-          ),
+          vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
+          taxRate:
+            (line as Record<string, unknown>).VatPrcnt !== undefined &&
+            (line as Record<string, unknown>).VatPrcnt !== null
+              ? Number((line as Record<string, unknown>).VatPrcnt)
+              : Number(productMeta?.taxRate ?? 0),
           uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
           ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
           quantity,
@@ -381,14 +380,15 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     void (async () => {
       const detailLines = detail.DocumentLines ?? []
-      const productsForWarehouse =
+      const productsForWarehouse = (
         warehouseCode.trim().length > 0
           ? await queryClient
               .fetchQuery(
                 createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
               )
-              .catch((): ProductLookupItem[] => [])
+              .catch(() => [])
           : []
+      ) as ProductLookupItem[]
 
       const productByCode = new Map<string, ProductLookupItem>(
         productsForWarehouse.map((item) => [String(item.code).trim(), item]),
@@ -446,14 +446,12 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           stock: lineStock,
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-          vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
-          // SAP line tax is authoritative; fall back to product master only when missing
-          taxRate: Number(
-            (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
-              ? (line as Record<string, unknown>).VatPrcnt
-              : Number((line as Record<string, unknown>).VatPrcnt) || 0) ||
-              Number(productMeta?.taxRate ?? 0),
-          ),
+          vatGroup: String(line.TaxCode ?? line.VatGroup ?? productMeta?.vatGroup ?? '').trim(),
+          taxRate:
+            (line as Record<string, unknown>).VatPrcnt !== undefined &&
+            (line as Record<string, unknown>).VatPrcnt !== null
+              ? Number((line as Record<string, unknown>).VatPrcnt)
+              : Number(productMeta?.taxRate ?? 0),
           uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
           ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
           quantity,
@@ -461,9 +459,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           discountAmount,
           comment: '',
           baseEntry: detail.DocEntry ?? detail.id,
-          baseLine: Number.isFinite((line as Record<string, unknown>).LineNum)
-            ? Number((line as Record<string, unknown>).LineNum)
-            : index,
+          baseLine: line.LineNum ?? index,
           baseType: baseType,
           warehouseCode: lineWarehouse,
         }
@@ -624,7 +620,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   )
 
   const missingMandatoryFields = useMemo(
-    () => getMissingMandatoryCreateFieldsTyped(createMandatoryValues, SALES_ORDER_MANDATORY_FIELDS),
+    () => getMissingMandatoryCreateFieldsTyped(createMandatoryValues, AR_INVOICE_MANDATORY_FIELDS),
     [createMandatoryValues],
   )
 
@@ -668,8 +664,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         : null
 
   const requiredCompletionPercent =
-    ((SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
-      SALES_ORDER_MANDATORY_FIELDS.length) *
+    ((AR_INVOICE_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
+      AR_INVOICE_MANDATORY_FIELDS.length) *
     100
 
   const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? 'updating' : 'creating'} A/R invoice.`
@@ -756,7 +752,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
               WarehouseCode: row.warehouseCode || undefined,
-              VatGroup: row.vatGroup || undefined,
+              TaxCode: row.vatGroup || undefined,
               ...(hasCompleteBaseLink
                 ? {
                     BaseType: row.baseType,
@@ -849,7 +845,26 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const summaryCurrencyLabel = summaryCurrency === 'MULTI' ? 'MULTI' : summaryCurrency
   const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum
 
-  const addProductsFromSOs = async (selectedLines: OpenSalesOrderLine[]) => {
+  const addProductsFromSOs = async (
+    selectedLines: Array<{
+      ItemCode: string
+      ItemDescription?: string
+      Quantity?: number
+      Price?: number
+      DocCurr?: string
+      TaxCode?: string
+      VatGroup?: string
+      VatPrcnt?: number
+      UoMCode?: string | number
+      UoMEntry?: number
+      WarehouseCode?: string
+      LineNum?: number
+      DocNum?: number
+      DocEntry?: number
+      OpenQty?: number
+      DiscountPercent?: number
+    }>,
+  ) => {
     const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))]
     const stocksByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
 
@@ -871,24 +886,24 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
         : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
+      const price = Number(line.Price ?? 0)
+      const openQty = Number(line.OpenQty ?? line.Quantity ?? 1)
+      const discPct = Number(line.DiscountPercent ?? 0)
+
       return {
         id: `so-pull-${line.DocNum}-${line.LineNum}-${Date.now()}-${index}`,
         productCode: itemCode,
         productName: line.ItemDescription,
         stock: lineStock,
-        price: Number(line.Price ?? 0),
-        currency: line.DocCurr ?? '',
-        vatGroup: line.TaxCode ?? '',
-        taxRate: 0,
-        uomCode: typeof line.UoMCode === 'string' ? line.UoMCode : undefined,
+        price,
+        currency: line.DocCurr,
+        vatGroup: line.TaxCode || line.VatGroup,
+        taxRate: line.VatPrcnt || 0,
+        uomCode: line.UoMCode,
         uomEntry: line.UoMEntry,
-        quantity: Number(line.OpenQty ?? 1),
-        discountPercent: Number(line.DiscountPercent ?? 0),
-        discountAmount:
-          (Number(line.Price ?? 0) *
-            Number(line.OpenQty ?? 1) *
-            Number(line.DiscountPercent ?? 0)) /
-          100,
+        quantity: openQty,
+        discountPercent: discPct,
+        discountAmount: (price * openQty * discPct) / 100,
         comment: `Based on SO ${line.DocNum}`,
         baseEntry: line.DocEntry,
         baseLine: line.LineNum,
@@ -902,6 +917,81 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       return [...existing, ...newRows]
     })
     setPullFromSOModalOpen(false)
+  }
+
+  const addProductsFromSQs = async (
+    selectedLines: Array<{
+      ItemCode: string
+      ItemDescription?: string
+      Quantity?: number
+      Price?: number
+      UnitPrice?: number
+      DocCurr?: string
+      TaxCode?: string
+      VatGroup?: string
+      VatPrcnt?: number
+      UoMCode?: string | number
+      UoMEntry?: number
+      WarehouseCode?: string
+      LineNum?: number
+      DocNum?: number
+      DocEntry?: number
+      OpenQty?: number
+      DiscountPercent?: number
+    }>,
+  ) => {
+    const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))]
+    const stocksByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
+
+    await Promise.all(
+      uniqueItemCodes.map(async (code) => {
+        const stocks = await queryClient
+          .fetchQuery(createSharedQueries.productWarehouseStocks(code))
+          .catch(() => [])
+        stocksByItemCode.set(code, stocks)
+      }),
+    )
+
+    const newRows = selectedLines.map((line, index) => {
+      const itemCode = String(line.ItemCode).trim()
+      const lineWarehouse = String(line.WarehouseCode ?? '').trim()
+      const warehouseStocks = stocksByItemCode.get(itemCode) ?? []
+
+      const lineStock = lineWarehouse
+        ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
+        : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
+
+      const price = Number(line.Price ?? line.UnitPrice ?? 0)
+      const openQty = Number(line.OpenQty ?? line.Quantity ?? 1)
+      const discountPercent = Number(line.DiscountPercent ?? 0)
+
+      return {
+        id: `sq-pull-${line.DocNum}-${line.LineNum}-${Date.now()}-${index}`,
+        productCode: itemCode,
+        productName: line.ItemDescription,
+        stock: lineStock,
+        price,
+        currency: line.DocCurr,
+        vatGroup: line.TaxCode ?? line.VatGroup,
+        taxRate: line.VatPrcnt ?? 0,
+        uomCode: line.UoMCode,
+        uomEntry: line.UoMEntry,
+        quantity: openQty,
+        discountPercent,
+        discountAmount: (price * openQty * discountPercent) / 100,
+        comment: `Based on SQ ${line.DocNum}`,
+        baseEntry: line.DocEntry,
+        baseLine: line.LineNum,
+        baseType: 23, // Sales Quotation
+        warehouseCode: lineWarehouse,
+      } as ProductRow
+    })
+
+    productsHook.setProductRows((prev) => {
+      const existing = prev.filter((r) => r.productCode.trim())
+      return [...existing, ...newRows]
+    })
+    setPullFromSQModalOpen(false)
   }
 
   return {
@@ -1048,5 +1138,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     pullFromSOModalOpen,
     setPullFromSOModalOpen,
     addProductsFromSOs,
+    pullFromSQModalOpen,
+    setPullFromSQModalOpen,
+    addProductsFromSQs,
   }
 }

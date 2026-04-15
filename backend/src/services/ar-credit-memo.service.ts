@@ -1,19 +1,20 @@
-﻿// A/R Credit Note Service: Logic for A/R Credit Notes (Sales Returns/Credits), combining HANA queries for listings and SAP Service Layer for document lifecycle.
+// A/R Credit Memo Service: Logic for A/R Credit Memos (Sales Returns/Credits), combining HANA queries for listings and SAP Service Layer for document lifecycle.
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
-import type { CreditNoteFilters } from "@/dal/types/ar-credit-note.types";
-import { ARCreditNote, ARCreditNoteSchema } from "@/db/schemas/ar-credit-note.schema";
+import type { CreditNoteFilters } from "@/dal/types/ar-credit-memo.types";
+import { ArCreditMemo, ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
-// Fetches a paginated list of A/R Credit Notes from HANA with dynamic filtering support.
+// Fetches a paginated list of A/R Credit Memos from HANA with dynamic filtering support.
 export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, ARCreditNoteSchema);
+    const repo = await getTenantRepository(dbName, ARCreditMemoSchema);
     const queryBuilder = repo.createQueryBuilder("cn");
     queryBuilder.where("1=1");
 
@@ -86,12 +87,12 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
       : ({ "cn.docDate": "DESC", "cn.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     // Handles pagination and sorting logic via unified PageService.
-    const result = await PageService.getPagedData<ARCreditNote>({
+    const result = await PageService.getPagedData<ArCreditMemo>({
       query: queryBuilder,
       page: Number(filters.page) || 1,
       limit: Number(filters.limit) || 10,
       sort,
-      entityName: "ARCreditNotes",
+      entityName: "ArCreditMemos",
       dbName,
     });
 
@@ -111,13 +112,13 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.error({ msg: "Failed to fetch A/R Credit Notes", error: error.message, db: dbName });
+    logger.error({ msg: "Failed to fetch A/R Credit Memos", error: error.message, db: dbName });
     throw error;
   }
 };
 
 export const getCreditNoteDocNums = async (dbName: string, search?: string, limit?: number) => {
-  const repo = await getTenantRepository(dbName, ARCreditNoteSchema);
+  const repo = await getTenantRepository(dbName, ARCreditMemoSchema);
   const queryBuilder = repo.createQueryBuilder("cn");
   const safeLimit = getSafeDocNumLimit(limit);
 
@@ -137,7 +138,7 @@ export const getCreditNoteDocNums = async (dbName: string, search?: string, limi
     .map((code) => ({ code, name: code }));
 };
 
-// Retrieves detailed data for a single A/R Credit Note from the SAP Service Layer.
+// Retrieves detailed data for a single A/R Credit Memo from the SAP Service Layer.
 export const getCreditNote = async (sessionId: string, id: string) => {
   try {
     const result = (await serviceLayerClient.request(
@@ -151,34 +152,30 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       id: result.DocEntry,
       DocNum: result.DocNum,
       DocDate: result.DocDate,
+      DocDueDate: result.DocDueDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: result.Address2,
+      SalesPersonCode: result.SalesPersonCode,
+      NumAtCard: result.NumAtCard,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
-        const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
+        const normalized = normalizeSAPLineData(lineData);
         return {
-          ItemCode: line.ItemCode,
-          ItemDescription: line.ItemDescription,
-          Quantity: line.Quantity,
-          UoMCode: lineData.UoMCode,
-          UoMEntry: lineData.UoMEntry,
-          Price: line.Price,
-          VatGroup: line.VatGroup || String(lineData.TaxCode ?? "").trim(),
-          VatPrcnt: sapTaxRate,
-          WarehouseCode: line.WarehouseCode,
-          LineTotal: line.LineTotal,
+          ...normalized,
+          U_ReturnReason: lineData.U_ReturnReason || "",
         };
       }),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({
-      msg: "Failed to fetch A/R Credit Note from Service Layer",
+      msg: "Failed to fetch A/R Credit Memo from Service Layer",
       error: error.message,
       id,
     });
@@ -186,7 +183,7 @@ export const getCreditNote = async (sessionId: string, id: string) => {
   }
 };
 
-// Creates a new Sales Credit Note (A/R Credit Note) in SAP B1.
+// Creates a new Sales Credit Note (A/R Credit Memo) in SAP B1.
 export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     // Map input payload to the canonical SAP Service Layer JSON structure for Credit Notes.
@@ -194,15 +191,29 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
-        UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-        VatGroup: item.VatGroup as string,
-        WarehouseCode: item.WarehouseCode as string,
-      })),
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+        const line: Record<string, unknown> = {
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+          VatGroup: (item.VatGroup ?? item.TaxCode) as string,
+          WarehouseCode: item.WarehouseCode as string,
+        };
+
+        // Only map Base document fields if they represent a valid SAP linking type (e.g. 13 for AR Invoice)
+        if (item.BaseType !== undefined && item.BaseType !== null && Number(item.BaseType) !== -1) {
+          line.BaseType = item.BaseType as number;
+          line.BaseEntry = item.BaseEntry as number;
+          line.BaseLine = item.BaseLine as number;
+        }
+        // Map ReturnReason to the SAP UDF on each line
+        if (item.U_ReturnReason) {
+          line.U_ReturnReason = item.U_ReturnReason as string;
+        }
+        return line;
+      }),
     };
 
     // Correct date formatting to YYYY-MM-DD.
@@ -230,21 +241,21 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
 
     return {
       success: true,
-      message: "A/R Credit Note created successfully",
+      message: "A/R Credit Memo created successfully",
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error({
-      msg: "Failed to create A/R Credit Note in Service Layer",
+      msg: "Failed to create A/R Credit Memo in Service Layer",
       error: error.message,
     });
     throw error;
   }
 };
 
-// Updates metadata (Comments) on an existing A/R Credit Note.
+// Updates metadata (Comments) on an existing A/R Credit Memo.
 export const updateCreditNote = async (
   sessionId: string,
   id: string,
@@ -263,15 +274,15 @@ export const updateCreditNote = async (
       purgeCache(`dash:sales:${session.companyDB}:`);
     }
 
-    return { success: true, message: "A/R Credit Note updated successfully" };
+    return { success: true, message: "A/R Credit Memo updated successfully" };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.error({ msg: "Failed to update A/R Credit Note", error: error.message, id });
+    logger.error({ msg: "Failed to update A/R Credit Memo", error: error.message, id });
     throw error;
   }
 };
 
-// Executes the cancellation procedure for an A/R Credit Note in SAP B1.
+// Executes the cancellation procedure for an A/R Credit Memo in SAP B1.
 export const cancelCreditNote = async (sessionId: string, id: string) => {
   try {
     await serviceLayerClient.request(sessionId, "POST", `/CreditNotes(${id})/Cancel`);
@@ -282,15 +293,15 @@ export const cancelCreditNote = async (sessionId: string, id: string) => {
       purgeCache(`dash:sales:${session.companyDB}:`);
     }
 
-    return { success: true, message: "A/R Credit Note cancelled successfully" };
+    return { success: true, message: "A/R Credit Memo cancelled successfully" };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.error({ msg: "Failed to cancel A/R Credit Note", error: error.message, id });
+    logger.error({ msg: "Failed to cancel A/R Credit Memo", error: error.message, id });
     throw error;
   }
 };
 
-export const arCreditNoteService = {
+export const arCreditMemoService = {
   getCreditNotes,
   getCreditNoteDocNums,
   getCreditNote,

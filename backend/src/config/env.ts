@@ -1,4 +1,4 @@
-﻿// Environment Configuration: Bridges process.env with the application's config object.
+// Environment Configuration: Bridges process.env with the application's config object.
 // It performs strict validation at runtime to prevent the server from starting with invalid settings.
 
 import "dotenv/config";

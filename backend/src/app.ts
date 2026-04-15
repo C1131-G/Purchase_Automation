@@ -1,4 +1,4 @@
-﻿// Express Application Configuration: This is the central assembly point for the HTTP server.
+// Express Application Configuration: This is the central assembly point for the HTTP server.
 // It orchestrates security middleware, session management, route mounting, and global error handling.
 
 import express, { type NextFunction, type Request, type Response } from "express";

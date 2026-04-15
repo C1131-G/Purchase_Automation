@@ -1,4 +1,4 @@
-﻿// Master Data Routes: Read-only endpoints for common lookups and validation reference data.
+// Master Data Routes: Read-only endpoints for common lookups and validation reference data.
 
 import express from "express";
 

@@ -1,4 +1,4 @@
-﻿// A/P Credit Memo Routes: Endpoints for vendors to manage credit memos and returns.
+// A/P Credit Memo Routes: Endpoints for vendors to manage credit memos and returns.
 
 import express from "express";
 

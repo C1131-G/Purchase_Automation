@@ -1,4 +1,4 @@
-﻿// Dashboard Service: Aggregation logic for High-Level KPIs, utilizing HANA SQL for performant analytics and multi-layer caching.
+// Dashboard Service: Aggregation logic for High-Level KPIs, utilizing HANA SQL for performant analytics and multi-layer caching.
 
 // Core & Utils
 import { logger } from "@/core/logger/pino-logger";

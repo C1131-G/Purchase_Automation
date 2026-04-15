@@ -1,4 +1,4 @@
-﻿// Warehouse Schema: Maps to the native SAP B1 'OWHS' table.
+// Warehouse Schema: Maps to the native SAP B1 'OWHS' table.
 // Defines physical or logical storage locations.
 
 import { EntitySchema } from "typeorm";

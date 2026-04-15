@@ -32,6 +32,8 @@ export type ARInvoiceDetailLine = {
   DiscountPercent?: number
   UoMCode?: string | number
   UoMEntry?: number
+  VatGroup?: string
+  VatPrcnt?: number
   TaxCode?: string
   WarehouseCode?: string
   LineTotal?: number

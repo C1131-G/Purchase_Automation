@@ -1,4 +1,4 @@
-﻿import type { z } from "zod";
+import type { z } from "zod";
 
 import type { CreditNoteQuerySchema } from "@/validation/schemas/inputs/credit-note.input";
 

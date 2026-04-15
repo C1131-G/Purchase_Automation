@@ -1,4 +1,4 @@
-﻿// Dashboard DAL: Handles HTTP requests for aggregate data summaries displayed on the user dashboard.
+// Dashboard DAL: Handles HTTP requests for aggregate data summaries displayed on the user dashboard.
 
 import type { NextFunction, Request, Response } from "express";
 

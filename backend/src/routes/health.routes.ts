@@ -1,4 +1,4 @@
-﻿// Health Check Routes: Monitoring endpoints for system availability and connectivity status.
+// Health Check Routes: Monitoring endpoints for system availability and connectivity status.
 
 import { type Request, type Response, Router } from "express";
 

@@ -1,4 +1,4 @@
-﻿// Sales Order Schema: Maps to the native SAP B1 'ORDR' table (Sales/Customer document).
+// Sales Order Schema: Maps to the native SAP B1 'ORDR' table (Sales/Customer document).
 
 import { EntitySchema } from "typeorm";
 

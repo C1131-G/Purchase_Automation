@@ -1,4 +1,4 @@
-﻿// Middleware Configuration: Setup for global Express request/response processors.
+// Middleware Configuration: Setup for global Express request/response processors.
 
 import compression from "compression";
 import cors from "cors";

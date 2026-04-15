@@ -1,4 +1,4 @@
-﻿// Outgoing Payment DAL: Handles HTTP requests for Outgoing Payment (Vendor Payment) operations.
+// Outgoing Payment DAL: Handles HTTP requests for Outgoing Payment (Vendor Payment) operations.
 
 import type { NextFunction, Request, Response } from "express";
 

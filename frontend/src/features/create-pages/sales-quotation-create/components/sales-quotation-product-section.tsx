@@ -107,6 +107,7 @@ export function SalesQuotationProductSection({
         warehousesLoading={warehousesLoading}
         stockLimitReserve={1}
         minStockToSelectWarehouse={2}
+        showTaxCode={true}
       />
     </BaseProductSection>
   )

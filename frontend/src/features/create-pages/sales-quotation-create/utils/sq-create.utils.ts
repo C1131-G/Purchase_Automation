@@ -29,7 +29,6 @@ export const MANDATORY_ERROR_TEXT: Record<
 > = {
   vendorCode: 'Customer Code is required.',
   vendorName: 'Customer Name is required.',
-  warehouseCode: 'Warehouse is required.',
 }
 export const REQUIRED_FIELD_LABEL_TEXT: Record<
   (typeof SALES_QUOTATION_MANDATORY_FIELDS)[number],
@@ -37,7 +36,6 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
 > = {
   vendorCode: 'Customer Code',
   vendorName: 'Customer Name',
-  warehouseCode: 'Warehouse',
 }
 export const QUICK_PRODUCT_LIMIT = 10
 export const FULL_PRODUCT_LIMIT = 100

@@ -1,4 +1,4 @@
-﻿// Organization Schema: Maps to the central 'ORGANIZATION' table in the common/discovery database.
+// Organization Schema: Maps to the central 'ORGANIZATION' table in the common/discovery database.
 // This schema is the source of truth for all active tenants and holds the keys (Service Layer credentials) required to unlock tenant data.
 
 import { EntitySchema } from "typeorm";

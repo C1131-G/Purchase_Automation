@@ -12,6 +12,7 @@ type MasterDataQuery = {
   limit?: number
   warehouseCode?: string
   itemCode?: string
+  type?: 'sales' | 'purchase'
 }
 
 export const masterDataAPI = {
@@ -20,6 +21,7 @@ export const masterDataAPI = {
     if (params?.search) query.set('search', params.search)
     if (params?.limit) query.set('limit', String(params.limit))
     if (params?.warehouseCode) query.set('warehouseCode', params.warehouseCode)
+    if (params?.type) query.set('type', params.type)
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/products?${query.toString()}`,
     )

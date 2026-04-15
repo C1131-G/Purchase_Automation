@@ -1,4 +1,4 @@
-﻿// Outgoing Payment Routes: Endpoints for vendors to track payments made to their accounts.
+// Outgoing Payment Routes: Endpoints for vendors to track payments made to their accounts.
 
 import express from "express";
 

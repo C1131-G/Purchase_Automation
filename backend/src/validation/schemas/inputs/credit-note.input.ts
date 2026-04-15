@@ -92,6 +92,10 @@ const CreditNoteLineItemSchema = z.object({
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: z.string().optional(),
   WarehouseCode: z.string().optional(),
+  BaseEntry: z.number().int().optional(),
+  BaseLine: z.number().int().optional(),
+  BaseType: z.number().int().optional(),
+  U_ReturnReason: z.string().optional(),
 });
 
 // CreateCreditNoteInputSchema: Validates new credit note creation.
@@ -101,6 +105,11 @@ export const CreateCreditNoteInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
+  DocDueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
+  NumAtCard: z.string().optional(),
   Comments: z.string().optional(),
   DocumentLines: z.array(CreditNoteLineItemSchema).min(1),
 });

@@ -1,4 +1,4 @@
-﻿// Tenant DAL Helper: Provides centralized access to tenant-specific TypeORM repositories and raw query execution.
+// Tenant DAL Helper: Provides centralized access to tenant-specific TypeORM repositories and raw query execution.
 
 import type { EntitySchema, ObjectLiteral, Repository } from "typeorm";
 

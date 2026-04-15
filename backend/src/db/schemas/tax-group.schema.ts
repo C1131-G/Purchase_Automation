@@ -1,4 +1,4 @@
-﻿// Tax Group Schema: Maps to the native SAP B1 'OVTG' table.
+// Tax Group Schema: Maps to the native SAP B1 'OVTG' table.
 // Stores tax codes and their corresponding percentages (Rates) for duty calculations.
 
 import { EntitySchema } from "typeorm";

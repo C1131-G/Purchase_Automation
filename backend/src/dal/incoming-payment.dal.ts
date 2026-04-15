@@ -1,4 +1,4 @@
-﻿// Incoming Payment DAL: Handles HTTP requests for Incoming Payment operations.
+// Incoming Payment DAL: Handles HTTP requests for Incoming Payment operations.
 
 import type { NextFunction, Request, Response } from "express";
 

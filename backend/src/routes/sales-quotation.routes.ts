@@ -24,6 +24,7 @@ router.get(
   validateQuery(SalesQuotationDocNumLookupQuerySchema),
   salesQuotationDal.getSalesQuotationDocNums,
 );
+router.get("/open-lines", salesQuotationDal.getOpenSalesQuotationLines);
 
 // GET /SalesEmployee: Lookup for finding which sales personnel are assigned to the current tenant.
 router.get("/SalesEmployee", salesQuotationDal.getSalesEmployees);

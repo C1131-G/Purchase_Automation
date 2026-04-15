@@ -1,4 +1,4 @@
-﻿// HANA Database Service: Low-level driver for SAP HANA connectivity. Manages a high-performance connection pool shared across all tenant-specific repositories.
+// HANA Database Service: Low-level driver for SAP HANA connectivity. Manages a high-performance connection pool shared across all tenant-specific repositories.
 
 import hanaClient from "@sap/hana-client";
 

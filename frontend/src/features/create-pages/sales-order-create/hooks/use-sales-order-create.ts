@@ -225,14 +225,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           stock: lineStock,
           price,
           currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
-          vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
+          vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
           // SAP line tax is authoritative; fall back to product master only when missing
-          taxRate: Number(
-            (typeof (line as Record<string, unknown>).VatPrcnt === 'number'
-              ? (line as Record<string, unknown>).VatPrcnt
-              : Number((line as Record<string, unknown>).VatPrcnt) || 0) ||
-              Number(productMeta?.taxRate ?? 0),
-          ),
+          taxRate:
+            (line as Record<string, unknown>).VatPrcnt !== undefined &&
+            (line as Record<string, unknown>).VatPrcnt !== null
+              ? Number((line as Record<string, unknown>).VatPrcnt)
+              : Number(productMeta?.taxRate ?? 0),
           uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
           uomEntry:
             typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)

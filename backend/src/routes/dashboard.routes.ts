@@ -1,4 +1,4 @@
-﻿// Dashboard Routes: Endpoints for high-level KPI aggregation and performance metrics.
+// Dashboard Routes: Endpoints for high-level KPI aggregation and performance metrics.
 
 import express from "express";
 

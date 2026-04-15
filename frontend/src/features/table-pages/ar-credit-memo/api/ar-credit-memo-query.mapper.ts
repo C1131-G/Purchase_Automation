@@ -1,12 +1,12 @@
-/** AR Credit Note Search Mapper: Bridges URL search state with API request parameters. */
+/** AR Credit Memo Search Mapper: Bridges URL search state with API request parameters. */
 import { type ColumnFiltersState } from '@tanstack/react-table'
 
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import {
-  type ARCreditNoteListParams,
-  type ARCreditNoteStatus,
-} from '@/features/table-pages/ar-credit-note/api/ar-credit-note.service'
-import { type ARCreditNoteSearch } from '@/features/table-pages/ar-credit-note/schemas/ar-credit-note-search.schema'
+  type ArCreditMemoListParams,
+  type ArCreditMemoStatus,
+} from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.service'
+import { type ArCreditMemoSearch } from '@/features/table-pages/ar-credit-memo/schemas/ar-credit-memo-search.schema'
 import {
   type DateRangeFilter,
   isDateRangeFilter,
@@ -64,13 +64,13 @@ const SORTABLE_FIELDS = new Set([
   'DocStatus',
 ])
 
-export const mapSearchToARCreditNoteListParams = (
-  search: ARCreditNoteSearch,
-): ARCreditNoteListParams => {
+export const mapSearchToArCreditMemoListParams = (
+  search: ArCreditMemoSearch,
+): ArCreditMemoListParams => {
   const filters = normalizeColumnFilters(search.columnFilters)
 
   const docDate = getDateRangeFilter(filters, 'DocDate')
-  const docStatus = getEnumFilter<ARCreditNoteStatus>(filters, 'DocStatus', ['Open', 'Closed'])
+  const docStatus = getEnumFilter<ArCreditMemoStatus>(filters, 'DocStatus', ['Open', 'Closed'])
   const docTotal = getDocTotalFilter(filters)
 
   const start = docDate?.from ?? docDate?.to
@@ -79,7 +79,7 @@ export const mapSearchToARCreditNoteListParams = (
   const firstSort = Array.isArray(search.sorting) ? search.sorting[0] : undefined
   const sortBy =
     firstSort && SORTABLE_FIELDS.has(firstSort.id)
-      ? (firstSort.id as ARCreditNoteListParams['sortBy'])
+      ? (firstSort.id as ArCreditMemoListParams['sortBy'])
       : undefined
   const sortOrder = firstSort ? (firstSort.desc ? 'desc' : 'asc') : undefined
 

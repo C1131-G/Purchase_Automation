@@ -60,14 +60,31 @@ export const createSharedQueries = {
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
       gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
     }),
-  products: (warehouseCode?: string, search?: string, limit?: number) =>
+  products: (
+    warehouseCode?: string,
+    search?: string,
+    limit?: number,
+    type?: 'sales' | 'purchase',
+  ) =>
     queryOptions({
-      queryKey: [...createSharedKeys.products(), warehouseCode ?? '', search ?? '', limit],
+      queryKey: [
+        ...createSharedKeys.products(),
+        warehouseCode ?? '',
+        search ?? '',
+        limit,
+        type ?? 'default',
+      ],
       queryFn: async () => {
-        const params: { warehouseCode?: string; search?: string; limit?: number } = {}
+        const params: {
+          warehouseCode?: string
+          search?: string
+          limit?: number
+          type?: 'sales' | 'purchase'
+        } = {}
         if (warehouseCode) params.warehouseCode = warehouseCode
         if (search) params.search = search
         if (typeof limit === 'number') params.limit = limit
+        if (type) params.type = type
 
         return unwrapMasterData(await masterDataAPI.getProducts(params))
           .map(mapProductLookup)

@@ -1,11 +1,11 @@
-﻿// AR Credit Note Schema: Maps to the native SAP B1 'ORIN' table (Accounts Receivable Credit Memo).
+// AR Credit Memo Schema: Maps to the native SAP B1 'ORIN' table (Accounts Receivable Credit Memo).
 // Used to track customer returns and credit adjustments.
 
 import { EntitySchema } from "typeorm";
 
 import type { HANAColumnType } from "@/db/schemas/types/base.types";
 
-export type ARCreditNote = {
+export type ArCreditMemo = {
   docEntry: number; // Internal SAP key (Primary).
   docNum: number; // Visible SAP document number.
   docDate: Date;
@@ -16,8 +16,8 @@ export type ARCreditNote = {
   docStatus: string; // 'O' = Open, 'C' = Closed.
 };
 
-export const ARCreditNoteSchema = new EntitySchema<ARCreditNote>({
-  name: "ARCreditNote",
+export const ARCreditMemoSchema = new EntitySchema<ArCreditMemo>({
+  name: "ArCreditMemo",
   tableName: "ORIN",
   columns: {
     docEntry: { primary: true, type: "int" as HANAColumnType, name: "DocEntry" },

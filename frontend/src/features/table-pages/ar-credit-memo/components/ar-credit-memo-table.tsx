@@ -13,16 +13,16 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
 import { normalizeColumnFilters } from '@/components/types/filter-utils'
 import { createSharedQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
-import { arCreditNoteQueries } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.queries'
-import { type ARCreditNoteListItem } from '@/features/table-pages/ar-credit-note/api/ar-credit-note.service'
-import { mapSearchToARCreditNoteListParams } from '@/features/table-pages/ar-credit-note/api/ar-credit-note-query.mapper'
-import { createARCreditNoteColumns } from '@/features/table-pages/ar-credit-note/components/ar-credit-note-columns'
-import { ARCreditNoteLookupLayer } from '@/features/table-pages/ar-credit-note/components/ar-credit-note-lookup-layer'
+import { arCreditMemoQueries } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries'
+import { type ArCreditMemoListItem } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.service'
+import { mapSearchToArCreditMemoListParams } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo-query.mapper'
+import { createArCreditMemoColumns } from '@/features/table-pages/ar-credit-memo/components/ar-credit-memo-columns'
+import { ArCreditMemoLookupLayer } from '@/features/table-pages/ar-credit-memo/components/ar-credit-memo-lookup-layer'
 import {
-  type ARCreditNoteColumnFilter,
-  arCreditNoteColumnFilterSchema,
-  type ARCreditNoteSearch,
-} from '@/features/table-pages/ar-credit-note/schemas/ar-credit-note-search.schema'
+  type ArCreditMemoColumnFilter,
+  ArCreditMemoColumnFilterSchema,
+  type ArCreditMemoSearch,
+} from '@/features/table-pages/ar-credit-memo/schemas/ar-credit-memo-search.schema'
 import { TablePagination } from '@/features/table-pages/table-shared/components/controls/pagination'
 import { TableErrorState } from '@/features/table-pages/table-shared/components/core/table-error-state'
 import {
@@ -52,14 +52,14 @@ import { useSetPaginationAction } from '@/store/table/table-pagination.store'
 import { useSetSortingAction } from '@/store/table/table-sorting.store'
 import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
-const routeApi = getRouteApi('/_layout/sales/ar-credit-note')
-const TABLE_ID = 'ar-credit-notes'
+const routeApi = getRouteApi('/_layout/sales/ar-credit-memo')
+const TABLE_ID = 'ar-credit-memos'
 const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'DocStatus']
 
-const toARCreditNoteColumnFilters = (filters: ColumnFiltersState): ARCreditNoteColumnFilter[] => {
-  const typedFilters: ARCreditNoteColumnFilter[] = []
+const toArCreditMemoColumnFilters = (filters: ColumnFiltersState): ArCreditMemoColumnFilter[] => {
+  const typedFilters: ArCreditMemoColumnFilter[] = []
   for (const filter of filters) {
-    const parsed = arCreditNoteColumnFilterSchema.safeParse(filter)
+    const parsed = ArCreditMemoColumnFilterSchema.safeParse(filter)
     if (!parsed.success) continue
     typedFilters.push(parsed.data)
   }
@@ -67,10 +67,10 @@ const toARCreditNoteColumnFilters = (filters: ColumnFiltersState): ARCreditNoteC
 }
 
 /**
- * ARCreditNoteTable: Accounts Receivable Credit Note data grid.
+ * ArCreditMemoTable: Accounts Receivable Credit Note data grid.
  * Mirrors the financial list pattern for strict visual and functional consistency.
  */
-export function ARCreditNoteTable() {
+export function ArCreditMemoTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const setSorting = useSetSortingAction()
@@ -87,7 +87,37 @@ export function ARCreditNoteTable() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createARCreditNoteColumns(), [])
+  const queryClient = useQueryClient()
+
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      if (!docNum) return
+      void queryClient.prefetchQuery(arCreditMemoQueries.detailByDocNum(docNum))
+    },
+    [queryClient],
+  )
+
+  const columns = useMemo(
+    () =>
+      createArCreditMemoColumns({
+        onDocNumHover: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+        },
+        onDocNumDoubleClick: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+          void navigate({
+            to: '/sales/ar-credit-memo/$docNum/edit',
+            params: { docNum: normalized },
+            viewTransition: true,
+          } as never)
+        },
+      }),
+    [navigate, prefetchEditRouteData],
+  )
   const columnIds = useMemo(
     () =>
       columns
@@ -135,27 +165,25 @@ export function ARCreditNoteTable() {
     [sorting, columnVisibility, columnOrder, pagination, columnFilters],
   )
 
-  const listParams = useMemo(() => mapSearchToARCreditNoteListParams(searchParams), [searchParams])
+  const listParams = useMemo(() => mapSearchToArCreditMemoListParams(searchParams), [searchParams])
 
   // Query Integration: Centralized fetching logic syncs with URL-based search parameters.
   const {
-    data: arCreditNoteList,
+    data: ArCreditMemoList,
     isLoading,
     isFetching,
     isError,
     error,
     refetch,
-  } = useQuery(arCreditNoteQueries.list(listParams))
+  } = useQuery(arCreditMemoQueries.list(listParams))
 
-  const queryClient = useQueryClient()
-
-  const rows = useMemo(() => arCreditNoteList?.data ?? [], [arCreditNoteList?.data])
-  const totalRows = arCreditNoteList?.total ?? 0
-  const totalPages = Math.max(arCreditNoteList?.totalPages ?? 1, 1)
-  const showInitialSkeleton = isLoading && !arCreditNoteList
+  const rows = useMemo(() => ArCreditMemoList?.data ?? [], [ArCreditMemoList?.data])
+  const totalRows = ArCreditMemoList?.total ?? 0
+  const totalPages = Math.max(ArCreditMemoList?.totalPages ?? 1, 1)
+  const showInitialSkeleton = isLoading && !ArCreditMemoList
 
   // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable<ARCreditNoteListItem>({
+  const table = useReactTable<ArCreditMemoListItem>({
     data: rows,
     columns,
     pageCount: totalPages,
@@ -167,7 +195,7 @@ export function ARCreditNoteTable() {
       const nextSorting = cloneSorting(next)
       setSorting(TABLE_ID, nextSorting)
       navigate({
-        search: (prev: ARCreditNoteSearch) => ({
+        search: (prev: ArCreditMemoSearch) => ({
           ...prev,
           sorting: nextSorting.length > 0 ? nextSorting : [],
         }),
@@ -179,7 +207,7 @@ export function ARCreditNoteTable() {
       const nextVisibility = normalizeVisibility(cloneVisibility(next))
       setVisibility(TABLE_ID, nextVisibility)
       navigate({
-        search: (prev: ARCreditNoteSearch) => ({
+        search: (prev: ArCreditMemoSearch) => ({
           ...prev,
           columnVisibility: { ...nextVisibility },
         }),
@@ -190,7 +218,7 @@ export function ARCreditNoteTable() {
       const next = typeof updater === 'function' ? updater(columnOrder) : updater
       setOrder(TABLE_ID, cloneOrder(next))
       navigate({
-        search: (prev: ARCreditNoteSearch) => ({ ...prev, columnOrder: [...next] }),
+        search: (prev: ArCreditMemoSearch) => ({ ...prev, columnOrder: [...next] }),
         replace: true,
       })
     },
@@ -203,7 +231,7 @@ export function ARCreditNoteTable() {
       }
       setPagination(TABLE_ID, nextPagination)
       navigate({
-        search: (prev: ARCreditNoteSearch) => ({
+        search: (prev: ArCreditMemoSearch) => ({
           ...prev,
           page: nextPagination.pageIndex + 1,
           limit: nextPagination.pageSize,
@@ -218,9 +246,9 @@ export function ARCreditNoteTable() {
       const nextFilters = cloneFilters(normalized)
       setColumnFilters(TABLE_ID, nextFilters)
       setPagination(TABLE_ID, { pageIndex: 0 })
-      const nextSearchColumnFilters = toARCreditNoteColumnFilters(nextFilters)
+      const nextSearchColumnFilters = toArCreditMemoColumnFilters(nextFilters)
       navigate({
-        search: (prev: ARCreditNoteSearch) => ({
+        search: (prev: ArCreditMemoSearch) => ({
           ...prev,
           page: 1,
           columnFilters: nextSearchColumnFilters,
@@ -268,7 +296,7 @@ export function ARCreditNoteTable() {
     const clampedPageIndex = maxPageIndex
     setPagination(TABLE_ID, { pageIndex: clampedPageIndex, totalRows: filteredTotalRows })
     navigate({
-      search: (prev: ARCreditNoteSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
+      search: (prev: ArCreditMemoSearch) => ({ ...prev, page: clampedPageIndex + 1 }),
       replace: true,
     })
   }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate])
@@ -276,13 +304,13 @@ export function ARCreditNoteTable() {
   // Aggressive Background Prefetching (Shared Global Hook)
   const getQueryOptions = useCallback(
     (params: { page: number; limit: number }) =>
-      arCreditNoteQueries.list({ ...listParams, ...params }),
+      arCreditMemoQueries.list({ ...listParams, ...params }),
     [listParams],
   )
 
   const { prefetchPage } = useTablePrefetch({
     queryClient,
-    hasData: !!arCreditNoteList,
+    hasData: !!ArCreditMemoList,
     pagination,
     maxPageIndex,
     getQueryOptions,
@@ -290,7 +318,7 @@ export function ARCreditNoteTable() {
 
   useTableToast({
     isFetching,
-    hasData: !!arCreditNoteList,
+    hasData: !!ArCreditMemoList,
     action: lastActionRef.current,
   })
 
@@ -302,7 +330,7 @@ export function ARCreditNoteTable() {
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 })
 
     navigate({
-      search: (prev: ARCreditNoteSearch) => ({
+      search: (prev: ArCreditMemoSearch) => ({
         ...prev,
         page: 1,
         limit: 10,
@@ -328,10 +356,10 @@ export function ARCreditNoteTable() {
     return <TableSkeleton />
   }
 
-  if (isError && !arCreditNoteList) {
+  if (isError && !ArCreditMemoList) {
     return (
       <TableErrorState
-        title="AR credit notes unavailable"
+        title="AR Credit Memos unavailable"
         message={error instanceof Error ? error.message : undefined}
         onRetry={() => refetch()}
       />
@@ -340,7 +368,7 @@ export function ARCreditNoteTable() {
 
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <ARCreditNoteLookupLayer
+      <ArCreditMemoLookupLayer
         tableId={TABLE_ID}
         table={table}
         onReset={handleResetTable}
