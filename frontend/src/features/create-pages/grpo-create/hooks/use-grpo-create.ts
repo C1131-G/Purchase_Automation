@@ -10,6 +10,7 @@ import {
   type LookupItem,
   type ProductLookupItem,
 } from '@/features/create-pages/create-shared/api/create-shared.types'
+import { formatAddressForDisplay } from '@/features/create-pages/create-shared/utils/address.utils'
 import {
   type ActiveDatePicker,
   type PopupMode,
@@ -17,7 +18,6 @@ import {
   type StockPreviewProduct,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
-import { formatAddressForDisplay } from '@/features/create-pages/create-shared/utils/address.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
 import {
   getLookupInlineSearchByMode,
@@ -433,6 +433,8 @@ export function useGRPOCreate({
     salesEmployees,
     setHeader,
     setLines,
+    setBillToAddress,
+    setShipToAddress,
     vendors,
   ])
 

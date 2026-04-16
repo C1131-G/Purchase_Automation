@@ -105,7 +105,8 @@ export function ARInvoiceTable({
   const navigateFromRoute = useNavigate()
 
   const searchParams = searchParamsProp ?? searchParamsFromRoute
-  const navigate = navigateProp ?? (navigateFromRoute as unknown as NonNullable<typeof navigateProp>)
+  const navigate =
+    navigateProp ?? (navigateFromRoute as unknown as NonNullable<typeof navigateProp>)
 
   const router = useRouter()
   const setSorting = useSetSortingAction()

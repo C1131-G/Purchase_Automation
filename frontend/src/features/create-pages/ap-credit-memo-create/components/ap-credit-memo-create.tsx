@@ -1,17 +1,19 @@
 import { useRouter } from '@tanstack/react-router'
-import { goeyToast } from 'goey-toast'
-import { type MouseEvent, useMemo, useState } from 'react'
+import { type MouseEvent, useState } from 'react'
 
-import { APInvoiceModals } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-modals'
-import { APInvoiceProductSection } from '@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section'
-import { useAPInvoiceCreate } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
-import { AP_INVOICE_FIELD_LABEL_TEXT } from '@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils'
+import { APCreditMemoModals } from '@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-modals'
+import { APCreditMemoProductSection } from '@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-product-section'
+import { useAPCreditMemoCreate } from '@/features/create-pages/ap-credit-memo-create/hooks/use-ap-credit-memo-create'
+import { AP_CREDIT_MEMO_FIELD_LABEL_TEXT } from '@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils'
 import { AddressGrid } from '@/features/create-pages/create-shared/components/grids/address-grid'
 import { DocumentDatesGrid } from '@/features/create-pages/create-shared/components/grids/document-dates-grid'
 import { LogisticsGrid } from '@/features/create-pages/create-shared/components/grids/logistics-grid'
 import { ReferenceGrid } from '@/features/create-pages/create-shared/components/grids/reference-grid'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
-import { CopyFromDropdown } from '@/features/create-pages/create-shared/components/layout/copy-from-dropdown'
+import {
+  CopyFromDropdown,
+  type SourceDocType,
+} from '@/features/create-pages/create-shared/components/layout/copy-from-dropdown'
 import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import { CopyFromDialog } from '@/features/create-pages/create-shared/components/modals/copy-from-dialog'
@@ -21,55 +23,37 @@ import {
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
 
-interface APInvoiceCreateProps {
+interface APCreditMemoCreateProps {
   mode?: 'create' | 'edit'
   docNum?: string
   sourceDocNum?: string | undefined
-  sourceDocType?: 'PurchaseOrder' | 'GoodsReceiptPO' | undefined
+  sourceDocType?: 'APInvoice' | undefined
 }
 
-export function APInvoiceCreate({
+type CopyFromSourceType = 'APInvoice'
+
+export function APCreditMemoCreate({
   mode = 'create',
   docNum,
   sourceDocNum,
   sourceDocType,
-}: APInvoiceCreateProps) {
+}: APCreditMemoCreateProps) {
   const router = useRouter()
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false)
-  const [copyFromSourceType, setCopyFromSourceType] = useState<
-    'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' | null
-  >(null)
+  const [copyFromSourceType, setCopyFromSourceType] = useState<CopyFromSourceType | null>(null)
 
-  const state = useAPInvoiceCreate({
+  const state = useAPCreditMemoCreate({
     mode,
     docNum: docNum || '',
     sourceDocNum,
     sourceDocType,
     onCreateSuccess: () => {
-      router.navigate({ to: '/purchase/create-ap-invoice', search: {}, replace: true })
+      router.navigate({ to: '/purchase/create-ap-credit-memo', search: {}, replace: true })
     },
   })
 
   const isFormHydrating =
     (mode === 'edit' && !!docNum && !state.isEditHydrated) || state.isSourceHydrating
-
-  // Derive the active source family from draft rows to lock the opposite family.
-  // SAP BaseType: 22 = Purchase Order, 20 = Goods Receipt PO (GRPO)
-  const lockedSourceFamily = useMemo<'PurchaseOrder' | 'GoodsReceiptPO' | null>(() => {
-    const hasPORows = state.rows.some((row) => row.baseType === 22 && row.baseEntry != null)
-    const hasGRPORows = state.rows.some((row) => row.baseType === 20 && row.baseEntry != null)
-
-    if (hasPORows) return 'GoodsReceiptPO' // Lock GRPO if PO rows exist
-    if (hasGRPORows) return 'PurchaseOrder' // Lock PO if GRPO rows exist
-    return null
-  }, [state.rows])
-
-  const handleLockedFamilyClick = () => {
-    goeyToast.warning(
-      'SAP does not allow mixing Purchase Order and GRPO documents in one A/P Invoice.',
-      { duration: 4000 },
-    )
-  }
 
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>
@@ -82,36 +66,32 @@ export function APInvoiceCreate({
       }
     }
 
-  const handleCopyFromSelect = (
-    selected: Array<{ docNum: string; docType: 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' }>,
-  ) => {
+  const handleCopyFromSelect = (selected: Array<{ docNum: string; docType: SourceDocType }>) => {
     if (selected.length === 0) return
     const docNums = selected.map((s) => s.docNum).join(',')
-    const docType = selected[0]!.docType
-    window.location.href = `/purchase/create-ap-invoice?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`
+    const docType = selected[0]!.docType as 'APInvoice'
+    window.location.href = `/purchase/create-ap-credit-memo?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`
   }
 
   return (
     <CreatePageWrapper
       rootLabel="Purchase"
       breadcrumbParent={{
-        label: 'A/P Invoice',
-        to: '/purchase/ap-invoice',
+        label: 'A/P Credit Memo',
+        to: '/purchase/ap-credit-memo',
       }}
-      pageTitle={state.isEditMode ? `Update A/P Invoice ${docNum}` : 'Create A/P Invoice'}
+      pageTitle={state.isEditMode ? `Update A/P Credit Memo ${docNum}` : 'Create A/P Credit Memo'}
       editError={state.createError}
       topActions={
         !state.isEditMode ? (
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            sourceDocTypes={['PurchaseOrder', 'GoodsReceiptPO']}
+            sourceDocTypes={['APInvoice']}
             onSelectSource={(sourceType) => {
-              setCopyFromSourceType(sourceType as 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice')
+              setCopyFromSourceType(sourceType as CopyFromSourceType)
               setCopyFromDialogOpen(true)
             }}
-            lockedSourceFamily={lockedSourceFamily}
-            onLockedFamilyClick={handleLockedFamilyClick}
           />
         ) : null
       }
@@ -122,7 +102,7 @@ export function APInvoiceCreate({
           setCopyFromDialogOpen(false)
           setCopyFromSourceType(null)
         }}
-        sourceDocType={copyFromSourceType ?? 'PurchaseOrder'}
+        sourceDocType={copyFromSourceType ?? 'APInvoice'}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
         onSelectDocuments={handleCopyFromSelect}
@@ -251,7 +231,7 @@ export function APInvoiceCreate({
         />
       </div>
 
-      <APInvoiceProductSection
+      <APCreditMemoProductSection
         rows={state.rows}
         productRowDrafts={state.productRowDrafts}
         createError={state.createError}
@@ -262,7 +242,7 @@ export function APInvoiceCreate({
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         requiredFieldsTotal={state.requiredFieldsTotal}
-        requiredFieldLabelText={AP_INVOICE_FIELD_LABEL_TEXT}
+        requiredFieldLabelText={AP_CREDIT_MEMO_FIELD_LABEL_TEXT}
         openProductPopup={state.openProductPopup}
         prefetchProducts={state.prefetchProducts}
         isSubmitting={
@@ -289,7 +269,7 @@ export function APInvoiceCreate({
         }
       />
 
-      <APInvoiceModals state={state} />
+      <APCreditMemoModals state={state} />
 
       {state.pendingVendorChange && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/30">
@@ -321,4 +301,4 @@ export function APInvoiceCreate({
   )
 }
 
-export default APInvoiceCreate
+export default APCreditMemoCreate

@@ -29,7 +29,12 @@ function SelectInvoicePage() {
       <div className="border-b border-zinc-100 px-6 py-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => void navigate({ to: '/sales/ar-credit-memo', search: { page: 1, limit: 10 } } as never)}
+            onClick={() =>
+              void navigate({
+                to: '/sales/ar-credit-memo',
+                search: { page: 1, limit: 10 },
+              } as never)
+            }
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-all hover:bg-zinc-50 hover:text-zinc-800 active:scale-95"
           >
             <ArrowLeft className="h-4 w-4" />

@@ -236,8 +236,14 @@ export function useArCreditMemoCreate({
       const shipToAddress = (detail as Record<string, unknown>).Address2 || ''
       const salesPersonCode = (detail as Record<string, unknown>).SalesPersonCode
 
-      const detailLines = ((detail as Record<string, unknown>).DocumentLines || []) as Array<Record<string, unknown>>
-      const itemCodes = [...new Set(detailLines.map((l: Record<string, unknown>) => String(l.ItemCode ?? '')).filter(Boolean))]
+      const detailLines = ((detail as Record<string, unknown>).DocumentLines || []) as Array<
+        Record<string, unknown>
+      >
+      const itemCodes = [
+        ...new Set(
+          detailLines.map((l: Record<string, unknown>) => String(l.ItemCode ?? '')).filter(Boolean),
+        ),
+      ]
 
       const [productMetaResponse, stocksResponse] = await Promise.all([
         queryClient.fetchQuery(
@@ -268,21 +274,27 @@ export function useArCreditMemoCreate({
           productName: String(line.ItemDescription || productMeta?.name || ''),
           stock: lineStock,
           price: Number(line.Price || line.UnitPrice || productMeta?.price || 0),
-          currency: String((detail as Record<string, unknown>).DocCurr || productMeta?.currency || ''),
+          currency: String(
+            (detail as Record<string, unknown>).DocCurr || productMeta?.currency || '',
+          ),
           vatGroup: String(line.VatGroup || line.TaxCode || productMeta?.vatGroup || ''),
           taxRate:
-            line.VatPrcnt !== undefined
-              ? Number(line.VatPrcnt)
-              : Number(productMeta?.taxRate ?? 0),
+            line.VatPrcnt !== undefined ? Number(line.VatPrcnt) : Number(productMeta?.taxRate ?? 0),
           uomCode: String(line.UoMCode || productMeta?.uomCode || ''),
           uomEntry: Number(line.UoMEntry || productMeta?.uomEntry || 0) || undefined,
           quantity: Number(line.Quantity || 1),
           discountPercent: Number(line.DiscountPercent || 0),
           discountAmount:
-            (Number(line.Price || 0) * Number(line.Quantity || 0) * Number(line.DiscountPercent || 0)) / 100,
+            (Number(line.Price || 0) *
+              Number(line.Quantity || 0) *
+              Number(line.DiscountPercent || 0)) /
+            100,
           comment: '',
           baseEntry:
-            Number((detail as Record<string, unknown>).DocEntry || (detail as Record<string, unknown>).id) || undefined,
+            Number(
+              (detail as Record<string, unknown>).DocEntry ||
+                (detail as Record<string, unknown>).id,
+            ) || undefined,
           baseLine: Number(line.LineNum ?? index),
           baseType: sourceDocType === 'AR_INVOICE' || sourceDocType === 'ARInvoice' ? 13 : -1,
           warehouseCode: lineWarehouse,
@@ -309,7 +321,9 @@ export function useArCreditMemoCreate({
         docDueDate: new Date().toISOString().split('T')[0]!,
         warehouseCode: String(warehouseCode),
         referenceNo: String(referenceNo),
-        comments: isEditMode ? String(comments) : `Based on AR Invoice ${currentDocNum}. ${String(comments)}`,
+        comments: isEditMode
+          ? String(comments)
+          : `Based on AR Invoice ${currentDocNum}. ${String(comments)}`,
         billToAddress: String(billToAddress),
         shipToAddress: String(shipToAddress),
       })

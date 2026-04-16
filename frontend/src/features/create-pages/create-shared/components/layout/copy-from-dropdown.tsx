@@ -5,7 +5,7 @@ import { Button } from '@/components/button'
 import { Popover } from '@/components/popover'
 import { cn } from '@/shared/utils/cn'
 
-type SourceDocType = 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
+export type SourceDocType = 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice' | 'APCreditMemo'
 type SourceFamily = 'PurchaseOrder' | 'GoodsReceiptPO'
 
 interface CopyFromSourceOption {
@@ -37,6 +37,8 @@ const sourceIcon = (code: string) => {
       return <StickyNote className="h-4 w-4" />
     case 'APInvoice':
       return <FileText className="h-4 w-4" />
+    case 'APCreditMemo':
+      return <FileText className="h-4 w-4" />
     default:
       return <ClipboardList className="h-4 w-4" />
   }
@@ -50,6 +52,8 @@ const sourceMeta = (code: string) => {
       return 'Copy from GRPO'
     case 'APInvoice':
       return 'Copy from A/P Invoice'
+    case 'APCreditMemo':
+      return 'Copy from A/P Credit Memo'
     default:
       return ''
   }
@@ -170,7 +174,9 @@ function CopyFromDropdownInner({
               ? 'Purchase Order'
               : code === 'GoodsReceiptPO'
                 ? 'GRPO'
-                : 'A/P Invoice',
+                : code === 'APInvoice'
+                  ? 'A/P Invoice'
+                  : 'A/P Credit Memo',
           code,
           icon: sourceIcon(code),
           meta: sourceMeta(code),

@@ -49,9 +49,10 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<string, string> = {
   comments: 'Comments',
 }
 
-export function rankProductsBySearchRelevance<
-  T extends { code: string; name: string },
->(products: T[], searchTerm: string): T[] {
+export function rankProductsBySearchRelevance<T extends { code: string; name: string }>(
+  products: T[],
+  searchTerm: string,
+): T[] {
   if (!searchTerm) return products
   const term = searchTerm.toLowerCase()
   return [...products].sort((a, b) => {

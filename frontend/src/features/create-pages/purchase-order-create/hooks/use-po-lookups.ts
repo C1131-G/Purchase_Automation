@@ -4,8 +4,8 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { createSharedQueries as purchaseOrderCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
-import { type LookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { formatAddressForDisplay } from '@/features/create-pages/create-shared/utils/address.utils'
+import { type LookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 import {
   type ProductSearchFieldError,
   QUICK_PRODUCT_LIMIT,

@@ -105,9 +105,13 @@ export function ArCreditMemoCreate({
     productsQuery: productsHook.productsQuery,
     loadMoreProducts: productsHook.loadMoreProducts,
     applyProductToRow: (product: Parameters<typeof productsHook.applyProductToRow>[0]) =>
-      productsHook.applyProductToRow(product, { closeProductPopup: () => state.setProductPopupOpen(false) }),
+      productsHook.applyProductToRow(product, {
+        closeProductPopup: () => state.setProductPopupOpen(false),
+      }),
     applyProductsToRows: (products: Parameters<typeof productsHook.applyProductsToRows>[0]) =>
-      productsHook.applyProductsToRows(products, { closeProductPopup: () => state.setProductPopupOpen(false) }),
+      productsHook.applyProductsToRows(products, {
+        closeProductPopup: () => state.setProductPopupOpen(false),
+      }),
     effectiveWarehouseCode: header.warehouseCode,
     activeRowProductCode: null,
     activeProductRowId: productsHook.activeProductRowId,
