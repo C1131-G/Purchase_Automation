@@ -101,8 +101,8 @@ export function CreateProductTable({
               row={row}
               rowDraft={productRowDrafts[row.id]}
               enforceStockLimit={enforceStockLimit}
-              maxQuantity={maxQuantity}
-              linkedRow={linkedRow}
+              {...(maxQuantity !== undefined && { maxQuantity })}
+              {...(linkedRow !== undefined && { linkedRow })}
               openProductPopup={openProductPopup}
               updateProductRow={updateProductRow}
               removeProductRow={removeProductRow}

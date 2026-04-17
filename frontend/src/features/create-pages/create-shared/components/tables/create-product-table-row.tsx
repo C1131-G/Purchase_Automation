@@ -458,7 +458,10 @@ export function CreateProductTableRow({
                 }
 
                 const typedQuantity = Number(rawValue)
-                if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {
+                if (
+                  effectiveLinkedRow &&
+                  (typedQuantity === 0 || !Number.isFinite(typedQuantity))
+                ) {
                   goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
                   updateProductRow(row.id, { quantity: 1 })
                   clearProductRowDraft(row.id, 'quantity')

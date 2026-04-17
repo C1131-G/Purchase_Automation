@@ -992,7 +992,12 @@ export function useGRPOCreate({
     setWarehouseInput(warehouse.name)
     setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     void queryClient.prefetchQuery(
-      createSharedQueries.products(warehouse.code || undefined, undefined, QUICK_PRODUCT_LIMIT, 'purchase'),
+      createSharedQueries.products(
+        warehouse.code || undefined,
+        undefined,
+        QUICK_PRODUCT_LIMIT,
+        'purchase',
+      ),
     )
     setLines((prev) =>
       prev.map((row) => ({
