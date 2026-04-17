@@ -205,6 +205,7 @@ export function useGRPOCreate({
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
       productQueryLimit,
+      'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
   })
@@ -346,6 +347,7 @@ export function useGRPOCreate({
         const taxRateByItemCode = await resolveProductTaxRates(
           queryClient,
           detailLines.map((line) => String(line.ItemCode ?? '').trim()),
+          'purchase',
         )
 
         const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
@@ -552,6 +554,7 @@ export function useGRPOCreate({
       const taxRateByItemCode = await resolveProductTaxRates(
         queryClient,
         allDetailLines.map((line) => String(line.ItemCode ?? '').trim()),
+        'purchase',
       )
 
       let lineIndex = 0
@@ -950,6 +953,7 @@ export function useGRPOCreate({
         effectiveWarehouseCode || undefined,
         productSearch.trim() || undefined,
         QUICK_PRODUCT_LIMIT,
+        'purchase',
       ),
     )
   }
@@ -988,7 +992,7 @@ export function useGRPOCreate({
     setWarehouseInput(warehouse.name)
     setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     void queryClient.prefetchQuery(
-      createSharedQueries.products(warehouse.code || undefined, undefined, QUICK_PRODUCT_LIMIT),
+      createSharedQueries.products(warehouse.code || undefined, undefined, QUICK_PRODUCT_LIMIT, 'purchase'),
     )
     setLines((prev) =>
       prev.map((row) => ({

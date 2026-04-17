@@ -12,7 +12,11 @@ const normalizeCodeForCompare = (value: unknown) => {
   return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase()
 }
 
-export const resolveProductTaxRates = async (queryClient: QueryClient, itemCodes: string[]) => {
+export const resolveProductTaxRates = async (
+  queryClient: QueryClient,
+  itemCodes: string[],
+  type?: 'sales' | 'purchase',
+) => {
   const taxRateByItemCode = new Map<string, number>()
   const uniqueItemCodes = [...new Set(itemCodes.map((code) => String(code ?? '').trim()))].filter(
     Boolean,
@@ -21,7 +25,7 @@ export const resolveProductTaxRates = async (queryClient: QueryClient, itemCodes
   await Promise.all(
     uniqueItemCodes.map(async (itemCode) => {
       const products = (await queryClient
-        .fetchQuery(createSharedQueries.products(undefined, itemCode, PRODUCT_LOOKUP_LIMIT))
+        .fetchQuery(createSharedQueries.products(undefined, itemCode, PRODUCT_LOOKUP_LIMIT, type))
         .catch(() => [])) as ProductLookupItem[]
 
       const matchedProduct =

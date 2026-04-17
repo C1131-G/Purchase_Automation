@@ -76,6 +76,7 @@ export function usePoProducts({
       isEditMode ? undefined : effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
       productQueryLimit,
+      'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
   })
@@ -102,6 +103,7 @@ export function usePoProducts({
         isEditMode ? undefined : effectiveWarehouseCode || undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
+        'purchase',
       ),
     )
   }

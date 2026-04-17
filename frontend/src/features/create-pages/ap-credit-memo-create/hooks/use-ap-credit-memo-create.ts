@@ -197,6 +197,7 @@ export function useAPCreditMemoCreate({
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
       productQueryLimit,
+      'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
   })
@@ -283,6 +284,7 @@ export function useAPCreditMemoCreate({
         (detail.DocumentLines ?? []).map((line: { ItemCode?: string }) =>
           String(line.ItemCode ?? '').trim(),
         ),
+        'purchase',
       )
 
       const mappedLines = (detail.DocumentLines ?? []).map(
@@ -436,6 +438,7 @@ export function useAPCreditMemoCreate({
       const taxRateByItemCode = await resolveProductTaxRates(
         queryClient,
         allDetailLines.map((line) => String(line.ItemCode ?? '').trim()),
+        'purchase',
       )
 
       let lineIndex = 0

@@ -198,6 +198,7 @@ export function useAPInvoiceCreate({
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
       productQueryLimit,
+      'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
   })
@@ -289,6 +290,7 @@ export function useAPInvoiceCreate({
       const taxRateByItemCode = await resolveProductTaxRates(
         queryClient,
         detailLines.map((line) => String(line.ItemCode ?? '').trim()),
+        'purchase',
       )
 
       const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
@@ -433,6 +435,7 @@ export function useAPInvoiceCreate({
       const taxRateByItemCode = await resolveProductTaxRates(
         queryClient,
         allDetailLines.map((line) => String(line.ItemCode ?? '').trim()),
+        'purchase',
       )
 
       let lineIndex = 0
