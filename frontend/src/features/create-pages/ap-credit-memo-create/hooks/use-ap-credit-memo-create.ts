@@ -64,6 +64,7 @@ export type APCreditMemoCreateLine = {
   discountPercent: number
   discountAmount: number
   comment: string
+  returnReason?: string | undefined
   price: number
   warehouseCode: string
   baseLine?: number | undefined
@@ -78,6 +79,7 @@ const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
   vendorName: undefined,
   vendorCode: undefined,
   warehouseCode: undefined,
+  returnReason: undefined,
 }
 
 interface UseAPCreditMemoCreateOptions {
@@ -253,6 +255,7 @@ export function useAPCreditMemoCreate({
       setVendorCodeInput(String(detail.CardCode ?? '').trim())
       setVendorNameInput(String(detail.CardName ?? '').trim())
       const loadedDocDate = String(detail.DocDate ?? '').slice(0, 10) || getTodayISO()
+      const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? '').trim()
       const rawComments = String(detail.Comments ?? '').trim()
 
       const remarks = rawComments
@@ -273,7 +276,7 @@ export function useAPCreditMemoCreate({
       setHeader({
         docDate: loadedDocDate,
         docDueDate: String(detail.DocDueDate ?? '').slice(0, 10) || loadedDocDate,
-        referenceNo: '',
+        referenceNo,
         remarks,
       })
       setBillToAddress(String(detail.Address ?? '').trim())
@@ -314,6 +317,7 @@ export function useAPCreditMemoCreate({
             discountPercent,
             discountAmount,
             comment: '',
+            returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? '').trim(),
             price,
             warehouseCode: String(line.WarehouseCode ?? '').trim(),
             baseEntry: typeof line.BaseEntry === 'number' ? line.BaseEntry : undefined,
@@ -472,6 +476,7 @@ export function useAPCreditMemoCreate({
             discountPercent,
             discountAmount,
             comment: '',
+            returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? '').trim(),
             price,
             warehouseCode: String(line.WarehouseCode ?? warehouseCode).trim(),
             baseEntry: detail.DocEntry ?? (detail as { id?: number }).id ?? undefined,
@@ -866,26 +871,43 @@ export function useAPCreditMemoCreate({
   }
 
   const handleCreateAPCreditMemo = async () => {
-    const missing = AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
-      if (field === 'vendorName') return !vendorNameInput.trim()
-      if (field === 'vendorCode') return !vendorCodeInput.trim()
-      if (field === 'warehouseCode') {
-        return !rows.some((row) => row.warehouseCode?.trim())
-      }
-      return false
-    })
+    const filteredRows = rows.filter((r) => r.quantity > 0)
 
-    if (missing.length > 0) {
-      const nextErrors = { ...EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS }
-      missing.forEach((field) => {
-        nextErrors[field] = AP_CREDIT_MEMO_FIELD_ERROR_TEXT[field]
+    if (!isEditMode) {
+      const rowsMissingReturnReason = filteredRows.filter((r) => !r.returnReason?.trim())
+      if (rowsMissingReturnReason.length > 0) {
+        const nextErrors = { ...EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS }
+        nextErrors.returnReason = AP_CREDIT_MEMO_FIELD_ERROR_TEXT.returnReason
+        setFieldErrors(nextErrors)
+        const missingItemCodes = rowsMissingReturnReason.map((r) => r.productCode || '<unknown>')
+        setCreateError(`Return reason is required for: ${missingItemCodes.join(', ')}`)
+        return
+      }
+
+      const missing = AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
+        if (field === 'vendorName') return !vendorNameInput.trim()
+        if (field === 'vendorCode') return !vendorCodeInput.trim()
+        if (field === 'warehouseCode') {
+          return !rows.some((row) => row.warehouseCode?.trim())
+        }
+        if (field === 'returnReason') {
+          const filteredRows = rows.filter((r) => r.quantity > 0)
+          return filteredRows.some((r) => !r.returnReason?.trim())
+        }
+        return false
       })
-      setFieldErrors(nextErrors)
-      setCreateError('Fill required fields before creating/updating A/P Credit Memo.')
-      return
+
+      if (missing.length > 0) {
+        const nextErrors = { ...EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS }
+        missing.forEach((field) => {
+          nextErrors[field] = AP_CREDIT_MEMO_FIELD_ERROR_TEXT[field]
+        })
+        setFieldErrors(nextErrors)
+        setCreateError('Fill required fields before creating A/P Credit Memo.')
+        return
+      }
     }
 
-    const filteredRows = rows.filter((r) => r.quantity > 0)
     if (filteredRows.length === 0) {
       setCreateError('Set at least one line quantity greater than 0.')
       return
@@ -907,7 +929,10 @@ export function useAPCreditMemoCreate({
           Comments: header.remarks.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
         }
+
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload })
+
+        toastHandle.success(editDetailQuery.data?.data?.DocNum)
       } else {
         const buildDocumentLines = (): CreateAPCreditMemoInput['DocumentLines'] => {
           const lines: CreateAPCreditMemoInput['DocumentLines'] = []
@@ -927,6 +952,7 @@ export function useAPCreditMemoCreate({
               ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
               ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
               ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),
+              ...(row.returnReason ? { U_ReturnReason: row.returnReason } : {}),
             }
 
             if (!hasCompleteBaseLink) {
@@ -1028,18 +1054,21 @@ export function useAPCreditMemoCreate({
     }
   }
 
-  const missingMandatoryFields = useMemo(
-    () =>
-      AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
-        if (field === 'vendorName') return !vendorNameInput.trim()
-        if (field === 'vendorCode') return !vendorCodeInput.trim()
-        if (field === 'warehouseCode') {
-          return !rows.some((row) => row.warehouseCode?.trim())
-        }
-        return false
-      }),
-    [vendorNameInput, vendorCodeInput, rows],
-  )
+  const missingMandatoryFields = useMemo(() => {
+    if (isEditMode) return []
+    return AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
+      if (field === 'vendorName') return !vendorNameInput.trim()
+      if (field === 'vendorCode') return !vendorCodeInput.trim()
+      if (field === 'warehouseCode') {
+        return !rows.some((row) => row.warehouseCode?.trim())
+      }
+      if (field === 'returnReason') {
+        const filteredRows = rows.filter((r) => r.quantity > 0)
+        return filteredRows.length === 0 || filteredRows.some((r) => !r.returnReason?.trim())
+      }
+      return false
+    })
+  }, [isEditMode, vendorNameInput, vendorCodeInput, rows])
 
   const requiredCompletionPercent = useMemo(
     () =>

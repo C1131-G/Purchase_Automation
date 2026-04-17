@@ -1156,6 +1156,7 @@ export function useGRPOCreate({
   }
 
   const missingMandatoryFields = useMemo(() => {
+    if (isEditMode) return []
     const requiredFields = GRPO_MANDATORY_FIELDS
 
     return requiredFields.filter((field) => {
@@ -1167,7 +1168,7 @@ export function useGRPOCreate({
       }
       return false
     })
-  }, [vendorNameInput, vendorCodeInput, rows])
+  }, [isEditMode, vendorNameInput, vendorCodeInput, rows])
 
   const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
   const missingSearchMandatoryFields = useMemo(
@@ -1268,13 +1269,13 @@ export function useGRPOCreate({
   }, [buyerInput, salesEmployees])
 
   const handleCreateGRPO = async () => {
-    if (missingMandatoryFields.length > 0) {
+    if (!isEditMode && missingMandatoryFields.length > 0) {
       const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS }
       missingMandatoryFields.forEach((field) => {
         nextErrors[field] = GRPO_FIELD_ERROR_TEXT[field]
       })
       setFieldErrors(nextErrors)
-      setCreateError('Fill required fields before creating/updating GRPO.')
+      setCreateError('Fill required fields before creating GRPO.')
       return
     }
 

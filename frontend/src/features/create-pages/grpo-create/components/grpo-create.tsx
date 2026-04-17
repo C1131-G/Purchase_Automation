@@ -79,7 +79,13 @@ export function GRPOCreate({
         to: '/purchase/grpo',
       }}
       pageTitle={state.isEditMode ? `Update GRPO ${docNum}` : 'Create GRPO'}
-      editError={state.createError}
+      editError={
+        state.isEditMode && state.editDetailQuery.isError
+          ? state.editDetailQuery.error instanceof Error
+            ? state.editDetailQuery.error.message
+            : 'Unable to load GRPO for editing.'
+          : null
+      }
       topActions={
         !state.isEditMode ? (
           <CopyFromDropdown

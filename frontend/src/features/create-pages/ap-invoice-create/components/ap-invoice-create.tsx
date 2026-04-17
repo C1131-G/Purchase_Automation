@@ -99,7 +99,13 @@ export function APInvoiceCreate({
         to: '/purchase/ap-invoice',
       }}
       pageTitle={state.isEditMode ? `Update A/P Invoice ${docNum}` : 'Create A/P Invoice'}
-      editError={state.createError}
+      editError={
+        state.isEditMode && state.editDetailQuery.isError
+          ? state.editDetailQuery.error instanceof Error
+            ? state.editDetailQuery.error.message
+            : 'Unable to load A/P Invoice for editing.'
+          : null
+      }
       topActions={
         !state.isEditMode ? (
           <CopyFromDropdown

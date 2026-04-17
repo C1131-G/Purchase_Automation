@@ -250,7 +250,7 @@ export function BaseProductSection({
         </div>
       </div>
 
-      {children}
+      <div>{children}</div>
 
       <div className="border-t border-zinc-100 px-4 py-3">
         <div className="ml-auto w-full max-w-sm">

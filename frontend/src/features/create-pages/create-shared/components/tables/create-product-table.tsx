@@ -73,7 +73,7 @@ export function CreateProductTable({
             <th className="w-[8%] px-2 py-2 text-left">Total</th>
             {showTaxCode && <th className="w-[10%] px-2 py-2 text-left">Tax Code</th>}
             {showReturnReason && <th className="w-[12%] px-2 py-2 text-left">Return Reason</th>}
-            <th className="w-[8%] px-2 py-2 text-left">Actions</th>
+            <th className="w-[8%] px-2 py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>

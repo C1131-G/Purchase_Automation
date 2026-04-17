@@ -144,6 +144,7 @@ export function APCreditMemoProductSection({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
+          showReturnReason={true}
         />
       </div>
     </BaseProductSection>

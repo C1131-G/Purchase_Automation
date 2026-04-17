@@ -80,7 +80,13 @@ export function APCreditMemoCreate({
         to: '/purchase/ap-credit-memo',
       }}
       pageTitle={state.isEditMode ? `Update A/P Credit Memo ${docNum}` : 'Create A/P Credit Memo'}
-      editError={state.createError}
+      editError={
+        state.isEditMode && state.editDetailQuery.isError
+          ? state.editDetailQuery.error instanceof Error
+            ? state.editDetailQuery.error.message
+            : 'Unable to load A/P Credit Memo for editing.'
+          : null
+      }
       topActions={
         !state.isEditMode ? (
           <CopyFromDropdown

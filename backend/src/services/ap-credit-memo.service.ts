@@ -158,6 +158,7 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string) => {
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
       DocDueDate: result.DocDueDate,
+      NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
@@ -172,6 +173,7 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string) => {
           VatPrcnt: sapTaxRate,
           WarehouseCode: line.WarehouseCode,
           LineTotal: line.LineTotal,
+          U_ReturnReason: lineData.U_ReturnReason,
         };
       }),
     };
@@ -218,15 +220,21 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
-        UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-        VatGroup: item.VatGroup as string,
-        WarehouseCode: item.WarehouseCode as string,
-      })),
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+        const line: Record<string, unknown> = {
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+          VatGroup: item.VatGroup as string,
+          WarehouseCode: item.WarehouseCode as string,
+        };
+        if (item.U_ReturnReason) {
+          line.U_ReturnReason = item.U_ReturnReason as string;
+        }
+        return line;
+      }),
     };
 
     // Date normalization to ensure SAP acceptance (YYYY-MM-DD).

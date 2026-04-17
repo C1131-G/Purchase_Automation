@@ -89,6 +89,7 @@ export function SelectRoot({
             value={value ?? ''}
             readOnly
             disabled={disabled}
+            autoComplete="off"
           />
         ) : null}
         {children}

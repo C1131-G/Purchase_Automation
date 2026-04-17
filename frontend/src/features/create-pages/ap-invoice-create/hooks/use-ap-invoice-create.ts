@@ -865,24 +865,26 @@ export function useAPInvoiceCreate({
   }
 
   const handleCreateAPInvoice = async () => {
-    const missing = AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
-      if (field === 'vendorName') return !vendorNameInput.trim()
-      if (field === 'vendorCode') return !vendorCodeInput.trim()
-      if (field === 'warehouseCode') {
-        // Check if ANY row has a warehouseCode selected
-        return !rows.some((row) => row.warehouseCode?.trim())
-      }
-      return false
-    })
-
-    if (missing.length > 0) {
-      const nextErrors = { ...EMPTY_AP_INVOICE_FIELD_ERRORS }
-      missing.forEach((field) => {
-        nextErrors[field] = AP_INVOICE_FIELD_ERROR_TEXT[field]
+    if (!isEditMode) {
+      const missing = AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
+        if (field === 'vendorName') return !vendorNameInput.trim()
+        if (field === 'vendorCode') return !vendorCodeInput.trim()
+        if (field === 'warehouseCode') {
+          // Check if ANY row has a warehouseCode selected
+          return !rows.some((row) => row.warehouseCode?.trim())
+        }
+        return false
       })
-      setFieldErrors(nextErrors)
-      setCreateError('Fill required fields before creating/updating A/P Invoice.')
-      return
+
+      if (missing.length > 0) {
+        const nextErrors = { ...EMPTY_AP_INVOICE_FIELD_ERRORS }
+        missing.forEach((field) => {
+          nextErrors[field] = AP_INVOICE_FIELD_ERROR_TEXT[field]
+        })
+        setFieldErrors(nextErrors)
+        setCreateError('Fill required fields before creating A/P Invoice.')
+        return
+      }
     }
 
     const filteredRows = rows.filter((r) => r.quantity > 0)
@@ -1060,19 +1062,18 @@ export function useAPInvoiceCreate({
     }
   }
 
-  const missingMandatoryFields = useMemo(
-    () =>
-      AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
-        if (field === 'vendorName') return !vendorNameInput.trim()
-        if (field === 'vendorCode') return !vendorCodeInput.trim()
-        if (field === 'warehouseCode') {
-          // Check if ANY row has a warehouseCode selected
-          return !rows.some((row) => row.warehouseCode?.trim())
-        }
-        return false
-      }),
-    [vendorNameInput, vendorCodeInput, rows],
-  )
+  const missingMandatoryFields = useMemo(() => {
+    if (isEditMode) return []
+    return AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
+      if (field === 'vendorName') return !vendorNameInput.trim()
+      if (field === 'vendorCode') return !vendorCodeInput.trim()
+      if (field === 'warehouseCode') {
+        // Check if ANY row has a warehouseCode selected
+        return !rows.some((row) => row.warehouseCode?.trim())
+      }
+      return false
+    })
+  }, [isEditMode, vendorNameInput, vendorCodeInput, rows])
 
   const requiredCompletionPercent = useMemo(
     () =>

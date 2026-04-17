@@ -425,11 +425,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     ],
   )
 
-  const missingMandatoryFields = useMemo(
-    () =>
-      getMissingMandatoryCreateFieldsTyped(createMandatoryValues, PURCHASE_ORDER_MANDATORY_FIELDS),
-    [createMandatoryValues],
-  )
+  const missingMandatoryFields = useMemo(() => {
+    if (isEditMode) return []
+    return getMissingMandatoryCreateFieldsTyped(
+      createMandatoryValues,
+      PURCHASE_ORDER_MANDATORY_FIELDS,
+    )
+  }, [isEditMode, createMandatoryValues])
 
   const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
   const missingSearchMandatoryFields = useMemo(
@@ -484,15 +486,17 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         : createError
 
   const handleCreateOrder = async () => {
-    const nextErrors: ProductSearchFieldError = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS }
-    missingMandatoryFields.forEach((field) => {
-      nextErrors[field] = MANDATORY_ERROR_TEXT[field]
-    })
+    if (!isEditMode) {
+      const nextErrors: ProductSearchFieldError = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS }
+      missingMandatoryFields.forEach((field) => {
+        nextErrors[field] = MANDATORY_ERROR_TEXT[field]
+      })
 
-    if (Object.values(nextErrors).some(Boolean)) {
-      setProductSearchFieldErrors(nextErrors)
-      setCreateError(requiredFieldsErrorText)
-      return
+      if (Object.values(nextErrors).some(Boolean)) {
+        setProductSearchFieldErrors(nextErrors)
+        setCreateError(requiredFieldsErrorText)
+        return
+      }
     }
 
     const validRows = productsHook.productRows.filter(

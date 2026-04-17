@@ -21,6 +21,7 @@ export type CreateAPCreditMemoInput = {
     BaseEntry?: number
     BaseLine?: number
     BaseType?: number
+    U_ReturnReason?: string
   }>
 }
 
