@@ -1,6 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
 import { type MouseEvent, useState } from 'react'
-
 import { APCreditMemoModals } from '@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-modals'
 import { APCreditMemoProductSection } from '@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-product-section'
 import { useAPCreditMemoCreate } from '@/features/create-pages/ap-credit-memo-create/hooks/use-ap-credit-memo-create'
@@ -14,7 +13,6 @@ import {
   CopyFromDropdown,
   type SourceDocType,
 } from '@/features/create-pages/create-shared/components/layout/copy-from-dropdown'
-import { CopyToDropdown } from '@/features/create-pages/create-shared/components/layout/copy-to-dropdown'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import { CopyFromDialog } from '@/features/create-pages/create-shared/components/modals/copy-from-dialog'
 import {
@@ -258,15 +256,6 @@ export function APCreditMemoCreate({
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}
         isClosed={state.isClosed}
-        secondaryActions={
-          state.isEditMode && !state.isClosed ? (
-            <CopyToDropdown
-              docNum={docNum!}
-              sourceDocType="APInvoice"
-              targets={['AP Credit Memo']}
-            />
-          ) : null
-        }
       />
 
       <APCreditMemoModals state={state} />

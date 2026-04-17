@@ -110,7 +110,7 @@ export function APCreditMemoProductSection({
       isEditMode={isEditMode}
       isReadOnly={isReadOnlyMode}
       hideSearch={isReadOnlyMode}
-      showSubmitButton={!isClosed}
+      showSubmitButton={isEditMode || !isClosed}
       secondaryActions={secondaryActions}
     >
       <div
