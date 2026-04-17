@@ -11,6 +11,8 @@ interface CreateProductTableProps {
   productRows: ProductRow[]
   productRowDrafts: Record<string, ProductRowDraft>
   enforceStockLimit?: boolean
+  maxQuantity?: number | ((row: ProductRow) => number | undefined)
+  linkedRow?: boolean | ((row: ProductRow) => boolean)
   openProductPopup: (rowId: string | null) => void
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void
   removeProductRow: (id: string) => void
@@ -36,6 +38,7 @@ export function CreateProductTable({
   productRows,
   productRowDrafts,
   enforceStockLimit = true,
+  maxQuantity,
   openProductPopup,
   updateProductRow,
   removeProductRow,
@@ -52,6 +55,7 @@ export function CreateProductTable({
   showSelection = false,
   showReturnReason = false,
   showTaxCode = false,
+  linkedRow = false,
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
@@ -97,6 +101,8 @@ export function CreateProductTable({
               row={row}
               rowDraft={productRowDrafts[row.id]}
               enforceStockLimit={enforceStockLimit}
+              maxQuantity={maxQuantity}
+              linkedRow={linkedRow}
               openProductPopup={openProductPopup}
               updateProductRow={updateProductRow}
               removeProductRow={removeProductRow}

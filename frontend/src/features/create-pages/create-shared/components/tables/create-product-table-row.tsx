@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { goeyToast } from 'goey-toast'
 import { Search, Trash2 } from 'lucide-react'
 import React from 'react'
 import ReactDOM from 'react-dom'
@@ -18,6 +19,8 @@ interface CreateProductTableRowProps {
   row: ProductRow
   rowDraft?: ProductRowDraft | undefined
   enforceStockLimit?: boolean
+  maxQuantity?: number | ((row: ProductRow) => number | undefined)
+  linkedRow?: boolean | ((row: ProductRow) => boolean)
   openProductPopup: (rowId: string | null) => void
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void
   removeProductRow: (id: string) => void
@@ -56,6 +59,8 @@ export function CreateProductTableRow({
   showSelection = false,
   showReturnReason = false,
   showTaxCode = false,
+  maxQuantity,
+  linkedRow = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState('')
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState('')
@@ -64,6 +69,20 @@ export function CreateProductTableRow({
   const blurTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const warehouseInputRef = React.useRef<HTMLInputElement>(null)
   const [dropdownStyle, setDropdownStyle] = React.useState<React.CSSProperties | null>(null)
+
+  const effectiveMaxQuantity = React.useMemo(() => {
+    if (typeof maxQuantity === 'function') {
+      return maxQuantity(row)
+    }
+    return maxQuantity
+  }, [maxQuantity, row])
+
+  const effectiveLinkedRow = React.useMemo(() => {
+    if (typeof linkedRow === 'function') {
+      return linkedRow(row)
+    }
+    return linkedRow
+  }, [linkedRow, row])
 
   const syncDropdownPosition = React.useCallback(() => {
     const rect = warehouseInputRef.current?.getBoundingClientRect()
@@ -427,13 +446,36 @@ export function CreateProductTableRow({
                 const rawValue = event.target.value.trim()
 
                 if (rawValue === '') {
+                  if (effectiveLinkedRow) {
+                    goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                    updateProductRow(row.id, { quantity: 1 })
+                    clearProductRowDraft(row.id, 'quantity')
+                    return
+                  }
                   updateProductRow(row.id, { quantity: 0 })
                   clearProductRowDraft(row.id, 'quantity')
                   return
                 }
 
-                const typedQuantity = Math.max(1, Number(rawValue) || 1)
-                const clamped = Math.min(maxAllowed, typedQuantity)
+                const typedQuantity = Number(rawValue)
+                if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {
+                  goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                  updateProductRow(row.id, { quantity: 1 })
+                  clearProductRowDraft(row.id, 'quantity')
+                  return
+                }
+
+                const typedQuantityVal = Math.max(1, Number(rawValue) || 1)
+                const clamped = Math.min(maxAllowed, typedQuantityVal)
+
+                if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
+                  goeyToast.error('Quantity cannot exceed base quantity', {
+                    id: 'max-quantity-error',
+                  })
+                  updateProductRow(row.id, { quantity: effectiveMaxQuantity })
+                  clearProductRowDraft(row.id, 'quantity')
+                  return
+                }
 
                 updateProductRow(row.id, { quantity: clamped })
                 clearProductRowDraft(row.id, 'quantity')
@@ -466,13 +508,37 @@ export function CreateProductTableRow({
               const rawValue = event.target.value.trim()
 
               if (rawValue === '') {
+                if (effectiveLinkedRow) {
+                  goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                  updateProductRow(row.id, { quantity: 1 })
+                  clearProductRowDraft(row.id, 'quantity')
+                  return
+                }
                 updateProductRow(row.id, { quantity: 0 })
                 clearProductRowDraft(row.id, 'quantity')
                 return
               }
 
-              const typedQuantity = Math.max(1, Number(rawValue) || 1)
-              updateProductRow(row.id, { quantity: typedQuantity })
+              const typedQuantity = Number(rawValue)
+              if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {
+                goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                updateProductRow(row.id, { quantity: 1 })
+                clearProductRowDraft(row.id, 'quantity')
+                return
+              }
+
+              const typedQuantityVal = Math.max(1, Number(rawValue) || 1)
+
+              if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {
+                goeyToast.error('Quantity cannot exceed base quantity', {
+                  id: 'max-quantity-error',
+                })
+                updateProductRow(row.id, { quantity: effectiveMaxQuantity })
+                clearProductRowDraft(row.id, 'quantity')
+                return
+              }
+
+              updateProductRow(row.id, { quantity: typedQuantityVal })
               clearProductRowDraft(row.id, 'quantity')
             }}
             className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : ''}`}

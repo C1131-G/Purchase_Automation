@@ -36,6 +36,7 @@ export type ProductGridRow = {
   purchaseUomEntry?: number | undefined
   quantity: number
   openQty?: number | undefined
+  baseQuantity?: number | undefined
   discountPercent: number
   discountAmount: number
   comment: string

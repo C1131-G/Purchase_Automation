@@ -104,6 +104,7 @@ export function PurchaseOrderProductSection({
         productRows={productRows}
         productRowDrafts={productRowDrafts}
         enforceStockLimit={false}
+        linkedRow={(row) => !!row.baseEntry && !!row.baseLine}
         openProductPopup={openProductPopup}
         updateProductRow={updateProductRow}
         removeProductRow={removeProductRow}

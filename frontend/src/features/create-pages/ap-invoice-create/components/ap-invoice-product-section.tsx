@@ -132,6 +132,7 @@ export function APInvoiceProductSection({
           productRows={rows}
           productRowDrafts={productRowDrafts}
           enforceStockLimit={false}
+          linkedRow={(row) => !!row.baseEntry && !!row.baseLine}
           disableLineInputs={isReadOnlyMode}
           onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
           openProductPopup={openProductPopup}
