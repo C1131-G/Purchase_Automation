@@ -108,13 +108,6 @@ function ReturnReasonDropdown({ value, disabled, onSelect }: ReturnReasonDropdow
                 <span>{reason}</span>
               </button>
             ))}
-            <button
-              type="button"
-              onMouseDown={(e) => handleSelect('__custom__', e)}
-              className="flex w-full items-center justify-between border-t border-zinc-100 px-3 py-2.5 text-left text-xs font-medium text-blue-600 transition hover:bg-blue-50"
-            >
-              <span>Write your own</span>
-            </button>
           </div>,
           document.body,
         )}
@@ -190,9 +183,6 @@ export function CreateProductTableRow({
     }
     return linkedRow
   }, [linkedRow, row])
-
-  const [showCustomReason, setShowCustomReason] = React.useState(false)
-  const [customInputDraft, setCustomInputDraft] = React.useState('')
 
   const syncDropdownPosition = React.useCallback(() => {
     const rect = warehouseInputRef.current?.getBoundingClientRect()
@@ -770,55 +760,13 @@ export function CreateProductTableRow({
       )}
       {showReturnReason && (
         <td className="min-w-0 px-2 py-2">
-          {showCustomReason ? (
-            <div className="relative">
-              <input
-                type="text"
-                value={customInputDraft}
-                disabled={effectiveDisableInputs}
-                placeholder="Enter reason"
-                autoComplete="off"
-                onChange={(e) => setCustomInputDraft(e.target.value)}
-                onBlur={(e) => {
-                  if (e.target.value.trim()) {
-                    updateProductRow(row.id, { returnReason: e.target.value.trim() })
-                  }
-                  setShowCustomReason(false)
-                  setCustomInputDraft('')
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    if (customInputDraft.trim()) {
-                      updateProductRow(row.id, { returnReason: customInputDraft.trim() })
-                    }
-                    setShowCustomReason(false)
-                    setCustomInputDraft('')
-                    e.currentTarget.blur()
-                  }
-                  if (e.key === 'Escape') {
-                    setShowCustomReason(false)
-                    setCustomInputDraft('')
-                  }
-                }}
-                className={`h-10 w-full rounded-xl border border-blue-400 bg-white px-3 text-xs font-medium text-zinc-700 outline-none transition-all focus:ring-2 focus:ring-blue-200 ${
-                  effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : ''
-                }`}
-              />
-            </div>
-          ) : (
-            <ReturnReasonDropdown
-              value={row.returnReason ?? ''}
-              disabled={effectiveDisableInputs}
-              onSelect={(reason) => {
-                if (reason === '__custom__') {
-                  setCustomInputDraft('')
-                  setShowCustomReason(true)
-                } else {
-                  updateProductRow(row.id, { returnReason: reason })
-                }
-              }}
-            />
-          )}
+          <ReturnReasonDropdown
+            value={row.returnReason ?? ''}
+            disabled={effectiveDisableInputs}
+            onSelect={(reason) => {
+              updateProductRow(row.id, { returnReason: reason })
+            }}
+          />
         </td>
       )}
       <td className="min-w-0 px-2 py-2 text-right">

@@ -29,7 +29,10 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
-import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import {
+  getLookupInlineSearchByMode,
+  syncLookupSearchByMode,
+} from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import { resolveProductTaxRates } from '@/features/create-pages/create-shared/utils/product-tax-rate'
 import { apInvoiceQueries } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
@@ -551,6 +554,28 @@ export function useAPInvoiceCreate({
       onSalesEmployee: handleBuyerChange,
     })
 
+  useEffect(() => {
+    if (!modalOpen) return
+    const nextSearch = getLookupInlineSearchByMode(modalMode, {
+      vendorName: vendorNameInput,
+      vendorCode: vendorCodeInput,
+      warehouse: warehouseInput,
+      salesEmployee: buyerInput,
+    })
+    if (nextSearch !== modalSearch) {
+      setModalSearch(nextSearch)
+    }
+  }, [
+    buyerInput,
+    modalMode,
+    modalOpen,
+    modalSearch,
+    setModalSearch,
+    vendorCodeInput,
+    vendorNameInput,
+    warehouseInput,
+  ])
+
   const selectVendor = (vendor: LookupItem) => {
     if (hasCopiedRows) {
       setPendingVendorChange({ vendor })
@@ -589,6 +614,14 @@ export function useAPInvoiceCreate({
   const handleVendorNameChange = (value: string) => {
     setVendorNameInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
+    if (value.trim() === '') {
+      setVendorNameFocused(true)
+      setVendorCodeInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matched = vendors.find((v) => v.name.trim().toLowerCase() === value.trim().toLowerCase())
     if (matched) {
       setVendorCodeInput(matched.code)
@@ -615,11 +648,20 @@ export function useAPInvoiceCreate({
     setVendorCodeInput('')
     setBuyerInput('')
     setLines([])
+    setVendorNameFocused(true)
   }
 
   const handleVendorCodeChange = (value: string) => {
     setVendorCodeInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
+    if (value.trim() === '') {
+      setVendorCodeFocused(true)
+      setVendorNameInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matched = vendors.find((v) => v.code.trim().toLowerCase() === value.trim().toLowerCase())
     if (matched) {
       if (hasCopiedRows) {
@@ -650,6 +692,7 @@ export function useAPInvoiceCreate({
     setVendorNameInput('')
     setBuyerInput('')
     setLines([])
+    setVendorCodeFocused(true)
   }
 
   /* ---------- vendor-change confirmation handlers ---------- */

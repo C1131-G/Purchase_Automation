@@ -38,7 +38,10 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 import { normalizeCreateOrderErrorMessage } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import { documentActionToast } from '@/features/create-pages/create-shared/utils/document-action-toast'
-import { syncLookupSearchByMode } from '@/features/create-pages/create-shared/utils/lookup-search-sync'
+import {
+  getLookupInlineSearchByMode,
+  syncLookupSearchByMode,
+} from '@/features/create-pages/create-shared/utils/lookup-search-sync'
 import { pageLoadingToast } from '@/features/create-pages/create-shared/utils/page-loading-toast'
 import { resolveProductTaxRates } from '@/features/create-pages/create-shared/utils/product-tax-rate'
 import { apCreditMemoQueries } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries'
@@ -381,6 +384,7 @@ export function useAPCreditMemoCreate({
         id?: number
         SalesPersonCode?: number
         Address?: string
+        Address2?: string
         DocumentLines?: Array<Record<string, unknown>>
       }
 
@@ -450,7 +454,8 @@ export function useAPCreditMemoCreate({
         const detailLines = (detail.DocumentLines ?? []) as Array<Record<string, unknown>>
         return detailLines.map((line) => {
           const idx = lineIndex++
-          const openQty = Number(line.OpenQty ?? line.OpenQuantity ?? line.Quantity ?? 1)
+          const lineData = line as Record<string, unknown>
+          const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1)
           const quantity = openQty
           const price = Number(line.Price ?? line.UnitPrice ?? 0)
           const grossAmount = Math.max(0, price * quantity)
@@ -491,7 +496,8 @@ export function useAPCreditMemoCreate({
       setBuyerInput(buyerName)
       setWarehouseInput(warehouseCode)
       setBillToAddress(String(primaryDetail.Address ?? '').trim())
-      setShipToAddress(String((primaryDetail as Record<string, unknown>).Address2 ?? '').trim())
+      setShipToAddress(String(primaryDetail.Address2 ?? '').trim())
+
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -517,6 +523,10 @@ export function useAPCreditMemoCreate({
     salesEmployees,
     setHeader,
     setLines,
+    setVendorCodeInput,
+    setVendorNameInput,
+    setBuyerInput,
+    setWarehouseInput,
     setBillToAddress,
     setShipToAddress,
     setProductRowDrafts,
@@ -557,6 +567,28 @@ export function useAPCreditMemoCreate({
       onSalesEmployee: handleBuyerChange,
     })
 
+  useEffect(() => {
+    if (!modalOpen) return
+    const nextSearch = getLookupInlineSearchByMode(modalMode, {
+      vendorName: vendorNameInput,
+      vendorCode: vendorCodeInput,
+      warehouse: warehouseInput,
+      salesEmployee: buyerInput,
+    })
+    if (nextSearch !== modalSearch) {
+      setModalSearch(nextSearch)
+    }
+  }, [
+    buyerInput,
+    modalMode,
+    modalOpen,
+    modalSearch,
+    setModalSearch,
+    vendorCodeInput,
+    vendorNameInput,
+    warehouseInput,
+  ])
+
   const selectVendor = (vendor: LookupItem) => {
     if (hasCopiedRows) {
       setPendingVendorChange({ vendor })
@@ -595,6 +627,14 @@ export function useAPCreditMemoCreate({
   const handleVendorNameChange = (value: string) => {
     setVendorNameInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
+    if (value.trim() === '') {
+      setVendorNameFocused(true)
+      setVendorCodeInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matched = vendors.find((v) => v.name.trim().toLowerCase() === value.trim().toLowerCase())
     if (matched) {
       setVendorCodeInput(matched.code)
@@ -621,11 +661,20 @@ export function useAPCreditMemoCreate({
     setVendorCodeInput('')
     setBuyerInput('')
     setLines([])
+    setVendorNameFocused(true)
   }
 
   const handleVendorCodeChange = (value: string) => {
     setVendorCodeInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
+    if (value.trim() === '') {
+      setVendorCodeFocused(true)
+      setVendorNameInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matched = vendors.find((v) => v.code.trim().toLowerCase() === value.trim().toLowerCase())
     if (matched) {
       if (hasCopiedRows) {
@@ -656,6 +705,7 @@ export function useAPCreditMemoCreate({
     setVendorNameInput('')
     setBuyerInput('')
     setLines([])
+    setVendorCodeFocused(true)
   }
 
   const confirmVendorChange = () => {

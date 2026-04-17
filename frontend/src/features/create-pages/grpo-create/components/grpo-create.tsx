@@ -112,8 +112,14 @@ export function GRPOCreate({
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <VendorCustomerGrid
-              loading={isFormHydrating}
-              error={null}
+              loading={state.vendorsQuery.isLoading || isFormHydrating}
+              error={
+                state.vendorsQuery.isError
+                  ? state.vendorsQuery.error instanceof Error
+                    ? state.vendorsQuery.error.message
+                    : 'Unable to load vendors.'
+                  : null
+              }
               nameInput={state.vendorNameInput}
               codeInput={state.vendorCodeInput}
               nameFocused={state.vendorNameFocused}

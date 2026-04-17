@@ -129,7 +129,7 @@ export function APCreditMemoProductSection({
           productRowDrafts={productRowDrafts}
           enforceStockLimit={false}
           maxQuantity={(row) => row.baseQuantity}
-          linkedRow={(row) => !!row.baseEntry && !!row.baseLine}
+          linkedRow={(row) => row.baseEntry != null && row.baseLine != null}
           disableLineInputs={isReadOnlyMode}
           onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
           openProductPopup={openProductPopup}

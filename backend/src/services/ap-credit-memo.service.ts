@@ -233,6 +233,15 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
         if (item.U_ReturnReason) {
           line.U_ReturnReason = item.U_ReturnReason as string;
         }
+        if (item.BaseType !== undefined) {
+          line.BaseType = item.BaseType as number;
+        }
+        if (item.BaseEntry !== undefined) {
+          line.BaseEntry = item.BaseEntry as number;
+        }
+        if (item.BaseLine !== undefined) {
+          line.BaseLine = item.BaseLine as number;
+        }
         return line;
       }),
     };

@@ -32,4 +32,8 @@ export const outgoingPaymentAPI = {
       : '/api/v1/outgoing-payments/docnums'
     return apiClient<OutgoingPaymentDocNumLookupResponse>(path)
   },
+  getOutgoingPaymentByDocNum: async (docNum: string) => {
+    const path = `/api/v1/outgoing-payments/${encodeURIComponent(docNum)}`
+    return apiClient<{ success: boolean; data: Record<string, unknown> }>(path)
+  },
 }

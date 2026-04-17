@@ -366,9 +366,9 @@ export const getGRPOByDocNum = async (sessionId: string, dbName: string, id: str
 
   // Enrich lines with calculated OpenQty.
   const enrichedLines = (grpoDetail.DocumentLines || []).map((line: Record<string, unknown>) => {
-    const lineNum = line.LineNum ?? 0;
+    const lineNum = Number(line.LineNum ?? 0);
     const orderedQty = Number(line.Quantity ?? 0);
-    const consumedQty = consumedByLine.get(lineNum) ?? 0;
+    const consumedQty = Number(consumedByLine.get(lineNum) ?? 0);
     const openQty = Math.max(0, orderedQty - consumedQty);
 
     return {

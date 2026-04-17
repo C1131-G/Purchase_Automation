@@ -805,6 +805,14 @@ export function useGRPOCreate({
   const handleVendorNameChange = (value: string) => {
     setVendorNameInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
+    if (value.trim() === '') {
+      setVendorNameFocused(true)
+      setVendorCodeInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matchedByName = vendors.find(
       (item) => item.name.trim().toLowerCase() === value.trim().toLowerCase(),
     )
@@ -821,6 +829,7 @@ export function useGRPOCreate({
             )?.name
           : ''
       setBuyerInput(buyerByCode || matchedByName.salesEmployeeName?.trim() || '')
+      setVendorNameFocused(false)
       return
     }
     // Typing a non-matching name — if copied rows exist, guard
@@ -829,11 +838,20 @@ export function useGRPOCreate({
     setBuyerInput('')
     setWarehouseInput('')
     setLines([])
+    setVendorNameFocused(true)
   }
 
   const handleVendorCodeChange = (value: string) => {
     setVendorCodeInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
+    if (value.trim() === '') {
+      setVendorCodeFocused(true)
+      setVendorNameInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matchedByCode = vendors.find(
       (item) => item.code.trim().toLowerCase() === value.trim().toLowerCase(),
     )
@@ -855,6 +873,7 @@ export function useGRPOCreate({
             )?.name
           : ''
       setBuyerInput(buyerByCode || matchedByCode.salesEmployeeName?.trim() || '')
+      setVendorCodeFocused(false)
       return
     }
     // Typing a non-matching code — if copied rows exist, guard
@@ -863,6 +882,7 @@ export function useGRPOCreate({
     setBuyerInput('')
     setWarehouseInput('')
     setLines([])
+    setVendorCodeFocused(true)
   }
 
   /* ---------- vendor-change confirmation handlers ---------- */
