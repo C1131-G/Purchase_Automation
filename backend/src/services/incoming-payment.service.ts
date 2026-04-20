@@ -16,7 +16,6 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
     const repo = await getTenantRepository(dbName, IncomingPaymentSchema);
     const queryBuilder = repo.createQueryBuilder("p");
 
-
     queryBuilder.where("1=1");
 
     // Dynamic Filter: Payment Document Number (Standard: DocNum).
@@ -109,11 +108,6 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
         CounterRef: data.counterRef,
       })),
     };
-
-
-
-
-
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     throw error;
@@ -161,12 +155,6 @@ export const getPayment = async (sessionId: string, id: string) => {
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       Comments: result.Remarks,
-
-
-
-
-
-
 
       // maps the list of invoices settled by this payment.
       PaymentInvoices:

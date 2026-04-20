@@ -33,11 +33,15 @@ interface DocumentOption {
   docType: SourceDocType
   docEntry?: number
   docDate?: string
+  docTotal?: number
 }
 
 interface DocDetailCache {
   lines: Array<{ itemName: string; openQty: number }>
   totalOpenQty: number
+  docDate?: string
+  docTotal?: number
+  docCurrency?: string
 }
 
 const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const
@@ -63,7 +67,13 @@ function computeDetail(
   data: PurchaseOrderDetail | GRPODetail | APInvoiceDetail,
 ): DocDetailCache {
   const lines = data.DocumentLines ?? []
-  const result: DocDetailCache = { lines: [], totalOpenQty: 0 }
+  const result: DocDetailCache = {
+    lines: [],
+    totalOpenQty: 0,
+    docDate: data.DocDate,
+    docTotal: typeof data.DocTotal === 'number' ? data.DocTotal : Number(data.DocTotal) || 0,
+    docCurrency: data.DocCurr,
+  }
   for (const line of lines) {
     const openQty =
       (line as { OpenQty?: number }).OpenQty ?? (line as { Quantity?: number }).Quantity ?? 0
@@ -337,9 +347,7 @@ export function CopyFromDialog({
       clearTimeout(hoverTimerRef.current)
       hoverTimerRef.current = null
     }
-    setHoveredDoc(null)
-    setHoverDetail(null)
-    setHoverDetailLoading(false)
+    // Keep hover state visible until next hover
   }, [])
 
   if (!open) return null
@@ -439,7 +447,7 @@ export function CopyFromDialog({
                         onClick={() => handleToggleDocument(doc.code)}
                         onMouseEnter={() => handleRowMouseEnter(doc)}
                         onMouseLeave={handleRowMouseLeave}
-                        className={`relative flex w-full items-center border-t border-zinc-100 px-4 py-2.5 text-left transition ${
+                        className={`relative flex w-full items-center cursor-pointer border-t border-zinc-100 px-4 py-2.5 text-left transition ${
                           isSelected ? 'bg-blue-50' : 'bg-white hover:bg-zinc-50'
                         }`}
                       >
@@ -499,12 +507,33 @@ export function CopyFromDialog({
                 </div>
               ) : hoverDetail ? (
                 <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                    {DOC_TYPE_ICONS[hoveredDoc?.docType ?? sourceDocType]}
-                    <span>
-                      {hoveredDoc ? DOC_TYPE_LABELS[hoveredDoc.docType] : label} #
-                      {hoveredDoc?.code ?? ''}
-                    </span>
+                  <div className="flex flex-col gap-0.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                    <div className="flex items-center gap-1.5">
+                      {DOC_TYPE_ICONS[hoveredDoc?.docType ?? sourceDocType]}
+                      <span>
+                        {hoveredDoc ? DOC_TYPE_LABELS[hoveredDoc.docType] : label} #
+                        {hoveredDoc?.code ?? ''}
+                      </span>
+                    </div>
+                    {hoverDetail.docDate && (
+                      <div className="flex items-center gap-1.5 font-normal normal-case">
+                        <span>
+                          {new Date(hoverDetail.docDate).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: '2-digit',
+                          })}
+                        </span>
+                        <span>·</span>
+                        <span className="font-semibold text-blue-700">
+                          {hoverDetail.docTotal?.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{' '}
+                          {hoverDetail.docCurrency}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {hoverDetail.lines.slice(0, VISIBLE_LINES).map((line, i) => (
                     <div

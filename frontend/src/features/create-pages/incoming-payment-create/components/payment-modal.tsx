@@ -2,7 +2,6 @@ import { goeyToast } from 'goey-toast'
 import { CheckCircle2, Delete, Plus, Trash2, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-
 import amexImg from '@/assets/payment-icons/Amex.jpg'
 import qrpayImg from '@/assets/payment-icons/Card.jpg' // Using Card.jpg as placeholder for QR Pay or generic
 import debitImg from '@/assets/payment-icons/Debit.jpg'

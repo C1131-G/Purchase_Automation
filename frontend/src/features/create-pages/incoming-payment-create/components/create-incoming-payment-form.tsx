@@ -29,7 +29,6 @@ export function CreateIncomingPaymentForm() {
     Record<string, { type: 'it_Invoice' | 'it_CredItnote'; amount: number }>
   >({})
 
-
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false)
 
   const { data: invoicesData, isLoading: isLoadingInvoices } = useQuery({
@@ -42,13 +41,11 @@ export function CreateIncomingPaymentForm() {
     enabled: !!lookups.codeInput,
   })
 
-
   const createPaymentMutation = useMutation({
     mutationFn: incomingPaymentAPI.createIncomingPayment,
     onSuccess: (data) => {
       goeyToast.success(`Incoming Payment ${data.DocNum} created successfully!`)
       navigate({ to: '/sales/incoming-payment', search: { page: 1, limit: 10 } })
-
     },
     onError: (error) => {
       goeyToast.error(error instanceof Error ? error.message : 'Failed to create payment')
@@ -84,7 +81,6 @@ export function CreateIncomingPaymentForm() {
     type: 'it_Invoice' | 'it_CredItnote',
     total: number,
   ) => {
-
     const key = `${type}-${docEntry}`
     setSelectedDocs((prev) => {
       const next = { ...prev }
@@ -148,11 +144,7 @@ export function CreateIncomingPaymentForm() {
     const surchargeTotal = paymentDetails.SurchargeTotal || 0
     goeyToast.info(`Captured surcharge: ${surchargeTotal}`)
 
-
-
     createPaymentMutation.mutate({
-
-
       CardCode: lookups.codeInput,
       DocDate: toISODate(today) || '',
       Remarks: remarks,

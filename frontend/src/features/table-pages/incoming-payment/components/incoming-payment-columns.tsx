@@ -106,11 +106,6 @@ export const createIncomingPaymentColumns = () => [
     meta: { filterType: 'number-comparison' },
   }),
 
-
-
-
-
-
   columnHelper.accessor('CounterRef', {
     id: 'CounterRef',
     header: ({ column, table }) => (

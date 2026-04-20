@@ -56,10 +56,6 @@ const routeApi = getRouteApi('/_layout/sales/incoming-payment')
 const TABLE_ID = 'incoming-payments'
 const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'CounterRef']
 
-
-
-
-
 const toIncomingPaymentColumnFilters = (
   filters: ColumnFiltersState,
 ): IncomingPaymentColumnFilter[] => {
@@ -153,12 +149,6 @@ export function IncomingPaymentTable() {
     error,
     refetch,
   } = useQuery(incomingPaymentQueries.list(listParams))
-
-
-
-
-
-
 
   const queryClient = useQueryClient()
 
