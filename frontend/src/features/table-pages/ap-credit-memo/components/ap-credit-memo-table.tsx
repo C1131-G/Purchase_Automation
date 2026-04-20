@@ -87,7 +87,36 @@ export function APCreditMemoTable() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createAPCreditMemoColumns(), [])
+  const queryClient = useQueryClient()
+
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      void queryClient.prefetchQuery(apCreditMemoQueries.detailByDocNum(docNum))
+    },
+    [queryClient],
+  )
+
+  const columns = useMemo(
+    () =>
+      createAPCreditMemoColumns({
+        onDocNumHover: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+        },
+        onDocNumDoubleClick: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          prefetchEditRouteData(normalized)
+          void navigate({
+            to: '/purchase/ap-credit-memo/$docNum/edit',
+            params: { docNum: normalized },
+            viewTransition: true,
+          } as never)
+        },
+      }),
+    [navigate, prefetchEditRouteData],
+  )
   const columnIds = useMemo(
     () =>
       columns
@@ -146,8 +175,6 @@ export function APCreditMemoTable() {
     error,
     refetch,
   } = useQuery(apCreditMemoQueries.list(listParams))
-
-  const queryClient = useQueryClient()
 
   const rows = useMemo(() => apCreditMemoList?.data ?? [], [apCreditMemoList?.data])
   const totalRows = apCreditMemoList?.total ?? 0

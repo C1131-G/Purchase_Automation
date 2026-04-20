@@ -26,3 +26,28 @@ export const reconcileAddresses = (billTo: string, shipTo: string): string => {
 
   return sA
 }
+
+/**
+ * Converts a comma-separated SAP address string into a multiline display format.
+ * E.g. `"P. O. BOX 10579, NADI, FIJI"` becomes:
+ * ```
+ * P. O. BOX 10579
+ * NADI
+ * FIJI
+ * ```
+ *
+ * If the address already contains newlines, it is returned as-is.
+ * Manual editing in the textarea preserves whatever format the user types.
+ */
+export const formatAddressForDisplay = (value: string): string => {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  // If it already has newlines, don't reformat (preserve user edits / existing multiline)
+  if (trimmed.includes('\n')) return trimmed
+  // Split on comma, trim each part, join with newlines
+  return trimmed
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('\n')
+}

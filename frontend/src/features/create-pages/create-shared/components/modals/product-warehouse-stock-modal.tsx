@@ -108,6 +108,7 @@ export function ProductWarehouseStockModal({
             // Sync back to the inline input (two-way sync with the parent lookup field)
             onSearchChange?.(value)
           }}
+          autoComplete="off"
         />
 
         {loading && filteredStocks.length === 0 ? (

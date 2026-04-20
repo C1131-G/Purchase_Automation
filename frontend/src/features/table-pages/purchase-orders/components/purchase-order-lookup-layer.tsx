@@ -178,7 +178,6 @@ export function PurchaseOrderLookupLayer({
       />
       <LookupPopup
         open={lookupPopupOpen}
-        showBothColumns
         mode={
           lookupColumnId === 'DocNum'
             ? 'vendor-code'

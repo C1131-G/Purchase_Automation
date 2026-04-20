@@ -168,7 +168,6 @@ export function APInvoiceLookupLayer({ tableId, table, onReset }: APInvoiceLooku
       />
       <LookupPopup
         open={lookupPopupOpen}
-        showBothColumns
         mode={
           lookupColumnId === 'DocNum'
             ? 'vendor-code'

@@ -12,6 +12,7 @@ export type SelectRootProps = {
   disabled?: boolean
   id?: string
   name?: string
+  autoComplete?: string
 }
 
 export type SelectValueProps = {

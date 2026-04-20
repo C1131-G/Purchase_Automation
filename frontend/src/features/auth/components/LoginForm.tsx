@@ -79,6 +79,24 @@ export function LoginForm() {
         </p>
       </div>
 
+      {/* Anti-autofill decoy fields - hidden from user, confuse browser */}
+      <input
+        type="text"
+        name="autofill_decoy_1"
+        tabIndex={-1}
+        autoComplete="off"
+        className="absolute -z-10 opacity-0 pointer-events-none"
+        aria-hidden="true"
+      />
+      <input
+        type="password"
+        name="autofill_decoy_2"
+        tabIndex={-1}
+        autoComplete="off"
+        className="absolute -z-10 opacity-0 pointer-events-none"
+        aria-hidden="true"
+      />
+
       <Form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* --- Organization --- */}
         <Controller
@@ -93,6 +111,7 @@ export function LoginForm() {
                 defaultValue={field.value}
                 onValueChange={field.onChange}
                 disabled={isLoadingOrgs || isLoggingIn}
+                autoComplete="off"
               >
                 <Select.Trigger>
                   <div className="flex items-center gap-3 overflow-hidden flex-1">
@@ -149,7 +168,7 @@ export function LoginForm() {
           <Input
             {...register('username')}
             placeholder="Username"
-            autoComplete="username"
+            autoComplete="off"
             disabled={isLoggingIn}
           />
           <Field.Error />
@@ -163,7 +182,7 @@ export function LoginForm() {
               {...register('password')}
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
-              autoComplete="current-password"
+              autoComplete="new-password"
               disabled={isLoggingIn}
               className="pr-12"
             />

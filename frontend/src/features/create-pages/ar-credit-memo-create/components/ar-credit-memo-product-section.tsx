@@ -137,6 +137,8 @@ export function ArCreditMemoProductSection({
           stockLimitReserve={0}
           minStockToSelectWarehouse={0}
           disableLineInputs={isUpdateAction}
+          maxQuantity={(row) => row.baseQuantity}
+          linkedRow={(row) => row.baseEntry != null && row.baseLine != null}
           onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
           openProductPopup={handleOpenProductPopup}
           updateProductRow={updateProductRow}

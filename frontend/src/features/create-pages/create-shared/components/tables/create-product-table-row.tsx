@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { Search, Trash2 } from 'lucide-react'
+import { goeyToast } from 'goey-toast'
+import { ChevronDown, Search, Trash2 } from 'lucide-react'
 import React from 'react'
 import ReactDOM from 'react-dom'
 
@@ -14,10 +15,112 @@ import {
   type ProductRowDraft,
 } from '@/features/create-pages/create-shared/utils/create-order.types'
 
+const RETURN_REASON_PRESETS = [
+  'Item Damaged',
+  'Changed mind',
+  'Dissatisfaction with quality',
+  'Ordered wrong item',
+] as const
+
+interface ReturnReasonDropdownProps {
+  value: string
+  disabled?: boolean
+  onSelect: (reason: string) => void
+}
+
+function ReturnReasonDropdown({ value, disabled, onSelect }: ReturnReasonDropdownProps) {
+  const [open, setOpen] = React.useState(false)
+  const triggerRef = React.useRef<HTMLDivElement>(null)
+  const popupRef = React.useRef<HTMLDivElement>(null)
+  const [dropdownStyle, setDropdownStyle] = React.useState<React.CSSProperties | null>({
+    position: 'fixed',
+    zIndex: 9999,
+    width: 220,
+  })
+
+  const selectedLabel = value
+    ? RETURN_REASON_PRESETS.includes(value as (typeof RETURN_REASON_PRESETS)[number])
+      ? value
+      : value
+    : ''
+
+  React.useEffect(() => {
+    if (!open || !triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 220),
+      zIndex: 9999,
+    })
+  }, [open])
+
+  React.useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      const isInsideTrigger = triggerRef.current?.contains(target)
+      const isInsidePopup = popupRef.current?.contains(target)
+      if (!isInsideTrigger && !isInsidePopup) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  const handleSelect = (reason: string, e?: React.MouseEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
+    onSelect(reason)
+    setOpen(false)
+  }
+
+  return (
+    <div ref={triggerRef} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(!open)}
+        onMouseDown={(e) => e.preventDefault()}
+        className={`flex h-10 w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 text-xs font-medium outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-200 ${
+          disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-zinc-300'
+        } ${selectedLabel ? 'text-zinc-700' : 'text-zinc-400'} min-w-[140px]`}
+      >
+        <span className="truncate">{selectedLabel || 'Select reason'}</span>
+        <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" />
+      </button>
+      {open &&
+        ReactDOM.createPortal(
+          <div
+            ref={popupRef}
+            style={dropdownStyle ?? undefined}
+            className="overflow-hidden rounded-xl border border-zinc-100 bg-white shadow-xl ring-1 ring-black/5"
+          >
+            {RETURN_REASON_PRESETS.map((reason) => (
+              <button
+                key={reason}
+                type="button"
+                onMouseDown={(e) => handleSelect(reason, e)}
+                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                <span>{reason}</span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </div>
+  )
+}
+
 interface CreateProductTableRowProps {
   row: ProductRow
   rowDraft?: ProductRowDraft | undefined
   enforceStockLimit?: boolean
+  maxQuantity?: number | ((row: ProductRow) => number | undefined)
+  linkedRow?: boolean | ((row: ProductRow) => boolean)
   openProductPopup: (rowId: string | null) => void
   updateProductRow: (id: string, patch: Partial<ProductRow>) => void
   removeProductRow: (id: string) => void
@@ -56,6 +159,8 @@ export function CreateProductTableRow({
   showSelection = false,
   showReturnReason = false,
   showTaxCode = false,
+  maxQuantity,
+  linkedRow = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState('')
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState('')
@@ -64,6 +169,20 @@ export function CreateProductTableRow({
   const blurTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const warehouseInputRef = React.useRef<HTMLInputElement>(null)
   const [dropdownStyle, setDropdownStyle] = React.useState<React.CSSProperties | null>(null)
+
+  const effectiveMaxQuantity = React.useMemo(() => {
+    if (typeof maxQuantity === 'function') {
+      return maxQuantity(row)
+    }
+    return maxQuantity
+  }, [maxQuantity, row])
+
+  const effectiveLinkedRow = React.useMemo(() => {
+    if (typeof linkedRow === 'function') {
+      return linkedRow(row)
+    }
+    return linkedRow
+  }, [linkedRow, row])
 
   const syncDropdownPosition = React.useCallback(() => {
     const rect = warehouseInputRef.current?.getBoundingClientRect()
@@ -427,13 +546,39 @@ export function CreateProductTableRow({
                 const rawValue = event.target.value.trim()
 
                 if (rawValue === '') {
+                  if (effectiveLinkedRow) {
+                    goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                    updateProductRow(row.id, { quantity: 1 })
+                    clearProductRowDraft(row.id, 'quantity')
+                    return
+                  }
                   updateProductRow(row.id, { quantity: 0 })
                   clearProductRowDraft(row.id, 'quantity')
                   return
                 }
 
-                const typedQuantity = Math.max(1, Number(rawValue) || 1)
-                const clamped = Math.min(maxAllowed, typedQuantity)
+                const typedQuantity = Number(rawValue)
+                if (
+                  effectiveLinkedRow &&
+                  (typedQuantity === 0 || !Number.isFinite(typedQuantity))
+                ) {
+                  goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                  updateProductRow(row.id, { quantity: 1 })
+                  clearProductRowDraft(row.id, 'quantity')
+                  return
+                }
+
+                const typedQuantityVal = Math.max(1, Number(rawValue) || 1)
+                const clamped = Math.min(maxAllowed, typedQuantityVal)
+
+                if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
+                  goeyToast.error('Quantity cannot exceed base quantity', {
+                    id: 'max-quantity-error',
+                  })
+                  updateProductRow(row.id, { quantity: effectiveMaxQuantity })
+                  clearProductRowDraft(row.id, 'quantity')
+                  return
+                }
 
                 updateProductRow(row.id, { quantity: clamped })
                 clearProductRowDraft(row.id, 'quantity')
@@ -466,13 +611,37 @@ export function CreateProductTableRow({
               const rawValue = event.target.value.trim()
 
               if (rawValue === '') {
+                if (effectiveLinkedRow) {
+                  goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                  updateProductRow(row.id, { quantity: 1 })
+                  clearProductRowDraft(row.id, 'quantity')
+                  return
+                }
                 updateProductRow(row.id, { quantity: 0 })
                 clearProductRowDraft(row.id, 'quantity')
                 return
               }
 
-              const typedQuantity = Math.max(1, Number(rawValue) || 1)
-              updateProductRow(row.id, { quantity: typedQuantity })
+              const typedQuantity = Number(rawValue)
+              if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {
+                goeyToast.error('0 not allowed', { id: 'min-quantity-error' })
+                updateProductRow(row.id, { quantity: 1 })
+                clearProductRowDraft(row.id, 'quantity')
+                return
+              }
+
+              const typedQuantityVal = Math.max(1, Number(rawValue) || 1)
+
+              if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {
+                goeyToast.error('Quantity cannot exceed base quantity', {
+                  id: 'max-quantity-error',
+                })
+                updateProductRow(row.id, { quantity: effectiveMaxQuantity })
+                clearProductRowDraft(row.id, 'quantity')
+                return
+              }
+
+              updateProductRow(row.id, { quantity: typedQuantityVal })
               clearProductRowDraft(row.id, 'quantity')
             }}
             className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : ''}`}
@@ -591,23 +760,16 @@ export function CreateProductTableRow({
       )}
       {showReturnReason && (
         <td className="min-w-0 px-2 py-2">
-          <select
+          <ReturnReasonDropdown
             value={row.returnReason ?? ''}
             disabled={effectiveDisableInputs}
-            onChange={(e) => updateProductRow(row.id, { returnReason: e.target.value })}
-            className={`h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs text-zinc-800 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
-              effectiveDisableInputs ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
-            }`}
-          >
-            <option value="">Select a Reason</option>
-            <option value="Item Damaged">Item Damaged</option>
-            <option value="Changed mind">Changed mind</option>
-            <option value="Dissatisfaction with quality">Dissatisfaction with quality</option>
-            <option value="Ordered wrong item">Ordered wrong item</option>
-          </select>
+            onSelect={(reason) => {
+              updateProductRow(row.id, { returnReason: reason })
+            }}
+          />
         </td>
       )}
-      <td className="min-w-0 px-2 py-2">
+      <td className="min-w-0 px-2 py-2 text-right">
         <Tooltip content="Remove row" className="block w-auto max-w-none">
           <button
             type="button"

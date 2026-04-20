@@ -96,6 +96,7 @@ export function FieldBlock({
       <div className="relative">
         <input
           id={inputId}
+          autoComplete="off"
           className={`h-10 w-full rounded-xl border pl-3 pr-12 text-sm outline-none transition placeholder:text-zinc-400 ${
             invalid
               ? 'border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200'

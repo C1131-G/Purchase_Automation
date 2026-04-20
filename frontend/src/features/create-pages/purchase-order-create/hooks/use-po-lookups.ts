@@ -1,9 +1,10 @@
 /** usePOLookups: Manages specialized vendor and product lookups for the PO flow. */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { createSharedQueries as purchaseOrderCreateQueries } from '@/features/create-pages/create-shared/api/create-shared.queries'
 import { type ProductLookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
+import { formatAddressForDisplay } from '@/features/create-pages/create-shared/utils/address.utils'
 import { type LookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 import {
   type ProductSearchFieldError,
@@ -43,8 +44,15 @@ export function usePoLookups({
   const [warehouseInput, setWarehouseInput] = useState('')
   const [salesEmployeeInput, setSalesEmployeeInput] = useState('')
 
-  const [billToAddress, setBillToAddress] = useState('')
-  const [shipToAddress, setShipToAddress] = useState('')
+  const [billToAddress, setBillToAddressRaw] = useState('')
+  const [shipToAddress, setShipToAddressRaw] = useState('')
+
+  const setBillToAddress = useCallback((value: string) => {
+    setBillToAddressRaw(formatAddressForDisplay(value))
+  }, [])
+  const setShipToAddress = useCallback((value: string) => {
+    setShipToAddressRaw(formatAddressForDisplay(value))
+  }, [])
 
   const [nameFocused, setNameFocused] = useState(false)
   const [codeFocused, setCodeFocused] = useState(false)

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { goeyToast } from 'goey-toast'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   createSharedKeys,
@@ -10,6 +10,7 @@ import {
   type LookupItem,
   type ProductLookupItem,
 } from '@/features/create-pages/create-shared/api/create-shared.types'
+import { formatAddressForDisplay } from '@/features/create-pages/create-shared/utils/address.utils'
 import {
   type ActiveDatePicker,
   type PopupMode,
@@ -141,8 +142,15 @@ export function useGRPOCreate({
   const [warehouseInput, setWarehouseInput] = useState('')
   const [warehouseFocused, setWarehouseFocused] = useState(false)
 
-  const [billToAddress, setBillToAddress] = useState('')
-  const [shipToAddress, setShipToAddress] = useState('')
+  const [billToAddress, setBillToAddressRaw] = useState('')
+  const [shipToAddress, setShipToAddressRaw] = useState('')
+
+  const setBillToAddress = useCallback((value: string) => {
+    setBillToAddressRaw(formatAddressForDisplay(value))
+  }, [])
+  const setShipToAddress = useCallback((value: string) => {
+    setShipToAddressRaw(formatAddressForDisplay(value))
+  }, [])
 
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({})
   const [stockPreviewProduct, setStockPreviewProduct] = useState<StockPreviewProduct | null>(null)
@@ -197,6 +205,7 @@ export function useGRPOCreate({
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
       productQueryLimit,
+      'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
   })
@@ -338,6 +347,7 @@ export function useGRPOCreate({
         const taxRateByItemCode = await resolveProductTaxRates(
           queryClient,
           detailLines.map((line) => String(line.ItemCode ?? '').trim()),
+          'purchase',
         )
 
         const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
@@ -425,6 +435,8 @@ export function useGRPOCreate({
     salesEmployees,
     setHeader,
     setLines,
+    setBillToAddress,
+    setShipToAddress,
     vendors,
   ])
 
@@ -542,6 +554,7 @@ export function useGRPOCreate({
       const taxRateByItemCode = await resolveProductTaxRates(
         queryClient,
         allDetailLines.map((line) => String(line.ItemCode ?? '').trim()),
+        'purchase',
       )
 
       let lineIndex = 0
@@ -792,6 +805,14 @@ export function useGRPOCreate({
   const handleVendorNameChange = (value: string) => {
     setVendorNameInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorName: undefined }))
+    if (value.trim() === '') {
+      setVendorNameFocused(true)
+      setVendorCodeInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matchedByName = vendors.find(
       (item) => item.name.trim().toLowerCase() === value.trim().toLowerCase(),
     )
@@ -808,6 +829,7 @@ export function useGRPOCreate({
             )?.name
           : ''
       setBuyerInput(buyerByCode || matchedByName.salesEmployeeName?.trim() || '')
+      setVendorNameFocused(false)
       return
     }
     // Typing a non-matching name — if copied rows exist, guard
@@ -816,11 +838,20 @@ export function useGRPOCreate({
     setBuyerInput('')
     setWarehouseInput('')
     setLines([])
+    setVendorNameFocused(true)
   }
 
   const handleVendorCodeChange = (value: string) => {
     setVendorCodeInput(value)
     setFieldErrors((prev) => ({ ...prev, vendorCode: undefined }))
+    if (value.trim() === '') {
+      setVendorCodeFocused(true)
+      setVendorNameInput('')
+      setBuyerInput('')
+      setBillToAddress('')
+      setShipToAddress('')
+      return
+    }
     const matchedByCode = vendors.find(
       (item) => item.code.trim().toLowerCase() === value.trim().toLowerCase(),
     )
@@ -842,6 +873,7 @@ export function useGRPOCreate({
             )?.name
           : ''
       setBuyerInput(buyerByCode || matchedByCode.salesEmployeeName?.trim() || '')
+      setVendorCodeFocused(false)
       return
     }
     // Typing a non-matching code — if copied rows exist, guard
@@ -850,6 +882,7 @@ export function useGRPOCreate({
     setBuyerInput('')
     setWarehouseInput('')
     setLines([])
+    setVendorCodeFocused(true)
   }
 
   /* ---------- vendor-change confirmation handlers ---------- */
@@ -940,6 +973,7 @@ export function useGRPOCreate({
         effectiveWarehouseCode || undefined,
         productSearch.trim() || undefined,
         QUICK_PRODUCT_LIMIT,
+        'purchase',
       ),
     )
   }
@@ -978,7 +1012,12 @@ export function useGRPOCreate({
     setWarehouseInput(warehouse.name)
     setProductQueryLimit(QUICK_PRODUCT_LIMIT)
     void queryClient.prefetchQuery(
-      createSharedQueries.products(warehouse.code || undefined, undefined, QUICK_PRODUCT_LIMIT),
+      createSharedQueries.products(
+        warehouse.code || undefined,
+        undefined,
+        QUICK_PRODUCT_LIMIT,
+        'purchase',
+      ),
     )
     setLines((prev) =>
       prev.map((row) => ({
@@ -1137,6 +1176,7 @@ export function useGRPOCreate({
   }
 
   const missingMandatoryFields = useMemo(() => {
+    if (isEditMode) return []
     const requiredFields = GRPO_MANDATORY_FIELDS
 
     return requiredFields.filter((field) => {
@@ -1148,7 +1188,7 @@ export function useGRPOCreate({
       }
       return false
     })
-  }, [vendorNameInput, vendorCodeInput, rows])
+  }, [isEditMode, vendorNameInput, vendorCodeInput, rows])
 
   const searchMandatoryFields = useMemo(() => ['vendorName', 'vendorCode'] as const, [])
   const missingSearchMandatoryFields = useMemo(
@@ -1249,13 +1289,13 @@ export function useGRPOCreate({
   }, [buyerInput, salesEmployees])
 
   const handleCreateGRPO = async () => {
-    if (missingMandatoryFields.length > 0) {
+    if (!isEditMode && missingMandatoryFields.length > 0) {
       const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS }
       missingMandatoryFields.forEach((field) => {
         nextErrors[field] = GRPO_FIELD_ERROR_TEXT[field]
       })
       setFieldErrors(nextErrors)
-      setCreateError('Fill required fields before creating/updating GRPO.')
+      setCreateError('Fill required fields before creating GRPO.')
       return
     }
 

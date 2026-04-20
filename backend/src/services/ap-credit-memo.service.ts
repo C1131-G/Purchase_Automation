@@ -1,5 +1,6 @@
 // A/P Credit Memo Service: Logic for A/P Credit Memos, combining HANA database queries for lists and SAP Service Layer for detailed document operations.
 
+import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
@@ -137,16 +138,15 @@ export const getCreditNoteDocNums = async (dbName: string, search?: string, limi
     .map((code) => ({ code, name: code }));
 };
 
-// Obtains full document detail for an A/P Credit Memo from the SAP Service Layer.
-export const getCreditNote = async (sessionId: string, id: string) => {
+// Internal: Fetches A/P Credit Memo detail directly from SAP using DocEntry.
+const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string) => {
   try {
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
-      `/PurchaseCreditNotes(${id})`,
+      `/PurchaseCreditNotes(${docEntry})`,
     )) as SAPDocumentResponse;
 
-    // Status normalization for front-end consistency (bost_Open -> 'O').
     return {
       id: result.DocEntry,
       DocNum: result.DocNum,
@@ -157,6 +157,8 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
+      DocDueDate: result.DocDueDate,
+      NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
@@ -171,6 +173,7 @@ export const getCreditNote = async (sessionId: string, id: string) => {
           VatPrcnt: sapTaxRate,
           WarehouseCode: line.WarehouseCode,
           LineTotal: line.LineTotal,
+          U_ReturnReason: lineData.U_ReturnReason,
         };
       }),
     };
@@ -179,10 +182,34 @@ export const getCreditNote = async (sessionId: string, id: string) => {
     logger.error({
       msg: "Failed to fetch A/P Credit Memo from Service Layer",
       error: error.message,
-      id,
+      docEntry,
     });
     throw error;
   }
+};
+
+// Resolves an A/P Credit Memo by DocNum from HANA to get its DocEntry, then fetches full details from SAP.
+export const getCreditNoteByDocNum = async (sessionId: string, dbName: string, id: string) => {
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+  }
+
+  const repo = await getTenantRepository(dbName, APCreditMemoSchema);
+  const match = await repo
+    .createQueryBuilder("cn")
+    .select(["cn.docEntry"])
+    .where("CAST(cn.docNum AS NVARCHAR) = :id", { id: normalizedId })
+    .getOne();
+
+  const docEntry = match?.docEntry ? String(match.docEntry) : normalizedId;
+  return getCreditNoteByDocEntry(sessionId, docEntry);
+};
+
+// Obtains full document detail for an A/P Credit Memo from the SAP Service Layer.
+// Note: Prefer using getCreditNoteByDocNum for DocNum-based lookups.
+export const getCreditNote = async (sessionId: string, id: string) => {
+  return getCreditNoteByDocEntry(sessionId, id);
 };
 
 // Creates a formal A/P Credit Memo in SAP. Handles payload conversion.
@@ -193,15 +220,30 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Comments: payload.Comments,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => ({
-        ItemCode: item.ItemCode as string,
-        Quantity: item.Quantity as number,
-        UnitPrice: (item.UnitPrice || item.Price) as number,
-        UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
-        UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-        VatGroup: item.VatGroup as string,
-        WarehouseCode: item.WarehouseCode as string,
-      })),
+      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+        const line: Record<string, unknown> = {
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+          VatGroup: item.VatGroup as string,
+          WarehouseCode: item.WarehouseCode as string,
+        };
+        if (item.U_ReturnReason) {
+          line.U_ReturnReason = item.U_ReturnReason as string;
+        }
+        if (item.BaseType !== undefined) {
+          line.BaseType = item.BaseType as number;
+        }
+        if (item.BaseEntry !== undefined) {
+          line.BaseEntry = item.BaseEntry as number;
+        }
+        if (item.BaseLine !== undefined) {
+          line.BaseLine = item.BaseLine as number;
+        }
+        return line;
+      }),
     };
 
     // Date normalization to ensure SAP acceptance (YYYY-MM-DD).
@@ -243,7 +285,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
   }
 };
 
-// Updates meta-fields (like Comments) on an existing A/P Credit Memo.
+// Updates meta-fields (like Comments, NumAtCard, DocDueDate) on an existing A/P Credit Memo.
 export const updateCreditNote = async (
   sessionId: string,
   id: string,
@@ -252,6 +294,8 @@ export const updateCreditNote = async (
   try {
     const sapPayload: Record<string, unknown> = {};
     if (payload.Comments) sapPayload.Comments = payload.Comments;
+    if (payload.NumAtCard) sapPayload.NumAtCard = payload.NumAtCard;
+    if (payload.DocDueDate) sapPayload.DocDueDate = payload.DocDueDate;
 
     await serviceLayerClient.request(sessionId, "PATCH", `/PurchaseCreditNotes(${id})`, sapPayload);
 
@@ -292,6 +336,7 @@ export const apCreditMemoService = {
   getCreditNotes,
   getCreditNoteDocNums,
   getCreditNote,
+  getCreditNoteByDocNum,
   createCreditNote,
   updateCreditNote,
   cancelCreditNote,

@@ -1,4 +1,4 @@
-import React, { Component, type ReactNode } from 'react'
+import { Component, type ReactNode } from 'react'
 
 import { SectionErrorState } from '@/components/section-error-state'
 
@@ -26,9 +26,8 @@ export class GlobalErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  public override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  public override componentDidCatch() {
     // Send to monitoring service here if integrated.
-    console.error('Uncaught error:', error, errorInfo)
   }
 
   private handleReset = () => {

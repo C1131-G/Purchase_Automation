@@ -18,6 +18,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         ref={ref}
         id={resolvedId}
         name={resolvedName}
+        autoComplete="off"
         className={cn(
           'flex h-12 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 transition-all font-outfit',
           'placeholder:text-zinc-300',

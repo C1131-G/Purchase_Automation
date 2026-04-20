@@ -33,13 +33,15 @@ export const createAPInvoiceColumns = (options?: {
         />
       ),
       cell: (info) => (
-        <span
-          className="block truncate transition-colors hover:text-blue-600"
-          onDoubleClick={() => options?.onDocNumDoubleClick?.(String(info.getValue()))}
-          onMouseEnter={() => options?.onDocNumHover?.(String(info.getValue()))}
-        >
-          {info.getValue()}
-        </span>
+        <Tooltip content="Double click to edit">
+          <span
+            className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+            onDoubleClick={() => options?.onDocNumDoubleClick?.(String(info.getValue()))}
+            onMouseEnter={() => options?.onDocNumHover?.(String(info.getValue()))}
+          >
+            {info.getValue()}
+          </span>
+        </Tooltip>
       ),
       filterFn: 'includesString',
       enableSorting: true,
