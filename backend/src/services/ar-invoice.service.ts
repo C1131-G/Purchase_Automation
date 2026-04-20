@@ -114,6 +114,12 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
+        BalanceDue:
+          Math.round(
+            (Number(data.docTotal) -
+              Number(((data as Record<string, unknown>).paidSum as number) || 0)) *
+              100,
+          ) / 100,
         DocCurr: data.docCurr,
         NumAtCard: data.numAtCard,
         DocStatus: data.docStatus,

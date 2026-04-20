@@ -12,7 +12,8 @@ export const Route = createFileRoute('/_layout/sales/create-incoming-payment')({
   pendingComponent: CreatePageRouteSkeleton,
   component: RouteComponent,
 })
+import { CreateIncomingPaymentForm } from '@/features/create-pages/incoming-payment-create'
 
 function RouteComponent() {
-  return <div className="p-6">Create Incoming Payment Page (Coming Soon)</div>
+  return <CreateIncomingPaymentForm />
 }

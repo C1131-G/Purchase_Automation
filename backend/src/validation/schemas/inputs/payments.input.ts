@@ -88,6 +88,45 @@ export const CreatePaymentInputSchema = z.object({
     .optional(),
   Reference: z.string().optional(),
   Remarks: z.string().optional(),
+  CashSum: z.number().optional(),
+  TrsfrSum: z.number().optional(),
+  // PaymentCreditCards: Array of credit card payments.
+  PaymentCreditCards: z
+    .array(
+      z.object({
+        CreditCard: z.number(), // Card Type ID
+        CreditSum: z.number(),
+        VoucherNum: z.string(), // Reference#
+        CreditAcct: z.string().optional(),
+        SurchargeAmount: z.number().optional(),
+        SurchargeAccount: z.string().optional(),
+      }),
+    )
+    .optional(),
+  // PaymentChecks: Array of checks.
+  PaymentChecks: z
+    .array(
+      z.object({
+        BankCode: z.string(),
+        Branch: z.string().optional(),
+        CheckNumber: z.number(),
+        DueDate: z.string().optional(),
+        CheckSum: z.number(),
+        CheckAccount: z.string().optional(),
+        Endorse: z.string().optional(), // 'tYES' or 'tNO'
+      }),
+    )
+    .optional(),
+  // PaymentAccounts: Array of GL Account applications (e.g. for surcharges).
+  PaymentAccounts: z
+    .array(
+      z.object({
+        AccountCode: z.string(),
+        SumPaid: z.number(),
+        Decription: z.string().optional(),
+      }),
+    )
+    .optional(),
   // PaymentInvoices: Array of documents to which this payment is applied.
   PaymentInvoices: z
     .array(

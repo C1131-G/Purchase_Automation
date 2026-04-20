@@ -19,11 +19,41 @@ export type IncomingPaymentDocNumLookupResponse = {
   data: IncomingPaymentDocNumLookupItem[]
 }
 
+export type CreateIncomingPaymentPayload = {
+  CardCode: string
+  DocDate: string
+  Remarks: string
+  CashSum: number
+  TrsfrSum: number
+  CheckSum: number
+  PaymentCreditCards?: {
+    CreditCard: number
+    CreditSum: number
+    VoucherNum: string
+  }[]
+  PaymentChecks?: {
+    BankCode: string
+    Branch: string
+    CheckNumber: number
+    CheckSum: number
+    CheckAccount: string
+    Endorse: 'tYES' | 'tNO'
+  }[]
+  SurchargeTotal?: number
+  PaymentInvoices: {
+    DocEntry: number
+    SumApplied: number
+    InvoiceType: 'it_Invoice' | 'it_CredItnote'
+  }[]
+}
+
 export const incomingPaymentAPI = {
   getIncomingPayments: async (params: IncomingPaymentListParams) => {
     const query = toQueryString(params)
     const path = query ? `/api/v1/incoming-payments?${query}` : '/api/v1/incoming-payments'
     return apiClient<IncomingPaymentListResponse>(path)
+
+
   },
   getIncomingPaymentDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit })
@@ -31,5 +61,11 @@ export const incomingPaymentAPI = {
       ? `/api/v1/incoming-payments/docnums?${query}`
       : '/api/v1/incoming-payments/docnums'
     return apiClient<IncomingPaymentDocNumLookupResponse>(path)
+  },
+  createIncomingPayment: async (payload: CreateIncomingPaymentPayload) => {
+    return apiClient<{ success: boolean; DocNum: number }>('/api/v1/incoming-payments', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
   },
 }

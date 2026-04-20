@@ -106,6 +106,7 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
         CardCode: data.cardCode,
         CardName: data.cardName,
         DocTotal: data.docTotal,
+        BalanceDue: Math.round((Number(data.docTotal) - Number(data.paidToDate || 0)) * 100) / 100,
         DocCurr: data.docCurr,
         DocStatus: data.docStatus,
       })),
