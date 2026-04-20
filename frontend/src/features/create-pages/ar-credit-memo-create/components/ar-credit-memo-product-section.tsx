@@ -70,9 +70,10 @@ export function ArCreditMemoProductSection({
   const isUpdateAction = submitLabel.toLowerCase().includes('update')
 
   const missingSearchFieldsList = useMemo(
-    () => Object.entries(missingSearchMandatoryFields)
-      .filter(([, v]) => Boolean(v))
-      .map(([k]) => k),
+    () =>
+      Object.entries(missingSearchMandatoryFields)
+        .filter(([, v]) => Boolean(v))
+        .map(([k]) => k),
     [missingSearchMandatoryFields],
   )
 

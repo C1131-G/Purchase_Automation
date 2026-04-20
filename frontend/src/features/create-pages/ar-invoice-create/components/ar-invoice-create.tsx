@@ -38,7 +38,10 @@ export function ARInvoiceCreate({ mode = 'create', docNum }: ARInvoiceCreateProp
   const search = useSearch({ strict: false })
   const sourceDocNum = mode === 'create' ? search.sourceDocNum : undefined
   const rawSourceDocType = mode === 'create' ? search.sourceDocType : undefined
-  const sourceDocType = rawSourceDocType === 'SalesQuotation' || rawSourceDocType === 'SalesOrder' ? rawSourceDocType : undefined
+  const sourceDocType =
+    rawSourceDocType === 'SalesQuotation' || rawSourceDocType === 'SalesOrder'
+      ? rawSourceDocType
+      : undefined
 
   const state = useARInvoiceCreate(
     docNum ? { mode, docNum } : { mode, sourceDocNum, sourceDocType },

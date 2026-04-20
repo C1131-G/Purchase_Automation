@@ -9,6 +9,11 @@ export const incomingPaymentListItemSchema = z.object({
   DocTotal: z.union([z.number(), z.string()]),
   DocCurr: z.string(),
   CounterRef: z.string().nullable().optional(),
+
+
+
+
+
 })
 
 export const incomingPaymentListResponseSchema = z.object({

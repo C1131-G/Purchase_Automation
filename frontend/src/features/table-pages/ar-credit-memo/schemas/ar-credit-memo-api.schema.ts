@@ -7,6 +7,7 @@ export const ArCreditMemoListItemSchema = z.object({
   CardCode: z.string(),
   CardName: z.string(),
   DocTotal: z.union([z.number(), z.string()]),
+  BalanceDue: z.union([z.number(), z.string()]),
   DocCurr: z.string(),
   DocStatus: z.enum(['Open', 'Closed']),
 })

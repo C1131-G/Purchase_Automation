@@ -14,6 +14,7 @@ export type ArCreditMemo = {
   docTotal: number;
   docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
+  paidToDate: number;
 };
 
 export const ARCreditMemoSchema = new EntitySchema<ArCreditMemo>({
@@ -28,6 +29,7 @@ export const ARCreditMemoSchema = new EntitySchema<ArCreditMemo>({
     docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
     docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCur" },
     docStatus: { type: "nvarchar" as HANAColumnType, length: 1, name: "DocStatus" },
+    paidToDate: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "PaidToDate" },
   },
   indices: [
     { name: "IDX_ORIN_DOCNUM", columns: ["docNum"] },

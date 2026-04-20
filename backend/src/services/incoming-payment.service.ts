@@ -15,6 +15,8 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
   try {
     const repo = await getTenantRepository(dbName, IncomingPaymentSchema);
     const queryBuilder = repo.createQueryBuilder("p");
+
+
     queryBuilder.where("1=1");
 
     // Dynamic Filter: Payment Document Number (Standard: DocNum).
@@ -107,6 +109,11 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
         CounterRef: data.counterRef,
       })),
     };
+
+
+
+
+
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     throw error;
@@ -154,6 +161,13 @@ export const getPayment = async (sessionId: string, id: string) => {
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       Comments: result.Remarks,
+
+
+
+
+
+
+
       // maps the list of invoices settled by this payment.
       PaymentInvoices:
         (
@@ -181,20 +195,145 @@ export const getPayment = async (sessionId: string, id: string) => {
 // Posts a new payment to SAP. Handles multi-invoice reconciliation if details are provided.
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
+    logger.info({
+      msg: "Incoming Payment Initiation",
+      cardCode: payload.CardCode,
+      invoiceCount: (payload.PaymentInvoices as any[])?.length,
+    });
     // Construct SAP payload. CashSum and TrsfrSum define the payment split.
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Remarks: payload.Remarks,
-      CashSum: payload.CashSum || 0,
-      TrsfrSum: payload.TrsfrSum || 0,
+      Reference: payload.Reference,
       PaymentInvoices:
-        (payload.PaymentInvoices as Record<string, unknown>[])?.map((inv) => ({
-          DocEntry: inv.DocEntry as number,
-          SumApplied: inv.SumApplied as number,
-          InvoiceType: (inv.InvoiceType as string) || "it_Invoice",
-        })) || [],
+        (payload.PaymentInvoices as Record<string, unknown>[])
+          ?.sort((a, b) => {
+            // Put Invoices (it_Invoice) before Credit Notes (it_CredItnote)
+            const typeA = a.InvoiceType === "it_Invoice" ? 0 : 1;
+            const typeB = b.InvoiceType === "it_Invoice" ? 0 : 1;
+            return typeA - typeB;
+          })
+          .map((inv) => {
+            let sapType = "13"; // Default to it_Invoice
+            let sumApplied = inv.SumApplied as number;
+
+            if (inv.InvoiceType === "it_CredItnote") {
+              sapType = "14";
+              // Negative sign experiment for credit notes
+              sumApplied = -Math.abs(sumApplied);
+            }
+            if (inv.InvoiceType === "it_Return") sapType = "16";
+
+            return {
+              DocEntry: inv.DocEntry as number,
+              SumApplied: sumApplied,
+              InvoiceType: sapType,
+            };
+          }) || [],
     };
+
+    if (payload.SurchargeTotal && (payload.SurchargeTotal as number) > 0) {
+      sapPayload.BankChargeAmount = payload.SurchargeTotal;
+    }
+
+    if (payload.CashSum && (payload.CashSum as number) > 0) {
+      sapPayload.CashSum = payload.CashSum;
+    }
+
+    if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
+      sapPayload.TrsfrSum = payload.TrsfrSum;
+    }
+
+    if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
+      sapPayload.PaymentCreditCards = (payload.PaymentCreditCards as Record<string, unknown>[]).map(
+        (card, idx) => ({
+          LineNum: idx,
+          CreditCard: card.CreditCard,
+          CreditSum: card.CreditSum,
+          VoucherNum: card.VoucherNum,
+          CreditAcct: card.CreditAcct,
+          CreditCardNumber: "123", // Placeholder required by SAP
+          CardValidUntil: "2026-12-31", // Placeholder required by SAP
+        }),
+      );
+    }
+
+    if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
+      sapPayload.PaymentChecks = (payload.PaymentChecks as Record<string, unknown>[]).map(
+        (chk, idx) => ({
+          LineNum: idx,
+          DueDate: chk.DueDate || sapPayload.DocDate,
+          CheckNumber: chk.CheckNumber,
+          BankCode: chk.BankCode,
+          Branch: chk.Branch,
+          CheckSum: chk.CheckSum,
+          CheckAccount: chk.CheckAccount || "AJAXBS040",
+          Endorse: chk.Endorse || "tNO",
+        }),
+      );
+    }
+
+    if (Array.isArray(payload.PaymentAccounts) && payload.PaymentAccounts.length > 0) {
+      sapPayload.PaymentAccounts = (payload.PaymentAccounts as Record<string, unknown>[]).map(
+        (acc, idx) => ({
+          LineNum: idx,
+          AccountCode: acc.AccountCode,
+          SumPaid: acc.SumPaid,
+          Decription: acc.Decription || "Surcharge",
+        }),
+      );
+    }
+
+    // Automatically calculate BankChargeAmount if total funds exceed total applied documents.
+    // This balances card surcharges and other overpayments to prevent SAP validation errors.
+    const totalFunds = Number(
+      (
+        ((sapPayload.CashSum as number) || 0) +
+        ((sapPayload.TrsfrSum as number) || 0) +
+        ((sapPayload.PaymentCreditCards as any[])?.reduce(
+          (sum, card) => sum + (card.CreditSum || 0),
+          0,
+        ) || 0) +
+        ((sapPayload.PaymentChecks as any[])?.reduce((sum, chk) => sum + (chk.CheckSum || 0), 0) ||
+          0)
+      ).toFixed(2),
+    );
+
+    const totalInvoicesApplied = Number(
+      (
+        (sapPayload.PaymentInvoices as any[])?.reduce((sum, inv) => {
+          if (inv.InvoiceType === "13" || inv.InvoiceType === "it_Invoice") {
+            return sum + (inv.SumApplied || 0);
+          }
+          return sum;
+        }, 0) || 0
+      ).toFixed(2),
+    );
+
+    const totalCNApplied = Number(
+      (
+        (sapPayload.PaymentInvoices as any[])?.reduce((sum, inv) => {
+          if (inv.InvoiceType === "14" || inv.InvoiceType === "it_CredItnote") {
+            return sum + (inv.SumApplied || 0);
+          }
+          return sum;
+        }, 0) || 0
+      ).toFixed(2),
+    );
+
+    // Perfect Balance Logic:
+    // Money = Invoices - CreditNotes + BankCharge
+    // 199.33 = 285 - 93 + 7.33
+    const netAppliedDocs = Number((totalInvoicesApplied - totalCNApplied).toFixed(2));
+
+    if (totalFunds > netAppliedDocs) {
+      sapPayload.BankChargeAmount = Number((totalFunds - netAppliedDocs).toFixed(2));
+      logger.info({
+        msg: "Setting BankChargeAmount for reconciliation",
+        bankCharge: sapPayload.BankChargeAmount,
+      });
+    }
 
     // Standardize DocDate for SAP Service Layer (YYYY-MM-DD).
     const docDate = sapPayload.DocDate as string;
@@ -206,6 +345,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     // Execute POST request to create the payment record.
+    logger.info({ msg: "Sending Payload to SAP Service Layer", sapPayload });
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",

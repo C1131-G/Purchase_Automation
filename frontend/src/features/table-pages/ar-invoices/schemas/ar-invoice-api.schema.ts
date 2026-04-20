@@ -7,6 +7,7 @@ export const arInvoiceListItemSchema = z.object({
   CardCode: z.string(),
   CardName: z.string(),
   DocTotal: z.union([z.number(), z.string()]),
+  BalanceDue: z.union([z.number(), z.string()]),
   DocCurr: z.string(),
   NumAtCard: z.string().nullable().optional(),
   DocStatus: z.enum(['Open', 'Closed']),
