@@ -276,9 +276,10 @@ export function useAPCreditMemoCreate({
           : ''
 
       setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || '')
+
       setHeader({
         docDate: loadedDocDate,
-        docDueDate: String(detail.DocDueDate ?? '').slice(0, 10) || loadedDocDate,
+        docDueDate: loadedDocDate,
         referenceNo,
         remarks,
       })

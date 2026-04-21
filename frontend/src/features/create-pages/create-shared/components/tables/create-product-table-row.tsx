@@ -136,6 +136,7 @@ interface CreateProductTableRowProps {
   showExplicitZeroDiscount?: boolean
   showSelection?: boolean
   showReturnReason?: boolean
+  nativeReturnReason?: boolean
   showTaxCode?: boolean
 }
 
@@ -158,6 +159,7 @@ export function CreateProductTableRow({
   showExplicitZeroDiscount = false,
   showSelection = false,
   showReturnReason = false,
+  nativeReturnReason = false,
   showTaxCode = false,
   maxQuantity,
   linkedRow = false,
@@ -760,13 +762,35 @@ export function CreateProductTableRow({
       )}
       {showReturnReason && (
         <td className="min-w-0 px-2 py-2">
-          <ReturnReasonDropdown
-            value={row.returnReason ?? ''}
-            disabled={effectiveDisableInputs}
-            onSelect={(reason) => {
-              updateProductRow(row.id, { returnReason: reason })
-            }}
-          />
+          {nativeReturnReason ? (
+            <select
+              value={row.returnReason ?? ''}
+              disabled={effectiveDisableInputs}
+              onChange={(e) => {
+                updateProductRow(row.id, { returnReason: e.target.value })
+              }}
+              className={`h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs font-medium outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-200 ${
+                effectiveDisableInputs
+                  ? 'cursor-not-allowed opacity-70'
+                  : 'cursor-pointer hover:border-zinc-300'
+              } ${row.returnReason ? 'text-zinc-700' : 'text-zinc-400'}`}
+            >
+              <option value="">Select reason</option>
+              {RETURN_REASON_PRESETS.map((reason) => (
+                <option key={reason} value={reason}>
+                  {reason}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <ReturnReasonDropdown
+              value={row.returnReason ?? ''}
+              disabled={effectiveDisableInputs}
+              onSelect={(reason) => {
+                updateProductRow(row.id, { returnReason: reason })
+              }}
+            />
+          )}
         </td>
       )}
       <td className="min-w-0 px-2 py-2 text-right">

@@ -312,9 +312,11 @@ export function useGRPOCreate({
         setBuyerInput(
           buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || '',
         )
+        const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
+
         setHeader({
           docDate: loadedDocDate,
-          docDueDate: String(detail.DocDueDate ?? '').slice(0, 10) || loadedDocDate,
+          docDueDate: docDueDate,
           referenceNo,
           remarks,
         })
