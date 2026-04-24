@@ -327,6 +327,7 @@ export function useAPCreditMemoCreate({
             baseEntry: typeof line.BaseEntry === 'number' ? line.BaseEntry : undefined,
             baseLine: typeof line.BaseLine === 'number' ? line.BaseLine : undefined,
             baseType: typeof line.BaseType === 'number' ? line.BaseType : undefined,
+            selected: true,
           }
         },
       )
@@ -488,6 +489,7 @@ export function useAPCreditMemoCreate({
             baseEntry: detail.DocEntry ?? (detail as { id?: number }).id ?? undefined,
             baseLine: (line.LineNum as number | undefined) ?? idx,
             baseType,
+            selected: false,
           }
         })
       })
@@ -922,14 +924,14 @@ export function useAPCreditMemoCreate({
   }
 
   const handleCreateAPCreditMemo = async () => {
-    const filteredRows = rows.filter((r) => r.quantity > 0)
+    const filteredRows = rows.filter((r) => r.selected && r.quantity > 0)
 
     if (!isEditMode) {
       const missing = AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
         if (field === 'vendorName') return !vendorNameInput.trim()
         if (field === 'vendorCode') return !vendorCodeInput.trim()
         if (field === 'warehouseCode') {
-          return !rows.some((row) => row.warehouseCode?.trim())
+          return !filteredRows.some((row) => row.warehouseCode?.trim())
         }
         return false
       })
@@ -946,7 +948,7 @@ export function useAPCreditMemoCreate({
     }
 
     if (filteredRows.length === 0) {
-      setCreateError('Set at least one line quantity greater than 0.')
+      setCreateError('Select at least one row and set a quantity greater than 0.')
       return
     }
 

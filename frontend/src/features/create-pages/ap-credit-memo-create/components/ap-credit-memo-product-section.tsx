@@ -74,8 +74,9 @@ export function APCreditMemoProductSection({
   secondaryActions,
   isClosed = false,
 }: APCreditMemoProductSectionProps) {
-  const totals = calculateOrderTotals(rows)
-  const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null
+  const selectedRows = rows.filter((r) => r.selected)
+  const totals = calculateOrderTotals(selectedRows)
+  const summaryCurrencyLabel = calculateSummaryCurrency(selectedRows) || null
 
   const isReadOnlyMode = isEditMode || isClosed
 
@@ -144,6 +145,7 @@ export function APCreditMemoProductSection({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
+          showSelection={true}
           showReturnReason={true}
         />
       </div>
