@@ -151,6 +151,7 @@ export function ArCreditMemoProductSection({
           createError={createError}
           showSelection={true}
           showReturnReason={true}
+          nativeReturnReason={true}
         />
       </div>
     </BaseProductSection>

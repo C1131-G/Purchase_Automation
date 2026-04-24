@@ -168,7 +168,6 @@ export function CreateIncomingPaymentForm() {
         0,
       ) || 0
     const trsfrSum = 0
-
     createPaymentMutation.mutate({
       CardCode: lookups.codeInput,
       DocDate: toISODate(today) || '',

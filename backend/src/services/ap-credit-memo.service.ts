@@ -159,6 +159,9 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string) => {
       Comments: result.Comments,
       DocDueDate: result.DocDueDate,
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard,
+      Address: result.Address,
+      Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
+      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);

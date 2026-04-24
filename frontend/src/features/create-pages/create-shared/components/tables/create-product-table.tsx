@@ -31,6 +31,7 @@ interface CreateProductTableProps {
   showExplicitZeroDiscount?: boolean
   showSelection?: boolean
   showReturnReason?: boolean
+  nativeReturnReason?: boolean
   showTaxCode?: boolean
 }
 
@@ -54,6 +55,7 @@ export function CreateProductTable({
   showExplicitZeroDiscount = false,
   showSelection = false,
   showReturnReason = false,
+  nativeReturnReason = false,
   showTaxCode = false,
   linkedRow = false,
 }: CreateProductTableProps) {
@@ -118,6 +120,7 @@ export function CreateProductTable({
               showExplicitZeroDiscount={showExplicitZeroDiscount}
               showSelection={showSelection}
               showReturnReason={showReturnReason}
+              nativeReturnReason={nativeReturnReason}
               showTaxCode={showTaxCode}
             />
           ))}

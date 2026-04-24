@@ -38,6 +38,7 @@ export type APCreditMemoDetailResponse = {
     DocDueDate?: string
     SalesPersonCode?: number
     Address?: string
+    Address2?: string
     DocumentLines?: Array<Record<string, unknown>>
   }
 }

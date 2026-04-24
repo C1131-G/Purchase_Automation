@@ -4,7 +4,6 @@ export const AP_CREDIT_MEMO_MANDATORY_FIELDS = [
   'vendorName',
   'vendorCode',
   'warehouseCode',
-  'returnReason',
 ] as const
 
 export type APCreditMemoMandatoryField = (typeof AP_CREDIT_MEMO_MANDATORY_FIELDS)[number]
@@ -13,7 +12,6 @@ export const AP_CREDIT_MEMO_FIELD_ERROR_TEXT: Record<APCreditMemoMandatoryField,
   vendorName: 'Vendor Name is required.',
   vendorCode: 'Vendor Code is required.',
   warehouseCode: 'Warehouse is required.',
-  returnReason: 'Return reason is required.',
 }
 
 export const AP_CREDIT_MEMO_FIELD_LABEL_TEXT: Record<APCreditMemoMandatoryField, string> = {

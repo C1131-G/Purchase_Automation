@@ -63,7 +63,13 @@ export const useGRPOCreateStore = create<GRPOCreateState>((set) => ({
   setHeader: (patch) =>
     set((prev) => {
       const nextHeader = { ...prev.header, ...patch }
-      if (patch.docDate !== undefined && patch.docDueDate === undefined) {
+      const docDueDateValue = patch.docDueDate
+      if (
+        patch.docDate !== undefined &&
+        (docDueDateValue === undefined ||
+          docDueDateValue === null ||
+          (typeof docDueDateValue === 'string' && docDueDateValue.trim() === ''))
+      ) {
         nextHeader.docDueDate = getAutoDocDueDate(String(patch.docDate))
       }
       return {
