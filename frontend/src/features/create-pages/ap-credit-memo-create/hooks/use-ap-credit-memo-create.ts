@@ -925,25 +925,11 @@ export function useAPCreditMemoCreate({
     const filteredRows = rows.filter((r) => r.quantity > 0)
 
     if (!isEditMode) {
-      const rowsMissingReturnReason = filteredRows.filter((r) => !r.returnReason?.trim())
-      if (rowsMissingReturnReason.length > 0) {
-        const nextErrors = { ...EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS }
-        nextErrors.returnReason = AP_CREDIT_MEMO_FIELD_ERROR_TEXT.returnReason
-        setFieldErrors(nextErrors)
-        const missingItemCodes = rowsMissingReturnReason.map((r) => r.productCode || '<unknown>')
-        setCreateError(`Return reason is required for: ${missingItemCodes.join(', ')}`)
-        return
-      }
-
       const missing = AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
         if (field === 'vendorName') return !vendorNameInput.trim()
         if (field === 'vendorCode') return !vendorCodeInput.trim()
         if (field === 'warehouseCode') {
           return !rows.some((row) => row.warehouseCode?.trim())
-        }
-        if (field === 'returnReason') {
-          const filteredRows = rows.filter((r) => r.quantity > 0)
-          return filteredRows.some((r) => !r.returnReason?.trim())
         }
         return false
       })
@@ -1112,10 +1098,6 @@ export function useAPCreditMemoCreate({
       if (field === 'vendorCode') return !vendorCodeInput.trim()
       if (field === 'warehouseCode') {
         return !rows.some((row) => row.warehouseCode?.trim())
-      }
-      if (field === 'returnReason') {
-        const filteredRows = rows.filter((r) => r.quantity > 0)
-        return filteredRows.length === 0 || filteredRows.some((r) => !r.returnReason?.trim())
       }
       return false
     })
