@@ -54,11 +54,14 @@ import { useSetVisibilityAction } from '@/store/table/table-visibility.store'
 
 const routeApi = getRouteApi('/_layout/sales/incoming-payment')
 const TABLE_ID = 'incoming-payments'
-const DEFAULT_COLUMN_ORDER = ['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'CounterRef']
-
-
-
-
+const DEFAULT_COLUMN_ORDER = [
+  'DocNum',
+  'DocDate',
+  'CardCode',
+  'CardName',
+  'DocTotal',
+  'PaymentMode',
+]
 
 const toIncomingPaymentColumnFilters = (
   filters: ColumnFiltersState,
@@ -103,7 +106,7 @@ export function IncomingPaymentTable() {
   )
 
   const sorting = useMemo<SortingState>(
-    () => cloneSorting(searchParams.sorting ?? []),
+    () => cloneSorting(searchParams.sorting ?? [{ id: 'DocNum', desc: true }]),
     [searchParams.sorting],
   )
 
@@ -153,12 +156,6 @@ export function IncomingPaymentTable() {
     error,
     refetch,
   } = useQuery(incomingPaymentQueries.list(listParams))
-
-
-
-
-
-
 
   const queryClient = useQueryClient()
 
@@ -308,7 +305,7 @@ export function IncomingPaymentTable() {
   })
 
   const handleResetTable = useCallback(() => {
-    setSorting(TABLE_ID, [])
+    setSorting(TABLE_ID, [{ id: 'DocNum', desc: true }])
     setVisibility(TABLE_ID, {})
     setOrder(TABLE_ID, [...DEFAULT_COLUMN_ORDER])
     clearAllFilters(TABLE_ID)
@@ -322,7 +319,7 @@ export function IncomingPaymentTable() {
         columnVisibility: {},
         columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnFilters: [],
-        sorting: [],
+        sorting: [{ id: 'DocNum', desc: true }],
         DocTotalOperator: undefined,
         DocTotal: undefined,
       }),

@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -38,6 +39,7 @@ import {
   salesOrderQueries,
 } from '@/features/table-pages/sales-orders/api/sales-order.queries'
 import { type SalesOrderDetailLine } from '@/features/table-pages/sales-orders/api/sales-order.service'
+import { salesQuotationQueries } from '@/features/table-pages/sales-quotations/api/sales-quotation.queries'
 import {
   useResetSOCreateAction,
   useSetSOHeaderAction,
@@ -52,7 +54,9 @@ type SalesOrderCreateMode = 'create' | 'edit'
 
 type UseSalesOrderCreateOptions = {
   mode?: SalesOrderCreateMode
-  docNum?: string
+  docNum?: string | undefined
+  sourceDocNum?: string | undefined
+  sourceDocType?: string | undefined
 }
 
 export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
@@ -69,6 +73,11 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const resetSOCreate = useResetSOCreateAction()
   const setHeader = useSetSOHeaderAction()
   const queryClient = useQueryClient()
+  const search = useSearch({ strict: false })
+  const sourceDocNum =
+    mode === 'create' ? (search as Record<string, string | undefined>).sourceDocNum : undefined
+  const sourceDocType =
+    mode === 'create' ? (search as Record<string, string | undefined>).sourceDocType : undefined
   const createSalesOrderMutation = useCreateSalesOrder()
   const updateSalesOrderMutation = useUpdateSalesOrder()
 
@@ -133,6 +142,160 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     ...salesOrderQueries.detailByDocNum(editDocNum),
     enabled: isEditMode && Boolean(editDocNum),
   })
+  const sourceDetailQuerySQ = useQuery({
+    ...salesQuotationQueries.detailByDocNum(
+      (options?.sourceDocNum ?? sourceDocNum ?? '') as string,
+    ),
+    enabled:
+      mode === 'create' &&
+      (options?.sourceDocType ?? sourceDocType) === 'SalesQuotation' &&
+      Boolean(options?.sourceDocNum ?? sourceDocNum),
+  })
+
+  useEffect(() => {
+    if (mode !== 'create') return
+    const currentSourceDocNum = options?.sourceDocNum ?? sourceDocNum
+    const currentSourceDocType = options?.sourceDocType ?? sourceDocType
+    if (!currentSourceDocNum || currentSourceDocType !== 'SalesQuotation') return
+
+    const detail = sourceDetailQuerySQ.data?.data
+    if (!detail) return
+    if (hydratedDocNumRef.current === `SQ-${currentSourceDocNum}`) return
+
+    const vendorCode = String(detail.CardCode ?? '').trim()
+    const vendorName = String(detail.CardName ?? '').trim()
+    const matchedVendor = lookups.vendors.find((vendor) => String(vendor.code) === vendorCode)
+    const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? '').trim()
+    const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode)
+    const salesEmployeeNameFromDocCode =
+      detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+        ? lookups.salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(detail.SalesPersonCode),
+          )?.name
+        : ''
+    const associatedSalesEmployeeName =
+      salesEmployeeNameFromDocCode ||
+      (matchedVendor?.salesEmployeeCode !== undefined
+        ? lookups.salesEmployees.find(
+            (item) =>
+              normalizeCodeForCompare(item.code) ===
+              normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
+          )?.name
+        : '') ||
+      matchedVendor?.salesEmployeeName?.trim() ||
+      ''
+
+    const rawComments = String(detail.Comments ?? '').trim()
+    const referenceNo = String((detail as Record<string, unknown>).NumAtCard ?? '')
+    const comments = rawComments || `Based on Sales Quotation ${currentSourceDocNum}`
+    const docDueDate = String(detail.DocDueDate ?? '').slice(0, 10)
+    const address = String(detail.Address ?? '').trim()
+
+    void (async () => {
+      const detailLines = detail.DocumentLines ?? []
+      const productsForWarehouse =
+        warehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(
+                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+              )
+              .catch((): ProductLookupItem[] => [])
+          : []
+
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      )
+      const stocksByItemCode = new Map<string, Array<{ code: string; stock: number }>>()
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? '').trim())),
+      ].filter(Boolean)
+
+      await Promise.all(
+        uniqueItemCodes.map(async (itemCode) => {
+          const warehouseStocks = (await queryClient
+            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+            .catch(() => [])) as Array<{ code: string; stock: number }>
+          stocksByItemCode.set(itemCode, warehouseStocks)
+        }),
+      )
+
+      const mappedRows = detailLines.map((line, index) => {
+        const itemCode = String(line.ItemCode ?? '').trim()
+        const productMeta = productByCode.get(itemCode)
+        const lineWarehouse = String(line.WarehouseCode ?? '').trim()
+
+        const warehouseStocks = stocksByItemCode.get(itemCode) ?? []
+        const lineStock = lineWarehouse
+          ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
+          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
+
+        const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 1)
+        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
+        const discountPercent = Number(line.DiscountPercent ?? 0)
+        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100)
+        return {
+          id: `row-copy-${currentSourceDocNum}-${index}`,
+          productCode: itemCode,
+          productName: String(line.ItemDescription ?? productMeta?.name ?? '').trim(),
+          stock: lineStock,
+          price,
+          currency: String(detail.DocCurr ?? productMeta?.currency ?? ''),
+          vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? '').trim(),
+          taxRate:
+            (line as Record<string, unknown>).VatPrcnt !== undefined &&
+            (line as Record<string, unknown>).VatPrcnt !== null
+              ? Number((line as Record<string, unknown>).VatPrcnt)
+              : Number(productMeta?.taxRate ?? 0),
+          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? '').trim(),
+          uomEntry:
+            typeof line.UoMEntry === 'number' && Number.isFinite(line.UoMEntry)
+              ? line.UoMEntry
+              : productMeta?.uomEntry,
+          quantity,
+          discountPercent,
+          discountAmount,
+          comment: '',
+          baseEntry: detail.DocEntry ?? detail.id,
+          baseLine: line.LineNum ?? index,
+          baseType: 23, // Sales Quotation
+          warehouseCode: lineWarehouse,
+        }
+      })
+
+      setHeader({
+        vendorCode,
+        vendorName,
+        docDueDate,
+        warehouseCode,
+        referenceNo,
+        comments,
+      })
+      lookups.setNameInput(vendorName)
+      lookups.setCodeInput(vendorCode)
+      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode)
+      lookups.setSalesEmployeeInput(associatedSalesEmployeeName)
+      lookups.setBillToAddress(address)
+      lookups.setShipToAddress(address)
+      productsHook.setProductRows(mappedRows)
+      productsHook.setProductRowDrafts({})
+
+      hydratedDocNumRef.current = `SQ-${currentSourceDocNum}`
+      setHydratedDocNum(`SQ-${currentSourceDocNum}`)
+    })()
+  }, [
+    sourceDetailQuerySQ.data,
+    mode,
+    options?.sourceDocNum,
+    sourceDocNum,
+    options?.sourceDocType,
+    sourceDocType,
+    lookups,
+    productsHook,
+    queryClient,
+    setHeader,
+  ])
 
   useEffect(() => {
     if (!isEditMode) return

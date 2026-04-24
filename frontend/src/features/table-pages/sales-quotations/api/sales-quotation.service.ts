@@ -40,6 +40,7 @@ export type SalesQuotationDetailLine = {
   WarehouseCode?: string
   LineTotal?: number
   LineNum?: number
+  RemainingOpenQuantity?: number
 }
 
 export type SalesQuotationDetail = {

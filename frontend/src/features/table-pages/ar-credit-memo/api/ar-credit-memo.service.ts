@@ -44,4 +44,10 @@ export const ArCreditMemoAPI = {
       : '/api/v1/ar-credit-memos/docnums'
     return apiClient<ArCreditMemoDocNumLookupResponse>(path)
   },
+  updateArCreditMemo: async (id: string | number, payload: Record<string, unknown>) => {
+    return apiClient<unknown>(`/api/v1/ar-credit-memos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  },
 }

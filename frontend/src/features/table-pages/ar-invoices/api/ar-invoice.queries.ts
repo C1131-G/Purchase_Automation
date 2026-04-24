@@ -29,12 +29,13 @@ export const arInvoiceQueries = {
     queryOptions({
       queryKey: arInvoiceKeys.detailByDocNum(docNum),
       queryFn: async () => {
+        const cleanDocNum = String(docNum).replace(/["']/g, '').trim()
         const list = await arInvoiceAPI.getARInvoices({
           page: 1,
           limit: 10,
-          DocNum: String(docNum).trim(),
+          DocNum: cleanDocNum,
         })
-        const exact = (list.data ?? []).find((item) => String(item.DocNum).trim() === docNum.trim())
+        const exact = (list.data ?? []).find((item) => String(item.DocNum).trim() === cleanDocNum)
         const fallback = list.data?.[0]
         const target = exact ?? fallback
         if (!target?.id && target?.id !== 0) {

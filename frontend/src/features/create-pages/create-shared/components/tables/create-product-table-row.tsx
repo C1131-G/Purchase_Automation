@@ -408,11 +408,7 @@ export function CreateProductTableRow({
               min={1}
               step={1}
               value={
-                rowDraft?.quantity !== undefined
-                  ? rowDraft.quantity
-                  : row.quantity === 0
-                    ? ''
-                    : String(row.quantity)
+                rowDraft?.quantity !== undefined ? rowDraft.quantity : String(row.quantity ?? 0)
               }
               readOnly={effectiveDisableInputs}
               onClick={() => {
@@ -446,13 +442,7 @@ export function CreateProductTableRow({
             type="number"
             min={1}
             step={1}
-            value={
-              rowDraft?.quantity !== undefined
-                ? rowDraft.quantity
-                : row.quantity === 0
-                  ? ''
-                  : String(row.quantity)
-            }
+            value={rowDraft?.quantity !== undefined ? rowDraft.quantity : String(row.quantity ?? 0)}
             readOnly={effectiveDisableInputs}
             onClick={() => {
               if (effectiveDisableInputs) onInputRestrictedClick?.()

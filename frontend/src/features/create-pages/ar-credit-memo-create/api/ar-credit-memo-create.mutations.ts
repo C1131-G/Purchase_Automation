@@ -22,3 +22,15 @@ export const useCreateArCreditMemoMutation = () => {
     },
   })
 }
+
+export const useUpdateArCreditMemoMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string | number; payload: Record<string, unknown> }) =>
+      ArCreditMemoAPI.updateArCreditMemo(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['ar-credit-memos'] })
+    },
+  })
+}

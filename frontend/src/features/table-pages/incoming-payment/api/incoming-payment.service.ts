@@ -36,8 +36,8 @@ export type CreateIncomingPaymentPayload = {
     Branch: string
     CheckNumber: number
     CheckSum: number
-    CheckAccount: string
-    Endorse: 'tYES' | 'tNO'
+    CheckAccount?: string
+    Endorse?: 'tYES' | 'tNO'
   }[]
   SurchargeTotal?: number
   PaymentInvoices: {
@@ -52,8 +52,6 @@ export const incomingPaymentAPI = {
     const query = toQueryString(params)
     const path = query ? `/api/v1/incoming-payments?${query}` : '/api/v1/incoming-payments'
     return apiClient<IncomingPaymentListResponse>(path)
-
-
   },
   getIncomingPaymentDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit })

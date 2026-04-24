@@ -54,5 +54,14 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
         : undefined,
     WarehouseCode: String(line.WarehouseCode ?? line.warehouseCode ?? ""),
     LineNum: Number(line.LineNum ?? line.lineNum ?? 0) || 0,
+    RemainingOpenQuantity: Number(
+      line.RemainingOpenQuantity ??
+        line.remainingOpenQuantity ??
+        line.OpenQuantity ??
+        line.openQuantity ??
+        line.OpenQty ??
+        line.openQty ??
+        quantity,
+    ),
   };
 };

@@ -40,7 +40,9 @@ export type ARInvoiceDetailLine = {
   BaseEntry?: number
   BaseLine?: number
   BaseType?: number
+  RemainingOpenQuantity?: number
 }
+
 export type ARInvoiceDetail = {
   id?: number
   DocEntry?: number
