@@ -98,7 +98,7 @@ export function ARInvoiceProductSection({
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={SALES_ORDER_MANDATORY_FIELDS.length}
       isEditMode={isUpdateAction}
-      showSubmitButton={!isUpdateAction}
+      showSubmitButton={true}
       secondaryActions={secondaryActions}
     >
       <div

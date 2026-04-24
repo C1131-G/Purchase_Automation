@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { type MouseEvent } from 'react'
 
@@ -31,7 +32,15 @@ interface SalesOrderCreateProps {
  */
 export function SalesOrderCreate({ mode = 'create', docNum }: SalesOrderCreateProps) {
   const queryClient = useQueryClient()
-  const state = useSalesOrderCreate(docNum ? { mode, docNum } : { mode })
+  const search = useSearch({ strict: false })
+  const sourceDocNum =
+    mode === 'create' ? (search as Record<string, string | undefined>).sourceDocNum : undefined
+  const sourceDocType =
+    mode === 'create' ? (search as Record<string, string | undefined>).sourceDocType : undefined
+
+  const state = useSalesOrderCreate(
+    docNum ? { mode, docNum } : { mode, sourceDocNum, sourceDocType },
+  )
 
   const pageTitle = state.isEditMode ? 'Update Sales Order' : 'Create Sales Order'
   const isFormHydrating = !state.isEditMode

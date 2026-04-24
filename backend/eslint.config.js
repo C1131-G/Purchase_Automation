@@ -32,7 +32,14 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["node_modules/", "dist/", "dist-server/", "coverage/", "package-lock.json"],
+    ignores: [
+      "node_modules/",
+      "dist/",
+      "dist-server/",
+      "coverage/",
+      "package-lock.json",
+      "scratch/",
+    ],
   },
   prettierConfig,
 );

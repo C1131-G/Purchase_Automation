@@ -55,8 +55,13 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
 
     // Dynamic Filter: SAP Document Status (Standard: DocStatus).
     if (filters.DocStatus) {
+      const statusMap: Record<string, string> = {
+        Open: "O",
+        Closed: "C",
+      };
+      const statusValue = statusMap[filters.DocStatus] || filters.DocStatus;
       queryBuilder.andWhere("inv.docStatus = :status", {
-        status: filters.DocStatus,
+        status: statusValue,
       });
     }
     // Dynamic Filter: Customer reference (NumAtCard).
@@ -292,6 +297,9 @@ export const updateInvoice = async (
     }
     if (Object.prototype.hasOwnProperty.call(payload, "Comments")) {
       sapPayload.Comments = payload.Comments;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, "NumAtCard")) {
+      sapPayload.NumAtCard = payload.NumAtCard;
     }
 
     await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload);

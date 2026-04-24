@@ -116,7 +116,7 @@ export function ArCreditMemoProductSection({
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={SALES_ORDER_MANDATORY_FIELDS.length}
       isEditMode={isUpdateAction}
-      showSubmitButton={!isUpdateAction}
+      showSubmitButton={true}
     >
       <div
         onClickCapture={

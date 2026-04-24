@@ -2,7 +2,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { useCreateArCreditMemoMutation } from '@/features/create-pages/ar-credit-memo-create/api/ar-credit-memo-create.mutations'
+import {
+  useCreateArCreditMemoMutation,
+  useUpdateArCreditMemoMutation,
+} from '@/features/create-pages/ar-credit-memo-create/api/ar-credit-memo-create.mutations'
 import { useArCnProducts } from '@/features/create-pages/ar-credit-memo-create/hooks/use-ar-cm-products'
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
@@ -220,8 +223,12 @@ export function useArCreditMemoCreate({
 
     if (!isHydratingFromSource && !isHydratingFromEdit) return
 
-    const currentDocNum = String(isEditMode ? docNum : sourceDocNum)
-    if (hydratedDocNumRef.current === currentDocNum) return
+    const rawDocNum = String(isEditMode ? docNum : sourceDocNum)
+    const rawDocType = String(sourceDocType ?? '')
+    const cleanDocNum = rawDocNum.replace(/["']/g, '').trim()
+    const cleanDocType = rawDocType.replace(/["']/g, '').trim()
+
+    if (hydratedDocNumRef.current === cleanDocNum) return
 
     void (async () => {
       const detail = isEditMode
@@ -269,7 +276,7 @@ export function useArCreditMemoCreate({
           : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
         return {
-          id: `row-copy-${currentDocNum}-${index}`,
+          id: `row-copy-${cleanDocNum}-${index}`,
           productCode: itemCode,
           productName: String(line.ItemDescription || productMeta?.name || ''),
           stock: lineStock,
@@ -280,15 +287,23 @@ export function useArCreditMemoCreate({
           vatGroup: String(line.VatGroup || line.TaxCode || productMeta?.vatGroup || ''),
           taxRate:
             line.VatPrcnt !== undefined ? Number(line.VatPrcnt) : Number(productMeta?.taxRate ?? 0),
-          uomCode: String(line.UoMCode || productMeta?.uomCode || ''),
-          uomEntry: Number(line.UoMEntry || productMeta?.uomEntry || 0) || undefined,
+          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? ''),
+          uomEntry: Number(line.UoMEntry ?? productMeta?.uomEntry ?? 0) || undefined,
           baseQuantity: Number(line.Quantity || 1),
-          quantity: Number(line.Quantity || 1),
-          discountPercent: Number(line.DiscountPercent || 0),
+          quantity: isEditMode
+            ? Number(line.Quantity ?? 0)
+            : Number(
+                line.RemainingOpenQuantity ??
+                  line.OpenQuantity ??
+                  line.OpenQty ??
+                  line.Quantity ??
+                  1,
+              ),
+          discountPercent: Number(line.DiscountPercent ?? 0),
           discountAmount:
-            (Number(line.Price || 0) *
-              Number(line.Quantity || 0) *
-              Number(line.DiscountPercent || 0)) /
+            (Number(line.Price ?? line.UnitPrice ?? 0) *
+              Number(line.Quantity ?? 0) *
+              Number(line.DiscountPercent ?? 0)) /
             100,
           comment: '',
           baseEntry:
@@ -297,7 +312,7 @@ export function useArCreditMemoCreate({
                 (detail as Record<string, unknown>).id,
             ) || undefined,
           baseLine: Number(line.LineNum ?? index),
-          baseType: sourceDocType === 'AR_INVOICE' || sourceDocType === 'ARInvoice' ? 13 : -1,
+          baseType: cleanDocType === 'AR_INVOICE' || cleanDocType === 'ARInvoice' ? 13 : -1,
           warehouseCode: lineWarehouse,
           returnReason: String((line as Record<string, unknown>).U_ReturnReason || ''),
           selected: isEditMode,
@@ -324,12 +339,12 @@ export function useArCreditMemoCreate({
         referenceNo: String(referenceNo),
         comments: isEditMode
           ? String(comments)
-          : `Based on AR Invoice ${currentDocNum}. ${String(comments)}`,
+          : `Based on AR Invoice ${cleanDocNum}. ${String(comments)}`,
         billToAddress: String(billToAddress),
         shipToAddress: String(shipToAddress),
       })
       productsHook.setProductRows(mappedRows)
-      hydratedDocNumRef.current = currentDocNum
+      hydratedDocNumRef.current = cleanDocNum
     })()
   }, [
     editDetailQuery.data,
@@ -348,6 +363,7 @@ export function useArCreditMemoCreate({
 
   // Mutations
   const createArCreditMemoMutation = useCreateArCreditMemoMutation()
+  const updateArCreditMemoMutation = useUpdateArCreditMemoMutation()
 
   // Totals — only compute from selected (checked) rows
   const selectedRows = useMemo(
@@ -378,18 +394,43 @@ export function useArCreditMemoCreate({
     }
 
     if (isEditMode) {
-      // In edit mode we just don't have the update mutation yet so we can show a success toast and navigate for now
-      // since the backend only supports updating comments/duedates, but typically we return early or call updateMutation
+      const detail = ((editDetailQuery.data as Record<string, unknown>)?.data ??
+        editDetailQuery.data) as Record<string, unknown>
+      const existingDocDueDate = String(detail?.DocDueDate ?? '')
+        .slice(0, 10)
+        .trim()
+      const existingComments = String(detail?.Comments ?? '').trim()
+      const existingReferenceNo = String(detail?.NumAtCard ?? '').trim()
+
+      const currentDocDueDate = String(header.docDueDate ?? '').trim()
+      const currentComments = String(header.comments ?? '').trim()
+      const currentReferenceNo = String(header.referenceNo ?? '').trim()
+
+      if (
+        currentDocDueDate === existingDocDueDate &&
+        currentComments === existingComments &&
+        currentReferenceNo === existingReferenceNo
+      ) {
+        const noChangeMessage = 'Change at least one field before update.'
+        setCreateError(noChangeMessage)
+        return
+      }
+
+      const payload = {
+        DocDueDate: header.docDueDate || undefined,
+        Comments: currentComments || undefined,
+        NumAtCard: currentReferenceNo || undefined,
+      }
+
       const toastHandle = documentActionToast('A/R Credit Memo', 'update')
       try {
-        // Mock update: waiting for backend implementation of updateCreditNote via react-query
-        // But since user just wanted viewing edit mode, let's just show success
-        await new Promise((res) => setTimeout(res, 500))
+        const docEntry = detail?.DocEntry ?? detail?.id
+        await updateArCreditMemoMutation.mutateAsync({ id: docEntry as string | number, payload })
         toastHandle.success()
         void navigate({ to: '/sales/ar-credit-memo', search: { page: 1, limit: 10 } } as never)
-      } catch {
+      } catch (_error) {
         toastHandle.error()
-        setCreateError('Failed to update')
+        setCreateError((_error as Error).message || 'Failed to update A/R Credit Memo')
       }
       return
     }
@@ -410,6 +451,8 @@ export function useArCreditMemoCreate({
         BaseType: row.baseType,
         BaseEntry: row.baseEntry,
         BaseLine: row.baseLine,
+        DiscountPercent: row.discountPercent,
+        UoMEntry: row.uomEntry,
         U_ReturnReason: row.returnReason || '',
       })),
     }
@@ -417,6 +460,8 @@ export function useArCreditMemoCreate({
     const toastHandle = documentActionToast('A/R Credit Memo', 'create')
     try {
       await createArCreditMemoMutation.mutateAsync(payload)
+      // Invalidate AR Invoice cache so that remaining quantities are updated immediately
+      void queryClient.invalidateQueries({ queryKey: ['ar-invoices'] })
       toastHandle.success()
       void navigate({ to: '/sales/ar-credit-memo', search: { page: 1, limit: 10 } } as never)
     } catch (_error) {
@@ -485,6 +530,8 @@ export function useArCreditMemoCreate({
     createError,
     createDisabledReason: missingMandatoryFields.length > 0 ? missingMandatoryFields[0] : null,
     createArCreditMemoMutation,
+    updateArCreditMemoMutation,
+    isPending: createArCreditMemoMutation.isPending || updateArCreditMemoMutation.isPending,
     missingMandatoryFields,
     requiredCompletionPercent,
     handleCreateOrder,

@@ -55,8 +55,13 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
 
     // Dynamic Filter: SAP Document Status (Standard: DocStatus).
     if (filters.DocStatus) {
+      const statusMap: Record<string, string> = {
+        Open: "O",
+        Closed: "C",
+      };
+      const statusValue = statusMap[filters.DocStatus] || filters.DocStatus;
       queryBuilder.andWhere("cn.docStatus = :status", {
-        status: filters.DocStatus,
+        status: statusValue,
       });
     }
     // Dynamic Filter: Total amount comparison.
@@ -191,6 +196,8 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
+      DocDueDate: payload.DocDueDate,
+      NumAtCard: payload.NumAtCard,
       Comments: payload.Comments,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const line: Record<string, unknown> = {
@@ -201,13 +208,21 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: (item.VatGroup ?? item.TaxCode) as string,
           WarehouseCode: item.WarehouseCode as string,
+          DiscountPercent: item.DiscountPercent as number | undefined,
         };
+
+        // Prefer UoMEntry over UoMCode for more reliable linking in SAP
+        if (item.UoMEntry !== undefined && item.UoMEntry !== null) {
+          line.UoMEntry = Number(item.UoMEntry);
+        } else if (item.UoMCode) {
+          line.UoMCode = String(item.UoMCode);
+        }
 
         // Only map Base document fields if they represent a valid SAP linking type (e.g. 13 for AR Invoice)
         if (item.BaseType !== undefined && item.BaseType !== null && Number(item.BaseType) !== -1) {
-          line.BaseType = item.BaseType as number;
-          line.BaseEntry = item.BaseEntry as number;
-          line.BaseLine = item.BaseLine as number;
+          line.BaseType = Number(item.BaseType);
+          line.BaseEntry = Number(item.BaseEntry);
+          line.BaseLine = Number(item.BaseLine);
         }
         // Map ReturnReason to the SAP UDF on each line
         if (item.U_ReturnReason) {
@@ -227,6 +242,23 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     }
 
     // Submit POST request to SAP for credit note creation.
+    logger.info({
+      msg: "Sending AR Credit Memo to SAP",
+      docNum: payload.DocNum,
+      cardCode: sapPayload.CardCode,
+      lineCount: (sapPayload.DocumentLines as Record<string, unknown>[])?.length,
+      lines: (sapPayload.DocumentLines as Record<string, unknown>[]).map((l, i) => ({
+        index: i,
+        ItemCode: l.ItemCode,
+        Quantity: l.Quantity,
+        BaseType: l.BaseType,
+        BaseEntry: l.BaseEntry,
+        BaseLine: l.BaseLine,
+        UoMEntry: l.UoMEntry,
+        VatGroup: l.VatGroup,
+      })),
+    });
+
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
@@ -265,6 +297,7 @@ export const updateCreditNote = async (
   try {
     const sapPayload: Record<string, unknown> = {};
     if (payload.Comments) sapPayload.Comments = payload.Comments;
+    if (payload.NumAtCard) sapPayload.NumAtCard = payload.NumAtCard;
 
     // Partial update via PATCH.
     await serviceLayerClient.request(sessionId, "PATCH", `/CreditNotes(${id})`, sapPayload);

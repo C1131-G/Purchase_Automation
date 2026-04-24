@@ -27,7 +27,9 @@ export const incomingPaymentColumnFilterSchema = z.object({
 export const incomingPaymentSearchSchema = z.object({
   page: z.coerce.number().int().min(1).catch(1),
   limit: z.coerce.number().int().min(1).catch(10),
-  sorting: z.array(z.object({ id: z.string(), desc: z.boolean() })).optional(),
+  sorting: z
+    .array(z.object({ id: z.string(), desc: z.boolean() }))
+    .catch([{ id: 'DocNum', desc: true }]),
   columnVisibility: z.record(z.string(), z.boolean()).optional(),
   columnOrder: z.array(z.string()).optional(),
   columnFilters: z.array(incomingPaymentColumnFilterSchema).optional(),

@@ -420,7 +420,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
           : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0)
 
-        const quantity = Number(line.Quantity ?? 1)
+        const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 1)
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0)
         const grossAmount = Math.max(0, price * quantity)
         const apiDiscountPercent = Number(line.DiscountPercent ?? NaN)
@@ -712,10 +712,16 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const splitComments = rawComments.split(' | ').map((part) => part.trim())
       const hasReferenceMarker = splitComments.length > 1
       const existingComments = hasReferenceMarker ? splitComments.slice(1).join(' | ') : rawComments
+      const existingReferenceNo = String(detail?.NumAtCard ?? '').trim()
       const currentDocDueDate = String(header.docDueDate ?? '').trim()
       const currentComments = String(header.comments ?? '').trim()
+      const currentReferenceNo = String(header.referenceNo ?? '').trim()
 
-      if (currentDocDueDate === existingDocDueDate && currentComments === existingComments.trim()) {
+      if (
+        currentDocDueDate === existingDocDueDate &&
+        currentComments === existingComments.trim() &&
+        currentReferenceNo === existingReferenceNo
+      ) {
         const noChangeMessage = 'Change at least one field before update.'
         setCreateError(noChangeMessage)
         goeyToast.error(noChangeMessage, { id: 'no-change-update-toast' })
@@ -728,7 +734,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const payload = isEditMode
       ? {
           DocDueDate: header.docDueDate || undefined,
-          Comments: header.comments.trim() || undefined,
+          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(' | '),
+          NumAtCard: header.referenceNo.trim() || undefined,
         }
       : {
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
@@ -1109,7 +1116,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     handleCreateOrder: handleCreateOrderAction,
     setHeader: (patch: Partial<ARInvoiceHeaderState>) => {
       // In edit mode, only delivery date and remarks/comments can be updated.
-      const allowedKeys = ['docDueDate', 'comments']
+      const allowedKeys = ['docDueDate', 'comments', 'referenceNo']
       const patchKeys = Object.keys(patch)
       const restrictedUpdate = isEditMode && patchKeys.some((k) => !allowedKeys.includes(k))
 

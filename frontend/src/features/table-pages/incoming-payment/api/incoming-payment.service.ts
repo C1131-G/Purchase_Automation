@@ -36,8 +36,8 @@ export type CreateIncomingPaymentPayload = {
     Branch: string
     CheckNumber: number
     CheckSum: number
-    CheckAccount: string
-    Endorse: 'tYES' | 'tNO'
+    CheckAccount?: string
+    Endorse?: 'tYES' | 'tNO'
   }[]
   SurchargeTotal?: number
   PaymentInvoices: {

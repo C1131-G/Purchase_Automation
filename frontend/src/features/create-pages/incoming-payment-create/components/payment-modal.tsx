@@ -15,6 +15,8 @@ interface PaymentCreditCard {
   CreditCard: number
   CreditSum: number
   VoucherNum: string
+  CreditCardNumber?: string
+  CardValidUntil?: string
 }
 
 interface PaymentCheck {
@@ -22,8 +24,8 @@ interface PaymentCheck {
   Branch: string
   CheckNumber: number
   CheckSum: number
-  CheckAccount: string
-  Endorse: 'tYES' | 'tNO'
+  CheckAccount?: string
+  Endorse?: 'tYES' | 'tNO'
 }
 
 interface CardPayment {
@@ -42,16 +44,20 @@ interface PaymentModalProps {
   onClose: () => void
   balanceDue: number
   onPaymentSubmit: (paymentDetails: {
-    CashSum: number
-    TrsfrSum: number
-    CheckSum: number
     PaymentCreditCards: PaymentCreditCard[]
     PaymentChecks?: PaymentCheck[]
     SurchargeTotal?: number
   }) => void
+  isPaymentOnAccount?: boolean
 }
 
-export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: PaymentModalProps) {
+export function PaymentModal({
+  open,
+  onClose,
+  balanceDue,
+  onPaymentSubmit,
+  isPaymentOnAccount,
+}: PaymentModalProps) {
   const [activeTab, setActiveTab] = useState<'Cash' | 'Card' | 'Cheque'>('Cash')
 
   const [cashAmount, setCashAmount] = useState<string>('0')
@@ -123,12 +129,14 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
       addedCards.reduce((sum, c) => sum + c.amount, 0)
     const remaining = balanceDue - totalCurrentPayments
 
+    if (remaining <= 0) return
+
     if (activeTab === 'Cash') {
-      setCashAmount((Number(cashAmount) + Math.max(0, remaining)).toFixed(2))
+      setCashAmount((Number(cashAmount) + remaining).toFixed(2))
     } else if (activeTab === 'Card') {
-      setCardAmount(Math.max(0, remaining).toFixed(2))
+      setCardAmount(remaining.toFixed(2))
     } else if (activeTab === 'Cheque') {
-      setChequeAmount(Math.max(0, remaining).toFixed(2))
+      setChequeAmount(remaining.toFixed(2))
     }
   }
 
@@ -182,7 +190,7 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
       (Number(cashAmount) || 0) +
       (Number(chequeAmount) || 0) +
       addedCards.reduce((sum, c) => sum + c.amount, 0)
-    if (totalPaidSoFar + amount > balanceDue + 0.01) {
+    if (!isPaymentOnAccount && totalPaidSoFar + amount > balanceDue + 0.01) {
       goeyToast.error('Total payment cannot exceed Balance Due')
       return
     }
@@ -192,9 +200,9 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
       MASTERCARD: 2,
       AMEX: 3,
       DEBIT: 4,
-      QRPAY: 5,
-      MYCASH: 6,
       MPAISA: 7,
+      MYCASH: 6,
+      QRPAY: 5,
     }
 
     const newCard: CardPayment = {
@@ -223,34 +231,50 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
     const cheque = Number(chequeAmount) || 0
     // const totalCards = addedCards.reduce((sum, c) => sum + c.amount, 0)
 
-    const paymentChecks =
-      cheque > 0
-        ? [
-            {
-              BankCode: chequeBank || 'CASH',
-              Branch: chequeBranch || 'LABASA',
-              CheckNumber: Number(chequeNo) || 1,
-              CheckSum: cheque,
-              CheckAccount: chequeAccountNo || 'AJAXBS040',
-              Endorse: (chequeEndorse ? 'tYES' : 'tNO') as 'tYES' | 'tNO',
-            },
-          ]
-        : []
+    const paymentChecks: PaymentCheck[] = []
+
+    if (cheque > 0) {
+      paymentChecks.push({
+        BankCode: chequeBank || 'CASH',
+        Branch: chequeBranch || 'LABASA',
+        CheckNumber: Number(chequeNo) || 1,
+        CheckSum: cheque,
+        CheckAccount: chequeAccountNo || 'AJAXBS040',
+        Endorse: (chequeEndorse ? 'tYES' : 'tNO') as 'tYES' | 'tNO',
+      })
+    }
+
+    if (cash > 0) {
+      paymentChecks.push({
+        BankCode: 'CASH',
+        Branch: 'Vendor Portal',
+        CheckNumber: 1,
+        CheckSum: cash,
+        Endorse: 'tNO',
+      })
+    }
 
     const surchargeTotal = addedCards.reduce((sum, c) => sum + (c.surchargeAmount || 0), 0)
-
-    onPaymentSubmit({
-      CashSum: cash,
-      TrsfrSum: 0,
-      CheckSum: cheque,
+    const paymentDetails: {
+      PaymentCreditCards: PaymentCreditCard[]
+      PaymentChecks?: PaymentCheck[]
+      SurchargeTotal?: number
+    } = {
       PaymentCreditCards: addedCards.map((c) => ({
         CreditCard: c.creditCardId,
         CreditSum: Number((c.amount + c.surchargeAmount).toFixed(2)),
         VoucherNum: c.reference,
+        CreditCardNumber: '123',
+        CardValidUntil: '2025-12-31',
       })),
-      PaymentChecks: paymentChecks,
       SurchargeTotal: surchargeTotal,
-    })
+    }
+
+    if (paymentChecks.length > 0) {
+      paymentDetails.PaymentChecks = paymentChecks
+    }
+
+    onPaymentSubmit(paymentDetails)
     onClose()
   }
 
@@ -289,20 +313,26 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-lg font-bold text-slate-800">Payment</h2>
             <div className="flex gap-4 text-sm">
-              <div className="flex gap-1.5">
-                <span className="text-blue-500 font-medium">Invoice Amt.:</span>
-                <span className="font-bold text-blue-500">FJD {balanceDue.toFixed(2)}</span>
-              </div>
+              {balanceDue > 0 && (
+                <div className="flex gap-1.5">
+                  <span className="text-blue-500 font-medium">Invoice Amt.:</span>
+                  <span className="font-bold text-blue-500">FJD {balanceDue.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex gap-1.5">
                 <span className="text-emerald-500 font-medium">Paid:</span>
                 <span className="font-bold text-emerald-500">FJD {totalPaid.toFixed(2)}</span>
               </div>
-              <div className="flex gap-1.5">
-                <span className="text-orange-500 font-medium">Bal.:</span>
-                <span className="font-bold text-orange-500">
-                  FJD {Math.max(0, remainingBalance).toFixed(2)}
-                </span>
-              </div>
+              {(balanceDue > 0 || !isPaymentOnAccount) && (
+                <div className="flex gap-1.5">
+                  <span className="text-orange-500 font-medium">
+                    {remainingBalance < 0 ? 'On Account:' : 'Bal.:'}
+                  </span>
+                  <span className="font-bold text-orange-500">
+                    FJD {Math.abs(remainingBalance).toFixed(2)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -327,12 +357,14 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
           {activeTab !== 'Cheque' ? (
             <div className="flex gap-6">
               <div className="w-[260px] flex-shrink-0">
-                <button
-                  onClick={handlePayFull}
-                  className="flex items-center gap-2 bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-3 shadow-sm hover:bg-indigo-600"
-                >
-                  PAY FULL <CheckCircle2 className="w-3.5 h-3.5" />
-                </button>
+                {balanceDue > 0 && remainingBalance > 0 && (
+                  <button
+                    onClick={handlePayFull}
+                    className="flex items-center gap-2 bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-3 shadow-sm hover:bg-indigo-600"
+                  >
+                    PAY FULL <CheckCircle2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <div className="flex gap-2 mb-3">
                   <input
                     type="text"
@@ -548,12 +580,14 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
                   onChange={(e) => setChequeAmount(e.target.value)}
                   className="border border-slate-200 rounded px-3 py-1.5 text-sm focus:border-teal-500 outline-none w-40 bg-white"
                 />
-                <button
-                  onClick={handlePayFull}
-                  className="bg-indigo-500 text-white px-5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-indigo-600 transition-colors"
-                >
-                  PAY FULL <CheckCircle2 className="w-3.5 h-3.5" />
-                </button>
+                {balanceDue > 0 && remainingBalance > 0 && (
+                  <button
+                    onClick={handlePayFull}
+                    className="bg-indigo-500 text-white px-5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-indigo-600 transition-colors"
+                  >
+                    PAY FULL <CheckCircle2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -631,7 +665,20 @@ export function PaymentModal({ open, onClose, balanceDue, onPaymentSubmit }: Pay
           </button>
           <button
             onClick={handleSubmit}
-            className="bg-teal-500 text-white px-10 py-2 rounded text-sm font-bold shadow-lg shadow-teal-100 hover:bg-teal-600 transition-all active:scale-95"
+            disabled={
+              (Number(cashAmount) || 0) +
+                (Number(chequeAmount) || 0) +
+                addedCards.reduce((sum, c) => sum + c.amount, 0) <=
+                0 ||
+              (!isPaymentOnAccount &&
+                Math.abs(
+                  (Number(cashAmount) || 0) +
+                    (Number(chequeAmount) || 0) +
+                    addedCards.reduce((sum, c) => sum + c.amount, 0) -
+                    balanceDue,
+                ) > 0.01)
+            }
+            className="bg-teal-500 text-white px-10 py-2 rounded text-sm font-bold shadow-lg shadow-teal-100 hover:bg-teal-600 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed"
           >
             SUBMIT PAYMENT
           </button>

@@ -14,6 +14,7 @@ export type IncomingPayment = {
   docTotal: number;
   docCurr: string;
   counterRef?: string; // Reference number for tracking external payments.
+  paymentMode?: string; // U_Mode_Pay
 };
 
 export const IncomingPaymentSchema = new EntitySchema<IncomingPayment>({
@@ -32,6 +33,12 @@ export const IncomingPaymentSchema = new EntitySchema<IncomingPayment>({
       type: "nvarchar" as HANAColumnType,
       length: 30,
       name: "CounterRef",
+      nullable: true,
+    },
+    paymentMode: {
+      type: "nvarchar" as HANAColumnType,
+      length: 20,
+      name: "U_Mode_Pay",
       nullable: true,
     },
   },

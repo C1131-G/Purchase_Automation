@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
-import { Check } from 'lucide-react'
+import { Check, HandCoins, Search } from 'lucide-react'
 import { useState } from 'react'
 
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
@@ -30,6 +30,8 @@ export function CreateIncomingPaymentForm() {
   >({})
 
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [isPaymentOnAccount, setIsPaymentOnAccount] = useState(false)
+  const [openDocsSearch, setOpenDocsSearch] = useState('')
 
   const { data: invoicesData, isLoading: isLoadingInvoices } = useQuery({
     ...arInvoiceQueries.list({ CardCode: lookups.codeInput, DocStatus: 'Open', limit: 100 }),
@@ -45,7 +47,10 @@ export function CreateIncomingPaymentForm() {
     mutationFn: incomingPaymentAPI.createIncomingPayment,
     onSuccess: (data) => {
       goeyToast.success(`Incoming Payment ${data.DocNum} created successfully!`)
-      navigate({ to: '/sales/incoming-payment', search: { page: 1, limit: 10 } })
+      navigate({
+        to: '/sales/incoming-payment',
+        search: { page: 1, limit: 10, sorting: [], columnVisibility: {} },
+      })
     },
     onError: (error) => {
       goeyToast.error(error instanceof Error ? error.message : 'Failed to create payment')
@@ -57,7 +62,8 @@ export function CreateIncomingPaymentForm() {
       id: inv.id,
       docNum: inv.DocNum,
       date: inv.DocDate,
-      total: Number(inv.BalanceDue) || Number(inv.DocTotal) || 0,
+      docTotal: Number(inv.DocTotal) || 0,
+      balanceDue: Number(inv.BalanceDue) || 0,
       type: 'it_Invoice' as const,
       label: 'A/R Invoice',
     })) || []
@@ -67,13 +73,21 @@ export function CreateIncomingPaymentForm() {
       id: cm.id,
       docNum: cm.DocNum,
       date: cm.DocDate,
-      total: Number(cm.BalanceDue) || Number(cm.DocTotal) || 0,
+      docTotal: Number(cm.DocTotal) || 0,
+      balanceDue: Number(cm.BalanceDue) || 0,
       type: 'it_CredItnote' as const,
       label: 'A/R Credit Memo',
     })) || []
 
   const allDocuments = [...invoices, ...creditMemos].sort(
     (a, b) => new Date(a.date || '').getTime() - new Date(b.date || '').getTime(),
+  )
+
+  const filteredDocuments = allDocuments.filter(
+    (doc) =>
+      doc.balanceDue > 0 &&
+      (doc.docNum?.toString().includes(openDocsSearch) ||
+        doc.label.toLowerCase().includes(openDocsSearch.toLowerCase())),
   )
 
   const handleToggleDoc = (
@@ -107,21 +121,20 @@ export function CreateIncomingPaymentForm() {
   )
 
   const handlePaymentSubmit = (paymentDetails: {
-    CashSum: number
-    TrsfrSum: number
-    CheckSum: number
     PaymentCreditCards: {
       CreditCard: number
       CreditSum: number
       VoucherNum: string
+      CreditCardNumber?: string
+      CardValidUntil?: string
     }[]
     PaymentChecks?: {
       BankCode: string
       Branch: string
       CheckNumber: number
       CheckSum: number
-      CheckAccount: string
-      Endorse: 'tYES' | 'tNO'
+      CheckAccount?: string
+      Endorse?: 'tYES' | 'tNO'
     }[]
     SurchargeTotal?: number
   }) => {
@@ -136,7 +149,7 @@ export function CreateIncomingPaymentForm() {
       })
       .filter((inv) => inv.SumApplied > 0)
 
-    if (paymentInvoices.length === 0) {
+    if (!isPaymentOnAccount && paymentInvoices.length === 0) {
       goeyToast.error('Please select at least one document to pay')
       return
     }
@@ -144,13 +157,24 @@ export function CreateIncomingPaymentForm() {
     const surchargeTotal = paymentDetails.SurchargeTotal || 0
     goeyToast.info(`Captured surcharge: ${surchargeTotal}`)
 
+    const cashSum =
+      paymentDetails.PaymentChecks?.filter((c) => c.BankCode === 'CASH').reduce(
+        (sum, c) => sum + c.CheckSum,
+        0,
+      ) || 0
+    const checkSum =
+      paymentDetails.PaymentChecks?.filter((c) => c.BankCode !== 'CASH').reduce(
+        (sum, c) => sum + c.CheckSum,
+        0,
+      ) || 0
+    const trsfrSum = 0
     createPaymentMutation.mutate({
       CardCode: lookups.codeInput,
       DocDate: toISODate(today) || '',
       Remarks: remarks,
-      CashSum: paymentDetails.CashSum,
-      TrsfrSum: paymentDetails.TrsfrSum,
-      CheckSum: paymentDetails.CheckSum,
+      CashSum: cashSum,
+      CheckSum: checkSum,
+      TrsfrSum: trsfrSum,
       PaymentCreditCards: paymentDetails.PaymentCreditCards,
       SurchargeTotal: surchargeTotal,
       PaymentInvoices: paymentInvoices,
@@ -238,9 +262,23 @@ export function CreateIncomingPaymentForm() {
             <div className="flex-1 rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
               <div className="bg-zinc-50 px-5 py-4 border-b border-zinc-100 flex justify-between items-center">
                 <h2 className="text-sm font-bold text-zinc-900">Open Documents</h2>
-                {(isLoadingInvoices || isLoadingCreditMemos) && (
-                  <span className="text-xs text-zinc-500">Loading...</span>
-                )}
+                <div className="flex items-center gap-3">
+                  {(isLoadingInvoices || isLoadingCreditMemos) && (
+                    <span className="text-xs text-zinc-500">Loading...</span>
+                  )}
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <Search className="h-4 w-4 text-zinc-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search by Doc No. or Type..."
+                      value={openDocsSearch}
+                      onChange={(e) => setOpenDocsSearch(e.target.value)}
+                      className="w-64 rounded-xl border border-zinc-200 bg-white py-2 pl-10 pr-4 text-xs font-medium text-zinc-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 placeholder:text-zinc-400"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="max-h-[400px] overflow-auto">
@@ -252,22 +290,28 @@ export function CreateIncomingPaymentForm() {
                       <th className="px-5 py-3 font-bold text-zinc-600">Doc No.</th>
                       <th className="px-5 py-3 font-bold text-zinc-600">Date</th>
                       <th className="px-5 py-3 font-bold text-zinc-600 text-right">Total</th>
+                      <th className="px-5 py-3 font-bold text-zinc-600 text-right">Balance Due</th>
+                      <th className="px-5 py-3 font-bold text-zinc-600 text-right">
+                        Total Payment
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-50">
-                    {allDocuments.length === 0 && !isLoadingInvoices && !isLoadingCreditMemos ? (
+                    {filteredDocuments.length === 0 &&
+                    !isLoadingInvoices &&
+                    !isLoadingCreditMemos ? (
                       <tr>
-                        <td colSpan={5} className="px-5 py-8 text-center text-zinc-500">
-                          No open documents found for this customer.
+                        <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
+                          No open documents found.
                         </td>
                       </tr>
                     ) : (
-                      allDocuments.map((doc) => {
+                      filteredDocuments.map((doc) => {
                         const selected = isSelected(doc.id, doc.type)
                         return (
                           <tr
                             key={`${doc.type}-${doc.id}`}
-                            onClick={() => handleToggleDoc(doc.id, doc.type, doc.total)}
+                            onClick={() => handleToggleDoc(doc.id, doc.type, doc.balanceDue)}
                             className={`cursor-pointer transition-colors ${
                               selected ? 'bg-blue-50/50' : 'hover:bg-zinc-50'
                             }`}
@@ -297,7 +341,39 @@ export function CreateIncomingPaymentForm() {
                             <td className="px-5 py-3 text-zinc-600">{doc.docNum}</td>
                             <td className="px-5 py-3 text-zinc-600">{doc.date}</td>
                             <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                              ${doc.total.toFixed(2)}
+                              ${doc.docTotal.toFixed(2)}
+                            </td>
+                            <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                              ${doc.balanceDue.toFixed(2)}
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                max={doc.balanceDue}
+                                value={
+                                  selected
+                                    ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ?? 0)
+                                    : doc.balanceDue
+                                }
+                                onChange={(e) => {
+                                  const val = Number(e.target.value)
+                                  if (val >= 0) {
+                                    setSelectedDocs((prev) => ({
+                                      ...prev,
+                                      [`${doc.type}-${doc.id}`]: { type: doc.type, amount: val },
+                                    }))
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={!selected}
+                                className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold ${
+                                  selected
+                                    ? 'border-blue-200 bg-white text-blue-600 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                                    : 'border-transparent bg-transparent text-zinc-400'
+                                } outline-none transition-all`}
+                              />
                             </td>
                           </tr>
                         )
@@ -309,7 +385,20 @@ export function CreateIncomingPaymentForm() {
             </div>
 
             <div className="w-80 rounded-2xl border border-zinc-100 bg-white shadow-sm p-5 sticky top-4">
-              <h2 className="mb-4 text-sm font-bold text-zinc-900">Payment Summary</h2>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-bold text-zinc-900">Payment Summary</h2>
+              </div>
+              <div className="mb-4 rounded-lg bg-blue-50/50 p-3 border border-blue-100/50">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isPaymentOnAccount}
+                    onChange={(e) => setIsPaymentOnAccount(e.target.checked)}
+                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600/20"
+                  />
+                  <span className="text-sm font-bold text-blue-900">Payment on Account</span>
+                </label>
+              </div>
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm">
@@ -330,14 +419,16 @@ export function CreateIncomingPaymentForm() {
                 </div>
               </div>
 
-              {/* <button
+              <button
                 onClick={() => setPaymentModalOpen(true)}
-                disabled={balanceDue <= 0 || createPaymentMutation.isPending}
+                disabled={
+                  (!isPaymentOnAccount && balanceDue <= 0) || createPaymentMutation.isPending
+                }
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-green-200 transition-all hover:bg-green-700 active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none disabled:cursor-not-allowed"
               >
                 <HandCoins className="h-5 w-5" />
                 {createPaymentMutation.isPending ? 'Processing...' : 'Payment Method'}
-              </button> */}
+              </button>
             </div>
           </div>
         )}
@@ -364,6 +455,7 @@ export function CreateIncomingPaymentForm() {
           open={isPaymentModalOpen}
           onClose={() => setPaymentModalOpen(false)}
           balanceDue={Math.max(0, balanceDue)}
+          isPaymentOnAccount={isPaymentOnAccount}
           onPaymentSubmit={handlePaymentSubmit}
         />
       </CreatePageWrapper>

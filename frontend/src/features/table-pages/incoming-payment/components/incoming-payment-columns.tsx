@@ -105,20 +105,19 @@ export const createIncomingPaymentColumns = () => [
     minSize: 12,
     meta: { filterType: 'number-comparison' },
   }),
-
-  columnHelper.accessor('CounterRef', {
-    id: 'CounterRef',
+  columnHelper.accessor('PaymentMode', {
+    id: 'PaymentMode',
     header: ({ column, table }) => (
       <TableColumnSort
         column={column}
         sortingState={table.getState().sorting}
-        title="Counter Ref"
+        title="Payment Mode"
       />
     ),
     cell: (info) => info.getValue() ?? '-',
     filterFn: 'includesString',
     enableColumnFilter: true,
-    size: 14,
+    size: 12,
     minSize: 10,
     meta: { filterType: 'text' },
   }),

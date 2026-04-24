@@ -106,6 +106,7 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
         DocTotal: data.docTotal,
         DocCurr: data.docCurr,
         CounterRef: data.counterRef,
+        PaymentMode: data.paymentMode,
       })),
     };
   } catch (err: unknown) {
@@ -155,6 +156,7 @@ export const getPayment = async (sessionId: string, id: string) => {
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       Comments: result.Remarks,
+      PaymentMode: (result as unknown as Record<string, unknown>).U_Mode_Pay,
 
       // maps the list of invoices settled by this payment.
       PaymentInvoices:
@@ -186,10 +188,11 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     logger.info({
       msg: "Incoming Payment Initiation",
       cardCode: payload.CardCode,
-      invoiceCount: (payload.PaymentInvoices as any[])?.length,
+      invoiceCount: (payload.PaymentInvoices as Record<string, unknown>[])?.length,
     });
     // Construct SAP payload. CashSum and TrsfrSum define the payment split.
     const sapPayload: Record<string, unknown> = {
+      DocObjectCode: "bopot_IncomingPayments",
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Remarks: payload.Remarks,
@@ -221,12 +224,44 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           }) || [],
     };
 
+    // Determine Payment Mode for UDF (U_Mode_Pay) - Aligning with SAP Valid Values
+    const modes: string[] = [];
+    if (payload.CashSum && (payload.CashSum as number) > 0) modes.push("CASH");
+
+    if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
+      const firstCard = payload.PaymentCreditCards[0] as Record<string, unknown>;
+      const cardId = Number(firstCard.CreditCard);
+
+      if (cardId === 5) modes.push("M-Pesa");
+      else if (cardId === 6) modes.push("My Cash");
+      else if (cardId === 7) modes.push("Direct Pay");
+      else modes.push("EFTPOS");
+    }
+
+    if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
+      const checks = payload.PaymentChecks as Record<string, unknown>[];
+      const hasCash = checks.some((c) => c.BankCode === "CASH");
+      const hasRealCheck = checks.some((c) => c.BankCode !== "CASH");
+      if (hasCash) modes.push("CASH");
+      if (hasRealCheck) modes.push("Direct Pay");
+    }
+
+    if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) modes.push("Direct Pay");
+
+    if (modes.length === 1) {
+      sapPayload.U_Mode_Pay = modes[0];
+    } else if (modes.length > 1) {
+      // If multiple, default to EFTPOS or the first non-CASH mode if available
+      sapPayload.U_Mode_Pay = modes.find((m) => m !== "CASH") || "CASH";
+    }
+
     if (payload.SurchargeTotal && (payload.SurchargeTotal as number) > 0) {
       sapPayload.BankChargeAmount = payload.SurchargeTotal;
     }
 
     if (payload.CashSum && (payload.CashSum as number) > 0) {
       sapPayload.CashSum = payload.CashSum;
+      sapPayload.CashAccount = (payload.CashAccount as string) || "161010";
     }
 
     if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
@@ -271,56 +306,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           Decription: acc.Decription || "Surcharge",
         }),
       );
-    }
-
-    // Automatically calculate BankChargeAmount if total funds exceed total applied documents.
-    // This balances card surcharges and other overpayments to prevent SAP validation errors.
-    const totalFunds = Number(
-      (
-        ((sapPayload.CashSum as number) || 0) +
-        ((sapPayload.TrsfrSum as number) || 0) +
-        ((sapPayload.PaymentCreditCards as any[])?.reduce(
-          (sum, card) => sum + (card.CreditSum || 0),
-          0,
-        ) || 0) +
-        ((sapPayload.PaymentChecks as any[])?.reduce((sum, chk) => sum + (chk.CheckSum || 0), 0) ||
-          0)
-      ).toFixed(2),
-    );
-
-    const totalInvoicesApplied = Number(
-      (
-        (sapPayload.PaymentInvoices as any[])?.reduce((sum, inv) => {
-          if (inv.InvoiceType === "13" || inv.InvoiceType === "it_Invoice") {
-            return sum + (inv.SumApplied || 0);
-          }
-          return sum;
-        }, 0) || 0
-      ).toFixed(2),
-    );
-
-    const totalCNApplied = Number(
-      (
-        (sapPayload.PaymentInvoices as any[])?.reduce((sum, inv) => {
-          if (inv.InvoiceType === "14" || inv.InvoiceType === "it_CredItnote") {
-            return sum + (inv.SumApplied || 0);
-          }
-          return sum;
-        }, 0) || 0
-      ).toFixed(2),
-    );
-
-    // Perfect Balance Logic:
-    // Money = Invoices - CreditNotes + BankCharge
-    // 199.33 = 285 - 93 + 7.33
-    const netAppliedDocs = Number((totalInvoicesApplied - totalCNApplied).toFixed(2));
-
-    if (totalFunds > netAppliedDocs) {
-      sapPayload.BankChargeAmount = Number((totalFunds - netAppliedDocs).toFixed(2));
-      logger.info({
-        msg: "Setting BankChargeAmount for reconciliation",
-        bankCharge: sapPayload.BankChargeAmount,
-      });
     }
 
     // Standardize DocDate for SAP Service Layer (YYYY-MM-DD).

@@ -95,6 +95,7 @@ const CreditNoteLineItemSchema = z.object({
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
   BaseType: z.number().int().optional(),
+  DiscountPercent: z.number().min(0).max(100).optional(),
   U_ReturnReason: z.string().optional(),
 });
 

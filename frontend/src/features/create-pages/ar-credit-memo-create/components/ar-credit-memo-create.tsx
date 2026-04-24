@@ -197,6 +197,7 @@ export function ArCreditMemoCreate({
             onSetActiveDatePicker={() => {}}
             onDocDateChange={(value) => setHeader({ docDate: value })}
             onDocDueDateChange={(value) => setHeader({ docDueDate: value })}
+            docDueDateReadOnly={false}
           />
         </div>
 
@@ -215,6 +216,8 @@ export function ArCreditMemoCreate({
             loading={false}
             referenceNo={header.referenceNo}
             comments={header.comments}
+            referenceNoDisabled={false}
+            commentsDisabled={false}
             onReferenceNoChange={(value) => setHeader({ referenceNo: value })}
             onCommentsChange={(value) => setHeader({ comments: value })}
           />
