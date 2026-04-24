@@ -131,6 +131,7 @@ export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFrom
             className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
           />
         </div>
 
@@ -145,6 +146,7 @@ export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFrom
                       className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
                       checked={isAllSelected}
                       onChange={toggleSelectAll}
+                      autoComplete="off"
                     />
                   </th>
                   <th className="px-4 py-3 font-semibold text-zinc-700">SQ #</th>

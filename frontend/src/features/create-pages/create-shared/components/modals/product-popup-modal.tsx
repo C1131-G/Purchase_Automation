@@ -263,6 +263,7 @@ export function ProductPopupModal({
               placeholder="Search product code or name"
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
+              autoComplete="off"
             />
           </div>
           {backgroundLoading ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}

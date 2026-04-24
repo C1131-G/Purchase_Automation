@@ -18,7 +18,12 @@ const mapDocStatusLabel = (value: string) => {
   return normalized
 }
 
-export const createAPCreditMemoColumns = () => [
+interface CreateAPCreditMemoColumnsOptions {
+  onDocNumDoubleClick?: (docNum: string | number) => void
+  onDocNumHover?: (docNum: string | number) => void
+}
+
+export const createAPCreditMemoColumns = (options?: CreateAPCreditMemoColumnsOptions) => [
   columnHelper.accessor('DocNum', {
     id: 'DocNum',
     header: ({ column, table }) => (
@@ -26,7 +31,12 @@ export const createAPCreditMemoColumns = () => [
     ),
     cell: (info) => (
       <Tooltip content="Double click to edit">
-        <span className="block cursor-pointer truncate transition-colors hover:text-blue-600">
+        <span
+          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+          onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
+          onFocus={() => options?.onDocNumHover?.(info.getValue())}
+          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
+        >
           {info.getValue()}
         </span>
       </Tooltip>

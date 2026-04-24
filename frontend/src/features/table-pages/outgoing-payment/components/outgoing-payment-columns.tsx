@@ -11,7 +11,12 @@ import {
 
 const columnHelper = createColumnHelper<OutgoingPaymentListItem>()
 
-export const createOutgoingPaymentColumns = () => [
+interface CreateOutgoingPaymentColumnsOptions {
+  onDocNumDoubleClick?: (docNum: string | number) => void
+  onDocNumHover?: (docNum: string | number) => void
+}
+
+export const createOutgoingPaymentColumns = (options?: CreateOutgoingPaymentColumnsOptions) => [
   columnHelper.accessor('DocNum', {
     id: 'DocNum',
     header: ({ column, table }) => (
@@ -19,7 +24,12 @@ export const createOutgoingPaymentColumns = () => [
     ),
     cell: (info) => (
       <Tooltip content="Double click to edit">
-        <span className="block cursor-pointer truncate transition-colors hover:text-blue-600">
+        <span
+          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+          onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
+          onFocus={() => options?.onDocNumHover?.(info.getValue())}
+          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
+        >
           {info.getValue()}
         </span>
       </Tooltip>

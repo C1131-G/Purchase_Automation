@@ -58,16 +58,17 @@ export const getCreditNoteDocNums = async (req: Request, res: Response, next: Ne
   }
 };
 
-// Retrieves a single A/P Credit Memo's details using its unique identifier.
+// Retrieves a single A/P Credit Memo's details using its DocNum (resolves to DocEntry via HANA).
 export const getCreditNote = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
 
     logger.info({ msg: "Fetching A/P Credit Memo detail", id });
 
-    const data = await apCreditMemoService.getCreditNote(sessionId, id as string);
+    const data = await apCreditMemoService.getCreditNoteByDocNum(sessionId, dbName, id as string);
     if (!data)
       return res.status(404).json({ success: false, message: "A/P Credit Memo not found" });
     res.status(200).json({ success: true, data });

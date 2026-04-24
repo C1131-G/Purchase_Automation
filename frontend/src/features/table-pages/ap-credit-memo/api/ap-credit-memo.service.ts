@@ -22,11 +22,34 @@ export type APCreditMemoDocNumLookupResponse = {
   data: APCreditMemoDocNumLookupItem[]
 }
 
+export type APCreditMemoDetailResponse = {
+  success: boolean
+  data: {
+    id?: number
+    DocEntry?: number
+    DocNum?: number
+    DocDate?: string
+    CardCode?: string
+    CardName?: string
+    DocTotal?: number
+    DocCurr?: string
+    DocStatus?: string
+    Comments?: string
+    DocDueDate?: string
+    SalesPersonCode?: number
+    Address?: string
+    DocumentLines?: Array<Record<string, unknown>>
+  }
+}
+
 export const apCreditMemoAPI = {
   getAPCreditMemos: async (params: APCreditMemoListParams) => {
     const query = toQueryString(params)
     const path = query ? `/api/v1/ap-credit-memos?${query}` : '/api/v1/ap-credit-memos'
     return apiClient<APCreditMemoListResponse>(path)
+  },
+  getAPCreditMemo: async (docNum: string) => {
+    return apiClient<APCreditMemoDetailResponse>(`/api/v1/ap-credit-memos/${docNum}`)
   },
   getAPCreditMemoDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit })

@@ -4,6 +4,7 @@ import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { InvoiceFilters } from "@/dal/types/ap-invoice.types";
 import { type APInvoice, APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
+import { RPC1Schema } from "@/db/schemas/rpc1.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
@@ -156,13 +157,47 @@ export const getInvoiceDocNums = async (dbName: string, search?: string, limit?:
 
 // Fetches full document details for a specific A/P Invoice directly from the SAP Service Layer.
 // This includes line items which are typically not loaded in the list view.
-export const getInvoice = async (sessionId: string, id: string) => {
+export const getInvoice = async (sessionId: string, id: string, dbName?: string) => {
   try {
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
       `/PurchaseInvoices(${id})`,
     )) as SAPDocumentResponse;
+
+    // Calculate remaining open quantity per line by querying consumed quantities from RPC1 (AP Credit Memo lines).
+    const consumedByLine = new Map<number, number>();
+    if (dbName) {
+      const rpc1Repo = await getTenantRepository(dbName, RPC1Schema);
+      const consumedLines = await rpc1Repo
+        .createQueryBuilder("rpc1")
+        .select("rpc1.baseLine", "baseLine")
+        .addSelect("SUM(rpc1.quantity)", "consumedQty")
+        .where("rpc1.baseEntry = :baseEntry", { baseEntry: result.DocEntry })
+        .andWhere("rpc1.baseType = 18") // 18 = AP Invoice
+        .groupBy("rpc1.baseLine")
+        .getRawMany<{ baseLine: number; consumedQty: string }>();
+
+      for (const row of consumedLines) {
+        consumedByLine.set(Number(row.baseLine), Number(row.consumedQty ?? 0));
+      }
+    }
+
+    // Enrich lines with calculated OpenQty.
+    const enrichedLines = (result.DocumentLines || []).map((line: SAPDocumentLine) => {
+      const lineData = line as unknown as Record<string, unknown>;
+      const lineNum = Number(lineData.LineNum ?? 0);
+      const orderedQty = Number(lineData.Quantity ?? 0);
+      const consumedQty = consumedByLine.get(lineNum) ?? 0;
+      const openQty = Math.max(0, orderedQty - consumedQty);
+
+      const normalized = normalizeSAPLineData(lineData);
+      return {
+        ...normalized,
+        OpenQty: openQty,
+        OpenQuantity: openQty,
+      };
+    });
 
     // Normalizing SAP's internal status representation (bost_Open -> 'O') for the frontend.
     return {
@@ -180,10 +215,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDueDate: result.DocDueDate,
       NumAtCard: result.NumAtCard,
-      DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
-        const lineData = line as unknown as Record<string, unknown>;
-        return normalizeSAPLineData(lineData);
-      }),
+      DocumentLines: enrichedLines,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -214,7 +246,7 @@ export const getInvoiceByDocNum = async (sessionId: string, dbName: string, id: 
   // If a match is found in HANA, we use the resolved DocEntry.
   // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
   const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
-  return getInvoice(sessionId, finalId);
+  return getInvoice(sessionId, finalId, dbName);
 };
 
 // Creates a new A/P Invoice in SAP B1. Handles data mapping and date formatting.

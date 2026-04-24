@@ -38,6 +38,7 @@ export function DebouncedInput({
       {...props}
       id={resolvedId}
       name={resolvedName}
+      autoComplete="off"
       value={value}
       onChange={(e) => {
         const nextValue = e.target.value

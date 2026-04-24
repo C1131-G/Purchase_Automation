@@ -42,6 +42,7 @@ import { Route as LayoutSalesArCreditMemoDocNumEditRouteImport } from './routes/
 import { Route as LayoutPurchaseOrdersDocNumEditRouteImport } from './routes/_layout.purchase.orders.$docNum.edit'
 import { Route as LayoutPurchaseGrpoDocNumEditRouteImport } from './routes/_layout.purchase.grpo.$docNum.edit'
 import { Route as LayoutPurchaseApInvoiceDocNumEditRouteImport } from './routes/_layout.purchase.ap-invoice.$docNum.edit'
+import { Route as LayoutPurchaseApCreditMemoDocNumEditRouteImport } from './routes/_layout.purchase.ap-credit-memo.$docNum.edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -227,13 +228,19 @@ const LayoutPurchaseApInvoiceDocNumEditRoute =
     path: '/$docNum/edit',
     getParentRoute: () => LayoutPurchaseApInvoiceRoute,
   } as any)
+const LayoutPurchaseApCreditMemoDocNumEditRoute =
+  LayoutPurchaseApCreditMemoDocNumEditRouteImport.update({
+    id: '/$docNum/edit',
+    path: '/$docNum/edit',
+    getParentRoute: () => LayoutPurchaseApCreditMemoRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
-  '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRoute
+  '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
   '/sales/ar-credit-memo/select-invoice': typeof LayoutSalesArCreditMemoSelectInvoiceRoute
+  '/purchase/ap-credit-memo/$docNum/edit': typeof LayoutPurchaseApCreditMemoDocNumEditRoute
   '/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
@@ -267,7 +275,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
-  '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRoute
+  '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
@@ -288,6 +296,7 @@ export interface FileRoutesByTo {
   '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
   '/sales/ar-credit-memo/select-invoice': typeof LayoutSalesArCreditMemoSelectInvoiceRoute
+  '/purchase/ap-credit-memo/$docNum/edit': typeof LayoutPurchaseApCreditMemoDocNumEditRoute
   '/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
@@ -303,7 +312,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_layout/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
-  '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRoute
+  '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/_layout/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/_layout/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
@@ -324,6 +333,7 @@ export interface FileRoutesById {
   '/_layout/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/_layout/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
   '/_layout/sales/ar-credit-memo/select-invoice': typeof LayoutSalesArCreditMemoSelectInvoiceRoute
+  '/_layout/purchase/ap-credit-memo/$docNum/edit': typeof LayoutPurchaseApCreditMemoDocNumEditRoute
   '/_layout/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
   '/_layout/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/_layout/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/sales/quotations'
     | '/sales/ar-credit-memo/create'
     | '/sales/ar-credit-memo/select-invoice'
+    | '/purchase/ap-credit-memo/$docNum/edit'
     | '/purchase/ap-invoice/$docNum/edit'
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
@@ -394,6 +405,7 @@ export interface FileRouteTypes {
     | '/sales/quotations'
     | '/sales/ar-credit-memo/create'
     | '/sales/ar-credit-memo/select-invoice'
+    | '/purchase/ap-credit-memo/$docNum/edit'
     | '/purchase/ap-invoice/$docNum/edit'
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
@@ -429,6 +441,7 @@ export interface FileRouteTypes {
     | '/_layout/sales/quotations'
     | '/_layout/sales/ar-credit-memo/create'
     | '/_layout/sales/ar-credit-memo/select-invoice'
+    | '/_layout/purchase/ap-credit-memo/$docNum/edit'
     | '/_layout/purchase/ap-invoice/$docNum/edit'
     | '/_layout/purchase/grpo/$docNum/edit'
     | '/_layout/purchase/orders/$docNum/edit'
@@ -677,8 +690,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPurchaseApInvoiceDocNumEditRouteImport
       parentRoute: typeof LayoutPurchaseApInvoiceRoute
     }
+    '/_layout/purchase/ap-credit-memo/$docNum/edit': {
+      id: '/_layout/purchase/ap-credit-memo/$docNum/edit'
+      path: '/$docNum/edit'
+      fullPath: '/purchase/ap-credit-memo/$docNum/edit'
+      preLoaderRoute: typeof LayoutPurchaseApCreditMemoDocNumEditRouteImport
+      parentRoute: typeof LayoutPurchaseApCreditMemoRoute
+    }
   }
 }
+
+interface LayoutPurchaseApCreditMemoRouteChildren {
+  LayoutPurchaseApCreditMemoDocNumEditRoute: typeof LayoutPurchaseApCreditMemoDocNumEditRoute
+}
+
+const LayoutPurchaseApCreditMemoRouteChildren: LayoutPurchaseApCreditMemoRouteChildren =
+  {
+    LayoutPurchaseApCreditMemoDocNumEditRoute:
+      LayoutPurchaseApCreditMemoDocNumEditRoute,
+  }
+
+const LayoutPurchaseApCreditMemoRouteWithChildren =
+  LayoutPurchaseApCreditMemoRoute._addFileChildren(
+    LayoutPurchaseApCreditMemoRouteChildren,
+  )
 
 interface LayoutPurchaseApInvoiceRouteChildren {
   LayoutPurchaseApInvoiceDocNumEditRoute: typeof LayoutPurchaseApInvoiceDocNumEditRoute
@@ -775,7 +810,7 @@ const LayoutSalesQuotationsRouteWithChildren =
 interface LayoutRouteChildren {
   LayoutDashboardPurchaseRoute: typeof LayoutDashboardPurchaseRoute
   LayoutDashboardSalesRoute: typeof LayoutDashboardSalesRoute
-  LayoutPurchaseApCreditMemoRoute: typeof LayoutPurchaseApCreditMemoRoute
+  LayoutPurchaseApCreditMemoRoute: typeof LayoutPurchaseApCreditMemoRouteWithChildren
   LayoutPurchaseApInvoiceRoute: typeof LayoutPurchaseApInvoiceRouteWithChildren
   LayoutPurchaseCreateApCreditMemoRoute: typeof LayoutPurchaseCreateApCreditMemoRoute
   LayoutPurchaseCreateApInvoiceRoute: typeof LayoutPurchaseCreateApInvoiceRoute
@@ -799,7 +834,7 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardPurchaseRoute: LayoutDashboardPurchaseRoute,
   LayoutDashboardSalesRoute: LayoutDashboardSalesRoute,
-  LayoutPurchaseApCreditMemoRoute: LayoutPurchaseApCreditMemoRoute,
+  LayoutPurchaseApCreditMemoRoute: LayoutPurchaseApCreditMemoRouteWithChildren,
   LayoutPurchaseApInvoiceRoute: LayoutPurchaseApInvoiceRouteWithChildren,
   LayoutPurchaseCreateApCreditMemoRoute: LayoutPurchaseCreateApCreditMemoRoute,
   LayoutPurchaseCreateApInvoiceRoute: LayoutPurchaseCreateApInvoiceRoute,

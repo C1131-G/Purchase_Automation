@@ -21,6 +21,7 @@ import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { PCH1Schema } from "@/db/schemas/pch1.schema";
 import { PDN1Schema } from "@/db/schemas/pdn1.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
+import { RPC1Schema } from "@/db/schemas/rpc1.schema";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
@@ -93,6 +94,7 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       SalesEmployeeSchema,
       PDN1Schema,
       PCH1Schema,
+      RPC1Schema,
     ],
     subscribers: [],
     migrations: [],
@@ -100,13 +102,6 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
 
   // Initialize connection
   await dataSource.initialize();
-
-  logger.info({
-    msg: "Tenant DataSource initialized",
-    tenant: dbName,
-    poolSize: 5,
-    entities: 18,
-  });
 
   // Cache for future requests
   tenantDataSources.set(dbName, dataSource);
@@ -116,16 +111,11 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
 
 // Graceful Shutdown: Closes all active tenant DataSource connections.
 export const closeAllTenantDataSources = async (): Promise<void> => {
-  logger.info({ msg: "Closing all tenant DataSources", count: tenantDataSources.size });
-
-  const closePromises = Array.from(tenantDataSources.entries()).map(
-    async ([dbName, dataSource]) => {
-      if (dataSource.isInitialized) {
-        await dataSource.destroy();
-        logger.info({ msg: "Tenant DataSource closed", tenant: dbName });
-      }
-    },
-  );
+  const closePromises = Array.from(tenantDataSources.entries()).map(async ([, dataSource]) => {
+    if (dataSource.isInitialized) {
+      await dataSource.destroy();
+    }
+  });
 
   await Promise.all(closePromises);
   tenantDataSources.clear();

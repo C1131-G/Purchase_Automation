@@ -228,6 +228,7 @@ export function LookupPopup({
           placeholder={placeholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
+          autoComplete="off"
         />
 
         <div className="overflow-hidden rounded-xl border border-zinc-200">

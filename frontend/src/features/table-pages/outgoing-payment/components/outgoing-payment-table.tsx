@@ -83,11 +83,33 @@ export function OutgoingPaymentTable() {
   /** Tracks which user action last triggered a fetch for action-specific toasts. */
   const lastActionRef = useRef<TableFetchAction>('fetching')
 
+  const queryClient = useQueryClient()
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createOutgoingPaymentColumns(), [])
+  const columns = useMemo(
+    () =>
+      createOutgoingPaymentColumns({
+        onDocNumHover: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          queryClient.prefetchQuery(outgoingPaymentQueries.detailByDocNum(normalized))
+        },
+        onDocNumDoubleClick: (docNum) => {
+          const normalized = String(docNum).trim()
+          if (!normalized) return
+          queryClient.prefetchQuery(outgoingPaymentQueries.detailByDocNum(normalized))
+          void navigate({
+            to: '/purchase/outgoing-payment/$docNum/edit',
+            params: { docNum: normalized },
+            viewTransition: true,
+          } as never)
+        },
+      }),
+    [navigate, queryClient],
+  )
   const columnIds = useMemo(
     () =>
       columns
@@ -149,8 +171,6 @@ export function OutgoingPaymentTable() {
     error,
     refetch,
   } = useQuery(outgoingPaymentQueries.list(listParams))
-
-  const queryClient = useQueryClient()
 
   const rows = useMemo(() => paymentList?.data ?? [], [paymentList?.data])
   const totalRows = paymentList?.total ?? 0

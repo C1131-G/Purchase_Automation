@@ -79,7 +79,13 @@ export function GRPOCreate({
         to: '/purchase/grpo',
       }}
       pageTitle={state.isEditMode ? `Update GRPO ${docNum}` : 'Create GRPO'}
-      editError={state.createError}
+      editError={
+        state.isEditMode && state.editDetailQuery.isError
+          ? state.editDetailQuery.error instanceof Error
+            ? state.editDetailQuery.error.message
+            : 'Unable to load GRPO for editing.'
+          : null
+      }
       topActions={
         !state.isEditMode ? (
           <CopyFromDropdown
@@ -106,8 +112,14 @@ export function GRPOCreate({
         >
           <div className={`h-full ${state.isEditMode ? 'pointer-events-none' : ''}`}>
             <VendorCustomerGrid
-              loading={isFormHydrating}
-              error={null}
+              loading={state.vendorsQuery.isLoading || isFormHydrating}
+              error={
+                state.vendorsQuery.isError
+                  ? state.vendorsQuery.error instanceof Error
+                    ? state.vendorsQuery.error.message
+                    : 'Unable to load vendors.'
+                  : null
+              }
               nameInput={state.vendorNameInput}
               codeInput={state.vendorCodeInput}
               nameFocused={state.vendorNameFocused}

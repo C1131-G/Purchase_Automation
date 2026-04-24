@@ -37,6 +37,12 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
     ItemCode: String(line.ItemCode ?? line.itemCode ?? ""),
     ItemDescription: String(line.ItemDescription ?? line.itemDescription ?? ""),
     Quantity: quantity,
+    OpenQty: Number(
+      line.OpenQty ?? line.OpenQuantity ?? line.openQty ?? line.openQuantity ?? quantity,
+    ),
+    OpenQuantity: Number(
+      line.OpenQuantity ?? line.OpenQty ?? line.openQuantity ?? line.openQty ?? quantity,
+    ),
     Price: unitPrice,
     DiscountPercent: discountPercent,
     LineTotal: lineTotal,
@@ -45,7 +51,7 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
     // Preserve VatPrcnt even when 0 — 0 is a meaningful tax rate, not "missing"
     // Prefer TaxPercentagePerRow (actual rate SAP applied) over raw VatPrcnt
     VatPrcnt: Number(
-      line.TaxPercentagePerRow ?? line.taxPercentagePerRow ?? line.VatPrcnt ?? line.vatPrcnt ?? 0,
+      line.TaxPercentagePerRow ?? line.TaxPercentagePerRow ?? line.VatPrcnt ?? line.vatPrcnt ?? 0,
     ),
     UoMCode: line.UoMCode ?? line.uomCode,
     UoMEntry:

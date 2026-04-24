@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 
-import { type APInvoiceCreateLine } from '@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create'
+import { type APCreditMemoCreateLine } from '@/features/create-pages/ap-credit-memo-create/hooks/use-ap-credit-memo-create'
 import { BaseProductSection } from '@/features/create-pages/create-shared/components/sections/base-product-section'
 import { CreateProductTable } from '@/features/create-pages/create-shared/components/tables/create-product-table'
 import {
@@ -9,8 +9,8 @@ import {
 } from '@/features/create-pages/create-shared/utils/create-order.calculations'
 import { type CreateLookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
 
-interface APInvoiceProductSectionProps {
-  rows: APInvoiceCreateLine[]
+interface APCreditMemoProductSectionProps {
+  rows: APCreditMemoCreateLine[]
   productRowDrafts: Record<
     string,
     { quantity?: string; discountPercent?: string; discountAmount?: string }
@@ -28,7 +28,7 @@ interface APInvoiceProductSectionProps {
   prefetchProducts: () => void
   isSubmitting: boolean
   isEditMode: boolean
-  onUpdateProductRow: (rowId: string, patch: Partial<APInvoiceCreateLine>) => void
+  onUpdateProductRow: (rowId: string, patch: Partial<APCreditMemoCreateLine>) => void
   onRemoveProductRow: (rowId: string) => void
   onSetProductRowDraft: (
     rowId: string,
@@ -47,11 +47,7 @@ interface APInvoiceProductSectionProps {
   isClosed?: boolean
 }
 
-/**
- * APInvoiceProductSection: Management of AP Invoice line items, totals, and submission.
- * Inherits shared UI patterns via BaseProductSection.
- */
-export function APInvoiceProductSection({
+export function APCreditMemoProductSection({
   rows,
   productRowDrafts,
   createError,
@@ -77,7 +73,7 @@ export function APInvoiceProductSection({
   onEditRestrictedClick,
   secondaryActions,
   isClosed = false,
-}: APInvoiceProductSectionProps) {
+}: APCreditMemoProductSectionProps) {
   const totals = calculateOrderTotals(rows)
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null
 
@@ -85,7 +81,7 @@ export function APInvoiceProductSection({
 
   return (
     <BaseProductSection
-      sectionId="ap-invoice-product-section"
+      sectionId="ap-credit-memo-product-section"
       onSearchProducts={() => {
         if (isReadOnlyMode) {
           onEditRestrictedClick?.('Products')
@@ -101,7 +97,7 @@ export function APInvoiceProductSection({
       totals={totals}
       currencyLabel={summaryCurrencyLabel}
       createError={createError}
-      backToUrl="/purchase/ap-invoice"
+      backToUrl="/purchase/ap-credit-memo"
       backToLabel="Back to Table"
       submitLabel={isEditMode ? 'Update' : 'Create'}
       submitLoadingText={isEditMode ? 'Updating...' : 'Creating...'}
@@ -132,7 +128,8 @@ export function APInvoiceProductSection({
           productRows={rows}
           productRowDrafts={productRowDrafts}
           enforceStockLimit={false}
-          linkedRow={(row) => !!row.baseEntry && !!row.baseLine}
+          maxQuantity={(row) => row.baseQuantity}
+          linkedRow={(row) => row.baseEntry != null && row.baseLine != null}
           disableLineInputs={isReadOnlyMode}
           onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
           openProductPopup={openProductPopup}
@@ -147,6 +144,7 @@ export function APInvoiceProductSection({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
+          showReturnReason={true}
         />
       </div>
     </BaseProductSection>

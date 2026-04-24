@@ -289,6 +289,7 @@ export function useArCreditMemoCreate({
             line.VatPrcnt !== undefined ? Number(line.VatPrcnt) : Number(productMeta?.taxRate ?? 0),
           uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? ''),
           uomEntry: Number(line.UoMEntry ?? productMeta?.uomEntry ?? 0) || undefined,
+          baseQuantity: Number(line.Quantity || 1),
           quantity: isEditMode
             ? Number(line.Quantity ?? 0)
             : Number(

@@ -130,6 +130,7 @@ export function GRPOProductSection({
           productRows={rows}
           productRowDrafts={productRowDrafts}
           enforceStockLimit={false}
+          linkedRow={(row) => !!row.baseEntry && !!row.baseLine}
           disableLineInputs={isEditMode}
           onLineInputRestrictedClick={() => onEditRestrictedClick?.('Products')}
           openProductPopup={openProductPopup}

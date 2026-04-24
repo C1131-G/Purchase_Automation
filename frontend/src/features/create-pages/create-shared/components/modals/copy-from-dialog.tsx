@@ -383,6 +383,7 @@ export function CopyFromDialog({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by document number or name"
+              autoComplete="off"
               className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
             />
           </div>
