@@ -30,7 +30,6 @@ import {
 } from '@/features/create-pages/purchase-order-create/api/purchase-order-create.mutations'
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
-  FULL_PRODUCT_LIMIT,
   MANDATORY_ERROR_TEXT,
   type ProductSearchFieldError,
   REQUIRED_FIELD_LABEL_TEXT,
@@ -193,9 +192,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         const productsForWarehouse =
           warehouseCode.trim().length > 0
             ? await queryClient
-                .fetchQuery(
-                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
-                )
+                .fetchQuery(createSharedQueries.products(warehouseCode, undefined, undefined))
                 .catch((): ProductLookupItem[] => [])
             : []
 
@@ -257,6 +254,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             comment: '',
             warehouseCode: String(line.WarehouseCode ?? '').trim(),
             lineNum: typeof line.LineNum === 'number' ? line.LineNum : index,
+            selected: false,
           }
         })
 

@@ -45,7 +45,7 @@ export type ProductGridRow = {
   baseEntry?: number | undefined
   baseLine?: number | undefined
   baseType?: number | undefined
-  selected?: boolean
+  selected?: boolean | undefined
   returnReason?: string | undefined
 }
 

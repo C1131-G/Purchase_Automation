@@ -293,6 +293,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               ? line.BaseType
               : undefined,
           warehouseCode: lineWarehouse,
+          selected: false,
         }
       })
 
@@ -462,6 +463,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           baseLine: line.LineNum ?? index,
           baseType: baseType,
           warehouseCode: lineWarehouse,
+          selected: false,
         }
       })
 
@@ -916,6 +918,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         baseLine: line.LineNum,
         baseType: 17, // Sales Order
         warehouseCode: lineWarehouse,
+        selected: false,
       } as ProductRow
     })
 
@@ -991,6 +994,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         baseLine: line.LineNum,
         baseType: 23, // Sales Quotation
         warehouseCode: lineWarehouse,
+        selected: false,
       } as ProductRow
     })
 

@@ -73,6 +73,7 @@ export type APCreditMemoCreateLine = {
   baseLine?: number | undefined
   baseEntry?: number | undefined
   baseType?: number | undefined
+  selected?: boolean | undefined
 }
 type APCreditMemoFieldErrors = Record<APCreditMemoMandatoryField, string | undefined>
 const QUICK_PRODUCT_LIMIT = 10
@@ -82,7 +83,6 @@ const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
   vendorName: undefined,
   vendorCode: undefined,
   warehouseCode: undefined,
-  returnReason: undefined,
 }
 
 interface UseAPCreditMemoCreateOptions {
@@ -201,7 +201,7 @@ export function useAPCreditMemoCreate({
     ...createSharedQueries.products(
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
-      productQueryLimit,
+      debouncedProductSearch.trim() ? undefined : productQueryLimit,
       'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
@@ -872,6 +872,7 @@ export function useAPCreditMemoCreate({
           comment: '',
           price: Number(product.price ?? 0),
           warehouseCode: effectiveWarehouseCode || '',
+          selected: false,
         },
       ]
     })
@@ -917,6 +918,7 @@ export function useAPCreditMemoCreate({
         comment: '',
         price: Number(product.price ?? 0),
         warehouseCode: effectiveWarehouseCode || '',
+        selected: false,
       })),
     ])
     setProductPopupOpen(false)

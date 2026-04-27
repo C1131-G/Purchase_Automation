@@ -204,7 +204,7 @@ export function useGRPOCreate({
     ...createSharedQueries.products(
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
-      productQueryLimit,
+      debouncedProductSearch.trim() ? undefined : productQueryLimit,
       'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
@@ -411,6 +411,7 @@ export function useGRPOCreate({
               typeof line.BaseType === 'number' && Number.isFinite(line.BaseType)
                 ? line.BaseType
                 : undefined,
+            selected: false,
           }
         })
         setLines(mappedLines)
@@ -616,6 +617,7 @@ export function useGRPOCreate({
             baseEntry: detail.DocEntry ?? detail.id,
             baseLine: line.LineNum ?? idx,
             baseType: 22, // Purchase Order base type
+            selected: false,
           }
         })
       })
@@ -1100,6 +1102,7 @@ export function useGRPOCreate({
           baseEntry: undefined,
           baseLine: undefined,
           baseType: undefined,
+          selected: false,
         },
       ]
     })
@@ -1149,6 +1152,7 @@ export function useGRPOCreate({
         baseEntry: undefined,
         baseLine: undefined,
         baseType: undefined,
+        selected: false,
       }))
       return [...prev, ...nextRows]
     })

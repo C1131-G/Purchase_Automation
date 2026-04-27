@@ -18,7 +18,6 @@ export const AP_CREDIT_MEMO_FIELD_LABEL_TEXT: Record<APCreditMemoMandatoryField,
   vendorName: 'Vendor Name',
   vendorCode: 'Vendor Code',
   warehouseCode: 'Warehouse',
-  returnReason: 'Return Reason',
 }
 
 export const getTodayISO = () => new Date().toISOString().slice(0, 10)

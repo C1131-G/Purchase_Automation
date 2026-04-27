@@ -218,6 +218,7 @@ export function useArProducts({
         discountAmount: 0,
         comment: '',
         warehouseCode: effectiveWarehouseCode || '',
+        selected: false,
       }))
       setProductRows((prev) => [...prev, ...newRows])
     }

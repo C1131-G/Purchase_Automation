@@ -246,6 +246,7 @@ export function usePoProducts({
           discountAmount: 0,
           comment: '',
           warehouseCode: resolvedWarehouseCode,
+          selected: false,
         },
       ])
     }
@@ -297,6 +298,7 @@ export function usePoProducts({
         discountAmount: 0,
         comment: '',
         warehouseCode: resolvedWarehouseCode,
+        selected: false,
       }
     })
 

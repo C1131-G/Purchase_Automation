@@ -200,7 +200,7 @@ export function useAPInvoiceCreate({
     ...createSharedQueries.products(
       effectiveWarehouseCode || undefined,
       debouncedProductSearch.trim() || undefined,
-      productQueryLimit,
+      debouncedProductSearch.trim() ? undefined : productQueryLimit,
       'purchase',
     ),
     enabled: productPopupOpen && vendorSelected,
@@ -330,6 +330,7 @@ export function useAPInvoiceCreate({
           baseEntry: typeof line.BaseEntry === 'number' ? line.BaseEntry : undefined,
           baseLine: typeof line.BaseLine === 'number' ? line.BaseLine : undefined,
           baseType: typeof line.BaseType === 'number' ? line.BaseType : undefined,
+          selected: false,
         }
       })
       setLines(mappedLines)
@@ -481,6 +482,7 @@ export function useAPInvoiceCreate({
             baseEntry: detail.DocEntry ?? (detail as { id?: number }).id,
             baseLine: line.LineNum ?? idx,
             baseType,
+            selected: false,
           }
         })
       })
@@ -858,6 +860,7 @@ export function useAPInvoiceCreate({
           comment: '',
           price: Number(product.price ?? 0),
           warehouseCode: effectiveWarehouseCode || '',
+          selected: false,
         },
       ]
     })
@@ -903,6 +906,7 @@ export function useAPInvoiceCreate({
         comment: '',
         price: Number(product.price ?? 0),
         warehouseCode: effectiveWarehouseCode || '',
+        selected: false,
       })),
     ])
     setProductPopupOpen(false)

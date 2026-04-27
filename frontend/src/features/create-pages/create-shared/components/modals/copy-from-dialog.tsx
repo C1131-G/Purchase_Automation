@@ -1,6 +1,9 @@
-import { Check, FileText, Loader2, StickyNote } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Calendar as LucideCalendar, Check, FileText, Loader2, StickyNote } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { Calendar } from '@/components/calendar/calendar'
+import { usePopover } from '@/components/context/popover-context'
+import { Popover } from '@/components/popover'
 import {
   apInvoiceAPI,
   type APInvoiceDetail,
@@ -9,6 +12,30 @@ import type { GRPODetail } from '@/features/table-pages/grpo/api/grpo.service'
 import { grpoAPI } from '@/features/table-pages/grpo/api/grpo.service'
 import type { PurchaseOrderDetail } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
 import { purchaseOrderAPI } from '@/features/table-pages/purchase-orders/api/purchase-order.service'
+import {
+  formatDateDisplay,
+  toDateOnly,
+} from '@/features/table-pages/table-shared/components/filters/search/table-search.utils'
+import {
+  type DateRangeFilter,
+  isDateRangeFilter,
+  toDateRangeFilter,
+} from '@/features/table-pages/table-shared/utils/table-filter-values'
+import { cn } from '@/shared/utils/cn'
+import { MOTION_MS } from '@/shared/utils/motion'
+
+type CalendarRangeSelection = {
+  from?: Date | undefined
+  to?: Date | undefined
+}
+
+const isCalendarRangeSelection = (value: unknown): value is CalendarRangeSelection => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const candidate = value as { from?: unknown; to?: unknown }
+  const fromValid = candidate.from === undefined || candidate.from instanceof Date
+  const toValid = candidate.to === undefined || candidate.to instanceof Date
+  return fromValid && toValid
+}
 
 type SourceDocType = 'PurchaseOrder' | 'GoodsReceiptPO' | 'APInvoice'
 
@@ -25,6 +52,7 @@ interface CopyFromDialogProps {
   vendorName: string
   sourceDocType: SourceDocType
   onSelectDocuments: (selected: Array<{ docNum: string; docType: SourceDocType }>) => void
+  includeClosed?: boolean
 }
 
 interface DocumentOption {
@@ -39,9 +67,9 @@ interface DocumentOption {
 interface DocDetailCache {
   lines: Array<{ itemName: string; openQty: number }>
   totalOpenQty: number
-  docDate?: string
-  docTotal?: number
-  docCurrency?: string
+  docDate: string | undefined
+  docTotal: number | undefined
+  docCurrency: string | undefined
 }
 
 const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const
@@ -96,8 +124,10 @@ export function CopyFromDialog({
   vendorName,
   sourceDocType,
   onSelectDocuments,
+  includeClosed,
 }: CopyFromDialogProps) {
   const [search, setSearch] = useState('')
+  const [dateRange, setDateRange] = useState<DateRangeFilter>({})
   const [documents, setDocuments] = useState<DocumentOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -124,6 +154,7 @@ export function CopyFromDialog({
   useEffect(() => {
     if (open) {
       setSearch('')
+      setDateRange({})
       setSelectedDocs(new Set())
       setDocuments([])
       setLoadedCount(0)
@@ -137,6 +168,28 @@ export function CopyFromDialog({
       setHoverDetailLoading(false)
     }
   }, [open, sourceDocType])
+
+  // Date filter label
+  const dateFilterLabel = useMemo(() => {
+    const applied = isDateRangeFilter(dateRange) ? dateRange : {}
+    let lbl = 'Filter by date'
+    if (applied.from && applied.to) {
+      lbl = `${formatDateDisplay(applied.from)} - ${formatDateDisplay(applied.to)}`
+    } else if (applied.from) {
+      lbl = `From ${formatDateDisplay(applied.from)}`
+    } else if (applied.to) {
+      lbl = `Until ${formatDateDisplay(applied.to)}`
+    }
+    return lbl
+  }, [dateRange])
+
+  // Selected range for calendar
+  const selectedRange = useMemo((): { from?: Date; to?: Date } => {
+    const r: { from?: Date; to?: Date } = {}
+    if (dateRange.from) r.from = new Date(`${dateRange.from}T00:00:00`)
+    if (dateRange.to) r.to = new Date(`${dateRange.to}T00:00:00`)
+    return r
+  }, [dateRange])
 
   // Debounced search
   const searchQuery = useDebouncedValue(search, 300)
@@ -172,6 +225,8 @@ export function CopyFromDialog({
           }
           if (query) params.DocNum = query
           if (!query && isLoadMore) params.page = page
+          if (dateRange.from) params.DocDateStart = dateRange.from
+          if (dateRange.to) params.DocDateEnd = dateRange.to
           result = await purchaseOrderAPI.getPurchaseOrders(params)
         } else if (sourceDocType === 'GoodsReceiptPO') {
           const params: Record<string, unknown> = {
@@ -180,6 +235,8 @@ export function CopyFromDialog({
           }
           if (query) params.DocNum = query
           if (!query && isLoadMore) params.page = page
+          if (dateRange.from) params.DocDateStart = dateRange.from
+          if (dateRange.to) params.DocDateEnd = dateRange.to
           result = await grpoAPI.getGRPOs(params)
         } else {
           const params: Record<string, unknown> = {
@@ -188,17 +245,24 @@ export function CopyFromDialog({
           }
           if (query) params.DocNum = query
           if (!query && isLoadMore) params.page = page
+          if (dateRange.from) params.DocDateStart = dateRange.from
+          if (dateRange.to) params.DocDateEnd = dateRange.to
           result = await apInvoiceAPI.getAPInvoices(params)
         }
 
-        const isOpenOrPartial = (doc: { DocStatus?: string }) => {
-          const status = String(doc.DocStatus ?? '').trim()
-          return (
-            status === 'Open' || status === 'O' || status === 'Partial' || status === 'bost_Open'
-          )
-        }
+        const isAllowedStatus = includeClosed
+          ? () => true
+          : (doc: { DocStatus?: string }) => {
+              const status = String(doc.DocStatus ?? '').trim()
+              return (
+                status === 'Open' ||
+                status === 'O' ||
+                status === 'Partial' ||
+                status === 'bost_Open'
+              )
+            }
 
-        const newDocs = (result.data || []).filter(isOpenOrPartial).map(
+        const newDocs = (result.data || []).filter(isAllowedStatus).map(
           (doc: { DocNum: string | number; DocDate?: string; DocEntry?: number; id?: number }) =>
             ({
               code: String(doc.DocNum),
@@ -233,7 +297,7 @@ export function CopyFromDialog({
         setIsLoading(false)
       }
     },
-    [sourceDocType, vendorCode, label, searchQuery],
+    [sourceDocType, vendorCode, label, searchQuery, dateRange, includeClosed],
   )
 
   // Reset + fetch when source type, vendor, or search changes
@@ -373,6 +437,12 @@ export function CopyFromDialog({
                 Confirm ({selectedDocs.size})
               </button>
             )}
+            <CopyFromDateFilter
+              dateFilterLabel={dateFilterLabel}
+              hasDateRange={isDateRangeFilter(dateRange)}
+              selectedRange={selectedRange}
+              onDateSelect={(range) => setDateRange(range ?? {})}
+            />
             <button
               type="button"
               onClick={handleCancel}
@@ -432,7 +502,9 @@ export function CopyFromDialog({
                   <p className="text-xs font-medium text-zinc-500">
                     {isSearching
                       ? `No documents match "${search.trim()}".`
-                      : 'No Open documents found for this vendor.'}
+                      : includeClosed
+                        ? 'No documents found for this vendor.'
+                        : 'No Open documents found for this vendor.'}
                   </p>
                 </div>
               ) : (
@@ -586,4 +658,74 @@ function useDebouncedValue(value: string, delayMs: number): string {
     return () => clearTimeout(timer)
   }, [value, delayMs])
   return debounced
+}
+
+interface CopyFromDateFilterProps {
+  dateFilterLabel: string
+  hasDateRange: boolean
+  selectedRange: { from?: Date; to?: Date }
+  onDateSelect: (range: DateRangeFilter | undefined) => void
+}
+
+function CopyFromDateFilterButton({
+  dateFilterLabel,
+  hasDateRange,
+  selectedRange,
+  onDateSelect,
+}: CopyFromDateFilterProps) {
+  const { setOpen } = usePopover()
+  const today = new Date()
+  const maxDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const handleDateSelect = (value: unknown) => {
+    if (!value) {
+      onDateSelect(undefined)
+      return
+    }
+    if (!isCalendarRangeSelection(value)) return
+    const from = value.from ? toDateOnly(value.from) : undefined
+    const to = value.to ? toDateOnly(value.to) : undefined
+    const next = toDateRangeFilter(from, to)
+    onDateSelect(next)
+    if (from && to) {
+      window.setTimeout(() => setOpen(false), MOTION_MS.calendarAutoClose)
+    }
+  }
+
+  return (
+    <>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'flex h-8 items-center rounded-full border px-3 text-xs font-medium transition hover:bg-zinc-50',
+            hasDateRange
+              ? 'border-blue-300 bg-blue-50 text-blue-700'
+              : 'border-zinc-200 bg-white text-zinc-700',
+          )}
+        >
+          <LucideCalendar className="mr-1.5 size-3.5" />
+          {dateFilterLabel}
+        </button>
+      </Popover.Trigger>
+      <Popover.Content align="end" className="p-0 will-change-transform" unstyled>
+        <div className="p-3">
+          <Calendar
+            mode="range"
+            maxDate={maxDate}
+            selected={selectedRange}
+            onSelect={handleDateSelect}
+          />
+        </div>
+      </Popover.Content>
+    </>
+  )
+}
+
+function CopyFromDateFilter(props: CopyFromDateFilterProps) {
+  return (
+    <Popover.Root>
+      <CopyFromDateFilterButton {...props} />
+    </Popover.Root>
+  )
 }

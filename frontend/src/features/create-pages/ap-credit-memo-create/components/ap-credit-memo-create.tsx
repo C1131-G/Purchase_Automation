@@ -110,6 +110,7 @@ export function APCreditMemoCreate({
         sourceDocType={copyFromSourceType ?? 'APInvoice'}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
+        includeClosed={true}
         onSelectDocuments={handleCopyFromSelect}
       />
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">

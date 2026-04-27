@@ -243,6 +243,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           discountAmount,
           comment: '',
           warehouseCode: String(line.WarehouseCode ?? '').trim(),
+          selected: false,
         }
       })
 

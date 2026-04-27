@@ -261,6 +261,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           baseLine: line.LineNum ?? index,
           baseType: 23, // Sales Quotation
           warehouseCode: lineWarehouse,
+          selected: false,
         }
       })
 
@@ -405,6 +406,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           discountAmount,
           comment: '',
           warehouseCode: lineWarehouse,
+          selected: false,
         }
       })
 
