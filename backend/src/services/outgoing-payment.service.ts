@@ -1,112 +1,102 @@
-// Outgoing Payment Service: Manages payment transactions to vendors. Handles list retrieval from HANA and transaction processing via the SAP VendorPayments service.
+// Outgoing Payment Service: Manages payment transactions to vendors. Uses SAP Service Layer for list retrieval.
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PaymentFilters } from "@/dal/types/outgoing-payment.types";
-import { type OutgoingPayment, OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
+import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
-import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
-// Fetches a paginated list of Outgoing Payments from the tenant's HANA database.
-export const getPayments = async (dbName: string, filters: PaymentFilters) => {
+// Fetches a paginated list of Outgoing Payments from SAP Service Layer.
+export const getPayments = async (sessionId: string, filters: PaymentFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, OutgoingPaymentSchema);
-    const queryBuilder = repo.createQueryBuilder("payment");
-    queryBuilder.where("1=1");
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    // Dynamic Filter: Search by payment document number (Standard: DocNum).
+    // Build OData filter from URL params
+    const filterParts: string[] = [];
     if (filters.DocNum) {
-      queryBuilder.andWhere("CAST(payment.docNum AS NVARCHAR) LIKE :docNum", {
-        docNum: `%${filters.DocNum}%`,
-      });
+      filterParts.push(`contains(cast(DocNum,'string'),'${filters.DocNum}')`);
     }
-
-    // Dynamic Filter: Filter by vendor code (Standard: CardCode).
     if (filters.CardCode) {
-      queryBuilder.andWhere("payment.cardCode LIKE :cardCode", {
-        cardCode: `%${filters.CardCode}%`,
-      });
+      filterParts.push(`contains(CardCode,'${filters.CardCode}')`);
     }
-
-    // Dynamic Filter: Filter by vendor name (Standard: CardName).
     if (filters.CardName) {
-      queryBuilder.andWhere("LOWER(payment.cardName) LIKE LOWER(:cardName)", {
-        cardName: `%${filters.CardName}%`,
-      });
+      filterParts.push(`contains(tolower(CardName),tolower('${filters.CardName}'))`);
     }
-
-    // Dynamic Filter: Start date of the payment window (Standard: DocDate).
     if (filters.DocDateStart) {
-      queryBuilder.andWhere("payment.docDate >= :startDate", {
-        startDate: filters.DocDateStart,
-      });
+      filterParts.push(`DocDate ge datetime'${filters.DocDateStart}T00:00:00'`);
     }
-
-    // Dynamic Filter: End date of the payment window (Standard: DocDate).
     if (filters.DocDateEnd) {
-      queryBuilder.andWhere("payment.docDate <= :endDate", {
-        endDate: filters.DocDateEnd,
-      });
+      filterParts.push(`DocDate le datetime'${filters.DocDateEnd}T23:59:59'`);
     }
-
-    // Dynamic Filter: Filter by document total.
-    if (filters.DocTotal !== undefined && filters.DocTotalOperator) {
-      const operatorMap = { eq: "=", lt: "<", gt: ">" };
-      const sqlOp = operatorMap[filters.DocTotalOperator];
-      queryBuilder.andWhere(`payment.docTotal ${sqlOp} :docTotal`, {
-        docTotal: filters.DocTotal,
-      });
-    }
-
-    // Dynamic Filter: Payment Mode (U_Mode_Pay UDF).
     if (filters.PaymentMode) {
-      queryBuilder.andWhere("payment.paymentMode = :paymentMode", {
-        paymentMode: filters.PaymentMode,
-      });
+      filterParts.push(`U_Mode_Pay eq '${filters.PaymentMode}'`);
     }
 
-    const sortFieldMap: Record<string, string> = {
-      DocNum: "payment.docNum",
-      DocDate: "payment.docDate",
-      CardCode: "payment.cardCode",
-      CardName: "payment.cardName",
-      DocTotal: "payment.docTotal",
-      PaymentMode: "payment.paymentMode",
-    };
-    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
-    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
-    const sort = requestedSortField
-      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
-      : ({ "payment.docDate": "DESC", "payment.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
+    const filterQuery = filterParts.length > 0 ? `&$filter=${filterParts.join(" and ")}` : "";
 
-    // Executes the query with centralized pagination logic.
-    const result = await PageService.getPagedData<OutgoingPayment>({
-      query: queryBuilder,
-      page: Number(filters.page) || 1,
-      limit: Number(filters.limit) || 10,
-      sort,
-      entityName: "OutgoingPayments",
-      dbName,
-    });
+    // Build OData orderby
+    const sortFieldMap: Record<string, string> = {
+      DocNum: "DocNum",
+      DocDate: "DocDate",
+      CardCode: "CardCode",
+      CardName: "CardName",
+      DocTotal: "TransferSum",
+      PaymentMode: "U_Mode_Pay",
+    };
+    const sortBy = filters.sortBy ? sortFieldMap[filters.sortBy] : "DocDate";
+    const sortOrder = filters.sortOrder === "asc" ? "asc" : "desc";
+    const orderbyQuery = `&$orderby=${sortBy} ${sortOrder}`;
+
+    // Query SL with pagination - only select known-good fields
+    // DocTotal may be called DocTotal or TransferSum in different SAP versions
+    const selectFields =
+      "DocEntry,DocNum,DocDate,CardCode,CardName,TransferSum,DocCurrency,U_Mode_Pay";
+    const odataUrl = `/VendorPayments?$top=${limit}&$skip=${skip}&$select=${selectFields}${filterQuery}${orderbyQuery}`;
+
+    const slResponse = (await serviceLayerClient.request(sessionId, "GET", odataUrl)) as {
+      value: Array<{
+        DocEntry: number;
+        DocNum: number;
+        DocDate: string;
+        CardCode: string;
+        CardName: string;
+        TransferSum: number;
+        DocCurrency: string;
+        U_Mode_Pay?: string;
+      }>;
+      "@odata.count"?: string;
+    };
+
+    const payments = slResponse.value || [];
+    const total = slResponse["@odata.count"]
+      ? parseInt(slResponse["@odata.count"], 10)
+      : payments.length;
 
     return {
-      ...result,
-      data: result.data.map((data) => ({
-        id: data.docEntry,
-        DocNum: data.docNum,
-        DocDate: data.docDate,
-        CardCode: data.cardCode,
-        CardName: data.cardName,
-        DocTotal: data.docTotal,
-        DocCurr: data.docCurr,
-        PaymentMode: data.paymentMode,
+      success: true,
+      data: payments.map((payment) => ({
+        id: payment.DocEntry,
+        DocNum: payment.DocNum,
+        DocDate: payment.DocDate,
+        CardCode: payment.CardCode,
+        CardName: payment.CardName,
+        DocTotal: payment.TransferSum || 0,
+        DocCurr: payment.DocCurrency,
+        PaymentMode: payment.U_Mode_Pay || undefined,
       })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
+    logger.error({ msg: "Failed to fetch Outgoing Payments from SL", error: error.message });
     throw error;
   }
 };
@@ -241,7 +231,22 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     if (paymentMode) {
       sapPayload.U_Mode_Pay = paymentMode;
+      logger.info({
+        msg: "PaymentMode determined for U_Mode_Pay",
+        paymentMode,
+        method: payload.CashSum ? "Cash" : payload.PaymentCreditCards?.[0] ? "Card" : "Transfer",
+      });
+    } else {
+      logger.info({
+        msg: "No PaymentMode could be determined for U_Mode_Pay",
+      });
     }
+
+    logger.info({
+      msg: "Creating Outgoing Payment via Service Layer",
+      docDate,
+      cardCode: payload.CardCode,
+    });
 
     // Execute payment post to VendorPayments endpoint.
     const result = (await serviceLayerClient.request(
@@ -249,9 +254,9 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       "POST",
       "/VendorPayments",
       sapPayload,
-    )) as SAPDocumentResponse;
+    )) as { DocEntry: number };
 
-    // Purge purchase dashboard cache as liabilities have been settled.
+    // Invalidate purchase-related dashboard metrics for the tenant.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:purchase:${session.companyDB}:`);
@@ -259,9 +264,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     return {
       success: true,
-      message: "Outgoing Payment created successfully",
-      DocEntry: result.DocEntry,
-      DocNum: result.DocNum,
+      message: "Payment created successfully",
+      id: result.DocEntry,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -329,6 +333,116 @@ export const cancelPayment = async (sessionId: string, id: string) => {
   }
 };
 
+// Backfills U_Mode_Pay for existing OVPM rows via SAP Service Layer.
+export const backfillPaymentModes = async (sessionId: string, batchSize = 50) => {
+  const session = serviceLayerClient.getSession(sessionId);
+  if (!session?.companyDB) {
+    throw new Error("No active session");
+  }
+
+  try {
+    // Get all VendorPayments from Service Layer
+    const response = (await serviceLayerClient.request(
+      sessionId,
+      "GET",
+      `/VendorPayments?$top=${batchSize}&$select=DocEntry,CashSum,TrsfrSum,CreditCard,CheckNum,U_Mode_Pay&$orderby=DocEntry DESC`,
+    )) as {
+      value: Array<{
+        DocEntry: number;
+        CashSum?: number;
+        TrsfrSum?: number;
+        CreditCard?: number;
+        CheckNum?: number;
+        U_Mode_Pay?: string;
+      }>;
+    };
+
+    const payments = response.value || [];
+    logger.info({
+      msg: "Backfill: Raw SL response",
+      recordCount: payments.length,
+      samplePayment: payments[0],
+    });
+
+    if (payments.length === 0) {
+      logger.info({ msg: "Backfill: No records found" });
+      return { success: true, message: "No records found", updated: 0 };
+    }
+
+    const recordsToUpdate = payments.filter(
+      (p) =>
+        !p.U_Mode_Pay &&
+        ((p.CashSum && Number(p.CashSum) > 0) ||
+          (p.TrsfrSum && Number(p.TrsfrSum) > 0) ||
+          (p.CreditCard && Number(p.CreditCard) > 0) ||
+          (p.CheckNum && Number(p.CheckNum) > 0)),
+    );
+
+    logger.info({
+      msg: "Backfill: Records needing update",
+      count: recordsToUpdate.length,
+      sample: recordsToUpdate[0],
+    });
+
+    let updatedCount = 0;
+    const allowedModes = ["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"];
+
+    for (const row of recordsToUpdate) {
+      try {
+        const modes: string[] = [];
+
+        if (row.CashSum && Number(row.CashSum) > 0) {
+          modes.push("CASH");
+        }
+
+        if (row.CreditCard && Number(row.CreditCard) > 0) {
+          const cardId = Number(row.CreditCard);
+          if (cardId === 5) modes.push("M-Pesa");
+          else if (cardId === 6) modes.push("My Cash");
+          else if (cardId === 7) modes.push("Direct Pay");
+          else modes.push("EFTPOS");
+        }
+
+        if (row.CheckNum && Number(row.CheckNum) > 0) {
+          modes.push("Direct Pay");
+        }
+
+        if (row.TrsfrSum && Number(row.TrsfrSum) > 0) {
+          modes.push("Direct Pay");
+        }
+
+        let paymentMode: string | undefined;
+        if (modes.length === 1) {
+          paymentMode = modes[0];
+        } else if (modes.length > 1) {
+          paymentMode = modes.find((m) => m !== "CASH") || "CASH";
+        }
+
+        if (paymentMode && allowedModes.includes(paymentMode)) {
+          await serviceLayerClient.request(sessionId, "PATCH", `/VendorPayments(${row.DocEntry})`, {
+            U_Mode_Pay: paymentMode,
+          });
+          updatedCount++;
+          logger.info({ msg: "Backfill: Updated payment", docEntry: row.DocEntry, paymentMode });
+        }
+      } catch (err) {
+        logger.warn({
+          msg: "Failed to backfill individual payment",
+          docEntry: row.DocEntry,
+          error: String(err),
+        });
+      }
+    }
+
+    logger.info({ msg: "Backfill complete", batchSize, updated: updatedCount });
+    return { success: true, message: `Updated ${updatedCount} records`, updated: updatedCount };
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error({ msg: "Failed to backfill payment modes", error: error.message });
+    throw error;
+  }
+};
+
 export const outgoingPaymentService = {
   getPayments,
   getPaymentDocNums,
@@ -336,4 +450,5 @@ export const outgoingPaymentService = {
   createPayment,
   updatePayment,
   cancelPayment,
+  backfillPaymentModes,
 };

@@ -24,21 +24,22 @@ export const getPayments = async (req: Request, res: Response, next: NextFunctio
     PaymentQuery
   >;
   try {
-    const { dbName } = authReq.user;
+    const { sessionId } = authReq.session;
     // Query is already validated/sanitized by validateQuery(PaymentQuerySchema) middleware.
     const filters = authReq.query;
 
-    logger.info({ msg: "Fetching Outgoing Payments", dbName, filters });
+    logger.info({ msg: "Fetching Outgoing Payments", filters });
 
-    const result = await outgoingPaymentService.getPayments(dbName, filters);
+    const result = await outgoingPaymentService.getPayments(sessionId, filters);
 
     logger.info({
       msg: "Fetched Outgoing Payments",
       count: result.data.length,
       total: result.total,
+      samplePaymentMode: result.data.length > 0 ? result.data[0]?.PaymentMode : null,
     });
 
-    res.status(200).json({ success: true, ...result });
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -93,7 +94,7 @@ export const createPayment = async (req: Request, res: Response, next: NextFunct
 
     const result = await outgoingPaymentService.createPayment(sessionId, validatedPayload);
 
-    logger.info({ msg: "Outgoing Payment Created", docNum: result.DocNum });
+    logger.info({ msg: "Outgoing Payment Created", id: result.id });
 
     res.status(201).json({ success: true, message: result.message, data: result });
   } catch (error) {

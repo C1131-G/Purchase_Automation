@@ -37,4 +37,23 @@ router.patch("/:id", outgoingPaymentDal.updatePayment);
 // POST /:id/cancel: Triggers a cancellation for the payment in SAP.
 router.post("/:id/cancel", outgoingPaymentDal.cancelPayment);
 
+// POST /backfill: Backfills U_Mode_Pay for legacy payments.
+router.post("/backfill", async (req, res, next) => {
+  try {
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+    const { outgoingPaymentService } = await import("@/services/outgoing-payment.service");
+
+    const session = serviceLayerClient.getSession(req.sessionID);
+    if (!session?.companyDB) {
+      res.status(401).json({ success: false, error: "No active session" });
+      return;
+    }
+
+    const result = await outgoingPaymentService.backfillPaymentModes(req.sessionID, 50);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export const outgoingPaymentRoutes = router;
