@@ -61,12 +61,20 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       });
     }
 
+    // Dynamic Filter: Payment Mode (U_Mode_Pay UDF).
+    if (filters.PaymentMode) {
+      queryBuilder.andWhere("payment.paymentMode = :paymentMode", {
+        paymentMode: filters.PaymentMode,
+      });
+    }
+
     const sortFieldMap: Record<string, string> = {
       DocNum: "payment.docNum",
       DocDate: "payment.docDate",
       CardCode: "payment.cardCode",
       CardName: "payment.cardName",
       DocTotal: "payment.docTotal",
+      PaymentMode: "payment.paymentMode",
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
@@ -94,6 +102,7 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
         CardName: data.cardName,
         DocTotal: data.docTotal,
         DocCurr: data.docCurr,
+        PaymentMode: data.paymentMode,
       })),
     };
   } catch (err: unknown) {
@@ -191,6 +200,49 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       )}-${docDate.substring(6, 8)}`;
     }
 
+    // Determine Payment Mode for UDF (U_Mode_Pay) - Aligning with SAP Valid Values
+    // If explicitly provided, use it; otherwise derive from payment method fields.
+    const allowedModes = ["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"];
+    let paymentMode: string | undefined;
+
+    if (payload.PaymentMode && allowedModes.includes(payload.PaymentMode as string)) {
+      paymentMode = payload.PaymentMode as string;
+    } else {
+      // Derive from payment method components
+      const modes: string[] = [];
+      if (payload.CashSum && (payload.CashSum as number) > 0) modes.push("CASH");
+
+      if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
+        const firstCard = payload.PaymentCreditCards[0] as Record<string, unknown>;
+        const cardId = Number(firstCard.CreditCard);
+        if (cardId === 5) modes.push("M-Pesa");
+        else if (cardId === 6) modes.push("My Cash");
+        else if (cardId === 7) modes.push("Direct Pay");
+        else modes.push("EFTPOS");
+      }
+
+      if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
+        const checks = payload.PaymentChecks as Record<string, unknown>[];
+        const hasCash = checks.some((c) => c.BankCode === "CASH");
+        const hasRealCheck = checks.some((c) => c.BankCode !== "CASH");
+        if (hasCash) modes.push("CASH");
+        if (hasRealCheck) modes.push("Direct Pay");
+      }
+
+      if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) modes.push("Direct Pay");
+
+      if (modes.length === 1) {
+        paymentMode = modes[0];
+      } else if (modes.length > 1) {
+        // Prefer non-CASH mode if multiple; default to CASH if only CASH appears
+        paymentMode = modes.find((m) => m !== "CASH") || "CASH";
+      }
+    }
+
+    if (paymentMode) {
+      sapPayload.U_Mode_Pay = paymentMode;
+    }
+
     // Execute payment post to VendorPayments endpoint.
     const result = (await serviceLayerClient.request(
       sessionId,
@@ -221,7 +273,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
   }
 };
 
-// Updates non-financial attributes (Remarks, Ref) on an Outgoing Payment.
+// Updates non-financial attributes (Remarks, Ref, PaymentMode) on an Outgoing Payment.
 export const updatePayment = async (
   sessionId: string,
   id: string,
@@ -231,6 +283,12 @@ export const updatePayment = async (
     const sapPayload: Record<string, unknown> = {};
     if (payload.Remarks) sapPayload.Remarks = payload.Remarks;
     if (payload.Reference) sapPayload.Reference = payload.Reference;
+
+    // Allow direct PaymentMode update if provided and valid
+    const allowedModes = ["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"];
+    if (payload.PaymentMode && allowedModes.includes(payload.PaymentMode as string)) {
+      sapPayload.U_Mode_Pay = payload.PaymentMode;
+    }
 
     await serviceLayerClient.request(sessionId, "PATCH", `/VendorPayments(${id})`, sapPayload);
 

@@ -115,4 +115,29 @@ export const createOutgoingPaymentColumns = (options?: CreateOutgoingPaymentColu
     minSize: 10,
     meta: { filterType: 'number-comparison' },
   }),
+  columnHelper.accessor('PaymentMode', {
+    id: 'PaymentMode',
+    header: ({ column, table }) => (
+      <TableColumnSort
+        column={column}
+        sortingState={table.getState().sorting}
+        title="Mode of Payment"
+      />
+    ),
+    cell: (info) => info.getValue() ?? '-',
+    filterFn: 'equalsString',
+    enableSorting: true,
+    size: 17.5,
+    minSize: 12,
+    meta: {
+      filterType: 'select',
+      filterOptions: [
+        { label: 'M-Pesa', value: 'M-Pesa' },
+        { label: 'My Cash', value: 'My Cash' },
+        { label: 'EFTPOS', value: 'EFTPOS' },
+        { label: 'Direct Pay', value: 'Direct Pay' },
+        { label: 'CASH', value: 'CASH' },
+      ],
+    },
+  }),
 ]

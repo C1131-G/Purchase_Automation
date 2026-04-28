@@ -1,0 +1,21 @@
+{
+	"name": "vendor-portal",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+		"dev:backend": "cd backend && pnpm dev",
+		"dev:frontend": "cd frontend && pnpm dev",
+		"build:backend": "cd backend && pnpm build",
+		"build:frontend": "cd frontend && pnpm build",
+		"build": "pnpm fix && pnpm build:backend && pnpm build:frontend",
+		"start": "cd backend && pnpm start",
+		"lint": "cd backend && pnpm lint && cd ../frontend && pnpm lint",
+		"format": "cd backend && pnpm format && cd ../frontend && pnpm format",
+		"fix": "cd backend && pnpm fix && cd ../frontend && pnpm fix",
+		"test": "cd backend && pnpm test",
+		"prepare": "husky install"
+	},
+	"devDependencies": {
+		"husky": "^9.1.7"
+	}
+}

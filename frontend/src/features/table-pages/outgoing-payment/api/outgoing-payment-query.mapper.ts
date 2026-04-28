@@ -42,7 +42,33 @@ const getDocTotalFilter = (filters: ColumnFiltersState): NumberComparisonFilter 
   }
 }
 
-const SORTABLE_FIELDS = new Set(['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal'])
+const getSelectFilter = (filters: ColumnFiltersState, id: string): string | undefined => {
+  const value = findFilter(filters, id)?.value
+  if (typeof value !== 'string') return undefined
+  return value
+}
+
+// Typed getter for PaymentMode to satisfy enum type
+const getPaymentModeFilter = (
+  filters: ColumnFiltersState,
+  id: string,
+): 'M-Pesa' | 'My Cash' | 'EFTPOS' | 'Direct Pay' | 'CASH' | undefined => {
+  const value = getSelectFilter(filters, id)
+  if (!value) return undefined
+  const allowed: readonly string[] = ['M-Pesa', 'My Cash', 'EFTPOS', 'Direct Pay', 'CASH']
+  return allowed.includes(value as string)
+    ? (value as 'M-Pesa' | 'My Cash' | 'EFTPOS' | 'Direct Pay' | 'CASH')
+    : undefined
+}
+
+const SORTABLE_FIELDS = new Set([
+  'DocNum',
+  'DocDate',
+  'CardCode',
+  'CardName',
+  'DocTotal',
+  'PaymentMode',
+])
 
 export const mapSearchToOutgoingPaymentListParams = (
   search: OutgoingPaymentSearch,
@@ -71,6 +97,7 @@ export const mapSearchToOutgoingPaymentListParams = (
     DocDateEnd: end,
     DocTotalOperator: docTotal?.operator,
     DocTotal: docTotal?.value,
+    PaymentMode: getPaymentModeFilter(filters, 'PaymentMode'),
     sortBy,
     sortOrder,
   }

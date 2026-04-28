@@ -37,6 +37,10 @@ export const PaymentQuerySchema = z
 
     DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
     DocTotal: z.coerce.number().optional(),
+    PaymentMode: z
+      .enum(["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"])
+      .optional()
+      .openapi({ example: "CASH", description: "Payment Mode" }),
     CounterRef: z
       .string()
       .optional()
@@ -45,7 +49,7 @@ export const PaymentQuerySchema = z
     page: z.coerce.number().int().positive().default(1).optional(),
     limit: z.coerce.number().int().positive().max(100).default(10).optional(),
     sortBy: z
-      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal"])
+      .enum(["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "PaymentMode"])
       .optional()
       .openapi({ example: "DocDate", description: "Column to sort by" }),
     sortOrder: z
@@ -88,6 +92,10 @@ export const CreatePaymentInputSchema = z.object({
     .optional(),
   Reference: z.string().optional(),
   Remarks: z.string().optional(),
+  PaymentMode: z
+    .enum(["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"])
+    .optional()
+    .describe("Mode of payment (U_Mode_Pay). If omitted, derived from payment method fields."),
   CashSum: z.number().optional(),
   TrsfrSum: z.number().optional(),
   // PaymentCreditCards: Array of credit card payments.

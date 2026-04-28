@@ -6,16 +6,18 @@ import { EntitySchema } from "typeorm";
 import type { HANAColumnType } from "@/db/schemas/types/base.types";
 
 export type Item = {
-  ItemCode: string; // The primary item/product code.
-  ItemName: string; // Product description.
-  SalUnitMsr?: string; // Standard unit of measurement (e.g., 'Each', 'Box').
-  BuyUnitMsr?: string; // Purchasing unit used in procurement documents.
-  AvgPrice?: number; // Calculated average cost from SAP for inventory valuation.
-  LastPurCur?: string; // Item master purchase currency.
-  VatGroupPu?: string; // Purchase tax group code.
-  VatGroupSa?: string; // Sales tax group code fallback.
-  DfltWH?: string; // Default warehouse where this item is normally stored.
-  frozenFor?: string; // 'Y' if the item is inactive.
+  ItemCode: string;
+  ItemName: string;
+  SalUnitMsr?: string;
+  BuyUnitMsr?: string;
+  AvgPrice?: number;
+  LastPurCur?: string;
+  VatGroupPu?: string;
+  VatGroupSa?: string;
+  DfltWH?: string;
+  frozenFor?: string;
+  PrchseItem?: string;
+  SellItem?: string;
 };
 
 export const ItemSchema = new EntitySchema<Item>({
@@ -63,5 +65,12 @@ export const ItemSchema = new EntitySchema<Item>({
     },
     DfltWH: { type: "nvarchar" as HANAColumnType, length: 50, name: "DfltWH", nullable: true },
     frozenFor: { type: "nvarchar" as HANAColumnType, length: 1, name: "frozenFor", default: "N" },
+    PrchseItem: {
+      type: "nvarchar" as HANAColumnType,
+      length: 1,
+      name: "PrchseItem",
+      nullable: true,
+    },
+    SellItem: { type: "nvarchar" as HANAColumnType, length: 1, name: "SellItem", nullable: true },
   },
 });

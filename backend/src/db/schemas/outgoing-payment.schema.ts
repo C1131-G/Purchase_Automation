@@ -6,13 +6,14 @@ import { EntitySchema } from "typeorm";
 import type { HANAColumnType } from "@/db/schemas/types/base.types";
 
 export type OutgoingPayment = {
-  docEntry: number; // Internal SAP key (Primary).
-  docNum: number; // Visible SAP document number.
+  docEntry: number;
+  docNum: number;
   docDate: Date;
-  cardCode: string; // Vendor code.
-  cardName: string; // Vendor name.
+  cardCode: string;
+  cardName: string;
   docTotal: number;
   docCurr: string;
+  paymentMode?: string;
 };
 
 export const OutgoingPaymentSchema = new EntitySchema<OutgoingPayment>({
@@ -26,6 +27,12 @@ export const OutgoingPaymentSchema = new EntitySchema<OutgoingPayment>({
     cardName: { type: "nvarchar" as HANAColumnType, length: 100, name: "CardName" },
     docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
     docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCurr" },
+    paymentMode: {
+      type: "nvarchar" as HANAColumnType,
+      length: 20,
+      name: "U_Mode_Pay",
+      nullable: true,
+    },
   },
   indices: [
     { name: "IDX_OVPM_DOCNUM", columns: ["docNum"] },

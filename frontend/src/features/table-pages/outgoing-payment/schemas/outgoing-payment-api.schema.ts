@@ -8,6 +8,7 @@ export const outgoingPaymentListItemSchema = z.object({
   CardName: z.string(),
   DocTotal: z.union([z.number(), z.string()]),
   DocCurr: z.string(),
+  PaymentMode: z.string().optional(),
 })
 
 export const outgoingPaymentListResponseSchema = z.object({
@@ -29,6 +30,9 @@ export const outgoingPaymentListParamsSchema = z.object({
   DocDateEnd: z.string().optional(),
   DocTotalOperator: z.enum(['eq', 'lt', 'gt']).optional(),
   DocTotal: z.number().optional(),
-  sortBy: z.enum(['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal']).optional(),
+  PaymentMode: z.enum(['M-Pesa', 'My Cash', 'EFTPOS', 'Direct Pay', 'CASH']).optional(),
+  sortBy: z
+    .enum(['DocNum', 'DocDate', 'CardCode', 'CardName', 'DocTotal', 'PaymentMode'])
+    .optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
 })

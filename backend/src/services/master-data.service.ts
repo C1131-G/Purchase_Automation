@@ -243,6 +243,13 @@ export const getProducts = async (
         ])
         .where("item.frozenFor = :active", { active: "N" });
 
+      // Filter by item type: sales items only show SellItem='Y', purchase items only show PrchseItem='Y'
+      if (type === "sales") {
+        query.andWhere("item.SellItem = :sellItem", { sellItem: "Y" });
+      } else if (type === "purchase") {
+        query.andWhere("item.PrchseItem = :prchseItem", { prchseItem: "Y" });
+      }
+
       if (normalizedSearch) {
         query.andWhere("(LOWER(item.ItemCode) LIKE :search OR LOWER(item.ItemName) LIKE :search)", {
           search: `%${normalizedSearch}%`,
