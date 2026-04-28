@@ -1,6 +1,25 @@
 #!/bin/sh
-. "$(dirname "$0")/husky.sh"
+echo "🔍 Running pre-commit checks..."
 
-echo "🏗️ Running pre-commit build..."
+cd backend
+echo "📦 Formatting backend..."
+pnpm format
+
+echo "📦 Linting backend..."
+pnpm lint
+
+echo "📦 Building backend..."
 pnpm build
-echo "✅ Build passed!"
+cd ..
+
+cd frontend
+echo "📦 Formatting frontend..."
+pnpm format
+
+echo "📦 Linting frontend..."
+pnpm lint
+
+echo "📦 Building frontend..."
+pnpm build
+
+echo "✅ All checks passed!"
