@@ -49,7 +49,7 @@ export function CreatePageWrapper({
       {/* Top Actions - Positioned absolute top-right */}
       {topActions && <div className="absolute right-3 top-3 z-10">{topActions}</div>}
 
-      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+      <div className="mb-3 inline-flex items-center gap-2 whitespace-nowrap rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
         <button
           type="button"
           className="cursor-pointer text-blue-600 hover:text-blue-700"

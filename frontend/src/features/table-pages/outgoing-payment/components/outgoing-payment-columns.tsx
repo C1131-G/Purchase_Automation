@@ -23,12 +23,21 @@ export const createOutgoingPaymentColumns = (options?: CreateOutgoingPaymentColu
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc Number" />
     ),
     cell: (info) => (
-      <Tooltip content="Double click to edit">
+      <Tooltip content="Click to view details">
         <span
           className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+          role="button"
+          tabIndex={0}
           onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
           onFocus={() => options?.onDocNumHover?.(info.getValue())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              options?.onDocNumDoubleClick?.(info.getValue())
+            }
+          }}
           onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
+          onClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
         >
           {info.getValue()}
         </span>
@@ -37,7 +46,7 @@ export const createOutgoingPaymentColumns = (options?: CreateOutgoingPaymentColu
     filterFn: 'includesString',
     enableSorting: true,
     sortingFn: 'basic',
-    size: 17.5,
+    size: 14,
     minSize: 12,
     meta: { filterType: 'text' },
   }),

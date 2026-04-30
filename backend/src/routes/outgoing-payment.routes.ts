@@ -28,6 +28,9 @@ router.get(
 // GET /:id: Fetches full details for a single outgoing payment.
 router.get("/:id", outgoingPaymentDal.getPayment);
 
+// GET /by-doc-num/:docNum: Fetches full details for a single outgoing payment using its DocNum.
+router.get("/by-doc-num/:docNum", outgoingPaymentDal.getPaymentByDocNum);
+
 // POST /: Entry point for recording a payment made to a vendor.
 router.post("/", outgoingPaymentDal.createPayment);
 

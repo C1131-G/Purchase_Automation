@@ -1,9 +1,13 @@
 // Outgoing Payment Service: Manages payment transactions to vendors. Uses SAP Service Layer for list retrieval.
 
+import { In } from "typeorm";
+
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PaymentFilters } from "@/dal/types/outgoing-payment.types";
+import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
+import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
@@ -130,6 +134,30 @@ export const getPayment = async (sessionId: string, id: string) => {
       "GET",
       `/VendorPayments(${id})`,
     )) as SAPDocumentResponse;
+
+    let creditCardsInfo: { CreditCardCode: number; CreditCardName: string }[] = [];
+    try {
+      const ccResponse = (await serviceLayerClient.request(sessionId, "GET", "/CreditCards")) as {
+        value: { CreditCardCode: number; CreditCardName: string }[];
+      };
+      creditCardsInfo = ccResponse.value || [];
+    } catch (e) {
+      logger.warn({ msg: "Failed to fetch CreditCards mapping", error: String(e) });
+    }
+
+    const rawCreditCards =
+      ((result as unknown as Record<string, unknown>).PaymentCreditCards as Record<
+        string,
+        unknown
+      >[]) || [];
+    const mappedCreditCards = rawCreditCards.map((card: Record<string, unknown>) => {
+      const ccInfo = creditCardsInfo.find((c) => c.CreditCardCode === card.CreditCard);
+      return {
+        ...card,
+        CardName: ccInfo ? ccInfo.CreditCardName : `Card ${card.CreditCard}`,
+      };
+    });
+
     return {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
@@ -139,18 +167,78 @@ export const getPayment = async (sessionId: string, id: string) => {
       CardName: result.CardName,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
-      Comments: result.Remarks,
-      PaymentInvoices:
-        (
-          (result as unknown as Record<string, unknown>).PaymentInvoices as Record<
+      Remarks: result.Remarks,
+      PaymentMode: (result as unknown as Record<string, unknown>).U_Mode_Pay,
+      CashSum: (result as unknown as Record<string, unknown>).CashSum || 0,
+      CheckSum: (result as unknown as Record<string, unknown>).CheckSum || 0,
+      TrsfrSum:
+        (result as unknown as Record<string, unknown>).TransferSum ||
+        (result as unknown as Record<string, unknown>).TrsfrSum ||
+        0,
+      PaymentChecks: (result as unknown as Record<string, unknown>).PaymentChecks || [],
+      PaymentCreditCards: mappedCreditCards,
+      PaymentAccounts: (result as unknown as Record<string, unknown>).PaymentAccounts || [],
+
+      PaymentInvoices: await (async () => {
+        const rawInvoices =
+          ((result as unknown as Record<string, unknown>).PaymentInvoices as Record<
             string,
             unknown
-          >[]
-        )?.map((inv) => ({
+          >[]) || [];
+
+        const invoiceEntries = rawInvoices
+          .filter((i) => i.InvoiceType === "it_PurchaseInvoice")
+          .map((i) => i.DocEntry as number);
+        const creditMemoEntries = rawInvoices
+          .filter((i) => i.InvoiceType === "it_PurchCredItnote")
+          .map((i) => i.DocEntry as number);
+
+        const session = serviceLayerClient.getSession(sessionId);
+        const dbName = session?.companyDB;
+
+        const invoiceMap: Record<number, number> = {};
+        const creditMemoMap: Record<number, number> = {};
+
+        if (dbName) {
+          if (invoiceEntries.length > 0) {
+            try {
+              const invRepo = await getTenantRepository(dbName, APInvoiceSchema);
+              const invoices = await invRepo.find({
+                where: { docEntry: In(invoiceEntries) },
+                select: ["docEntry", "docNum"],
+              });
+              invoices.forEach((inv) => (invoiceMap[inv.docEntry] = inv.docNum));
+            } catch (e) {
+              logger.error({ msg: "Failed to fetch DocNums for AP invoices", error: String(e) });
+            }
+          }
+          if (creditMemoEntries.length > 0) {
+            try {
+              const cmRepo = await getTenantRepository(dbName, APCreditMemoSchema);
+              const cms = await cmRepo.find({
+                where: { docEntry: In(creditMemoEntries) },
+                select: ["docEntry", "docNum"],
+              });
+              cms.forEach((cm) => (creditMemoMap[cm.docEntry] = cm.docNum));
+            } catch (e) {
+              logger.error({
+                msg: "Failed to fetch DocNums for AP credit memos",
+                error: String(e),
+              });
+            }
+          }
+        }
+
+        return rawInvoices.map((inv) => ({
           DocEntry: inv.DocEntry as number,
+          DocNum:
+            inv.InvoiceType === "it_PurchaseInvoice"
+              ? invoiceMap[inv.DocEntry as number]
+              : creditMemoMap[inv.DocEntry as number],
           SumApplied: inv.SumApplied as number,
           InvoiceType: inv.InvoiceType as string,
-        })) || [],
+        }));
+      })(),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -163,6 +251,36 @@ export const getPayment = async (sessionId: string, id: string) => {
   }
 };
 
+// Resolves an Outgoing Payment by DocNum from tenant DB and fetches full details from Service Layer.
+export const getPaymentByDocNum = async (sessionId: string, dbName: string, docNum: string) => {
+  const normalizedDocNum = docNum.trim();
+  if (!normalizedDocNum) {
+    const error = new Error("DocNum is required") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 400;
+    error.code = "VALIDATION_ERROR";
+    throw error;
+  }
+
+  const repo = await getTenantRepository(dbName, OutgoingPaymentSchema);
+  const match = await repo
+    .createQueryBuilder("p")
+    .select(["p.docEntry"])
+    .where("CAST(p.docNum AS NVARCHAR) = :docNum", { docNum: normalizedDocNum })
+    .getOne();
+
+  if (!match?.docEntry) {
+    const error = new Error("Outgoing Payment not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
+    error.statusCode = 404;
+    error.code = "NOT_FOUND";
+    throw error;
+  }
+
+  return getPayment(sessionId, String(match.docEntry));
+};
+
 // Submits a new vendor payment to SAP. Handles allocation across multiple A/P invoices.
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
@@ -170,18 +288,121 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
       Remarks: payload.Remarks,
+      Reference: payload.Reference,
       CashSum: payload.CashSum || 0,
       TrsfrSum: payload.TrsfrSum || 0,
       PaymentInvoices:
-        (payload.PaymentInvoices as Record<string, unknown>[])?.map((inv) => ({
-          DocEntry: inv.DocEntry as number,
-          SumApplied: inv.SumApplied as number,
-          // SAP requires it_PurchaseInvoice to distinguish from generic AR payments.
-          InvoiceType: (inv.InvoiceType as string) || "it_PurchaseInvoice",
-        })) || [],
+        (payload.PaymentInvoices as Record<string, unknown>[])
+          ?.sort((a, b) => {
+            const typeA = a.InvoiceType === "it_PurchaseInvoice" ? 0 : 1;
+            const typeB = b.InvoiceType === "it_PurchaseInvoice" ? 0 : 1;
+            return typeA - typeB;
+          })
+          .map((inv) => {
+            let sapType = "18";
+            let sumApplied = inv.SumApplied as number;
+
+            if (inv.InvoiceType === "it_PurchCredItnote") {
+              sapType = "19";
+              sumApplied = -Math.abs(sumApplied);
+            }
+
+            return {
+              DocEntry: inv.DocEntry as number,
+              SumApplied: sumApplied,
+              InvoiceType: sapType,
+            };
+          }) || [],
     };
 
-    // Standardize DocDate for SAP (YYYY-MM-DD).
+    const modes: string[] = [];
+    if (payload.CashSum && (payload.CashSum as number) > 0) modes.push("CASH");
+
+    if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
+      const firstCard = payload.PaymentCreditCards[0] as Record<string, unknown>;
+      const cardId = Number(firstCard.CreditCard);
+
+      if (cardId === 5) modes.push("M-Pesa");
+      else if (cardId === 6) modes.push("My Cash");
+      else if (cardId === 7) modes.push("Direct Pay");
+      else modes.push("EFTPOS");
+    }
+
+    if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
+      const checks = payload.PaymentChecks as Record<string, unknown>[];
+      const hasCash = checks.some((c) => c.BankCode === "CASH");
+      const hasRealCheck = checks.some((c) => c.BankCode !== "CASH");
+      if (hasCash) modes.push("CASH");
+      if (hasRealCheck) modes.push("Direct Pay");
+    }
+
+    if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) modes.push("Direct Pay");
+
+    if (modes.length === 1) {
+      sapPayload.U_Mode_Pay = modes[0];
+    } else if (modes.length > 1) {
+      sapPayload.U_Mode_Pay = modes.find((m) => m !== "CASH") || "CASH";
+    }
+
+    if (payload.SurchargeTotal && (payload.SurchargeTotal as number) > 0) {
+      sapPayload.BankChargeAmount = payload.SurchargeTotal;
+    }
+
+    if (payload.CashSum && (payload.CashSum as number) > 0) {
+      sapPayload.CashSum = payload.CashSum;
+      if (payload.CashAccount) {
+        sapPayload.CashAccount = payload.CashAccount;
+      }
+    }
+
+    if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
+      sapPayload.TrsfrSum = payload.TrsfrSum;
+    }
+
+    if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
+      sapPayload.PaymentCreditCards = (payload.PaymentCreditCards as Record<string, unknown>[]).map(
+        (card, idx) => ({
+          LineNum: idx,
+          CreditCard: card.CreditCard,
+          CreditSum: card.CreditSum,
+          VoucherNum: card.VoucherNum,
+          CreditAcct: card.CreditAcct,
+          CreditCardNumber: "123",
+          CardValidUntil: "2026-12-31",
+        }),
+      );
+    }
+
+    if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
+      const realChecks = (payload.PaymentChecks as Record<string, unknown>[]).filter(
+        (chk) => chk.BankCode !== "CASH",
+      );
+
+      if (realChecks.length > 0) {
+        sapPayload.PaymentChecks = realChecks.map((chk, idx) => ({
+          LineNum: idx,
+          DueDate: chk.DueDate || sapPayload.DocDate,
+          CheckNumber: chk.CheckNumber,
+          BankCode: chk.BankCode,
+          Branch: chk.Branch,
+          CheckSum: chk.CheckSum,
+          CheckAccount: chk.CheckAccount || "AJAXBS040",
+          Endorse: chk.Endorse || "tNO",
+        }));
+      }
+    }
+
+    if (Array.isArray(payload.PaymentAccounts) && payload.PaymentAccounts.length > 0) {
+      sapPayload.PaymentAccounts = (payload.PaymentAccounts as Record<string, unknown>[]).map(
+        (acc, idx) => ({
+          LineNum: idx,
+          AccountCode: acc.AccountCode,
+          SumPaid: acc.SumPaid,
+          Decription: acc.Decription || "Surcharge",
+        }),
+      );
+    }
+
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.substring(0, 4)}-${docDate.substring(
@@ -190,73 +411,19 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       )}-${docDate.substring(6, 8)}`;
     }
 
-    // Determine Payment Mode for UDF (U_Mode_Pay) - Aligning with SAP Valid Values
-    // If explicitly provided, use it; otherwise derive from payment method fields.
-    const allowedModes = ["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"];
-    let paymentMode: string | undefined;
-
-    if (payload.PaymentMode && allowedModes.includes(payload.PaymentMode as string)) {
-      paymentMode = payload.PaymentMode as string;
-    } else {
-      // Derive from payment method components
-      const modes: string[] = [];
-      if (payload.CashSum && (payload.CashSum as number) > 0) modes.push("CASH");
-
-      if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
-        const firstCard = payload.PaymentCreditCards[0] as Record<string, unknown>;
-        const cardId = Number(firstCard.CreditCard);
-        if (cardId === 5) modes.push("M-Pesa");
-        else if (cardId === 6) modes.push("My Cash");
-        else if (cardId === 7) modes.push("Direct Pay");
-        else modes.push("EFTPOS");
-      }
-
-      if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
-        const checks = payload.PaymentChecks as Record<string, unknown>[];
-        const hasCash = checks.some((c) => c.BankCode === "CASH");
-        const hasRealCheck = checks.some((c) => c.BankCode !== "CASH");
-        if (hasCash) modes.push("CASH");
-        if (hasRealCheck) modes.push("Direct Pay");
-      }
-
-      if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) modes.push("Direct Pay");
-
-      if (modes.length === 1) {
-        paymentMode = modes[0];
-      } else if (modes.length > 1) {
-        // Prefer non-CASH mode if multiple; default to CASH if only CASH appears
-        paymentMode = modes.find((m) => m !== "CASH") || "CASH";
-      }
-    }
-
-    if (paymentMode) {
-      sapPayload.U_Mode_Pay = paymentMode;
-      logger.info({
-        msg: "PaymentMode determined for U_Mode_Pay",
-        paymentMode,
-        method: payload.CashSum ? "Cash" : payload.PaymentCreditCards?.[0] ? "Card" : "Transfer",
-      });
-    } else {
-      logger.info({
-        msg: "No PaymentMode could be determined for U_Mode_Pay",
-      });
-    }
-
     logger.info({
       msg: "Creating Outgoing Payment via Service Layer",
       docDate,
       cardCode: payload.CardCode,
     });
 
-    // Execute payment post to VendorPayments endpoint.
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
       "/VendorPayments",
       sapPayload,
-    )) as { DocEntry: number };
+    )) as { DocEntry: number; DocNum: number };
 
-    // Invalidate purchase-related dashboard metrics for the tenant.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:purchase:${session.companyDB}:`);
@@ -266,6 +433,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       success: true,
       message: "Payment created successfully",
       id: result.DocEntry,
+      DocNum: result.DocNum,
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -447,6 +615,7 @@ export const outgoingPaymentService = {
   getPayments,
   getPaymentDocNums,
   getPayment,
+  getPaymentByDocNum,
   createPayment,
   updatePayment,
   cancelPayment,

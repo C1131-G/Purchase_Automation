@@ -33,10 +33,17 @@ export const outgoingPaymentQueries = {
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
     }),
+  detail: (docNum: string) =>
+    queryOptions({
+      queryKey: outgoingPaymentKeys.detailByDocNum(docNum),
+      queryFn: () => outgoingPaymentAPI.getOutgoingPayment(docNum),
+      staleTime: QUERY_CACHE_POLICY.detail.staleTime,
+      gcTime: QUERY_CACHE_POLICY.detail.gcTime,
+    }),
   detailByDocNum: (docNum: string) =>
     queryOptions({
       queryKey: outgoingPaymentKeys.detailByDocNum(docNum),
-      queryFn: () => outgoingPaymentAPI.getOutgoingPaymentByDocNum(docNum),
+      queryFn: () => outgoingPaymentAPI.getOutgoingPayment(docNum),
       staleTime: 5 * 60 * 1000,
     }),
 }

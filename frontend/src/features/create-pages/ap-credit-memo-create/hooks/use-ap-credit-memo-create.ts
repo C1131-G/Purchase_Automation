@@ -83,6 +83,7 @@ const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
   vendorName: undefined,
   vendorCode: undefined,
   warehouseCode: undefined,
+  returnReason: undefined,
 }
 
 interface UseAPCreditMemoCreateOptions {
