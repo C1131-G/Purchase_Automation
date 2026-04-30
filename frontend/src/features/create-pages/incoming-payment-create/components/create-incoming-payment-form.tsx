@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { Check, HandCoins, Search } from 'lucide-react'
@@ -8,8 +8,14 @@ import { VendorCustomerGrid } from '@/features/create-pages/create-shared/compon
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import { LookupPopupModal } from '@/features/create-pages/create-shared/components/modals/lookup-popup-modal'
 import { toISODate } from '@/features/create-pages/create-shared/utils/create-order.utils'
-import { arCreditMemoQueries } from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries'
-import { arInvoiceQueries } from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
+import {
+  ArCreditMemoKeys,
+  arCreditMemoQueries,
+} from '@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries'
+import {
+  arInvoiceKeys,
+  arInvoiceQueries,
+} from '@/features/table-pages/ar-invoices/api/ar-invoice.queries'
 import { incomingPaymentAPI } from '@/features/table-pages/incoming-payment/api/incoming-payment.service'
 
 import { useIncomingPaymentLookups } from '../hooks/use-incoming-payment-lookups'
@@ -18,6 +24,7 @@ import { PaymentModal } from './payment-modal'
 
 export function CreateIncomingPaymentForm() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const lookups = useIncomingPaymentLookups()
   const [remarks, setRemarks] = useState('')
 
@@ -36,17 +43,25 @@ export function CreateIncomingPaymentForm() {
   const { data: invoicesData, isLoading: isLoadingInvoices } = useQuery({
     ...arInvoiceQueries.list({ CardCode: lookups.codeInput, DocStatus: 'Open', limit: 100 }),
     enabled: !!lookups.codeInput,
+    staleTime: 0,
   })
 
   const { data: creditMemosData, isLoading: isLoadingCreditMemos } = useQuery({
     ...arCreditMemoQueries.list({ CardCode: lookups.codeInput, DocStatus: 'Open', limit: 100 }),
     enabled: !!lookups.codeInput,
+    staleTime: 0,
   })
 
   const createPaymentMutation = useMutation({
     mutationFn: incomingPaymentAPI.createIncomingPayment,
     onSuccess: (data) => {
-      goeyToast.success(`Incoming Payment ${data.DocNum} created successfully!`)
+      const docNum = data.data?.DocNum || data.data?.DocEntry || 'successfully'
+      goeyToast.success(`Incoming Payment ${docNum} created successfully!`)
+
+      // Invalidate related queries to refresh balances
+      queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all })
+      queryClient.invalidateQueries({ queryKey: ArCreditMemoKeys.all })
+
       navigate({
         to: '/sales/incoming-payment',
         search: { page: 1, limit: 10, sorting: [], columnVisibility: {} },
@@ -138,16 +153,69 @@ export function CreateIncomingPaymentForm() {
     }[]
     SurchargeTotal?: number
   }) => {
-    const paymentInvoices = Object.entries(selectedDocs)
-      .map(([key, val]) => {
-        const docEntry = Number(key.split('-')[1])
-        return {
-          DocEntry: docEntry,
-          SumApplied: Number(val.amount.toFixed(2)),
-          InvoiceType: val.type,
-        }
+    // 1. Calculate total actually paid from modal (Cash + Checks + Cards)
+    const totalCash =
+      paymentDetails.PaymentChecks?.filter((c) => c.BankCode === 'CASH').reduce(
+        (sum, c) => sum + c.CheckSum,
+        0,
+      ) || 0
+    const totalChecks =
+      paymentDetails.PaymentChecks?.filter((c) => c.BankCode !== 'CASH').reduce(
+        (sum, c) => sum + c.CheckSum,
+        0,
+      ) || 0
+    const totalCards =
+      paymentDetails.PaymentCreditCards?.reduce((sum, c) => sum + c.CreditSum, 0) || 0
+    const surcharge = paymentDetails.SurchargeTotal || 0
+
+    // The amount available to cover invoices is what was actually paid minus any surcharges
+    const totalPaid = totalCash + totalChecks + totalCards - surcharge
+
+    // 2. Group selected documents
+    const selectedList = Object.entries(selectedDocs).map(([key, val]) => ({
+      id: Number(key.split('-')[1]),
+      ...val,
+    }))
+
+    const selectedInvoices = selectedList
+      .filter((d) => d.type === 'it_Invoice')
+      .sort((a, b) => {
+        const docA = invoices.find((i) => i.id === a.id)
+        const docB = invoices.find((i) => i.id === b.id)
+        return new Date(docA?.date || 0).getTime() - new Date(docB?.date || 0).getTime()
       })
-      .filter((inv) => inv.SumApplied > 0)
+
+    const selectedCreditMemos = selectedList.filter((d) => d.type === 'it_CredItnote')
+    const totalCredit = selectedCreditMemos.reduce((sum, cm) => sum + cm.amount, 0)
+
+    // 3. Distribute totalPaid + totalCredit across selected invoices
+    let amountToDistribute = totalPaid + totalCredit
+    const paymentInvoices: {
+      DocEntry: number
+      SumApplied: number
+      InvoiceType: 'it_Invoice' | 'it_CredItnote'
+    }[] = []
+
+    // Always include credit memos first as they reduce the total needed
+    for (const cm of selectedCreditMemos) {
+      paymentInvoices.push({
+        DocEntry: cm.id,
+        SumApplied: Number(cm.amount.toFixed(2)),
+        InvoiceType: cm.type,
+      })
+    }
+
+    // Distribute the remaining balance to invoices (oldest first)
+    for (const inv of selectedInvoices) {
+      if (amountToDistribute <= 0) break
+      const toApply = Math.min(inv.amount, amountToDistribute)
+      paymentInvoices.push({
+        DocEntry: inv.id,
+        SumApplied: Number(toApply.toFixed(2)),
+        InvoiceType: inv.type,
+      })
+      amountToDistribute -= toApply
+    }
 
     if (!isPaymentOnAccount && paymentInvoices.length === 0) {
       goeyToast.error('Please select at least one document to pay')
@@ -157,16 +225,8 @@ export function CreateIncomingPaymentForm() {
     const surchargeTotal = paymentDetails.SurchargeTotal || 0
     goeyToast.info(`Captured surcharge: ${surchargeTotal}`)
 
-    const cashSum =
-      paymentDetails.PaymentChecks?.filter((c) => c.BankCode === 'CASH').reduce(
-        (sum, c) => sum + c.CheckSum,
-        0,
-      ) || 0
-    const checkSum =
-      paymentDetails.PaymentChecks?.filter((c) => c.BankCode !== 'CASH').reduce(
-        (sum, c) => sum + c.CheckSum,
-        0,
-      ) || 0
+    const cashSum = totalCash
+    const checkSum = totalChecks
     const trsfrSum = 0
     createPaymentMutation.mutate({
       CardCode: lookups.codeInput,

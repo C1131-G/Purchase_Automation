@@ -665,19 +665,18 @@ export function PaymentModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={
-              (Number(cashAmount) || 0) +
+            disabled={(() => {
+              const totalEntered =
+                (Number(cashAmount) || 0) +
                 (Number(chequeAmount) || 0) +
-                addedCards.reduce((sum, c) => sum + c.amount, 0) <=
-                0 ||
-              (!isPaymentOnAccount &&
-                Math.abs(
-                  (Number(cashAmount) || 0) +
-                    (Number(chequeAmount) || 0) +
-                    addedCards.reduce((sum, c) => sum + c.amount, 0) -
-                    balanceDue,
-                ) > 0.01)
-            }
+                addedCards.reduce((sum, c) => sum + c.amount, 0)
+              // Must have entered something
+              if (totalEntered <= 0) return true
+              // Cannot overpay (pay more than what is owed)
+              if (!isPaymentOnAccount && balanceDue > 0 && totalEntered > balanceDue + 0.01)
+                return true
+              return false
+            })()}
             className="bg-teal-500 text-white px-10 py-2 rounded text-sm font-bold shadow-lg shadow-teal-100 hover:bg-teal-600 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed"
           >
             SUBMIT PAYMENT

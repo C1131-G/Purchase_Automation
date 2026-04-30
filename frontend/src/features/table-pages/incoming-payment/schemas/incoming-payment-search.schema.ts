@@ -29,7 +29,7 @@ export const incomingPaymentSearchSchema = z.object({
   limit: z.coerce.number().int().min(1).catch(10),
   sorting: z
     .array(z.object({ id: z.string(), desc: z.boolean() }))
-    .catch([{ id: 'DocNum', desc: true }]),
+    .catch([{ id: 'DocDate', desc: true }]),
   columnVisibility: z.record(z.string(), z.boolean()).optional(),
   columnOrder: z.array(z.string()).optional(),
   columnFilters: z.array(incomingPaymentColumnFilterSchema).optional(),
