@@ -39,9 +39,9 @@ interface DocumentOption {
 interface DocDetailCache {
   lines: Array<{ itemName: string; openQty: number }>
   totalOpenQty: number
-  docDate?: string
-  docTotal?: number
-  docCurrency?: string
+  docDate: string | undefined
+  docTotal: number | undefined
+  docCurrency: string | undefined
 }
 
 const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'slot-6'] as const

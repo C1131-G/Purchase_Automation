@@ -94,7 +94,32 @@ export function IncomingPaymentTable() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const columns = useMemo(() => createIncomingPaymentColumns(), [])
+  const queryClient = useQueryClient()
+
+  const columns = useMemo(
+    () =>
+      createIncomingPaymentColumns({
+        onDocNumDoubleClick: (docNum) => {
+          console.log('[IncomingPaymentTable] DocNum clicked/double-clicked:', docNum)
+          void navigate({
+            to: '/sales/incoming-payment/$docNum/edit',
+            params: { docNum: String(docNum) },
+            viewTransition: true,
+          } as never)
+            .then(() => {
+              console.log('[IncomingPaymentTable] Navigation promise resolved for', docNum)
+            })
+            .catch((err) => {
+              console.error('[IncomingPaymentTable] Navigation failed:', err)
+            })
+        },
+        onDocNumHover: (docNum) => {
+          console.log('[IncomingPaymentTable] Hovering over DocNum:', docNum)
+          void queryClient.prefetchQuery(incomingPaymentQueries.detail(String(docNum)))
+        },
+      }),
+    [navigate, queryClient],
+  )
   const columnIds = useMemo(
     () =>
       columns
@@ -156,8 +181,6 @@ export function IncomingPaymentTable() {
     error,
     refetch,
   } = useQuery(incomingPaymentQueries.list(listParams))
-
-  const queryClient = useQueryClient()
 
   const rows = useMemo(() => incomingPaymentList?.data ?? [], [incomingPaymentList?.data])
   const totalRows = incomingPaymentList?.total ?? 0

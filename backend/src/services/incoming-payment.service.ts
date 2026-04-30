@@ -1,9 +1,13 @@
 // Incoming Payment Service: Logic for processing payments from customers. Manages HANA database lookups for listings and SAP Service Layer for payment transactions.
 
+import { In } from "typeorm";
+
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PaymentFilters } from "@/dal/types/incoming-payment.types";
+import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
+import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { type IncomingPayment, IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
@@ -145,6 +149,29 @@ export const getPayment = async (sessionId: string, id: string) => {
       `/IncomingPayments(${id})`,
     )) as SAPDocumentResponse;
 
+    let creditCardsInfo: { CreditCardCode: number; CreditCardName: string }[] = [];
+    try {
+      const ccResponse = (await serviceLayerClient.request(sessionId, "GET", "/CreditCards")) as {
+        value: { CreditCardCode: number; CreditCardName: string }[];
+      };
+      creditCardsInfo = ccResponse.value || [];
+    } catch (e) {
+      logger.warn({ msg: "Failed to fetch CreditCards mapping", error: String(e) });
+    }
+
+    const rawCreditCards =
+      ((result as unknown as Record<string, unknown>).PaymentCreditCards as Record<
+        string,
+        unknown
+      >[]) || [];
+    const mappedCreditCards = rawCreditCards.map((card: Record<string, unknown>) => {
+      const ccInfo = creditCardsInfo.find((c) => c.CreditCardCode === card.CreditCard);
+      return {
+        ...card,
+        CardName: ccInfo ? ccInfo.CreditCardName : `Card ${card.CreditCard}`,
+      };
+    });
+
     // SAP specific fields like CashSum and TransferSum are explicitly mapped.
     return {
       id: result.DocEntry,
@@ -155,21 +182,76 @@ export const getPayment = async (sessionId: string, id: string) => {
       CardName: result.CardName,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
-      Comments: result.Remarks,
+      Remarks: result.Remarks,
       PaymentMode: (result as unknown as Record<string, unknown>).U_Mode_Pay,
+      CashSum: (result as unknown as Record<string, unknown>).CashSum || 0,
+      CheckSum: (result as unknown as Record<string, unknown>).CheckSum || 0,
+      TrsfrSum:
+        (result as unknown as Record<string, unknown>).TransferSum ||
+        (result as unknown as Record<string, unknown>).TrsfrSum ||
+        0,
+      PaymentChecks: (result as unknown as Record<string, unknown>).PaymentChecks || [],
+      PaymentCreditCards: mappedCreditCards,
+      PaymentAccounts: (result as unknown as Record<string, unknown>).PaymentAccounts || [],
 
       // maps the list of invoices settled by this payment.
-      PaymentInvoices:
-        (
-          (result as unknown as Record<string, unknown>).PaymentInvoices as Record<
+      PaymentInvoices: await (async () => {
+        const rawInvoices =
+          ((result as unknown as Record<string, unknown>).PaymentInvoices as Record<
             string,
             unknown
-          >[]
-        )?.map((inv) => ({
+          >[]) || [];
+
+        const invoiceEntries = rawInvoices
+          .filter((i) => i.InvoiceType === "it_Invoice")
+          .map((i) => i.DocEntry as number);
+        const creditMemoEntries = rawInvoices
+          .filter((i) => i.InvoiceType === "it_CredItnote")
+          .map((i) => i.DocEntry as number);
+
+        const session = serviceLayerClient.getSession(sessionId);
+        const dbName = session?.companyDB;
+
+        const invoiceMap: Record<number, number> = {};
+        const creditMemoMap: Record<number, number> = {};
+
+        if (dbName) {
+          if (invoiceEntries.length > 0) {
+            try {
+              const invRepo = await getTenantRepository(dbName, ARInvoiceSchema);
+              const invoices = await invRepo.find({
+                where: { docEntry: In(invoiceEntries) },
+                select: ["docEntry", "docNum"],
+              });
+              invoices.forEach((inv) => (invoiceMap[inv.docEntry] = inv.docNum));
+            } catch (e) {
+              logger.error({ msg: "Failed to fetch DocNums for invoices", error: String(e) });
+            }
+          }
+          if (creditMemoEntries.length > 0) {
+            try {
+              const cmRepo = await getTenantRepository(dbName, ARCreditMemoSchema);
+              const cms = await cmRepo.find({
+                where: { docEntry: In(creditMemoEntries) },
+                select: ["docEntry", "docNum"],
+              });
+              cms.forEach((cm) => (creditMemoMap[cm.docEntry] = cm.docNum));
+            } catch (e) {
+              logger.error({ msg: "Failed to fetch DocNums for credit memos", error: String(e) });
+            }
+          }
+        }
+
+        return rawInvoices.map((inv) => ({
           DocEntry: inv.DocEntry as number,
+          DocNum:
+            inv.InvoiceType === "it_Invoice"
+              ? invoiceMap[inv.DocEntry as number]
+              : creditMemoMap[inv.DocEntry as number],
           SumApplied: inv.SumApplied as number,
           InvoiceType: inv.InvoiceType as string,
-        })) || [],
+        }));
+      })(),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -180,6 +262,36 @@ export const getPayment = async (sessionId: string, id: string) => {
     });
     throw error;
   }
+};
+
+// Resolves an Incoming Payment by DocNum from tenant DB and fetches full details from Service Layer.
+export const getPaymentByDocNum = async (sessionId: string, dbName: string, docNum: string) => {
+  const normalizedDocNum = docNum.trim();
+  if (!normalizedDocNum) {
+    const error = new Error("DocNum is required") as Error & { statusCode?: number; code?: string };
+    error.statusCode = 400;
+    error.code = "VALIDATION_ERROR";
+    throw error;
+  }
+
+  const repo = await getTenantRepository(dbName, IncomingPaymentSchema);
+  const match = await repo
+    .createQueryBuilder("p")
+    .select(["p.docEntry"])
+    .where("CAST(p.docNum AS NVARCHAR) = :docNum", { docNum: normalizedDocNum })
+    .getOne();
+
+  if (!match?.docEntry) {
+    const error = new Error("Incoming Payment not found") as Error & {
+      statusCode?: number;
+      code?: string;
+    };
+    error.statusCode = 404;
+    error.code = "NOT_FOUND";
+    throw error;
+  }
+
+  return getPayment(sessionId, String(match.docEntry));
 };
 
 // Posts a new payment to SAP. Handles multi-invoice reconciliation if details are provided.
@@ -261,7 +373,9 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     if (payload.CashSum && (payload.CashSum as number) > 0) {
       sapPayload.CashSum = payload.CashSum;
-      sapPayload.CashAccount = (payload.CashAccount as string) || "161010";
+      if (payload.CashAccount) {
+        sapPayload.CashAccount = payload.CashAccount;
+      }
     }
 
     if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
@@ -283,8 +397,12 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
-      sapPayload.PaymentChecks = (payload.PaymentChecks as Record<string, unknown>[]).map(
-        (chk, idx) => ({
+      const realChecks = (payload.PaymentChecks as Record<string, unknown>[]).filter(
+        (chk) => chk.BankCode !== "CASH",
+      );
+
+      if (realChecks.length > 0) {
+        sapPayload.PaymentChecks = realChecks.map((chk, idx) => ({
           LineNum: idx,
           DueDate: chk.DueDate || sapPayload.DocDate,
           CheckNumber: chk.CheckNumber,
@@ -293,8 +411,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           CheckSum: chk.CheckSum,
           CheckAccount: chk.CheckAccount || "AJAXBS040",
           Endorse: chk.Endorse || "tNO",
-        }),
-      );
+        }));
+      }
     }
 
     if (Array.isArray(payload.PaymentAccounts) && payload.PaymentAccounts.length > 0) {
@@ -402,6 +520,7 @@ export const incomingPaymentService = {
   getPayments,
   getPaymentDocNums,
   getPayment,
+  getPaymentByDocNum,
   createPayment,
   updatePayment,
   cancelPayment,

@@ -47,6 +47,46 @@ export type CreateIncomingPaymentPayload = {
   }[]
 }
 
+export type IncomingPaymentDetail = {
+  id: number
+  DocEntry: number
+  DocNum: number
+  DocDate: string
+  CardCode: string
+  CardName: string
+  DocTotal: number
+  DocCurr: string
+  Remarks: string
+  PaymentMode?: string
+  CashSum: number
+  CheckSum: number
+  TrsfrSum: number
+  PaymentChecks: {
+    BankCode: string
+    CheckSum: number
+    CheckNumber: number
+    DueDate: string
+    Branch: string
+  }[]
+  PaymentCreditCards: {
+    CreditSum: number
+    CardName: string
+    CreditCard: number
+    VoucherNum: string
+  }[]
+  PaymentInvoices: {
+    DocEntry: number
+    DocNum: number
+    SumApplied: number
+    InvoiceType: 'it_Invoice' | 'it_CredItnote'
+  }[]
+}
+
+export type IncomingPaymentDetailResponse = {
+  success: boolean
+  data: IncomingPaymentDetail
+}
+
 export const incomingPaymentAPI = {
   getIncomingPayments: async (params: IncomingPaymentListParams) => {
     const query = toQueryString(params)
@@ -60,10 +100,18 @@ export const incomingPaymentAPI = {
       : '/api/v1/incoming-payments/docnums'
     return apiClient<IncomingPaymentDocNumLookupResponse>(path)
   },
+  getIncomingPayment: async (docNum: string) => {
+    return apiClient<IncomingPaymentDetailResponse>(
+      `/api/v1/incoming-payments/by-doc-num/${docNum}`,
+    )
+  },
   createIncomingPayment: async (payload: CreateIncomingPaymentPayload) => {
-    return apiClient<{ success: boolean; DocNum: number }>('/api/v1/incoming-payments', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    return apiClient<{ success: boolean; data: { DocNum: number; DocEntry: number } }>(
+      '/api/v1/incoming-payments',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    )
   },
 }

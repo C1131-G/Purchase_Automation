@@ -13,6 +13,7 @@ export const incomingPaymentKeys = {
     [...incomingPaymentKeys.all, 'list', params] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...incomingPaymentKeys.all, 'doc-num-suggestions', search ?? '', limit ?? 'all'] as const,
+  detail: (docNum: string) => [...incomingPaymentKeys.all, 'detail', docNum] as const,
 }
 
 export const incomingPaymentQueries = {
@@ -31,5 +32,12 @@ export const incomingPaymentQueries = {
       placeholderData: keepPreviousData,
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+    }),
+  detail: (docNum: string) =>
+    queryOptions({
+      queryKey: incomingPaymentKeys.detail(docNum),
+      queryFn: () => incomingPaymentAPI.getIncomingPayment(docNum),
+      staleTime: QUERY_CACHE_POLICY.detail.staleTime,
+      gcTime: QUERY_CACHE_POLICY.detail.gcTime,
     }),
 }

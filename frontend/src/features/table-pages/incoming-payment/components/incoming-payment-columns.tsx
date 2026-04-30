@@ -11,15 +11,34 @@ import {
 
 const columnHelper = createColumnHelper<IncomingPaymentListItem>()
 
-export const createIncomingPaymentColumns = () => [
+interface CreateIncomingPaymentColumnsOptions {
+  onDocNumDoubleClick?: (docNum: string | number) => void
+  onDocNumHover?: (docNum: string | number) => void
+}
+
+export const createIncomingPaymentColumns = (options?: CreateIncomingPaymentColumnsOptions) => [
   columnHelper.accessor('DocNum', {
     id: 'DocNum',
     header: ({ column, table }) => (
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc Number" />
     ),
     cell: (info) => (
-      <Tooltip content="Double click to edit">
-        <span className="block cursor-pointer truncate transition-colors hover:text-blue-600">
+      <Tooltip content="Click to view details">
+        <span
+          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+          role="button"
+          tabIndex={0}
+          onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
+          onFocus={() => options?.onDocNumHover?.(info.getValue())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              options?.onDocNumDoubleClick?.(info.getValue())
+            }
+          }}
+          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
+          onClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
+        >
           {info.getValue()}
         </span>
       </Tooltip>

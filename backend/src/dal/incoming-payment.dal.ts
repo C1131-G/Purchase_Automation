@@ -79,6 +79,29 @@ export const getPayment = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+// Fetches the detailed information for a single incoming payment by its Document Number.
+export const getPaymentByDocNum = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
+    const { docNum } = authReq.params;
+
+    logger.info({ msg: "Fetching Incoming Payment detail by DocNum", docNum });
+
+    const data = await incomingPaymentService.getPaymentByDocNum(
+      sessionId,
+      dbName,
+      docNum as string,
+    );
+    if (!data)
+      return res.status(404).json({ success: false, message: "Incoming Payment not found" });
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Processes the creation of a new Incoming Payment record in SAP B1.
 export const createPayment = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
@@ -146,6 +169,7 @@ export const incomingPaymentDal = {
   getPayments,
   getPaymentDocNums,
   getPayment,
+  getPaymentByDocNum,
   createPayment,
   updatePayment,
   cancelPayment,

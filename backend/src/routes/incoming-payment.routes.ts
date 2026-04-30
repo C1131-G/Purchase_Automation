@@ -25,6 +25,9 @@ router.get(
   incomingPaymentDal.getPaymentDocNums,
 );
 
+// GET /by-doc-num/:docNum: Fetches full details for a single incoming payment using its DocNum.
+router.get("/by-doc-num/:docNum", incomingPaymentDal.getPaymentByDocNum);
+
 // GET /:id: Fetches full details for a single incoming payment, including settlement allocations.
 router.get("/:id", incomingPaymentDal.getPayment);
 

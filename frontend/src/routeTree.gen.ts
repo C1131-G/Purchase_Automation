@@ -37,6 +37,7 @@ import { Route as LayoutSalesArCreditMemoSelectInvoiceRouteImport } from './rout
 import { Route as LayoutSalesArCreditMemoCreateRouteImport } from './routes/_layout.sales.ar-credit-memo.create'
 import { Route as LayoutSalesQuotationsDocNumEditRouteImport } from './routes/_layout.sales.quotations.$docNum.edit'
 import { Route as LayoutSalesOrdersDocNumEditRouteImport } from './routes/_layout.sales.orders.$docNum.edit'
+import { Route as LayoutSalesIncomingPaymentDocNumEditRouteImport } from './routes/_layout.sales.incoming-payment.$docNum.edit'
 import { Route as LayoutSalesArInvoiceDocNumEditRouteImport } from './routes/_layout.sales.ar-invoice.$docNum.edit'
 import { Route as LayoutSalesArCreditMemoDocNumEditRouteImport } from './routes/_layout.sales.ar-credit-memo.$docNum.edit'
 import { Route as LayoutPurchaseOrdersDocNumEditRouteImport } from './routes/_layout.purchase.orders.$docNum.edit'
@@ -198,6 +199,12 @@ const LayoutSalesOrdersDocNumEditRoute =
     path: '/$docNum/edit',
     getParentRoute: () => LayoutSalesOrdersRoute,
   } as any)
+const LayoutSalesIncomingPaymentDocNumEditRoute =
+  LayoutSalesIncomingPaymentDocNumEditRouteImport.update({
+    id: '/$docNum/edit',
+    path: '/$docNum/edit',
+    getParentRoute: () => LayoutSalesIncomingPaymentRoute,
+  } as any)
 const LayoutSalesArInvoiceDocNumEditRoute =
   LayoutSalesArInvoiceDocNumEditRouteImport.update({
     id: '/$docNum/edit',
@@ -256,7 +263,7 @@ export interface FileRoutesByFullPath {
   '/sales/create-incoming-payment': typeof LayoutSalesCreateIncomingPaymentRoute
   '/sales/create-order': typeof LayoutSalesCreateOrderRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
-  '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
+  '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRouteWithChildren
   '/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
@@ -267,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/sales/ar-credit-memo/$docNum/edit': typeof LayoutSalesArCreditMemoDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
+  '/sales/incoming-payment/$docNum/edit': typeof LayoutSalesIncomingPaymentDocNumEditRoute
   '/sales/orders/$docNum/edit': typeof LayoutSalesOrdersDocNumEditRoute
   '/sales/quotations/$docNum/edit': typeof LayoutSalesQuotationsDocNumEditRoute
 }
@@ -291,7 +299,7 @@ export interface FileRoutesByTo {
   '/sales/create-incoming-payment': typeof LayoutSalesCreateIncomingPaymentRoute
   '/sales/create-order': typeof LayoutSalesCreateOrderRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
-  '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
+  '/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRouteWithChildren
   '/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
   '/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
@@ -302,6 +310,7 @@ export interface FileRoutesByTo {
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/sales/ar-credit-memo/$docNum/edit': typeof LayoutSalesArCreditMemoDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
+  '/sales/incoming-payment/$docNum/edit': typeof LayoutSalesIncomingPaymentDocNumEditRoute
   '/sales/orders/$docNum/edit': typeof LayoutSalesOrdersDocNumEditRoute
   '/sales/quotations/$docNum/edit': typeof LayoutSalesQuotationsDocNumEditRoute
 }
@@ -328,7 +337,7 @@ export interface FileRoutesById {
   '/_layout/sales/create-incoming-payment': typeof LayoutSalesCreateIncomingPaymentRoute
   '/_layout/sales/create-order': typeof LayoutSalesCreateOrderRoute
   '/_layout/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
-  '/_layout/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRoute
+  '/_layout/sales/incoming-payment': typeof LayoutSalesIncomingPaymentRouteWithChildren
   '/_layout/sales/orders': typeof LayoutSalesOrdersRouteWithChildren
   '/_layout/sales/quotations': typeof LayoutSalesQuotationsRouteWithChildren
   '/_layout/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
@@ -339,6 +348,7 @@ export interface FileRoutesById {
   '/_layout/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/_layout/sales/ar-credit-memo/$docNum/edit': typeof LayoutSalesArCreditMemoDocNumEditRoute
   '/_layout/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
+  '/_layout/sales/incoming-payment/$docNum/edit': typeof LayoutSalesIncomingPaymentDocNumEditRoute
   '/_layout/sales/orders/$docNum/edit': typeof LayoutSalesOrdersDocNumEditRoute
   '/_layout/sales/quotations/$docNum/edit': typeof LayoutSalesQuotationsDocNumEditRoute
 }
@@ -376,6 +386,7 @@ export interface FileRouteTypes {
     | '/purchase/orders/$docNum/edit'
     | '/sales/ar-credit-memo/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
+    | '/sales/incoming-payment/$docNum/edit'
     | '/sales/orders/$docNum/edit'
     | '/sales/quotations/$docNum/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
     | '/purchase/orders/$docNum/edit'
     | '/sales/ar-credit-memo/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
+    | '/sales/incoming-payment/$docNum/edit'
     | '/sales/orders/$docNum/edit'
     | '/sales/quotations/$docNum/edit'
   id:
@@ -447,6 +459,7 @@ export interface FileRouteTypes {
     | '/_layout/purchase/orders/$docNum/edit'
     | '/_layout/sales/ar-credit-memo/$docNum/edit'
     | '/_layout/sales/ar-invoice/$docNum/edit'
+    | '/_layout/sales/incoming-payment/$docNum/edit'
     | '/_layout/sales/orders/$docNum/edit'
     | '/_layout/sales/quotations/$docNum/edit'
   fileRoutesById: FileRoutesById
@@ -655,6 +668,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSalesOrdersDocNumEditRouteImport
       parentRoute: typeof LayoutSalesOrdersRoute
     }
+    '/_layout/sales/incoming-payment/$docNum/edit': {
+      id: '/_layout/sales/incoming-payment/$docNum/edit'
+      path: '/$docNum/edit'
+      fullPath: '/sales/incoming-payment/$docNum/edit'
+      preLoaderRoute: typeof LayoutSalesIncomingPaymentDocNumEditRouteImport
+      parentRoute: typeof LayoutSalesIncomingPaymentRoute
+    }
     '/_layout/sales/ar-invoice/$docNum/edit': {
       id: '/_layout/sales/ar-invoice/$docNum/edit'
       path: '/$docNum/edit'
@@ -783,6 +803,21 @@ const LayoutSalesArInvoiceRouteChildren: LayoutSalesArInvoiceRouteChildren = {
 const LayoutSalesArInvoiceRouteWithChildren =
   LayoutSalesArInvoiceRoute._addFileChildren(LayoutSalesArInvoiceRouteChildren)
 
+interface LayoutSalesIncomingPaymentRouteChildren {
+  LayoutSalesIncomingPaymentDocNumEditRoute: typeof LayoutSalesIncomingPaymentDocNumEditRoute
+}
+
+const LayoutSalesIncomingPaymentRouteChildren: LayoutSalesIncomingPaymentRouteChildren =
+  {
+    LayoutSalesIncomingPaymentDocNumEditRoute:
+      LayoutSalesIncomingPaymentDocNumEditRoute,
+  }
+
+const LayoutSalesIncomingPaymentRouteWithChildren =
+  LayoutSalesIncomingPaymentRoute._addFileChildren(
+    LayoutSalesIncomingPaymentRouteChildren,
+  )
+
 interface LayoutSalesOrdersRouteChildren {
   LayoutSalesOrdersDocNumEditRoute: typeof LayoutSalesOrdersDocNumEditRoute
 }
@@ -826,7 +861,7 @@ interface LayoutRouteChildren {
   LayoutSalesCreateIncomingPaymentRoute: typeof LayoutSalesCreateIncomingPaymentRoute
   LayoutSalesCreateOrderRoute: typeof LayoutSalesCreateOrderRoute
   LayoutSalesCreateQuotationRoute: typeof LayoutSalesCreateQuotationRoute
-  LayoutSalesIncomingPaymentRoute: typeof LayoutSalesIncomingPaymentRoute
+  LayoutSalesIncomingPaymentRoute: typeof LayoutSalesIncomingPaymentRouteWithChildren
   LayoutSalesOrdersRoute: typeof LayoutSalesOrdersRouteWithChildren
   LayoutSalesQuotationsRoute: typeof LayoutSalesQuotationsRouteWithChildren
 }
@@ -851,7 +886,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutSalesCreateIncomingPaymentRoute: LayoutSalesCreateIncomingPaymentRoute,
   LayoutSalesCreateOrderRoute: LayoutSalesCreateOrderRoute,
   LayoutSalesCreateQuotationRoute: LayoutSalesCreateQuotationRoute,
-  LayoutSalesIncomingPaymentRoute: LayoutSalesIncomingPaymentRoute,
+  LayoutSalesIncomingPaymentRoute: LayoutSalesIncomingPaymentRouteWithChildren,
   LayoutSalesOrdersRoute: LayoutSalesOrdersRouteWithChildren,
   LayoutSalesQuotationsRoute: LayoutSalesQuotationsRouteWithChildren,
 }
