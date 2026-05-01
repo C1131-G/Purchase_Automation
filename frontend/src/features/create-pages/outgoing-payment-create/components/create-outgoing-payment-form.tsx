@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { Calendar as CalendarIcon, Check, HandCoins, Minus } from 'lucide-react'
-import { type ComponentProps, type ReactElement, useEffect, useRef, useState } from 'react'
+import { type ComponentProps, type ReactElement, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Calendar } from '@/components/calendar/calendar'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
@@ -22,6 +22,15 @@ import {
   apInvoiceQueries,
 } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
 import { outgoingPaymentAPI } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
+import {
+  createOutgoingPaymentCreateFilterState,
+  OutgoingPaymentCreateActiveFilter,
+  matchesOutgoingPaymentCreateFilters,
+  OutgoingPaymentCreateFilters,
+  type OutgoingPaymentCreateDocument,
+  type OutgoingPaymentCreateFilterKey,
+  type OutgoingPaymentCreateFilterState,
+} from './outgoing-payment-create-filters'
 
 import { useOutgoingPaymentLookups } from '../hooks/use-outgoing-payment-lookups'
 import { PaymentModal } from './payment-modal'
@@ -62,6 +71,12 @@ export function CreateOutgoingPaymentForm() {
   const [selectedDocs, setSelectedDocs] = useState<
     Record<string, { type: 'it_PurchaseInvoice' | 'it_PurchCredItnote'; amount: number }>
   >({})
+  const [tableFilters, setTableFilters] = useState<OutgoingPaymentCreateFilterState>(
+    createOutgoingPaymentCreateFilterState(),
+  )
+  const [activeFilterKey, setActiveFilterKey] = useState<OutgoingPaymentCreateFilterKey | null>(
+    null,
+  )
 
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false)
   const [isPaymentOnAccount, setIsPaymentOnAccount] = useState(false)
@@ -124,7 +139,22 @@ export function CreateOutgoingPaymentForm() {
     (a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime(),
   )
 
-  const displayedDocuments = allDocuments.filter((doc) => doc.balanceDue > 0)
+  const documentsWithPayments = useMemo<OutgoingPaymentCreateDocument[]>(
+    () =>
+      allDocuments.map((doc) => ({
+        ...doc,
+        totalPayment: selectedDocs[`${doc.type}-${doc.id}`]?.amount ?? doc.balanceDue,
+      })),
+    [allDocuments, selectedDocs],
+  )
+
+  const displayedDocuments = useMemo(
+    () =>
+      documentsWithPayments.filter(
+        (doc) => doc.balanceDue > 0 && matchesOutgoingPaymentCreateFilters(doc, tableFilters),
+      ),
+    [documentsWithPayments, tableFilters],
+  )
 
   const isSelected = (docEntry: number, type: string) => !!selectedDocs[`${type}-${docEntry}`]
   const allSelected =
@@ -138,16 +168,13 @@ export function CreateOutgoingPaymentForm() {
   }, [allSelected, someSelected])
 
   const handleToggleAllDocs = () => {
-    if (allSelected) {
-      setSelectedDocs({})
-      return
-    }
-
     setSelectedDocs((prev) => {
       const next = { ...prev }
       for (const doc of displayedDocuments) {
         const key = `${doc.type}-${doc.id}`
-        if (!next[key]) {
+        if (allSelected) {
+          delete next[key]
+        } else if (!next[key]) {
           next[key] = { type: doc.type, amount: doc.balanceDue }
         }
       }
@@ -378,7 +405,23 @@ export function CreateOutgoingPaymentForm() {
         {lookups.codeInput && (
           <div className="mt-4 flex gap-4 items-start">
             <div className="flex-1 rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
-              <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3" />
+              <div className="flex items-center justify-end gap-2 border-b border-zinc-100 bg-zinc-50 px-5 py-3 flex-wrap">
+                <OutgoingPaymentCreateActiveFilter
+                  documents={documentsWithPayments}
+                  value={tableFilters}
+                  onChange={setTableFilters}
+                  activeFilterKey={activeFilterKey}
+                />
+                <OutgoingPaymentCreateFilters
+                  value={tableFilters}
+                  onReset={() => {
+                    setTableFilters(createOutgoingPaymentCreateFilterState())
+                    setActiveFilterKey(null)
+                  }}
+                  activeFilterKey={activeFilterKey}
+                  onActiveFilterChange={setActiveFilterKey}
+                />
+              </div>
 
               <div className="max-h-[400px] overflow-auto">
                 <table className="w-full text-left text-sm">
