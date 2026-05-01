@@ -65,6 +65,8 @@ const DOC_TYPE_OPTIONS: Array<{ value: OutgoingPaymentCreateFilterState['docType
   { value: 'it_PurchCredItnote', label: 'A/P Credit Memo' },
 ]
 
+const ACTIVE_FILTER_WIDTH_CLASS = 'w-[240px]'
+
 const defaultComparisonDraft = (): NumberComparisonDraft => ({
   operator: 'eq',
   value: '',
@@ -177,9 +179,9 @@ function ComparisonField({
               <Select.Positioner>
                 <Select.Popup>
                   <Select.List>
-                    <Select.Item value="eq">Equal (=)</Select.Item>
-                    <Select.Item value="lt">Less than (&lt;)</Select.Item>
-                    <Select.Item value="gt">Greater than (&gt;)</Select.Item>
+                    <Select.Item value="eq">=</Select.Item>
+                    <Select.Item value="lt">&lt;</Select.Item>
+                    <Select.Item value="gt">&gt;</Select.Item>
                   </Select.List>
                 </Select.Popup>
               </Select.Positioner>
@@ -255,7 +257,10 @@ function DocDateField({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative flex h-11 w-full items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/50 pl-4 pr-10 text-[13px] font-normal text-zinc-800 outline-none transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
+        className={cn(
+          'relative flex h-11 w-full items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/50 text-[13px] font-normal text-zinc-800 outline-none transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100',
+          showLabel ? 'pl-4 pr-10' : 'pl-4 pr-10',
+        )}
       >
         <span className={cn('truncate', value.from || value.to ? 'text-zinc-900' : 'text-zinc-400')}>
           {label}
@@ -270,12 +275,20 @@ function DocDateField({
             event.stopPropagation()
             onChange({})
           }}
-          className="absolute right-1.5 top-[31px] z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100"
+          className={cn(
+            'absolute right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100',
+            showLabel ? 'top-[31px]' : 'top-1/2 -translate-y-1/2',
+          )}
         >
           <X className="h-3.5 w-3.5" />
         </button>
       ) : (
-        <div className="pointer-events-none absolute right-1.5 top-[31px] z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100">
+        <div
+          className={cn(
+            'pointer-events-none absolute right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100',
+            showLabel ? 'top-[31px]' : 'top-1/2 -translate-y-1/2',
+          )}
+        >
           <CalendarIcon className="h-3.5 w-3.5" />
         </div>
       )}
@@ -555,7 +568,7 @@ export function OutgoingPaymentCreateActiveFilter({
   if (activeFilterKey === 'docType') {
     const docTypeSelectValue = value.docType === 'all' ? '' : value.docType
     return (
-      <div className="w-[240px] shrink-0">
+      <div className={`${ACTIVE_FILTER_WIDTH_CLASS} shrink-0`}>
         <Select
           value={docTypeSelectValue}
           onValueChange={(nextValue) => {
@@ -607,7 +620,7 @@ export function OutgoingPaymentCreateActiveFilter({
 
   if (activeFilterKey === 'docNumber') {
     return (
-      <div className="w-[320px] shrink-0">
+      <div className={`${ACTIVE_FILTER_WIDTH_CLASS} shrink-0`}>
         <DocNumberField
           value={value.docNumber}
           onChange={(next) => onChange({ ...value, docNumber: next })}
@@ -620,7 +633,7 @@ export function OutgoingPaymentCreateActiveFilter({
 
   if (activeFilterKey === 'docDate') {
     return (
-      <div className="w-[240px] shrink-0">
+      <div className={`${ACTIVE_FILTER_WIDTH_CLASS} shrink-0`}>
         <DocDateField
           value={value.docDate}
           onChange={(next) => onChange({ ...value, docDate: next })}
@@ -632,7 +645,7 @@ export function OutgoingPaymentCreateActiveFilter({
 
   if (activeFilterKey === 'docTotal') {
     return (
-      <div className="w-[240px] shrink-0">
+      <div className={`${ACTIVE_FILTER_WIDTH_CLASS} shrink-0`}>
         <ComparisonField
           label="Doc Total"
           value={value.docTotal}
@@ -645,7 +658,7 @@ export function OutgoingPaymentCreateActiveFilter({
 
   if (activeFilterKey === 'balanceDue') {
     return (
-      <div className="w-[240px] shrink-0">
+      <div className={`${ACTIVE_FILTER_WIDTH_CLASS} shrink-0`}>
         <ComparisonField
           label="Balance Due"
           value={value.balanceDue}
@@ -657,7 +670,7 @@ export function OutgoingPaymentCreateActiveFilter({
   }
 
   return (
-    <div className="w-[240px] shrink-0">
+    <div className={`${ACTIVE_FILTER_WIDTH_CLASS} shrink-0`}>
       <ComparisonField
         label="Total Payment"
         value={value.totalPayment}
