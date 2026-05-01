@@ -290,7 +290,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       Remarks: payload.Remarks,
       Reference: payload.Reference,
       CashSum: payload.CashSum || 0,
-      TrsfrSum: payload.TrsfrSum || 0,
+      TransferSum: payload.TransferSum || payload.TrsfrSum || 0,
       PaymentInvoices:
         (payload.PaymentInvoices as Record<string, unknown>[])
           ?.sort((a, b) => {
@@ -336,7 +336,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       if (hasRealCheck) modes.push("Direct Pay");
     }
 
-    if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) modes.push("Direct Pay");
+    const transferSum = (payload.TransferSum || payload.TrsfrSum || 0) as number;
+    if (transferSum > 0) modes.push("Direct Pay");
 
     if (modes.length === 1) {
       sapPayload.U_Mode_Pay = modes[0];
@@ -355,8 +356,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       }
     }
 
-    if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
-      sapPayload.TrsfrSum = payload.TrsfrSum;
+    if (transferSum > 0) {
+      sapPayload.TransferSum = transferSum;
     }
 
     if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {

@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
-import { Calendar as CalendarIcon, Check, HandCoins, Search } from 'lucide-react'
-import { type ComponentProps, type ReactElement, useEffect, useMemo, useRef, useState } from 'react'
+import { Calendar as CalendarIcon, Check, HandCoins, Minus } from 'lucide-react'
+import { type ComponentProps, type ReactElement, useEffect, useRef, useState } from 'react'
 
 import { Calendar } from '@/components/calendar/calendar'
 import { VendorCustomerGrid } from '@/features/create-pages/create-shared/components/grids/vendor-customer-grid'
@@ -24,7 +24,6 @@ import {
 import { outgoingPaymentAPI } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
 
 import { useOutgoingPaymentLookups } from '../hooks/use-outgoing-payment-lookups'
-import { type DocumentLookupItem, DocumentLookupModal } from './document-lookup-modal'
 import { PaymentModal } from './payment-modal'
 
 type ActiveDatePicker = 'posting' | null
@@ -66,8 +65,7 @@ export function CreateOutgoingPaymentForm() {
 
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false)
   const [isPaymentOnAccount, setIsPaymentOnAccount] = useState(false)
-  const [isDocLookupOpen, setDocLookupOpen] = useState(false)
-  const [docLookupSearch, setDocLookupSearch] = useState('')
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null)
 
   const { data: invoicesData, isLoading: isLoadingInvoices } = useQuery({
     ...apInvoiceQueries.list({ CardCode: lookups.codeInput, DocStatus: 'Open', limit: 100 }),
@@ -126,11 +124,36 @@ export function CreateOutgoingPaymentForm() {
     (a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime(),
   )
 
-  const selectedIds = useMemo(() => new Set(Object.keys(selectedDocs)), [selectedDocs])
-
   const displayedDocuments = allDocuments.filter((doc) => doc.balanceDue > 0)
 
   const isSelected = (docEntry: number, type: string) => !!selectedDocs[`${type}-${docEntry}`]
+  const allSelected =
+    displayedDocuments.length > 0 &&
+    displayedDocuments.every((doc) => isSelected(doc.id, doc.type))
+  const someSelected = displayedDocuments.some((doc) => isSelected(doc.id, doc.type))
+
+  useEffect(() => {
+    if (!selectAllCheckboxRef.current) return
+    selectAllCheckboxRef.current.indeterminate = someSelected && !allSelected
+  }, [allSelected, someSelected])
+
+  const handleToggleAllDocs = () => {
+    if (allSelected) {
+      setSelectedDocs({})
+      return
+    }
+
+    setSelectedDocs((prev) => {
+      const next = { ...prev }
+      for (const doc of displayedDocuments) {
+        const key = `${doc.type}-${doc.id}`
+        if (!next[key]) {
+          next[key] = { type: doc.type, amount: doc.balanceDue }
+        }
+      }
+      return next
+    })
+  }
 
   const handleToggleDoc = (
     docEntry: number,
@@ -147,10 +170,6 @@ export function CreateOutgoingPaymentForm() {
       }
       return next
     })
-  }
-
-  const handleLookupToggle = (doc: DocumentLookupItem) => {
-    handleToggleDoc(doc.id, doc.type, doc.balanceDue)
   }
 
   const { totalInvoices, totalCreditMemos, balanceDue } = Object.values(selectedDocs).reduce(
@@ -359,28 +378,41 @@ export function CreateOutgoingPaymentForm() {
         {lookups.codeInput && (
           <div className="mt-4 flex gap-4 items-start">
             <div className="flex-1 rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
-              <div className="bg-zinc-50 px-5 py-3 border-b border-zinc-100 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDocLookupOpen(true)}
-                    className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-700 shadow-sm outline-none transition-all hover:border-blue-300 hover:text-blue-600 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
-                  >
-                    <Search className="h-4 w-4 text-zinc-400" />
-                    Search Documents
-                  </button>
-                </div>
-              </div>
+              <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3" />
 
               <div className="max-h-[400px] overflow-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-white sticky top-0 shadow-sm">
+                  <thead className="bg-white sticky top-0">
                     <tr>
-                      <th className="px-5 py-3 font-bold text-zinc-600 w-12"></th>
-                      <th className="px-5 py-3 font-bold text-zinc-600">Type</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600">Doc No.</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600">Date</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600 text-right">Total</th>
+                      <th className="w-12 px-5 py-3 font-bold text-zinc-600">
+                        <label className="relative flex cursor-pointer items-center justify-center">
+                          <input
+                            ref={selectAllCheckboxRef}
+                            type="checkbox"
+                            aria-label="Select all documents"
+                            checked={allSelected}
+                            onChange={handleToggleAllDocs}
+                            className="absolute h-full w-full cursor-pointer opacity-0"
+                          />
+                          <div
+                            className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+                              allSelected || (someSelected && !allSelected)
+                                ? 'border-blue-600 bg-blue-600 text-white'
+                                : 'border-zinc-300 bg-white text-transparent'
+                            }`}
+                          >
+                            {someSelected && !allSelected ? (
+                              <Minus className="h-3.5 w-3.5" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" />
+                            )}
+                          </div>
+                        </label>
+                      </th>
+                      <th className="px-5 py-3 font-bold text-zinc-600">Doc Type</th>
+                      <th className="px-5 py-3 font-bold text-zinc-600">Doc Number</th>
+                      <th className="px-5 py-3 font-bold text-zinc-600">Doc Date</th>
+                      <th className="px-5 py-3 font-bold text-zinc-600 text-right">Doc Total</th>
                       <th className="px-5 py-3 font-bold text-zinc-600 text-right">Balance Due</th>
                       <th className="px-5 py-3 font-bold text-zinc-600 text-right">
                         Total Payment
@@ -445,8 +477,8 @@ export function CreateOutgoingPaymentForm() {
                                 max={doc.balanceDue}
                                 value={
                                   selected
-                                    ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ?? 0)
-                                    : doc.balanceDue
+                                    ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ?? 0).toFixed(2)
+                                    : doc.balanceDue.toFixed(2)
                                 }
                                 onChange={(e) => {
                                   const val = Number(e.target.value)
@@ -542,20 +574,6 @@ export function CreateOutgoingPaymentForm() {
           onSearchSync={() => {}}
           onClose={() => lookups.setModalOpen(false)}
           onSelect={(item) => lookups.selectVendor(item)}
-        />
-
-        <DocumentLookupModal
-          open={isDocLookupOpen}
-          search={docLookupSearch}
-          results={allDocuments}
-          loading={isLoadingInvoices || isLoadingCreditMemos}
-          selectedIds={selectedIds}
-          onSearchChange={setDocLookupSearch}
-          onClose={() => {
-            setDocLookupOpen(false)
-            setDocLookupSearch('')
-          }}
-          onToggle={handleLookupToggle}
         />
 
         <PaymentModal

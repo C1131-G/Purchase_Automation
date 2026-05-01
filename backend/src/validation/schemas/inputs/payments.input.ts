@@ -84,7 +84,7 @@ export const PaymentDocNumLookupQuerySchema = z.object({
 
 // CreatePaymentInputSchema: Validates the complex payload for recording a payment.
 // It supports cash and transfer sums, along with a list of invoices being settled.
-export const CreatePaymentInputSchema = z.object({
+export const BaseCreatePaymentInputSchema = z.object({
   CardCode: z.string().min(1),
   DocDate: z
     .string()
@@ -98,6 +98,7 @@ export const CreatePaymentInputSchema = z.object({
     .describe("Mode of payment (U_Mode_Pay). If omitted, derived from payment method fields."),
   CashSum: z.number().optional(),
   TrsfrSum: z.number().optional(),
+  TransferSum: z.number().optional(),
   // PaymentCreditCards: Array of credit card payments.
   PaymentCreditCards: z
     .array(
@@ -147,8 +148,18 @@ export const CreatePaymentInputSchema = z.object({
     .optional(),
 });
 
+export const CreatePaymentInputSchema = BaseCreatePaymentInputSchema.transform((data) => {
+  // Normalize TrsfrSum and TransferSum
+  if (data.TrsfrSum !== undefined && data.TransferSum === undefined) {
+    data.TransferSum = data.TrsfrSum;
+  } else if (data.TransferSum !== undefined && data.TrsfrSum === undefined) {
+    data.TrsfrSum = data.TransferSum;
+  }
+  return data;
+});
+
 // UpdatePaymentInputSchema: Used for modifying metadata on unconfirmed payments.
-export const UpdatePaymentInputSchema = CreatePaymentInputSchema.partial();
+export const UpdatePaymentInputSchema = BaseCreatePaymentInputSchema.partial();
 
 export type PaymentQuery = z.infer<typeof PaymentQuerySchema>;
 export type PaymentDocNumLookupQuery = z.infer<typeof PaymentDocNumLookupQuerySchema>;
