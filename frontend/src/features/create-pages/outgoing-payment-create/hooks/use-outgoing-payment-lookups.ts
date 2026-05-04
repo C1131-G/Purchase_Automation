@@ -66,6 +66,9 @@ export function useOutgoingPaymentLookups() {
     const matched = findVendorByName(value)
     if (matched) {
       selectVendor(matched)
+      setTimeout(() => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+      }, 150)
       return
     }
     setNameFocused(true)

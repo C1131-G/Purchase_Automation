@@ -1,5 +1,16 @@
 export const parseISODate = (value: string | undefined) => {
   if (!value) return new Date()
+
+  const normalized = value.trim().slice(0, 10)
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized)
+  if (match) {
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    const parsed = new Date(year, month - 1, day)
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+  }
+
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed
 }

@@ -1,65 +1,47 @@
-import {
-  Calendar as CalendarIcon,
-  Check,
-  Filter,
-  RotateCcw,
-  Search,
-  X,
-} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Calendar as CalendarIcon, Check, Filter, RotateCcw, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Calendar } from '@/components/calendar/calendar'
+import { DebouncedInput } from '@/components/input/debounced-input'
 import { Input } from '@/components/input/input'
+import { LookupPopup } from '@/components/lookup/lookup-popup'
 import { Popover } from '@/components/popover'
 import { Select } from '@/components/select/select'
-import { SuggestionList } from '@/features/create-pages/create-shared/components/core/suggestion-list'
-import { type CreateLookupOption } from '@/features/create-pages/create-shared/utils/create-order.types'
-import { formatDateDisplay, rankLookupSuggestions, sortLookupByCodeDesc, toNumberComparisonFilter } from '@/features/table-pages/table-shared/components/filters/search/table-search.utils'
-import { normalizeDocTotalInput } from '@/features/table-pages/table-shared/components/filters/table-search.validation'
+import { type LookupItem } from '@/features/create-pages/create-shared/api/create-shared.types'
 import {
-  hasDateRangeValue,
-  matchesDateRange,
-  matchesNumberComparison,
-  toDateRangeFilter,
+  parseISODate,
+  toISODate,
+} from '@/features/create-pages/create-shared/utils/create-order.utils'
+import {
+  type OutgoingPaymentCreateFilterKey,
+  type OutgoingPaymentCreateFilterState,
+} from '@/features/create-pages/outgoing-payment-create/components/outgoing-payment-create-filter.types'
+import { outgoingPaymentQueries } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.queries'
+import {
+  formatDateDisplay,
+  rankLookupSuggestions,
+  sortLookupByCodeDesc,
+} from '@/features/table-pages/table-shared/components/filters/search/table-search.utils'
+import { SuggestionsDropdown } from '@/features/table-pages/table-shared/components/filters/search/text-filter-search.components'
+import {
+  normalizeDocTotalInput,
+  normalizeSearchInputByColumn,
+} from '@/features/table-pages/table-shared/components/filters/table-search.validation'
+import {
   type DateRangeFilter,
+  hasDateRangeValue,
   type NumberComparisonOperator,
+  toDateRangeFilter,
 } from '@/features/table-pages/table-shared/utils/table-filter-values'
 import { cn } from '@/shared/utils/cn'
 
-export type OutgoingPaymentCreateDocument = {
-  id: number
-  docNum: string | number
-  date: string
-  docTotal: number
-  balanceDue: number
-  totalPayment: number
-  type: 'it_PurchaseInvoice' | 'it_PurchCredItnote'
+type NumberComparisonDraft = OutgoingPaymentCreateFilterState['docTotal']
+
+const DOC_TYPE_OPTIONS: Array<{
+  value: OutgoingPaymentCreateFilterState['docType']
   label: string
-}
-
-export type OutgoingPaymentCreateFilterState = {
-  docType: 'all' | OutgoingPaymentCreateDocument['type']
-  docNumber: string
-  docDate: DateRangeFilter
-  docTotal: NumberComparisonDraft
-  balanceDue: NumberComparisonDraft
-  totalPayment: NumberComparisonDraft
-}
-
-export type OutgoingPaymentCreateFilterKey =
-  | 'docType'
-  | 'docNumber'
-  | 'docDate'
-  | 'docTotal'
-  | 'balanceDue'
-  | 'totalPayment'
-
-type NumberComparisonDraft = {
-  operator: NumberComparisonOperator
-  value: string
-}
-
-const DOC_TYPE_OPTIONS: Array<{ value: OutgoingPaymentCreateFilterState['docType']; label: string }> = [
+}> = [
   { value: 'all', label: 'All' },
   { value: 'it_PurchaseInvoice', label: 'A/P Invoice' },
   { value: 'it_PurchCredItnote', label: 'A/P Credit Memo' },
@@ -67,82 +49,99 @@ const DOC_TYPE_OPTIONS: Array<{ value: OutgoingPaymentCreateFilterState['docType
 
 const ACTIVE_FILTER_WIDTH_CLASS = 'w-[240px]'
 
-const defaultComparisonDraft = (): NumberComparisonDraft => ({
+const defaultComparisonDraft = (): OutgoingPaymentCreateFilterState['docTotal'] => ({
   operator: 'eq',
   value: '',
 })
 
-export const createOutgoingPaymentCreateFilterState = (): OutgoingPaymentCreateFilterState => ({
-  docType: 'all',
-  docNumber: '',
-  docDate: toDateRangeFilter(),
-  docTotal: defaultComparisonDraft(),
-  balanceDue: defaultComparisonDraft(),
-  totalPayment: defaultComparisonDraft(),
-})
+const FILTER_KEYS: OutgoingPaymentCreateFilterKey[] = [
+  'docType',
+  'docNumber',
+  'docDate',
+  'docTotal',
+  'balanceDue',
+  'totalPayment',
+]
 
-export const countOutgoingPaymentCreateFilters = (filters: OutgoingPaymentCreateFilterState) => {
-  let count = 0
-  if (filters.docType !== 'all') count += 1
-  if (filters.docNumber.trim()) count += 1
-  if (hasDateRangeValue(filters.docDate)) count += 1
-  if (filters.docTotal.value.trim()) count += 1
-  if (filters.balanceDue.value.trim()) count += 1
-  if (filters.totalPayment.value.trim()) count += 1
-  return count
+function filterFieldHasValue(
+  key: OutgoingPaymentCreateFilterKey,
+  state: OutgoingPaymentCreateFilterState,
+): boolean {
+  switch (key) {
+    case 'docType':
+      return state.docType !== 'all'
+    case 'docNumber':
+      return state.docNumber.trim().length > 0
+    case 'docDate':
+      return hasDateRangeValue(state.docDate)
+    case 'docTotal':
+      return state.docTotal.value.trim().length > 0
+    case 'balanceDue':
+      return state.balanceDue.value.trim().length > 0
+    case 'totalPayment':
+      return state.totalPayment.value.trim().length > 0
+  }
 }
 
-export const matchesOutgoingPaymentCreateFilters = (
-  document: OutgoingPaymentCreateDocument,
-  filters: OutgoingPaymentCreateFilterState,
-) => {
-  if (filters.docType !== 'all' && document.type !== filters.docType) return false
+function clearFilterField(
+  state: OutgoingPaymentCreateFilterState,
+  key: OutgoingPaymentCreateFilterKey,
+): OutgoingPaymentCreateFilterState {
+  return {
+    ...state,
+    ...(key === 'docType' ? { docType: 'all' as const } : {}),
+    ...(key === 'docNumber' ? { docNumber: '' } : {}),
+    ...(key === 'docDate' ? { docDate: toDateRangeFilter() } : {}),
+    ...(key === 'docTotal' ? { docTotal: defaultComparisonDraft() } : {}),
+    ...(key === 'balanceDue' ? { balanceDue: defaultComparisonDraft() } : {}),
+    ...(key === 'totalPayment' ? { totalPayment: defaultComparisonDraft() } : {}),
+  }
+}
 
-  const docNumberTerm = filters.docNumber.trim().toLowerCase()
-  if (docNumberTerm && !String(document.docNum).toLowerCase().includes(docNumberTerm)) {
-    return false
+type CreateFilterToggleAction =
+  | { type: 'activate' }
+  | { type: 'deactivate' }
+  | { type: 'clear'; nextActiveKey: OutgoingPaymentCreateFilterKey | null }
+
+function resolveCreateFilterToggleAction(
+  key: OutgoingPaymentCreateFilterKey,
+  activeKey: OutgoingPaymentCreateFilterKey | null,
+  state: OutgoingPaymentCreateFilterState,
+): CreateFilterToggleAction {
+  const hasValue = filterFieldHasValue(key, state)
+
+  if (hasValue) {
+    const remainingKeys = FILTER_KEYS.filter((k) => k !== key && filterFieldHasValue(k, state))
+    const nextActiveKey = activeKey === key ? (remainingKeys[0] ?? null) : activeKey
+    return { type: 'clear', nextActiveKey }
   }
 
-  if (!matchesDateRange(document.date, filters.docDate)) return false
+  if (activeKey === key) {
+    return { type: 'deactivate' }
+  }
 
-  const docTotalFilter = toNumberComparisonFilter(
-    filters.docTotal.operator,
-    filters.docTotal.value.trim(),
-  )
-  if (!matchesNumberComparison(document.docTotal, docTotalFilter)) return false
-
-  const balanceDueFilter = toNumberComparisonFilter(
-    filters.balanceDue.operator,
-    filters.balanceDue.value.trim(),
-  )
-  if (!matchesNumberComparison(document.balanceDue, balanceDueFilter)) return false
-
-  const totalPaymentFilter = toNumberComparisonFilter(
-    filters.totalPayment.operator,
-    filters.totalPayment.value.trim(),
-  )
-  if (!matchesNumberComparison(document.totalPayment, totalPaymentFilter)) return false
-
-  return true
+  return { type: 'activate' }
 }
 
 function ComparisonField({
   label,
   value,
+  placeholder,
   onChange,
   showLabel = true,
 }: {
   label: string
   value: NumberComparisonDraft
+  placeholder: string
   onChange: (next: NumberComparisonDraft) => void
   showLabel?: boolean
 }) {
   return (
     <div className="space-y-1.5">
       {showLabel ? (
-        <label className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        <div className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           {label}
-        </label>
+        </div>
       ) : null}
       <div className="flex items-center gap-2">
         <div className="w-[96px] shrink-0">
@@ -193,8 +192,10 @@ function ComparisonField({
           type="text"
           inputMode="decimal"
           value={value.value}
-          onChange={(event) => onChange({ ...value, value: normalizeDocTotalInput(event.target.value) })}
-          placeholder="Value..."
+          onChange={(event) =>
+            onChange({ ...value, value: normalizeDocTotalInput(event.target.value) })
+          }
+          placeholder={placeholder}
           className="h-11 w-full rounded-xl border-zinc-200 bg-zinc-50/50 text-[13px] font-normal transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
         />
       </div>
@@ -250,9 +251,9 @@ function DocDateField({
   return (
     <div ref={containerRef} className="relative">
       {showLabel ? (
-        <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        <div className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           Doc Date
-        </label>
+        </div>
       ) : null}
       <button
         type="button"
@@ -262,36 +263,20 @@ function DocDateField({
           showLabel ? 'pl-4 pr-10' : 'pl-4 pr-10',
         )}
       >
-        <span className={cn('truncate', value.from || value.to ? 'text-zinc-900' : 'text-zinc-400')}>
+        <span
+          className={cn('truncate', value.from || value.to ? 'text-zinc-900' : 'text-zinc-400')}
+        >
           {label}
         </span>
       </button>
-      {hasDateRangeValue(value) ? (
-        <button
-          type="button"
-          aria-label="Clear document date filter"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={(event) => {
-            event.stopPropagation()
-            onChange({})
-          }}
-          className={cn(
-            'absolute right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100',
-            showLabel ? 'top-[31px]' : 'top-1/2 -translate-y-1/2',
-          )}
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      ) : (
-        <div
-          className={cn(
-            'pointer-events-none absolute right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100',
-            showLabel ? 'top-[31px]' : 'top-1/2 -translate-y-1/2',
-          )}
-        >
-          <CalendarIcon className="h-3.5 w-3.5" />
-        </div>
-      )}
+      <div
+        className={cn(
+          'pointer-events-none absolute right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500',
+          showLabel ? 'top-[31px]' : 'top-1/2 -translate-y-1/2',
+        )}
+      >
+        <CalendarIcon className="h-3.5 w-3.5" />
+      </div>
 
       {isOpen && (
         <div className="absolute left-0 top-full z-50 mt-2">
@@ -299,8 +284,8 @@ function DocDateField({
             mode="range"
             maxDate={maxDate}
             selected={{
-              from: value.from ? new Date(`${value.from}T00:00:00`) : undefined,
-              to: value.to ? new Date(`${value.to}T00:00:00`) : undefined,
+              from: value.from ? parseISODate(value.from) : undefined,
+              to: value.to ? parseISODate(value.to) : undefined,
             }}
             onSelect={(next) => {
               if (!next) {
@@ -310,8 +295,8 @@ function DocDateField({
 
               if (!isCalendarRangeSelection(next)) return
 
-              const from = next.from ? next.from.toISOString().slice(0, 10) : undefined
-              const to = next.to ? next.to.toISOString().slice(0, 10) : undefined
+              const from = next.from ? toISODate(next.from) : undefined
+              const to = next.to ? toISODate(next.to) : undefined
               const nextRange = toDateRangeFilter(from, to)
               onChange(nextRange)
               if (nextRange.from && nextRange.to) {
@@ -325,85 +310,218 @@ function DocDateField({
   )
 }
 
+const DOC_NUM_SUGGESTION_LIMIT = 100
+const TEXT_FILTER_DEBOUNCE_MS = 700
+const POPUP_SEARCH_DEBOUNCE_MS = 300
+
 function DocNumberField({
   value,
   onChange,
-  documents,
   showLabel = true,
 }: {
   value: string
   onChange: (next: string) => void
-  documents: OutgoingPaymentCreateDocument[]
   showLabel?: boolean
 }) {
   const [isFocused, setIsFocused] = useState(false)
+  const [liveValue, setLiveValue] = useState('')
+  const [isPopupOpen, setIsPopupOpen] = useState(false)
+  const [popupSearch, setPopupSearch] = useState('')
+  const [debouncedPopupSearch, setDebouncedPopupSearch] = useState('')
+  const popupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const suggestions = useMemo(() => {
+  useEffect(() => {
+    return () => {
+      if (popupTimerRef.current) clearTimeout(popupTimerRef.current)
+    }
+  }, [])
+
+  const effectiveInputValue = liveValue || value
+  const effectiveLiveValue = isFocused ? liveValue : effectiveInputValue
+
+  const { data: docNumSuggestionsData } = useQuery({
+    ...outgoingPaymentQueries.docNumSuggestions(undefined, DOC_NUM_SUGGESTION_LIMIT),
+    enabled: isFocused || isPopupOpen,
+  })
+
+  const docNumSuggestions = useMemo<LookupItem[]>(() => {
+    const raw = docNumSuggestionsData?.data ?? []
     const seen = new Set<string>()
-    const items: CreateLookupOption[] = []
-
-    for (const doc of documents) {
-      const code = String(doc.docNum).trim()
+    const result: LookupItem[] = []
+    for (const item of raw) {
+      const code = item.code.trim()
       if (!code || seen.has(code)) continue
       seen.add(code)
-      items.push({
-        code,
-        name: `${doc.label}${doc.date ? ` • ${formatDateDisplay(doc.date)}` : ''}`,
-      })
+      result.push({ code, name: code })
     }
+    return sortLookupByCodeDesc(result)
+  }, [docNumSuggestionsData])
 
-    const trimmed = value.trim()
-    if (!trimmed) return sortLookupByCodeDesc(items)
-    return rankLookupSuggestions(items, trimmed, 'code')
-  }, [documents, value])
+  const filteredSuggestions = useMemo(() => {
+    const term = effectiveLiveValue.trim().toLowerCase()
+    if (!term) return docNumSuggestions
+    if (docNumSuggestions.length > 0) return rankLookupSuggestions(docNumSuggestions, term, 'code')
+    const typedValue = effectiveLiveValue.trim()
+    return typedValue ? [{ code: typedValue, name: typedValue } as LookupItem] : []
+  }, [docNumSuggestions, effectiveLiveValue])
+
+  const applySearchImmediately = (next: string) => {
+    const normalized = normalizeSearchInputByColumn('DocNum', next)
+    setLiveValue(normalized)
+    onChange(normalized === '' ? '' : normalized)
+  }
+
+  const handleSearchChange = (next: string | number) => {
+    const strValue = String(next)
+    const normalized = normalizeSearchInputByColumn('DocNum', strValue)
+    setLiveValue(normalized)
+    onChange(normalized === '' ? '' : normalized)
+  }
+
+  const shouldQueryPopupSearch = isPopupOpen && debouncedPopupSearch.trim().length >= 2
+
+  const { data: popupSearchData, isFetching: popupSearchFetching } = useQuery({
+    ...outgoingPaymentQueries.docNumSuggestions(
+      debouncedPopupSearch || undefined,
+      DOC_NUM_SUGGESTION_LIMIT,
+    ),
+    enabled: shouldQueryPopupSearch,
+  })
+
+  const popupResults = useMemo<LookupItem[]>(() => {
+    if (!isPopupOpen) return []
+    const term = popupSearch.trim()
+    if (term.length >= 2 && popupSearchData?.data?.length) {
+      const seen = new Set<string>()
+      const result: LookupItem[] = []
+      for (const item of popupSearchData.data) {
+        const code = item.code.trim()
+        if (!code || seen.has(code)) continue
+        seen.add(code)
+        result.push({ code, name: code })
+      }
+      return sortLookupByCodeDesc(result)
+    }
+    return docNumSuggestions
+  }, [isPopupOpen, popupSearch, popupSearchData, docNumSuggestions])
+
+  const isPopupLoading = shouldQueryPopupSearch && popupSearchFetching
+
+  const seedPopupState = (seed: string) => {
+    setPopupSearch(seed)
+    setDebouncedPopupSearch(seed)
+  }
+
+  const handleOpenPopup = () => {
+    seedPopupState(effectiveInputValue.trim())
+    setIsPopupOpen(true)
+  }
+
+  const handlePopupIntent = () => {
+    if (!isPopupOpen) {
+      seedPopupState(effectiveInputValue.trim())
+    }
+  }
+
+  const handleClosePopup = () => {
+    setIsPopupOpen(false)
+    setPopupSearch('')
+    setDebouncedPopupSearch('')
+  }
+
+  const handlePopupSearchChange = (next: string) => {
+    setPopupSearch(next)
+    setLiveValue(next)
+    setIsFocused(true)
+    if (popupTimerRef.current) clearTimeout(popupTimerRef.current)
+    popupTimerRef.current = setTimeout(() => {
+      setDebouncedPopupSearch(next)
+    }, POPUP_SEARCH_DEBOUNCE_MS)
+  }
+
+  const handlePopupSelect = (item: LookupItem) => {
+    handleClosePopup()
+    applySearchImmediately(item.code)
+  }
 
   return (
     <div className="relative">
       {showLabel ? (
-        <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        <div className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           Doc Number
-        </label>
+        </div>
       ) : null}
       <div className="relative">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <Search className="h-4 w-4 text-zinc-400" />
-        </div>
-        <Input
-          type="text"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
+        <DebouncedInput
+          value={effectiveInputValue}
+          onChange={handleSearchChange}
+          debounce={TEXT_FILTER_DEBOUNCE_MS}
+          onInput={(event) => {
+            setLiveValue(event.currentTarget.value)
+            setIsFocused(true)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              setIsFocused(false)
+              applySearchImmediately(event.currentTarget.value)
+            } else if (event.key === 'Escape') {
+              setIsFocused(false)
+            } else if (event.key === 'Backspace' && value && !liveValue) {
+              event.preventDefault()
+              applySearchImmediately('')
+            }
+          }}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => window.setTimeout(() => setIsFocused(false), 120)}
+          onBlur={() => setTimeout(() => setIsFocused(false), 150)}
           placeholder="Doc number"
           inputMode="numeric"
-          className="h-11 w-full rounded-xl border-zinc-200 bg-zinc-50/50 pl-10 pr-10 text-[13px] font-normal transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
+          pattern="[0-9]*"
+          maxLength={10}
+          className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 pl-3 pr-10 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
         />
-        {value ? (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <button
             type="button"
-            aria-label="Clear document number filter"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onChange('')}
-            className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-zinc-600"
+            onMouseDown={(event) => {
+              event.preventDefault()
+            }}
+            onClick={handleOpenPopup}
+            onPointerEnter={handlePopupIntent}
+            onMouseEnter={handlePopupIntent}
+            onFocus={handlePopupIntent}
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition hover:bg-zinc-100"
+            tabIndex={-1}
+            title="Search popup"
           >
-            <X className="h-4 w-4" />
+            <Search className="h-3 w-3" />
           </button>
-        ) : null}
+        </div>
       </div>
 
-      {isFocused ? (
-        <SuggestionList
-          items={suggestions}
-          onSelect={(item) => {
-            onChange(item.code)
-            setIsFocused(false)
-          }}
-          floating
-          maxHeight="max-h-64"
-          containerClassName="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-lg"
-          query={value}
-        />
-      ) : null}
+      <SuggestionsDropdown
+        isVisible={isFocused}
+        suggestions={filteredSuggestions}
+        activeColumnId="DocNum"
+        query={effectiveLiveValue}
+        onSelectSuggestion={(item) => {
+          setIsFocused(false)
+          applySearchImmediately(item.code)
+        }}
+      />
+
+      <LookupPopup
+        open={isPopupOpen}
+        mode="vendor-code"
+        search={popupSearch}
+        results={popupResults}
+        loading={isPopupLoading}
+        error={null}
+        title="Search Doc Number"
+        searchPlaceholder="Search document number"
+        onSearchChange={handlePopupSearchChange}
+        onClose={handleClosePopup}
+        onSelect={handlePopupSelect}
+      />
     </div>
   )
 }
@@ -413,11 +531,13 @@ export function OutgoingPaymentCreateFilters({
   onReset,
   activeFilterKey,
   onActiveFilterChange,
+  onChange,
 }: {
   value: OutgoingPaymentCreateFilterState
   onReset: () => void
   activeFilterKey: OutgoingPaymentCreateFilterKey | null
   onActiveFilterChange: (next: OutgoingPaymentCreateFilterKey | null) => void
+  onChange: (next: OutgoingPaymentCreateFilterState) => void
 }) {
   return (
     <Popover.Root>
@@ -437,6 +557,7 @@ export function OutgoingPaymentCreateFilters({
         onReset={onReset}
         activeFilterKey={activeFilterKey}
         onActiveFilterChange={onActiveFilterChange}
+        onChange={onChange}
       />
     </Popover.Root>
   )
@@ -447,11 +568,13 @@ function OutgoingPaymentCreateFiltersContent({
   onReset,
   activeFilterKey,
   onActiveFilterChange,
+  onChange,
 }: {
   value: OutgoingPaymentCreateFilterState
   onReset: () => void
   activeFilterKey: OutgoingPaymentCreateFilterKey | null
   onActiveFilterChange: (next: OutgoingPaymentCreateFilterKey | null) => void
+  onChange: (next: OutgoingPaymentCreateFilterState) => void
 }) {
   const { setOpen } = Popover.usePopoverContext()
   const filterSections = useMemo(
@@ -504,7 +627,19 @@ function OutgoingPaymentCreateFiltersContent({
                 key={section.key}
                 type="button"
                 onClick={() => {
-                  onActiveFilterChange(section.key)
+                  const action = resolveCreateFilterToggleAction(
+                    section.key,
+                    activeFilterKey,
+                    value,
+                  )
+                  if (action.type === 'activate') {
+                    onActiveFilterChange(section.key)
+                  } else if (action.type === 'deactivate') {
+                    onActiveFilterChange(null)
+                  } else if (action.type === 'clear') {
+                    onChange(clearFilterField(value, section.key))
+                    onActiveFilterChange(action.nextActiveKey)
+                  }
                   setOpen(false)
                 }}
                 className="group flex items-center justify-between rounded-md px-2 py-2 text-[12px] select-none border border-transparent transition-colors hover:bg-zinc-50 text-zinc-900"
@@ -553,12 +688,10 @@ function OutgoingPaymentCreateFiltersContent({
 }
 
 export function OutgoingPaymentCreateActiveFilter({
-  documents,
   value,
   onChange,
   activeFilterKey,
 }: {
-  documents: OutgoingPaymentCreateDocument[]
   value: OutgoingPaymentCreateFilterState
   onChange: (next: OutgoingPaymentCreateFilterState) => void
   activeFilterKey: OutgoingPaymentCreateFilterKey | null
@@ -624,7 +757,6 @@ export function OutgoingPaymentCreateActiveFilter({
         <DocNumberField
           value={value.docNumber}
           onChange={(next) => onChange({ ...value, docNumber: next })}
-          documents={documents}
           showLabel={false}
         />
       </div>
@@ -649,6 +781,7 @@ export function OutgoingPaymentCreateActiveFilter({
         <ComparisonField
           label="Doc Total"
           value={value.docTotal}
+          placeholder="Doc Total..."
           onChange={(next) => onChange({ ...value, docTotal: next })}
           showLabel={false}
         />
@@ -662,6 +795,7 @@ export function OutgoingPaymentCreateActiveFilter({
         <ComparisonField
           label="Balance Due"
           value={value.balanceDue}
+          placeholder="Balance Due..."
           onChange={(next) => onChange({ ...value, balanceDue: next })}
           showLabel={false}
         />
@@ -674,6 +808,7 @@ export function OutgoingPaymentCreateActiveFilter({
       <ComparisonField
         label="Total Payment"
         value={value.totalPayment}
+        placeholder="Total Payment..."
         onChange={(next) => onChange({ ...value, totalPayment: next })}
         showLabel={false}
       />

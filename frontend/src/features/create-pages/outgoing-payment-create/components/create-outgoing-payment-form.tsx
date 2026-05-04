@@ -14,6 +14,13 @@ import {
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import {
+  createOutgoingPaymentCreateFilterState,
+  matchesOutgoingPaymentCreateFilters,
+  type OutgoingPaymentCreateDocument,
+  type OutgoingPaymentCreateFilterKey,
+  type OutgoingPaymentCreateFilterState,
+} from '@/features/create-pages/outgoing-payment-create/components/outgoing-payment-create-filter.types'
+import {
   apCreditMemoKeys,
   apCreditMemoQueries,
 } from '@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries'
@@ -22,17 +29,12 @@ import {
   apInvoiceQueries,
 } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
 import { outgoingPaymentAPI } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
-import {
-  createOutgoingPaymentCreateFilterState,
-  OutgoingPaymentCreateActiveFilter,
-  matchesOutgoingPaymentCreateFilters,
-  OutgoingPaymentCreateFilters,
-  type OutgoingPaymentCreateDocument,
-  type OutgoingPaymentCreateFilterKey,
-  type OutgoingPaymentCreateFilterState,
-} from './outgoing-payment-create-filters'
 
 import { useOutgoingPaymentLookups } from '../hooks/use-outgoing-payment-lookups'
+import {
+  OutgoingPaymentCreateActiveFilter,
+  OutgoingPaymentCreateFilters,
+} from './outgoing-payment-create-filters'
 import { PaymentModal } from './payment-modal'
 
 type ActiveDatePicker = 'posting' | null
@@ -53,6 +55,7 @@ export function CreateOutgoingPaymentForm() {
   const [docDate, setDocDate] = useState(toISODate(today))
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null)
   const docDateContainerRef = useRef<HTMLDivElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -158,8 +161,7 @@ export function CreateOutgoingPaymentForm() {
 
   const isSelected = (docEntry: number, type: string) => !!selectedDocs[`${type}-${docEntry}`]
   const allSelected =
-    displayedDocuments.length > 0 &&
-    displayedDocuments.every((doc) => isSelected(doc.id, doc.type))
+    displayedDocuments.length > 0 && displayedDocuments.every((doc) => isSelected(doc.id, doc.type))
   const someSelected = displayedDocuments.some((doc) => isSelected(doc.id, doc.type))
 
   useEffect(() => {
@@ -345,6 +347,14 @@ export function CreateOutgoingPaymentForm() {
               lookups.selectVendor(v)
               setSelectedDocs({})
             }}
+            onSelectVendorByName={(v) => {
+              lookups.selectVendor(v)
+              setSelectedDocs({})
+              setTimeout(() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+              }, 150)
+            }}
+            nameInputRef={nameInputRef}
           />
 
           <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
@@ -407,7 +417,6 @@ export function CreateOutgoingPaymentForm() {
             <div className="flex-1 rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
               <div className="flex items-center justify-end gap-2 border-b border-zinc-100 bg-zinc-50 px-5 py-3 flex-wrap">
                 <OutgoingPaymentCreateActiveFilter
-                  documents={documentsWithPayments}
                   value={tableFilters}
                   onChange={setTableFilters}
                   activeFilterKey={activeFilterKey}
@@ -420,133 +429,167 @@ export function CreateOutgoingPaymentForm() {
                   }}
                   activeFilterKey={activeFilterKey}
                   onActiveFilterChange={setActiveFilterKey}
+                  onChange={setTableFilters}
                 />
               </div>
 
-              <div className="max-h-[400px] overflow-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-white sticky top-0">
-                    <tr>
-                      <th className="w-12 px-5 py-3 font-bold text-zinc-600">
-                        <label className="relative flex cursor-pointer items-center justify-center">
-                          <input
-                            ref={selectAllCheckboxRef}
-                            type="checkbox"
-                            aria-label="Select all documents"
-                            checked={allSelected}
-                            onChange={handleToggleAllDocs}
-                            className="absolute h-full w-full cursor-pointer opacity-0"
-                          />
-                          <div
-                            className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
-                              allSelected || (someSelected && !allSelected)
-                                ? 'border-blue-600 bg-blue-600 text-white'
-                                : 'border-zinc-300 bg-white text-transparent'
-                            }`}
-                          >
-                            {someSelected && !allSelected ? (
-                              <Minus className="h-3.5 w-3.5" />
-                            ) : (
-                              <Check className="h-3.5 w-3.5" />
-                            )}
-                          </div>
-                        </label>
-                      </th>
-                      <th className="px-5 py-3 font-bold text-zinc-600">Doc Type</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600">Doc Number</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600">Doc Date</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600 text-right">Doc Total</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600 text-right">Balance Due</th>
-                      <th className="px-5 py-3 font-bold text-zinc-600 text-right">
-                        Total Payment
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-50">
-                    {displayedDocuments.length === 0 &&
-                    !isLoadingInvoices &&
-                    !isLoadingCreditMemos ? (
+              <div className="max-h-[400px] min-h-[300px] overflow-auto">
+                {isLoadingInvoices || isLoadingCreditMemos ? (
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-white sticky top-0">
                       <tr>
-                        <td colSpan={7} className="px-5 py-8 text-center text-zinc-500">
-                          No open documents found.
-                        </td>
+                        <th className="w-12 px-5 py-3">
+                          <div className="h-3 w-5 rounded bg-zinc-200 animate-pulse" />
+                        </th>
+                        <th className="px-5 py-3">
+                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
+                        </th>
+                        <th className="px-5 py-3">
+                          <div className="h-3 w-20 rounded bg-zinc-200 animate-pulse" />
+                        </th>
+                        <th className="px-5 py-3">
+                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
+                        </th>
+                        <th className="px-5 py-3 text-right">
+                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse ml-auto" />
+                        </th>
+                        <th className="px-5 py-3 text-right">
+                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse ml-auto" />
+                        </th>
+                        <th className="px-5 py-3 text-right">
+                          <div className="h-3 w-20 rounded bg-zinc-200 animate-pulse ml-auto" />
+                        </th>
                       </tr>
-                    ) : (
-                      displayedDocuments.map((doc) => {
-                        const selected = isSelected(doc.id, doc.type)
-                        return (
-                          <tr
-                            key={`${doc.type}-${doc.id}`}
-                            onClick={() => handleToggleDoc(doc.id, doc.type, doc.balanceDue)}
-                            className={`cursor-pointer transition-colors ${
-                              selected ? 'bg-blue-50/50' : 'hover:bg-zinc-50'
-                            }`}
-                          >
-                            <td className="px-5 py-3">
-                              <div
-                                className={`flex h-5 w-5 items-center justify-center rounded border ${
-                                  selected
-                                    ? 'bg-blue-600 border-blue-600 text-white'
-                                    : 'border-zinc-300 bg-white text-transparent'
-                                }`}
-                              >
+                    </thead>
+                    <tbody className="divide-y divide-zinc-50">
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <tr key={`skel-row-${i}`}>
+                          <td className="px-5 py-3">
+                            <div className="h-4 w-5 rounded bg-zinc-100 animate-pulse" />
+                          </td>
+                          <td className="px-5 py-3">
+                            <div className="h-4 w-20 rounded bg-zinc-100 animate-pulse" />
+                          </td>
+                          <td className="px-5 py-3">
+                            <div className="h-4 w-14 rounded bg-zinc-100 animate-pulse" />
+                          </td>
+                          <td className="px-5 py-3">
+                            <div className="h-4 w-22 rounded bg-zinc-100 animate-pulse" />
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="h-4 w-18 rounded bg-zinc-100 animate-pulse ml-auto" />
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="h-4 w-18 rounded bg-zinc-100 animate-pulse ml-auto" />
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="h-4 w-24 rounded bg-zinc-100 animate-pulse ml-auto" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-white sticky top-0">
+                      <tr>
+                        <th className="w-12 px-5 py-3 font-bold text-zinc-600">
+                          <label className="relative flex cursor-pointer items-center justify-center">
+                            <input
+                              ref={selectAllCheckboxRef}
+                              type="checkbox"
+                              aria-label="Select all documents"
+                              checked={allSelected}
+                              onChange={handleToggleAllDocs}
+                              className="absolute h-full w-full cursor-pointer opacity-0"
+                            />
+                            <div
+                              className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+                                allSelected || (someSelected && !allSelected)
+                                  ? 'border-blue-600 bg-blue-600 text-white'
+                                  : 'border-zinc-300 bg-white text-transparent'
+                              }`}
+                            >
+                              {someSelected && !allSelected ? (
+                                <Minus className="h-3.5 w-3.5" />
+                              ) : (
                                 <Check className="h-3.5 w-3.5" />
-                              </div>
-                            </td>
-                            <td className="px-5 py-3 font-medium">
-                              <span
-                                className={`text-sm ${
-                                  doc.type === 'it_PurchaseInvoice'
-                                    ? 'text-blue-700'
-                                    : 'text-orange-700'
-                                }`}
-                              >
-                                {doc.label}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3 text-zinc-600">{doc.docNum}</td>
-                            <td className="px-5 py-3 text-zinc-600">{toDisplayDate(doc.date)}</td>
-                            <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                              FJD {doc.docTotal.toFixed(2)}
-                            </td>
-                            <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                              FJD {doc.balanceDue.toFixed(2)}
-                            </td>
-                            <td className="px-5 py-3 text-right">
-                              <input
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                max={doc.balanceDue}
-                                value={
-                                  selected
-                                    ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ?? 0).toFixed(2)
-                                    : doc.balanceDue.toFixed(2)
-                                }
-                                onChange={(e) => {
-                                  const val = Number(e.target.value)
-                                  if (val >= 0) {
-                                    setSelectedDocs((prev) => ({
-                                      ...prev,
-                                      [`${doc.type}-${doc.id}`]: { type: doc.type, amount: val },
-                                    }))
-                                  }
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                disabled={!selected}
-                                className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold ${
-                                  selected
-                                    ? 'border-blue-200 bg-white text-blue-600 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-                                    : 'border-transparent bg-transparent text-zinc-400'
-                                } outline-none transition-all`}
-                              />
-                            </td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
+                              )}
+                            </div>
+                          </label>
+                        </th>
+                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Type</th>
+                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Number</th>
+                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Date</th>
+                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">Doc Total</th>
+                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">
+                          Balance Due
+                        </th>
+                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">
+                          Total Payment
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-50">
+                      {displayedDocuments.length === 0 &&
+                      !isLoadingInvoices &&
+                      !isLoadingCreditMemos ? (
+                        <tr>
+                          <td colSpan={7} className="px-5 py-8 text-center text-zinc-500">
+                            No open documents found.
+                          </td>
+                        </tr>
+                      ) : (
+                        displayedDocuments.map((doc) => {
+                          const selected = isSelected(doc.id, doc.type)
+                          return (
+                            <tr
+                              key={`${doc.type}-${doc.id}`}
+                              onClick={() => handleToggleDoc(doc.id, doc.type, doc.balanceDue)}
+                              className={`cursor-pointer transition-colors ${
+                                selected ? 'bg-blue-50/50' : 'hover:bg-zinc-50'
+                              }`}
+                            >
+                              <td className="px-5 py-3">
+                                <div
+                                  className={`flex h-5 w-5 items-center justify-center rounded border ${
+                                    selected
+                                      ? 'bg-blue-600 border-blue-600 text-white'
+                                      : 'border-zinc-300 bg-white text-transparent'
+                                  }`}
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </div>
+                              </td>
+                              <td className="px-5 py-3 font-medium">
+                                <span
+                                  className={`text-sm ${
+                                    doc.type === 'it_PurchaseInvoice'
+                                      ? 'text-blue-700'
+                                      : 'text-orange-700'
+                                  }`}
+                                >
+                                  {doc.label}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-zinc-600">{doc.docNum}</td>
+                              <td className="px-5 py-3 text-zinc-600">{toDisplayDate(doc.date)}</td>
+                              <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                                FJD {doc.docTotal.toFixed(2)}
+                              </td>
+                              <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                                FJD {doc.balanceDue.toFixed(2)}
+                              </td>
+                              <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                                FJD {doc.totalPayment.toFixed(2)}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
 

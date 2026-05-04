@@ -1,4 +1,6 @@
 // VendorCustomerGrid: Bridges partner selection with the document header.
+import { type Ref } from 'react'
+
 import { FieldBlock } from '@/features/create-pages/create-shared/components/core/field-block'
 import { SectionCard } from '@/features/create-pages/create-shared/components/core/section-card'
 import { SuggestionList } from '@/features/create-pages/create-shared/components/core/suggestion-list'
@@ -27,6 +29,7 @@ type VendorCustomerGridProps = {
   onOpenNamePopup: () => void
   onOpenCodePopup: () => void
   onSelectVendor: (vendor: CreateLookupOption) => void
+  onSelectVendorByName?: ((vendor: CreateLookupOption) => void) | undefined
   vendorNameInvalid?: boolean | undefined
   vendorCodeInvalid?: boolean | undefined
   vendorNameErrorText?: string | undefined
@@ -36,6 +39,8 @@ type VendorCustomerGridProps = {
   nameEditableHighlight?: boolean
   codeEditableHighlight?: boolean
   uniformReadOnlyAppearance?: boolean
+  nameInputRef?: Ref<HTMLInputElement>
+  codeInputRef?: Ref<HTMLInputElement>
 }
 
 export function VendorCustomerGrid({
@@ -61,6 +66,7 @@ export function VendorCustomerGrid({
   onOpenNamePopup,
   onOpenCodePopup,
   onSelectVendor,
+  onSelectVendorByName,
   vendorNameInvalid,
   vendorCodeInvalid,
   vendorNameErrorText,
@@ -70,6 +76,8 @@ export function VendorCustomerGrid({
   nameEditableHighlight = false,
   codeEditableHighlight = false,
   uniformReadOnlyAppearance = false,
+  nameInputRef,
+  codeInputRef,
 }: VendorCustomerGridProps) {
   return (
     <SectionCard title={sectionTitle} className="lg:col-span-1">
@@ -80,6 +88,7 @@ export function VendorCustomerGrid({
       ) : null}
       <div className="relative">
         <FieldBlock
+          ref={nameInputRef}
           label={nameLabel}
           placeholder={namePlaceholder}
           value={nameInput}
@@ -97,7 +106,7 @@ export function VendorCustomerGrid({
         {nameFocused ? (
           <SuggestionList
             items={nameSuggestions}
-            onSelect={onSelectVendor}
+            onSelect={onSelectVendorByName ?? onSelectVendor}
             floating
             query={nameInput}
           />
@@ -106,6 +115,7 @@ export function VendorCustomerGrid({
 
       <div className="relative">
         <FieldBlock
+          ref={codeInputRef}
           label={codeLabel}
           placeholder={codePlaceholder}
           value={codeInput}

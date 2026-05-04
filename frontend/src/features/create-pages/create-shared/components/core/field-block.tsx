@@ -1,6 +1,6 @@
 // FieldBlock: A standardized layout container for form fields, labels, and validation.
 import { Lock, Pencil, Search } from 'lucide-react'
-import { useId, useRef } from 'react'
+import { forwardRef, useId, useRef } from 'react'
 
 type FieldBlockProps = {
   label: string
@@ -24,22 +24,25 @@ function Pulse({ className }: { className: string }) {
   return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />
 }
 
-export function FieldBlock({
-  label,
-  placeholder,
-  value,
-  onChange,
-  onFocus,
-  onBlur,
-  onOpenPopup,
-  loading,
-  invalid,
-  errorText,
-  disabled,
-  onDisabledClick,
-  editableHighlight,
-  uniformReadOnlyAppearance,
-}: FieldBlockProps) {
+export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function FieldBlock(
+  {
+    label,
+    placeholder,
+    value,
+    onChange,
+    onFocus,
+    onBlur,
+    onOpenPopup,
+    loading,
+    invalid,
+    errorText,
+    disabled,
+    onDisabledClick,
+    editableHighlight,
+    uniformReadOnlyAppearance,
+  },
+  ref,
+) {
   const lastDisabledFeedbackAtRef = useRef(0)
   const inputId = useId()
 
@@ -96,6 +99,7 @@ export function FieldBlock({
       <div className="relative">
         <input
           id={inputId}
+          ref={ref}
           autoComplete="off"
           className={`h-10 w-full rounded-xl border pl-3 pr-12 text-sm outline-none transition placeholder:text-zinc-400 ${
             invalid
@@ -152,4 +156,4 @@ export function FieldBlock({
       {invalid && errorText ? <p className="mt-1 text-xs text-red-600">{errorText}</p> : null}
     </div>
   )
-}
+})

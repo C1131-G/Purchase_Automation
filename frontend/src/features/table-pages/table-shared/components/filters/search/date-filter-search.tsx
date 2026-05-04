@@ -116,7 +116,6 @@ export function DateFilterSearch<TData>({
                 return false
               }
               if (!normalized.from || !normalized.to) {
-                activeColumn.setFilterValue(undefined)
                 return false
               }
               activeColumn.setFilterValue({
