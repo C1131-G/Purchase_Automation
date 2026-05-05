@@ -7,6 +7,7 @@ export const apInvoiceListItemSchema = z.object({
   CardCode: z.string(),
   CardName: z.string(),
   DocTotal: z.union([z.number(), z.string()]),
+  BalanceDue: z.union([z.number(), z.string()]).optional(),
   DocCurr: z.string(),
   DocStatus: z.enum(['Open', 'Partial', 'Closed']),
 })

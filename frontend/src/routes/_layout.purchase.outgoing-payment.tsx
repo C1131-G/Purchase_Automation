@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useRouterState } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 
 import { TableSkeleton } from '@/components/skeleton/Table-skeleton'
@@ -22,6 +22,14 @@ export const Route = createFileRoute('/_layout/purchase/outgoing-payment')({
 })
 
 function RouteComponent() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const isEditRoute =
+    pathname.startsWith('/purchase/outgoing-payment/') && pathname.endsWith('/edit')
+
+  if (isEditRoute) {
+    return <Outlet />
+  }
+
   return (
     <div className="h-full w-full">
       <Suspense fallback={<TableSkeleton />}>

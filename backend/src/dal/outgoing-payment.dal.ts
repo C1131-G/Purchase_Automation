@@ -15,7 +15,7 @@ import {
   UpdatePaymentInputSchema,
 } from "@/validation/schemas/inputs/payments.input";
 
-// Retrieves a list of outgoing payments filtered by vendor name, payment number, and date range.
+// Retrieves a list of outgoing payments from HANA.
 export const getPayments = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest<
     Record<string, never>,
@@ -24,22 +24,21 @@ export const getPayments = async (req: Request, res: Response, next: NextFunctio
     PaymentQuery
   >;
   try {
-    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     // Query is already validated/sanitized by validateQuery(PaymentQuerySchema) middleware.
     const filters = authReq.query;
 
-    logger.info({ msg: "Fetching Outgoing Payments", filters });
+    logger.info({ msg: "Fetching Outgoing Payments", dbName, filters });
 
-    const result = await outgoingPaymentService.getPayments(sessionId, filters);
+    const result = await outgoingPaymentService.getPayments(dbName, filters);
 
     logger.info({
       msg: "Fetched Outgoing Payments",
       count: result.data.length,
       total: result.total,
-      samplePaymentMode: result.data.length > 0 ? result.data[0]?.PaymentMode : null,
     });
 
-    res.status(200).json(result);
+    res.status(200).json({ success: true, ...result });
   } catch (error) {
     next(error);
   }

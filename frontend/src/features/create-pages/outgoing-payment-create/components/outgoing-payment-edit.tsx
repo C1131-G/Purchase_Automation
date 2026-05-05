@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 
+import { OutgoingPaymentEditSkeleton } from '@/components/skeleton/outgoing-payment-edit-skeleton'
 import { CreatePageWrapper } from '@/features/create-pages/create-shared/components/layout/create-page-wrapper'
 import { outgoingPaymentQueries } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.queries'
 
@@ -15,7 +16,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
   const paymentDetail = response?.data
 
   if (isLoading) {
-    return <div className="p-8 text-center text-zinc-500">Loading payment details...</div>
+    return <OutgoingPaymentEditSkeleton />
   }
 
   if (isError || !paymentDetail) {
@@ -33,12 +34,8 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
       <CreatePageWrapper
         rootLabel="Purchase"
         breadcrumbParent={{ label: 'Outgoing Payments', to: '/purchase/outgoing-payment' }}
-        pageTitle={`Outgoing Payment #${docNum}`}
+        pageTitle={`Outgoing Payment ${docNum}`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-zinc-900">Outgoing Payment #{docNum}</h1>
-        </div>
-
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
             <h2 className="mb-4 text-sm font-bold text-zinc-900">Vendor Info</h2>
@@ -177,7 +174,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                           </td>
                           <td className="px-5 py-3 text-zinc-600">{inv.DocNum || inv.DocEntry}</td>
                           <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                            ${Number(inv.SumApplied).toFixed(2)}
+                            FJD {Number(inv.SumApplied).toFixed(2)}
                           </td>
                         </tr>
                       ),
@@ -203,7 +200,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600">Cash Sum</span>
                 <span className="font-medium text-zinc-900">
-                  $
+                  FJD{' '}
                   {(
                     Number(paymentDetail.CashSum || 0) +
                     (paymentDetail.PaymentChecks?.filter(
@@ -218,7 +215,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600">Check Sum</span>
                 <span className="font-medium text-zinc-900">
-                  $
+                  FJD{' '}
                   {(
                     Number(paymentDetail.CheckSum || 0) ||
                     paymentDetail.PaymentChecks?.filter(
@@ -234,13 +231,13 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600">Transfer Sum</span>
                 <span className="font-medium text-zinc-900">
-                  ${Number(paymentDetail.TrsfrSum || 0).toFixed(2)}
+                  FJD {Number(paymentDetail.TrsfrSum || 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600">Card Sum</span>
                 <span className="font-medium text-zinc-900">
-                  $
+                  FJD{' '}
                   {(
                     paymentDetail.PaymentCreditCards?.reduce(
                       (acc: number, card: { CreditSum: number }) =>
@@ -253,7 +250,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               <div className="border-t border-zinc-100 pt-3 flex justify-between">
                 <span className="font-bold text-zinc-900">Doc Total</span>
                 <span className="text-lg font-black text-blue-600">
-                  $
+                  FJD{' '}
                   {(
                     Number(paymentDetail.DocTotal || 0) ||
                     Number(paymentDetail.CashSum || 0) +
@@ -290,7 +287,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                       >
                         <div className="font-bold text-zinc-800 mb-1 flex justify-between">
                           <span>Check Payment</span>
-                          <span>${Number(chk.CheckSum || 0).toFixed(2)}</span>
+                          <span>FJD {Number(chk.CheckSum || 0).toFixed(2)}</span>
                         </div>
                         <div className="text-zinc-600 flex justify-between">
                           <span>Bank: {chk.BankCode || 'N/A'}</span>
@@ -315,7 +312,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                       >
                         <div className="font-bold text-zinc-800 mb-1 flex justify-between">
                           <span>{paymentDetail.PaymentMode || 'Credit Card'}</span>
-                          <span>${Number(card.CreditSum || 0).toFixed(2)}</span>
+                          <span>FJD {Number(card.CreditSum || 0).toFixed(2)}</span>
                         </div>
                         <div className="text-zinc-600 flex justify-between">
                           <span>Card: {card.CardName || card.CreditCard || 'N/A'}</span>

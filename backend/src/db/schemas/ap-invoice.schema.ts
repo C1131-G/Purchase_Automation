@@ -14,6 +14,7 @@ export type APInvoice = {
   docTotal: number;
   docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
+  paidToDate: number; // Total amount paid against this invoice.
 };
 
 export const APInvoiceSchema = new EntitySchema<APInvoice>({
@@ -28,6 +29,7 @@ export const APInvoiceSchema = new EntitySchema<APInvoice>({
     docTotal: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "DocTotal" },
     docCurr: { type: "nvarchar" as HANAColumnType, length: 3, name: "DocCur" },
     docStatus: { type: "nvarchar" as HANAColumnType, length: 1, name: "DocStatus" },
+    paidToDate: { type: "decimal" as HANAColumnType, precision: 19, scale: 6, name: "PaidToDate" },
   },
   indices: [
     { name: "IDX_OPCH_DOCNUM", columns: ["docNum"] },

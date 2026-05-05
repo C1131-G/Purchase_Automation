@@ -97,6 +97,7 @@ export const BaseCreatePaymentInputSchema = z.object({
     .optional()
     .describe("Mode of payment (U_Mode_Pay). If omitted, derived from payment method fields."),
   CashSum: z.number().optional(),
+  CashAccount: z.string().optional(),
   TrsfrSum: z.number().optional(),
   TransferSum: z.number().optional(),
   // PaymentCreditCards: Array of credit card payments.

@@ -14,6 +14,7 @@ import {
   toISODate,
 } from '@/features/create-pages/create-shared/utils/create-order.utils'
 import {
+  type OutgoingPaymentCreateDocument,
   type OutgoingPaymentCreateFilterKey,
   type OutgoingPaymentCreateFilterState,
 } from '@/features/create-pages/outgoing-payment-create/components/outgoing-payment-create-filter.types'
@@ -317,10 +318,12 @@ const POPUP_SEARCH_DEBOUNCE_MS = 300
 function DocNumberField({
   value,
   onChange,
+  documents,
   showLabel = true,
 }: {
   value: string
   onChange: (next: string) => void
+  documents: OutgoingPaymentCreateDocument[]
   showLabel?: boolean
 }) {
   const [isFocused, setIsFocused] = useState(false)
@@ -339,23 +342,17 @@ function DocNumberField({
   const effectiveInputValue = liveValue || value
   const effectiveLiveValue = isFocused ? liveValue : effectiveInputValue
 
-  const { data: docNumSuggestionsData } = useQuery({
-    ...outgoingPaymentQueries.docNumSuggestions(undefined, DOC_NUM_SUGGESTION_LIMIT),
-    enabled: isFocused || isPopupOpen,
-  })
-
   const docNumSuggestions = useMemo<LookupItem[]>(() => {
-    const raw = docNumSuggestionsData?.data ?? []
     const seen = new Set<string>()
     const result: LookupItem[] = []
-    for (const item of raw) {
-      const code = item.code.trim()
+    for (const doc of documents) {
+      const code = String(doc.docNum).trim()
       if (!code || seen.has(code)) continue
       seen.add(code)
       result.push({ code, name: code })
     }
     return sortLookupByCodeDesc(result)
-  }, [docNumSuggestionsData])
+  }, [documents])
 
   const filteredSuggestions = useMemo(() => {
     const term = effectiveLiveValue.trim().toLowerCase()
@@ -691,10 +688,12 @@ export function OutgoingPaymentCreateActiveFilter({
   value,
   onChange,
   activeFilterKey,
+  documents,
 }: {
   value: OutgoingPaymentCreateFilterState
   onChange: (next: OutgoingPaymentCreateFilterState) => void
   activeFilterKey: OutgoingPaymentCreateFilterKey | null
+  documents: OutgoingPaymentCreateDocument[]
 }) {
   if (!activeFilterKey) return null
 
@@ -757,6 +756,7 @@ export function OutgoingPaymentCreateActiveFilter({
         <DocNumberField
           value={value.docNumber}
           onChange={(next) => onChange({ ...value, docNumber: next })}
+          documents={documents}
           showLabel={false}
         />
       </div>

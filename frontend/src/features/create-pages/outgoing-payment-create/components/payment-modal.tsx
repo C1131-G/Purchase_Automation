@@ -15,6 +15,7 @@ interface PaymentCreditCard {
   CreditCard: number
   CreditSum: number
   VoucherNum: string
+  CreditAcct?: string
   CreditCardNumber?: string
   CardValidUntil?: string
 }
@@ -264,6 +265,7 @@ export function PaymentModal({
         CreditCard: c.creditCardId,
         CreditSum: Number((c.amount + c.surchargeAmount).toFixed(2)),
         VoucherNum: c.reference,
+        CreditAcct: 'AJAXBS040',
         CreditCardNumber: '123',
         CardValidUntil: '2025-12-31',
       })),

@@ -1,5 +1,4 @@
-// Outgoing Payment Service: Manages payment transactions to vendors. Uses SAP Service Layer for list retrieval.
-
+// Outgoing Payment Service: Manages payment transactions to vendors. Uses HANA database for listings and SAP Service Layer for payment creation.
 import { In } from "typeorm";
 
 import { logger } from "@/core/logger/pino-logger";
@@ -8,99 +7,107 @@ import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PaymentFilters } from "@/dal/types/outgoing-payment.types";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
-import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
+import { type OutgoingPayment, OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
-// Fetches a paginated list of Outgoing Payments from SAP Service Layer.
-export const getPayments = async (sessionId: string, filters: PaymentFilters) => {
+// Fetches a paginated list of Outgoing Payments from HANA.
+export const getPayments = async (dbName: string, filters: PaymentFilters) => {
   try {
-    const page = Number(filters.page) || 1;
-    const limit = Number(filters.limit) || 10;
-    const skip = (page - 1) * limit;
+    const repo = await getTenantRepository(dbName, OutgoingPaymentSchema);
+    const queryBuilder = repo.createQueryBuilder("p");
 
-    // Build OData filter from URL params
-    const filterParts: string[] = [];
+    queryBuilder.where("1=1");
+
     if (filters.DocNum) {
-      filterParts.push(`contains(cast(DocNum,'string'),'${filters.DocNum}')`);
+      queryBuilder.andWhere("CAST(p.docNum AS NVARCHAR) LIKE :docNum", {
+        docNum: `%${filters.DocNum}%`,
+      });
     }
+
     if (filters.CardCode) {
-      filterParts.push(`contains(CardCode,'${filters.CardCode}')`);
+      queryBuilder.andWhere("p.cardCode LIKE :cardCode", {
+        cardCode: `%${filters.CardCode}%`,
+      });
     }
+
     if (filters.CardName) {
-      filterParts.push(`contains(tolower(CardName),tolower('${filters.CardName}'))`);
+      queryBuilder.andWhere("LOWER(p.cardName) LIKE LOWER(:cardName)", {
+        cardName: `%${filters.CardName}%`,
+      });
     }
+
     if (filters.DocDateStart) {
-      filterParts.push(`DocDate ge datetime'${filters.DocDateStart}T00:00:00'`);
+      queryBuilder.andWhere("p.docDate >= :startDate", {
+        startDate: filters.DocDateStart,
+      });
     }
+
     if (filters.DocDateEnd) {
-      filterParts.push(`DocDate le datetime'${filters.DocDateEnd}T23:59:59'`);
+      queryBuilder.andWhere("p.docDate <= :endDate", {
+        endDate: filters.DocDateEnd,
+      });
     }
+
+    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+      if (filters.DocTotalOperator === "eq") {
+        queryBuilder.andWhere("p.docTotal = :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "lt") {
+        queryBuilder.andWhere("p.docTotal < :docTotal", { docTotal: filters.DocTotal });
+      }
+      if (filters.DocTotalOperator === "gt") {
+        queryBuilder.andWhere("p.docTotal > :docTotal", { docTotal: filters.DocTotal });
+      }
+    }
+
     if (filters.PaymentMode) {
-      filterParts.push(`U_Mode_Pay eq '${filters.PaymentMode}'`);
+      queryBuilder.andWhere("p.paymentMode = :paymentMode", {
+        paymentMode: filters.PaymentMode,
+      });
     }
 
-    const filterQuery = filterParts.length > 0 ? `&$filter=${filterParts.join(" and ")}` : "";
-
-    // Build OData orderby
     const sortFieldMap: Record<string, string> = {
-      DocNum: "DocNum",
-      DocDate: "DocDate",
-      CardCode: "CardCode",
-      CardName: "CardName",
-      DocTotal: "TransferSum",
-      PaymentMode: "U_Mode_Pay",
+      DocNum: "p.docNum",
+      DocDate: "p.docDate",
+      CardCode: "p.cardCode",
+      CardName: "p.cardName",
+      DocTotal: "p.docTotal",
+      PaymentMode: "p.paymentMode",
     };
-    const sortBy = filters.sortBy ? sortFieldMap[filters.sortBy] : "DocDate";
-    const sortOrder = filters.sortOrder === "asc" ? "asc" : "desc";
-    const orderbyQuery = `&$orderby=${sortBy} ${sortOrder}`;
+    const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
+    const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
+    const sort = requestedSortField
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "p.docDate": "DESC", "p.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
-    // Query SL with pagination - only select known-good fields
-    // DocTotal may be called DocTotal or TransferSum in different SAP versions
-    const selectFields =
-      "DocEntry,DocNum,DocDate,CardCode,CardName,TransferSum,DocCurrency,U_Mode_Pay";
-    const odataUrl = `/VendorPayments?$top=${limit}&$skip=${skip}&$select=${selectFields}${filterQuery}${orderbyQuery}`;
-
-    const slResponse = (await serviceLayerClient.request(sessionId, "GET", odataUrl)) as {
-      value: Array<{
-        DocEntry: number;
-        DocNum: number;
-        DocDate: string;
-        CardCode: string;
-        CardName: string;
-        TransferSum: number;
-        DocCurrency: string;
-        U_Mode_Pay?: string;
-      }>;
-      "@odata.count"?: string;
-    };
-
-    const payments = slResponse.value || [];
-    const total = slResponse["@odata.count"]
-      ? parseInt(slResponse["@odata.count"], 10)
-      : payments.length;
+    const result = await PageService.getPagedData<OutgoingPayment>({
+      query: queryBuilder,
+      page: Number(filters.page) || 1,
+      limit: Number(filters.limit) || 10,
+      sort,
+      entityName: "OutgoingPayments",
+      dbName,
+    });
 
     return {
-      success: true,
-      data: payments.map((payment) => ({
-        id: payment.DocEntry,
-        DocNum: payment.DocNum,
-        DocDate: payment.DocDate,
-        CardCode: payment.CardCode,
-        CardName: payment.CardName,
-        DocTotal: payment.TransferSum || 0,
-        DocCurr: payment.DocCurrency,
-        PaymentMode: payment.U_Mode_Pay || undefined,
+      ...result,
+      data: result.data.map((data) => ({
+        id: data.docEntry,
+        DocNum: data.docNum,
+        DocDate: data.docDate,
+        CardCode: data.cardCode,
+        CardName: data.cardName,
+        DocTotal: data.docTotal,
+        DocCurr: data.docCurr,
+        PaymentMode: data.paymentMode || undefined,
       })),
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
     };
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.error({ msg: "Failed to fetch Outgoing Payments from SL", error: error.message });
+    logger.error({ msg: "Failed to fetch Outgoing Payments from HANA", error: error.message });
     throw error;
   }
 };
@@ -284,6 +291,53 @@ export const getPaymentByDocNum = async (sessionId: string, dbName: string, docN
 // Submits a new vendor payment to SAP. Handles allocation across multiple A/P invoices.
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
+    // Preflight: validate CardCode is present
+    if (!payload.CardCode || String(payload.CardCode).trim() === "") {
+      throw new Error("Vendor code (CardCode) is required.");
+    }
+
+    // Preflight: validate PaymentInvoices
+    const invoices = (payload.PaymentInvoices as Record<string, unknown>[]) || [];
+    if (invoices.length > 0) {
+      const validTypes = new Set(["it_PurchaseInvoice", "it_PurchCredItnote"]);
+      for (const inv of invoices) {
+        const docEntry = Number(inv.DocEntry);
+        if (!docEntry || docEntry <= 0) {
+          throw new Error(`Invalid document entry: DocEntry=${inv.DocEntry}`);
+        }
+        const sumApplied = Number(inv.SumApplied);
+        if (!sumApplied || sumApplied <= 0) {
+          throw new Error(
+            `Invalid payment amount for document DocEntry=${docEntry}: SumApplied=${inv.SumApplied}`,
+          );
+        }
+        const invType = String(inv.InvoiceType || "");
+        if (!validTypes.has(invType)) {
+          throw new Error(`Invalid invoice type for document DocEntry=${docEntry}: ${invType}`);
+        }
+      }
+    }
+
+    // Preflight: validate PaymentCreditCards
+    const cards = (payload.PaymentCreditCards as Record<string, unknown>[]) || [];
+    if (cards.length > 0) {
+      for (const card of cards) {
+        const creditCard = Number(card.CreditCard);
+        if (!creditCard || creditCard <= 0) {
+          throw new Error(`Invalid credit card ID: CreditCard=${card.CreditCard}`);
+        }
+        const creditSum = Number(card.CreditSum);
+        if (!creditSum || creditSum <= 0) {
+          throw new Error(
+            `Invalid credit card amount for card ID=${creditCard}: CreditSum=${card.CreditSum}`,
+          );
+        }
+        if (!card.VoucherNum || String(card.VoucherNum).trim() === "") {
+          throw new Error(`Voucher (reference) required for card ID=${creditCard}`);
+        }
+      }
+    }
+
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
@@ -351,9 +405,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     if (payload.CashSum && (payload.CashSum as number) > 0) {
       sapPayload.CashSum = payload.CashSum;
-      if (payload.CashAccount) {
-        sapPayload.CashAccount = payload.CashAccount;
-      }
+      sapPayload.CashAccount = (payload.CashAccount as string) || "AJAXBS040";
     }
 
     if (transferSum > 0) {
@@ -367,7 +419,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           CreditCard: card.CreditCard,
           CreditSum: card.CreditSum,
           VoucherNum: card.VoucherNum,
-          CreditAcct: card.CreditAcct,
+          CreditAcct: (card.CreditAcct as string) || "AJAXBS040",
           CreditCardNumber: "123",
           CardValidUntil: "2026-12-31",
         }),

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   flexRender,
@@ -73,6 +73,7 @@ const toOutgoingPaymentColumnFilters = (
 export function OutgoingPaymentTable() {
   const searchParams = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
+  const globalNavigate = useNavigate()
   const setSorting = useSetSortingAction()
   const setVisibility = useSetVisibilityAction()
   const setOrder = useSetOrderAction()
@@ -93,19 +94,19 @@ export function OutgoingPaymentTable() {
     () =>
       createOutgoingPaymentColumns({
         onDocNumHover: (docNum) => {
-          const normalized = String(docNum).trim()
-          if (!normalized) return
-          queryClient.prefetchQuery(outgoingPaymentQueries.detailByDocNum(normalized))
+          void queryClient.prefetchQuery(outgoingPaymentQueries.detailByDocNum(String(docNum)))
         },
         onDocNumDoubleClick: (docNum) => {
-          const normalized = String(docNum).trim()
-          if (!normalized) return
-          queryClient.prefetchQuery(outgoingPaymentQueries.detailByDocNum(normalized))
-          void navigate({
+          void globalNavigate({
             to: '/purchase/outgoing-payment/$docNum/edit',
-            params: { docNum: normalized },
-            viewTransition: true,
+            params: { docNum: String(docNum) },
           } as never)
+            .then(() => {
+              console.log('[OutgoingPaymentTable] Navigation resolved for', docNum)
+            })
+            .catch((err: unknown) => {
+              console.error('[OutgoingPaymentTable] Navigation failed:', err)
+            })
         },
       }),
     [navigate, queryClient],

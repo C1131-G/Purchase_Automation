@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import { goeyToast } from 'goey-toast'
 import { Calendar as CalendarIcon, Check, HandCoins, Minus } from 'lucide-react'
 import { type ComponentProps, type ReactElement, useEffect, useMemo, useRef, useState } from 'react'
@@ -28,6 +27,7 @@ import {
   apInvoiceKeys,
   apInvoiceQueries,
 } from '@/features/table-pages/ap-invoices/api/ap-invoice.queries'
+import { outgoingPaymentKeys } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.queries'
 import { outgoingPaymentAPI } from '@/features/table-pages/outgoing-payment/api/outgoing-payment.service'
 
 import { useOutgoingPaymentLookups } from '../hooks/use-outgoing-payment-lookups'
@@ -44,7 +44,6 @@ const CalendarWithBounds = Calendar as unknown as (
 ) => ReactElement
 
 export function CreateOutgoingPaymentForm() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const lookups = useOutgoingPaymentLookups()
   const [remarks, setRemarks] = useState('')
@@ -83,6 +82,7 @@ export function CreateOutgoingPaymentForm() {
 
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false)
   const [isPaymentOnAccount, setIsPaymentOnAccount] = useState(false)
+  const [editingAmounts, setEditingAmounts] = useState<Record<string, string>>({})
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null)
 
   const { data: invoicesData, isLoading: isLoadingInvoices } = useQuery({
@@ -105,11 +105,10 @@ export function CreateOutgoingPaymentForm() {
 
       queryClient.invalidateQueries({ queryKey: apInvoiceKeys.all })
       queryClient.invalidateQueries({ queryKey: apCreditMemoKeys.all })
+      queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.all })
 
-      navigate({
-        to: '/purchase/outgoing-payment',
-        search: { page: 1, limit: 10, sorting: [], columnVisibility: {} },
-      })
+      setSelectedDocs({})
+      setRemarks('')
     },
     onError: (error) => {
       goeyToast.error(error instanceof Error ? error.message : 'Failed to create payment')
@@ -122,7 +121,7 @@ export function CreateOutgoingPaymentForm() {
       docNum: inv.DocNum,
       date: inv.DocDate,
       docTotal: Number(inv.DocTotal) || 0,
-      balanceDue: Number(inv.DocTotal) || 0,
+      balanceDue: Number(inv.BalanceDue ?? inv.DocTotal) || 0,
       type: 'it_PurchaseInvoice' as const,
       label: 'A/P Invoice',
     })) || []
@@ -133,7 +132,7 @@ export function CreateOutgoingPaymentForm() {
       docNum: cm.DocNum,
       date: cm.DocDate,
       docTotal: Number(cm.DocTotal) || 0,
-      balanceDue: Number(cm.DocTotal) || 0,
+      balanceDue: Number(cm.BalanceDue ?? cm.DocTotal) || 0,
       type: 'it_PurchCredItnote' as const,
       label: 'A/P Credit Memo',
     })) || []
@@ -293,6 +292,15 @@ export function CreateOutgoingPaymentForm() {
       return
     }
 
+    const currentDocIds = new Set(allDocuments.map((d) => `${d.type}-${d.id}`))
+    const staleKeys = Object.keys(selectedDocs).filter((k) => !currentDocIds.has(k))
+    if (staleKeys.length > 0) {
+      goeyToast.error(
+        'Some selected documents no longer belong to the current vendor. Please re-select.',
+      )
+      return
+    }
+
     const surchargeTotal = paymentDetails.SurchargeTotal || 0
     goeyToast.info(`Captured surcharge: ${surchargeTotal}`)
 
@@ -420,6 +428,7 @@ export function CreateOutgoingPaymentForm() {
                   value={tableFilters}
                   onChange={setTableFilters}
                   activeFilterKey={activeFilterKey}
+                  documents={documentsWithPayments}
                 />
                 <OutgoingPaymentCreateFilters
                   value={tableFilters}
@@ -575,13 +584,80 @@ export function CreateOutgoingPaymentForm() {
                               <td className="px-5 py-3 text-zinc-600">{doc.docNum}</td>
                               <td className="px-5 py-3 text-zinc-600">{toDisplayDate(doc.date)}</td>
                               <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                                FJD {doc.docTotal.toFixed(2)}
+                                {doc.docTotal.toFixed(2)}
                               </td>
                               <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                                FJD {doc.balanceDue.toFixed(2)}
+                                {doc.balanceDue.toFixed(2)}
                               </td>
-                              <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                                FJD {doc.totalPayment.toFixed(2)}
+                              <td className="px-5 py-3 text-right">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={
+                                    selected &&
+                                    editingAmounts[`${doc.type}-${doc.id}`] !== undefined
+                                      ? editingAmounts[`${doc.type}-${doc.id}`]
+                                      : (selected
+                                          ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ??
+                                            doc.balanceDue)
+                                          : doc.balanceDue
+                                        ).toFixed(2)
+                                  }
+                                  onFocus={() => {
+                                    if (!selected) return
+                                    const key = `${doc.type}-${doc.id}`
+                                    const current = (
+                                      selectedDocs[key]?.amount ?? doc.balanceDue
+                                    ).toFixed(2)
+                                    setEditingAmounts((prev) => ({ ...prev, [key]: current }))
+                                  }}
+                                  onChange={(e) => {
+                                    if (!selected) return
+                                    const raw = e.target.value.replace(/[^0-9.]/g, '')
+                                    setEditingAmounts((prev) => ({
+                                      ...prev,
+                                      [`${doc.type}-${doc.id}`]: raw,
+                                    }))
+                                  }}
+                                  onBlur={() => {
+                                    if (!selected) return
+                                    const key = `${doc.type}-${doc.id}`
+                                    const raw = editingAmounts[key] || ''
+                                    const val = Number(raw)
+                                    if (isNaN(val) || val < 0.01) {
+                                      setSelectedDocs((prev) => ({
+                                        ...prev,
+                                        [key]: { type: doc.type, amount: doc.balanceDue },
+                                      }))
+                                    } else {
+                                      const fixed = Math.min(
+                                        Math.round(val * 100) / 100,
+                                        doc.balanceDue,
+                                      )
+                                      setSelectedDocs((prev) => ({
+                                        ...prev,
+                                        [key]: { type: doc.type, amount: fixed },
+                                      }))
+                                    }
+                                    setEditingAmounts((prev) => {
+                                      const next = { ...prev }
+                                      delete next[key]
+                                      return next
+                                    })
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      ;(e.target as HTMLInputElement).blur()
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  disabled={!selected}
+                                  className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold text-zinc-900 outline-none transition-all ${
+                                    selected
+                                      ? 'border-zinc-200 bg-white'
+                                      : 'border-transparent bg-transparent'
+                                  }`}
+                                />
                               </td>
                             </tr>
                           )
