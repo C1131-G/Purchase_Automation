@@ -15,6 +15,8 @@ type AuthState = {
   error: string | null
   /** logoutReason: Context for UI redirects/toasts. */
   logoutReason: 'user' | 'session_ended' | null
+  /** Flag to indicate logout is in progress (used to suppress 401 errors). */
+  isLoggingOut: boolean
 
   // Actions
   login: (userData: User) => void
@@ -33,7 +35,13 @@ export const useAuthStore = create<AuthState>((set) => {
   authChannel.onmessage = (event) => {
     if (event.data.type === 'LOGOUT') {
       requestQueryCacheClear()
-      set({ user: null, isAuthenticated: false, isLoading: false, logoutReason: 'session_ended' })
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        logoutReason: 'session_ended',
+        isLoggingOut: false,
+      })
     }
   }
 
@@ -43,6 +51,7 @@ export const useAuthStore = create<AuthState>((set) => {
     isLoading: false,
     error: null,
     logoutReason: null,
+    isLoggingOut: false,
 
     // login: Updates state with user data and marks as authenticated.
     login: (userData) =>
@@ -51,6 +60,7 @@ export const useAuthStore = create<AuthState>((set) => {
         isAuthenticated: true,
         error: null,
         logoutReason: null,
+        isLoggingOut: false,
       }),
 
     // logout: Resets authentication state and clears user data via API.
@@ -59,16 +69,19 @@ export const useAuthStore = create<AuthState>((set) => {
       const { isLoading } = useAuthStore.getState()
       if (isLoading) return
 
-      // 1. Notify other tabs first
+      // 1. Mark logout in progress to suppress 401 errors
+      set({ isLoggingOut: true })
+
+      // 2. Notify other tabs first
       authChannel.postMessage({ type: 'LOGOUT' })
 
-      // 2. Clear local state
+      // 3. Clear local state
       set({
         isLoading: true,
         logoutReason: 'user',
       })
 
-      // 3. Attempt to notify the backend (best-effort)
+      // 4. Attempt to notify the backend (best-effort)
       try {
         await authAPI.logout()
       } catch (error) {
@@ -79,6 +92,7 @@ export const useAuthStore = create<AuthState>((set) => {
         isAuthenticated: false,
         isLoading: false,
         logoutReason: 'user',
+        isLoggingOut: false,
       })
     },
 
@@ -91,6 +105,7 @@ export const useAuthStore = create<AuthState>((set) => {
         isAuthenticated: false,
         isLoading: false,
         logoutReason: 'session_ended',
+        isLoggingOut: false,
       })
     },
 

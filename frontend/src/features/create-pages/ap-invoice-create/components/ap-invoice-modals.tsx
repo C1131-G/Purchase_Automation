@@ -49,8 +49,6 @@ export function APInvoiceModals({ state }: APInvoiceModalsProps) {
         onReachEnd={state.loadMoreProducts}
         selectedProductCode={state.activeRowProductCode}
         selectedProductRowId={state.activeProductRowId}
-        existingProductCodes={state.existingProductCodes}
-        onBlockDuplicate={state.onBlockDuplicate}
       />
     </>
   )

@@ -61,6 +61,16 @@ export async function apiClient<T>(path: string, options: RequestInit = {}): Pro
   if (response.status === 401) {
     const isLoginRequest = path.toLowerCase().includes('login')
     const isAtLoginUI = window.location.pathname.includes('/login')
+    const isAuthMeRequest = path.toLowerCase().includes('/auth/me')
+
+    // Helper to check if user is in logout flow
+    let isLoggingOut = false
+    try {
+      const authStore = await import('@/store/auth/auth.store')
+      isLoggingOut = authStore.useAuthStore.getState().isLoggingOut
+    } catch {
+      // Store not available yet, continue with default handling
+    }
 
     if (isLoginRequest) {
       throw new ApiError('Invalid credentials. Please verify your details.', {
@@ -69,17 +79,20 @@ export async function apiClient<T>(path: string, options: RequestInit = {}): Pro
       })
     }
 
-    if (isAtLoginUI) {
-      throw new ApiError(
-        (await readResponseErrorMessage(response)) || 'Session expired. Please login again.',
-        {
+    // On login page with auth/me request - suppress error, user needs to login
+    // Also suppress during intentional logout to prevent flash of error
+    if (isAtLoginUI || isLoggingOut) {
+      if (isAuthMeRequest) {
+        // Silent auth failure on login page - user needs to login, not an error condition
+        throw new ApiError('Session expired. Please login again.', {
           status: 401,
-          code: 'UNAUTHORIZED',
-        },
-      )
+          code: 'SESSION_EXPIRED',
+        })
+      }
+      // For other 401 on login page during logout, suppress silently
+      throw new ApiError('', { status: 401, code: 'SILENT_LOGOUT' })
     }
 
-    const isAuthMeRequest = path.toLowerCase().includes('/auth/me')
     if (isAuthMeRequest) {
       import('@/store/auth/auth.store').then((authModule) => {
         authModule.useAuthStore.getState().forceLogout()

@@ -1034,26 +1034,6 @@ export function useGRPOCreate({
   }
 
   const applyProductToRow = (product: ProductLookupItem) => {
-    // Compute existing product codes for duplicate check
-    const existingCodes = new Set(rows.map((r) => r.productCode))
-
-    if (activeProductRowId) {
-      // Editing an existing row — check if the product exists in a DIFFERENT row
-      const duplicateRow = rows.find(
-        (r) => r.id !== activeProductRowId && r.productCode === product.code,
-      )
-      if (duplicateRow) {
-        goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
-        return
-      }
-    } else {
-      // Adding a new row — check if the product already exists
-      if (existingCodes.has(product.code)) {
-        goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
-        return
-      }
-    }
-
     setLines((prev) => {
       if (activeProductRowId) {
         return prev.map((row) =>
@@ -1112,28 +1092,8 @@ export function useGRPOCreate({
   }
 
   const applyProductsToRows = (products: ProductLookupItem[]) => {
-    // Build set of existing product codes
-    const existingCodes = new Set(rows.map((r) => r.productCode))
-
-    // Filter out duplicates
-    const freshProducts = products.filter((p) => {
-      if (existingCodes.has(p.code)) {
-        goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
-        return false
-      }
-      existingCodes.add(p.code)
-      return true
-    })
-
-    if (freshProducts.length === 0) {
-      setProductPopupOpen(false)
-      setProductSearch('')
-      setActiveProductRowId(null)
-      return
-    }
-
     setLines((prev) => {
-      const nextRows = freshProducts.map((product) => ({
+      const nextRows = products.map((product) => ({
         id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         productCode: product.code,
         productName: product.name,
@@ -1585,10 +1545,6 @@ export function useGRPOCreate({
     loadMoreProducts,
     applyProductToRow,
     applyProductsToRows,
-    existingProductCodes: useMemo(() => new Set(rows.map((r) => r.productCode)), [rows]),
-    onBlockDuplicate: () => {
-      goeyToast.error('Duplicate product already exists', { id: 'grpo-duplicate-product' })
-    },
     prefetchProducts: () => (isEditMode ? null : prefetchProducts()),
     // Derive the product code of the currently active row for seeding modal selection
     activeRowProductCode: (() => {

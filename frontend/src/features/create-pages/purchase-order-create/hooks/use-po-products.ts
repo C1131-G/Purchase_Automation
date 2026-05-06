@@ -29,8 +29,6 @@ interface UsePoProductsProps {
   stockPreviewProductCode: string | undefined
   vendorSelected: boolean
   isEditMode?: boolean
-  /** Callback to show a toast when a duplicate product is selected. */
-  onDuplicateProductToast?: () => void
 }
 
 export function usePoProducts({
@@ -43,7 +41,6 @@ export function usePoProducts({
   stockPreviewProductCode,
   vendorSelected,
   isEditMode = false,
-  onDuplicateProductToast,
 }: UsePoProductsProps) {
   const queryClient = useQueryClient()
   const [productRows, setProductRows] = useState<ProductRow[]>([])
@@ -196,15 +193,6 @@ export function usePoProducts({
     const resolvedWarehouseCode = isEditMode ? '' : effectiveWarehouseCode || ''
 
     if (activeProductRowId) {
-      // Editing an existing row — check if the product exists in a DIFFERENT row
-      const duplicateRow = productRows.find(
-        (r) => r.id !== activeProductRowId && r.productCode === product.code,
-      )
-      if (duplicateRow) {
-        onDuplicateProductToast?.()
-        return
-      }
-
       updateProductRow(activeProductRowId, {
         productCode: product.code,
         productName: product.name,
@@ -221,13 +209,6 @@ export function usePoProducts({
         warehouseCode: resolvedWarehouseCode,
       })
     } else {
-      // Adding a new row — check if the product already exists anywhere
-      const duplicateRow = productRows.find((r) => r.productCode === product.code)
-      if (duplicateRow) {
-        onDuplicateProductToast?.()
-        return
-      }
-
       setProductRows((prev) => [
         ...prev,
         {
@@ -258,26 +239,7 @@ export function usePoProducts({
     products: ProductLookupItem[],
     callbacks: { closeProductPopup: () => void },
   ) => {
-    // Build set of existing product codes
-    const existingCodes = new Set(productRows.map((r) => r.productCode))
-
-    // Filter out duplicates
-    const freshProducts = products.filter((p) => {
-      if (existingCodes.has(p.code)) {
-        onDuplicateProductToast?.()
-        return false
-      }
-      existingCodes.add(p.code)
-      return true
-    })
-
-    if (freshProducts.length === 0) {
-      callbacks.closeProductPopup()
-      setActiveProductRowId(null)
-      return
-    }
-
-    const nextRows: ProductRow[] = freshProducts.map((product) => {
+    const nextRows: ProductRow[] = products.map((product) => {
       // In edit mode, leave warehouse empty so user can select per product.
       // In create mode, use effectiveWarehouseCode from header.
       const resolvedWarehouseCode = isEditMode ? '' : effectiveWarehouseCode || ''
@@ -320,12 +282,6 @@ export function usePoProducts({
     clearProductRowDraft,
     applyProductToRow,
     applyProductsToRows,
-    /** Computed set of product codes already in the document (for duplicate blocking). */
-    existingProductCodes: useMemo(
-      () => new Set(productRows.map((r) => r.productCode)),
-      [productRows],
-    ),
-
     productsQuery,
     products,
     productWarehouseStocksQuery,

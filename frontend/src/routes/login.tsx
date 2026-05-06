@@ -13,12 +13,17 @@ const USER_CHECK_SKIP_MS = 15000
 const USER_CHECK_ATTEMPT_SKIP_MS = 5 * 60 * 1000
 
 /**
- * LoginRoute: Authenticated entryway with flex-centered layout and minimalist slate background.
- * Validates existing sessions on mount before showing credentials form.
+ * LoginRoute: Public entry point for authentication.
+ * Lightweight check - only redirects if user is already authenticated in local state.
+ * No forced session probe in loader to avoid 401 on public page.
  */
 export const Route = createFileRoute('/login')({
-  beforeLoad: async ({ context }) => {
-    const { isAuthenticated } = useAuthStore.getState()
+  beforeLoad: async () => {
+    // Only redirect if user is already authenticated in local state
+    // This avoids triggering a 401 on the public login page
+    const { isAuthenticated, logoutReason } = useAuthStore.getState()
+
+    // If authenticated, redirect to app
     if (isAuthenticated) {
       throw redirect({
         to: '/purchase/orders',
@@ -26,15 +31,10 @@ export const Route = createFileRoute('/login')({
       })
     }
 
-    try {
-      const user = await context.queryClient.ensureQueryData(authQueries.user())
-      useAuthStore.getState().login(user)
-      throw redirect({
-        to: '/purchase/orders',
-        search: { page: 1, limit: 10 },
-      })
-    } catch {
-      // No active session; keep login visible.
+    // If logout was intentional (user-triggered), clear the reason after redirect
+    // The logoutReason will be handled by the login component via URL params
+    if (logoutReason) {
+      useAuthStore.getState().clearError()
     }
   },
   component: LoginComponent,
@@ -44,8 +44,6 @@ function LoginComponent() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const SESSION_WARNING_TOAST_ID = 'auth-session-ended'
-  const USER_CHECK_FAIL_AT_KEY = 'auth:me:check:last-fail-at'
-  const USER_CHECK_ATTEMPTED_AT_KEY = 'auth:me:check:last-attempt-at'
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -66,9 +64,9 @@ function LoginComponent() {
     const reason = params.get('reason')
     const isSessionEndedReason = reason === 'session_ended'
     const isExplicitLogoutReason = reason === 'logged_out'
-    const lastFailRaw = window.sessionStorage.getItem(USER_CHECK_FAIL_AT_KEY)
+    const lastFailRaw = window.sessionStorage.getItem('auth:me:check:last-fail-at')
     const lastFailAt = lastFailRaw ? Number(lastFailRaw) : 0
-    const lastAttemptRaw = window.sessionStorage.getItem(USER_CHECK_ATTEMPTED_AT_KEY)
+    const lastAttemptRaw = window.sessionStorage.getItem('auth:me:check:last-attempt-at')
     const lastAttemptAt = lastAttemptRaw ? Number(lastAttemptRaw) : 0
     const shouldSkipByRecentFailure =
       Number.isFinite(lastFailAt) && Date.now() - lastFailAt < USER_CHECK_SKIP_MS
@@ -104,12 +102,12 @@ function LoginComponent() {
     }
 
     const probeSession = () => {
-      window.sessionStorage.setItem(USER_CHECK_ATTEMPTED_AT_KEY, String(Date.now()))
+      window.sessionStorage.setItem('auth:me:check:last-attempt-at', String(Date.now()))
       void queryClient
         .fetchQuery(authQueries.user())
         .then((user) => {
           if (!isMounted) return
-          window.sessionStorage.removeItem(USER_CHECK_FAIL_AT_KEY)
+          window.sessionStorage.removeItem('auth:me:check:last-fail-at')
           useAuthStore.getState().login(user)
           navigate({
             to: '/purchase/orders',
@@ -121,12 +119,10 @@ function LoginComponent() {
           })
         })
         .catch(() => {
-          window.sessionStorage.setItem(USER_CHECK_FAIL_AT_KEY, String(Date.now()))
-          // No active session; keep login visible.
+          window.sessionStorage.setItem('auth:me:check:last-fail-at', String(Date.now()))
         })
     }
 
-    // Keep first paint uninterrupted and run session probe in idle time.
     const runProbeSession = () => void probeSession()
     if ('requestIdleCallback' in window) {
       idleCallbackId = window.requestIdleCallback(runProbeSession, { timeout: 1200 })

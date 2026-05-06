@@ -816,27 +816,6 @@ export function useAPCreditMemoCreate({
   }
 
   const applyProductToRow = (product: ProductLookupItem) => {
-    const existingCodes = new Set(rows.map((r) => r.productCode))
-
-    if (activeProductRowId) {
-      const duplicateRow = rows.find(
-        (r) => r.id !== activeProductRowId && r.productCode === product.code,
-      )
-      if (duplicateRow) {
-        goeyToast.error('Duplicate product already exists', {
-          id: 'ap-credit-memo-duplicate-product',
-        })
-        return
-      }
-    } else {
-      if (existingCodes.has(product.code)) {
-        goeyToast.error('Duplicate product already exists', {
-          id: 'ap-credit-memo-duplicate-product',
-        })
-        return
-      }
-    }
-
     setLines((prev) => {
       if (activeProductRowId) {
         return prev.map((row) =>
@@ -882,28 +861,9 @@ export function useAPCreditMemoCreate({
   }
 
   const applyProductsToRows = (products: ProductLookupItem[]) => {
-    const existingCodes = new Set(rows.map((r) => r.productCode))
-
-    const freshProducts = products.filter((p) => {
-      if (existingCodes.has(p.code)) {
-        goeyToast.error('Duplicate product already exists', {
-          id: 'ap-credit-memo-duplicate-product',
-        })
-        return false
-      }
-      existingCodes.add(p.code)
-      return true
-    })
-
-    if (freshProducts.length === 0) {
-      setProductPopupOpen(false)
-      setProductSearch('')
-      return
-    }
-
     setLines((prev) => [
       ...prev,
-      ...freshProducts.map((product) => ({
+      ...products.map((product) => ({
         id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         productCode: product.code,
         productName: product.name,
@@ -1198,12 +1158,6 @@ export function useAPCreditMemoCreate({
     loadMoreProducts: () => setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT)),
     applyProductToRow,
     applyProductsToRows,
-    existingProductCodes: useMemo(() => new Set(rows.map((r) => r.productCode)), [rows]),
-    onBlockDuplicate: () => {
-      goeyToast.error('Duplicate product already exists', {
-        id: 'ap-credit-memo-duplicate-product',
-      })
-    },
     prefetchProducts: () => {},
     activeRowProductCode: (() => {
       if (!activeProductRowId) return null

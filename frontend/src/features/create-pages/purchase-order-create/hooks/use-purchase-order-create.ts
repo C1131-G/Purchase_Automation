@@ -125,9 +125,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
     isEditMode,
-    onDuplicateProductToast: () => {
-      goeyToast.error('Duplicate product already exists', { id: 'po-duplicate-product' })
-    },
   })
 
   useEffect(() => {
@@ -731,10 +728,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     ...modals,
     ...productsHook,
     activeRowProductCode,
-    existingProductCodes: productsHook.existingProductCodes,
-    onBlockDuplicate: () => {
-      goeyToast.error('Duplicate product already exists', { id: 'po-duplicate-product' })
-    },
     openProductPopup: handleOpenProductPopup,
     openPopup: openPopupWithContext,
     applyProductToRow: (product: ProductLookupItem) =>

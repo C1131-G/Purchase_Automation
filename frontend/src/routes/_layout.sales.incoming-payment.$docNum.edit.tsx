@@ -1,16 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { CreatePageRouteSkeleton } from '@/components/skeleton/create-page-route-skeleton'
 import { IncomingPaymentEdit } from '@/features/create-pages/incoming-payment-create/components/incoming-payment-edit'
+import { incomingPaymentQueries } from '@/features/table-pages/incoming-payment/api/incoming-payment.queries'
 import { requireActiveSession } from '@/routes/_require-active-session'
 
 export const Route = createFileRoute('/_layout/sales/incoming-payment/$docNum/edit')({
   beforeLoad: async () => {
-    console.log('[_layout.sales.incoming-payment.$docNum.edit] beforeLoad triggered')
     await requireActiveSession()
-    console.log(
-      '[_layout.sales.incoming-payment.$docNum.edit] beforeLoad completed (session active)',
-    )
   },
+  loader: ({ context, params }) =>
+    context.queryClient.ensureQueryData(incomingPaymentQueries.detail(params.docNum)),
+  pendingComponent: CreatePageRouteSkeleton,
   component: IncomingPaymentEditPage,
 })
 

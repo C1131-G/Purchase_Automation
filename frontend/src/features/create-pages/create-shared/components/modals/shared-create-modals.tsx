@@ -65,10 +65,6 @@ interface SharedCreateModalsProps {
     activeRowProductCode?: string | null
     /** The row ID being edited — used as key for persisted selection state. */
     activeProductRowId?: string | null
-    /** Product codes already in the document (for duplicate blocking). */
-    existingProductCodes?: Set<string>
-    /** Called when the user clicks a disabled (duplicate) product row. */
-    onBlockDuplicate?: (() => void) | undefined
 
     // Stocks
     stockPreviewProduct: { code: string; name: string } | null
@@ -181,8 +177,6 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
           onSelectMultiple={state.applyProductsToRows}
           selectedProductCode={state.activeRowProductCode}
           selectedProductRowId={state.activeProductRowId}
-          existingProductCodes={state.existingProductCodes}
-          onBlockDuplicate={state.onBlockDuplicate}
         />
       ) : null}
 

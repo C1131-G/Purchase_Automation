@@ -32,10 +32,6 @@ type ProductPopupModalProps = {
   selectedProductCode?: string | null | undefined
   /** The row ID being edited — used as key for persisted selection state. */
   selectedProductRowId?: string | null | undefined
-  /** Product codes already in the document (for duplicate blocking). */
-  existingProductCodes?: Set<string> | undefined
-  /** Called when the user clicks a disabled (duplicate) product row. */
-  onBlockDuplicate?: (() => void) | undefined
 }
 
 const popupScrollState = new Map<string, number>()
@@ -57,30 +53,20 @@ const SKELETON_ROW_KEYS = ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5', 'sl
 const ProductPopupRow = memo(function ProductPopupRow({
   product,
   selected,
-  disabled = false,
   onToggle,
-  onBlockDuplicate,
 }: {
   product: ProductLookupItem
   selected: boolean
-  disabled?: boolean
   onToggle: () => void
-  onBlockDuplicate?: (() => void) | undefined
 }) {
   return (
     <tr
       key={`${product.code}-${product.name}`}
-      className={`border-t border-zinc-100 transition-all duration-150 ${
-        disabled
-          ? 'cursor-not-allowed opacity-40'
-          : `cursor-pointer ${selected ? 'bg-blue-50/60 hover:bg-blue-100/70' : 'hover:bg-blue-50/40'}`
+      className={`border-t border-zinc-100 transition-all duration-150 cursor-pointer ${
+        selected ? 'bg-blue-50/60 hover:bg-blue-100/70' : 'hover:bg-blue-50/40'
       }`}
       onClick={(e) => {
         e.preventDefault()
-        if (disabled) {
-          onBlockDuplicate?.()
-          return
-        }
         onToggle()
       }}
     >
@@ -119,8 +105,6 @@ export function ProductPopupModal({
   onSelectMultiple,
   selectedProductCode,
   selectedProductRowId,
-  existingProductCodes = EMPTY_SET,
-  onBlockDuplicate,
 }: ProductPopupModalProps) {
   const safeResults = useMemo(() => (Array.isArray(results) ? results : []), [results])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -209,27 +193,15 @@ export function ProductPopupModal({
 
   const renderedRows = useMemo(
     () =>
-      safeResults.map((product) => {
-        const isDuplicate = !isRowLevel && existingProductCodes.has(product.code)
-        return (
-          <ProductPopupRow
-            key={`${product.code}-${product.name}`}
-            product={product}
-            selected={selectedCodes.has(product.code)}
-            disabled={isDuplicate}
-            onToggle={() => handleProductSelect(product)}
-            onBlockDuplicate={onBlockDuplicate}
-          />
-        )
-      }),
-    [
-      safeResults,
-      selectedCodes,
-      handleProductSelect,
-      isRowLevel,
-      existingProductCodes,
-      onBlockDuplicate,
-    ],
+      safeResults.map((product) => (
+        <ProductPopupRow
+          key={`${product.code}-${product.name}`}
+          product={product}
+          selected={selectedCodes.has(product.code)}
+          onToggle={() => handleProductSelect(product)}
+        />
+      )),
+    [safeResults, selectedCodes, handleProductSelect],
   )
 
   return (

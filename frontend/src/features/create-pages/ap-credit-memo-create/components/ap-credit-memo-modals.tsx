@@ -49,8 +49,6 @@ export function APCreditMemoModals({ state }: APCreditMemoModalsProps) {
         onReachEnd={state.loadMoreProducts}
         selectedProductCode={state.activeRowProductCode}
         selectedProductRowId={state.activeProductRowId}
-        existingProductCodes={state.existingProductCodes}
-        onBlockDuplicate={state.onBlockDuplicate}
       />
     </>
   )
