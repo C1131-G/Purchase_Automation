@@ -109,7 +109,7 @@ export function OutgoingPaymentTable() {
             })
         },
       }),
-    [navigate, queryClient],
+    [globalNavigate, queryClient],
   )
   const columnIds = useMemo(
     () =>
