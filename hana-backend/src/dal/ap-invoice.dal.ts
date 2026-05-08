@@ -1,0 +1,162 @@
+// A/P Invoice DAL: Handles HTTP requests for A/P Invoice operations.
+
+import type { NextFunction, Request, Response } from "express";
+
+import { logger } from "@/core/logger/pino-logger";
+import type { InvoiceQuery } from "@/dal/types/ap-invoice.types";
+import type { AuthenticatedRequest } from "@/dal/types/express.types";
+import { apInvoiceService } from "@/services/ap-invoice.service";
+import {
+  CreateInvoiceInputSchema,
+  UpdateInvoiceInputSchema,
+} from "@/validation/schemas/inputs/invoice.input";
+import type { InvoiceDocNumLookupQuery } from "@/validation/schemas/inputs/invoice.input";
+
+// Fetches all A/P Invoices based on user-provided filters and pagination settings.
+export const getInvoices = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    InvoiceQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    // Query is already validated/sanitized by validateQuery(InvoiceQuerySchema) middleware.
+    const filters = authReq.query;
+
+    logger.info({ dbName, filters, msg: "Fetching A/P Invoices" });
+
+    const result = await apInvoiceService.getInvoices(dbName, filters);
+
+    logger.info({
+      count: result.data.length,
+      msg: "Fetched A/P Invoices",
+      total: result.total,
+    });
+
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getInvoiceDocNums = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    InvoiceDocNumLookupQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search, limit } = authReq.query;
+    const data = await apInvoiceService.getInvoiceDocNums(dbName, search, limit);
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retrieves detailed information for a specific A/P Invoice from the Service Layer.
+export const getInvoice = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
+    const { id } = authReq.params;
+
+    logger.info({ dbName, id, msg: "Fetching A/P Invoice detail" });
+
+    const data = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+
+    if (!data) {
+      return res.status(404).json({ message: "A/P Invoice not found", success: false });
+    }
+
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Creates a new A/P Invoice in SAP B1.
+export const createInvoice = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
+    const payload = req.body;
+
+    // Validate the payload against the creation schema.
+    const validatedPayload = CreateInvoiceInputSchema.parse(payload);
+
+    logger.info({
+      msg: "Creating AP Invoice",
+      vendor: validatedPayload.CardCode,
+    });
+
+    const result = await apInvoiceService.createInvoice(sessionId, validatedPayload, dbName);
+
+    logger.info({ docNum: result.DocNum, msg: "A/P Invoice Created" });
+
+    res.status(201).json({ data: result, message: result.message, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Updates an existing A/P Invoice (typically comments). Handled via Service Layer PATCH.
+export const updateInvoice = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
+    const { id } = authReq.params;
+    const payload = req.body;
+
+    // Zod Body Validation ensures only allowed fields are passed to SAP.
+    const validatedPayload = UpdateInvoiceInputSchema.parse(payload);
+
+    logger.info({ dbName, id: id as string, msg: "Updating A/P Invoice" });
+
+    const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+    // Note: getInvoiceByDocNum returns the full detail including internal DocEntry (detail.id)
+    const updateResult = await apInvoiceService.updateInvoice(
+      sessionId,
+      String(detail.id),
+      validatedPayload,
+    );
+
+    res.status(200).json({ message: updateResult.message, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Flags an A/P Invoice as cancelled in SAP B1.
+export const cancelInvoice = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
+    const { id } = authReq.params;
+
+    logger.info({ dbName, id, msg: "Cancelling A/P Invoice" });
+
+    const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+    const result = await apInvoiceService.cancelInvoice(sessionId, String(detail.id));
+    res.status(200).json({ message: result.message, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const apInvoiceDal = {
+  cancelInvoice,
+  createInvoice,
+  getInvoice,
+  getInvoiceDocNums,
+  getInvoices,
+  updateInvoice,
+};

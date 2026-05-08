@@ -1,0 +1,4 @@
+allowBuilds:
+  "@sap/hana-client": true
+  "@scarf/scarf": true
+  esbuild: true

@@ -1,25 +1,20 @@
-#!/bin/sh
-echo "🔍 Running pre-commit checks..."
+#!/usr/bin/env sh
+. "$(dirname "$0")/h"
 
-cd backend
-echo "📦 Formatting backend..."
-pnpm format
+set -e
 
-echo "📦 Linting backend..."
-pnpm lint
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -z "$STAGED_FILES" ]; then
+  echo "No staged files to format"
+  exit 0
+fi
 
-echo "📦 Building backend..."
-pnpm build
-cd ..
+pnpm fix
 
-cd frontend
-echo "📦 Formatting frontend..."
-pnpm format
+echo "$STAGED_FILES" | while IFS= read -r file; do
+  if [ -f "$file" ]; then
+    git add "$file"
+  fi
+done
 
-echo "📦 Linting frontend..."
-pnpm lint
-
-echo "📦 Building frontend..."
-pnpm build
-
-echo "✅ All checks passed!"
+echo "✨ Files formatted by oxlint and oxfmt"

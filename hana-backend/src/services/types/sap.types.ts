@@ -1,0 +1,83 @@
+// Shared SAP Service Layer Types
+
+export interface SAPDocumentLine {
+  ItemCode: string;
+  ItemDescription?: string;
+  Quantity: number;
+  UoMCode?: string | number;
+  UoMEntry?: number;
+  Price?: number;
+  UnitPrice?: number;
+  TaxCode?: string;
+  VatPrcnt?: number;
+  VatGroup?: string;
+  /** The actual tax percentage SAP applied to this line (e.g. 15 when we sent "IN-12.5" but SAP resolved to "FJIN-15"). */
+  TaxPercentagePerRow?: number;
+  WarehouseCode?: string;
+  DiscountPercent?: number;
+  LineTotal?: number;
+  LineNum?: number;
+}
+
+export interface SAPDocumentResponse {
+  DocEntry: number;
+  DocNum: number;
+  DocCurrency: string;
+  CardCode: string;
+  CardName: string;
+  DocDate: string;
+  DocTotal: number;
+  DocumentStatus: string;
+  Comments?: string;
+  Address?: string;
+  Address2?: string;
+  ShipToDescription?: string;
+  ShipToAddress?: string;
+  DocumentLines: SAPDocumentLine[];
+  [key: string]: unknown; // For other dynamic fields
+}
+
+// Base List Item for Marketing Documents
+export interface SAPMarketingDocumentBase {
+  id: number;
+  DocNum: number;
+  DocDate: string | Date;
+  CardCode: string;
+  CardName: string;
+  DocTotal: number;
+  DocStatus: string;
+}
+
+// Base Detail for Marketing Documents
+export interface SAPMarketingDocumentDetail extends SAPMarketingDocumentBase {
+  Address?: string;
+  Comments?: string;
+  DocumentLines: {
+    ItemCode: string;
+    ItemDescription?: string;
+    Quantity: number;
+    Price?: number;
+    TaxCode?: string;
+    WarehouseCode?: string;
+    LineTotal?: number;
+  }[];
+}
+
+// Base List Item for Payments
+export interface SAPPaymentBase {
+  id: number;
+  DocNum: number;
+  DocDate: string | Date;
+  CardCode: string;
+  CardName: string;
+  DocTotal?: number;
+}
+
+// Base Detail for Payments
+export interface SAPPaymentDetail extends SAPPaymentBase {
+  Comments?: string;
+  PaymentInvoices: {
+    SumApplied: number;
+    InvoiceType: string;
+  }[];
+}

@@ -1,4 +1,4 @@
-import { type ZodError } from 'zod'
+import type { ZodError } from "zod";
 
 export const getSearchPrereqMissing = (
   nameInput: string,
@@ -6,28 +6,27 @@ export const getSearchPrereqMissing = (
   salesEmployeeInput: string,
   effectiveWarehouseCode: string,
 ) => ({
-  customerName: !nameInput.trim(),
   customerCode: !codeInput.trim(),
+  customerName: !nameInput.trim(),
   salesEmployee: !salesEmployeeInput.trim(),
   warehouse: !effectiveWarehouseCode.trim(),
-})
+});
 
 export const canSearchProductsFromPrereq = (searchPrereqMissing: Record<string, boolean>) =>
-  Object.values(searchPrereqMissing).every((isMissing) => !isMissing)
+  Object.values(searchPrereqMissing).every((isMissing) => !isMissing);
 
 export const getSearchProductsBlockedReason = (
   searchPrereqTouched: boolean,
   canSearchProducts: boolean,
 ) =>
   searchPrereqTouched && !canSearchProducts
-    ? 'Select Customer Name, Customer Code, Sales Employee, and Warehouse before searching products.'
-    : null
+    ? "Select Customer Name, Customer Code, Sales Employee, and Warehouse before searching products."
+    : null;
 
-export const getZodTopLevelFieldErrors = (error: ZodError) =>
-  Array.from(
-    new Set(
-      error.issues
-        .map((issue) => issue.path[0])
-        .filter((field): field is string => typeof field === 'string'),
-    ),
-  )
+export const getZodTopLevelFieldErrors = (error: ZodError) => [
+  ...new Set(
+    error.issues
+      .map((issue) => issue.path[0])
+      .filter((field): field is string => typeof field === "string"),
+  ),
+];
