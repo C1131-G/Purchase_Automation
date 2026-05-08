@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rimraf frontend/dist hana-backend/dist sql-backend/dist",
     "portkill:frontend": "kill-port 5173 4173",
-    "portkill:backend": "kill-port 4000 4001",    
+    "portkill:backend": "kill-port 4000 4001",
     "dev:hana-backend": "pnpm portkill:backend && cd hana-backend && pnpm dev",
     "dev:sql-backend": "pnpm portkill:backend && cd sql-backend && pnpm dev",
     "dev:frontend": "pnpm portkill:frontend && cd frontend && pnpm dev",

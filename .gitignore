@@ -3,3 +3,6 @@
 AGENTS.md
 .env
 .zed
+.pnpm-store/
+node_modules/
+dist/
