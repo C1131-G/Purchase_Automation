@@ -10,6 +10,8 @@ export const outgoingPaymentKeys = {
   detailByDocNum: (docNum: string) => [...outgoingPaymentKeys.all, "detail", docNum] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...outgoingPaymentKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
+  accountSuggestions: (search?: string, limit?: number) =>
+    [...outgoingPaymentKeys.all, "account-suggestions", search ?? "", limit ?? 20] as const,
   list: (params: OutgoingPaymentListParams) =>
     [...outgoingPaymentKeys.all, "list", params] as const,
 };
@@ -34,6 +36,14 @@ export const outgoingPaymentQueries = {
       placeholderData: keepPreviousData,
       queryFn: () => outgoingPaymentAPI.getOutgoingPaymentDocNums(search, limit),
       queryKey: outgoingPaymentKeys.docNumSuggestions(search, limit),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+    }),
+  accountSuggestions: (search?: string, limit?: number) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      placeholderData: keepPreviousData,
+      queryFn: () => outgoingPaymentAPI.getOutgoingPaymentAccounts(search, limit),
+      queryKey: outgoingPaymentKeys.accountSuggestions(search, limit),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
   list: (params: OutgoingPaymentListParams) =>

@@ -13,6 +13,7 @@ interface SuggestionListProps {
   maxHeight?: string;
   containerClassName?: string;
   query?: string;
+  scrollable?: boolean;
 }
 
 export function SuggestionList({
@@ -24,6 +25,7 @@ export function SuggestionList({
   maxHeight = "max-h-[190px]",
   containerClassName,
   query = "",
+  scrollable = true,
 }: SuggestionListProps) {
   const INITIAL_LIMIT = 10;
   const STEP = 10;
@@ -81,9 +83,7 @@ export function SuggestionList({
     }, 120);
   };
 
-  const gridLayout = showStock
-    ? "grid-cols-[max-content_minmax(0,1fr)_56px]"
-    : "grid-cols-[max-content_minmax(0,1fr)]";
+  const gridLayout = showStock ? "grid-cols-[minmax(0,1fr)_56px]" : "grid-cols-[minmax(0,1fr)]";
 
   const outerClass =
     containerClassName ??
@@ -93,17 +93,21 @@ export function SuggestionList({
 
   return (
     <div className={outerClass}>
-      <div ref={listRef} className={`${maxHeight} overflow-auto`} onScroll={handleScroll}>
-        <div
-          className={`sticky top-0 z-10 grid ${gridLayout} gap-x-2 border-b border-zinc-100 bg-zinc-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500`}
-        >
-          <span className="pr-1">Code</span>
-          <span className="text-left">Name</span>
-          {showStock && <span className="text-right">Stock</span>}
-        </div>
+      <div
+        ref={listRef}
+        className={`${maxHeight} overflow-auto`}
+        onScroll={scrollable ? handleScroll : undefined}
+      >
         {visibleItems.length === 0 ? (
           <div className="px-3 py-3 text-sm text-zinc-500">{emptyText}</div>
         ) : null}
+        {visibleItems.length > 0 && (
+          <div className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 px-3 py-1">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              Name
+            </span>
+          </div>
+        )}
         {visibleItems.map((item) => (
           <button
             key={item.code}
@@ -118,9 +122,6 @@ export function SuggestionList({
               onSelect(item);
             }}
           >
-            <span className="text-[11px] font-semibold text-zinc-500 transition-colors whitespace-nowrap">
-              {item.code}
-            </span>
             <span className="text-sm leading-tight text-zinc-800 transition-colors py-0.5 truncate">
               {item.name}
             </span>

@@ -27,6 +27,7 @@ export interface CreateOutgoingPaymentPayload {
   DocDate: string;
   Remarks?: string;
   CashSum?: number;
+  CashAccount?: string | null;
   TrsfrSum?: number;
   CheckSum?: number;
   PaymentCreditCards?: {
@@ -90,6 +91,16 @@ export interface OutgoingPaymentDetailResponse {
   data: OutgoingPaymentDetail;
 }
 
+export interface OutgoingPaymentAccount {
+  GLAccount: string;
+}
+
+export interface OutgoingPaymentAccountsResponse {
+  success: boolean;
+  data: OutgoingPaymentAccount[];
+  total: number;
+}
+
 export const outgoingPaymentAPI = {
   createOutgoingPayment: async (payload: CreateOutgoingPaymentPayload) =>
     apiClient<{
@@ -112,5 +123,12 @@ export const outgoingPaymentAPI = {
     const query = toQueryString(params);
     const path = query ? `/api/v1/outgoing-payments?${query}` : "/api/v1/outgoing-payments";
     return apiClient<OutgoingPaymentListResponse>(path);
+  },
+  getOutgoingPaymentAccounts: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit });
+    const path = query
+      ? `/api/v1/outgoing-payments/accounts?${query}`
+      : "/api/v1/outgoing-payments/accounts";
+    return apiClient<OutgoingPaymentAccountsResponse>(path);
   },
 };

@@ -246,6 +246,7 @@ export function CreateOutgoingPaymentForm() {
       Endorse?: "tYES" | "tNO";
     }[];
     SurchargeTotal?: number;
+    CashAccount?: string | null;
   }) => {
     const totalCash =
       paymentDetails.PaymentChecks?.filter((c) => c.BankCode === "CASH").reduce(
@@ -330,6 +331,7 @@ export function CreateOutgoingPaymentForm() {
     createPaymentMutation.mutate({
       CardCode: lookups.codeInput,
       CashSum: cashSum,
+      CashAccount: paymentDetails.CashAccount ?? null,
       CheckSum: checkSum,
       DocDate: docDate || "",
       PaymentCreditCards: paymentDetails.PaymentCreditCards,

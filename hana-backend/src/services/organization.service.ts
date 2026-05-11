@@ -78,6 +78,25 @@ export const getAvailableDatabases = async (): Promise<DatabaseItem[]> =>
     1000 * 60 * 60,
   );
 
+// Returns a single database by its id (dbName).
+export const getDatabaseById = async (id: string): Promise<DatabaseItem | null> => {
+  const repository = getOrganizationRepository();
+  const result = await repository.findOne({
+    where: { id },
+    select: ["id", "companyName", "dbServer"],
+  });
+  if (!result) {
+    return null;
+  }
+  return {
+    dbName: result.id,
+    companyName: result.companyName,
+    dbServer: result.dbServer,
+    isActive: "Y",
+  };
+};
+
 export const organizationService = {
   getAvailableDatabases,
+  getDatabaseById,
 };

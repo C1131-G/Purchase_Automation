@@ -13,6 +13,7 @@ import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
+import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
 import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
 import { ItemSchema } from "@/db/schemas/item.schema";
 // Schemas
@@ -70,7 +71,7 @@ export const AppDataSource = new DataSource({
     ARCreditMemoSchema,
     IncomingPaymentSchema,
     SalesEmployeeSchema,
-    OrganizationSchema,
+    GlAccountSchema,
   ],
   subscribers: [],
   migrations: [],
@@ -81,7 +82,7 @@ export const initializeDatabase = async (): Promise<void> => {
   try {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
-      logger.info({ entities: 18, msg: "TypeORM initialized", pool_size: 10 });
+      logger.info({ entities: 19, msg: "TypeORM initialized", pool_size: 10 });
 
       // Explicitly test connectivity
       const result = await AppDataSource.query("SELECT 1 FROM DUMMY");

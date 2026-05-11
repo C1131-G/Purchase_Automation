@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from "express";
 import { logger } from "@/core/logger/pino-logger";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
 import type { PaymentQuery } from "@/dal/types/outgoing-payment.types";
+import type { AccountQuery } from "@/dal/types/outgoing-payment-account.types";
 // Services
 import { outgoingPaymentService } from "@/services/outgoing-payment.service";
 // Validation
@@ -170,9 +171,29 @@ export const cancelPayment = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// Fetches DSC1 accounts for the account selection dropdown in outgoing payment forms.
+export const getAccounts = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    AccountQuery
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search, limit } = authReq.query;
+    logger.info({ dbName, search, limit, msg: "Fetching DSC1 accounts" });
+    const result = await outgoingPaymentService.getAccounts(dbName, { search, limit });
+    res.status(200).json({ data: result.data, success: true, total: result.total });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const outgoingPaymentDal = {
   cancelPayment,
   createPayment,
+  getAccounts,
   getPayment,
   getPaymentByDocNum,
   getPaymentDocNums,

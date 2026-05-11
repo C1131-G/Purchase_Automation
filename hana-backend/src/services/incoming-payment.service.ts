@@ -437,7 +437,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
         sapPayload.PaymentChecks = realChecks.map((chk, idx) => ({
           BankCode: chk.BankCode,
           Branch: chk.Branch,
-          CheckAccount: chk.CheckAccount || "AJAXBS040",
+          CheckAccount: chk.CheckAccount || "",
           CheckNumber: chk.CheckNumber,
           CheckSum: chk.CheckSum,
           DueDate: chk.DueDate || sapPayload.DocDate,

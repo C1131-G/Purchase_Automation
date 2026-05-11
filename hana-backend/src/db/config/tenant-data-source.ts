@@ -13,6 +13,7 @@ import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
+import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { GRPOHeaderSchema } from "@/db/schemas/grpoheader.schema";
 import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
@@ -82,6 +83,7 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       ItemWarehouseStockSchema,
       BusinessPartnerSchema,
       BusinessPartnerAddressSchema,
+      GlAccountSchema,
       AdminSettingsSchema,
       TaxGroupSchema,
       UnitOfMeasurementSchema,

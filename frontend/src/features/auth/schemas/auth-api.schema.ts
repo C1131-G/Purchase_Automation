@@ -10,6 +10,7 @@ export const userSchema = z.object({
   dbName: z.string(),
   dbServer: z.string(),
   userName: z.string(),
+  companyName: z.string(),
 });
 
 export const loginRequestSchema = z.object({

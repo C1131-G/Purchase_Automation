@@ -8,6 +8,7 @@ import { purgeCache } from "@/core/utils/cache";
 import type { LoginResponse } from "@/dal/types/auth.types";
 // Services
 import { authService } from "@/services/auth.service";
+import { organizationService } from "@/services/organization.service";
 
 // Authenticates user credentials against SAP B1 via the Service Layer.
 export const login: RequestHandler = async (req, res, next) => {
@@ -19,7 +20,11 @@ export const login: RequestHandler = async (req, res, next) => {
     // Step 1: Validate credentials and obtain a session ID from SAP.
     const result: LoginResponse = await authService.login(username, password, companyDB);
 
-    // Step 2: Regenerate the Express session to prevent session fixation attacks.
+    // Step 2: Look up the company name for the selected database.
+    const org = await organizationService.getDatabaseById(companyDB);
+    const companyName = org?.companyName ?? companyDB;
+
+    // Step 3: Regenerate the Express session to prevent session fixation attacks.
     req.session.regenerate((err) => {
       if (err) {
         return next(err);
@@ -29,7 +34,7 @@ export const login: RequestHandler = async (req, res, next) => {
       // Step 3: Store tenant and user context in the session for use in subsequent requests.
       session.sessionId = result.sessionId;
       session.dbName = companyDB;
-      session.user = result.user;
+      session.user = { ...result.user, companyName };
       session.userAgent = req.headers["user-agent"];
 
       logger.info({ msg: "Login successful", username });
@@ -37,7 +42,7 @@ export const login: RequestHandler = async (req, res, next) => {
       res.status(200).json({
         data: {
           sessionTimeout: result.sessionTimeout,
-          user: result.user,
+          user: { ...result.user, companyName },
         },
         success: true,
       });

@@ -1,8 +1,11 @@
 import { Building2 } from "lucide-react";
 
 import { SidebarHeader } from "@/components/sidebar";
+import { useAuthStore } from "@/store/auth/auth.store";
 
 export function ShellLayoutBrandHeader() {
+  const user = useAuthStore((state) => state.user);
+
   return (
     <SidebarHeader className="p-5 border-zinc-50">
       <div className="flex items-center justify-between">
@@ -12,10 +15,7 @@ export function ShellLayoutBrandHeader() {
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden animate-in fade-in duration-1000">
             <span className="text-sm font-black uppercase tracking-tight text-zinc-950 leading-tight">
-              Vendor Portal
-            </span>
-            <span className="text-[9px] text-blue-600 font-bold uppercase tracking-[0.2em] leading-none mt-0.5">
-              Industrial Cloud
+              {user?.companyName ?? "Vendor Portal"}
             </span>
           </div>
         </div>

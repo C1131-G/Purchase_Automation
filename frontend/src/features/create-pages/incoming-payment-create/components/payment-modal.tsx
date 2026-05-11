@@ -259,7 +259,7 @@ export function PaymentModal({
       paymentChecks.push({
         BankCode: chequeBank || "CASH",
         Branch: chequeBranch || "LABASA",
-        CheckAccount: chequeAccountNo || "AJAXBS040",
+        CheckAccount: chequeAccountNo || "",
         CheckNumber: Number(chequeNo) || 1,
         CheckSum: cheque,
         Endorse: (chequeEndorse ? "tYES" : "tNO") as "tYES" | "tNO",

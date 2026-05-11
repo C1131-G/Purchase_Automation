@@ -1,15 +1,22 @@
 import { goeyToast } from "goey-toast";
-import { CheckCircle2, Delete, Plus, Trash2, Wallet } from "lucide-react";
+import { CheckCircle2, Delete, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { FieldBlock } from "@/features/create-pages/create-shared/components/core/field-block";
+import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
+import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
+import { LookupPopup } from "@/components/lookup/lookup-popup";
 
 import amexImg from "@/assets/payment-icons/Amex.jpg";
-import qrpayImg from "@/assets/payment-icons/Card.jpg"; // Using Card.jpg as placeholder for QR Pay or generic
+import qrpayImg from "@/assets/payment-icons/Card.jpg";
 import debitImg from "@/assets/payment-icons/Debit.jpg";
 import masterImg from "@/assets/payment-icons/Master.jpg";
 import mpaisaImg from "@/assets/payment-icons/Mpaisa.jpg";
 import mycashImg from "@/assets/payment-icons/MyCash.jpg";
-// Import assets
 import visaImg from "@/assets/payment-icons/Visa.jpg";
+import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 
 interface PaymentCreditCard {
   CreditCard: number;
@@ -48,6 +55,7 @@ interface PaymentModalProps {
     PaymentCreditCards: PaymentCreditCard[];
     PaymentChecks?: PaymentCheck[];
     SurchargeTotal?: number;
+    CashAccount?: string | null;
   }) => void;
   isPaymentOnAccount?: boolean;
 }
@@ -62,6 +70,11 @@ export function PaymentModal({
   const [activeTab, setActiveTab] = useState<"Cash" | "Card" | "Cheque">("Cash");
 
   const [cashAmount, setCashAmount] = useState<string>("0");
+  const [accountInput, setAccountInput] = useState("");
+  const [accountFocused, setAccountFocused] = useState(false);
+  const [accountPopupOpen, setAccountPopupOpen] = useState(false);
+  const [accountPopupSearch, setAccountPopupSearch] = useState("");
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [cardAmount, setCardAmount] = useState<string>("0");
   const [chequeAmount, setChequeAmount] = useState<string>("0");
   const [addedCards, setAddedCards] = useState<CardPayment[]>([]);
@@ -80,10 +93,48 @@ export function PaymentModal({
   const [chequeIssuedBy, setChequeIssuedBy] = useState("");
   const [chequeEndorse, setChequeEndorse] = useState(false);
 
+  const { data: accountData, isLoading: isLoadingAccounts } = useQuery({
+    ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 20),
+  });
+
+  const accountSuggestions: CreateLookupOption[] = (accountData?.data ?? []).map((acc) => ({
+    code: acc.GLAccount,
+    name: acc.GLAccount,
+  }));
+
+  const handleAccountChange = (value: string) => {
+    setAccountInput(value);
+    if (value.trim() === "") {
+      setSelectedAccount(null);
+      return;
+    }
+    const matched = accountSuggestions.find((a) => a.name.toLowerCase() === value.toLowerCase());
+    if (matched) {
+      selectAccount(matched);
+      return;
+    }
+    setAccountFocused(true);
+  };
+
+  const selectAccount = (item: CreateLookupOption) => {
+    setAccountInput(item.name);
+    setSelectedAccount(item.name);
+    setAccountFocused(false);
+    setAccountPopupOpen(false);
+  };
+
+  const openAccountPopup = () => {
+    setAccountPopupSearch("");
+    setAccountPopupOpen(true);
+  };
+
   useEffect(() => {
     if (open) {
       const timer = setTimeout(() => {
         setCashAmount("0");
+        setAccountInput("");
+        setAccountFocused(false);
+        setSelectedAccount(null);
         setCardAmount("0");
         setChequeAmount("0");
         setAddedCards([]);
@@ -252,7 +303,6 @@ export function PaymentModal({
   const handleSubmit = () => {
     const cash = Number(cashAmount) || 0;
     const cheque = Number(chequeAmount) || 0;
-    // const totalCards = addedCards.reduce((sum, c) => sum + c.amount, 0)
 
     const paymentChecks: PaymentCheck[] = [];
 
@@ -260,7 +310,7 @@ export function PaymentModal({
       paymentChecks.push({
         BankCode: chequeBank || "CASH",
         Branch: chequeBranch || "LABASA",
-        CheckAccount: chequeAccountNo || "AJAXBS040",
+        CheckAccount: chequeAccountNo || "",
         CheckNumber: Number(chequeNo) || 1,
         CheckSum: cheque,
         Endorse: (chequeEndorse ? "tYES" : "tNO") as "tYES" | "tNO",
@@ -273,6 +323,7 @@ export function PaymentModal({
         Branch: "Vendor Portal",
         CheckNumber: 1,
         CheckSum: cash,
+        CheckAccount: selectedAccount || "",
         Endorse: "tNO",
       });
     }
@@ -282,16 +333,18 @@ export function PaymentModal({
       PaymentCreditCards: PaymentCreditCard[];
       PaymentChecks?: PaymentCheck[];
       SurchargeTotal?: number;
+      CashAccount?: string | null;
     } = {
       PaymentCreditCards: addedCards.map((c) => ({
         CardValidUntil: "2025-12-31",
-        CreditAcct: "AJAXBS040",
+        CreditAcct: "",
         CreditCard: c.creditCardId,
         CreditCardNumber: "123",
         CreditSum: Number((c.amount + c.surchargeAmount).toFixed(2)),
         VoucherNum: c.reference,
       })),
       SurchargeTotal: surchargeTotal,
+      CashAccount: selectedAccount ?? null,
     };
 
     if (paymentChecks.length > 0) {
@@ -582,14 +635,59 @@ export function PaymentModal({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-300 animate-in fade-in">
-                    <Wallet className="w-16 h-16 mb-2 opacity-20" />
-                    <p className="text-sm font-medium">Cash Payment Selected</p>
-                    <p className="text-xs opacity-60 text-center">
-                      Enter the amount on the keypad
-                      <br />
-                      to settle with cash
-                    </p>
+                  <div className="flex flex-col gap-3 h-full animate-in fade-in">
+                    <div className="relative">
+                      <FieldBlock
+                        label="Cash Account *"
+                        placeholder="Select or Type"
+                        value={accountInput}
+                        onChange={handleAccountChange}
+                        onFocus={() => setAccountFocused(true)}
+                        onBlur={() => {
+                          setTimeout(() => setAccountFocused(false), 120);
+                        }}
+                        onOpenPopup={openAccountPopup}
+                        loading={isLoadingAccounts}
+                      />
+                      {accountFocused && (
+                        <SuggestionList
+                          items={accountSuggestions}
+                          onSelect={selectAccount}
+                          floating
+                          emptyText="No accounts found"
+                          maxHeight="max-h-[200px]"
+                          query={accountInput}
+                          scrollable={false}
+                        />
+                      )}
+                    </div>
+
+                    {selectedAccount && (
+                      <div className="flex items-center gap-2 rounded bg-teal-50 border border-teal-200 px-3 py-2">
+                        <CheckCircle2 className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                        <p className="text-xs font-semibold text-teal-700">{selectedAccount}</p>
+                      </div>
+                    )}
+
+                    <div className="mt-2 text-center text-slate-400">
+                      <div className="flex items-center gap-1 text-xs">
+                        <span>Enter amount on the keypad</span>
+                        <span>·</span>
+                        <span>Select account</span>
+                      </div>
+                    </div>
+
+                    <LookupPopup
+                      open={accountPopupOpen}
+                      search={accountPopupSearch}
+                      results={accountSuggestions as LookupItem[]}
+                      loading={isLoadingAccounts}
+                      error={null}
+                      mode="vendor-name"
+                      onSearchChange={setAccountPopupSearch}
+                      onClose={() => setAccountPopupOpen(false)}
+                      onSelect={(item) => selectAccount({ code: item.code, name: item.name })}
+                    />
                   </div>
                 )}
               </div>
@@ -708,16 +806,18 @@ export function PaymentModal({
           <button
             onClick={handleSubmit}
             disabled={(() => {
+              const cash = Number(cashAmount) || 0;
               const totalEntered =
-                (Number(cashAmount) || 0) +
+                cash +
                 (Number(chequeAmount) || 0) +
                 addedCards.reduce((sum, c) => sum + c.amount, 0);
-              // Must have entered something
               if (totalEntered <= 0) {
                 return true;
               }
-              // Cannot overpay (pay more than what is owed)
               if (!isPaymentOnAccount && balanceDue > 0 && totalEntered > balanceDue + 0.01) {
+                return true;
+              }
+              if (cash > 0 && !selectedAccount) {
                 return true;
               }
               return false;

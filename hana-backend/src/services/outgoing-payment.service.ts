@@ -5,6 +5,8 @@ import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PaymentFilters } from "@/dal/types/outgoing-payment.types";
+import type { AccountQuery } from "@/dal/types/outgoing-payment-account.types";
+import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
@@ -436,7 +438,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     if (payload.CashSum && (payload.CashSum as number) > 0) {
       sapPayload.CashSum = payload.CashSum;
-      sapPayload.CashAccount = (payload.CashAccount as string) || "AJAXBS040";
+      sapPayload.CashAccount = (payload.CashAccount as string) || "";
     }
 
     if (transferSum > 0) {
@@ -447,7 +449,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       sapPayload.PaymentCreditCards = (payload.PaymentCreditCards as Record<string, unknown>[]).map(
         (card, idx) => ({
           CardValidUntil: "2026-12-31",
-          CreditAcct: (card.CreditAcct as string) || "AJAXBS040",
+          CreditAcct: (card.CreditAcct as string) || "",
           CreditCard: card.CreditCard,
           CreditCardNumber: "123",
           CreditSum: card.CreditSum,
@@ -466,7 +468,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
         sapPayload.PaymentChecks = realChecks.map((chk, idx) => ({
           BankCode: chk.BankCode,
           Branch: chk.Branch,
-          CheckAccount: chk.CheckAccount || "AJAXBS040",
+          CheckAccount: chk.CheckAccount || "",
           CheckNumber: chk.CheckNumber,
           CheckSum: chk.CheckSum,
           DueDate: chk.DueDate || sapPayload.DocDate,
@@ -714,10 +716,53 @@ export const backfillPaymentModes = async (sessionId: string, batchSize = 50) =>
   }
 };
 
+// Fetches accounts from DSC1 for account selection in outgoing payment forms.
+export const getAccounts = async (dbName: string, query: AccountQuery) => {
+  try {
+    const repo = await getTenantRepository(dbName, GlAccountSchema);
+    const qb = repo.createQueryBuilder("a");
+
+    qb.select(["a.GLAccount"]);
+
+    if (query.search) {
+      qb.andWhere("LOWER(a.GLAccount) LIKE LOWER(:search)", { search: `%${query.search}%` });
+    }
+
+    qb.orderBy("a.GLAccount", "ASC").take(query.limit ?? 20);
+
+    const rows = await qb.getRawMany<Record<string, unknown>>();
+
+    logger.info({
+      msg: "Fetched DSC1 accounts",
+      db: dbName,
+      count: rows.length,
+      accounts: rows.map((r) => r["a_GLAccount"]),
+    });
+
+    return {
+      data: rows.map((r) => ({ GLAccount: r["a_GLAccount"] as string })),
+      total: rows.length,
+    };
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.error({
+      db: dbName,
+      error: caughtError.message,
+      msg: "Failed to fetch DSC1 accounts",
+    });
+    const dbError = new Error(`Failed to retrieve accounts: ${caughtError.message}`) as Error & {
+      statusCode?: number;
+    };
+    dbError.statusCode = 500;
+    throw dbError;
+  }
+};
+
 export const outgoingPaymentService = {
   backfillPaymentModes,
   cancelPayment,
   createPayment,
+  getAccounts,
   getPayment,
   getPaymentByDocNum,
   getPaymentDocNums,

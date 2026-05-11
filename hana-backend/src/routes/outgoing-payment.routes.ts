@@ -10,6 +10,7 @@ import {
   PaymentDocNumLookupQuerySchema,
   PaymentQuerySchema,
 } from "@/validation/schemas/inputs/payments.input";
+import { AccountQuerySchema } from "@/validation/schemas/inputs/outgoing-payment-account.input";
 
 const router = express.Router();
 
@@ -24,6 +25,9 @@ router.get(
   validateQuery(PaymentDocNumLookupQuerySchema),
   outgoingPaymentDal.getPaymentDocNums,
 );
+
+// GET /accounts: Retrieves DSC1 accounts for the account selection dropdown.
+router.get("/accounts", validateQuery(AccountQuerySchema), outgoingPaymentDal.getAccounts);
 
 // GET /:id: Fetches full details for a single outgoing payment.
 router.get("/:id", outgoingPaymentDal.getPayment);

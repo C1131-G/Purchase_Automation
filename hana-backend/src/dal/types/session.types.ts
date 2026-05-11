@@ -7,6 +7,9 @@ declare module "express-session" {
     dbServer: string;
     user: {
       userName: string;
+      dbName: string;
+      dbServer: string;
+      companyName?: string;
     };
     userAgent?: string;
     lastActivity?: number;
@@ -18,6 +21,9 @@ declare module "express-session" {
     dbServer: string;
     user: {
       userName: string;
+      dbName: string;
+      dbServer: string;
+      companyName?: string;
     };
     userAgent?: string;
     lastActivity?: number;

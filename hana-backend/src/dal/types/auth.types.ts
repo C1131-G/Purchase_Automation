@@ -5,5 +5,6 @@ export interface LoginResponse {
     userName: string;
     dbName: string;
     dbServer: string;
+    companyName?: string;
   };
 }
