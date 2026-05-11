@@ -30,11 +30,6 @@ export interface CreateOutgoingPaymentPayload {
   CashAccount?: string | null;
   TrsfrSum?: number;
   CheckSum?: number;
-  PaymentCreditCards?: {
-    CreditCard: number;
-    CreditSum: number;
-    VoucherNum: string;
-  }[];
   PaymentChecks?: {
     BankCode: string;
     Branch: string;
@@ -43,7 +38,6 @@ export interface CreateOutgoingPaymentPayload {
     CheckAccount?: string;
     Endorse?: "tYES" | "tNO";
   }[];
-  SurchargeTotal?: number;
   PaymentInvoices?: {
     DocEntry: number;
     SumApplied: number;

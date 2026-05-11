@@ -1,31 +1,11 @@
-import { goeyToast } from "goey-toast";
-import { CheckCircle2, Delete, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Delete } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { FieldBlock } from "@/features/create-pages/create-shared/components/core/field-block";
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
 import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
-import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
-import { LookupPopup } from "@/components/lookup/lookup-popup";
-
-import amexImg from "@/assets/payment-icons/Amex.jpg";
-import qrpayImg from "@/assets/payment-icons/Card.jpg";
-import debitImg from "@/assets/payment-icons/Debit.jpg";
-import masterImg from "@/assets/payment-icons/Master.jpg";
-import mpaisaImg from "@/assets/payment-icons/Mpaisa.jpg";
-import mycashImg from "@/assets/payment-icons/MyCash.jpg";
-import visaImg from "@/assets/payment-icons/Visa.jpg";
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
-
-interface PaymentCreditCard {
-  CreditCard: number;
-  CreditSum: number;
-  VoucherNum: string;
-  CreditAcct?: string;
-  CreditCardNumber?: string;
-  CardValidUntil?: string;
-}
 
 interface PaymentCheck {
   BankCode: string;
@@ -36,25 +16,12 @@ interface PaymentCheck {
   Endorse?: "tYES" | "tNO";
 }
 
-interface CardPayment {
-  id: string;
-  bank: string;
-  cardType: string;
-  amount: number;
-  reference: string;
-  surchargeRate: number;
-  surchargeAmount: number;
-  creditCardId: number; // ID for SAP
-}
-
 interface PaymentModalProps {
   open: boolean;
   onClose: () => void;
   balanceDue: number;
   onPaymentSubmit: (paymentDetails: {
-    PaymentCreditCards: PaymentCreditCard[];
     PaymentChecks?: PaymentCheck[];
-    SurchargeTotal?: number;
     CashAccount?: string | null;
   }) => void;
   isPaymentOnAccount?: boolean;
@@ -67,24 +34,13 @@ export function PaymentModal({
   onPaymentSubmit,
   isPaymentOnAccount,
 }: PaymentModalProps) {
-  const [activeTab, setActiveTab] = useState<"Cash" | "Card" | "Cheque">("Cash");
+  const [activeTab, setActiveTab] = useState<"Cash" | "Cheque">("Cash");
 
   const [cashAmount, setCashAmount] = useState<string>("0");
   const [accountInput, setAccountInput] = useState("");
   const [accountFocused, setAccountFocused] = useState(false);
-  const [accountPopupOpen, setAccountPopupOpen] = useState(false);
-  const [accountPopupSearch, setAccountPopupSearch] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
-  const [cardAmount, setCardAmount] = useState<string>("0");
   const [chequeAmount, setChequeAmount] = useState<string>("0");
-  const [addedCards, setAddedCards] = useState<CardPayment[]>([]);
-
-  const [eftposBank, setEftposBank] = useState<"ANZ" | "BSP" | "WESTPAC" | "Others">("BSP");
-  const [cardType, setCardType] = useState<
-    "VISA" | "MASTERCARD" | "AMEX" | "DEBIT" | "QRPAY" | "MYCASH" | "MPAISA"
-  >("VISA");
-  const [cardRef, setCardRef] = useState("");
-
   const [isPayViaCheck, setIsPayViaCheck] = useState(true);
   const [chequeBank, setChequeBank] = useState("");
   const [chequeBranch, setChequeBranch] = useState("");
@@ -97,10 +53,12 @@ export function PaymentModal({
     ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 20),
   });
 
-  const accountSuggestions: CreateLookupOption[] = (accountData?.data ?? []).map((acc) => ({
-    code: acc.GLAccount,
-    name: acc.GLAccount,
-  }));
+  const accountSuggestions: CreateLookupOption[] = (accountData?.data ?? []).map(
+    (acc: { GLAccount: string }) => ({
+      code: acc.GLAccount,
+      name: acc.GLAccount,
+    }),
+  );
 
   const handleAccountChange = (value: string) => {
     setAccountInput(value);
@@ -120,12 +78,6 @@ export function PaymentModal({
     setAccountInput(item.name);
     setSelectedAccount(item.name);
     setAccountFocused(false);
-    setAccountPopupOpen(false);
-  };
-
-  const openAccountPopup = () => {
-    setAccountPopupSearch("");
-    setAccountPopupOpen(true);
   };
 
   useEffect(() => {
@@ -135,62 +87,33 @@ export function PaymentModal({
         setAccountInput("");
         setAccountFocused(false);
         setSelectedAccount(null);
-        setCardAmount("0");
         setChequeAmount("0");
-        setAddedCards([]);
         setActiveTab("Cash");
-        setEftposBank("BSP");
-        setCardType("VISA");
-        setCardRef("");
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [open]);
-
-  const handleBankChange = (bank: "ANZ" | "BSP" | "WESTPAC" | "Others") => {
-    setEftposBank(bank);
-    if (bank === "Others") {
-      if (["VISA", "MASTERCARD", "AMEX", "DEBIT"].includes(cardType)) {
-        setCardType("MPAISA");
-      }
-    } else {
-      if (["QRPAY", "MYCASH", "MPAISA"].includes(cardType)) {
-        setCardType("VISA");
-      }
-    }
-  };
 
   if (!open) {
     return null;
   }
 
   const getActiveAmount = () => {
-    if (activeTab === "Cash") {
-      return cashAmount;
-    }
-    if (activeTab === "Card") {
-      return cardAmount;
-    }
-    return chequeAmount;
+    return activeTab === "Cash" ? cashAmount : chequeAmount;
   };
 
   const setActiveAmount = (val: string) => {
     if (activeTab === "Cash") {
       setCashAmount(val);
-    }
-    if (activeTab === "Card") {
-      setCardAmount(val);
-    }
-    if (activeTab === "Cheque") {
+    } else {
       setChequeAmount(val);
     }
   };
 
   const handlePayFull = () => {
-    const totalCurrentPayments =
-      (Number(cashAmount) || 0) +
-      (Number(chequeAmount) || 0) +
-      addedCards.reduce((sum, c) => sum + c.amount, 0);
+    const cash = Number(cashAmount) || 0;
+    const cheque = Number(chequeAmount) || 0;
+    const totalCurrentPayments = cash + cheque;
     const remaining = balanceDue - totalCurrentPayments;
 
     if (remaining <= 0) {
@@ -199,9 +122,7 @@ export function PaymentModal({
 
     if (activeTab === "Cash") {
       setCashAmount((Number(cashAmount) + remaining).toFixed(2));
-    } else if (activeTab === "Card") {
-      setCardAmount(remaining.toFixed(2));
-    } else if (activeTab === "Cheque") {
+    } else {
       setChequeAmount(remaining.toFixed(2));
     }
   };
@@ -237,69 +158,6 @@ export function PaymentModal({
     }
   };
 
-  let surchargeRate = 0;
-  if (cardType === "VISA" || cardType === "MASTERCARD") {
-    surchargeRate = 3.82;
-  } else if (cardType === "AMEX") {
-    surchargeRate = 4.91;
-  } else {
-    surchargeRate = 0;
-  }
-
-  const currentCardAmount = Number(cardAmount) || 0;
-  const currentSurchargeAmount = (currentCardAmount * surchargeRate) / 100;
-
-  const handleAddCard = () => {
-    const amount = Number(cardAmount) || 0;
-    if (amount <= 0) {
-      goeyToast.error("Please enter a valid amount");
-      return;
-    }
-    if (!cardRef.trim()) {
-      goeyToast.error("Reference# is required");
-      return;
-    }
-
-    const totalPaidSoFar =
-      (Number(cashAmount) || 0) +
-      (Number(chequeAmount) || 0) +
-      addedCards.reduce((sum, c) => sum + c.amount, 0);
-    if (!isPaymentOnAccount && totalPaidSoFar + amount > balanceDue + 0.01) {
-      goeyToast.error("Total payment cannot exceed Balance Due");
-      return;
-    }
-
-    const cardIdMap: Record<string, number> = {
-      AMEX: 3,
-      DEBIT: 4,
-      MASTERCARD: 2,
-      MPAISA: 7,
-      MYCASH: 6,
-      QRPAY: 5,
-      VISA: 1,
-    };
-
-    const newCard: CardPayment = {
-      amount,
-      bank: eftposBank,
-      cardType,
-      creditCardId: cardIdMap[cardType] || 1,
-      id: Math.random().toString(36).substr(2, 9),
-      reference: cardRef,
-      surchargeAmount: currentSurchargeAmount,
-      surchargeRate,
-    };
-
-    setAddedCards([...addedCards, newCard]);
-    setCardAmount("0");
-    setCardRef("");
-    goeyToast.success("Card payment added");
-  };
-
-  const handleRemoveCard = (id: string) => {
-    setAddedCards(addedCards.filter((c) => c.id !== id));
-  };
-
   const handleSubmit = () => {
     const cash = Number(cashAmount) || 0;
     const cheque = Number(chequeAmount) || 0;
@@ -328,22 +186,10 @@ export function PaymentModal({
       });
     }
 
-    const surchargeTotal = addedCards.reduce((sum, c) => sum + (c.surchargeAmount || 0), 0);
     const paymentDetails: {
-      PaymentCreditCards: PaymentCreditCard[];
       PaymentChecks?: PaymentCheck[];
-      SurchargeTotal?: number;
       CashAccount?: string | null;
     } = {
-      PaymentCreditCards: addedCards.map((c) => ({
-        CardValidUntil: "2025-12-31",
-        CreditAcct: "",
-        CreditCard: c.creditCardId,
-        CreditCardNumber: "123",
-        CreditSum: Number((c.amount + c.surchargeAmount).toFixed(2)),
-        VoucherNum: c.reference,
-      })),
-      SurchargeTotal: surchargeTotal,
       CashAccount: selectedAccount ?? null,
     };
 
@@ -355,41 +201,8 @@ export function PaymentModal({
     onClose();
   };
 
-  const totalPaid =
-    (Number(cashAmount) || 0) +
-    (Number(chequeAmount) || 0) +
-    addedCards.reduce((sum, c) => sum + c.amount, 0) +
-    (activeTab === "Card" ? Number(cardAmount) || 0 : 0);
+  const totalPaid = (Number(cashAmount) || 0) + (Number(chequeAmount) || 0);
   const remainingBalance = balanceDue - totalPaid;
-
-  const getCardIcon = (type: string) => {
-    switch (type) {
-      case "VISA": {
-        return visaImg;
-      }
-      case "MASTERCARD": {
-        return masterImg;
-      }
-      case "AMEX": {
-        return amexImg;
-      }
-      case "DEBIT": {
-        return debitImg;
-      }
-      case "MPAISA": {
-        return mpaisaImg;
-      }
-      case "MYCASH": {
-        return mycashImg;
-      }
-      case "QRPAY": {
-        return qrpayImg;
-      }
-      default: {
-        return qrpayImg;
-      }
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -422,24 +235,24 @@ export function PaymentModal({
           </div>
 
           <div className="flex gap-2">
-            {["Cash", "Card", "Cheque"].map((tab) => (
+            {(["Cash", "Cheque"] as const).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as "Cash" | "Card" | "Cheque")}
+                onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                   activeTab === tab
                     ? "bg-teal-500 text-white shadow-sm"
                     : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
                 }`}
               >
-                {tab === "Cheque" ? "Cheque/Voucher" : tab}
+                {tab}
               </button>
             ))}
           </div>
         </div>
 
         <div className="px-5 pb-5 overflow-y-auto flex-1">
-          {activeTab !== "Cheque" ? (
+          {activeTab === "Cash" ? (
             <div className="flex gap-6">
               <div className="w-[260px] flex-shrink-0">
                 {balanceDue > 0 && remainingBalance > 0 && (
@@ -492,204 +305,46 @@ export function PaymentModal({
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col">
-                {activeTab === "Card" ? (
-                  <div className="space-y-4 animate-in fade-in duration-300">
-                    <div>
-                      <h3 className="text-slate-800 font-bold text-sm mb-2">EFTPOS</h3>
-                      <div className="flex gap-3 mb-4">
-                        {["ANZ", "BSP", "WESTPAC", "Others"].map((bank) => (
-                          <label
-                            key={bank}
-                            className="flex items-center gap-1.5 cursor-pointer text-xs"
-                          >
-                            <input
-                              type="radio"
-                              checked={eftposBank === bank}
-                              onChange={() =>
-                                handleBankChange(bank as "ANZ" | "BSP" | "WESTPAC" | "Others")
-                              }
-                              className="w-3.5 h-3.5 text-teal-500"
-                            />
-                            <span
-                              className={
-                                eftposBank === bank ? "text-teal-600 font-bold" : "text-slate-500"
-                              }
-                            >
-                              {bank}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      {(eftposBank === "Others"
-                        ? ["MPAISA", "MYCASH", "QRPAY"]
-                        : ["VISA", "MASTERCARD", "AMEX", "DEBIT"]
-                      ).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() =>
-                            setCardType(
-                              type as
-                                | "VISA"
-                                | "MASTERCARD"
-                                | "AMEX"
-                                | "DEBIT"
-                                | "QRPAY"
-                                | "MYCASH"
-                                | "MPAISA",
-                            )
-                          }
-                          className={`relative group h-16 border rounded-lg transition-all overflow-hidden bg-white flex items-center justify-center ${cardType === type ? "border-teal-500 ring-2 ring-teal-500 shadow-md" : "border-slate-200 hover:border-slate-300 shadow-sm"}`}
-                        >
-                          <img
-                            src={getCardIcon(type)}
-                            alt={type}
-                            className="w-full h-full object-contain p-1"
-                          />
-                          {cardType === type && (
-                            <div className="absolute top-1 right-1 bg-teal-500 rounded-full p-0.5">
-                              <CheckCircle2 className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-8 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
-                      <div>
-                        <span className="text-slate-400 block mb-0.5">Surcharge%</span>{" "}
-                        <span className="font-bold text-slate-700">{surchargeRate}%</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block mb-0.5">Surcharge</span>{" "}
-                        <span className="font-bold text-slate-700">
-                          FJD {currentSurchargeAmount.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="cardRef"
-                        className="block text-slate-400 text-[10px] mb-1 uppercase tracking-wider font-bold"
-                      >
-                        Reference#
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          id="cardRef"
-                          type="text"
-                          value={cardRef}
-                          onChange={(e) => setCardRef(e.target.value)}
-                          placeholder="Enter Ref#"
-                          className="flex-1 border border-slate-200 rounded px-3 py-1.5 text-sm focus:border-teal-500 outline-none shadow-sm"
-                        />
-
-                        <button
-                          onClick={handleAddCard}
-                          className="bg-emerald-500 text-white px-5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-600 shadow-sm"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> ADD
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 border-t pt-4">
-                      <h4 className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">
-                        Added Payments
-                      </h4>
-                      <div className="space-y-2 max-h-[120px] overflow-y-auto pr-1">
-                        {addedCards.length === 0 && (
-                          <p className="text-xs text-slate-300 italic py-2">No cards added yet</p>
-                        )}
-                        {addedCards.map((card) => (
-                          <div
-                            key={card.id}
-                            className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100 text-[11px] animate-in slide-in-from-right duration-200"
-                          >
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={getCardIcon(card.cardType)}
-                                alt={card.cardType}
-                                className="w-8 h-5 object-contain"
-                              />
-                              <span className="text-slate-500 font-medium">#{card.reference}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="font-bold text-slate-700">
-                                FJD {card.amount.toFixed(2)}
-                              </span>
-                              <button
-                                onClick={() => handleRemoveCard(card.id)}
-                                className="text-rose-400 hover:text-rose-600 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3 h-full animate-in fade-in">
-                    <div className="relative">
-                      <FieldBlock
-                        label="Cash Account *"
-                        placeholder="Select or Type"
-                        value={accountInput}
-                        onChange={handleAccountChange}
-                        onFocus={() => setAccountFocused(true)}
-                        onBlur={() => {
-                          setTimeout(() => setAccountFocused(false), 120);
-                        }}
-                        onOpenPopup={openAccountPopup}
-                        loading={isLoadingAccounts}
-                      />
-                      {accountFocused && (
-                        <SuggestionList
-                          items={accountSuggestions}
-                          onSelect={selectAccount}
-                          floating
-                          emptyText="No accounts found"
-                          maxHeight="max-h-[200px]"
-                          query={accountInput}
-                          scrollable={false}
-                        />
-                      )}
-                    </div>
-
-                    {selectedAccount && (
-                      <div className="flex items-center gap-2 rounded bg-teal-50 border border-teal-200 px-3 py-2">
-                        <CheckCircle2 className="w-4 h-4 text-teal-500 flex-shrink-0" />
-                        <p className="text-xs font-semibold text-teal-700">{selectedAccount}</p>
-                      </div>
-                    )}
-
-                    <div className="mt-2 text-center text-slate-400">
-                      <div className="flex items-center gap-1 text-xs">
-                        <span>Enter amount on the keypad</span>
-                        <span>·</span>
-                        <span>Select account</span>
-                      </div>
-                    </div>
-
-                    <LookupPopup
-                      open={accountPopupOpen}
-                      search={accountPopupSearch}
-                      results={accountSuggestions as LookupItem[]}
-                      loading={isLoadingAccounts}
-                      error={null}
-                      mode="vendor-name"
-                      onSearchChange={setAccountPopupSearch}
-                      onClose={() => setAccountPopupOpen(false)}
-                      onSelect={(item) => selectAccount({ code: item.code, name: item.name })}
+              <div className="flex-1 flex flex-col animate-in fade-in">
+                <div className="relative">
+                  <FieldBlock
+                    label="Cash Account *"
+                    placeholder="Select or Type"
+                    value={accountInput}
+                    onChange={handleAccountChange}
+                    onFocus={() => setAccountFocused(true)}
+                    onBlur={() => {
+                      setTimeout(() => setAccountFocused(false), 120);
+                    }}
+                    loading={isLoadingAccounts}
+                  />
+                  {accountFocused && (
+                    <SuggestionList
+                      items={accountSuggestions}
+                      onSelect={selectAccount}
+                      floating
+                      emptyText="No accounts found"
+                      maxHeight="max-h-[200px]"
+                      query={accountInput}
+                      scrollable={false}
                     />
+                  )}
+                </div>
+
+                {selectedAccount && (
+                  <div className="flex items-center gap-2 rounded bg-teal-50 border border-teal-200 px-3 py-2">
+                    <CheckCircle2 className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                    <p className="text-xs font-semibold text-teal-700">{selectedAccount}</p>
                   </div>
                 )}
+
+                <div className="mt-2 text-center text-slate-400">
+                  <div className="flex items-center gap-1 text-xs">
+                    <span>Enter amount on the keypad</span>
+                    <span>&bull;</span>
+                    <span>Select account</span>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -702,7 +357,7 @@ export function PaymentModal({
                     onChange={(e) => setIsPayViaCheck(e.target.checked)}
                     className="w-4 h-4 text-teal-500 rounded border-slate-300"
                   />
-                  <span className="text-sm font-bold text-slate-700">Pay via Check/Voucher</span>
+                  <span className="text-sm font-bold text-slate-700">Pay via Cheque</span>
                 </label>
                 <input
                   type="number"
@@ -788,7 +443,7 @@ export function PaymentModal({
                       onChange={(e) => setChequeEndorse(e.target.checked)}
                       className="w-4 h-4 text-teal-500 rounded border-slate-300"
                     />
-                    <span className="text-sm text-slate-500 font-medium">Endorse Check</span>
+                    <span className="text-sm text-slate-500 font-medium">Endorse Cheque</span>
                   </label>
                 </div>
               </div>
@@ -806,17 +461,14 @@ export function PaymentModal({
           <button
             onClick={handleSubmit}
             disabled={(() => {
-              const cash = Number(cashAmount) || 0;
-              const totalEntered =
-                cash +
-                (Number(chequeAmount) || 0) +
-                addedCards.reduce((sum, c) => sum + c.amount, 0);
+              const totalEntered = (Number(cashAmount) || 0) + (Number(chequeAmount) || 0);
               if (totalEntered <= 0) {
                 return true;
               }
               if (!isPaymentOnAccount && balanceDue > 0 && totalEntered > balanceDue + 0.01) {
                 return true;
               }
+              const cash = Number(cashAmount) || 0;
               if (cash > 0 && !selectedAccount) {
                 return true;
               }

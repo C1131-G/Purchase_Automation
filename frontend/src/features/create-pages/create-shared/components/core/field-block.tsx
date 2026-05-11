@@ -9,7 +9,7 @@ interface FieldBlockProps {
   onChange: (value: string) => void;
   onFocus: () => void;
   onBlur: () => void;
-  onOpenPopup: () => void;
+  onOpenPopup?: () => void;
   loading?: boolean | undefined;
   invalid?: boolean | undefined;
   errorText?: string | undefined;
@@ -152,7 +152,7 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
               triggerDisabledFeedback();
               return;
             }
-            onOpenPopup();
+            onOpenPopup?.();
           }}
           className={`absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
             disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-zinc-100"

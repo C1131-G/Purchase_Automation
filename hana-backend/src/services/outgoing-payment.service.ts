@@ -338,26 +338,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       }
     }
 
-    // Preflight: validate PaymentCreditCards
-    const cards = (payload.PaymentCreditCards as Record<string, unknown>[]) || [];
-    if (cards.length > 0) {
-      for (const card of cards) {
-        const creditCard = Number(card.CreditCard);
-        if (!creditCard || creditCard <= 0) {
-          throw new Error(`Invalid credit card ID: CreditCard=${card.CreditCard}`);
-        }
-        const creditSum = Number(card.CreditSum);
-        if (!creditSum || creditSum <= 0) {
-          throw new Error(
-            `Invalid credit card amount for card ID=${creditCard}: CreditSum=${card.CreditSum}`,
-          );
-        }
-        if (!card.VoucherNum || String(card.VoucherNum).trim() === "") {
-          throw new Error(`Voucher (reference) required for card ID=${creditCard}`);
-        }
-      }
-    }
-
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       CashSum: payload.CashSum || 0,
@@ -394,21 +374,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       modes.push("CASH");
     }
 
-    if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
-      const firstCard = payload.PaymentCreditCards[0] as Record<string, unknown>;
-      const cardId = Number(firstCard.CreditCard);
-
-      if (cardId === 5) {
-        modes.push("M-Pesa");
-      } else if (cardId === 6) {
-        modes.push("My Cash");
-      } else if (cardId === 7) {
-        modes.push("Direct Pay");
-      } else {
-        modes.push("EFTPOS");
-      }
-    }
-
     if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
       const checks = payload.PaymentChecks as Record<string, unknown>[];
       const hasCash = checks.some((c) => c.BankCode === "CASH");
@@ -432,10 +397,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       sapPayload.U_Mode_Pay = modes.find((m) => m !== "CASH") || "CASH";
     }
 
-    if (payload.SurchargeTotal && (payload.SurchargeTotal as number) > 0) {
-      sapPayload.BankChargeAmount = payload.SurchargeTotal;
-    }
-
     if (payload.CashSum && (payload.CashSum as number) > 0) {
       sapPayload.CashSum = payload.CashSum;
       sapPayload.CashAccount = (payload.CashAccount as string) || "";
@@ -443,20 +404,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     if (transferSum > 0) {
       sapPayload.TransferSum = transferSum;
-    }
-
-    if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
-      sapPayload.PaymentCreditCards = (payload.PaymentCreditCards as Record<string, unknown>[]).map(
-        (card, idx) => ({
-          CardValidUntil: "2026-12-31",
-          CreditAcct: (card.CreditAcct as string) || "",
-          CreditCard: card.CreditCard,
-          CreditCardNumber: "123",
-          CreditSum: card.CreditSum,
-          LineNum: idx,
-          VoucherNum: card.VoucherNum,
-        }),
-      );
     }
 
     if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {

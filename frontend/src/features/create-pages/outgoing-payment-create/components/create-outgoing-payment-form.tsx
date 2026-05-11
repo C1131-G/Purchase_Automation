@@ -230,13 +230,6 @@ export function CreateOutgoingPaymentForm() {
   );
 
   const handlePaymentSubmit = (paymentDetails: {
-    PaymentCreditCards: {
-      CreditCard: number;
-      CreditSum: number;
-      VoucherNum: string;
-      CreditCardNumber?: string;
-      CardValidUntil?: string;
-    }[];
     PaymentChecks?: {
       BankCode: string;
       Branch: string;
@@ -245,7 +238,6 @@ export function CreateOutgoingPaymentForm() {
       CheckAccount?: string;
       Endorse?: "tYES" | "tNO";
     }[];
-    SurchargeTotal?: number;
     CashAccount?: string | null;
   }) => {
     const totalCash =
@@ -258,11 +250,6 @@ export function CreateOutgoingPaymentForm() {
         (sum, c) => sum + c.CheckSum,
         0,
       ) || 0;
-    const totalCards =
-      paymentDetails.PaymentCreditCards?.reduce((sum, c) => sum + c.CreditSum, 0) || 0;
-    const surcharge = paymentDetails.SurchargeTotal || 0;
-
-    const totalPaid = totalCash + totalChecks + totalCards - surcharge;
 
     const selectedList = Object.entries(selectedDocs).map(([key, val]) => ({
       id: Number(key.split("-")[1]),
@@ -280,7 +267,7 @@ export function CreateOutgoingPaymentForm() {
     const selectedCreditMemos = selectedList.filter((d) => d.type === "it_PurchCredItnote");
     const totalCredit = selectedCreditMemos.reduce((sum, cm) => sum + cm.amount, 0);
 
-    let amountToDistribute = totalPaid + totalCredit;
+    let amountToDistribute = totalCash + totalChecks + totalCredit;
     const paymentInvoices: {
       DocEntry: number;
       SumApplied: number;
@@ -322,9 +309,6 @@ export function CreateOutgoingPaymentForm() {
       return;
     }
 
-    const surchargeTotal = paymentDetails.SurchargeTotal || 0;
-    goeyToast.info(`Captured surcharge: ${surchargeTotal}`);
-
     const cashSum = totalCash;
     const checkSum = totalChecks;
     const trsfrSum = 0;
@@ -334,10 +318,8 @@ export function CreateOutgoingPaymentForm() {
       CashAccount: paymentDetails.CashAccount ?? null,
       CheckSum: checkSum,
       DocDate: docDate || "",
-      PaymentCreditCards: paymentDetails.PaymentCreditCards,
       PaymentInvoices: paymentInvoices,
       Remarks: remarks,
-      SurchargeTotal: surchargeTotal,
       TrsfrSum: trsfrSum,
       ...(paymentDetails.PaymentChecks ? { PaymentChecks: paymentDetails.PaymentChecks } : {}),
     });
