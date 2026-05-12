@@ -9,7 +9,10 @@ interface SuggestionListProps {
   onSelect: (item: CreateLookupOption) => void;
   emptyText?: string;
   floating?: boolean;
+  showCode?: boolean;
   showStock?: boolean;
+  codeLabel?: string;
+  nameLabel?: string;
   maxHeight?: string;
   containerClassName?: string;
   query?: string;
@@ -22,6 +25,9 @@ export function SuggestionList({
   emptyText = "No records found",
   floating = false,
   showStock = false,
+  showCode = false,
+  codeLabel = "Code",
+  nameLabel = "Name",
   maxHeight = "max-h-[190px]",
   containerClassName,
   query = "",
@@ -83,7 +89,11 @@ export function SuggestionList({
     }, 120);
   };
 
-  const gridLayout = showStock ? "grid-cols-[minmax(0,1fr)_56px]" : "grid-cols-[minmax(0,1fr)]";
+  const gridColumns = showCode
+    ? "grid-cols-[80px_minmax(0,1fr)]"
+    : showStock
+      ? "grid-cols-[minmax(0,1fr)_56px]"
+      : "grid-cols-[minmax(0,1fr)]";
 
   const outerClass =
     containerClassName ??
@@ -103,9 +113,20 @@ export function SuggestionList({
         ) : null}
         {visibleItems.length > 0 && (
           <div className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 px-3 py-1">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              Name
-            </span>
+            {showCode ? (
+              <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-2">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                  {codeLabel}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                  {nameLabel}
+                </span>
+              </div>
+            ) : (
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                {nameLabel}
+              </span>
+            )}
           </div>
         )}
         {visibleItems.map((item) => (
@@ -113,7 +134,7 @@ export function SuggestionList({
             key={item.code}
             type="button"
             disabled={item.disabled}
-            className={`grid w-full cursor-pointer ${gridLayout} gap-x-2 items-center border-b border-zinc-100 px-3 py-2 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-50 disabled:hover:bg-transparent`}
+            className={`grid w-full cursor-pointer ${gridColumns} gap-x-2 items-center border-b border-zinc-100 px-3 py-2 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-50 disabled:hover:bg-transparent`}
             onMouseDown={(event) => {
               if (item.disabled) {
                 return;
@@ -122,6 +143,9 @@ export function SuggestionList({
               onSelect(item);
             }}
           >
+            {showCode && (
+              <span className="text-[11px] font-medium text-zinc-500 truncate">{item.code}</span>
+            )}
             <span className="text-sm leading-tight text-zinc-800 transition-colors py-0.5 truncate">
               {item.name}
             </span>

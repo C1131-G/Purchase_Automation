@@ -86,6 +86,7 @@ export interface OutgoingPaymentDetailResponse {
 
 export interface OutgoingPaymentAccount {
   GLAccount: string;
+  Account: string;
 }
 
 export interface OutgoingPaymentAccountsResponse {

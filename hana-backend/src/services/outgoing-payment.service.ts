@@ -669,7 +669,7 @@ export const getAccounts = async (dbName: string, query: AccountQuery) => {
     const repo = await getTenantRepository(dbName, GlAccountSchema);
     const qb = repo.createQueryBuilder("a");
 
-    qb.select(["a.GLAccount"]);
+    qb.select(["a.GLAccount", "a.Account"]);
 
     if (query.search) {
       qb.andWhere("LOWER(a.GLAccount) LIKE LOWER(:search)", { search: `%${query.search}%` });
@@ -687,7 +687,10 @@ export const getAccounts = async (dbName: string, query: AccountQuery) => {
     });
 
     return {
-      data: rows.map((r) => ({ GLAccount: r["a_GLAccount"] as string })),
+      data: rows.map((r) => ({
+        GLAccount: r["a_GLAccount"] as string,
+        Account: r["a_Account"] as string,
+      })),
       total: rows.length,
     };
   } catch (err: unknown) {

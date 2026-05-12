@@ -55,12 +55,10 @@ export function PaymentModal({
     ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 20),
   });
 
-  const accountSuggestions: CreateLookupOption[] = (accountData?.data ?? []).map(
-    (acc: { GLAccount: string }) => ({
-      code: acc.GLAccount,
-      name: acc.GLAccount,
-    }),
-  );
+  const accountSuggestions: CreateLookupOption[] = (accountData?.data ?? []).map((acc) => ({
+    code: acc.GLAccount,
+    name: acc.Account,
+  }));
 
   const handleAccountChange = (value: string) => {
     setAccountInput(value);
@@ -68,7 +66,7 @@ export function PaymentModal({
       setSelectedAccount(null);
       return;
     }
-    const matched = accountSuggestions.find((a) => a.name.toLowerCase() === value.toLowerCase());
+    const matched = accountSuggestions.find((a) => a.code.toLowerCase() === value.toLowerCase());
     if (matched) {
       selectAccount(matched);
       return;
@@ -77,8 +75,8 @@ export function PaymentModal({
   };
 
   const selectAccount = (item: CreateLookupOption) => {
-    setAccountInput(item.name);
-    setSelectedAccount(item.name);
+    setAccountInput(item.code);
+    setSelectedAccount(item.code);
     setAccountFocused(false);
     setAccountLookupOpen(false);
   };
@@ -225,7 +223,7 @@ export function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-slate-800">Payment</h2>
@@ -341,6 +339,9 @@ export function PaymentModal({
                       items={accountSuggestions}
                       onSelect={selectAccount}
                       floating
+                      showCode
+                      codeLabel="GLAccount"
+                      nameLabel="Account"
                       emptyText="No accounts found"
                       maxHeight="max-h-[200px]"
                       query={accountInput}
@@ -450,7 +451,7 @@ export function PaymentModal({
           )}
         </div>
 
-        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-white">
+        <div className="px-4 py-1.5 border-t border-slate-100 flex items-center justify-between bg-white">
           <button
             onClick={onClose}
             className="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors"
@@ -486,9 +487,10 @@ export function PaymentModal({
         results={accountLookupItems}
         loading={isLoadingAccounts}
         error={null}
-        mode="vendor-name"
+        codeLabel="GLAccount"
+        nameLabel="Account"
         title="Select Cash Account"
-        searchPlaceholder="Search account name..."
+        searchPlaceholder="Search account name and code..."
         onSearchChange={(v) => setAccountInput(v)}
         onClose={() => setAccountLookupOpen(false)}
         onSelect={(item) => selectAccount({ code: item.code, name: item.name })}
