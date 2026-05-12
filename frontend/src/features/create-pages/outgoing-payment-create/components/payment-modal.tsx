@@ -1,10 +1,12 @@
 import { CheckCircle2, Delete } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { LookupPopup } from "@/components/lookup/lookup-popup";
 import { FieldBlock } from "@/features/create-pages/create-shared/components/core/field-block";
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
 import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 
 interface PaymentCheck {
@@ -35,17 +37,19 @@ export function PaymentModal({
 }: PaymentModalProps) {
   const [activeTab, setActiveTab] = useState<"Cash" | "Cheque">("Cash");
 
-  const [cashAmount, setCashAmount] = useState<string>("0");
+  const [cashAmount, setCashAmount] = useState<string>("");
   const [accountInput, setAccountInput] = useState("");
   const [accountFocused, setAccountFocused] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
-  const [chequeAmount, setChequeAmount] = useState<string>("0");
-  const [isPayViaCheck, setIsPayViaCheck] = useState(true);
+  const [chequeAmount, setChequeAmount] = useState<string>("");
   const [chequeBank, setChequeBank] = useState("");
   const [chequeBranch, setChequeBranch] = useState("");
   const [chequeNo, setChequeNo] = useState("");
   const [chequeAccountNo, setChequeAccountNo] = useState("");
   const [chequeIssuedBy, setChequeIssuedBy] = useState("");
+  const [isAccountLookupOpen, setAccountLookupOpen] = useState(false);
+
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { data: accountData, isLoading: isLoadingAccounts } = useQuery({
     ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 20),
@@ -76,19 +80,28 @@ export function PaymentModal({
     setAccountInput(item.name);
     setSelectedAccount(item.name);
     setAccountFocused(false);
+    setAccountLookupOpen(false);
   };
+
+  const accountLookupItems: LookupItem[] = accountSuggestions.map((s) => ({
+    code: s.code,
+    name: s.name,
+  }));
 
   useEffect(() => {
     if (open) {
       const timer = setTimeout(() => {
-        setCashAmount("0");
+        setCashAmount("");
         setAccountInput("");
         setAccountFocused(false);
         setSelectedAccount(null);
-        setChequeAmount("0");
+        setChequeAmount("");
         setActiveTab("Cash");
       }, 0);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(focusTimeoutRef.current);
+      };
     }
   }, [open]);
 
@@ -126,12 +139,12 @@ export function PaymentModal({
   };
 
   const handleReset = () => {
-    setActiveAmount("0");
+    setActiveAmount("");
   };
 
   const handleKeypadPress = (digit: string) => {
     const current = getActiveAmount();
-    if (current === "0" && digit !== ".") {
+    if ((current === "" || current === "0") && digit !== ".") {
       setActiveAmount(digit);
       return;
     }
@@ -149,8 +162,8 @@ export function PaymentModal({
 
   const handleBackspace = () => {
     const current = getActiveAmount();
-    if (current.length <= 1) {
-      setActiveAmount("0");
+    if (current.length <= 1 || current === "") {
+      setActiveAmount("");
     } else {
       setActiveAmount(current.slice(0, -1));
     }
@@ -212,31 +225,31 @@ export function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]">
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-slate-800">Payment</h2>
             <div className="flex gap-3 text-sm">
               {balanceDue > 0 && (
                 <div className="flex gap-1.5">
-                  <span className="text-blue-500 font-medium">Invoice Amt.:</span>
-                  <span className="font-bold text-blue-500">FJD {balanceDue.toFixed(2)}</span>
+                  <span className="text-blue-400 font-medium">Invoice:</span>
+                  <span className="font-bold text-blue-400">FJD {balanceDue.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex gap-1.5">
-                <span className="text-emerald-500 font-medium">Paid:</span>
-                <span className="font-bold text-emerald-500">FJD {totalPaid.toFixed(2)}</span>
-              </div>
               {(balanceDue > 0 || !isPaymentOnAccount) && (
                 <div className="flex gap-1.5">
                   <span className="text-orange-500 font-medium">
-                    {remainingBalance < 0 ? "On Account:" : "Bal.:"}
+                    {remainingBalance < 0 ? "On Account:" : "Balance:"}
                   </span>
                   <span className="font-bold text-orange-500">
                     FJD {Math.abs(remainingBalance).toFixed(2)}
                   </span>
                 </div>
               )}
+              <div className="flex gap-1.5">
+                <span className="text-emerald-500 font-medium">Paid:</span>
+                <span className="font-bold text-emerald-500">FJD {totalPaid.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
@@ -247,7 +260,7 @@ export function PaymentModal({
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                   activeTab === tab
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-blue-600 text-white"
                     : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
                 }`}
               >
@@ -257,16 +270,14 @@ export function PaymentModal({
           </div>
         </div>
 
-        <div className="px-4 pb-4 overflow-hidden flex-1">
+        <div className="px-4 pb-4 flex-1 overflow-visible">
           {activeTab === "Cash" ? (
             <div className="flex gap-4">
               <div className="w-[260px] flex-shrink-0 border border-slate-100 rounded-xl p-3">
                 <button
                   onClick={handleAction}
-                  className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-bold mb-2 shadow-sm transition-all ${
-                    showReset
-                      ? "bg-rose-500 hover:bg-rose-600"
-                      : "bg-indigo-600 hover:bg-indigo-700"
+                  className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-semibold mb-2 shadow-sm transition-all cursor-pointer ${
+                    showReset ? "bg-rose-500 hover:bg-rose-600" : "bg-blue-600 hover:bg-blue-700"
                   }`}
                 >
                   {showReset ? "Reset" : "PAY FULL"}
@@ -282,7 +293,7 @@ export function PaymentModal({
                         setActiveAmount(val);
                       }
                     }}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -317,7 +328,11 @@ export function PaymentModal({
                     onChange={handleAccountChange}
                     onFocus={() => setAccountFocused(true)}
                     onBlur={() => {
-                      setTimeout(() => setAccountFocused(false), 120);
+                      focusTimeoutRef.current = setTimeout(() => setAccountFocused(false), 120);
+                    }}
+                    onOpenPopup={() => {
+                      clearTimeout(focusTimeoutRef.current);
+                      setAccountLookupOpen(true);
                     }}
                     loading={isLoadingAccounts}
                   />
@@ -353,27 +368,16 @@ export function PaymentModal({
           ) : (
             <div className="border border-slate-100 rounded-xl p-3">
               <div className="flex items-center gap-4 pb-3 mb-3 border-b border-slate-100">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isPayViaCheck}
-                    onChange={(e) => setIsPayViaCheck(e.target.checked)}
-                    className="w-4 h-4 text-indigo-500 rounded border-slate-300"
-                  />
-                  <span className="text-sm font-bold text-slate-700">Pay via Cheque</span>
-                </label>
                 <input
                   type="number"
                   value={chequeAmount}
                   onChange={(e) => setChequeAmount(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none w-40 bg-white"
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none w-40 bg-white"
                 />
                 <button
                   onClick={handleAction}
-                  className={`flex items-center gap-1.5 px-5 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors ${
-                    showReset
-                      ? "bg-rose-500 hover:bg-rose-600"
-                      : "bg-indigo-600 hover:bg-indigo-700"
+                  className={`flex items-center justify-center gap-1.5 min-w-[130px] px-5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer ${
+                    showReset ? "bg-rose-500 hover:bg-rose-600" : "bg-blue-600 hover:bg-blue-700"
                   }`}
                 >
                   {showReset ? "Reset" : "PAY FULL"}
@@ -423,7 +427,7 @@ export function PaymentModal({
                       <select
                         value={field.value}
                         onChange={(e) => field.setter(e.target.value)}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
                       >
                         {field.options?.map((opt) => (
                           <option key={opt} value={opt}>
@@ -436,7 +440,7 @@ export function PaymentModal({
                         type="text"
                         value={field.value}
                         onChange={(e) => field.setter(e.target.value)}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
                       />
                     )}
                   </div>
@@ -469,12 +473,26 @@ export function PaymentModal({
               }
               return false;
             })()}
-            className="bg-indigo-600 text-white px-10 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed"
+            className="bg-blue-600 text-white px-10 py-2 rounded-lg text-sm font-semibold shadow-md hover:bg-blue-700 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed"
           >
             SUBMIT PAYMENT
           </button>
         </div>
       </div>
+
+      <LookupPopup
+        open={isAccountLookupOpen}
+        search={accountInput}
+        results={accountLookupItems}
+        loading={isLoadingAccounts}
+        error={null}
+        mode="vendor-name"
+        title="Select Cash Account"
+        searchPlaceholder="Search account name..."
+        onSearchChange={(v) => setAccountInput(v)}
+        onClose={() => setAccountLookupOpen(false)}
+        onSelect={(item) => selectAccount({ code: item.code, name: item.name })}
+      />
     </div>
   );
 }
