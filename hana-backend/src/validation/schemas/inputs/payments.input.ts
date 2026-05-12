@@ -99,6 +99,7 @@ export const BaseCreatePaymentInputSchema = z.object({
   CashAccount: z.string().optional(),
   TrsfrSum: z.number().optional(),
   TransferSum: z.number().optional(),
+  SurchargeTotal: z.number().optional(),
   // PaymentChecks: Array of checks.
   PaymentChecks: z
     .array(
@@ -109,6 +110,19 @@ export const BaseCreatePaymentInputSchema = z.object({
         CheckNumber: z.number(),
         CheckSum: z.number(),
         DueDate: z.string().optional(),
+        Endorse: z.string().optional(),
+      }),
+    )
+    .optional(),
+  // PaymentCreditCards: Array of credit card details.
+  PaymentCreditCards: z
+    .array(
+      z.object({
+        CreditCard: z.number(),
+        CreditSum: z.number(),
+        VoucherNum: z.string(),
+        CreditCardNumber: z.string().optional(),
+        CardValidUntil: z.string().optional(),
       }),
     )
     .optional(),

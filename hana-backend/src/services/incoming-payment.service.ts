@@ -15,6 +15,8 @@ import { PageService } from "@/services/page-service.service";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
+import { resolveGLAccount } from "./account-resolution.service";
+
 // Fetches a paginated list of Incoming Payments from HANA.
 export const getPayments = async (dbName: string, filters: PaymentFilters) => {
   try {
@@ -319,8 +321,16 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     logger.info({
       cardCode: payload.CardCode,
       invoiceCount: (payload.PaymentInvoices as Record<string, unknown>[])?.length,
-      msg: "Incoming Payment Initiation",
+      msg: "Incoming Payment Initiation [v2-GL-Resolution]",
+      rawPayload: payload,
     });
+
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || (process.env.COMMON_DB as string);
+
+    // Identify the branch/location for dynamic account resolution.
+    const branch = (payload.PaymentChecks as any[])?.[0]?.Branch || (payload.Branch as string);
+
     // Construct SAP payload. CashSum and TrsfrSum define the payment split.
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
@@ -407,6 +417,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       sapPayload.CashSum = payload.CashSum;
       if (payload.CashAccount) {
         sapPayload.CashAccount = payload.CashAccount;
+      } else {
+        sapPayload.CashAccount = await resolveGLAccount(dbName, branch, "Cash");
       }
     }
 
@@ -415,16 +427,18 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
-      sapPayload.PaymentCreditCards = (payload.PaymentCreditCards as Record<string, unknown>[]).map(
-        (card, idx) => ({
-          CardValidUntil: "2026-12-31", // Placeholder required by SAP
-          CreditAcct: card.CreditAcct,
-          CreditCard: card.CreditCard,
-          CreditCardNumber: "123", // Placeholder required by SAP
-          CreditSum: card.CreditSum,
+      sapPayload.PaymentCreditCards = await Promise.all(
+        (payload.PaymentCreditCards as Record<string, unknown>[]).map(async (card, idx) => ({
           LineNum: idx,
+          CreditCard: card.CreditCard,
+          CreditSum: card.CreditSum,
           VoucherNum: card.VoucherNum,
-        }),
+          CreditAcct:
+            card.CreditAcct ||
+            (await resolveGLAccount(dbName, branch, "CreditCard", Number(card.CreditCard))),
+          CreditCardNumber: "123", // Placeholder required by SAP
+          CardValidUntil: "2026-12-31", // Placeholder required by SAP
+        })),
       );
     }
 
@@ -434,16 +448,18 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       );
 
       if (realChecks.length > 0) {
-        sapPayload.PaymentChecks = realChecks.map((chk, idx) => ({
-          BankCode: chk.BankCode,
-          Branch: chk.Branch,
-          CheckAccount: chk.CheckAccount || "",
-          CheckNumber: chk.CheckNumber,
-          CheckSum: chk.CheckSum,
-          DueDate: chk.DueDate || sapPayload.DocDate,
-          Endorse: chk.Endorse || "tNO",
-          LineNum: idx,
-        }));
+        sapPayload.PaymentChecks = await Promise.all(
+          realChecks.map(async (chk, idx) => ({
+            LineNum: idx,
+            DueDate: chk.DueDate || sapPayload.DocDate,
+            CheckNumber: chk.CheckNumber,
+            BankCode: chk.BankCode,
+            Branch: chk.Branch,
+            CheckSum: chk.CheckSum,
+            CheckAccount: chk.CheckAccount || (await resolveGLAccount(dbName, branch, "Check")),
+            Endorse: chk.Endorse || "tNO",
+          })),
+        );
       }
     }
 
@@ -465,6 +481,13 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     // Execute POST request to create the payment record.
+    logger.info({
+      msg: "Final Account Resolution Mappings",
+      CashAccount: sapPayload.CashAccount,
+      CheckAccounts: (sapPayload.PaymentChecks as any[])?.map((c) => c.CheckAccount),
+      CardAccounts: (sapPayload.PaymentCreditCards as any[])?.map((c) => c.CreditAcct),
+    });
+
     logger.info({ msg: "Sending Payload to SAP Service Layer", sapPayload });
     const result = (await serviceLayerClient.request(
       sessionId,
@@ -474,7 +497,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     )) as SAPDocumentResponse;
 
     // Purge sales-related dashboard cache to reflect the updated receivables.
-    const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:sales:${session.companyDB}:`);
     }

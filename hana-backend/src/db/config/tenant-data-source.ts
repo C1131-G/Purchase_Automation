@@ -11,6 +11,7 @@ import { APCreditMemoHeaderSchema } from "@/db/schemas/apcreditmemoheader.schema
 import { APInvoiceHeaderSchema } from "@/db/schemas/apinvoiceheader.schema";
 import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
+import { FinancialPeriodSchema } from "@/db/schemas/financial-period.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
@@ -97,6 +98,7 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       GRPOHeaderSchema,
       APInvoiceHeaderSchema,
       APCreditMemoHeaderSchema,
+      FinancialPeriodSchema,
     ],
     subscribers: [],
     migrations: [],
