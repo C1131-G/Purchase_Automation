@@ -147,7 +147,7 @@ export function CreateIncomingPaymentForm() {
     { balanceDue: 0, totalCreditMemos: 0, totalInvoices: 0 },
   );
 
-  const handlePaymentSubmit = (paymentDetails: {
+    const handlePaymentSubmit = (paymentDetails: {
     PaymentCreditCards: {
       CreditCard: number;
       CreditSum: number;
@@ -164,18 +164,13 @@ export function CreateIncomingPaymentForm() {
       Endorse?: "tYES" | "tNO";
     }[];
     SurchargeTotal?: number;
+    CashSum?: number;
   }) => {
+    console.log("!!! FRONTEND PAYMENT SUBMIT v2 !!!", paymentDetails);
     // 1. Calculate total actually paid from modal (Cash + Checks + Cards)
-    const totalCash =
-      paymentDetails.PaymentChecks?.filter((c) => c.BankCode === "CASH").reduce(
-        (sum, c) => sum + c.CheckSum,
-        0,
-      ) || 0;
+    const totalCash = paymentDetails.CashSum || 0;
     const totalChecks =
-      paymentDetails.PaymentChecks?.filter((c) => c.BankCode !== "CASH").reduce(
-        (sum, c) => sum + c.CheckSum,
-        0,
-      ) || 0;
+      paymentDetails.PaymentChecks?.reduce((sum, c) => sum + c.CheckSum, 0) || 0;
     const totalCards =
       paymentDetails.PaymentCreditCards?.reduce((sum, c) => sum + c.CreditSum, 0) || 0;
     const surcharge = paymentDetails.SurchargeTotal || 0;

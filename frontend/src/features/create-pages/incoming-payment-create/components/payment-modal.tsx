@@ -248,10 +248,36 @@ export function PaymentModal({
     setAddedCards(addedCards.filter((c) => c.id !== id));
   };
 
-  const handleSubmit = () => {
-    const cash = Number(cashAmount) || 0;
-    const cheque = Number(chequeAmount) || 0;
-    // const totalCards = addedCards.reduce((sum, c) => sum + c.amount, 0)
+    const handleSubmit = () => {
+    let cash = Number(cashAmount) || 0;
+    let cheque = Number(chequeAmount) || 0;
+    let cards = [...addedCards];
+
+    // Auto-capture current tab if not added
+    if (activeTab === "Card") {
+      const amount = Number(cardAmount) || 0;
+      if (amount > 0 && cardRef.trim()) {
+        const cardIdMap: Record<string, number> = {
+          AMEX: 3,
+          DEBIT: 4,
+          MASTERCARD: 2,
+          MPAISA: 7,
+          MYCASH: 6,
+          QRPAY: 5,
+          VISA: 1,
+        };
+        cards.push({
+          amount,
+          bank: eftposBank,
+          cardType,
+          creditCardId: cardIdMap[cardType] || 1,
+          id: "auto-added",
+          reference: cardRef,
+          surchargeAmount: (amount * surchargeRate) / 100,
+          surchargeRate,
+        });
+      }
+    }
 
     const paymentChecks: PaymentCheck[] = [];
 
@@ -266,23 +292,14 @@ export function PaymentModal({
       });
     }
 
-    if (cash > 0) {
-      paymentChecks.push({
-        BankCode: "CASH",
-        Branch: "Vendor Portal",
-        CheckNumber: 1,
-        CheckSum: cash,
-        Endorse: "tNO",
-      });
-    }
-
-    const surchargeTotal = addedCards.reduce((sum, c) => sum + (c.surchargeAmount || 0), 0);
+    const surchargeTotal = cards.reduce((sum, c) => sum + (c.surchargeAmount || 0), 0);
     const paymentDetails: {
       PaymentCreditCards: PaymentCreditCard[];
       PaymentChecks?: PaymentCheck[];
       SurchargeTotal?: number;
+      CashSum?: number;
     } = {
-      PaymentCreditCards: addedCards.map((c) => ({
+      PaymentCreditCards: cards.map((c) => ({
         CardValidUntil: "2025-12-31",
         CreditCard: c.creditCardId,
         CreditCardNumber: "123",
@@ -290,6 +307,7 @@ export function PaymentModal({
         VoucherNum: c.reference,
       })),
       SurchargeTotal: surchargeTotal,
+      CashSum: cash,
     };
 
     if (paymentChecks.length > 0) {
