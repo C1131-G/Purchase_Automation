@@ -13,7 +13,6 @@ interface PaymentCheck {
   CheckNumber: number;
   CheckSum: number;
   CheckAccount?: string;
-  Endorse?: "tYES" | "tNO";
 }
 
 interface PaymentModalProps {
@@ -47,7 +46,6 @@ export function PaymentModal({
   const [chequeNo, setChequeNo] = useState("");
   const [chequeAccountNo, setChequeAccountNo] = useState("");
   const [chequeIssuedBy, setChequeIssuedBy] = useState("");
-  const [chequeEndorse, setChequeEndorse] = useState(false);
 
   const { data: accountData, isLoading: isLoadingAccounts } = useQuery({
     ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 20),
@@ -171,7 +169,6 @@ export function PaymentModal({
         CheckAccount: chequeAccountNo || "",
         CheckNumber: Number(chequeNo) || 1,
         CheckSum: cheque,
-        Endorse: (chequeEndorse ? "tYES" : "tNO") as "tYES" | "tNO",
       });
     }
 
@@ -182,7 +179,6 @@ export function PaymentModal({
         CheckNumber: 1,
         CheckSum: cash,
         CheckAccount: selectedAccount || "",
-        Endorse: "tNO",
       });
     }
 
@@ -204,13 +200,23 @@ export function PaymentModal({
   const totalPaid = (Number(cashAmount) || 0) + (Number(chequeAmount) || 0);
   const remainingBalance = balanceDue - totalPaid;
 
+  const showReset = remainingBalance <= 0;
+
+  const handleAction = () => {
+    if (showReset) {
+      handleReset();
+    } else {
+      handlePayFull();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl flex flex-col max-h-[95vh]">
-        <div className="p-5 flex-shrink-0">
-          <div className="flex items-center justify-between mb-5">
+      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div className="p-4 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-slate-800">Payment</h2>
-            <div className="flex gap-4 text-sm">
+            <div className="flex gap-3 text-sm">
               {balanceDue > 0 && (
                 <div className="flex gap-1.5">
                   <span className="text-blue-500 font-medium">Invoice Amt.:</span>
@@ -241,8 +247,8 @@ export function PaymentModal({
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                   activeTab === tab
-                    ? "bg-teal-500 text-white shadow-sm"
-                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 {tab}
@@ -251,19 +257,22 @@ export function PaymentModal({
           </div>
         </div>
 
-        <div className="px-5 pb-5 overflow-y-auto flex-1">
+        <div className="px-4 pb-4 overflow-hidden flex-1">
           {activeTab === "Cash" ? (
-            <div className="flex gap-6">
-              <div className="w-[260px] flex-shrink-0">
-                {balanceDue > 0 && remainingBalance > 0 && (
-                  <button
-                    onClick={handlePayFull}
-                    className="flex items-center gap-2 bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-3 shadow-sm hover:bg-indigo-600"
-                  >
-                    PAY FULL <CheckCircle2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <div className="flex gap-2 mb-3">
+            <div className="flex gap-4">
+              <div className="w-[260px] flex-shrink-0 border border-slate-100 rounded-xl p-3">
+                <button
+                  onClick={handleAction}
+                  className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-bold mb-2 shadow-sm transition-all ${
+                    showReset
+                      ? "bg-rose-500 hover:bg-rose-600"
+                      : "bg-indigo-600 hover:bg-indigo-700"
+                  }`}
+                >
+                  {showReset ? "Reset" : "PAY FULL"}
+                  {!showReset && <CheckCircle2 className="w-3.5 h-3.5" />}
+                </button>
+                <div className="mb-2">
                   <input
                     type="text"
                     value={getActiveAmount()}
@@ -273,22 +282,16 @@ export function PaymentModal({
                         setActiveAmount(val);
                       }
                     }}
-                    className="flex-1 border border-slate-200 rounded px-3 py-1.5 text-base text-slate-700 outline-none bg-white focus:border-teal-500 shadow-inner"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                   />
-                  <button
-                    onClick={handleReset}
-                    className="bg-rose-500 text-white px-3 py-1.5 rounded text-sm font-bold shadow-sm hover:bg-rose-600"
-                  >
-                    Reset
-                  </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1.5">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, ".", "back"].map((key) =>
                     key === "back" ? (
                       <button
                         key="back"
                         onClick={handleBackspace}
-                        className="bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center py-3 rounded"
+                        className="bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center py-3 rounded-lg"
                       >
                         <Delete className="w-5 h-5" />
                       </button>
@@ -296,7 +299,7 @@ export function PaymentModal({
                       <button
                         key={key}
                         onClick={() => handleKeypadPress(key.toString())}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-lg font-bold py-3 rounded"
+                        className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xl font-bold py-2.5 rounded-lg"
                       >
                         {key}
                       </button>
@@ -332,14 +335,14 @@ export function PaymentModal({
                 </div>
 
                 {selectedAccount && (
-                  <div className="flex items-center gap-2 rounded bg-teal-50 border border-teal-200 px-3 py-2">
+                  <div className="flex items-center gap-2 rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1.5">
                     <CheckCircle2 className="w-4 h-4 text-teal-500 flex-shrink-0" />
                     <p className="text-xs font-semibold text-teal-700">{selectedAccount}</p>
                   </div>
                 )}
 
-                <div className="mt-2 text-center text-slate-400">
-                  <div className="flex items-center gap-1 text-xs">
+                <div className="mt-2 text-left text-slate-400">
+                  <div className="flex items-center gap-1 text-[11px]">
                     <span>Enter amount on the keypad</span>
                     <span>&bull;</span>
                     <span>Select account</span>
@@ -348,14 +351,14 @@ export function PaymentModal({
               </div>
             </div>
           ) : (
-            <div className="w-full space-y-4 animate-in fade-in pt-2">
-              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">
+            <div className="border border-slate-100 rounded-xl p-3">
+              <div className="flex items-center gap-4 pb-3 mb-3 border-b border-slate-100">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isPayViaCheck}
                     onChange={(e) => setIsPayViaCheck(e.target.checked)}
-                    className="w-4 h-4 text-teal-500 rounded border-slate-300"
+                    className="w-4 h-4 text-indigo-500 rounded border-slate-300"
                   />
                   <span className="text-sm font-bold text-slate-700">Pay via Cheque</span>
                 </label>
@@ -363,19 +366,22 @@ export function PaymentModal({
                   type="number"
                   value={chequeAmount}
                   onChange={(e) => setChequeAmount(e.target.value)}
-                  className="border border-slate-200 rounded px-3 py-1.5 text-sm focus:border-teal-500 outline-none w-40 bg-white"
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none w-40 bg-white"
                 />
-                {balanceDue > 0 && remainingBalance > 0 && (
-                  <button
-                    onClick={handlePayFull}
-                    className="bg-indigo-500 text-white px-5 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-indigo-600 transition-colors"
-                  >
-                    PAY FULL <CheckCircle2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                <button
+                  onClick={handleAction}
+                  className={`flex items-center gap-1.5 px-5 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors ${
+                    showReset
+                      ? "bg-rose-500 hover:bg-rose-600"
+                      : "bg-indigo-600 hover:bg-indigo-700"
+                  }`}
+                >
+                  {showReset ? "Reset" : "PAY FULL"}
+                  {!showReset && <CheckCircle2 className="w-3.5 h-3.5" />}
+                </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   {
                     label: "Bank",
@@ -417,7 +423,7 @@ export function PaymentModal({
                       <select
                         value={field.value}
                         onChange={(e) => field.setter(e.target.value)}
-                        className="w-full border border-slate-200 rounded px-3 py-1.5 text-sm focus:border-teal-500 outline-none bg-white"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white"
                       >
                         {field.options?.map((opt) => (
                           <option key={opt} value={opt}>
@@ -430,31 +436,20 @@ export function PaymentModal({
                         type="text"
                         value={field.value}
                         onChange={(e) => field.setter(e.target.value)}
-                        className="w-full border border-slate-200 rounded px-3 py-1.5 text-sm focus:border-teal-500 outline-none bg-white"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none bg-white"
                       />
                     )}
                   </div>
                 ))}
-                <div className="flex items-end pb-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={chequeEndorse}
-                      onChange={(e) => setChequeEndorse(e.target.checked)}
-                      className="w-4 h-4 text-teal-500 rounded border-slate-300"
-                    />
-                    <span className="text-sm text-slate-500 font-medium">Endorse Cheque</span>
-                  </label>
-                </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between bg-white">
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-white">
           <button
             onClick={onClose}
-            className="bg-slate-100 text-slate-600 px-6 py-2 rounded text-sm font-bold hover:bg-slate-200 transition-colors"
+            className="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors"
           >
             Cancel
           </button>
@@ -474,7 +469,7 @@ export function PaymentModal({
               }
               return false;
             })()}
-            className="bg-teal-500 text-white px-10 py-2 rounded text-sm font-bold shadow-lg shadow-teal-100 hover:bg-teal-600 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed"
+            className="bg-indigo-600 text-white px-10 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed"
           >
             SUBMIT PAYMENT
           </button>

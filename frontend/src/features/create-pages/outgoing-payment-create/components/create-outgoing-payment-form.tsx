@@ -236,7 +236,6 @@ export function CreateOutgoingPaymentForm() {
       CheckNumber: number;
       CheckSum: number;
       CheckAccount?: string;
-      Endorse?: "tYES" | "tNO";
     }[];
     CashAccount?: string | null;
   }) => {

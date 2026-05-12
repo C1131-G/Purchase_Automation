@@ -419,7 +419,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           CheckNumber: chk.CheckNumber,
           CheckSum: chk.CheckSum,
           DueDate: chk.DueDate || sapPayload.DocDate,
-          Endorse: chk.Endorse || "tNO",
+          Endorse: "tNO",
           LineNum: idx,
         }));
       }

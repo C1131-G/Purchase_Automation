@@ -36,7 +36,6 @@ export interface CreateOutgoingPaymentPayload {
     CheckNumber: number;
     CheckSum: number;
     CheckAccount?: string;
-    Endorse?: "tYES" | "tNO";
   }[];
   PaymentInvoices?: {
     DocEntry: number;

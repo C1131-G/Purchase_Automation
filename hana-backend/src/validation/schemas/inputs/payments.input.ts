@@ -109,7 +109,6 @@ export const BaseCreatePaymentInputSchema = z.object({
         CheckNumber: z.number(),
         CheckSum: z.number(),
         DueDate: z.string().optional(),
-        Endorse: z.string().optional(), // 'tYES' or 'tNO'
       }),
     )
     .optional(),
