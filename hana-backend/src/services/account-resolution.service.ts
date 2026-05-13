@@ -12,7 +12,7 @@ export const resolveGLAccount = async (
   dbName: string,
   location: string | undefined,
   paymentType: PaymentType,
-  creditCardId?: number,
+  _creditCardId?: number,
 ): Promise<string> => {
   try {
     const periodRepo = await getTenantRepository(dbName, FinancialPeriodSchema);

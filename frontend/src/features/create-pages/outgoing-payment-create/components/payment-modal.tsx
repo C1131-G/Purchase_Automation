@@ -15,6 +15,7 @@ interface PaymentCheck {
   CheckNumber: number;
   CheckSum: number;
   CheckAccount?: string;
+  Endorse?: string;
 }
 
 interface PaymentModalProps {
@@ -24,6 +25,9 @@ interface PaymentModalProps {
   onPaymentSubmit: (paymentDetails: {
     PaymentChecks?: PaymentCheck[];
     CashAccount?: string | null;
+    ChequeAccount?: string;
+    ChequeGLAccount?: string;
+    ChequeEndorse?: string;
   }) => void;
   isPaymentOnAccount?: boolean;
 }
@@ -45,17 +49,29 @@ export function PaymentModal({
   const [chequeBank, setChequeBank] = useState("");
   const [chequeBranch, setChequeBranch] = useState("");
   const [chequeNo, setChequeNo] = useState("");
-  const [chequeAccountNo, setChequeAccountNo] = useState("");
-  const [chequeIssuedBy, setChequeIssuedBy] = useState("");
   const [isAccountLookupOpen, setAccountLookupOpen] = useState(false);
   const [bankCountryCode, setBankCountryCode] = useState("");
   const [bankCountryCodeFocused, setBankCountryCodeFocused] = useState(false);
   const [bankName, setBankName] = useState("");
   const [bankNameFocused, setBankNameFocused] = useState(false);
+  const [chequeAccount, setChequeAccount] = useState("");
+  const [chequeAccountFocused, setChequeAccountFocused] = useState(false);
+  const [chequeGLAccount, setChequeGLAccount] = useState("");
+  const [chequeGLAccountFocused, setChequeGLAccountFocused] = useState(false);
+  const [manualCheckNo, setManualCheckNo] = useState(false);
+  const [isCountryLookupOpen, setCountryLookupOpen] = useState(false);
+  const [isBankNameLookupOpen, setBankNameLookupOpen] = useState(false);
+  const [isChequeAccountLookupOpen, setChequeAccountLookupOpen] = useState(false);
+  const [isChequeGLAccountLookupOpen, setChequeGLAccountLookupOpen] = useState(false);
+  const [chequeEndorse, setChequeEndorse] = useState<string>("No");
 
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const bankCountryFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const bankNameFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const chequeAccountFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const chequeGLAccountFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   const { data: accountData, isLoading: isLoadingAccounts } = useQuery({
     ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 20),
@@ -111,6 +127,26 @@ export function PaymentModal({
     name: s.name,
   }));
 
+  const countryLookupItems: LookupItem[] = countryCodeSuggestions.map((s) => ({
+    code: s.code,
+    name: s.name,
+  }));
+
+  const bankNameLookupItems: LookupItem[] = bankNameSuggestions.map((s) => ({
+    code: s.code,
+    name: s.name,
+  }));
+
+  const chequeAccountOptions: CreateLookupOption[] = useMemo(
+    () => accountSuggestions.map((a) => ({ code: a.code, name: a.code })),
+    [accountSuggestions],
+  );
+
+  const chequeAccountLookupItems: LookupItem[] = chequeAccountOptions.map((s) => ({
+    code: s.code,
+    name: s.name,
+  }));
+
   useEffect(() => {
     if (open) {
       const timer = setTimeout(() => {
@@ -119,6 +155,14 @@ export function PaymentModal({
         setAccountFocused(false);
         setSelectedAccount(null);
         setChequeAmount("");
+        setBankCountryCode("");
+        setBankName("");
+        setChequeAccount("");
+        setChequeGLAccount("");
+        setCountryLookupOpen(false);
+        setBankNameLookupOpen(false);
+        setChequeAccountLookupOpen(false);
+        setChequeGLAccountLookupOpen(false);
         setActiveTab("Cash");
       }, 0);
       return () => {
@@ -126,6 +170,8 @@ export function PaymentModal({
         clearTimeout(focusTimeoutRef.current);
         clearTimeout(bankCountryFocusTimeoutRef.current);
         clearTimeout(bankNameFocusTimeoutRef.current);
+        clearTimeout(chequeAccountFocusTimeoutRef.current);
+        clearTimeout(chequeGLAccountFocusTimeoutRef.current);
       };
     }
   }, [open]);
@@ -204,9 +250,9 @@ export function PaymentModal({
       paymentChecks.push({
         BankCode: chequeBank || "CASH",
         Branch: chequeBranch || "LABASA",
-        CheckAccount: chequeAccountNo || "",
         CheckNumber: Number(chequeNo) || 1,
         CheckSum: cheque,
+        Endorse: chequeEndorse,
       });
     }
 
@@ -223,9 +269,22 @@ export function PaymentModal({
     const paymentDetails: {
       PaymentChecks?: PaymentCheck[];
       CashAccount?: string | null;
+      ChequeAccount?: string;
+      ChequeGLAccount?: string;
+      ChequeEndorse?: string;
     } = {
       CashAccount: selectedAccount ?? null,
     };
+
+    if (chequeAccount) {
+      paymentDetails.ChequeAccount = chequeAccount;
+    }
+    if (chequeGLAccount) {
+      paymentDetails.ChequeGLAccount = chequeGLAccount;
+    }
+    if (chequeEndorse && chequeEndorse !== "No") {
+      paymentDetails.ChequeEndorse = chequeEndorse;
+    }
 
     if (paymentChecks.length > 0) {
       paymentDetails.PaymentChecks = paymentChecks;
@@ -250,10 +309,10 @@ export function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]">
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-slate-800">Payment</h2>
+            <h2 className="text-lg font-bold text-slate-800"></h2>
             <div className="flex gap-3 text-sm">
               {balanceDue > 0 && (
                 <div className="flex gap-1.5">
@@ -297,8 +356,8 @@ export function PaymentModal({
 
         <div className="px-4 pb-4 flex-1 overflow-visible">
           {activeTab === "Cash" ? (
-            <div className="flex gap-4">
-              <div className="w-[260px] flex-shrink-0 border border-slate-100 rounded-xl p-3">
+            <div className="flex gap-4 border border-slate-100 rounded-xl p-3">
+              <div className="w-[260px] flex-shrink-0">
                 <button
                   onClick={handleAction}
                   className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-semibold mb-2 shadow-sm transition-all cursor-pointer ${
@@ -377,13 +436,6 @@ export function PaymentModal({
                   )}
                 </div>
 
-                {selectedAccount && (
-                  <div className="flex items-center gap-2 rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-teal-500 flex-shrink-0" />
-                    <p className="text-xs font-semibold text-teal-700">{selectedAccount}</p>
-                  </div>
-                )}
-
                 <div className="mt-2 text-left text-slate-400">
                   <div className="flex items-center gap-1 text-[11px]">
                     <span>Enter amount on the keypad</span>
@@ -400,7 +452,7 @@ export function PaymentModal({
                   type="number"
                   value={chequeAmount}
                   onChange={(e) => setChequeAmount(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none w-40 bg-white"
+                  className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none w-40 bg-white"
                 />
                 <button
                   onClick={handleAction}
@@ -413,146 +465,197 @@ export function PaymentModal({
                 </button>
               </div>
 
-              <div className="pb-3 mb-3 border-b border-slate-100">
-                <div className="flex gap-4">
-                  <div className="w-52 relative">
-                    <FieldBlock
-                      label="Country Code"
-                      placeholder="Search country code..."
-                      value={bankCountryCode}
-                      onChange={(v) => setBankCountryCode(v)}
-                      onFocus={() => setBankCountryCodeFocused(true)}
-                      onBlur={() => {
-                        bankCountryFocusTimeoutRef.current = setTimeout(
-                          () => setBankCountryCodeFocused(false),
-                          120,
-                        );
+              <div className="grid grid-cols-2 gap-4">
+                <div className="relative">
+                  <FieldBlock
+                    label="Country Code"
+                    placeholder="Search country code..."
+                    value={bankCountryCode}
+                    onChange={(v) => setBankCountryCode(v)}
+                    onFocus={() => setBankCountryCodeFocused(true)}
+                    onBlur={() => {
+                      bankCountryFocusTimeoutRef.current = setTimeout(
+                        () => setBankCountryCodeFocused(false),
+                        120,
+                      );
+                    }}
+                    onOpenPopup={() => {
+                      clearTimeout(bankCountryFocusTimeoutRef.current);
+                      setCountryLookupOpen(true);
+                    }}
+                    loading={isLoadingBanks}
+                  />
+                  {bankCountryCodeFocused && (
+                    <SuggestionList
+                      items={countryCodeSuggestions}
+                      onSelect={(item) => {
+                        setBankCountryCode(item.code);
+                        setBankCountryCodeFocused(false);
+                        setBankName("");
                       }}
-                      onOpenPopup={() => {
-                        clearTimeout(bankCountryFocusTimeoutRef.current);
-                        setBankCountryCodeFocused(true);
-                      }}
-                      loading={isLoadingBanks}
+                      floating
+                      nameLabel="Code"
+                      emptyText="No country codes found"
+                      maxHeight="max-h-[150px]"
+                      query={bankCountryCode}
+                      scrollable={false}
                     />
-                    {bankCountryCodeFocused && (
-                      <SuggestionList
-                        items={countryCodeSuggestions}
-                        onSelect={(item) => {
-                          setBankCountryCode(item.code);
-                          setBankCountryCodeFocused(false);
-                          setBankName("");
-                        }}
-                        floating
-                        emptyText="No country codes found"
-                        maxHeight="max-h-[150px]"
-                        query={bankCountryCode}
-                        scrollable={false}
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1 relative">
-                    <FieldBlock
-                      label="Bank Name"
-                      placeholder="Search bank name..."
-                      value={bankName}
-                      onChange={(v) => setBankName(v)}
-                      onFocus={() => setBankNameFocused(true)}
-                      onBlur={() => {
-                        bankNameFocusTimeoutRef.current = setTimeout(
-                          () => setBankNameFocused(false),
-                          120,
-                        );
-                      }}
-                      onOpenPopup={() => {
-                        clearTimeout(bankNameFocusTimeoutRef.current);
-                        setBankNameFocused(true);
-                      }}
-                    />
-                    {bankNameFocused && (
-                      <SuggestionList
-                        items={bankNameSuggestions}
-                        onSelect={(item) => {
-                          setBankName(item.name);
-                          setChequeBank(item.code);
-                          setBankNameFocused(false);
-                        }}
-                        floating
-                        emptyText="No banks found"
-                        maxHeight="max-h-[150px]"
-                        query={bankName}
-                        scrollable={false}
-                      />
-                    )}
-                  </div>
+                  )}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  {
-                    label: "Bank",
-                    options: ["", "ANZ", "BSP", "WESTPAC"],
-                    setter: setChequeBank,
-                    type: "select",
-                    value: chequeBank,
-                  },
-                  {
-                    label: "Branch",
-                    setter: setChequeBranch,
-                    type: "text",
-                    value: chequeBranch,
-                  },
-                  {
-                    label: "Check No.",
-                    setter: setChequeNo,
-                    type: "text",
-                    value: chequeNo,
-                  },
-                  {
-                    label: "Account No.",
-                    setter: setChequeAccountNo,
-                    type: "text",
-                    value: chequeAccountNo,
-                  },
-                  {
-                    label: "Issued by",
-                    setter: setChequeIssuedBy,
-                    type: "text",
-                    value: chequeIssuedBy,
-                  },
-                ].map((field) => (
-                  <div key={field.label}>
-                    <label className="block text-slate-400 text-[10px] mb-1 uppercase font-bold tracking-wider">
-                      {field.label}
-                    </label>
-                    {field.type === "select" ? (
-                      <select
-                        value={field.value}
-                        onChange={(e) => field.setter(e.target.value)}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
-                      >
-                        {field.options?.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt || "Select Bank"}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={field.value}
-                        onChange={(e) => field.setter(e.target.value)}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
-                      />
-                    )}
-                  </div>
-                ))}
+                <div className="relative">
+                  <FieldBlock
+                    label="Bank Name"
+                    placeholder="Search bank name..."
+                    value={bankName}
+                    onChange={(v) => setBankName(v)}
+                    onFocus={() => setBankNameFocused(true)}
+                    onBlur={() => {
+                      bankNameFocusTimeoutRef.current = setTimeout(
+                        () => setBankNameFocused(false),
+                        120,
+                      );
+                    }}
+                    onOpenPopup={() => {
+                      clearTimeout(bankNameFocusTimeoutRef.current);
+                      setBankNameLookupOpen(true);
+                    }}
+                  />
+                  {bankNameFocused && (
+                    <SuggestionList
+                      items={bankNameSuggestions}
+                      onSelect={(item) => {
+                        setBankName(item.name);
+                        setChequeBank(item.code);
+                        setBankNameFocused(false);
+                      }}
+                      floating
+                      emptyText="No banks found"
+                      maxHeight="max-h-[150px]"
+                      query={bankName}
+                      scrollable={false}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[10px] mb-1 font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    Branch
+                  </label>
+                  <input
+                    type="text"
+                    value={chequeBranch}
+                    onChange={(e) => setChequeBranch(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
+                  />
+                </div>
+                <div className="relative">
+                  <FieldBlock
+                    label="Account Number"
+                    placeholder="Search account..."
+                    value={chequeAccount}
+                    onChange={(v) => setChequeAccount(v)}
+                    onFocus={() => setChequeAccountFocused(true)}
+                    onBlur={() => {
+                      chequeAccountFocusTimeoutRef.current = setTimeout(
+                        () => setChequeAccountFocused(false),
+                        120,
+                      );
+                    }}
+                    onOpenPopup={() => {
+                      clearTimeout(chequeAccountFocusTimeoutRef.current);
+                      setChequeAccountLookupOpen(true);
+                    }}
+                    loading={isLoadingAccounts}
+                  />
+                  {chequeAccountFocused && (
+                    <SuggestionList
+                      items={accountSuggestions}
+                      onSelect={(item) => {
+                        setChequeAccount(item.name);
+                        setChequeGLAccount(item.code);
+                        setChequeAccountFocused(false);
+                      }}
+                      floating
+                      nameLabel="Account"
+                      emptyText="No accounts found"
+                      maxHeight="max-h-[150px]"
+                      query={chequeAccount}
+                      scrollable={false}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    <input
+                      type="checkbox"
+                      checked={manualCheckNo}
+                      onChange={(e) => {
+                        setManualCheckNo(e.target.checked);
+                        if (!e.target.checked) setChequeNo("");
+                      }}
+                      className="w-3 h-3 text-blue-500 rounded border-slate-300"
+                    />
+                    Check Number
+                  </label>
+                  <input
+                    type="text"
+                    value={chequeNo}
+                    onChange={(e) => setChequeNo(e.target.value)}
+                    disabled={!manualCheckNo}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <div className="relative">
+                  <FieldBlock
+                    label="GL Account"
+                    placeholder="Search GL account..."
+                    value={chequeGLAccount}
+                    onChange={(v) => setChequeGLAccount(v)}
+                    onFocus={() => setChequeGLAccountFocused(true)}
+                    onBlur={() => {
+                      chequeGLAccountFocusTimeoutRef.current = setTimeout(
+                        () => setChequeGLAccountFocused(false),
+                        120,
+                      );
+                    }}
+                    onOpenPopup={() => {
+                      clearTimeout(chequeGLAccountFocusTimeoutRef.current);
+                      setChequeGLAccountLookupOpen(true);
+                    }}
+                    loading={isLoadingAccounts}
+                  />
+                  {chequeGLAccountFocused && (
+                    <SuggestionList
+                      items={chequeAccountOptions}
+                      onSelect={(item) => {
+                        setChequeGLAccount(item.code);
+                        setChequeGLAccountFocused(false);
+                      }}
+                      containerClassName="absolute left-0 right-0 bottom-full z-30 mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg"
+                      nameLabel="GLAccount"
+                      emptyText="No accounts found"
+                      maxHeight="max-h-[150px]"
+                      query={chequeGLAccount}
+                      scrollable={false}
+                    />
+                  )}
+                </div>
+                <div className="col-span-2">
+                  <label className="flex items-center gap-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    <input
+                      type="checkbox"
+                      checked={chequeEndorse === "Yes"}
+                      onChange={(e) => setChequeEndorse(e.target.checked ? "Yes" : "No")}
+                      className="w-3 h-3 text-blue-500 rounded border-slate-300"
+                    />
+                    Endorse
+                  </label>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="px-4 py-1.5 border-t border-slate-100 flex items-center justify-between bg-white">
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-white rounded-b-2xl">
           <button
             onClick={onClose}
             className="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors"
@@ -591,10 +694,83 @@ export function PaymentModal({
         codeLabel="GLAccount"
         nameLabel="Account"
         title="Select Cash Account"
-        searchPlaceholder="Search account name and code..."
+        searchPlaceholder="Search account..."
         onSearchChange={(v) => setAccountInput(v)}
         onClose={() => setAccountLookupOpen(false)}
         onSelect={(item) => selectAccount({ code: item.code, name: item.name })}
+      />
+
+      <LookupPopup
+        open={isCountryLookupOpen}
+        search={bankCountryCode}
+        results={countryLookupItems}
+        loading={isLoadingBanks}
+        error={null}
+        mode="vendor-code"
+        title="Select Country Code"
+        searchPlaceholder="Search country code..."
+        onSearchChange={(v) => setBankCountryCode(v)}
+        onClose={() => setCountryLookupOpen(false)}
+        onSelect={(item) => {
+          setBankCountryCode(item.code);
+          setBankName("");
+          setCountryLookupOpen(false);
+        }}
+      />
+
+      <LookupPopup
+        open={isBankNameLookupOpen}
+        search={bankName}
+        results={bankNameLookupItems}
+        loading={isLoadingBanks}
+        error={null}
+        mode="vendor-name"
+        title="Select Bank Name"
+        searchPlaceholder="Search bank name..."
+        onSearchChange={(v) => setBankName(v)}
+        onClose={() => setBankNameLookupOpen(false)}
+        onSelect={(item) => {
+          setBankName(item.name);
+          setChequeBank(item.code);
+          setBankNameLookupOpen(false);
+        }}
+      />
+
+      <LookupPopup
+        open={isChequeAccountLookupOpen}
+        search={chequeAccount}
+        results={accountLookupItems}
+        loading={isLoadingAccounts}
+        error={null}
+        mode="vendor-name"
+        nameLabel="Account"
+        title="Select Account"
+        searchPlaceholder="Search Account..."
+        onSearchChange={(v) => setChequeAccount(v)}
+        onClose={() => setChequeAccountLookupOpen(false)}
+        onSelect={(item) => {
+          setChequeAccount(item.name);
+          setChequeGLAccount(item.code);
+          setChequeAccountLookupOpen(false);
+        }}
+      />
+
+      <LookupPopup
+        open={isChequeGLAccountLookupOpen}
+        search={chequeGLAccount}
+        results={chequeAccountLookupItems}
+        loading={isLoadingAccounts}
+        error={null}
+        mode="vendor-code"
+        codeLabel="GLAccount"
+        title="Select GL Account"
+        searchPlaceholder="Search GL Account..."
+        onSearchChange={(v) => setChequeGLAccount(v)}
+        onClose={() => setChequeGLAccountLookupOpen(false)}
+        onSelect={(item) => {
+          setChequeGLAccount(item.code);
+          setChequeGLAccountLookupOpen(false);
+        }}
       />
     </div>
   );
