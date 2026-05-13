@@ -9,6 +9,7 @@ import { apInvoiceRoutes } from "@/routes/ap-invoice.routes";
 import { arCreditMemoRoutes } from "@/routes/ar-credit-memo.routes";
 import { arInvoiceRoutes } from "@/routes/ar-invoice.routes";
 import { authRoutes } from "@/routes/auth.routes";
+import { bankDetailsRoutes } from "@/routes/bank-details.routes";
 import { dashboardRoutes } from "@/routes/dashboard.routes";
 import { grpoRoutes } from "@/routes/grpo.routes";
 import { incomingPaymentRoutes } from "@/routes/incoming-payment.routes";
@@ -47,5 +48,8 @@ router.use("/incoming-payments", incomingPaymentRoutes);
 
 // Utility: Read-only master data lookups for dropdowns and UI auto-completion.
 router.use("/master-data", masterDataRoutes);
+
+// Bank Details: Read-only bank master data from ODSC.
+router.use("/bank-details", bankDetailsRoutes);
 
 export const apiRoutes = router;

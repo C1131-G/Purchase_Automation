@@ -89,6 +89,17 @@ export interface OutgoingPaymentAccount {
   Account: string;
 }
 
+export interface BankDetail {
+  CountryCod: string;
+  BankName: string;
+}
+
+export interface BankDetailsResponse {
+  success: boolean;
+  data: BankDetail[];
+  total: number;
+}
+
 export interface OutgoingPaymentAccountsResponse {
   success: boolean;
   data: OutgoingPaymentAccount[];
@@ -124,5 +135,10 @@ export const outgoingPaymentAPI = {
       ? `/api/v1/outgoing-payments/accounts?${query}`
       : "/api/v1/outgoing-payments/accounts";
     return apiClient<OutgoingPaymentAccountsResponse>(path);
+  },
+  getBankDetails: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit });
+    const path = query ? `/api/v1/bank-details?${query}` : "/api/v1/bank-details";
+    return apiClient<BankDetailsResponse>(path);
   },
 };

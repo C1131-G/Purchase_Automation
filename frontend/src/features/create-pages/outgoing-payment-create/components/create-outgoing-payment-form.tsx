@@ -538,15 +538,17 @@ export function CreateOutgoingPaymentForm() {
                             </div>
                           </label>
                         </th>
-                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Type</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Number</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Date</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">Doc Total</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">
-                          Balance Due
+                        <th className="px-5 py-3 font-medium text-zinc-600">DOC TYPE</th>
+                        <th className="px-5 py-3 font-medium text-zinc-600">DOC NUMBER</th>
+                        <th className="px-5 py-3 font-medium text-zinc-600">DOC DATE</th>
+                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                          DOC TOTAL
                         </th>
-                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">
-                          Total Payment
+                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                          BALANCE DUE
+                        </th>
+                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                          TOTAL PAYMENT
                         </th>
                       </tr>
                     </thead>

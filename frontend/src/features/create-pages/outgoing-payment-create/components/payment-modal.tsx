@@ -1,5 +1,5 @@
 import { CheckCircle2, Delete } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { LookupPopup } from "@/components/lookup/lookup-popup";
@@ -48,8 +48,14 @@ export function PaymentModal({
   const [chequeAccountNo, setChequeAccountNo] = useState("");
   const [chequeIssuedBy, setChequeIssuedBy] = useState("");
   const [isAccountLookupOpen, setAccountLookupOpen] = useState(false);
+  const [bankCountryCode, setBankCountryCode] = useState("");
+  const [bankCountryCodeFocused, setBankCountryCodeFocused] = useState(false);
+  const [bankName, setBankName] = useState("");
+  const [bankNameFocused, setBankNameFocused] = useState(false);
 
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const bankCountryFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const bankNameFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { data: accountData, isLoading: isLoadingAccounts } = useQuery({
     ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 20),
@@ -59,6 +65,25 @@ export function PaymentModal({
     code: acc.GLAccount,
     name: acc.Account,
   }));
+
+  const { data: bankData, isLoading: isLoadingBanks } = useQuery({
+    ...outgoingPaymentQueries.bankSuggestions(undefined, 200),
+    enabled: activeTab === "Cheque",
+  });
+
+  const bankRecords = bankData?.data ?? [];
+
+  const countryCodeSuggestions: CreateLookupOption[] = useMemo(() => {
+    const unique = [...new Set(bankRecords.map((b) => b.CountryCod))].filter(Boolean);
+    return unique.map((code) => ({ code, name: code }));
+  }, [bankRecords]);
+
+  const bankNameSuggestions: CreateLookupOption[] = useMemo(() => {
+    if (!bankCountryCode) return [];
+    return bankRecords
+      .filter((b) => b.CountryCod === bankCountryCode)
+      .map((b) => ({ code: b.BankName, name: b.BankName }));
+  }, [bankRecords, bankCountryCode]);
 
   const handleAccountChange = (value: string) => {
     setAccountInput(value);
@@ -99,6 +124,8 @@ export function PaymentModal({
       return () => {
         clearTimeout(timer);
         clearTimeout(focusTimeoutRef.current);
+        clearTimeout(bankCountryFocusTimeoutRef.current);
+        clearTimeout(bankNameFocusTimeoutRef.current);
       };
     }
   }, [open]);
@@ -384,6 +411,80 @@ export function PaymentModal({
                   {showReset ? "Reset" : "PAY FULL"}
                   {!showReset && <CheckCircle2 className="w-3.5 h-3.5" />}
                 </button>
+              </div>
+
+              <div className="pb-3 mb-3 border-b border-slate-100">
+                <div className="flex gap-4">
+                  <div className="w-52 relative">
+                    <FieldBlock
+                      label="Country Code"
+                      placeholder="Search country code..."
+                      value={bankCountryCode}
+                      onChange={(v) => setBankCountryCode(v)}
+                      onFocus={() => setBankCountryCodeFocused(true)}
+                      onBlur={() => {
+                        bankCountryFocusTimeoutRef.current = setTimeout(
+                          () => setBankCountryCodeFocused(false),
+                          120,
+                        );
+                      }}
+                      onOpenPopup={() => {
+                        clearTimeout(bankCountryFocusTimeoutRef.current);
+                        setBankCountryCodeFocused(true);
+                      }}
+                      loading={isLoadingBanks}
+                    />
+                    {bankCountryCodeFocused && (
+                      <SuggestionList
+                        items={countryCodeSuggestions}
+                        onSelect={(item) => {
+                          setBankCountryCode(item.code);
+                          setBankCountryCodeFocused(false);
+                          setBankName("");
+                        }}
+                        floating
+                        emptyText="No country codes found"
+                        maxHeight="max-h-[150px]"
+                        query={bankCountryCode}
+                        scrollable={false}
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 relative">
+                    <FieldBlock
+                      label="Bank Name"
+                      placeholder="Search bank name..."
+                      value={bankName}
+                      onChange={(v) => setBankName(v)}
+                      onFocus={() => setBankNameFocused(true)}
+                      onBlur={() => {
+                        bankNameFocusTimeoutRef.current = setTimeout(
+                          () => setBankNameFocused(false),
+                          120,
+                        );
+                      }}
+                      onOpenPopup={() => {
+                        clearTimeout(bankNameFocusTimeoutRef.current);
+                        setBankNameFocused(true);
+                      }}
+                    />
+                    {bankNameFocused && (
+                      <SuggestionList
+                        items={bankNameSuggestions}
+                        onSelect={(item) => {
+                          setBankName(item.name);
+                          setChequeBank(item.code);
+                          setBankNameFocused(false);
+                        }}
+                        floating
+                        emptyText="No banks found"
+                        maxHeight="max-h-[150px]"
+                        query={bankName}
+                        scrollable={false}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
