@@ -2,7 +2,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import { FinancialPeriodSchema } from "@/db/schemas/financial-period.schema";
 
-export type PaymentType = "Cash" | "Check" | "CreditCard";
+export type PaymentType = "Cash" | "Check" | "CreditCard" | "Surcharge";
 
 /**
  * Resolves a G/L account dynamically using TypeORM.
@@ -14,6 +14,10 @@ export const resolveGLAccount = async (
   paymentType: PaymentType,
   creditCardId?: number,
 ): Promise<string> => {
+  if (paymentType === "Surcharge") {
+    return "AJAXBS040"; // Default Bank Charge account for AJAX
+  }
+
   try {
     const periodRepo = await getTenantRepository(dbName, FinancialPeriodSchema);
 

@@ -409,10 +409,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       sapPayload.U_Mode_Pay = modes.find((m) => m !== "CASH") || "CASH";
     }
 
-    if (payload.SurchargeTotal && (payload.SurchargeTotal as number) > 0) {
-      sapPayload.BankChargeAmount = payload.SurchargeTotal;
-    }
-
     if (payload.CashSum && (payload.CashSum as number) > 0) {
       sapPayload.CashSum = payload.CashSum;
       if (payload.CashAccount) {
@@ -427,18 +423,23 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
+      const surcharge = Number(payload.SurchargeTotal) || 0; // retained for potential future use
       sapPayload.PaymentCreditCards = await Promise.all(
-        (payload.PaymentCreditCards as Record<string, unknown>[]).map(async (card, idx) => ({
-          LineNum: idx,
-          CreditCard: card.CreditCard,
-          CreditSum: card.CreditSum,
-          VoucherNum: card.VoucherNum,
-          CreditAcct:
-            card.CreditAcct ||
-            (await resolveGLAccount(dbName, branch, "CreditCard", Number(card.CreditCard))),
-          CreditCardNumber: "123", // Placeholder required by SAP
-          CardValidUntil: "2026-12-31", // Placeholder required by SAP
-        })),
+        (payload.PaymentCreditCards as Record<string, unknown>[]).map(async (card, idx) => {
+          let cardAmount = Number(card.CreditSum) || 0;
+          // No automatic surcharge subtraction applied
+          return {
+            LineNum: idx,
+            CreditCard: card.CreditCard,
+            CreditSum: cardAmount,
+            VoucherNum: card.VoucherNum,
+            CreditAcct:
+              card.CreditAcct ||
+              (await resolveGLAccount(dbName, branch, "CreditCard", Number(card.CreditCard))),
+            CreditCardNumber: "123", // Placeholder required by SAP
+            CardValidUntil: "2026-12-31", // Placeholder required by SAP
+          };
+        })
       );
     }
 
@@ -448,30 +449,40 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       );
 
       if (realChecks.length > 0) {
+        let totalCheckSum = 0;
         sapPayload.PaymentChecks = await Promise.all(
-          realChecks.map(async (chk, idx) => ({
-            LineNum: idx,
-            DueDate: chk.DueDate || sapPayload.DocDate,
-            CheckNumber: chk.CheckNumber,
-            BankCode: chk.BankCode,
-            Branch: chk.Branch,
-            CheckSum: chk.CheckSum,
-            CheckAccount: chk.CheckAccount || (await resolveGLAccount(dbName, branch, "Check")),
-            Endorse: chk.Endorse || "tNO",
-          })),
+          realChecks.map(async (chk, idx) => {
+            const checkAmount = Number(chk.CheckSum) || 0;
+            totalCheckSum += checkAmount;
+            return {
+              LineNum: idx,
+              DueDate: chk.DueDate || sapPayload.DocDate,
+              CheckNumber: chk.CheckNumber,
+              BankCode: chk.BankCode,
+              Branch: chk.Branch,
+              CheckSum: checkAmount,
+              CheckAccount: await resolveGLAccount(dbName, branch, "Check"),
+              Endorse: chk.Endorse || "tNO",
+              OriginallyIssuedBy: chk.OriginallyIssuedBy,
+            };
+          }),
         );
       }
     }
 
-    if (Array.isArray(payload.PaymentAccounts) && payload.PaymentAccounts.length > 0) {
-      sapPayload.PaymentAccounts = (payload.PaymentAccounts as Record<string, unknown>[]).map(
-        (acc, idx) => ({
-          AccountCode: acc.AccountCode,
-          Decription: acc.Decription || "Surcharge",
-          LineNum: idx,
-          SumPaid: acc.SumPaid,
-        }),
-      );
+    if (payload.SurchargeTotal && (payload.SurchargeTotal as number) > 0) {
+      sapPayload.BankChargeAmount = payload.SurchargeTotal;
+    }
+
+    const paymentAccounts = (payload.PaymentAccounts as Record<string, unknown>[]) || [];
+
+    if (paymentAccounts.length > 0) {
+      sapPayload.PaymentAccounts = paymentAccounts.map((acc, idx) => ({
+        AccountCode: acc.AccountCode,
+        Decription: acc.Decription || "Surcharge",
+        LineNum: idx,
+        SumPaid: acc.SumPaid,
+      }));
     }
 
     // Standardize DocDate for SAP Service Layer (YYYY-MM-DD).

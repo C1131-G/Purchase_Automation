@@ -440,7 +440,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const lineStock = lineWarehouse
           ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
           : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
-
         const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 1);
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
         const grossAmount = Math.max(0, price * quantity);
@@ -1024,7 +1023,21 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
       const price = Number(line.Price ?? line.UnitPrice ?? 0);
       const openQty = Number(line.OpenQty ?? line.Quantity ?? 1);
-      const discountPercent = Number(line.DiscountPercent ?? 0);
+      const grossAmount = Math.max(0, price * openQty);
+      const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
+      // Fallback to undefined/NaN if LineTotal is missing since OpenSalesQuotationLine doesn't formally have it, 
+      // but if we added it to backend it will be present in the payload.
+      const lineTotal = Number(line.LineTotal ?? Number.NaN);
+      const derivedDiscountAmountFromLineTotal =
+        Number.isFinite(lineTotal) && grossAmount > 0
+          ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+          : 0;
+      const discountPercent = Number.isFinite(apiDiscountPercent)
+        ? Math.max(0, apiDiscountPercent)
+        : grossAmount > 0
+          ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+          : 0;
+      const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
 
       return {
         baseEntry: line.DocEntry,
@@ -1032,7 +1045,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         baseType: 23, // Sales Quotation
         comment: `Based on SQ ${line.DocNum}`,
         currency: line.DocCurr,
-        discountAmount: (price * openQty * discountPercent) / 100,
+        discountAmount,
         discountPercent,
         id: `sq-pull-${line.DocNum}-${line.LineNum}-${Date.now()}-${index}`,
         price,

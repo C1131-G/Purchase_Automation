@@ -106,11 +106,11 @@ export const BaseCreatePaymentInputSchema = z.object({
       z.object({
         BankCode: z.string(),
         Branch: z.string().optional(),
-        CheckAccount: z.string().optional(),
         CheckNumber: z.number(),
         CheckSum: z.number(),
         DueDate: z.string().optional(),
         Endorse: z.string().optional(),
+        OriginallyIssuedBy: z.string().optional(),
       }),
     )
     .optional(),

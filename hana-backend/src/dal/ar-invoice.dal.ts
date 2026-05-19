@@ -87,12 +87,14 @@ export const createInvoice = async (req: Request, res: Response, next: NextFunct
     // Zod validation ensures the payload adheres to the required SAP format for A/R Invoices.
     const validatedPayload = CreateInvoiceInputSchema.parse(payload);
 
+    const { dbName } = authReq.user;
+
     logger.info({
       customer: validatedPayload.CardCode,
       msg: "Creating AR Invoice",
     });
 
-    const result = await arInvoiceService.createInvoice(sessionId, validatedPayload);
+    const result = await arInvoiceService.createInvoice(sessionId, validatedPayload, dbName);
 
     logger.info({ docNum: result.DocNum, msg: "A/R Invoice Created" });
 

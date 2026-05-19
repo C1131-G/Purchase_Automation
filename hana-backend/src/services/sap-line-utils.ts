@@ -21,15 +21,32 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
   const discountPercent = Number(line.DiscountPercent ?? line.discountPercent ?? 0) || 0;
   const lineTotal = Number(line.LineTotal ?? line.lineTotal ?? 0) || 0;
 
-  // Derive canonical pre-discount unit price from SAP line data
+  // Start with the given price (HANA gives post-discount usually, SL gives post-discount usually)
   let unitPrice = Number(line.Price ?? line.UnitPrice ?? line.price ?? line.unitPrice ?? 0) || 0;
-
-  // If we have LineTotal and Quantity, back-calculate the pre-discount unit price
-  if (lineTotal > 0 && quantity > 0) {
-    const discountMultiplier = 1 - discountPercent / 100;
-    if (discountMultiplier > 0) {
-      // Reconstruct original pre-discount unit price
-      unitPrice = lineTotal / (quantity * discountMultiplier);
+  
+  if (discountPercent > 0 && discountPercent < 100) {
+    // 2. If Service Layer gave us PriceBefDi (Price Before Discount), USE IT!
+    if (line.PriceBefDi !== undefined || line.priceBefDi !== undefined) {
+      unitPrice = Number(line.PriceBefDi ?? line.priceBefDi);
+    } 
+    // 3. Otherwise, back-calculate carefully
+    else if (unitPrice > 0) {
+      const discountMultiplier = 1 - discountPercent / 100;
+      // Service Layer's UnitPrice is the discounted price.
+      const reconstructedPrice = unitPrice / discountMultiplier;
+      
+      // Round to 4 decimal places to clean up floating point artifacts (e.g. 4.133333333333334 -> 4.1333)
+      // but if it's very close to a 2 decimal number (like 4.13), it will be clean.
+      // Wait, if UnitPrice was 3.72, 3.72 / 0.9 = 4.133333. If we round to 4 places, we get 4.1333.
+      // If we round to 2 places, we get 4.13. Standard price precision is usually 2 or 6.
+      // We will round to 6 decimal places to be safe against precision limits.
+      unitPrice = Math.round(reconstructedPrice * 1000000) / 1000000;
+      
+      // Let's also snap it to 2 decimal places if it's extremely close to a 2 decimal number
+      const twoDecimals = Math.round(unitPrice * 100) / 100;
+      if (Math.abs(unitPrice - twoDecimals) < 0.005) {
+        unitPrice = twoDecimals;
+      }
     }
   }
 

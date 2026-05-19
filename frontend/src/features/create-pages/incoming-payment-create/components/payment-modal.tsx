@@ -24,8 +24,9 @@ interface PaymentCheck {
   Branch: string;
   CheckNumber: number;
   CheckSum: number;
-  CheckAccount?: string;
+  AccountNo?: string;
   Endorse?: "tYES" | "tNO";
+  OriginallyIssuedBy?: string;
 }
 
 interface CardPayment {
@@ -78,6 +79,14 @@ export function PaymentModal({
   const [chequeAccountNo, setChequeAccountNo] = useState("");
   const [chequeIssuedBy, setChequeIssuedBy] = useState("");
   const [chequeEndorse, setChequeEndorse] = useState(false);
+
+  useEffect(() => {
+    if (chequeIssuedBy.trim() !== "") {
+      setChequeEndorse(true);
+    } else {
+      setChequeEndorse(false);
+    }
+  }, [chequeIssuedBy]);
 
   useEffect(() => {
     if (open) {
@@ -285,10 +294,11 @@ export function PaymentModal({
       paymentChecks.push({
         BankCode: chequeBank || "CASH",
         Branch: chequeBranch || "LABASA",
-        CheckAccount: chequeAccountNo || "",
+        AccountNo: chequeAccountNo || "",
         CheckNumber: Number(chequeNo) || 1,
         CheckSum: cheque,
-        Endorse: (chequeEndorse ? "tYES" : "tNO") as "tYES" | "tNO",
+        Endorse: (chequeEndorse || chequeIssuedBy.trim() !== "" ? "tYES" : "tNO") as "tYES" | "tNO",
+        OriginallyIssuedBy: chequeIssuedBy,
       });
     }
 

@@ -27,6 +27,7 @@ import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
+import { SalesQuotationLineSchema } from "@/db/schemas/sales-quotation-line.schema";
 import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
 import { UserSchema } from "@/db/schemas/user.schema";
@@ -91,6 +92,7 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       WarehouseSchema,
       SalesOrderSchema,
       SalesQuotationSchema,
+      SalesQuotationLineSchema,
       ARInvoiceSchema,
       ARCreditMemoSchema,
       IncomingPaymentSchema,
