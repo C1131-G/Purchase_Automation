@@ -10,7 +10,7 @@ export const getBankDetails = async (dbName: string, query: MasterDataQuery) => 
     const repo = await getTenantRepository(dbName, BankDetailsSchema);
     const qb = repo.createQueryBuilder("b");
 
-    qb.select(["b.CountryCod", "b.BankName"]);
+    qb.select(["b.CountryCod", "b.BankCode", "b.BankName"]);
 
     if (query.search) {
       qb.andWhere(
@@ -32,6 +32,7 @@ export const getBankDetails = async (dbName: string, query: MasterDataQuery) => 
     return {
       data: rows.map((r) => ({
         CountryCod: r["b_CountryCod"] as string,
+        BankCode: r["b_BankCode"] as string,
         BankName: r["b_BankName"] as string,
       })),
       total: rows.length,

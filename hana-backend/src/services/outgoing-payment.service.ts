@@ -310,6 +310,7 @@ export const getPaymentByDocNum = async (sessionId: string, dbName: string, docN
 
 // Submits a new vendor payment to SAP. Handles allocation across multiple A/P invoices.
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
+  let sapPayload: Record<string, unknown> = {};
   try {
     // Preflight: validate CardCode is present
     if (!payload.CardCode || String(payload.CardCode).trim() === "") {
@@ -338,7 +339,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       }
     }
 
-    const sapPayload: Record<string, unknown> = {
+    sapPayload = {
       CardCode: payload.CardCode,
       CashSum: payload.CashSum || 0,
       DocDate: payload.DocDate,
@@ -415,7 +416,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
         sapPayload.PaymentChecks = realChecks.map((chk, idx) => ({
           BankCode: chk.BankCode,
           Branch: chk.Branch,
-          CheckAccount: chk.CheckAccount || "",
+          CheckAccount: chk.GLAccount || chk.CheckAccount || "",
           CheckNumber: chk.CheckNumber,
           CheckSum: chk.CheckSum,
           DueDate: chk.DueDate || sapPayload.DocDate,
@@ -447,6 +448,15 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       msg: "Creating Outgoing Payment via Service Layer",
     });
 
+    logger.info({
+      msg: "[DEBUG-cheque] Backend SAP payload",
+      CashAccount: sapPayload.CashAccount,
+      CashSum: sapPayload.CashSum,
+      CheckSum: sapPayload.CheckSum,
+      PaymentChecks: JSON.stringify(sapPayload.PaymentChecks),
+      fullPayload: JSON.stringify(sapPayload, null, 2),
+    });
+
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
@@ -470,6 +480,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     logger.error({
       error: caughtError.message,
       msg: "Failed to create Outgoing Payment in Service Layer",
+      sapPayload: JSON.stringify(sapPayload, null, 2),
+      "[DEBUG-cheque]": "SAP failure - payload above",
     });
     throw caughtError;
   }

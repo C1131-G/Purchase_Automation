@@ -236,6 +236,9 @@ export function CreateOutgoingPaymentForm() {
       CheckNumber: number;
       CheckSum: number;
       CheckAccount?: string;
+      CountryCode?: string;
+      BankName?: string;
+      GLAccount?: string;
     }[];
     CashAccount?: string | null;
   }) => {
@@ -311,17 +314,19 @@ export function CreateOutgoingPaymentForm() {
     const cashSum = totalCash;
     const checkSum = totalChecks;
     const trsfrSum = 0;
-    createPaymentMutation.mutate({
+    const apiPayload = {
       CardCode: lookups.codeInput,
       CashSum: cashSum,
-      CashAccount: paymentDetails.CashAccount ?? null,
+      ...(cashSum > 0 ? { CashAccount: paymentDetails.CashAccount } : {}),
       CheckSum: checkSum,
       DocDate: docDate || "",
       PaymentInvoices: paymentInvoices,
       Remarks: remarks,
       TrsfrSum: trsfrSum,
       ...(paymentDetails.PaymentChecks ? { PaymentChecks: paymentDetails.PaymentChecks } : {}),
-    });
+    };
+    console.log("[DEBUG-cheque] Form -> API payload:", JSON.stringify(apiPayload, null, 2));
+    createPaymentMutation.mutate(apiPayload);
   };
 
   return (

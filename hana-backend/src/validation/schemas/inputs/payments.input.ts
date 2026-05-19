@@ -96,7 +96,7 @@ export const BaseCreatePaymentInputSchema = z.object({
     .optional()
     .describe("Mode of payment (U_Mode_Pay). If omitted, derived from payment method fields."),
   CashSum: z.number().optional(),
-  CashAccount: z.string().optional(),
+  CashAccount: z.string().nullable().optional(),
   TrsfrSum: z.number().optional(),
   TransferSum: z.number().optional(),
   SurchargeTotal: z.number().optional(),
@@ -111,6 +111,9 @@ export const BaseCreatePaymentInputSchema = z.object({
         CheckSum: z.number(),
         DueDate: z.string().optional(),
         Endorse: z.string().optional(),
+        CountryCode: z.string().optional(),
+        BankName: z.string().optional(),
+        GLAccount: z.string().optional(),
       }),
     )
     .optional(),
@@ -154,6 +157,10 @@ export const CreatePaymentInputSchema = BaseCreatePaymentInputSchema.transform((
     data.TransferSum = data.TrsfrSum;
   } else if (data.TransferSum !== undefined && data.TrsfrSum === undefined) {
     data.TrsfrSum = data.TransferSum;
+  }
+  // Normalize CashAccount null to undefined for cheque-only submissions
+  if (data.CashAccount === null) {
+    data.CashAccount = undefined;
   }
   return data;
 });

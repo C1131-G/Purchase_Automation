@@ -7,6 +7,7 @@ import type { HANAColumnType } from "@/db/schemas/types/base.types";
 
 export interface BankDetails {
   Country: string;
+  BankCode: string;
   BankName: string;
 }
 
@@ -19,6 +20,11 @@ export const BankDetailsSchema = new EntitySchema<BankDetails>({
       type: "nvarchar" as HANAColumnType,
       length: 3,
       primary: true,
+    },
+    BankCode: {
+      name: "BankCode",
+      type: "nvarchar" as HANAColumnType,
+      length: 20,
     },
     BankName: {
       name: "BankName",

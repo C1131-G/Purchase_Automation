@@ -15,7 +15,9 @@ interface PaymentCheck {
   CheckNumber: number;
   CheckSum: number;
   CheckAccount?: string;
-  Endorse?: string;
+  CountryCode?: string;
+  BankName?: string;
+  GLAccount?: string;
 }
 
 interface PaymentModalProps {
@@ -25,9 +27,6 @@ interface PaymentModalProps {
   onPaymentSubmit: (paymentDetails: {
     PaymentChecks?: PaymentCheck[];
     CashAccount?: string | null;
-    ChequeAccount?: string;
-    ChequeGLAccount?: string;
-    ChequeEndorse?: string;
   }) => void;
   isPaymentOnAccount?: boolean;
 }
@@ -59,11 +58,11 @@ export function PaymentModal({
   const [chequeGLAccount, setChequeGLAccount] = useState("");
   const [chequeGLAccountFocused, setChequeGLAccountFocused] = useState(false);
   const [manualCheckNo, setManualCheckNo] = useState(false);
+  const [chequeIssuedBy, setChequeIssuedBy] = useState("");
   const [isCountryLookupOpen, setCountryLookupOpen] = useState(false);
   const [isBankNameLookupOpen, setBankNameLookupOpen] = useState(false);
   const [isChequeAccountLookupOpen, setChequeAccountLookupOpen] = useState(false);
   const [isChequeGLAccountLookupOpen, setChequeGLAccountLookupOpen] = useState(false);
-  const [chequeEndorse, setChequeEndorse] = useState<string>("No");
 
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const bankCountryFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -98,7 +97,7 @@ export function PaymentModal({
     if (!bankCountryCode) return [];
     return bankRecords
       .filter((b) => b.CountryCod === bankCountryCode)
-      .map((b) => ({ code: b.BankName, name: b.BankName }));
+      .map((b) => ({ code: b.BankCode, name: b.BankName }));
   }, [bankRecords, bankCountryCode]);
 
   const handleAccountChange = (value: string) => {
@@ -159,6 +158,10 @@ export function PaymentModal({
         setBankName("");
         setChequeAccount("");
         setChequeGLAccount("");
+        setChequeIssuedBy("");
+        setChequeBranch("");
+        setChequeNo("");
+        setManualCheckNo(false);
         setCountryLookupOpen(false);
         setBankNameLookupOpen(false);
         setChequeAccountLookupOpen(false);
@@ -247,13 +250,16 @@ export function PaymentModal({
     const paymentChecks: PaymentCheck[] = [];
 
     if (cheque > 0) {
-      paymentChecks.push({
+      const chequeCheck: PaymentCheck = {
         BankCode: chequeBank || "CASH",
         Branch: chequeBranch || "LABASA",
         CheckNumber: Number(chequeNo) || 1,
         CheckSum: cheque,
-        Endorse: chequeEndorse,
-      });
+      };
+      if (chequeGLAccount) chequeCheck.CheckAccount = chequeGLAccount;
+      if (bankCountryCode) chequeCheck.CountryCode = bankCountryCode;
+      if (bankName) chequeCheck.BankName = bankName;
+      paymentChecks.push(chequeCheck);
     }
 
     if (cash > 0) {
@@ -269,26 +275,17 @@ export function PaymentModal({
     const paymentDetails: {
       PaymentChecks?: PaymentCheck[];
       CashAccount?: string | null;
-      ChequeAccount?: string;
-      ChequeGLAccount?: string;
-      ChequeEndorse?: string;
-    } = {
-      CashAccount: selectedAccount ?? null,
-    };
+    } = {};
 
-    if (chequeAccount) {
-      paymentDetails.ChequeAccount = chequeAccount;
-    }
-    if (chequeGLAccount) {
-      paymentDetails.ChequeGLAccount = chequeGLAccount;
-    }
-    if (chequeEndorse && chequeEndorse !== "No") {
-      paymentDetails.ChequeEndorse = chequeEndorse;
+    if (cash > 0 && selectedAccount) {
+      paymentDetails.CashAccount = selectedAccount;
     }
 
     if (paymentChecks.length > 0) {
       paymentDetails.PaymentChecks = paymentChecks;
     }
+
+    console.log("[DEBUG-cheque] Frontend payload:", JSON.stringify(paymentDetails, null, 2));
 
     onPaymentSubmit(paymentDetails);
     onClose();
@@ -354,9 +351,9 @@ export function PaymentModal({
           </div>
         </div>
 
-        <div className="px-4 pb-4 flex-1 overflow-visible">
+        <div className="px-4 pb-4 flex-1 overflow-visible min-h-[340px]">
           {activeTab === "Cash" ? (
-            <div className="flex gap-4 border border-slate-100 rounded-xl p-3">
+            <div className="flex gap-4 border border-slate-100 rounded-xl p-3 h-full">
               <div className="w-[260px] flex-shrink-0">
                 <button
                   onClick={handleAction}
@@ -446,7 +443,7 @@ export function PaymentModal({
               </div>
             </div>
           ) : (
-            <div className="border border-slate-100 rounded-xl p-3">
+            <div className="border border-slate-100 rounded-xl p-3 h-full">
               <div className="flex items-center gap-4 pb-3 mb-3 border-b border-slate-100">
                 <input
                   type="number"
@@ -583,26 +580,39 @@ export function PaymentModal({
                     />
                   )}
                 </div>
-                <div>
-                  <label className="flex items-center gap-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                <div className="flex gap-3">
+                  <div>
+                    <label className="flex items-center gap-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                      <input
+                        type="checkbox"
+                        checked={manualCheckNo}
+                        onChange={(e) => {
+                          setManualCheckNo(e.target.checked);
+                          if (!e.target.checked) setChequeNo("");
+                        }}
+                        className="w-3 h-3 text-blue-500 rounded border-slate-300"
+                      />
+                      Check Number
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={manualCheckNo}
-                      onChange={(e) => {
-                        setManualCheckNo(e.target.checked);
-                        if (!e.target.checked) setChequeNo("");
-                      }}
-                      className="w-3 h-3 text-blue-500 rounded border-slate-300"
+                      type="text"
+                      value={chequeNo}
+                      onChange={(e) => setChequeNo(e.target.value)}
+                      disabled={!manualCheckNo}
+                      className="w-28 border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                     />
-                    Check Number
-                  </label>
-                  <input
-                    type="text"
-                    value={chequeNo}
-                    onChange={(e) => setChequeNo(e.target.value)}
-                    disabled={!manualCheckNo}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                  />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[10px] mb-1 font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                      Issued By
+                    </label>
+                    <input
+                      type="text"
+                      value={chequeIssuedBy}
+                      onChange={(e) => setChequeIssuedBy(e.target.value)}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
+                    />
+                  </div>
                 </div>
                 <div className="relative">
                   <FieldBlock
@@ -639,17 +649,6 @@ export function PaymentModal({
                     />
                   )}
                 </div>
-                <div className="col-span-2">
-                  <label className="flex items-center gap-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    <input
-                      type="checkbox"
-                      checked={chequeEndorse === "Yes"}
-                      onChange={(e) => setChequeEndorse(e.target.checked ? "Yes" : "No")}
-                      className="w-3 h-3 text-blue-500 rounded border-slate-300"
-                    />
-                    Endorse
-                  </label>
-                </div>
               </div>
             </div>
           )}
@@ -673,7 +672,11 @@ export function PaymentModal({
                 return true;
               }
               const cash = Number(cashAmount) || 0;
+              const cheque = Number(chequeAmount) || 0;
               if (cash > 0 && !selectedAccount) {
+                return true;
+              }
+              if (cheque > 0 && !chequeBank) {
                 return true;
               }
               return false;

@@ -36,6 +36,9 @@ export interface CreateOutgoingPaymentPayload {
     CheckNumber: number;
     CheckSum: number;
     CheckAccount?: string;
+    CountryCode?: string;
+    BankName?: string;
+    GLAccount?: string;
   }[];
   PaymentInvoices?: {
     DocEntry: number;
@@ -91,6 +94,7 @@ export interface OutgoingPaymentAccount {
 
 export interface BankDetail {
   CountryCod: string;
+  BankCode: string;
   BankName: string;
 }
 
