@@ -15,7 +15,7 @@ export const BankDetailsSchema = new EntitySchema<BankDetails>({
   name: "BankDetails",
   tableName: "ODSC",
   columns: {
-    CountryCod: {
+    Country: {
       name: "CountryCod",
       type: "nvarchar" as HANAColumnType,
       length: 3,
