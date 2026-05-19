@@ -237,19 +237,6 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   FJD {Number(paymentDetail.TrsfrSum || 0).toFixed(2)}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-600">Card Sum</span>
-                <span className="font-medium text-zinc-900">
-                  FJD{" "}
-                  {(
-                    paymentDetail.PaymentCreditCards?.reduce(
-                      (acc: number, card: { CreditSum: number }) =>
-                        acc + Number(card.CreditSum || 0),
-                      0,
-                    ) || 0
-                  ).toFixed(2)}
-                </span>
-              </div>
               <div className="border-t border-zinc-100 pt-3 flex justify-between">
                 <span className="font-bold text-zinc-900">Doc Total</span>
                 <span className="text-lg font-black text-blue-600">
@@ -261,19 +248,13 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
                         0,
                       ) || 0) +
-                      Number(paymentDetail.TrsfrSum || 0) +
-                      (paymentDetail.PaymentCreditCards?.reduce(
-                        (acc: number, card: { CreditSum: number }) =>
-                          acc + Number(card.CreditSum || 0),
-                        0,
-                      ) || 0)
+                      Number(paymentDetail.TrsfrSum || 0)
                   ).toFixed(2)}
                 </span>
               </div>
             </div>
 
-            {(paymentDetail.PaymentChecks?.length > 0 ||
-              paymentDetail.PaymentCreditCards?.length > 0) && (
+            {paymentDetail.PaymentChecks?.length > 0 && (
               <>
                 <div className="mb-4 mt-8 flex items-center justify-between border-t border-zinc-100 pt-6">
                   <h2 className="text-sm font-bold text-zinc-900">Method Details</h2>
@@ -299,31 +280,6 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         <div className="text-zinc-600 flex justify-between">
                           <span>Bank: {chk.BankCode || "N/A"}</span>
                           <span>No: {chk.CheckNumber || "N/A"}</span>
-                        </div>
-                      </div>
-                    ),
-                  )}
-                  {paymentDetail.PaymentCreditCards?.map(
-                    (
-                      card: {
-                        CardName?: string;
-                        CreditCard?: number;
-                        CreditSum: number;
-                        VoucherNum?: string;
-                      },
-                      idx: number,
-                    ) => (
-                      <div
-                        key={`card-${idx}`}
-                        className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs"
-                      >
-                        <div className="font-bold text-zinc-800 mb-1 flex justify-between">
-                          <span>{paymentDetail.PaymentMode || "Credit Card"}</span>
-                          <span>FJD {Number(card.CreditSum || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="text-zinc-600 flex justify-between">
-                          <span>Card: {card.CardName || card.CreditCard || "N/A"}</span>
-                          <span>Voucher: {card.VoucherNum || "N/A"}</span>
                         </div>
                       </div>
                     ),

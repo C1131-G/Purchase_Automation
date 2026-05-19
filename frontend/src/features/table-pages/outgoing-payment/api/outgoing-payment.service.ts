@@ -29,6 +29,9 @@ export interface CreateOutgoingPaymentPayload {
   CashSum?: number;
   CashAccount?: string | null;
   TrsfrSum?: number;
+  TransferDate?: string;
+  TransferAccount?: string;
+  TransferReference?: string;
   CheckSum?: number;
   PaymentChecks?: {
     BankCode: string;
@@ -110,6 +113,12 @@ export interface OutgoingPaymentAccountsResponse {
   total: number;
 }
 
+export interface TransferAccountResponse {
+  success: boolean;
+  data: { TransferAccount: string } | null;
+  message?: string;
+}
+
 export const outgoingPaymentAPI = {
   createOutgoingPayment: async (payload: CreateOutgoingPaymentPayload) =>
     apiClient<{
@@ -144,5 +153,10 @@ export const outgoingPaymentAPI = {
     const query = toQueryString({ search, limit });
     const path = query ? `/api/v1/bank-details?${query}` : "/api/v1/bank-details";
     return apiClient<BankDetailsResponse>(path);
+  },
+  resolveTransferAccount: async (date: string) => {
+    const query = toQueryString({ date });
+    const path = `/api/v1/financial-period/resolve-transfer-account?${query}`;
+    return apiClient<TransferAccountResponse>(path);
   },
 };

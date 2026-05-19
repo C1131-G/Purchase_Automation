@@ -311,6 +311,7 @@ export const getPaymentByDocNum = async (sessionId: string, dbName: string, docN
 // Submits a new vendor payment to SAP. Handles allocation across multiple A/P invoices.
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
   let sapPayload: Record<string, unknown> = {};
+
   try {
     // Preflight: validate CardCode is present
     if (!payload.CardCode || String(payload.CardCode).trim() === "") {
@@ -403,8 +404,26 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       sapPayload.CashAccount = (payload.CashAccount as string) || "";
     }
 
+    const transferReference =
+      typeof payload.TransferReference === "string" ? payload.TransferReference.trim() : "";
+
     if (transferSum > 0) {
+      if (!transferReference) {
+        throw new Error("Transfer reference is required for bank transfer.");
+      }
+
       sapPayload.TransferSum = transferSum;
+      if (payload.TransferDate) {
+        const transferDate = String(payload.TransferDate);
+        sapPayload.TransferDate =
+          transferDate.length === 8
+            ? `${transferDate.slice(0, 4)}-${transferDate.slice(4, 6)}-${transferDate.slice(6, 8)}`
+            : transferDate;
+      }
+      if (payload.TransferAccount) {
+        sapPayload.TransferAccount = payload.TransferAccount;
+      }
+      sapPayload.TransferReference = transferReference;
     }
 
     if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
@@ -448,15 +467,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       msg: "Creating Outgoing Payment via Service Layer",
     });
 
-    logger.info({
-      msg: "[DEBUG-cheque] Backend SAP payload",
-      CashAccount: sapPayload.CashAccount,
-      CashSum: sapPayload.CashSum,
-      CheckSum: sapPayload.CheckSum,
-      PaymentChecks: JSON.stringify(sapPayload.PaymentChecks),
-      fullPayload: JSON.stringify(sapPayload, null, 2),
-    });
-
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
@@ -480,8 +490,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     logger.error({
       error: caughtError.message,
       msg: "Failed to create Outgoing Payment in Service Layer",
-      sapPayload: JSON.stringify(sapPayload, null, 2),
-      "[DEBUG-cheque]": "SAP failure - payload above",
     });
     throw caughtError;
   }

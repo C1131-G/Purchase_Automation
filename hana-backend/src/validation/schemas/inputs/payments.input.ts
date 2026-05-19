@@ -99,6 +99,12 @@ export const BaseCreatePaymentInputSchema = z.object({
   CashAccount: z.string().nullable().optional(),
   TrsfrSum: z.number().optional(),
   TransferSum: z.number().optional(),
+  TransferDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
+  TransferAccount: z.string().optional(),
+  TransferReference: z.string().optional(),
   SurchargeTotal: z.number().optional(),
   // PaymentChecks: Array of checks.
   PaymentChecks: z
@@ -161,6 +167,9 @@ export const CreatePaymentInputSchema = BaseCreatePaymentInputSchema.transform((
   // Normalize CashAccount null to undefined for cheque-only submissions
   if (data.CashAccount === null) {
     data.CashAccount = undefined;
+  }
+  if (data.TransferReference !== undefined) {
+    data.TransferReference = data.TransferReference.trim();
   }
   return data;
 });

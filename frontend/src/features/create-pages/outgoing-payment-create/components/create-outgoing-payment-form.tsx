@@ -241,6 +241,10 @@ export function CreateOutgoingPaymentForm() {
       GLAccount?: string;
     }[];
     CashAccount?: string | null;
+    TransferSum?: number;
+    TransferDate?: string;
+    TransferAccount?: string;
+    TransferReference?: string;
   }) => {
     const totalCash =
       paymentDetails.PaymentChecks?.filter((c) => c.BankCode === "CASH").reduce(
@@ -297,7 +301,13 @@ export function CreateOutgoingPaymentForm() {
       amountToDistribute -= toApply;
     }
 
-    if (!isPaymentOnAccount && paymentInvoices.length === 0) {
+    if (
+      !isPaymentOnAccount &&
+      paymentInvoices.length === 0 &&
+      totalCash === 0 &&
+      totalChecks === 0 &&
+      (paymentDetails.TransferSum || 0) === 0
+    ) {
       goeyToast.error("Please select at least one document to pay");
       return;
     }
@@ -313,8 +323,14 @@ export function CreateOutgoingPaymentForm() {
 
     const cashSum = totalCash;
     const checkSum = totalChecks;
-    const trsfrSum = 0;
-    const apiPayload = {
+    const transferSum = paymentDetails.TransferSum || 0;
+
+    if (transferSum > 0 && !paymentDetails.TransferReference?.trim()) {
+      goeyToast.error("Transfer reference is required for bank transfer");
+      return;
+    }
+
+    const payload = {
       CardCode: lookups.codeInput,
       CashSum: cashSum,
       ...(cashSum > 0 ? { CashAccount: paymentDetails.CashAccount } : {}),
@@ -322,11 +338,19 @@ export function CreateOutgoingPaymentForm() {
       DocDate: docDate || "",
       PaymentInvoices: paymentInvoices,
       Remarks: remarks,
-      TrsfrSum: trsfrSum,
+      TrsfrSum: transferSum,
+      ...(transferSum > 0 && paymentDetails.TransferDate
+        ? { TransferDate: paymentDetails.TransferDate }
+        : {}),
+      ...(transferSum > 0 && paymentDetails.TransferAccount
+        ? { TransferAccount: paymentDetails.TransferAccount }
+        : {}),
+      ...(transferSum > 0 && paymentDetails.TransferReference
+        ? { TransferReference: paymentDetails.TransferReference.trim() }
+        : {}),
       ...(paymentDetails.PaymentChecks ? { PaymentChecks: paymentDetails.PaymentChecks } : {}),
     };
-    console.log("[DEBUG-cheque] Form -> API payload:", JSON.stringify(apiPayload, null, 2));
-    createPaymentMutation.mutate(apiPayload);
+    createPaymentMutation.mutate(payload);
   };
 
   return (
