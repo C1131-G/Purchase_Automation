@@ -29,6 +29,9 @@ export interface CreateOutgoingPaymentPayload {
   CashSum?: number;
   CashAccount?: string | null;
   TrsfrSum?: number;
+  TransferDate?: string;
+  TransferAccount?: string;
+  TransferReference?: string;
   CheckSum?: number;
   PaymentChecks?: {
     BankCode: string;
@@ -36,6 +39,9 @@ export interface CreateOutgoingPaymentPayload {
     CheckNumber: number;
     CheckSum: number;
     CheckAccount?: string;
+    CountryCode?: string;
+    BankName?: string;
+    GLAccount?: string;
   }[];
   PaymentInvoices?: {
     DocEntry: number;
@@ -86,12 +92,31 @@ export interface OutgoingPaymentDetailResponse {
 
 export interface OutgoingPaymentAccount {
   GLAccount: string;
+  Account: string;
+}
+
+export interface BankDetail {
+  CountryCod: string;
+  BankCode: string;
+  BankName: string;
+}
+
+export interface BankDetailsResponse {
+  success: boolean;
+  data: BankDetail[];
+  total: number;
 }
 
 export interface OutgoingPaymentAccountsResponse {
   success: boolean;
   data: OutgoingPaymentAccount[];
   total: number;
+}
+
+export interface TransferAccountResponse {
+  success: boolean;
+  data: { TransferAccount: string } | null;
+  message?: string;
 }
 
 export const outgoingPaymentAPI = {
@@ -123,5 +148,15 @@ export const outgoingPaymentAPI = {
       ? `/api/v1/outgoing-payments/accounts?${query}`
       : "/api/v1/outgoing-payments/accounts";
     return apiClient<OutgoingPaymentAccountsResponse>(path);
+  },
+  getBankDetails: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit });
+    const path = query ? `/api/v1/bank-details?${query}` : "/api/v1/bank-details";
+    return apiClient<BankDetailsResponse>(path);
+  },
+  resolveTransferAccount: async (date: string) => {
+    const query = toQueryString({ date });
+    const path = `/api/v1/financial-period/resolve-transfer-account?${query}`;
+    return apiClient<TransferAccountResponse>(path);
   },
 };

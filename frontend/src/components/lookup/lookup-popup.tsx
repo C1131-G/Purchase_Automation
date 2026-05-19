@@ -67,6 +67,8 @@ interface LookupPopupProps {
   showBothColumns?: boolean;
   title?: string | undefined;
   searchPlaceholder?: string | undefined;
+  codeLabel?: string;
+  nameLabel?: string;
   onSearchChange: (value: string) => void;
   onClose: ComponentProps<typeof AnimatedModalShell>["onClose"];
   onSelect: (item: LookupItem) => void;
@@ -107,6 +109,8 @@ export function LookupPopup({
   showBothColumns = false,
   title: customTitle,
   searchPlaceholder: customPlaceholder,
+  codeLabel = "Code",
+  nameLabel = "Name",
   onSearchChange,
   onClose,
   onSelect,
@@ -272,8 +276,8 @@ export function LookupPopup({
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-zinc-50 text-zinc-600">
                 <tr>
-                  {showNameOnly ? null : <th className="px-3 py-2">Code</th>}
-                  {showCodeOnly ? null : <th className="px-3 py-2">Name</th>}
+                  {showNameOnly ? null : <th className="px-3 py-2">{codeLabel}</th>}
+                  {showCodeOnly ? null : <th className="px-3 py-2">{nameLabel}</th>}
                 </tr>
               </thead>
               <tbody>

@@ -310,6 +310,8 @@ export const getPaymentByDocNum = async (sessionId: string, dbName: string, docN
 
 // Submits a new vendor payment to SAP. Handles allocation across multiple A/P invoices.
 export const createPayment = async (sessionId: string, payload: Record<string, unknown>) => {
+  let sapPayload: Record<string, unknown> = {};
+
   try {
     // Preflight: validate CardCode is present
     if (!payload.CardCode || String(payload.CardCode).trim() === "") {
@@ -338,7 +340,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       }
     }
 
-    const sapPayload: Record<string, unknown> = {
+    sapPayload = {
       CardCode: payload.CardCode,
       CashSum: payload.CashSum || 0,
       DocDate: payload.DocDate,
@@ -402,8 +404,26 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       sapPayload.CashAccount = (payload.CashAccount as string) || "";
     }
 
+    const transferReference =
+      typeof payload.TransferReference === "string" ? payload.TransferReference.trim() : "";
+
     if (transferSum > 0) {
+      if (!transferReference) {
+        throw new Error("Transfer reference is required for bank transfer.");
+      }
+
       sapPayload.TransferSum = transferSum;
+      if (payload.TransferDate) {
+        const transferDate = String(payload.TransferDate);
+        sapPayload.TransferDate =
+          transferDate.length === 8
+            ? `${transferDate.slice(0, 4)}-${transferDate.slice(4, 6)}-${transferDate.slice(6, 8)}`
+            : transferDate;
+      }
+      if (payload.TransferAccount) {
+        sapPayload.TransferAccount = payload.TransferAccount;
+      }
+      sapPayload.TransferReference = transferReference;
     }
 
     if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
@@ -415,7 +435,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
         sapPayload.PaymentChecks = realChecks.map((chk, idx) => ({
           BankCode: chk.BankCode,
           Branch: chk.Branch,
-          CheckAccount: chk.CheckAccount || "",
+          CheckAccount: chk.GLAccount || chk.CheckAccount || "",
           CheckNumber: chk.CheckNumber,
           CheckSum: chk.CheckSum,
           DueDate: chk.DueDate || sapPayload.DocDate,
@@ -669,7 +689,7 @@ export const getAccounts = async (dbName: string, query: AccountQuery) => {
     const repo = await getTenantRepository(dbName, GlAccountSchema);
     const qb = repo.createQueryBuilder("a");
 
-    qb.select(["a.GLAccount"]);
+    qb.select(["a.GLAccount", "a.Account"]);
 
     if (query.search) {
       qb.andWhere("LOWER(a.GLAccount) LIKE LOWER(:search)", { search: `%${query.search}%` });
@@ -687,7 +707,10 @@ export const getAccounts = async (dbName: string, query: AccountQuery) => {
     });
 
     return {
-      data: rows.map((r) => ({ GLAccount: r["a_GLAccount"] as string })),
+      data: rows.map((r) => ({
+        GLAccount: r["a_GLAccount"] as string,
+        Account: r["a_Account"] as string,
+      })),
       total: rows.length,
     };
   } catch (err: unknown) {

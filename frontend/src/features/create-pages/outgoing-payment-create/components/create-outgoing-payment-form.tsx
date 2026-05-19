@@ -236,8 +236,15 @@ export function CreateOutgoingPaymentForm() {
       CheckNumber: number;
       CheckSum: number;
       CheckAccount?: string;
+      CountryCode?: string;
+      BankName?: string;
+      GLAccount?: string;
     }[];
     CashAccount?: string | null;
+    TransferSum?: number;
+    TransferDate?: string;
+    TransferAccount?: string;
+    TransferReference?: string;
   }) => {
     const totalCash =
       paymentDetails.PaymentChecks?.filter((c) => c.BankCode === "CASH").reduce(
@@ -294,7 +301,13 @@ export function CreateOutgoingPaymentForm() {
       amountToDistribute -= toApply;
     }
 
-    if (!isPaymentOnAccount && paymentInvoices.length === 0) {
+    if (
+      !isPaymentOnAccount &&
+      paymentInvoices.length === 0 &&
+      totalCash === 0 &&
+      totalChecks === 0 &&
+      (paymentDetails.TransferSum || 0) === 0
+    ) {
       goeyToast.error("Please select at least one document to pay");
       return;
     }
@@ -310,18 +323,34 @@ export function CreateOutgoingPaymentForm() {
 
     const cashSum = totalCash;
     const checkSum = totalChecks;
-    const trsfrSum = 0;
-    createPaymentMutation.mutate({
+    const transferSum = paymentDetails.TransferSum || 0;
+
+    if (transferSum > 0 && !paymentDetails.TransferReference?.trim()) {
+      goeyToast.error("Transfer reference is required for bank transfer");
+      return;
+    }
+
+    const payload = {
       CardCode: lookups.codeInput,
       CashSum: cashSum,
-      CashAccount: paymentDetails.CashAccount ?? null,
+      ...(cashSum > 0 ? { CashAccount: paymentDetails.CashAccount } : {}),
       CheckSum: checkSum,
       DocDate: docDate || "",
       PaymentInvoices: paymentInvoices,
       Remarks: remarks,
-      TrsfrSum: trsfrSum,
+      TrsfrSum: transferSum,
+      ...(transferSum > 0 && paymentDetails.TransferDate
+        ? { TransferDate: paymentDetails.TransferDate }
+        : {}),
+      ...(transferSum > 0 && paymentDetails.TransferAccount
+        ? { TransferAccount: paymentDetails.TransferAccount }
+        : {}),
+      ...(transferSum > 0 && paymentDetails.TransferReference
+        ? { TransferReference: paymentDetails.TransferReference.trim() }
+        : {}),
       ...(paymentDetails.PaymentChecks ? { PaymentChecks: paymentDetails.PaymentChecks } : {}),
-    });
+    };
+    createPaymentMutation.mutate(payload);
   };
 
   return (
@@ -538,15 +567,17 @@ export function CreateOutgoingPaymentForm() {
                             </div>
                           </label>
                         </th>
-                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Type</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Number</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600">Doc Date</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">Doc Total</th>
-                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">
-                          Balance Due
+                        <th className="px-5 py-3 font-medium text-zinc-600">DOC TYPE</th>
+                        <th className="px-5 py-3 font-medium text-zinc-600">DOC NUMBER</th>
+                        <th className="px-5 py-3 font-medium text-zinc-600">DOC DATE</th>
+                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                          DOC TOTAL
                         </th>
-                        <th className="px-5 py-3 font-bold text-zinc-600 text-right">
-                          Total Payment
+                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                          BALANCE DUE
+                        </th>
+                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                          TOTAL PAYMENT
                         </th>
                       </tr>
                     </thead>

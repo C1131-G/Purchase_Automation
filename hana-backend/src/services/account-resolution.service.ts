@@ -12,7 +12,7 @@ export const resolveGLAccount = async (
   dbName: string,
   location: string | undefined,
   paymentType: PaymentType,
-  creditCardId?: number,
+  _creditCardId?: number,
 ): Promise<string> => {
   if (paymentType === "Surcharge") {
     return "AJAXBS040"; // Default Bank Charge account for AJAX
@@ -24,7 +24,7 @@ export const resolveGLAccount = async (
     // Fetch the active financial period using TypeORM QueryBuilder with property names
     const activePeriod = await periodRepo
       .createQueryBuilder("p")
-      .select(["p.linkAct2", "p.absEntry"])
+      .select(["p.linkAct2", "p.linkAct12", "p.absEntry"])
       .where("CURRENT_DATE BETWEEN p.fRefDate AND p.tRefDate")
       .getOne();
 

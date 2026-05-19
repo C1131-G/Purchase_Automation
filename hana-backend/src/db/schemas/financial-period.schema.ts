@@ -7,6 +7,7 @@ export interface FinancialPeriod {
   linkAct1: string;
   linkAct2: string;
   linkAct3: string;
+  linkAct12: string;
 }
 
 export const FinancialPeriodSchema = new EntitySchema<FinancialPeriod>({
@@ -37,6 +38,10 @@ export const FinancialPeriodSchema = new EntitySchema<FinancialPeriod>({
     linkAct3: {
       type: String,
       name: "LinkAct_3",
+    },
+    linkAct12: {
+      type: String,
+      name: "LinkAct_12",
     },
   },
 });

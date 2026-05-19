@@ -12,6 +12,10 @@ export const outgoingPaymentKeys = {
     [...outgoingPaymentKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   accountSuggestions: (search?: string, limit?: number) =>
     [...outgoingPaymentKeys.all, "account-suggestions", search ?? "", limit ?? 20] as const,
+  bankSuggestions: (search?: string, limit?: number) =>
+    [...outgoingPaymentKeys.all, "bank-suggestions", search ?? "", limit ?? 200] as const,
+  transferAccount: (date: string) =>
+    [...outgoingPaymentKeys.all, "transfer-account", date] as const,
   list: (params: OutgoingPaymentListParams) =>
     [...outgoingPaymentKeys.all, "list", params] as const,
 };
@@ -46,6 +50,14 @@ export const outgoingPaymentQueries = {
       queryKey: outgoingPaymentKeys.accountSuggestions(search, limit),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
+  bankSuggestions: (search?: string, limit?: number) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      placeholderData: keepPreviousData,
+      queryFn: () => outgoingPaymentAPI.getBankDetails(search, limit),
+      queryKey: outgoingPaymentKeys.bankSuggestions(search, limit),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+    }),
   list: (params: OutgoingPaymentListParams) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
@@ -53,5 +65,13 @@ export const outgoingPaymentQueries = {
       queryFn: () => outgoingPaymentAPI.getOutgoingPayments(params),
       queryKey: outgoingPaymentKeys.list(params),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+    }),
+  transferAccount: (date: string) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      queryFn: () => outgoingPaymentAPI.resolveTransferAccount(date),
+      queryKey: outgoingPaymentKeys.transferAccount(date),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+      enabled: !!date,
     }),
 };

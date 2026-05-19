@@ -11,6 +11,7 @@ import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
+import { BankDetailsSchema } from "@/db/schemas/bank-details.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
@@ -72,6 +73,7 @@ export const AppDataSource = new DataSource({
     IncomingPaymentSchema,
     SalesEmployeeSchema,
     GlAccountSchema,
+    BankDetailsSchema,
   ],
   subscribers: [],
   migrations: [],

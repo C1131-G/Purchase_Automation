@@ -1,0 +1,124 @@
+# HANA Backend
+
+The HANA backend is the SAP-connected Express service for Vendor Portal. It uses TypeORM against SAP HANA, manages local session auth, exposes Swagger docs, and coordinates outbound calls to SAP Service Layer.
+
+## Purpose
+
+This package owns:
+
+- SAP HANA reads for portal data
+- SAP Service Layer write operations
+- Session-based authentication against SAP
+- OpenAPI/Swagger documentation
+- HANA-specific master data, transactional flows, and lookups
+
+## Entry Points
+
+- HTTP server bootstrap: `src/server.ts`
+- Express application: `src/app.ts`
+
+## Stack
+
+- Express
+- TypeORM
+- SAP HANA client (`@sap/hana-client`)
+- Express session + file session store
+- Swagger UI
+- Zod + OpenAPI generation
+- tsup for production builds
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the backend in watch mode |
+| `pnpm build` | Compile the backend to `dist/` with tsup |
+| `pnpm start` | Run the compiled server from `dist/server.js` |
+| `pnpm test` | Run the Vitest suite |
+| `pnpm clean` | Free port 4000 and restart dev mode |
+
+## Environment Variables
+
+The backend validates its environment at startup. Required keys are defined in `src/validation/schemas/env.schema.ts`. The main runtime values are:
+
+```bash
+HANA_HOST=
+HANA_PORT=
+HANA_USER=
+HANA_PASSWORD=
+COMMON_DB=
+ORGANIZATION_TABLE=
+SESSION_SECRET=
+PORT=4000
+FRONTEND_URL=http://localhost:5173
+SERVICE_LAYER_URL=
+SERVICE_LAYER_HTTPS_VERIFY=
+HANA_POOLING=
+HANA_MAX_POOL_SIZE=
+HANA_CONNECTION_LIFE_TIME=
+SHUTDOWN_TIMEOUT=
+TRUST_PROXY_HOPS=
+NODE_ENV=
+```
+
+## Local Setup
+
+From the repository root:
+
+```bash
+pnpm install
+pnpm dev:hana-backend
+```
+
+The server listens on:
+
+```text
+http://localhost:4000
+```
+
+Swagger is available at:
+
+```text
+http://localhost:4000/api-docs
+```
+
+## Architecture
+
+The HANA backend follows a simple layered structure:
+
+- `routes/` - HTTP route registration
+- `services/` - business logic and orchestration
+- `dal/` - data access and SAP/HANA persistence boundaries
+- `db/` - TypeORM schema definitions and data source bootstrapping
+- `validation/` - Zod schemas for request and response contracts
+- `core/` - logging, errors, middleware, and shared utilities
+
+## Runtime Flow
+
+Startup order matters:
+
+1. Load environment variables
+2. Initialize the HANA pool
+3. Initialize TypeORM data sources
+4. Initialize the SAP Service Layer client
+5. Start the HTTP server
+
+## Build And Deploy
+
+- Production output lives in `dist/`
+- Start production with `node dist/server.js`
+- Ensure the backend can reach HANA and SAP Service Layer before booting
+
+## Operational Notes
+
+- Keep session handling enabled because routes rely on authenticated SAP sessions
+- Keep Swagger enabled for contract visibility and manual verification
+- Keep `routeTree.gen.ts` out of this package; that file belongs to the frontend
+- Avoid changing generated OpenAPI plumbing by hand unless the schema source changes
+
+## Troubleshooting
+
+- Environment validation failures happen before the server starts and usually indicate a missing or malformed env var
+- If SAP requests fail, verify the Service Layer session and credentials first
+- If HANA queries fail, confirm the tenant database and connection pool settings
+

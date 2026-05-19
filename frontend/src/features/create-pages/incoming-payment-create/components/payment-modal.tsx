@@ -257,7 +257,7 @@ export function PaymentModal({
     setAddedCards(addedCards.filter((c) => c.id !== id));
   };
 
-    const handleSubmit = () => {
+  const handleSubmit = () => {
     let cash = Number(cashAmount) || 0;
     let cheque = Number(chequeAmount) || 0;
     let cards = [...addedCards];
