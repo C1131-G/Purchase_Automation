@@ -364,7 +364,7 @@ export const getProducts = async (
         const code = toTrimmed(uom.UomCode);
         const name = toTrimmed(uom.UomName);
         const entry = toNullableInt(
-          (uom as Record<string, unknown>).UomEntry ?? (uom as Record<string, unknown>).AbsEntry,
+          (uom as unknown as Record<string, unknown>).UomEntry ?? (uom as unknown as Record<string, unknown>).AbsEntry,
         );
         if (code) {
           uomByNormalizedValue.set(code.toLowerCase(), { code, entry });

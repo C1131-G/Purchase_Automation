@@ -3,9 +3,10 @@
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { executeTenantQuery, getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { SalesQuotationFilters } from "@/dal/types/sales-quotation.types";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
+import { SalesQuotationLineSchema } from "@/db/schemas/sales-quotation-line.schema";
 import type { SalesQuotation } from "@/db/schemas/sales-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
@@ -419,52 +420,58 @@ export const getOpenSalesQuotationLines = async (dbName: string, cardCode: strin
     // Query HANA QUT1 (quotation lines) joined with OQUT (quotation header).
     // QUT1.OpenQty is the SAP-maintained remaining open quantity — it decrements automatically
     // as Sales Orders or AR Invoices are created against the quotation.
-    const rows = (await executeTenantQuery(
-      dbName,
-      `SELECT
-        h."DocEntry",
-        h."DocNum",
-        h."DocDate",
-        h."DocCur"   AS "DocCurr",
-        l."LineNum",
-        l."ItemCode",
-        l."Dscription" AS "ItemDescription",
-        l."Quantity",
-        l."OpenQty",
-        l."Price",
-        l."VatGroup",
-        l."VatPrcnt",
-        l."WhsCode"   AS "WarehouseCode",
-        l."UomCode"   AS "UoMCode",
-        l."UomEntry"  AS "UoMEntry",
-        l."DiscPrcnt" AS "DiscountPercent"
-      FROM "OQUT" h
-      INNER JOIN "QUT1" l ON l."DocEntry" = h."DocEntry"
-      WHERE h."CardCode" = ?
-        AND h."DocStatus" = 'O'
-        AND l."OpenQty" > 0
-      ORDER BY h."DocNum" DESC, l."LineNum" ASC`,
-      [cardCode],
-    )) as Record<string, unknown>[];
+    const headerRepo = await getTenantRepository(dbName, SalesQuotationSchema);
+    const rows = (await headerRepo.createQueryBuilder("h")
+      .innerJoin(SalesQuotationLineSchema as any, "l", '"l"."DocEntry" = "h"."DocEntry"')
+      .select([
+        '"h"."DocEntry"   AS "DocEntry"',
+        '"h"."DocNum"     AS "DocNum"',
+        '"h"."DocDate"    AS "DocDate"',
+        '"h"."DocCur"     AS "DocCurr"',
+        '"l"."LineNum"    AS "LineNum"',
+        '"l"."ItemCode"   AS "ItemCode"',
+        '"l"."Dscription" AS "ItemDescription"',
+        '"l"."Quantity"   AS "Quantity"',
+        '"l"."OpenQty"    AS "OpenQty"',
+        '"l"."Price"      AS "Price"',
+        '"l"."PriceBefDi" AS "PriceBefDi"',
+        '"l"."VatGroup"   AS "VatGroup"',
+        '"l"."VatPrcnt"   AS "VatPrcnt"',
+        '"l"."WhsCode"    AS "WarehouseCode"',
+        '"l"."UomCode"    AS "UoMCode"',
+        '"l"."UomEntry"   AS "UoMEntry"',
+        '"l"."DiscPrcnt"  AS "DiscountPercent"',
+        '"l"."LineTotal"  AS "LineTotal"',
+      ])
+      .where('"h"."CardCode" = :cardCode', { cardCode })
+      .andWhere('"h"."DocStatus" = :docStatus', { docStatus: "O" })
+      .andWhere('"l"."OpenQty" > 0')
+      .orderBy('"h"."DocNum"', "DESC")
+      .addOrderBy('"l"."LineNum"', "ASC")
+      .getRawMany()) as Record<string, unknown>[];
 
-    const openLines = rows.map((row) => ({
-      DiscountPercent: Number(row["DiscountPercent"] ?? 0),
-      DocCurr: String(row["DocCurr"] ?? ""),
-      DocDate: String(row["DocDate"] ?? ""),
-      DocEntry: Number(row["DocEntry"]),
-      DocNum: Number(row["DocNum"]),
-      ItemCode: String(row["ItemCode"] ?? ""),
-      ItemDescription: String(row["ItemDescription"] ?? ""),
-      LineNum: Number(row["LineNum"]),
-      OpenQty: Number(row["OpenQty"] ?? 0),
-      Price: Number(row["Price"] ?? 0),
-      Quantity: Number(row["Quantity"] ?? 0),
-      UoMCode: row["UoMCode"],
-      UoMEntry: row["UoMEntry"] != null ? Number(row["UoMEntry"]) : undefined,
-      VatGroup: String(row["VatGroup"] ?? ""),
-      VatPrcnt: Number(row["VatPrcnt"] ?? 0),
-      WarehouseCode: String(row["WarehouseCode"] ?? ""),
-    }));
+    const openLines = rows.map((row) => {
+      const normalized = normalizeSAPLineData(row);
+      return {
+        DiscountPercent: normalized.DiscountPercent,
+        DocCurr: String(row["DocCurr"] ?? ""),
+        DocDate: String(row["DocDate"] ?? ""),
+        DocEntry: Number(row["DocEntry"]),
+        DocNum: Number(row["DocNum"]),
+        ItemCode: normalized.ItemCode,
+        ItemDescription: normalized.ItemDescription,
+        LineNum: normalized.LineNum,
+        LineTotal: normalized.LineTotal,
+        OpenQty: normalized.OpenQty,
+        Price: normalized.Price,
+        Quantity: normalized.Quantity,
+        UoMCode: normalized.UoMCode,
+        UoMEntry: normalized.UoMEntry,
+        VatGroup: normalized.VatGroup,
+        VatPrcnt: normalized.VatPrcnt,
+        WarehouseCode: normalized.WarehouseCode,
+      };
+    });
 
     logger.info({ count: openLines.length, msg: "Open SQ lines from HANA" });
 

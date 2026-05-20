@@ -2,7 +2,7 @@
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { executeTenantQuery, getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { InvoiceFilters } from "@/dal/types/ar-invoice.types";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import type { ARInvoice } from "@/db/schemas/ar-invoice.schema";
@@ -129,14 +129,14 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
         BalanceDue:
           Math.round(
             (Number(data.docTotal) -
-              Number(((data as Record<string, unknown>).paidSum as number) || 0)) *
+              Number(((data as unknown as Record<string, unknown>).paidSum as number) || 0)) *
               100,
           ) / 100,
         DocCurr: data.docCurr,
         NumAtCard: data.numAtCard,
         DocStatus: data.docStatus,
         // Include paid amount for AR invoices to calculate outstanding balances on frontend.
-        paidSum: ((data as Record<string, unknown>).paidSum as number) || 0,
+        paidSum: ((data as unknown as Record<string, unknown>).paidSum as number) || 0,
       })),
     };
   } catch (err: unknown) {
@@ -212,8 +212,89 @@ export const getInvoice = async (sessionId: string, id: string) => {
   }
 };
 
+// Helper: Resolves and appends greedy bin allocations to document lines if a warehouse has bin locations enabled.
+export const resolveBinAllocations = async (
+  dbName: string,
+  documentLines: Record<string, unknown>[],
+) => {
+  try {
+    for (let i = 0; i < documentLines.length; i++) {
+      const line = documentLines[i];
+      const warehouseCode = line.WarehouseCode as string;
+      const itemCode = line.ItemCode as string;
+      const quantity = Number(line.Quantity ?? 0);
+
+      if (!warehouseCode || !itemCode || quantity <= 0) continue;
+
+      // Check if warehouse has Bin Locations enabled
+      const whsRows = (await executeTenantQuery(
+        dbName,
+        `SELECT "BinActivat" FROM "OWHS" WHERE "WhsCode" = ?`,
+        [warehouseCode],
+      )) as { BinActivat: string }[];
+
+      if (!whsRows || whsRows.length === 0 || whsRows[0].BinActivat !== "Y") {
+        continue;
+      }
+
+      // Warehouse has bins enabled. Fetch bin stock for this item ordered by OnHandQty (descending)
+      const binStock = (await executeTenantQuery(
+        dbName,
+        `SELECT q."BinAbs", q."OnHandQty"
+         FROM "OIBQ" q
+         INNER JOIN "OBIN" b ON b."AbsEntry" = q."BinAbs"
+         WHERE q."ItemCode" = ? AND q."WhsCode" = ? AND q."OnHandQty" > 0
+         ORDER BY q."OnHandQty" DESC`,
+        [itemCode, warehouseCode],
+      )) as { BinAbs: number; OnHandQty: string }[];
+
+      if (!binStock || binStock.length === 0) {
+        continue; // No stock in bins; skip and let SAP raise standard stock errors if applicable
+      }
+
+      // Allocate stock greedily
+      let remainingQty = quantity;
+      const allocations: Record<string, unknown>[] = [];
+
+      for (const bin of binStock) {
+        if (remainingQty <= 0) break;
+        const binQty = Number(bin.OnHandQty);
+        const allocated = Math.min(remainingQty, binQty);
+
+        allocations.push({
+          BaseLineNumber: i,
+          BinAbsEntry: bin.BinAbs,
+          Quantity: allocated,
+        });
+
+        remainingQty -= allocated;
+      }
+
+      if (allocations.length > 0) {
+        line.DocumentLinesBinAllocations = allocations;
+        logger.info({
+          allocationsCount: allocations.length,
+          itemCode,
+          msg: "Automatically resolved bin allocations for document line",
+          warehouseCode,
+        });
+      }
+    }
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.error({
+      error: caughtError.message,
+      msg: "Failed to resolve bin allocations",
+    });
+  }
+};
+
 // Creates a new Sales Invoice (A/R Invoice) in SAP B1.
-export const createInvoice = async (sessionId: string, payload: Record<string, unknown>) => {
+export const createInvoice = async (
+  sessionId: string,
+  payload: Record<string, unknown>,
+  dbName?: string,
+) => {
   try {
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -251,6 +332,12 @@ export const createInvoice = async (sessionId: string, payload: Record<string, u
       }),
       NumAtCard: payload.NumAtCard,
     };
+
+    // Auto-allocate bin locations if dbName is provided and warehouse requires it
+    const documentLines = (sapPayload.DocumentLines as Record<string, unknown>[]) ?? [];
+    if (dbName && documentLines.length > 0) {
+      await resolveBinAllocations(dbName, documentLines);
+    }
 
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {

@@ -83,6 +83,7 @@ export interface OpenSalesQuotationLine {
   UoMCode?: string | number;
   UoMEntry?: number;
   DiscountPercent?: number;
+  LineTotal?: number;
 }
 
 export interface OpenSalesQuotationLinesResponse {

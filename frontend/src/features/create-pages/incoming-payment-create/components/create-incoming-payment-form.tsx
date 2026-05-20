@@ -160,8 +160,9 @@ export function CreateIncomingPaymentForm() {
       Branch: string;
       CheckNumber: number;
       CheckSum: number;
-      CheckAccount?: string;
+      AccountNo?: string;
       Endorse?: "tYES" | "tNO";
+      OriginallyIssuedBy?: string;
     }[];
     SurchargeTotal?: number;
     CashSum?: number;
@@ -172,10 +173,10 @@ export function CreateIncomingPaymentForm() {
     const totalChecks = paymentDetails.PaymentChecks?.reduce((sum, c) => sum + c.CheckSum, 0) || 0;
     const totalCards =
       paymentDetails.PaymentCreditCards?.reduce((sum, c) => sum + c.CreditSum, 0) || 0;
-    const surcharge = paymentDetails.SurchargeTotal || 0;
+    const surcharge = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));
 
     // The amount available to cover invoices is what was actually paid minus any surcharges
-    const totalPaid = totalCash + totalChecks + totalCards - surcharge;
+    const totalPaid = Number((totalCash + totalChecks + totalCards - surcharge).toFixed(2));
 
     // 2. Group selected documents
     const selectedList = Object.entries(selectedDocs).map(([key, val]) => ({
@@ -230,7 +231,7 @@ export function CreateIncomingPaymentForm() {
       return;
     }
 
-    const surchargeTotal = paymentDetails.SurchargeTotal || 0;
+    const surchargeTotal = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));
     goeyToast.info(`Captured surcharge: ${surchargeTotal}`);
 
     const cashSum = totalCash;
