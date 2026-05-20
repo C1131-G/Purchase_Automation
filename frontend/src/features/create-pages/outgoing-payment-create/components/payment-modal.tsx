@@ -803,7 +803,7 @@ export function PaymentModal({
                     htmlFor="transferReference"
                     className="mb-1.5 block text-xs font-bold text-zinc-600"
                   >
-                    Transfer Reference *
+                    Reference
                   </label>
                   <input
                     id="transferReference"

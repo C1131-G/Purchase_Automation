@@ -432,7 +432,6 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
         0,
       );
 
-      // Build credit card lines
       sapPayload.PaymentCreditCards = await Promise.all(
         (payload.PaymentCreditCards as Record<string, unknown>[]).map(async (card, idx) => {
           const originalCardSum = Number(card.CreditSum) || 0;

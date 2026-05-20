@@ -30,17 +30,17 @@ This package owns:
 
 ## Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the backend in watch mode |
-| `pnpm build` | Compile the backend to `dist/` with tsup |
-| `pnpm start` | Run the compiled server from `dist/server.js` |
-| `pnpm test` | Run the Vitest suite |
-| `pnpm clean` | Free port 4001 and restart dev mode |
-| `pnpm migration:generate` | Generate a new SQL migration |
-| `pnpm migration:run` | Apply pending migrations |
-| `pnpm migration:revert` | Revert the last migration |
-| `pnpm migration:show` | Show migration status |
+| Command                   | Purpose                                       |
+| ------------------------- | --------------------------------------------- |
+| `pnpm dev`                | Start the backend in watch mode               |
+| `pnpm build`              | Compile the backend to `dist/` with tsup      |
+| `pnpm start`              | Run the compiled server from `dist/server.js` |
+| `pnpm test`               | Run the Vitest suite                          |
+| `pnpm clean`              | Free port 4001 and restart dev mode           |
+| `pnpm migration:generate` | Generate a new SQL migration                  |
+| `pnpm migration:run`      | Apply pending migrations                      |
+| `pnpm migration:revert`   | Revert the last migration                     |
+| `pnpm migration:show`     | Show migration status                         |
 
 ## Environment Variables
 
@@ -119,4 +119,3 @@ Recommended workflow:
 - If the server fails at startup, check environment validation first
 - If connections fail, verify SQL Server host, port, and credentials
 - If schema drift appears, inspect the migration history and entity definitions together
-
