@@ -254,23 +254,31 @@ export function IncomingPaymentEdit({ docNum }: { docNum: string }) {
                   ).toFixed(2)}
                 </span>
               </div>
+              {Number(paymentDetail.BankChargeAmount || 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-600">Bank Charge</span>
+                  <span className="font-medium text-zinc-900">
+                    ${Number(paymentDetail.BankChargeAmount).toFixed(2)}
+                  </span>
+                </div>
+              )}
               <div className="border-t border-zinc-100 pt-3 flex justify-between">
                 <span className="font-bold text-zinc-900">Doc Total</span>
                 <span className="text-lg font-black text-blue-600">
                   $
                   {(
-                    Number(paymentDetail.DocTotal || 0) ||
-                    Number(paymentDetail.CashSum || 0) +
-                      (paymentDetail.PaymentChecks?.reduce(
-                        (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
-                        0,
-                      ) || 0) +
-                      Number(paymentDetail.TrsfrSum || 0) +
-                      (paymentDetail.PaymentCreditCards?.reduce(
-                        (acc: number, card: { CreditSum: number }) =>
-                          acc + Number(card.CreditSum || 0),
-                        0,
-                      ) || 0)
+                    (Number(paymentDetail.DocTotal || 0) ||
+                      Number(paymentDetail.CashSum || 0) +
+                        (paymentDetail.PaymentChecks?.reduce(
+                          (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
+                          0,
+                        ) || 0) +
+                        Number(paymentDetail.TrsfrSum || 0) +
+                        (paymentDetail.PaymentCreditCards?.reduce(
+                          (acc: number, card: { CreditSum: number }) =>
+                            acc + Number(card.CreditSum || 0),
+                          0,
+                        ) || 0)) + Number(paymentDetail.BankChargeAmount || 0)
                   ).toFixed(2)}
                 </span>
               </div>

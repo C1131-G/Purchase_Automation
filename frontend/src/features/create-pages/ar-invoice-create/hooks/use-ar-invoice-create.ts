@@ -998,6 +998,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       DocEntry?: number;
       OpenQty?: number;
       DiscountPercent?: number;
+      LineTotal?: number;
     }[],
   ) => {
     const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))];
@@ -1025,7 +1026,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const openQty = Number(line.OpenQty ?? line.Quantity ?? 1);
       const grossAmount = Math.max(0, price * openQty);
       const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
-      // Fallback to undefined/NaN if LineTotal is missing since OpenSalesQuotationLine doesn't formally have it, 
+      // Fallback to undefined/NaN if LineTotal is missing since OpenSalesQuotationLine doesn't formally have it,
       // but if we added it to backend it will be present in the payload.
       const lineTotal = Number(line.LineTotal ?? Number.NaN);
       const derivedDiscountAmountFromLineTotal =

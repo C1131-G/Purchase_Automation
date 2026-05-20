@@ -53,19 +53,19 @@ pnpm dev:sql-backend
 
 ## Common Root Commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev:frontend` | Start the Vite frontend on port 5173 |
-| `pnpm dev:hana-backend` | Start the HANA backend on port 4000 |
-| `pnpm dev:sql-backend` | Start the SQL backend on port 4001 |
-| `pnpm build` | Clean, lint, format, and build all packages |
-| `pnpm test` | Run the HANA backend test suite |
-| `pnpm lint` | Run Oxlint |
-| `pnpm lint:fix` | Auto-fix lint issues |
-| `pnpm format` | Run Oxfmt |
-| `pnpm format:check` | Check formatting only |
-| `pnpm check` | Run lint fix + format |
-| `pnpm fix` | Same as `check` |
+| Command                 | Purpose                                     |
+| ----------------------- | ------------------------------------------- |
+| `pnpm dev:frontend`     | Start the Vite frontend on port 5173        |
+| `pnpm dev:hana-backend` | Start the HANA backend on port 4000         |
+| `pnpm dev:sql-backend`  | Start the SQL backend on port 4001          |
+| `pnpm build`            | Clean, lint, format, and build all packages |
+| `pnpm test`             | Run the HANA backend test suite             |
+| `pnpm lint`             | Run Oxlint                                  |
+| `pnpm lint:fix`         | Auto-fix lint issues                        |
+| `pnpm format`           | Run Oxfmt                                   |
+| `pnpm format:check`     | Check formatting only                       |
+| `pnpm check`            | Run lint fix + format                       |
+| `pnpm fix`              | Same as `check`                             |
 
 ## Local Development Ports
 
@@ -92,4 +92,3 @@ pnpm dev:sql-backend
 - Do not edit generated router output such as `frontend/src/routeTree.gen.ts`
 - Keep `.gitignore` free of generated outputs, dependency caches, and build artifacts
 - Prefer workspace-level scripts for orchestration and package-level scripts for package-specific tasks
-

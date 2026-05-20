@@ -14,30 +14,37 @@ export const resolveGLAccount = async (
   paymentType: PaymentType,
   _creditCardId?: number,
 ): Promise<string> => {
-  if (paymentType === "Surcharge") {
-    return "AJAXBS040"; // Default Bank Charge account for AJAX
-  }
-
   try {
     const periodRepo = await getTenantRepository(dbName, FinancialPeriodSchema);
 
     // Fetch the active financial period using TypeORM QueryBuilder with property names
     const activePeriod = await periodRepo
       .createQueryBuilder("p")
-      .select(["p.linkAct2", "p.linkAct12", "p.absEntry"])
+      .select(["p.linkAct2", "p.linkAct12", "p.bnkChgAct", "p.absEntry"])
       .where("CURRENT_DATE BETWEEN p.fRefDate AND p.tRefDate")
       .getOne();
 
-    if (activePeriod && activePeriod.linkAct2) {
-      const accountCode = activePeriod.linkAct2;
+    if (activePeriod) {
+      if (paymentType === "Surcharge") {
+        if (activePeriod.bnkChgAct) {
+          logger.info({
+            msg: `Resolved G/L account for ${paymentType} via TypeORM (OACP.BnkChgAct)`,
+            account: activePeriod.bnkChgAct,
+            period: activePeriod.absEntry,
+          });
+          return activePeriod.bnkChgAct;
+        }
+      } else if (activePeriod.linkAct2) {
+        const accountCode = activePeriod.linkAct2;
 
-      logger.info({
-        msg: `Resolved G/L account for ${paymentType} via TypeORM (OACP.LinkAct_2)`,
-        account: accountCode,
-        period: activePeriod.absEntry,
-      });
+        logger.info({
+          msg: `Resolved G/L account for ${paymentType} via TypeORM (OACP.LinkAct_2)`,
+          account: accountCode,
+          period: activePeriod.absEntry,
+        });
 
-      return accountCode;
+        return accountCode;
+      }
     }
   } catch (err: any) {
     logger.error({

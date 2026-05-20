@@ -421,7 +421,8 @@ export const getOpenSalesQuotationLines = async (dbName: string, cardCode: strin
     // QUT1.OpenQty is the SAP-maintained remaining open quantity — it decrements automatically
     // as Sales Orders or AR Invoices are created against the quotation.
     const headerRepo = await getTenantRepository(dbName, SalesQuotationSchema);
-    const rows = (await headerRepo.createQueryBuilder("h")
+    const rows = (await headerRepo
+      .createQueryBuilder("h")
       .innerJoin(SalesQuotationLineSchema as any, "l", '"l"."DocEntry" = "h"."DocEntry"')
       .select([
         '"h"."DocEntry"   AS "DocEntry"',

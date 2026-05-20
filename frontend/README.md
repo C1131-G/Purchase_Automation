@@ -28,10 +28,10 @@ This package contains the browser application for Vendor Portal. It owns:
 
 ## Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the Vite dev server |
-| `pnpm build` | Type-check and build production assets |
+| Command        | Purpose                                            |
+| -------------- | -------------------------------------------------- |
+| `pnpm dev`     | Start the Vite dev server                          |
+| `pnpm build`   | Type-check and build production assets             |
 | `pnpm preview` | Serve the built app with Vite preview on port 5173 |
 
 ## Environment Variables
@@ -84,4 +84,3 @@ Production build output is emitted to `dist/`. The app is designed to be served 
 - If Vite cannot reach the backend, verify `VITE_API_URL`
 - If routing changes do not appear, restart the dev server so the route plugin regenerates the route tree
 - If build output looks stale, remove `dist/` and run `pnpm build`
-
