@@ -423,7 +423,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
-      const surcharge = Number(payload.SurchargeTotal) || 0; // retained for potential future use
+      const _surcharge = Number(payload.SurchargeTotal) || 0; // retained for potential future use
       sapPayload.PaymentCreditCards = await Promise.all(
         (payload.PaymentCreditCards as Record<string, unknown>[]).map(async (card, idx) => {
           let cardAmount = Number(card.CreditSum) || 0;
@@ -439,7 +439,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
             CreditCardNumber: "123", // Placeholder required by SAP
             CardValidUntil: "2026-12-31", // Placeholder required by SAP
           };
-        })
+        }),
       );
     }
 

@@ -107,9 +107,7 @@ export const SalesQuotationLineSchema = new EntitySchema<SalesQuotationLine>({
       type: "decimal" as HANAColumnType,
     },
   },
-  indices: [
-    { columns: ["docEntry"], name: "IDX_QUT1_DOCENTRY" },
-  ],
+  indices: [{ columns: ["docEntry"], name: "IDX_QUT1_DOCENTRY" }],
   name: "SalesQuotationLine",
   tableName: "QUT1",
 });

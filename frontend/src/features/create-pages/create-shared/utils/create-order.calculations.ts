@@ -8,12 +8,12 @@ export const calculateLineTotals = (row: ProductRow) => {
   // Net line subtotal (pre-tax). SAP rounds this to currency precision (typically 2) per line.
   const rawLineNet = gross - discount;
   const lineNet = Math.round(rawLineNet * 100) / 100;
-  
+
   const taxRate = Math.max(0, row.taxRate ?? 0);
   // Tax derived from net subtotal. SAP rounds tax per line.
   const rawLineTax = taxRate > 0 ? lineNet * (taxRate / 100) : 0;
   const lineTax = Math.round(rawLineTax * 100) / 100;
-  
+
   // Inclusive line total (what SAP uses)
   const lineTotal = Math.round((lineNet + lineTax) * 100) / 100;
 
