@@ -205,6 +205,7 @@ export const getPayment = async (sessionId: string, id: string) => {
       PaymentChecks: (result as unknown as Record<string, unknown>).PaymentChecks || [],
       PaymentCreditCards: mappedCreditCards,
       PaymentAccounts: (result as unknown as Record<string, unknown>).PaymentAccounts || [],
+      BankChargeAmount: (result as unknown as Record<string, unknown>).BankChargeAmount || 0,
 
       // maps the list of invoices settled by this payment.
       PaymentInvoices: await (async () => {
@@ -423,11 +424,28 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
-      const _surcharge = Number(payload.SurchargeTotal) || 0; // retained for potential future use
+      const surcharge = Number(payload.SurchargeTotal) || 0;
+
+      // Calculate total of all credit card sums before adjustment
+      const totalCreditSum = (payload.PaymentCreditCards as Record<string, unknown>[]).reduce(
+        (acc, card) => acc + (Number(card.CreditSum) || 0),
+        0,
+      );
+
       sapPayload.PaymentCreditCards = await Promise.all(
         (payload.PaymentCreditCards as Record<string, unknown>[]).map(async (card, idx) => {
-          let cardAmount = Number(card.CreditSum) || 0;
-          // No automatic surcharge subtraction applied
+          const originalCardSum = Number(card.CreditSum) || 0;
+          let cardAmount = originalCardSum;
+
+          // Distribute surcharge proportionally based on card's share of total credit sum
+          if (surcharge > 0 && totalCreditSum > 0) {
+            const cardSurchargeProportion = originalCardSum / totalCreditSum;
+            const cardSurcharge = surcharge * cardSurchargeProportion;
+            cardAmount = Math.max(0, originalCardSum - cardSurcharge);
+            // Round to 2 decimal places to avoid floating point precision issues (e.g. 9.620000000000001)
+            cardAmount = Number(cardAmount.toFixed(2));
+          }
+
           return {
             LineNum: idx,
             CreditCard: card.CreditCard,
@@ -470,8 +488,51 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       }
     }
 
+    let surchargePostedAccount: string | undefined = undefined;
+
     if (payload.SurchargeTotal && (payload.SurchargeTotal as number) > 0) {
-      sapPayload.BankChargeAmount = payload.SurchargeTotal;
+      const surcharge = Number(payload.SurchargeTotal);
+      const surchargeAccount = await resolveGLAccount(dbName, branch, "Surcharge");
+      surchargePostedAccount = surchargeAccount;
+
+      // Set Bank Charge (BankChargeAmount) on the payment header so it displays in Payment Means
+      sapPayload.BankChargeAmount = surcharge;
+
+      const invoicePayload = {
+        CardCode: payload.CardCode,
+        DocDate: sapPayload.DocDate,
+        DocType: "dDocument_Service",
+        DocumentLines: [
+          {
+            ItemDescription: "Credit Card Surcharge",
+            AccountCode: surchargeAccount,
+            LineTotal: surcharge,
+          },
+        ],
+      };
+
+      logger.info({ msg: "Creating Surcharge A/R Invoice", invoicePayload });
+
+      const invoiceResult = (await serviceLayerClient.request(
+        sessionId,
+        "POST",
+        "/Invoices",
+        invoicePayload,
+      )) as SAPDocumentResponse;
+
+      logger.info({
+        msg: "Surcharge Invoice Created successfully",
+        docEntry: invoiceResult.DocEntry,
+      });
+
+      // Append the newly created surcharge invoice to the payment
+      const existingInvoices = (sapPayload.PaymentInvoices as Record<string, unknown>[]) || [];
+      existingInvoices.push({
+        DocEntry: invoiceResult.DocEntry,
+        SumApplied: surcharge,
+        InvoiceType: "13", // it_Invoice
+      });
+      sapPayload.PaymentInvoices = existingInvoices;
     }
 
     const paymentAccounts = (payload.PaymentAccounts as Record<string, unknown>[]) || [];
@@ -506,6 +567,13 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       "/IncomingPayments",
       sapPayload,
     )) as SAPDocumentResponse;
+
+    logger.info({
+      msg: "Incoming Payment Created successfully",
+      DocEntry: result.DocEntry,
+      DocNum: result.DocNum,
+      ...(surchargePostedAccount ? { SurchargePostedAccount: surchargePostedAccount } : {}),
+    });
 
     // Purge sales-related dashboard cache to reflect the updated receivables.
     if (session?.companyDB) {

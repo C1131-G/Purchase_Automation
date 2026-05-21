@@ -83,6 +83,7 @@ export interface IncomingPaymentDetail {
     SumApplied: number;
     InvoiceType: "it_Invoice" | "it_CredItnote";
   }[];
+  BankChargeAmount?: number;
 }
 
 export interface IncomingPaymentDetailResponse {
