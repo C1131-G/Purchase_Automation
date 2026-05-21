@@ -204,21 +204,33 @@ export const getCreditNote = async (sessionId: string, id: string) => {
 export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     // Map input payload to the canonical SAP Service Layer JSON structure for Credit Notes.
+    
+    let totalGross = 0;
+    let totalDiscount = 0;
+    const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    lines.forEach((l) => {
+      const p = (l.UnitPrice || l.Price) as number || 0;
+      const q = (l.Quantity as number) || 1;
+      const d = (l.DiscountPercent as number) || 0;
+      totalGross += (p * q);
+      totalDiscount += (p * q * (d / 100));
+    });
+    const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+      DiscountPercent: headerDiscountPercent,
+      DocumentLines: lines.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
-          UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
-          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+          DiscountPercent: item.DiscountPercent || 0,
           VatGroup: (item.VatGroup ?? item.TaxCode) as string,
           WarehouseCode: item.WarehouseCode as string,
-          DiscountPercent: item.DiscountPercent as number | undefined,
         };
 
         // Prefer UoMEntry over UoMCode for more reliable linking in SAP

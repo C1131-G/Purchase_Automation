@@ -296,13 +296,27 @@ export const createInvoice = async (
   dbName?: string,
 ) => {
   try {
+    
+    let totalGross = 0;
+    let totalDiscount = 0;
+    const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    lines.forEach((l) => {
+      const gross = (l.PriceBefDi || l.Price) as number || 0;
+      const q = (l.Quantity as number) || 1;
+      const d = (l.DiscountPercent as number) || 0;
+      totalGross += gross * q;
+      totalDiscount += gross * q * (d / 100);
+    });
+    const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((line) => {
+      DiscountPercent: headerDiscountPercent,
+      DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
@@ -310,7 +324,7 @@ export const createInvoice = async (
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
-          DiscountPercent: line.DiscountPercent as number,
+          DiscountPercent: (line.DiscountPercent ?? line.DiscPrcnt ?? 0) as number,
         };
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
@@ -390,6 +404,7 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+    // Update mutable fields
     if (Object.hasOwn(payload, "DocDueDate")) {
       sapPayload.DocDueDate = payload.DocDueDate;
     }
@@ -399,7 +414,20 @@ export const updateInvoice = async (
     if (Object.hasOwn(payload, "NumAtCard")) {
       sapPayload.NumAtCard = payload.NumAtCard;
     }
-
+    // Compute and set DiscountPercent if DocumentLines provided
+    if (Array.isArray(payload.DocumentLines)) {
+      let totalGross = 0;
+      let totalDiscount = 0;
+      (payload.DocumentLines as Record<string, unknown>[]).forEach((l) => {
+        const gross = (l.PriceBefDi || l.Price || l.UnitPrice) as number || 0;
+        const qty = (l.Quantity as number) || 1;
+        const disc = (l.DiscountPercent as number) || (l.DiscPrcnt as number) || 0;
+        totalGross += gross * qty;
+        totalDiscount += gross * qty * (disc / 100);
+      });
+      const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+      sapPayload.DiscountPercent = headerDiscountPercent;
+    }
     await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload);
 
     // Invalidate tenant-specific sales dashboard cache.

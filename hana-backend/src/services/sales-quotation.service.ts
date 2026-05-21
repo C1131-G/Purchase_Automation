@@ -216,13 +216,27 @@ export const getSalesQuotationByDocNum = async (
 // Posts a new Sales Quotation to the Service Layer using the /Quotations endpoint.
 export const createSalesQuotation = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
+    
+    let totalGross = 0;
+    let totalDiscount = 0;
+    const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    lines.forEach((l) => {
+      const p = (l.UnitPrice || l.Price) as number || 0;
+      const q = (l.Quantity as number) || 1;
+      const d = (l.DiscountPercent as number) || 0;
+      totalGross += (p * q);
+      totalDiscount += (p * q * (d / 100));
+    });
+    const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((line) => {
+      DiscountPercent: headerDiscountPercent,
+      DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
@@ -230,7 +244,6 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
-          DiscountPercent: line.DiscountPercent as number,
         };
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
@@ -328,9 +341,19 @@ export const updateSalesQuotation = async (
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
+      let totalGross = 0;
+      let totalDiscount = 0;
+      lines.forEach((l) => {
+        const p = (l.UnitPrice || l.Price) as number || 0;
+        const q = (l.Quantity as number) || 1;
+        const d = (l.DiscountPercent as number) || 0;
+        totalGross += (p * q);
+        totalDiscount += (p * q * (d / 100));
+      });
+      sapPayload.DiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+
       sapPayload.DocumentLines = lines.map((line) => {
         const docLine: Record<string, unknown> = {
-          DiscountPercent: line.DiscountPercent as number,
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
