@@ -400,7 +400,8 @@ export function CreateProductTableRow({
   const { gross: grossAmount, discount: clampedDiscountAmount, lineNet, lineTotal } = lineTotals;
   // Unit net price for display (pre-tax per unit)
   const unitNetPrice = (row.quantity || 0) > 0 ? lineNet / (row.quantity || 1) : 0;
-  const clampedDiscountPercent = grossAmount > 0 ? (clampedDiscountAmount / grossAmount) * 100 : 0;
+  const clampedDiscountPercent =
+    grossAmount > 0 ? Math.round((clampedDiscountAmount / grossAmount) * 100 * 100) / 100 : 0;
 
   const discountPercentInputValue =
     rowDraft?.discountPercent ??
@@ -408,14 +409,14 @@ export function CreateProductTableRow({
       ? showExplicitZeroDiscount
         ? "0.00"
         : ""
-      : String(clampedDiscountPercent));
+      : clampedDiscountPercent.toFixed(2));
   const discountAmountInputValue =
     rowDraft?.discountAmount ??
     (clampedDiscountAmount === 0
       ? showExplicitZeroDiscount
         ? "0.00"
         : ""
-      : String(clampedDiscountAmount));
+      : clampedDiscountAmount.toFixed(2));
 
   const isRowActive = !showSelection || row.selected === true;
   const effectiveDisableInputs = disableInputs || !isRowActive;
@@ -728,8 +729,8 @@ export function CreateProductTableRow({
               return;
             }
 
-            const nextPercent = Math.max(0, Number(trimmedValue) || 0);
-            const nextAmount = (grossAmount * nextPercent) / 100;
+            const nextPercent = Math.round(Math.max(0, Number(trimmedValue) || 0) * 100) / 100;
+            const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
             updateProductRow(row.id, {
               discountAmount: Math.max(0, Math.min(grossAmount, nextAmount)),
               discountPercent: nextPercent,
@@ -740,8 +741,9 @@ export function CreateProductTableRow({
               return;
             }
             const rawValue = event.target.value.trim();
-            const nextPercent = rawValue === "" ? 0 : Math.max(0, Number(rawValue) || 0);
-            const nextAmount = (grossAmount * nextPercent) / 100;
+            const nextPercent =
+              rawValue === "" ? 0 : Math.round(Math.max(0, Number(rawValue) || 0) * 100) / 100;
+            const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
             updateProductRow(row.id, {
               discountAmount: Math.max(0, Math.min(grossAmount, nextAmount)),
               discountPercent: nextPercent,
@@ -783,8 +785,9 @@ export function CreateProductTableRow({
             }
 
             const nextAmount = Math.max(0, Number(trimmedValue) || 0);
-            const safeAmount = Math.min(grossAmount, nextAmount);
-            const nextPercent = grossAmount > 0 ? (safeAmount / grossAmount) * 100 : 0;
+            const safeAmount = Math.round(Math.min(grossAmount, nextAmount) * 100) / 100;
+            const nextPercent =
+              grossAmount > 0 ? Math.round((safeAmount / grossAmount) * 100 * 100) / 100 : 0;
             updateProductRow(row.id, {
               discountAmount: safeAmount,
               discountPercent: nextPercent,
@@ -796,8 +799,9 @@ export function CreateProductTableRow({
             }
             const rawValue = event.target.value.trim();
             const nextAmount = rawValue === "" ? 0 : Math.max(0, Number(rawValue) || 0);
-            const safeAmount = Math.min(grossAmount, nextAmount);
-            const nextPercent = grossAmount > 0 ? (safeAmount / grossAmount) * 100 : 0;
+            const safeAmount = Math.round(Math.min(grossAmount, nextAmount) * 100) / 100;
+            const nextPercent =
+              grossAmount > 0 ? Math.round((safeAmount / grossAmount) * 100 * 100) / 100 : 0;
             updateProductRow(row.id, {
               discountAmount: safeAmount,
               discountPercent: nextPercent,
