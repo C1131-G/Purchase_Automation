@@ -25,7 +25,7 @@ export const resolveGLAccount = async (
       .getOne();
 
     if (activePeriod) {
-      if (paymentType === "Surcharge") {
+      if (paymentType === "Surcharge" || paymentType === "CreditCard") {
         if (activePeriod.bnkChgAct) {
           logger.info({
             msg: `Resolved G/L account for ${paymentType} via TypeORM (OACP.BnkChgAct)`,
@@ -34,7 +34,8 @@ export const resolveGLAccount = async (
           });
           return activePeriod.bnkChgAct;
         }
-      } else if (activePeriod.linkAct2) {
+      }
+      if (activePeriod.linkAct2) {
         const accountCode = activePeriod.linkAct2;
 
         logger.info({

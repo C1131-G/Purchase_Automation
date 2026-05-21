@@ -424,25 +424,23 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
-      const surcharge = Number(payload.SurchargeTotal) || 0;
-
-      // Calculate total of all credit card sums before adjustment
-      const totalCreditSum = (payload.PaymentCreditCards as Record<string, unknown>[]).reduce(
-        (acc, card) => acc + (Number(card.CreditSum) || 0),
-        0,
-      );
-
       sapPayload.PaymentCreditCards = await Promise.all(
         (payload.PaymentCreditCards as Record<string, unknown>[]).map(async (card, idx) => {
           const originalCardSum = Number(card.CreditSum) || 0;
           let cardAmount = originalCardSum;
 
-          // Distribute surcharge proportionally based on card's share of total credit sum
-          if (surcharge > 0 && totalCreditSum > 0) {
-            const cardSurchargeProportion = originalCardSum / totalCreditSum;
-            const cardSurcharge = surcharge * cardSurchargeProportion;
-            cardAmount = Math.max(0, originalCardSum - cardSurcharge);
-            // Round to 2 decimal places to avoid floating point precision issues (e.g. 9.620000000000001)
+          // Reconstruct the exact original net sum by reversing the surcharge rate associated with the credit card ID
+          const cardId = Number(card.CreditCard);
+          let surchargeRate = 0;
+          if (cardId === 1 || cardId === 2) {
+            surchargeRate = 3.82;
+          } else if (cardId === 3) {
+            surchargeRate = 4.91;
+          }
+
+          if (surchargeRate > 0) {
+            // netAmount = grossAmount / (1 + rate / 100)
+            cardAmount = originalCardSum / (1 + surchargeRate / 100);
             cardAmount = Number(cardAmount.toFixed(2));
           }
 
