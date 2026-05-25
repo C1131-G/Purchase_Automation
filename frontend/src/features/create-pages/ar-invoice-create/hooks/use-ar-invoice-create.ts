@@ -258,16 +258,20 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
         const grossAmount = Math.max(0, price * quantity);
         const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
+        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
         const lineTotal = Number(line.LineTotal ?? Number.NaN);
         const derivedDiscountAmountFromLineTotal =
           Number.isFinite(lineTotal) && grossAmount > 0
             ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
             : 0;
-        const discountPercent = Number.isFinite(apiDiscountPercent)
+        let discountPercent = Number.isFinite(apiDiscountPercent)
           ? Math.max(0, apiDiscountPercent)
           : grossAmount > 0
             ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
             : 0;
+        if (discountPercent === 0 && headerDiscountPercent > 0) {
+          discountPercent = headerDiscountPercent;
+        }
         const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
         const resolvedUomEntry =
           typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
@@ -444,16 +448,20 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
         const grossAmount = Math.max(0, price * quantity);
         const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
+        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
         const lineTotal = Number(line.LineTotal ?? Number.NaN);
         const derivedDiscountAmountFromLineTotal =
           Number.isFinite(lineTotal) && grossAmount > 0
             ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
             : 0;
-        const discountPercent = Number.isFinite(apiDiscountPercent)
+        let discountPercent = Number.isFinite(apiDiscountPercent)
           ? Math.max(0, apiDiscountPercent)
           : grossAmount > 0
             ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
             : 0;
+        if (discountPercent === 0 && headerDiscountPercent > 0) {
+          discountPercent = headerDiscountPercent;
+        }
         const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
         const resolvedUomEntry =
           typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
@@ -703,13 +711,18 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const hasValidRowsForCreate = productsHook.productRows.some(
     (row) => row.productCode.trim() && row.quantity > 0,
   );
+  const hasRowsWithoutWarehouse = productsHook.productRows
+    .filter((row) => row.productCode.trim() && row.quantity > 0)
+    .some((row) => !row.warehouseCode || !row.warehouseCode.trim());
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(", ")}.`
       : !hasValidRowsForCreate
         ? `Add at least one product row before ${isEditMode ? "updating" : "creating"} A/R invoice.`
-        : null;
+        : hasRowsWithoutWarehouse
+          ? "Warehouse must be selected for all product rows."
+          : null;
 
   const requiredCompletionPercent =
     ((AR_INVOICE_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
@@ -718,13 +731,16 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
   const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? "updating" : "creating"} A/R invoice.`;
   const rowsErrorText = `Add at least one product row before ${isEditMode ? "updating" : "creating"} A/R invoice.`;
+  const warehouseErrorText = "Warehouse must be selected for all product rows.";
 
   const visibleCreateError =
     createError === requiredFieldsErrorText && !createDisabledReason
       ? null
       : createError === rowsErrorText && hasValidRowsForCreate
         ? null
-        : createError;
+        : createError === warehouseErrorText && !hasRowsWithoutWarehouse
+          ? null
+          : createError;
 
   function handleCreateOrderAction() {
     void handleCreateOrder();
@@ -750,6 +766,12 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     );
     if (validRows.length === 0) {
       setCreateError(rowsErrorText);
+      return;
+    }
+
+    if (hasRowsWithoutWarehouse) {
+      setCreateError(warehouseErrorText);
+      goeyToast.error(warehouseErrorText, { id: "warehouse-missing-error" });
       return;
     }
 
@@ -809,7 +831,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               UnitPrice: row.price,
               UoMCode: row.uomCode || undefined,
               UoMEntry: row.uomEntry ?? undefined,
-              WarehouseCode: row.warehouseCode || undefined,
+              WarehouseCode:
+                row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
               ...(hasCompleteBaseLink
                 ? {
                     BaseEntry: row.baseEntry,

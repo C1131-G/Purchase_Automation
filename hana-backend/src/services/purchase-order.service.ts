@@ -324,6 +324,8 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
+      DiscountPercent: payload.DiscountPercent,
+      DiscountAmount: payload.DiscountAmount,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const docLine: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
@@ -332,7 +334,6 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
-          DiscountPercent: item.DiscountPercent as number,
         };
         const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
@@ -424,12 +425,17 @@ export const updatePurchaseOrder = async (
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
+    if (payload.DiscountPercent !== undefined) {
+      sapPayload.DiscountPercent = payload.DiscountPercent;
+    }
+    if (payload.DiscountAmount !== undefined) {
+      sapPayload.DiscountAmount = payload.DiscountAmount;
+    }
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
       sapPayload.DocumentLines = lines.map((item) => {
         const docLine: Record<string, unknown> = {
-          DiscountPercent: item.DiscountPercent as number,
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,

@@ -229,7 +229,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         const productMeta = productByCode.get(itemCode);
         const quantity = Number(line.Quantity ?? 1);
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const discountPercent = Number(line.DiscountPercent ?? 0);
+        const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
+        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
+        const discountPercent =
+          lineDiscountPercent > 0 ? lineDiscountPercent : headerDiscountPercent;
         const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100);
         return {
           id: `row-${currentDocNum}-${index}`,
@@ -477,13 +480,18 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   const hasValidRowsForCreate = productsHook.productRows.some(
     (row) => row.productCode.trim() && row.quantity > 0,
   );
+  const hasRowsWithoutWarehouse = productsHook.productRows
+    .filter((row) => row.productCode.trim() && row.quantity > 0)
+    .some((row) => !row.warehouseCode || !row.warehouseCode.trim());
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(", ")}.`
       : !hasValidRowsForCreate
         ? `Add at least one product row before ${isEditMode ? "updating" : "creating"} sales quotation.`
-        : null;
+        : hasRowsWithoutWarehouse
+          ? "Warehouse must be selected for all product rows."
+          : null;
 
   const requiredCompletionPercent =
     ((SALES_QUOTATION_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
@@ -492,13 +500,16 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
 
   const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? "updating" : "creating"} sales quotation.`;
   const rowsErrorText = `Add at least one product row before ${isEditMode ? "updating" : "creating"} sales quotation.`;
+  const warehouseErrorText = "Warehouse must be selected for all product rows.";
 
   const visibleCreateError =
     createError === requiredFieldsErrorText && !createDisabledReason
       ? null
       : createError === rowsErrorText && hasValidRowsForCreate
         ? null
-        : createError;
+        : createError === warehouseErrorText && !hasRowsWithoutWarehouse
+          ? null
+          : createError;
 
   function handleCreateOrderAction() {
     void handleCreateOrder();
@@ -524,6 +535,12 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     );
     if (validRows.length === 0) {
       setCreateError(rowsErrorText);
+      return;
+    }
+
+    if (hasRowsWithoutWarehouse) {
+      setCreateError(warehouseErrorText);
+      goeyToast.error(warehouseErrorText, { id: "warehouse-missing-error" });
       return;
     }
 
@@ -581,7 +598,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
+            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
@@ -611,7 +628,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
+            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
@@ -629,7 +646,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
+            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };

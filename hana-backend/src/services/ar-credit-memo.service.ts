@@ -9,6 +9,7 @@ import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
+import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -176,6 +177,8 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       DocDueDate: result.DocDueDate,
       DocNum: result.DocNum,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DiscountPercent: result.DiscountPercent ?? 0,
+      DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
@@ -204,31 +207,28 @@ export const getCreditNote = async (sessionId: string, id: string) => {
 export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     // Map input payload to the canonical SAP Service Layer JSON structure for Credit Notes.
-    
-    let totalGross = 0;
-    let totalDiscount = 0;
+
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-    lines.forEach((l) => {
-      const p = (l.UnitPrice || l.Price) as number || 0;
-      const q = (l.Quantity as number) || 1;
-      const d = (l.DiscountPercent as number) || 0;
-      totalGross += (p * q);
-      totalDiscount += (p * q * (d / 100));
-    });
-    const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+    const discountData = calculateHeaderDiscount(
+      lines.map((l) => ({
+        price: ((l.UnitPrice || l.Price) as number) || 0,
+        quantity: (l.Quantity as number) || 1,
+        discountPercent: (l.DiscountPercent as number) || 0,
+      })),
+    );
 
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DiscountPercent: headerDiscountPercent,
+      DiscountPercent: discountData.percent,
+      DiscountAmount: discountData.amount,
       DocumentLines: lines.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
-          DiscountPercent: item.DiscountPercent || 0,
           VatGroup: (item.VatGroup ?? item.TaxCode) as string,
           WarehouseCode: item.WarehouseCode as string,
         };

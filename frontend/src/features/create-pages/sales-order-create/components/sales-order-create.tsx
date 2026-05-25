@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
-import type { MouseEvent } from "react";
+import { ChevronDown, ClipboardList } from "lucide-react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
@@ -15,6 +16,7 @@ import {
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { PullFromSQModal } from "@/features/create-pages/ar-invoice-create/components/pull-from-sq-modal";
 import { SalesOrderModals } from "@/features/create-pages/sales-order-create/components/sales-order-modals";
 import { SalesOrderProductSection } from "@/features/create-pages/sales-order-create/components/sales-order-product-section";
 import { useSalesOrderCreate } from "@/features/create-pages/sales-order-create/hooks/use-sales-order-create";
@@ -41,6 +43,19 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
   const state = useSalesOrderCreate(
     docNum ? { docNum, mode } : { mode, sourceDocNum, sourceDocType },
   );
+
+  const [copyFromOpen, setCopyFromOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: Event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setCopyFromOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const pageTitle = state.isEditMode ? "Update Sales Order" : "Create Sales Order";
   const isFormHydrating = !state.isEditMode
@@ -81,6 +96,42 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
             : null
         }
       >
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-zinc-900">{pageTitle}</h1>
+          {!state.isEditMode && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setCopyFromOpen(!copyFromOpen)}
+                disabled={!state.codeInput.trim()}
+                className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-blue-700 hover:shadow-blue-200 active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none disabled:cursor-not-allowed group"
+              >
+                <span>Copy from</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${copyFromOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {copyFromOpen && (
+                <div className="absolute right-0 top-full z-[60] mt-2 w-56 origin-top-right overflow-hidden rounded-2xl border border-zinc-100 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in duration-150">
+                  <button
+                    onClick={() => {
+                      state.setPullFromSQModalOpen(true);
+                      setCopyFromOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-orange-600"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                      <ClipboardList className="h-4.5 w-4.5" />
+                    </div>
+                    <span>Sales Quotations</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
           <div
             onClickCapture={handleVendorRestrictedClick}
@@ -244,6 +295,15 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
           }
         />
         <SalesOrderModals state={state} />
+
+        {!state.isEditMode && (
+          <PullFromSQModal
+            open={state.pullFromSQModalOpen}
+            onClose={() => state.setPullFromSQModalOpen(false)}
+            cardCode={state.codeInput}
+            onConfirm={state.addProductsFromSQs}
+          />
+        )}
       </CreatePageWrapper>
     </div>
   );

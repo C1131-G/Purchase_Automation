@@ -11,6 +11,7 @@ import type { SalesQuotation } from "@/db/schemas/sales-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
+import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -169,6 +170,8 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       DocCurr: result.DocCurrency,
       // normalizes SAP's internal string status.
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DiscountPercent: result.DiscountPercent ?? 0,
+      DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
@@ -216,18 +219,16 @@ export const getSalesQuotationByDocNum = async (
 // Posts a new Sales Quotation to the Service Layer using the /Quotations endpoint.
 export const createSalesQuotation = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
-    
-    let totalGross = 0;
-    let totalDiscount = 0;
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-    lines.forEach((l) => {
-      const p = (l.UnitPrice || l.Price) as number || 0;
-      const q = (l.Quantity as number) || 1;
-      const d = (l.DiscountPercent as number) || 0;
-      totalGross += (p * q);
-      totalDiscount += (p * q * (d / 100));
-    });
-    const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+    const discountData = calculateHeaderDiscount(
+      lines.map((l) => ({
+        price: ((l.UnitPrice || l.Price) as number) || 0,
+        quantity: (l.Quantity as number) || 1,
+        discountPercent: (l.DiscountPercent as number) || 0,
+      })),
+    );
+    const roundedHeaderDiscount = discountData.percent;
+    const roundedHeaderDiscountAmount = discountData.amount;
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -235,7 +236,8 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DiscountPercent: headerDiscountPercent,
+      DiscountPercent: roundedHeaderDiscount,
+      DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
@@ -341,16 +343,15 @@ export const updateSalesQuotation = async (
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
-      let totalGross = 0;
-      let totalDiscount = 0;
-      lines.forEach((l) => {
-        const p = (l.UnitPrice || l.Price) as number || 0;
-        const q = (l.Quantity as number) || 1;
-        const d = (l.DiscountPercent as number) || 0;
-        totalGross += (p * q);
-        totalDiscount += (p * q * (d / 100));
-      });
-      sapPayload.DiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+      const discountData = calculateHeaderDiscount(
+        lines.map((l) => ({
+          price: ((l.UnitPrice || l.Price) as number) || 0,
+          quantity: (l.Quantity as number) || 1,
+          discountPercent: (l.DiscountPercent as number) || (l.DiscPrcnt as number) || 0,
+        })),
+      );
+      sapPayload.DiscountPercent = discountData.percent;
+      sapPayload.DiscountAmount = discountData.amount;
 
       sapPayload.DocumentLines = lines.map((line) => {
         const docLine: Record<string, unknown> = {
@@ -452,6 +453,7 @@ export const getOpenSalesQuotationLines = async (dbName: string, cardCode: strin
         '"h"."DocNum"     AS "DocNum"',
         '"h"."DocDate"    AS "DocDate"',
         '"h"."DocCur"     AS "DocCurr"',
+        '"h"."DiscPrcnt"  AS "HeaderDiscountPercent"',
         '"l"."LineNum"    AS "LineNum"',
         '"l"."ItemCode"   AS "ItemCode"',
         '"l"."Dscription" AS "ItemDescription"',
@@ -476,8 +478,9 @@ export const getOpenSalesQuotationLines = async (dbName: string, cardCode: strin
 
     const openLines = rows.map((row) => {
       const normalized = normalizeSAPLineData(row);
+      const headerDiscountPercent = Number(row["HeaderDiscountPercent"] ?? 0);
       return {
-        DiscountPercent: normalized.DiscountPercent,
+        DiscountPercent: normalized.DiscountPercent || headerDiscountPercent,
         DocCurr: String(row["DocCurr"] ?? ""),
         DocDate: String(row["DocDate"] ?? ""),
         DocEntry: Number(row["DocEntry"]),

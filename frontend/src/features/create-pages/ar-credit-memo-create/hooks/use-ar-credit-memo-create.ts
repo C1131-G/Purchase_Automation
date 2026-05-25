@@ -307,9 +307,14 @@ export function useArCreditMemoCreate({
           discountAmount:
             (Number(line.Price ?? line.UnitPrice ?? 0) *
               Number(line.Quantity ?? 0) *
-              Number(line.DiscountPercent ?? 0)) /
+              (Number(line.DiscountPercent ?? 0) > 0
+                ? Number(line.DiscountPercent ?? 0)
+                : Number((detail as Record<string, unknown>).DiscountPercent ?? 0))) /
             100,
-          discountPercent: Number(line.DiscountPercent ?? 0),
+          discountPercent:
+            Number(line.DiscountPercent ?? 0) > 0
+              ? Number(line.DiscountPercent ?? 0)
+              : Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
           id: `row-copy-${cleanDocNum}-${index}`,
           price: Number(line.Price || line.UnitPrice || productMeta?.price || 0),
           productCode: itemCode,
@@ -483,7 +488,7 @@ export function useArCreditMemoCreate({
         UoMCode: row.uomCode,
         UoMEntry: row.uomEntry,
         VatGroup: row.vatGroup,
-        WarehouseCode: row.warehouseCode,
+        WarehouseCode: row.warehouseCode || header.warehouseCode.trim() || undefined,
       })),
       NumAtCard: header.referenceNo,
     };
