@@ -9,6 +9,7 @@ import type { ARInvoice } from "@/db/schemas/ar-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
+import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -182,24 +183,28 @@ export const getInvoice = async (sessionId: string, id: string) => {
 
     // Normalize SAP internal status (bost_Open) to a single character code.
     return {
-      Address: result.Address,
-      Address2: (result as unknown as Record<string, unknown>).Address2 || "",
-      CardCode: result.CardCode,
-      CardName: result.CardName,
-      Comments: result.Comments,
-      DocCurr: result.DocCurrency,
+      id: result.DocEntry,
+      DocEntry: result.DocEntry,
+      DocNum: result.DocNum,
+      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
-      DocNum: result.DocNum,
-      DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      CardCode: result.CardCode,
+      CardName: result.CardName,
+      Address: result.Address,
       DocTotal: result.DocTotal,
+      DocCurr: result.DocCurrency,
+      DiscountPercent: result.DiscountPercent ?? 0,
+      DiscountAmount: result.TotalDiscount ?? 0,
+      // normalizes SAP's internal string status.
+      DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         return normalizeSAPLineData(lineData);
       }),
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard || "",
-      SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
-      id: result.DocEntry,
+      Address2: (result as unknown as Record<string, unknown>).Address2 || "",
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
@@ -296,18 +301,16 @@ export const createInvoice = async (
   dbName?: string,
 ) => {
   try {
-    
-    let totalGross = 0;
-    let totalDiscount = 0;
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-    lines.forEach((l) => {
-      const gross = (l.PriceBefDi || l.Price) as number || 0;
-      const q = (l.Quantity as number) || 1;
-      const d = (l.DiscountPercent as number) || 0;
-      totalGross += gross * q;
-      totalDiscount += gross * q * (d / 100);
-    });
-    const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
+    const discountData = calculateHeaderDiscount(
+      lines.map((l) => ({
+        price: ((l.UnitPrice || l.Price) as number) || 0,
+        quantity: (l.Quantity as number) || 1,
+        discountPercent: (l.DiscountPercent as number) || 0,
+      })),
+    );
+    const roundedHeaderDiscount = discountData.percent;
+    const roundedHeaderDiscountAmount = discountData.amount;
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -315,7 +318,8 @@ export const createInvoice = async (
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DiscountPercent: headerDiscountPercent,
+      DiscountPercent: roundedHeaderDiscount,
+      DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
@@ -324,7 +328,6 @@ export const createInvoice = async (
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
-          DiscountPercent: (line.DiscountPercent ?? line.DiscPrcnt ?? 0) as number,
         };
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
@@ -345,6 +348,7 @@ export const createInvoice = async (
         return docLine;
       }),
       NumAtCard: payload.NumAtCard,
+      SalesPersonCode: payload.SalesPersonCode,
     };
 
     // Auto-allocate bin locations if dbName is provided and warehouse requires it
@@ -404,7 +408,6 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
-    // Update mutable fields
     if (Object.hasOwn(payload, "DocDueDate")) {
       sapPayload.DocDueDate = payload.DocDueDate;
     }
@@ -414,20 +417,41 @@ export const updateInvoice = async (
     if (Object.hasOwn(payload, "NumAtCard")) {
       sapPayload.NumAtCard = payload.NumAtCard;
     }
-    // Compute and set DiscountPercent if DocumentLines provided
+
+    // Recalculate discount if document lines are provided
     if (Array.isArray(payload.DocumentLines)) {
-      let totalGross = 0;
-      let totalDiscount = 0;
-      (payload.DocumentLines as Record<string, unknown>[]).forEach((l) => {
-        const gross = (l.PriceBefDi || l.Price || l.UnitPrice) as number || 0;
-        const qty = (l.Quantity as number) || 1;
-        const disc = (l.DiscountPercent as number) || (l.DiscPrcnt as number) || 0;
-        totalGross += gross * qty;
-        totalDiscount += gross * qty * (disc / 100);
+      const lines = payload.DocumentLines as Record<string, unknown>[];
+      const discountData = calculateHeaderDiscount(
+        lines.map((l) => ({
+          price: ((l.PriceBefDi || l.Price || l.UnitPrice) as number) || 0,
+          quantity: (l.Quantity as number) || 1,
+          discountPercent: (l.DiscountPercent as number) || (l.DiscPrcnt as number) || 0,
+        })),
+      );
+      sapPayload.DiscountPercent = discountData.percent;
+      sapPayload.DiscountAmount = discountData.amount;
+      sapPayload.DocumentLines = lines.map((line) => {
+        const docLine: Record<string, unknown> = {
+          ItemCode: line.ItemCode as string,
+          Quantity: line.Quantity as number,
+          UnitPrice: (line.UnitPrice || line.Price) as number,
+          UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
+          VatGroup: line.VatGroup as string,
+          WarehouseCode: line.WarehouseCode as string,
+        };
+        const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          docLine.UoMEntry = Math.trunc(uomEntry);
+        } else {
+          const uomCode = line.UoMCode ?? line.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            docLine.UoMCode = uomCode as string | number;
+          }
+        }
+        return docLine;
       });
-      const headerDiscountPercent = totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
-      sapPayload.DiscountPercent = headerDiscountPercent;
     }
+
     await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload);
 
     // Invalidate tenant-specific sales dashboard cache.

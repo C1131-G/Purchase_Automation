@@ -627,7 +627,11 @@ export function CreateProductTableRow({
                   return;
                 }
 
-                updateProductRow(row.id, { quantity: clamped });
+                // Preserve existing discount percent and recompute discount amount based on new quantity
+                const newGross = row.price * clamped;
+                const newDiscountAmount =
+                  Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+                updateProductRow(row.id, { quantity: clamped, discountAmount: newDiscountAmount });
                 clearProductRowDraft(row.id, "quantity");
               }}
               className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
@@ -690,8 +694,14 @@ export function CreateProductTableRow({
                 return;
               }
 
-              updateProductRow(row.id, { quantity: typedQuantityVal });
-              clearProductRowDraft(row.id, "quantity");
+              // Preserve discount percent and recalc discount amount
+              const newGross = row.price * typedQuantityVal;
+              const newDiscountAmount =
+                Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+              updateProductRow(row.id, {
+                quantity: typedQuantityVal,
+                discountAmount: newDiscountAmount,
+              });
             }}
             className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
           />

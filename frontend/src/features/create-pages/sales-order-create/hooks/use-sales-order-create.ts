@@ -16,6 +16,7 @@ import {
 import type {
   ActiveDatePicker,
   PopupMode,
+  ProductGridRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
@@ -89,6 +90,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   }, []);
 
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
+  const [pullFromSQModalOpen, setPullFromSQModalOpen] = useState(false);
   const [productSearchFieldErrors, setProductSearchFieldErrors] = useState<ProductSearchFieldError>(
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
@@ -247,7 +249,10 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 1);
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const discountPercent = Number(line.DiscountPercent ?? 0);
+        const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
+        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
+        const discountPercent =
+          lineDiscountPercent > 0 ? lineDiscountPercent : headerDiscountPercent;
         const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100);
         return {
           baseEntry: detail.DocEntry ?? detail.id,
@@ -400,7 +405,10 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         const quantity = Number(line.Quantity ?? 1);
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const discountPercent = Number(line.DiscountPercent ?? 0);
+        const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
+        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
+        const discountPercent =
+          lineDiscountPercent > 0 ? lineDiscountPercent : headerDiscountPercent;
         const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100);
         return {
           id: `row-${currentDocNum}-${index}`,
@@ -647,13 +655,18 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const hasValidRowsForCreate = productsHook.productRows.some(
     (row) => row.productCode.trim() && row.quantity > 0,
   );
+  const hasRowsWithoutWarehouse = productsHook.productRows
+    .filter((row) => row.productCode.trim() && row.quantity > 0)
+    .some((row) => !row.warehouseCode || !row.warehouseCode.trim());
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(", ")}.`
       : !hasValidRowsForCreate
         ? `Add at least one product row before ${isEditMode ? "updating" : "creating"} sales order.`
-        : null;
+        : hasRowsWithoutWarehouse
+          ? "Warehouse must be selected for all product rows."
+          : null;
 
   const requiredCompletionPercent =
     ((SALES_ORDER_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
@@ -662,13 +675,16 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
   const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? "updating" : "creating"} sales order.`;
   const rowsErrorText = `Add at least one product row before ${isEditMode ? "updating" : "creating"} sales order.`;
+  const warehouseErrorText = "Warehouse must be selected for all product rows.";
 
   const visibleCreateError =
     createError === requiredFieldsErrorText && !createDisabledReason
       ? null
       : createError === rowsErrorText && hasValidRowsForCreate
         ? null
-        : createError;
+        : createError === warehouseErrorText && !hasRowsWithoutWarehouse
+          ? null
+          : createError;
 
   function handleCreateOrderAction() {
     void handleCreateOrder();
@@ -694,6 +710,12 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     );
     if (validRows.length === 0) {
       setCreateError(rowsErrorText);
+      return;
+    }
+
+    if (hasRowsWithoutWarehouse) {
+      setCreateError(warehouseErrorText);
+      goeyToast.error(warehouseErrorText, { id: "warehouse-missing-error" });
       return;
     }
 
@@ -751,7 +773,16 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
+            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+            ...(row.baseType !== undefined &&
+            row.baseEntry !== undefined &&
+            row.baseLine !== undefined
+              ? {
+                  BaseType: row.baseType,
+                  BaseEntry: row.baseEntry,
+                  BaseLine: row.baseLine,
+                }
+              : {}),
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
@@ -781,7 +812,16 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
+            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+            ...(row.baseType !== undefined &&
+            row.baseEntry !== undefined &&
+            row.baseLine !== undefined
+              ? {
+                  BaseType: row.baseType,
+                  BaseEntry: row.baseEntry,
+                  BaseLine: row.baseLine,
+                }
+              : {}),
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
@@ -799,7 +839,16 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
+            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+            ...(row.baseType !== undefined &&
+            row.baseEntry !== undefined &&
+            row.baseLine !== undefined
+              ? {
+                  BaseType: row.baseType,
+                  BaseEntry: row.baseEntry,
+                  BaseLine: row.baseLine,
+                }
+              : {}),
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
@@ -886,11 +935,103 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const summaryCurrencyLabel = summaryCurrency === "MULTI" ? "MULTI" : summaryCurrency;
   const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum;
 
+  const addProductsFromSQs = async (
+    selectedLines: {
+      ItemCode: string;
+      ItemDescription?: string;
+      Quantity?: number;
+      Price?: number;
+      UnitPrice?: number;
+      DocCurr?: string;
+      TaxCode?: string;
+      VatGroup?: string;
+      VatPrcnt?: number;
+      UoMCode?: string | number;
+      UoMEntry?: number;
+      WarehouseCode?: string;
+      LineNum?: number;
+      DocNum?: number;
+      DocEntry?: number;
+      OpenQty?: number;
+      DiscountPercent?: number;
+      LineTotal?: number;
+    }[],
+  ) => {
+    const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))];
+    const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
+
+    await Promise.all(
+      uniqueItemCodes.map(async (code) => {
+        const stocks = await queryClient
+          .fetchQuery(createSharedQueries.productWarehouseStocks(code))
+          .catch(() => []);
+        stocksByItemCode.set(code, stocks);
+      }),
+    );
+
+    const newRows = selectedLines.map((line, index) => {
+      const itemCode = String(line.ItemCode).trim();
+      const lineWarehouse = String(line.WarehouseCode ?? "").trim();
+      const warehouseStocks = stocksByItemCode.get(itemCode) ?? [];
+
+      const lineStock = lineWarehouse
+        ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
+        : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+
+      const price = Number(line.Price ?? line.UnitPrice ?? 0);
+      const openQty = Number(line.OpenQty ?? line.Quantity ?? 1);
+      const grossAmount = Math.max(0, price * openQty);
+      const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
+      const lineTotal = Number(line.LineTotal ?? Number.NaN);
+      const derivedDiscountAmountFromLineTotal =
+        Number.isFinite(lineTotal) && grossAmount > 0
+          ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+          : 0;
+      const discountPercent = Number.isFinite(apiDiscountPercent)
+        ? Math.max(0, apiDiscountPercent)
+        : grossAmount > 0
+          ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+          : 0;
+      const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+
+      return {
+        baseEntry: line.DocEntry,
+        baseLine: line.LineNum,
+        baseType: 23, // Sales Quotation
+        comment: `Based on SQ ${line.DocNum}`,
+        currency: line.DocCurr || "",
+        discountAmount,
+        discountPercent,
+        id: `sq-pull-${line.DocNum}-${line.LineNum}-${Date.now()}-${index}`,
+        price,
+        productCode: itemCode,
+        productName: line.ItemDescription || "",
+        quantity: openQty,
+        selected: false,
+        stock: lineStock,
+        taxRate: line.VatPrcnt ?? 0,
+        uomCode: line.UoMCode !== undefined ? String(line.UoMCode) : undefined,
+        uomEntry: line.UoMEntry,
+        vatGroup: line.TaxCode || line.VatGroup || "",
+        warehouseCode: lineWarehouse,
+      } as ProductGridRow;
+    });
+
+    productsHook.setProductRows((prev) => {
+      const existing = prev.filter((r) => r.productCode.trim());
+      return [...existing, ...newRows];
+    });
+    setPullFromSQModalOpen(false);
+  };
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
     activeDatePicker,
+    pullFromSQModalOpen,
+    setPullFromSQModalOpen,
+    addProductsFromSQs,
     applyProductToRow: (product: ProductLookupItem) =>
       productsHook.applyProductToRow(product, {
         closeProductPopup: () => modals.setProductPopupOpen(false),

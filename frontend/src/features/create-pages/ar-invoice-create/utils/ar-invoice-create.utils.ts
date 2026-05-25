@@ -1,5 +1,4 @@
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
-import type { SALES_ORDER_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
 
 export interface ProductSearchFieldError {
   vendorName: string | undefined;
@@ -25,14 +24,14 @@ export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
   warehouseCode: undefined,
 };
 
-export const MANDATORY_ERROR_TEXT: Record<(typeof SALES_ORDER_MANDATORY_FIELDS)[number], string> = {
+export const MANDATORY_ERROR_TEXT: Record<"vendorCode" | "vendorName" | "warehouseCode", string> = {
   vendorCode: "Customer Code is required.",
   vendorName: "Customer Name is required.",
   warehouseCode: "Warehouse is required.",
 };
 
 export const REQUIRED_FIELD_LABEL_TEXT: Record<
-  (typeof SALES_ORDER_MANDATORY_FIELDS)[number],
+  "vendorCode" | "vendorName" | "warehouseCode",
   string
 > = {
   vendorCode: "Customer Code",
