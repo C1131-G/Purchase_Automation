@@ -22,10 +22,7 @@ export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
   vendorName: undefined,
   warehouseCode: undefined,
 };
-export const MANDATORY_ERROR_TEXT: Record<
-  "vendorCode" | "vendorName" | "warehouseCode",
-  string
-> = {
+export const MANDATORY_ERROR_TEXT: Record<"vendorCode" | "vendorName" | "warehouseCode", string> = {
   vendorCode: "Customer Code is required.",
   vendorName: "Customer Name is required.",
   warehouseCode: "Warehouse is required.",
