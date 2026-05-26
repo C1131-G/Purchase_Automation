@@ -42,7 +42,8 @@ export const calculateOrderTotals = (productRows: ProductRow[]) => {
     totalDiscountCents += lineDiscountCents;
   }
 
-  const headerDiscountPercent = totalGrossCents > 0 ? (totalDiscountCents / totalGrossCents) * 100 : 0;
+  const headerDiscountPercent =
+    totalGrossCents > 0 ? (totalDiscountCents / totalGrossCents) * 100 : 0;
   const roundedHeaderDiscountPercent = Math.round(headerDiscountPercent * 100) / 100;
 
   // 2. Sum the pre-header-discount line net and tax totals
