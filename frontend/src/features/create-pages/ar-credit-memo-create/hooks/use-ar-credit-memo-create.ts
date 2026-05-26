@@ -307,12 +307,12 @@ export function useArCreditMemoCreate({
           discountAmount:
             (Number(line.Price ?? line.UnitPrice ?? 0) *
               Number(line.Quantity ?? 0) *
-              (Number(line.DiscountPercent ?? 0) > 0
+              (Number(line.DiscountPercent ?? 0) !== 0
                 ? Number(line.DiscountPercent ?? 0)
                 : Number((detail as Record<string, unknown>).DiscountPercent ?? 0))) /
             100,
           discountPercent:
-            Number(line.DiscountPercent ?? 0) > 0
+            Number(line.DiscountPercent ?? 0) !== 0
               ? Number(line.DiscountPercent ?? 0)
               : Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
           id: `row-copy-${cleanDocNum}-${index}`,

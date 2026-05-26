@@ -325,6 +325,7 @@ export const createInvoice = async (
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
@@ -430,11 +431,14 @@ export const updateInvoice = async (
       );
       sapPayload.DiscountPercent = discountData.percent;
       sapPayload.DiscountAmount = discountData.amount;
+
       sapPayload.DocumentLines = lines.map((line) => {
         const docLine: Record<string, unknown> = {
+          LineNum: line.LineNum !== undefined ? Number(line.LineNum) : undefined,
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
@@ -452,7 +456,9 @@ export const updateInvoice = async (
       });
     }
 
-    await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload);
+    await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload, true, {
+      "B1S-ReplaceCollectionsOnPatch": "true",
+    });
 
     // Invalidate tenant-specific sales dashboard cache.
     const session = serviceLayerClient.getSession(sessionId);

@@ -232,8 +232,8 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
         const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
         const discountPercent =
-          lineDiscountPercent > 0 ? lineDiscountPercent : headerDiscountPercent;
-        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100);
+          lineDiscountPercent !== 0 ? lineDiscountPercent : headerDiscountPercent;
+        const discountAmount = (price * quantity * discountPercent) / 100;
         return {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
@@ -591,6 +591,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({
+            LineNum: row.lineNum,
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -621,6 +622,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({
+            LineNum: row.lineNum,
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -639,6 +641,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({
+            LineNum: row.lineNum,
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
             Quantity: row.quantity,

@@ -4,7 +4,7 @@ import type { ProductRow } from "@/features/create-pages/create-shared/utils/cre
 /** Calculate totals for a single product line with tax-exclusive unit price. */
 export const calculateLineTotals = (row: ProductRow) => {
   const gross = row.price * row.quantity;
-  const discount = Math.max(0, Math.min(gross, row.discountAmount));
+  const discount = row.discountAmount;
   // Net line subtotal (pre-tax). SAP rounds this to currency precision (typically 2) per line.
   const rawLineNet = gross - discount;
   const lineNet = Math.round(rawLineNet * 100) / 100;
@@ -27,16 +27,38 @@ export const calculateLineTotals = (row: ProductRow) => {
 };
 
 export const calculateOrderTotals = (productRows: ProductRow[]) => {
-  let taxTotal = 0;
-  let netTotal = 0;
-  let grandTotal = 0;
+  // 1. Calculate overall weighted average header discount percentage using integer cents arithmetic
+  let totalGrossCents = 0;
+  let totalDiscountCents = 0;
 
   for (const row of productRows) {
-    const { lineNet, lineTax, lineTotal } = calculateLineTotals(row);
-    taxTotal += lineTax;
-    netTotal += lineNet;
-    grandTotal += lineTotal;
+    const priceCents = Math.round((row.price ?? 0) * 100);
+    const qty = Math.max(0, row.quantity ?? 0);
+    const lineGrossCents = priceCents * qty;
+    totalGrossCents += lineGrossCents;
+
+    const discPct = row.discountPercent ?? 0;
+    const lineDiscountCents = Math.round((lineGrossCents * discPct) / 100);
+    totalDiscountCents += lineDiscountCents;
   }
+
+  const headerDiscountPercent = totalGrossCents > 0 ? (totalDiscountCents / totalGrossCents) * 100 : 0;
+  const roundedHeaderDiscountPercent = Math.round(headerDiscountPercent * 100) / 100;
+
+  // 2. Sum the pre-header-discount line net and tax totals
+  let rawNetTotal = 0;
+  let rawTaxTotal = 0;
+
+  for (const row of productRows) {
+    const { lineNet, lineTax } = calculateLineTotals(row);
+    rawNetTotal += lineNet;
+    rawTaxTotal += lineTax;
+  }
+
+  // 3. Apply the rounded header discount percent to the totals
+  const netTotal = Math.round(rawNetTotal * (1 - roundedHeaderDiscountPercent / 100) * 100) / 100;
+  const taxTotal = Math.round(rawTaxTotal * (1 - roundedHeaderDiscountPercent / 100) * 100) / 100;
+  const grandTotal = Math.round((netTotal + taxTotal) * 100) / 100;
 
   return {
     grandTotal,

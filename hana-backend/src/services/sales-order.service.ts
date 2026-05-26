@@ -239,6 +239,7 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
@@ -351,9 +352,11 @@ export const updateSalesOrder = async (
 
       sapPayload.DocumentLines = lines.map((line) => {
         const docLine: Record<string, unknown> = {
+          LineNum: line.LineNum !== undefined ? Number(line.LineNum) : undefined,
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode ?? ((line as any).WhsCode as string),
@@ -385,7 +388,9 @@ export const updateSalesOrder = async (
       msg: "Sales order update payload prepared",
     });
 
-    await serviceLayerClient.request(sessionId, "PATCH", `/Orders(${id})`, sapPayload);
+    await serviceLayerClient.request(sessionId, "PATCH", `/Orders(${id})`, sapPayload, true, {
+      "B1S-ReplaceCollectionsOnPatch": "true",
+    });
 
     // Invalidate dashboard metrics to ensure real-time reporting accuracy.
     const session = serviceLayerClient.getSession(sessionId);

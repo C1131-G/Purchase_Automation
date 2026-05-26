@@ -91,7 +91,7 @@ const SalesOrderLineItemSchema = z.object({
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
   BaseType: z.number().int().optional(),
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: z.number().optional(),
   ItemCode: z.string().min(1),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(),
@@ -99,6 +99,7 @@ const SalesOrderLineItemSchema = z.object({
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: z.string().optional(),
   WarehouseCode: z.string().optional(),
+  LineNum: z.number().int().optional(),
 });
 
 // CreateSalesOrderInputSchema: Validates a new sales order submission.

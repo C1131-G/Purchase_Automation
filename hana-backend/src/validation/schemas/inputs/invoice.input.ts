@@ -95,7 +95,7 @@ const InvoiceLineItemSchema = z.object({
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
   BaseType: z.number().int().optional(),
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: z.number().optional(),
   ItemCode: z.string().min(1),
   Price: z.number().nonnegative().optional(), // SAP 'Price' field vs 'UnitPrice'.
   Quantity: z.number().positive(),
@@ -104,6 +104,7 @@ const InvoiceLineItemSchema = z.object({
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: z.string().optional(),
   WarehouseCode: z.string().optional(),
+  LineNum: z.number().int().optional(),
 });
 
 // CreateInvoiceInputSchema: Validates new invoice submissions.
@@ -121,7 +122,8 @@ export const CreateInvoiceInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
   DocumentLines: z.array(InvoiceLineItemSchema).min(1),
-  NumAtCard: z.string().optional(), // Customer/Vendor reference number (BP Ref No).,
+  NumAtCard: z.string().optional(), // Customer/Vendor reference number (BP Ref No).
+  SalesPersonCode: z.coerce.number().int().optional(), // Sales Employee code (OINV.SlpCode).
 });
 
 // UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
