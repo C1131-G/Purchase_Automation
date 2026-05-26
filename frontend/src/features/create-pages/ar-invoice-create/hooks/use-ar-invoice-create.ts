@@ -265,14 +265,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
             : 0;
         let discountPercent = Number.isFinite(apiDiscountPercent)
-          ? Math.max(0, apiDiscountPercent)
+          ? apiDiscountPercent
           : grossAmount > 0
             ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
             : 0;
         if (discountPercent === 0 && headerDiscountPercent > 0) {
           discountPercent = headerDiscountPercent;
         }
-        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+        const discountAmount = (grossAmount * discountPercent) / 100;
         const resolvedUomEntry =
           typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
             ? line.UoMEntry
@@ -455,14 +455,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
             : 0;
         let discountPercent = Number.isFinite(apiDiscountPercent)
-          ? Math.max(0, apiDiscountPercent)
+          ? apiDiscountPercent
           : grossAmount > 0
             ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
             : 0;
         if (discountPercent === 0 && headerDiscountPercent > 0) {
           discountPercent = headerDiscountPercent;
         }
-        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+        const discountAmount = (grossAmount * discountPercent) / 100;
         const resolvedUomEntry =
           typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
             ? line.UoMEntry
@@ -824,6 +824,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               Number.isFinite(row.baseType);
 
             return {
+              LineNum: row.lineNum,
               DiscountPercent: row.discountPercent,
               ItemCode: row.productCode,
               Quantity: row.quantity,
@@ -1057,11 +1058,11 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
           : 0;
       const discountPercent = Number.isFinite(apiDiscountPercent)
-        ? Math.max(0, apiDiscountPercent)
+        ? apiDiscountPercent
         : grossAmount > 0
           ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
           : 0;
-      const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+      const discountAmount = (grossAmount * discountPercent) / 100;
 
       return {
         baseEntry: line.DocEntry,

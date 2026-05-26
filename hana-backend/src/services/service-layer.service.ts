@@ -153,6 +153,7 @@ class ServiceLayerClient {
     endpoint: string,
     data: unknown = null,
     allowUnauthorizedRetry: boolean = true,
+    customHeaders?: Record<string, string>,
   ): Promise<T> {
     if (!this.client) {
       throw new Error("Service Layer client not initialized");
@@ -173,6 +174,7 @@ class ServiceLayerClient {
       headers: {
         "Content-Type": "application/json",
         Cookie: sessionInfo.cookieString,
+        ...customHeaders,
       },
       method,
       url: endpoint,

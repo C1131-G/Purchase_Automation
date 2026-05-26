@@ -400,16 +400,14 @@ export function CreateProductTableRow({
   const { gross: grossAmount, discount: clampedDiscountAmount, lineNet, lineTotal } = lineTotals;
   // Unit net price for display (pre-tax per unit)
   const unitNetPrice = (row.quantity || 0) > 0 ? lineNet / (row.quantity || 1) : 0;
-  const clampedDiscountPercent =
-    grossAmount > 0 ? Math.round((clampedDiscountAmount / grossAmount) * 100 * 100) / 100 : 0;
 
   const discountPercentInputValue =
     rowDraft?.discountPercent ??
-    (clampedDiscountPercent === 0
+    (row.discountPercent === 0
       ? showExplicitZeroDiscount
         ? "0.00"
         : ""
-      : clampedDiscountPercent.toFixed(2));
+      : row.discountPercent.toFixed(2));
   const discountAmountInputValue =
     rowDraft?.discountAmount ??
     (clampedDiscountAmount === 0
@@ -713,8 +711,7 @@ export function CreateProductTableRow({
       <td className="min-w-0 px-2 py-2">
         <input
           type="number"
-          min={0}
-          step="0.01"
+          step="0.001"
           inputMode="decimal"
           value={discountPercentInputValue}
           readOnly={effectiveDisableInputs}
@@ -739,10 +736,10 @@ export function CreateProductTableRow({
               return;
             }
 
-            const nextPercent = Math.round(Math.max(0, Number(trimmedValue) || 0) * 100) / 100;
+            const nextPercent = Math.round((Number(trimmedValue) || 0) * 1000) / 1000;
             const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
             updateProductRow(row.id, {
-              discountAmount: Math.max(0, Math.min(grossAmount, nextAmount)),
+              discountAmount: nextAmount,
               discountPercent: nextPercent,
             });
           }}
@@ -752,10 +749,10 @@ export function CreateProductTableRow({
             }
             const rawValue = event.target.value.trim();
             const nextPercent =
-              rawValue === "" ? 0 : Math.round(Math.max(0, Number(rawValue) || 0) * 100) / 100;
+              rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 1000) / 1000;
             const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
             updateProductRow(row.id, {
-              discountAmount: Math.max(0, Math.min(grossAmount, nextAmount)),
+              discountAmount: nextAmount,
               discountPercent: nextPercent,
             });
             clearProductRowDraft(row.id, "discountPercent");
@@ -766,10 +763,8 @@ export function CreateProductTableRow({
       <td className="min-w-0 px-2 py-2">
         <input
           type="number"
-          min={0}
           step="0.01"
           inputMode="decimal"
-          max={grossAmount}
           title=""
           value={discountAmountInputValue}
           readOnly={effectiveDisableInputs}
@@ -794,12 +789,11 @@ export function CreateProductTableRow({
               return;
             }
 
-            const nextAmount = Math.max(0, Number(trimmedValue) || 0);
-            const safeAmount = Math.round(Math.min(grossAmount, nextAmount) * 100) / 100;
+            const nextAmount = Math.round((Number(trimmedValue) || 0) * 100) / 100;
             const nextPercent =
-              grossAmount > 0 ? Math.round((safeAmount / grossAmount) * 100 * 100) / 100 : 0;
+              grossAmount > 0 ? Math.round((nextAmount / grossAmount) * 100 * 1000) / 1000 : 0;
             updateProductRow(row.id, {
-              discountAmount: safeAmount,
+              discountAmount: nextAmount,
               discountPercent: nextPercent,
             });
           }}
@@ -808,12 +802,12 @@ export function CreateProductTableRow({
               return;
             }
             const rawValue = event.target.value.trim();
-            const nextAmount = rawValue === "" ? 0 : Math.max(0, Number(rawValue) || 0);
-            const safeAmount = Math.round(Math.min(grossAmount, nextAmount) * 100) / 100;
+            const nextAmount =
+              rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
             const nextPercent =
-              grossAmount > 0 ? Math.round((safeAmount / grossAmount) * 100 * 100) / 100 : 0;
+              grossAmount > 0 ? Math.round((nextAmount / grossAmount) * 100 * 1000) / 1000 : 0;
             updateProductRow(row.id, {
-              discountAmount: safeAmount,
+              discountAmount: nextAmount,
               discountPercent: nextPercent,
             });
             clearProductRowDraft(row.id, "discountAmount");

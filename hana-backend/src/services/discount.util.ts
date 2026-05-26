@@ -35,7 +35,7 @@ export function calculateHeaderDiscount(lines: DiscountLine[]) {
     const lineGrossCents = priceCents * qty;
     totalGrossCents += lineGrossCents;
 
-    const discPct = Math.max(0, line.discountPercent ?? 0);
+    const discPct = line.discountPercent ?? 0;
     const lineDiscountCents = Math.round((lineGrossCents * discPct) / 100);
     totalDiscountCents += lineDiscountCents;
   }
@@ -57,7 +57,7 @@ export function calculateHeaderDiscount(lines: DiscountLine[]) {
 export function calculateLineDiscountAmount(line: DiscountLine) {
   const priceCents = Math.round((line.price ?? 0) * 100);
   const lineGrossCents = priceCents * Math.max(0, line.quantity ?? 0);
-  const discPct = Math.max(0, line.discountPercent ?? 0);
+  const discPct = line.discountPercent ?? 0;
   const discountCents = Math.round((lineGrossCents * discPct) / 100);
   return Math.round(discountCents) / 100;
 }

@@ -88,7 +88,7 @@ export const SalesQuotationDocNumLookupQuerySchema = z.object({
 
 // SalesQuotationLineItemSchema: Individual items requested in the quotation.
 const SalesQuotationLineItemSchema = z.object({
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: z.number().optional(),
   ItemCode: z.string().min(1),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(),
@@ -96,6 +96,7 @@ const SalesQuotationLineItemSchema = z.object({
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: z.string().optional(),
   WarehouseCode: z.string().optional(),
+  LineNum: z.number().int().optional(),
 });
 
 // CreateSalesQuotationInputSchema: Validates a new sales quotation submission.

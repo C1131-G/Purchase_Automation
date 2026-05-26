@@ -252,8 +252,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
         const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
         const discountPercent =
-          lineDiscountPercent > 0 ? lineDiscountPercent : headerDiscountPercent;
-        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100);
+          lineDiscountPercent !== 0 ? lineDiscountPercent : headerDiscountPercent;
+        const discountAmount = (price * quantity * discountPercent) / 100;
         return {
           baseEntry: detail.DocEntry ?? detail.id,
           baseLine: line.LineNum ?? index,
@@ -408,8 +408,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
         const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
         const discountPercent =
-          lineDiscountPercent > 0 ? lineDiscountPercent : headerDiscountPercent;
-        const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100);
+          lineDiscountPercent !== 0 ? lineDiscountPercent : headerDiscountPercent;
+        const discountAmount = (price * quantity * discountPercent) / 100;
         return {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
@@ -805,6 +805,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({
+            LineNum: row.lineNum,
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
             Quantity: row.quantity,
@@ -988,11 +989,11 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
           : 0;
       const discountPercent = Number.isFinite(apiDiscountPercent)
-        ? Math.max(0, apiDiscountPercent)
+        ? apiDiscountPercent
         : grossAmount > 0
           ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
           : 0;
-      const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+      const discountAmount = (grossAmount * discountPercent) / 100;
 
       return {
         baseEntry: line.DocEntry,
