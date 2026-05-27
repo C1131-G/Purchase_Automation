@@ -318,6 +318,8 @@ export const getGRPO = async (sessionId: string, id: string) => {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DiscountPercent: result.DiscountPercent ?? 0,
+      DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
       DocumentLines: enrichedLines,
       NumAtCard: result.NumAtCard,

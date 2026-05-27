@@ -35,6 +35,7 @@ import {
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import type { CreateAPInvoiceInput } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
@@ -294,6 +295,9 @@ export function useAPInvoiceCreate({
 
       setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "");
       const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
+      const headerDiscountPercent = Number(
+        (detail as Record<string, unknown>).DiscountPercent ?? 0,
+      );
 
       setHeader({
         docDate: loadedDocDate,
@@ -316,8 +320,11 @@ export function useAPInvoiceCreate({
         const quantity = Math.max(0, Number(line.Quantity ?? 0));
         const price = Number(line.Price ?? line.UnitPrice ?? 0);
         const grossAmount = Math.max(0, price * quantity);
-        const discountPercent = Number(line.DiscountPercent ?? 0);
-        const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+          grossAmount,
+          headerDiscountPercent,
+          line: line as unknown as Record<string, unknown>,
+        });
         const itemCode = String(line.ItemCode ?? "").trim();
 
         return {
@@ -465,6 +472,9 @@ export function useAPInvoiceCreate({
         allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
         "purchase",
       );
+      const headerDiscountPercent = Number(
+        (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
+      );
 
       let lineIndex = 0;
       const mappedLines = details.flatMap((detail) => {
@@ -476,8 +486,11 @@ export function useAPInvoiceCreate({
           const quantity = openQty;
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
-          const discountPercent = Number(line.DiscountPercent ?? 0);
-          const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent,
+            line: line as unknown as Record<string, unknown>,
+          });
           const itemCode = String(line.ItemCode ?? "").trim();
 
           return {

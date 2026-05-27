@@ -9,6 +9,7 @@ import type { APCreditMemo } from "@/db/schemas/ap-credit-memo.schema";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -166,21 +167,13 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string) => {
       DocDueDate: result.DocDueDate,
       DocNum: result.DocNum,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DiscountPercent: result.DiscountPercent ?? 0,
+      DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
-        const sapTaxRate = Number(lineData.TaxPercentagePerRow ?? lineData.VatPrcnt ?? 0);
         return {
-          ItemCode: line.ItemCode,
-          ItemDescription: line.ItemDescription,
-          Quantity: line.Quantity,
-          UoMCode: lineData.UoMCode,
-          UoMEntry: lineData.UoMEntry,
-          Price: line.Price,
-          VatGroup: line.VatGroup || String(lineData.TaxCode ?? "").trim(),
-          VatPrcnt: sapTaxRate,
-          WarehouseCode: line.WarehouseCode,
-          LineTotal: line.LineTotal,
+          ...normalizeSAPLineData(lineData),
           U_ReturnReason: lineData.U_ReturnReason,
         };
       }),
@@ -239,6 +232,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
+          DiscountPercent: Number(item.DiscountPercent ?? 0),
         };
         if (item.U_ReturnReason) {
           line.U_ReturnReason = item.U_ReturnReason as string;

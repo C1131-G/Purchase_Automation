@@ -25,6 +25,7 @@ import {
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import {
   useCreateGRPO,
   useUpdateGRPO,
@@ -369,6 +370,9 @@ export function useGRPOCreate({
           detailLines.map((line) => String(line.ItemCode ?? "").trim()),
           "purchase",
         );
+        const headerDiscountPercent = Number(
+          (detail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
 
         const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
           const quantity = Math.max(0, Number(line.Quantity ?? 0));
@@ -380,18 +384,11 @@ export function useGRPOCreate({
           const lineStock = lineWarehouseCode
             ? Number(warehouseStocks.find((stock) => stock.code === lineWarehouseCode)?.stock ?? 0)
             : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
-          const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
-          const lineTotal = Number(line.LineTotal ?? Number.NaN);
-          const derivedDiscountAmountFromLineTotal =
-            Number.isFinite(lineTotal) && grossAmount > 0
-              ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
-              : 0;
-          const discountPercent = Number.isFinite(apiDiscountPercent)
-            ? Math.max(0, apiDiscountPercent)
-            : grossAmount > 0
-              ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
-              : 0;
-          const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent,
+            line: line as unknown as Record<string, unknown>,
+          });
 
           return {
             id: `${currentDocNum}-${index}`,
@@ -585,6 +582,9 @@ export function useGRPOCreate({
         allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
         "purchase",
       );
+      const headerDiscountPercent = Number(
+        (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
+      );
 
       let lineIndex = 0;
       const mappedLines = details.flatMap((detail, docIdx) => {
@@ -603,18 +603,11 @@ export function useGRPOCreate({
           const quantity = openQty;
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
-          const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
-          const lineTotal = Number(line.LineTotal ?? Number.NaN);
-          const derivedDiscountAmountFromLineTotal =
-            Number.isFinite(lineTotal) && grossAmount > 0
-              ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
-              : 0;
-          const discountPercent = Number.isFinite(apiDiscountPercent)
-            ? Math.max(0, apiDiscountPercent)
-            : grossAmount > 0
-              ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
-              : 0;
-          const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent,
+            line: line as unknown as Record<string, unknown>,
+          });
 
           return {
             id: `row-copy-${sourceDocNums[docIdx] ?? "unknown"}-${idx}`,

@@ -46,6 +46,7 @@ import {
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 
@@ -310,14 +311,20 @@ export function useAPCreditMemoCreate({
         ),
         "purchase",
       );
+      const headerDiscountPercent = Number(
+        (detail as Record<string, unknown>).DiscountPercent ?? 0,
+      );
 
       const mappedLines = (detail.DocumentLines ?? []).map(
         (line: Record<string, unknown>, index: number) => {
           const quantity = Math.max(0, Number(line.Quantity ?? 0));
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
-          const discountPercent = Number(line.DiscountPercent ?? 0);
-          const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent,
+            line,
+          });
           const itemCode = String(line.ItemCode ?? "").trim();
 
           return {
@@ -475,6 +482,9 @@ export function useAPCreditMemoCreate({
         allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
         "purchase",
       );
+      const headerDiscountPercent = Number(
+        (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
+      );
 
       let lineIndex = 0;
       const mappedLines = details.flatMap((detail) => {
@@ -486,8 +496,11 @@ export function useAPCreditMemoCreate({
           const quantity = openQty;
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
-          const discountPercent = Number(line.DiscountPercent ?? 0);
-          const discountAmount = Math.max(0, (grossAmount * discountPercent) / 100);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent,
+            line,
+          });
           const itemCode = String(line.ItemCode ?? "").trim();
 
           return {

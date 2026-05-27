@@ -13,6 +13,7 @@ import {
   calculateOrderTotals,
   calculateSummaryCurrency,
 } from "@/features/create-pages/create-shared/utils/create-order.calculations";
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import type {
   ActiveDatePicker,
   PopupMode,
@@ -237,8 +238,11 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           const quantity = Number(line.Quantity ?? 1);
           const openQty = Number(line.OpenQty ?? quantity);
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-          const discountPercent = Number(line.DiscountPercent ?? 0);
-          const discountAmount = Math.max(0, (price * quantity * discountPercent) / 100);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount: Math.max(0, price * quantity),
+            headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
+            line: line as Record<string, unknown>,
+          });
           // SAP line VatPrcnt is authoritative; fall back to product master only when missing
           const sapVatPrcnt = Number(line.VatPrcnt ?? 0);
 
@@ -556,6 +560,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     if (isEditMode) {
       const detail = editDetailQuery.data?.data;
       if (detail) {
+        const headerDiscountPercent = Number(
+          (detail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
         const rawComments = String(detail.Comments ?? "").trim();
         const splitComments = rawComments.split(" | ").map((part) => part.trim());
         const hasReferenceMarker = splitComments.length > 1;
@@ -576,19 +583,30 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             String(detail.DocDate ?? "").slice(0, 10),
           DocumentLines: (detail.DocumentLines ?? [])
             .filter((line) => Number(line.Quantity ?? 0) > 0)
-            .map((line) => ({
-              DiscountPercent: Number(line.DiscountPercent ?? 0),
-              ItemCode: String(line.ItemCode ?? "").trim(),
-              Quantity: Number(line.Quantity ?? 0),
-              UnitPrice: Number(line.Price ?? line.UnitPrice ?? 0),
-              UoMCode: String(line.UoMCode ?? "").trim() || undefined,
-              UoMEntry:
-                typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                  ? line.UoMEntry
-                  : undefined,
-              VatGroup: String(line.TaxCode ?? "").trim() || undefined,
-              WarehouseCode: String(line.WarehouseCode ?? "").trim() || undefined,
-            })),
+            .map((line) => {
+              const quantity = Number(line.Quantity ?? 0);
+              const unitPrice = Number(line.Price ?? line.UnitPrice ?? 0);
+              const { discountPercent } = resolveDocumentLineDiscount({
+                grossAmount: Math.max(0, unitPrice * quantity),
+                headerDiscountPercent,
+                line: line as Record<string, unknown>,
+              });
+
+              return {
+                DiscountPercent: discountPercent,
+                ItemCode: String(line.ItemCode ?? "").trim(),
+                LineNum: typeof line.LineNum === "number" ? line.LineNum : undefined,
+                Quantity: quantity,
+                UnitPrice: unitPrice,
+                UoMCode: String(line.UoMCode ?? "").trim() || undefined,
+                UoMEntry:
+                  typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
+                    ? line.UoMEntry
+                    : undefined,
+                VatGroup: String(line.TaxCode ?? "").trim() || undefined,
+                WarehouseCode: String(line.WarehouseCode ?? "").trim() || undefined,
+              };
+            }),
           SalesPersonCode:
             detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
               ? Number(normalizeCodeForCompare(detail.SalesPersonCode))
@@ -604,6 +622,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocumentLines: validRows.map((row) => ({
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
+            LineNum: row.lineNum,
             Quantity: row.quantity,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
@@ -635,6 +654,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocumentLines: validRows.map((row) => ({
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
+            LineNum: row.lineNum,
             Quantity: row.quantity,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
@@ -654,6 +674,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocumentLines: validRows.map((row) => ({
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
+            LineNum: row.lineNum,
             Quantity: row.quantity,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,

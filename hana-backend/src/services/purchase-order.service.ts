@@ -13,6 +13,7 @@ import type { PurchaseOrder } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
+import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -188,6 +189,8 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DiscountPercent: result.DiscountPercent ?? 0,
+      DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
@@ -317,6 +320,15 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       );
     }
 
+    const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    const discountData = calculateHeaderDiscount(
+      lines.map((l) => ({
+        price: ((l.UnitPrice || l.Price) as number) || 0,
+        quantity: (l.Quantity as number) || 1,
+        discountPercent: (l.DiscountPercent as number) || 0,
+      })),
+    );
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       Address2: payload.Address2,
@@ -324,13 +336,15 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
-      DiscountPercent: payload.DiscountPercent,
-      DiscountAmount: payload.DiscountAmount,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+      DiscountPercent: discountData.percent,
+      DiscountAmount: discountData.amount,
+      DocumentLines: lines.map((item) => {
         const docLine: Record<string, unknown> = {
+          LineNum: item.LineNum !== undefined ? Number(item.LineNum) : undefined,
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
+          DiscountPercent: Number(item.DiscountPercent ?? 0),
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
@@ -425,20 +439,26 @@ export const updatePurchaseOrder = async (
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
-    if (payload.DiscountPercent !== undefined) {
-      sapPayload.DiscountPercent = payload.DiscountPercent;
-    }
-    if (payload.DiscountAmount !== undefined) {
-      sapPayload.DiscountAmount = payload.DiscountAmount;
-    }
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
+      const discountData = calculateHeaderDiscount(
+        lines.map((l) => ({
+          price: ((l.UnitPrice || l.Price) as number) || 0,
+          quantity: (l.Quantity as number) || 1,
+          discountPercent: (l.DiscountPercent as number) || 0,
+        })),
+      );
+      sapPayload.DiscountPercent = discountData.percent;
+      sapPayload.DiscountAmount = discountData.amount;
+
       sapPayload.DocumentLines = lines.map((item) => {
         const docLine: Record<string, unknown> = {
+          LineNum: item.LineNum !== undefined ? Number(item.LineNum) : undefined,
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
+          DiscountPercent: Number(item.DiscountPercent ?? 0),
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,

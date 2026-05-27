@@ -122,8 +122,9 @@ export const PurchaseOrderDocNumLookupQuerySchema = z.object({
 // PurchaseOrderLineItemSchema: Validates individual rows in the document.
 // Quantities and Prices must be non-negative to ensure data integrity in SAP.
 const PurchaseOrderLineItemSchema = z.object({
-  DiscountPercent: z.number().min(0).max(100).optional(),
+  DiscountPercent: z.number().optional(),
   ItemCode: z.string().min(1),
+  LineNum: z.number().int().optional(),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(), // SAP can auto-fetch if omitted
   UoMCode: z.union([z.string(), z.number()]).optional(),
