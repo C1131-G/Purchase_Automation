@@ -356,10 +356,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       "";
 
     const rawComments = String(detail.Comments ?? "").trim();
-    const splitComments = rawComments.split(" | ").map((part) => part.trim());
-    const hasReferenceMarker = splitComments.length > 1;
-    const referenceNo = hasReferenceMarker ? (splitComments[0] ?? "") : "";
-    const comments = hasReferenceMarker ? splitComments.slice(1).join(" | ") : rawComments;
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const comments = rawComments;
 
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
@@ -722,19 +720,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     if (isEditMode) {
       const detail = editDetailQuery.data?.data;
       if (detail) {
-        const rawComments = String(detail.Comments ?? "").trim();
-        const splitComments = rawComments.split(" | ").map((part) => part.trim());
-        const hasReferenceMarker = splitComments.length > 1;
-        const existingReferenceNo = hasReferenceMarker ? (splitComments[0] ?? "") : "";
-        const existingCommentText = hasReferenceMarker
-          ? splitComments.slice(1).join(" | ")
-          : rawComments;
+        const existingReferenceNo = String(detail.NumAtCard ?? "").trim();
+        const existingCommentText = String(detail.Comments ?? "").trim();
 
         const existingComparable = {
           Address: String(detail.Address ?? "").trim() || undefined,
-          Comments: [existingReferenceNo.trim(), existingCommentText.trim()]
-            .filter(Boolean)
-            .join(" | "),
+          Comments: existingCommentText,
+          NumAtCard: existingReferenceNo || undefined,
           DocDate: String(detail.DocDate ?? "").slice(0, 10),
           DocDueDate:
             String(detail.DocDueDate ?? "").slice(0, 10) ||
@@ -762,7 +754,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         const currentComparable = {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim(),
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({
@@ -801,7 +794,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     const payload = isEditMode
       ? {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim() || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({
@@ -829,7 +823,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       : {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim() || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({

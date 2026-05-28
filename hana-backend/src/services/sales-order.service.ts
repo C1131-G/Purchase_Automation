@@ -173,6 +173,7 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
       // normalizes SAP's internal string status.
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
+      NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard ?? "",
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         return normalizeSAPLineData(lineData);
@@ -230,6 +231,7 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
       Address: payload.Address,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
+      NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
       DiscountPercent: roundedHeaderDiscount,
@@ -324,6 +326,9 @@ export const updateSalesOrder = async (
 
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;
+    }
+    if (payload.NumAtCard !== undefined) {
+      sapPayload.NumAtCard = payload.NumAtCard;
     }
     if (payload.Address !== undefined) {
       sapPayload.Address = payload.Address;

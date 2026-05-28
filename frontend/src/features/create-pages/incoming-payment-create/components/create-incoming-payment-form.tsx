@@ -16,6 +16,7 @@ import {
   arInvoiceKeys,
   arInvoiceQueries,
 } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
+import { incomingPaymentKeys } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
 import { incomingPaymentAPI } from "@/features/table-pages/incoming-payment/api/incoming-payment.service";
 
 import { useIncomingPaymentLookups } from "../hooks/use-incoming-payment-lookups";
@@ -72,6 +73,7 @@ export function CreateIncomingPaymentForm() {
       // Invalidate related queries to refresh balances
       queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: ArCreditMemoKeys.all });
+      queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.all });
 
       navigate({
         search: { columnVisibility: {}, limit: 10, page: 1, sorting: [] },
@@ -430,16 +432,15 @@ export function CreateIncomingPaymentForm() {
                                     : doc.balanceDue
                                 }
                                 onChange={(e) => {
-                                  const val = Number(e.target.value);
-                                  if (val >= 0) {
-                                    setSelectedDocs((prev) => ({
-                                      ...prev,
-                                      [`${doc.type}-${doc.id}`]: {
-                                        amount: val,
-                                        type: doc.type,
-                                      },
-                                    }));
-                                  }
+                                  const rawVal = Number(e.target.value);
+                                  const val = Math.min(Math.max(0, rawVal), doc.balanceDue);
+                                  setSelectedDocs((prev) => ({
+                                    ...prev,
+                                    [`${doc.type}-${doc.id}`]: {
+                                      amount: val,
+                                      type: doc.type,
+                                    },
+                                  }));
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                                 disabled={!selected}

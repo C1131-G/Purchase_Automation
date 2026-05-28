@@ -204,7 +204,7 @@ export function PaymentModal({
   }
 
   const currentCardAmount = Number(cardAmount) || 0;
-  const currentSurchargeAmount = (currentCardAmount * surchargeRate) / 100;
+  const currentSurchargeAmount = Number(((currentCardAmount * surchargeRate) / 100).toFixed(2));
 
   const handleAddCard = () => {
     const amount = Number(cardAmount) || 0;
@@ -282,7 +282,7 @@ export function PaymentModal({
           creditCardId: cardIdMap[cardType] || 1,
           id: "auto-added",
           reference: cardRef,
-          surchargeAmount: (amount * surchargeRate) / 100,
+          surchargeAmount: Number(((amount * surchargeRate) / 100).toFixed(2)),
           surchargeRate,
         });
       }
@@ -302,7 +302,9 @@ export function PaymentModal({
       });
     }
 
-    const surchargeTotal = cards.reduce((sum, c) => sum + (c.surchargeAmount || 0), 0);
+    const surchargeTotal = Number(
+      cards.reduce((sum, c) => sum + (c.surchargeAmount || 0), 0).toFixed(2),
+    );
     const paymentDetails: {
       PaymentCreditCards: PaymentCreditCard[];
       PaymentChecks?: PaymentCheck[];

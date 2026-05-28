@@ -114,4 +114,9 @@ export const incomingPaymentAPI = {
     const path = query ? `/api/v1/incoming-payments?${query}` : "/api/v1/incoming-payments";
     return apiClient<IncomingPaymentListResponse>(path);
   },
+  updatePayment: async (id: number | string, payload: { Remarks?: string; Reference?: string }) =>
+    apiClient<{ success: boolean; message: string }>(`/api/v1/incoming-payments/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 };

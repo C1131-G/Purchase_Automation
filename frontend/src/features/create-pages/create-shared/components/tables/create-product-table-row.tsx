@@ -736,7 +736,8 @@ export function CreateProductTableRow({
               return;
             }
 
-            const nextPercent = Math.round((Number(trimmedValue) || 0) * 1000) / 1000;
+            const rawPercent = Math.round((Number(trimmedValue) || 0) * 1000) / 1000;
+            const nextPercent = Math.min(100, rawPercent);
             const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
             updateProductRow(row.id, {
               discountAmount: nextAmount,
@@ -748,8 +749,9 @@ export function CreateProductTableRow({
               return;
             }
             const rawValue = event.target.value.trim();
-            const nextPercent =
+            const rawPercent =
               rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 1000) / 1000;
+            const nextPercent = Math.min(100, rawPercent);
             const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
             updateProductRow(row.id, {
               discountAmount: nextAmount,
@@ -789,7 +791,8 @@ export function CreateProductTableRow({
               return;
             }
 
-            const nextAmount = Math.round((Number(trimmedValue) || 0) * 100) / 100;
+            const rawAmount = Math.round((Number(trimmedValue) || 0) * 100) / 100;
+            const nextAmount = Math.min(grossAmount, rawAmount);
             const nextPercent =
               grossAmount > 0 ? Math.round((nextAmount / grossAmount) * 100 * 1000) / 1000 : 0;
             updateProductRow(row.id, {
@@ -802,8 +805,8 @@ export function CreateProductTableRow({
               return;
             }
             const rawValue = event.target.value.trim();
-            const nextAmount =
-              rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
+            const rawAmount = rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
+            const nextAmount = Math.min(grossAmount, rawAmount);
             const nextPercent =
               grossAmount > 0 ? Math.round((nextAmount / grossAmount) * 100 * 1000) / 1000 : 0;
             updateProductRow(row.id, {

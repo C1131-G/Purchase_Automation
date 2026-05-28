@@ -15,7 +15,7 @@ export interface ARInvoice {
   docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
   canceled: string; // 'Y' = Yes, 'N' = No.
-  paidSum: number; // Total amount already settled against this invoice.
+  paidToDate: number; // Total amount already settled against this invoice.
   numAtCard?: string; // Reference number from the customer's purchase order.
 }
 
@@ -61,8 +61,8 @@ export const ARInvoiceSchema = new EntitySchema<ARInvoice>({
       nullable: true,
       type: "nvarchar" as HANAColumnType,
     },
-    paidSum: {
-      name: "PaidSum",
+    paidToDate: {
+      name: "PaidToDate",
       precision: 19,
       scale: 6,
       type: "decimal" as HANAColumnType,

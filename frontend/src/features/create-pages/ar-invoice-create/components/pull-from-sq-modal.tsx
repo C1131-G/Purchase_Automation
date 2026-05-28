@@ -56,7 +56,9 @@ export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFrom
       order.lines.push(line);
     });
 
-    return [...map.values()].toSorted((a, b) => b.DocNum - a.DocNum);
+    return [...map.values()].toSorted(
+      (a, b) => b.DocDate.localeCompare(a.DocDate) || b.DocNum - a.DocNum,
+    );
   }, [lines]);
 
   const filteredOrders = useMemo(() => {

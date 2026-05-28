@@ -111,7 +111,7 @@ export const getSalesSummary = async (dbName: string, range: string = "yearly") 
         .createQueryBuilder("inv")
         .select("SUM(inv.docTotal)", "totalInvoiced")
         .addSelect(
-          "SUM(CASE WHEN inv.docStatus = 'O' THEN (inv.docTotal - inv.paidSum) ELSE 0 END)",
+          "SUM(CASE WHEN inv.docStatus = 'O' THEN (inv.docTotal - inv.paidToDate) ELSE 0 END)",
           "outstandingBalance",
         )
         .where(`inv.docDate >= ${dateLimit}`)
