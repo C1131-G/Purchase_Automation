@@ -113,6 +113,7 @@ export const CreateSalesQuotationInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
   DocumentLines: z.array(SalesQuotationLineItemSchema).min(1),
+  NumAtCard: z.string().optional(),
   SalesPersonCode: z.coerce.number().int().optional(),
 });
 
@@ -130,6 +131,7 @@ export const UpdateSalesQuotationInputSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
     DocumentLines: z.array(SalesQuotationLineItemSchema).min(1).optional(),
+    NumAtCard: z.string().optional(),
     SalesPersonCode: z.coerce.number().int().optional(),
   })
   .strict();

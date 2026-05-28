@@ -573,6 +573,36 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       ...(surchargePostedAccount ? { SurchargePostedAccount: surchargePostedAccount } : {}),
     });
 
+    // Real-time update is not needed and causes double-counting because SAP automatically 
+    // updates the PaidSum column in the OINV table natively upon successful payment creation.
+
+    // Real-time HANA DB insertion for the newly created Incoming Payment
+    // This ensures it instantly appears at the top of the Incoming Payments table
+    if (dbName && result.DocEntry && result.DocNum) {
+      try {
+        const ipRepo = await getTenantRepository(dbName, IncomingPaymentSchema);
+        await ipRepo.save({
+          docEntry: result.DocEntry,
+          docNum: result.DocNum,
+          docDate: new Date(sapPayload.DocDate as string),
+          cardCode: sapPayload.CardCode as string,
+          cardName: (payload.CardName as string) || (result.CardName as string) || "",
+          docTotal: (sapPayload.CashSum as number || 0) + 
+                    (sapPayload.TrsfrSum as number || 0) +
+                    ((sapPayload.PaymentCreditCards as any[])?.reduce((sum, c) => sum + (c.CreditSum || 0), 0) || 0) +
+                    ((sapPayload.PaymentChecks as any[])?.reduce((sum, c) => sum + (c.CheckSum || 0), 0) || 0) +
+                    ((sapPayload.BankChargeAmount as number) || 0),
+          docCurr: result.DocCurrency || "FJD",
+          paymentMode: (sapPayload.U_Mode_Pay as string) || "CASH",
+        });
+      } catch (e) {
+        logger.warn({
+          msg: "Failed to perform real-time insertion of Incoming Payment in HANA",
+          error: String(e),
+        });
+      }
+    }
+
     // Purge sales-related dashboard cache to reflect the updated receivables.
     if (session?.companyDB) {
       purgeCache(`dash:sales:${session.companyDB}:`);

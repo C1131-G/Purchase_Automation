@@ -57,6 +57,7 @@ export interface SalesQuotationDetail {
   CardName?: string;
   Address?: string;
   Comments?: string;
+  NumAtCard?: string;
   DocCurr?: string;
   DocStatus?: string;
   DocumentLines?: SalesQuotationDetailLine[];

@@ -205,12 +205,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
     const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode);
     const rawComments = String(detail.Comments ?? "").trim();
-    const splitComments = rawComments.split(" | ").map((part) => part.trim());
-    const hasReferenceMarker = splitComments.length > 1;
-    const referenceNo = hasReferenceMarker
-      ? (splitComments[0] ?? "")
-      : String(detail.NumAtCard ?? "");
-    const comments = hasReferenceMarker ? splitComments.slice(1).join(" | ") : rawComments;
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const comments = rawComments;
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(detail.Address ?? "").trim();
@@ -392,14 +388,11 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
     const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode);
 
-    // Original doc comments might have markers, just preserve the simple part or indicate copy.
+    // Preserve original doc comments as-is, and pick up referenceNo from NumAtCard
     const rawComments = String(detail.Comments ?? "").trim();
-    const splitComments = rawComments.split(" | ").map((part) => part.trim());
-    const hasReferenceMarker = splitComments.length > 1;
-    const originalComments = hasReferenceMarker ? splitComments.slice(1).join(" | ") : rawComments;
 
     const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? "");
-    const comments = originalComments || `Based on ${currentSourceDocType} ${currentSourceDocNum}`;
+    const comments = rawComments || `Based on ${currentSourceDocType} ${currentSourceDocNum}`;
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(detail.Address ?? "").trim();
 
@@ -781,11 +774,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         .slice(0, 10)
         .trim();
       const rawComments = String(detail?.Comments ?? "").trim();
-      const splitComments = rawComments.split(" | ").map((part) => part.trim());
-      const hasReferenceMarker = splitComments.length > 1;
-      const existingComments = hasReferenceMarker
-        ? splitComments.slice(1).join(" | ")
-        : rawComments;
+      const existingComments = rawComments;
       const existingReferenceNo = String(detail?.NumAtCard ?? "").trim();
       const currentDocDueDate = String(header.docDueDate ?? "").trim();
       const currentComments = String(header.comments ?? "").trim();
@@ -807,14 +796,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     const payload = isEditMode
       ? {
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim() || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
         }
       : {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => {

@@ -17,7 +17,7 @@ export type SalesOrder = SapDocument;
 export type ARCreditMemo = SapDocument;
 
 export interface ARInvoice extends SapDocument {
-  paidSum: number;
+  paidToDate: number;
   numAtCard?: string;
 }
 

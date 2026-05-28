@@ -11,7 +11,7 @@ export const arInvoiceListItemSchema = z.object({
   DocTotal: z.union([z.number(), z.string()]),
   NumAtCard: z.string().nullable().optional(),
   id: z.number(),
-  paidSum: z.union([z.number(), z.string()]).optional(),
+  paidToDate: z.union([z.number(), z.string()]).optional(),
 });
 
 export const arInvoiceListResponseSchema = z.object({
@@ -35,8 +35,8 @@ export const arInvoiceListParamsSchema = z.object({
   NumAtCard: z.string().optional(),
   limit: z.number().optional(),
   page: z.number().optional(),
-  paidSum: z.number().optional(),
-  paidSumOperator: z.enum(["eq", "lt", "gt"]).optional(),
+  paidToDate: z.number().optional(),
+  paidToDateOperator: z.enum(["eq", "lt", "gt"]).optional(),
   sortBy: z
     .enum([
       "DocNum",
@@ -45,7 +45,7 @@ export const arInvoiceListParamsSchema = z.object({
       "CardName",
       "DocTotal",
       "NumAtCard",
-      "paidSum",
+      "paidToDate",
       "DocStatus",
     ])
     .optional(),

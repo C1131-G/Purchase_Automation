@@ -99,7 +99,7 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
       DocStatus: "inv.docStatus",
       DocTotal: "inv.docTotal",
       NumAtCard: "inv.numAtCard",
-      paidSum: "inv.paidSum",
+      paidToDate: "inv.paidToDate",
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
@@ -130,14 +130,14 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
         BalanceDue:
           Math.round(
             (Number(data.docTotal) -
-              Number(((data as unknown as Record<string, unknown>).paidSum as number) || 0)) *
+              Number(((data as unknown as Record<string, unknown>).paidToDate as number) || 0)) *
               100,
           ) / 100,
         DocCurr: data.docCurr,
         NumAtCard: data.numAtCard,
         DocStatus: data.docStatus,
         // Include paid amount for AR invoices to calculate outstanding balances on frontend.
-        paidSum: ((data as unknown as Record<string, unknown>).paidSum as number) || 0,
+        paidToDate: ((data as unknown as Record<string, unknown>).paidToDate as number) || 0,
       })),
     };
   } catch (err: unknown) {
