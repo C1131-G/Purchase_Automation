@@ -40,7 +40,9 @@ export const calculateOrderTotals = (productRows: ProductRow[]) => {
     totalGrossCents += lineGrossCents;
 
     const discPct = row.discountPercent ?? 0;
-    const lineDiscountCents = Math.round(lineGrossCents * discPct / 100 + (lineGrossCents * discPct >= 0 ? 1e-9 : -1e-9));
+    const lineDiscountCents = Math.round(
+      (lineGrossCents * discPct) / 100 + (lineGrossCents * discPct >= 0 ? 1e-9 : -1e-9),
+    );
     totalDiscountCents += lineDiscountCents;
   }
 

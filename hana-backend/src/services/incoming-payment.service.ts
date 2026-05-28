@@ -573,7 +573,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       ...(surchargePostedAccount ? { SurchargePostedAccount: surchargePostedAccount } : {}),
     });
 
-    // Real-time update is not needed and causes double-counting because SAP automatically 
+    // Real-time update is not needed and causes double-counting because SAP automatically
     // updates the PaidSum column in the OINV table natively upon successful payment creation.
 
     // Real-time HANA DB insertion for the newly created Incoming Payment
@@ -587,11 +587,16 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           docDate: new Date(sapPayload.DocDate as string),
           cardCode: sapPayload.CardCode as string,
           cardName: (payload.CardName as string) || (result.CardName as string) || "",
-          docTotal: (sapPayload.CashSum as number || 0) + 
-                    (sapPayload.TrsfrSum as number || 0) +
-                    ((sapPayload.PaymentCreditCards as any[])?.reduce((sum, c) => sum + (c.CreditSum || 0), 0) || 0) +
-                    ((sapPayload.PaymentChecks as any[])?.reduce((sum, c) => sum + (c.CheckSum || 0), 0) || 0) +
-                    ((sapPayload.BankChargeAmount as number) || 0),
+          docTotal:
+            ((sapPayload.CashSum as number) || 0) +
+            ((sapPayload.TrsfrSum as number) || 0) +
+            ((sapPayload.PaymentCreditCards as any[])?.reduce(
+              (sum, c) => sum + (c.CreditSum || 0),
+              0,
+            ) || 0) +
+            ((sapPayload.PaymentChecks as any[])?.reduce((sum, c) => sum + (c.CheckSum || 0), 0) ||
+              0) +
+            ((sapPayload.BankChargeAmount as number) || 0),
           docCurr: result.DocCurrency || "FJD",
           paymentMode: (sapPayload.U_Mode_Pay as string) || "CASH",
         });

@@ -805,8 +805,7 @@ export function CreateProductTableRow({
               return;
             }
             const rawValue = event.target.value.trim();
-            const rawAmount =
-              rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
+            const rawAmount = rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
             const nextAmount = Math.min(grossAmount, rawAmount);
             const nextPercent =
               grossAmount > 0 ? Math.round((nextAmount / grossAmount) * 100 * 1000) / 1000 : 0;

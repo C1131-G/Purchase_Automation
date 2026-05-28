@@ -4,7 +4,10 @@ import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
-import { incomingPaymentKeys, incomingPaymentQueries } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
+import {
+  incomingPaymentKeys,
+  incomingPaymentQueries,
+} from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
 import { incomingPaymentAPI } from "@/features/table-pages/incoming-payment/api/incoming-payment.service";
 
 export function IncomingPaymentEdit({ docNum }: { docNum: string }) {
