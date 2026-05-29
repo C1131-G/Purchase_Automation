@@ -270,6 +270,7 @@ export function GRPOCreate({
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}
+        headerDiscountPercent={state.headerDiscountPercent}
         secondaryActions={
           state.isEditMode && !state.isClosed ? (
             <CopyToDropdown

@@ -45,6 +45,7 @@ interface APInvoiceProductSectionProps {
   onEditRestrictedClick?: (fieldName: string) => void;
   secondaryActions?: ReactNode;
   isClosed?: boolean;
+  headerDiscountPercent?: number;
 }
 
 /**
@@ -77,8 +78,9 @@ export function APInvoiceProductSection({
   onEditRestrictedClick,
   secondaryActions,
   isClosed = false,
+  headerDiscountPercent = 0,
 }: APInvoiceProductSectionProps) {
-  const totals = calculateOrderTotals(rows);
+  const totals = calculateOrderTotals(rows, { headerDiscountPercent });
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null;
 
   const isReadOnlyMode = isEditMode || isClosed;

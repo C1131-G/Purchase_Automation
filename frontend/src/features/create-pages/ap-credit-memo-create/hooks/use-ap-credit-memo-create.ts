@@ -161,6 +161,7 @@ export function useAPCreditMemoCreate({
   const [fieldErrors, setFieldErrors] = useState<APCreditMemoFieldErrors>(
     EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS,
   );
+  const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
 
   const [pendingVendorChange, setPendingVendorChange] = useState<{
     vendor: LookupItem;
@@ -311,9 +312,10 @@ export function useAPCreditMemoCreate({
         ),
         "purchase",
       );
-      const headerDiscountPercent = Number(
+      const resolvedHeaderDiscountPercent = Number(
         (detail as Record<string, unknown>).DiscountPercent ?? 0,
       );
+      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
       const mappedLines = (detail.DocumentLines ?? []).map(
         (line: Record<string, unknown>, index: number) => {
@@ -322,7 +324,7 @@ export function useAPCreditMemoCreate({
           const grossAmount = Math.max(0, price * quantity);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
-            headerDiscountPercent,
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
             line,
           });
           const itemCode = String(line.ItemCode ?? "").trim();
@@ -482,9 +484,10 @@ export function useAPCreditMemoCreate({
         allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
         "purchase",
       );
-      const headerDiscountPercent = Number(
+      const resolvedHeaderDiscountPercent = Number(
         (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
       );
+      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
       let lineIndex = 0;
       const mappedLines = details.flatMap((detail) => {
@@ -498,7 +501,7 @@ export function useAPCreditMemoCreate({
           const grossAmount = Math.max(0, price * quantity);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
-            headerDiscountPercent,
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
             line,
           });
           const itemCode = String(line.ItemCode ?? "").trim();
@@ -1248,6 +1251,7 @@ export function useAPCreditMemoCreate({
     products: productsQuery.data ?? [],
     productsError: productsQuery.error?.message ?? null,
     productsQuery,
+    headerDiscountPercent,
     referenceAutoFilled: header.referenceAutoFilled,
     referenceNo: header.referenceNo,
     remarks: header.remarks,

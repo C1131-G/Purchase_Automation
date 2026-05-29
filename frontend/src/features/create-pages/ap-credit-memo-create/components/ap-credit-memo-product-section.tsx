@@ -45,6 +45,7 @@ interface APCreditMemoProductSectionProps {
   onEditRestrictedClick?: (fieldName: string) => void;
   secondaryActions?: ReactNode;
   isClosed?: boolean;
+  headerDiscountPercent?: number;
 }
 
 export function APCreditMemoProductSection({
@@ -73,9 +74,10 @@ export function APCreditMemoProductSection({
   onEditRestrictedClick,
   secondaryActions,
   isClosed = false,
+  headerDiscountPercent = 0,
 }: APCreditMemoProductSectionProps) {
   const selectedRows = rows.filter((r) => r.selected);
-  const totals = calculateOrderTotals(selectedRows);
+  const totals = calculateOrderTotals(selectedRows, { headerDiscountPercent });
   const summaryCurrencyLabel = calculateSummaryCurrency(selectedRows) || null;
 
   const isReadOnlyMode = isEditMode || isClosed;

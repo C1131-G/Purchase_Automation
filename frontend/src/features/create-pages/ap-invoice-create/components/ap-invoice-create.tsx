@@ -304,6 +304,7 @@ export function APInvoiceCreate({
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}
         isClosed={state.isClosed}
+        headerDiscountPercent={state.headerDiscountPercent}
         secondaryActions={
           state.isEditMode && !state.isClosed ? (
             <CopyToDropdown

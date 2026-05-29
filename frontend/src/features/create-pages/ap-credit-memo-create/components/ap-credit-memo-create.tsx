@@ -275,6 +275,7 @@ export function APCreditMemoCreate({
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}
         isClosed={state.isClosed}
+        headerDiscountPercent={state.headerDiscountPercent}
       />
 
       <APCreditMemoModals state={state} />

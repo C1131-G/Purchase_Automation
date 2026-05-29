@@ -156,6 +156,7 @@ export function useAPInvoiceCreate({
   const [fieldErrors, setFieldErrors] = useState<APInvoiceFieldErrors>(
     EMPTY_AP_INVOICE_FIELD_ERRORS,
   );
+  const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
 
   /* ---------- vendor-change confirmation (copy-from guard) ---------- */
   const [pendingVendorChange, setPendingVendorChange] = useState<{
@@ -295,9 +296,10 @@ export function useAPInvoiceCreate({
 
       setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "");
       const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
-      const headerDiscountPercent = Number(
+      const resolvedHeaderDiscountPercent = Number(
         (detail as Record<string, unknown>).DiscountPercent ?? 0,
       );
+      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
       setHeader({
         docDate: loadedDocDate,
@@ -322,7 +324,7 @@ export function useAPInvoiceCreate({
         const grossAmount = Math.max(0, price * quantity);
         const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
           grossAmount,
-          headerDiscountPercent,
+          headerDiscountPercent: resolvedHeaderDiscountPercent,
           line: line as unknown as Record<string, unknown>,
         });
         const itemCode = String(line.ItemCode ?? "").trim();
@@ -472,9 +474,10 @@ export function useAPInvoiceCreate({
         allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
         "purchase",
       );
-      const headerDiscountPercent = Number(
+      const resolvedHeaderDiscountPercent = Number(
         (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
       );
+      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
       let lineIndex = 0;
       const mappedLines = details.flatMap((detail) => {
@@ -488,7 +491,7 @@ export function useAPInvoiceCreate({
           const grossAmount = Math.max(0, price * quantity);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
-            headerDiscountPercent,
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
             line: line as unknown as Record<string, unknown>,
           });
           const itemCode = String(line.ItemCode ?? "").trim();
@@ -1205,6 +1208,7 @@ export function useAPInvoiceCreate({
     referenceNo: header.referenceNo,
     referenceAutoFilled: header.referenceAutoFilled,
     remarks: header.remarks,
+    headerDiscountPercent,
     billToAddress,
     shipToAddress,
     isClosed,

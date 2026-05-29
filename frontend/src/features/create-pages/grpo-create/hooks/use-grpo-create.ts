@@ -159,6 +159,7 @@ export function useGRPOCreate({
   const [stockPreviewProduct, setStockPreviewProduct] = useState<StockPreviewProduct | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<GRPOFieldErrors>(EMPTY_GRPO_FIELD_ERRORS);
+  const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
 
   /* ---------- vendor-change confirmation (copy-from guard) ---------- */
   const [pendingVendorChange, setPendingVendorChange] = useState<{
@@ -370,9 +371,10 @@ export function useGRPOCreate({
           detailLines.map((line) => String(line.ItemCode ?? "").trim()),
           "purchase",
         );
-        const headerDiscountPercent = Number(
+        const resolvedHeaderDiscountPercent = Number(
           (detail as Record<string, unknown>).DiscountPercent ?? 0,
         );
+        setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
         const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
           const quantity = Math.max(0, Number(line.Quantity ?? 0));
@@ -386,9 +388,9 @@ export function useGRPOCreate({
             : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
-            headerDiscountPercent,
-            line: line as unknown as Record<string, unknown>,
-          });
+          headerDiscountPercent: resolvedHeaderDiscountPercent,
+          line: line as unknown as Record<string, unknown>,
+        });
 
           return {
             id: `${currentDocNum}-${index}`,
@@ -582,9 +584,10 @@ export function useGRPOCreate({
         allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
         "purchase",
       );
-      const headerDiscountPercent = Number(
+      const resolvedHeaderDiscountPercent = Number(
         (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
       );
+      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
       let lineIndex = 0;
       const mappedLines = details.flatMap((detail, docIdx) => {
@@ -605,7 +608,7 @@ export function useGRPOCreate({
           const grossAmount = Math.max(0, price * quantity);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
-            headerDiscountPercent,
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
             line: line as unknown as Record<string, unknown>,
           });
 
@@ -1601,6 +1604,7 @@ export function useGRPOCreate({
     referenceNo: header.referenceNo,
     referenceAutoFilled: header.referenceAutoFilled,
     remarks: header.remarks,
+    headerDiscountPercent,
     billToAddress,
     shipToAddress,
     isClosed,
