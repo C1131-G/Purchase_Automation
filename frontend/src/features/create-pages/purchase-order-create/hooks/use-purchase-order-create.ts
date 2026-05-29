@@ -68,6 +68,37 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
+  const parsePurchaseOrderHeaderNotes = (detail: {
+    Comments?: unknown;
+    NumAtCard?: unknown;
+  }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
+
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";
   const header = usePOHeader();
@@ -183,8 +214,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       matchedVendor?.salesEmployeeName?.trim() ||
       "";
 
-    const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? "").trim();
-    const comments = String(detail.Comments ?? "").trim();
+    const { comments, referenceNo } = parsePurchaseOrderHeaderNotes(detail);
 
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
@@ -563,20 +593,14 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         const headerDiscountPercent = Number(
           (detail as Record<string, unknown>).DiscountPercent ?? 0,
         );
-        const rawComments = String(detail.Comments ?? "").trim();
-        const splitComments = rawComments.split(" | ").map((part) => part.trim());
-        const hasReferenceMarker = splitComments.length > 1;
-        const existingReferenceNo = hasReferenceMarker ? (splitComments[0] ?? "") : "";
-        const existingCommentText = hasReferenceMarker
-          ? splitComments.slice(1).join(" | ")
-          : rawComments;
+        const { comments: existingCommentText, referenceNo: existingReferenceNo } =
+          parsePurchaseOrderHeaderNotes(detail);
 
         const existingComparable = {
           Address: String(detail.Address ?? "").trim() || undefined,
           Address2: String((detail as Record<string, unknown>).Address2 ?? "").trim() || undefined,
-          Comments: [existingReferenceNo.trim(), existingCommentText.trim()]
-            .filter(Boolean)
-            .join(" | "),
+          Comments: existingCommentText.trim() || undefined,
+          NumAtCard: existingReferenceNo.trim() || undefined,
           DocDate: String(detail.DocDate ?? "").slice(0, 10),
           DocDueDate:
             String(detail.DocDueDate ?? "").slice(0, 10) ||
@@ -616,7 +640,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         const currentComparable = {
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim() || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           DocumentLines: validRows.map((row) => ({
@@ -648,9 +673,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       ? {
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
@@ -668,9 +694,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
-          Comments: [header.referenceNo.trim(), header.comments.trim()].filter(Boolean).join(" | "),
+          Comments: header.comments.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocumentLines: validRows.map((row) => ({
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
