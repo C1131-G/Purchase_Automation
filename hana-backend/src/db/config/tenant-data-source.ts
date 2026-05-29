@@ -25,6 +25,8 @@ import { ItemSchema } from "@/db/schemas/item.schema";
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
 import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
+import { PurchaseQuotationLineSchema } from "@/db/schemas/purchase-quotation-line.schema";
+import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
@@ -76,6 +78,8 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
     entities: [
       OrganizationSchema,
       PurchaseOrderSchema,
+      PurchaseQuotationSchema,
+      PurchaseQuotationLineSchema,
       GRPOSchema,
       APInvoiceSchema,
       APCreditMemoSchema,

@@ -21,9 +21,11 @@ import { Route as LayoutSalesCreateIncomingPaymentRouteImport } from './routes/_
 import { Route as LayoutSalesCreateArInvoiceRouteImport } from './routes/_layout.sales.create-ar-invoice'
 import { Route as LayoutSalesArInvoiceRouteImport } from './routes/_layout.sales.ar-invoice'
 import { Route as LayoutSalesArCreditMemoRouteImport } from './routes/_layout.sales.ar-credit-memo'
+import { Route as LayoutPurchaseQuotationsRouteImport } from './routes/_layout.purchase.quotations'
 import { Route as LayoutPurchaseOutgoingPaymentRouteImport } from './routes/_layout.purchase.outgoing-payment'
 import { Route as LayoutPurchaseOrdersRouteImport } from './routes/_layout.purchase.orders'
 import { Route as LayoutPurchaseGrpoRouteImport } from './routes/_layout.purchase.grpo'
+import { Route as LayoutPurchaseCreateQuotationRouteImport } from './routes/_layout.purchase.create-quotation'
 import { Route as LayoutPurchaseCreateOutgoingPaymentRouteImport } from './routes/_layout.purchase.create-outgoing-payment'
 import { Route as LayoutPurchaseCreateOrderRouteImport } from './routes/_layout.purchase.create-order'
 import { Route as LayoutPurchaseCreateGrpoRouteImport } from './routes/_layout.purchase.create-grpo'
@@ -40,6 +42,7 @@ import { Route as LayoutSalesOrdersDocNumEditRouteImport } from './routes/_layou
 import { Route as LayoutSalesIncomingPaymentDocNumEditRouteImport } from './routes/_layout.sales.incoming-payment.$docNum.edit'
 import { Route as LayoutSalesArInvoiceDocNumEditRouteImport } from './routes/_layout.sales.ar-invoice.$docNum.edit'
 import { Route as LayoutSalesArCreditMemoDocNumEditRouteImport } from './routes/_layout.sales.ar-credit-memo.$docNum.edit'
+import { Route as LayoutPurchaseQuotationsDocNumEditRouteImport } from './routes/_layout.purchase.quotations.$docNum.edit'
 import { Route as LayoutPurchaseOutgoingPaymentDocNumEditRouteImport } from './routes/_layout.purchase.outgoing-payment.$docNum.edit'
 import { Route as LayoutPurchaseOrdersDocNumEditRouteImport } from './routes/_layout.purchase.orders.$docNum.edit'
 import { Route as LayoutPurchaseGrpoDocNumEditRouteImport } from './routes/_layout.purchase.grpo.$docNum.edit'
@@ -109,6 +112,12 @@ const LayoutSalesArCreditMemoRoute = LayoutSalesArCreditMemoRouteImport.update({
   path: '/sales/ar-credit-memo',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutPurchaseQuotationsRoute =
+  LayoutPurchaseQuotationsRouteImport.update({
+    id: '/purchase/quotations',
+    path: '/purchase/quotations',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 const LayoutPurchaseOutgoingPaymentRoute =
   LayoutPurchaseOutgoingPaymentRouteImport.update({
     id: '/purchase/outgoing-payment',
@@ -125,6 +134,12 @@ const LayoutPurchaseGrpoRoute = LayoutPurchaseGrpoRouteImport.update({
   path: '/purchase/grpo',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutPurchaseCreateQuotationRoute =
+  LayoutPurchaseCreateQuotationRouteImport.update({
+    id: '/purchase/create-quotation',
+    path: '/purchase/create-quotation',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 const LayoutPurchaseCreateOutgoingPaymentRoute =
   LayoutPurchaseCreateOutgoingPaymentRouteImport.update({
     id: '/purchase/create-outgoing-payment',
@@ -218,6 +233,12 @@ const LayoutSalesArCreditMemoDocNumEditRoute =
     path: '/$docNum/edit',
     getParentRoute: () => LayoutSalesArCreditMemoRoute,
   } as any)
+const LayoutPurchaseQuotationsDocNumEditRoute =
+  LayoutPurchaseQuotationsDocNumEditRouteImport.update({
+    id: '/$docNum/edit',
+    path: '/$docNum/edit',
+    getParentRoute: () => LayoutPurchaseQuotationsRoute,
+  } as any)
 const LayoutPurchaseOutgoingPaymentDocNumEditRoute =
   LayoutPurchaseOutgoingPaymentDocNumEditRouteImport.update({
     id: '/$docNum/edit',
@@ -261,9 +282,11 @@ export interface FileRoutesByFullPath {
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
   '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
+  '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteWithChildren
   '/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteWithChildren
+  '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteWithChildren
   '/sales/ar-credit-memo': typeof LayoutSalesArCreditMemoRouteWithChildren
   '/sales/ar-invoice': typeof LayoutSalesArInvoiceRouteWithChildren
   '/sales/create-ar-invoice': typeof LayoutSalesCreateArInvoiceRoute
@@ -280,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/purchase/outgoing-payment/$docNum/edit': typeof LayoutPurchaseOutgoingPaymentDocNumEditRoute
+  '/purchase/quotations/$docNum/edit': typeof LayoutPurchaseQuotationsDocNumEditRoute
   '/sales/ar-credit-memo/$docNum/edit': typeof LayoutSalesArCreditMemoDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
   '/sales/incoming-payment/$docNum/edit': typeof LayoutSalesIncomingPaymentDocNumEditRoute
@@ -298,9 +322,11 @@ export interface FileRoutesByTo {
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
   '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
+  '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteWithChildren
   '/purchase/orders': typeof LayoutPurchaseOrdersRouteWithChildren
   '/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteWithChildren
+  '/purchase/quotations': typeof LayoutPurchaseQuotationsRouteWithChildren
   '/sales/ar-credit-memo': typeof LayoutSalesArCreditMemoRouteWithChildren
   '/sales/ar-invoice': typeof LayoutSalesArInvoiceRouteWithChildren
   '/sales/create-ar-invoice': typeof LayoutSalesCreateArInvoiceRoute
@@ -317,6 +343,7 @@ export interface FileRoutesByTo {
   '/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/purchase/outgoing-payment/$docNum/edit': typeof LayoutPurchaseOutgoingPaymentDocNumEditRoute
+  '/purchase/quotations/$docNum/edit': typeof LayoutPurchaseQuotationsDocNumEditRoute
   '/sales/ar-credit-memo/$docNum/edit': typeof LayoutSalesArCreditMemoDocNumEditRoute
   '/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
   '/sales/incoming-payment/$docNum/edit': typeof LayoutSalesIncomingPaymentDocNumEditRoute
@@ -337,9 +364,11 @@ export interface FileRoutesById {
   '/_layout/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
   '/_layout/purchase/create-order': typeof LayoutPurchaseCreateOrderRoute
   '/_layout/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
+  '/_layout/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/_layout/purchase/grpo': typeof LayoutPurchaseGrpoRouteWithChildren
   '/_layout/purchase/orders': typeof LayoutPurchaseOrdersRouteWithChildren
   '/_layout/purchase/outgoing-payment': typeof LayoutPurchaseOutgoingPaymentRouteWithChildren
+  '/_layout/purchase/quotations': typeof LayoutPurchaseQuotationsRouteWithChildren
   '/_layout/sales/ar-credit-memo': typeof LayoutSalesArCreditMemoRouteWithChildren
   '/_layout/sales/ar-invoice': typeof LayoutSalesArInvoiceRouteWithChildren
   '/_layout/sales/create-ar-invoice': typeof LayoutSalesCreateArInvoiceRoute
@@ -356,6 +385,7 @@ export interface FileRoutesById {
   '/_layout/purchase/grpo/$docNum/edit': typeof LayoutPurchaseGrpoDocNumEditRoute
   '/_layout/purchase/orders/$docNum/edit': typeof LayoutPurchaseOrdersDocNumEditRoute
   '/_layout/purchase/outgoing-payment/$docNum/edit': typeof LayoutPurchaseOutgoingPaymentDocNumEditRoute
+  '/_layout/purchase/quotations/$docNum/edit': typeof LayoutPurchaseQuotationsDocNumEditRoute
   '/_layout/sales/ar-credit-memo/$docNum/edit': typeof LayoutSalesArCreditMemoDocNumEditRoute
   '/_layout/sales/ar-invoice/$docNum/edit': typeof LayoutSalesArInvoiceDocNumEditRoute
   '/_layout/sales/incoming-payment/$docNum/edit': typeof LayoutSalesIncomingPaymentDocNumEditRoute
@@ -376,9 +406,11 @@ export interface FileRouteTypes {
     | '/purchase/create-grpo'
     | '/purchase/create-order'
     | '/purchase/create-outgoing-payment'
+    | '/purchase/create-quotation'
     | '/purchase/grpo'
     | '/purchase/orders'
     | '/purchase/outgoing-payment'
+    | '/purchase/quotations'
     | '/sales/ar-credit-memo'
     | '/sales/ar-invoice'
     | '/sales/create-ar-invoice'
@@ -395,6 +427,7 @@ export interface FileRouteTypes {
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
     | '/purchase/outgoing-payment/$docNum/edit'
+    | '/purchase/quotations/$docNum/edit'
     | '/sales/ar-credit-memo/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
     | '/sales/incoming-payment/$docNum/edit'
@@ -413,9 +446,11 @@ export interface FileRouteTypes {
     | '/purchase/create-grpo'
     | '/purchase/create-order'
     | '/purchase/create-outgoing-payment'
+    | '/purchase/create-quotation'
     | '/purchase/grpo'
     | '/purchase/orders'
     | '/purchase/outgoing-payment'
+    | '/purchase/quotations'
     | '/sales/ar-credit-memo'
     | '/sales/ar-invoice'
     | '/sales/create-ar-invoice'
@@ -432,6 +467,7 @@ export interface FileRouteTypes {
     | '/purchase/grpo/$docNum/edit'
     | '/purchase/orders/$docNum/edit'
     | '/purchase/outgoing-payment/$docNum/edit'
+    | '/purchase/quotations/$docNum/edit'
     | '/sales/ar-credit-memo/$docNum/edit'
     | '/sales/ar-invoice/$docNum/edit'
     | '/sales/incoming-payment/$docNum/edit'
@@ -451,9 +487,11 @@ export interface FileRouteTypes {
     | '/_layout/purchase/create-grpo'
     | '/_layout/purchase/create-order'
     | '/_layout/purchase/create-outgoing-payment'
+    | '/_layout/purchase/create-quotation'
     | '/_layout/purchase/grpo'
     | '/_layout/purchase/orders'
     | '/_layout/purchase/outgoing-payment'
+    | '/_layout/purchase/quotations'
     | '/_layout/sales/ar-credit-memo'
     | '/_layout/sales/ar-invoice'
     | '/_layout/sales/create-ar-invoice'
@@ -470,6 +508,7 @@ export interface FileRouteTypes {
     | '/_layout/purchase/grpo/$docNum/edit'
     | '/_layout/purchase/orders/$docNum/edit'
     | '/_layout/purchase/outgoing-payment/$docNum/edit'
+    | '/_layout/purchase/quotations/$docNum/edit'
     | '/_layout/sales/ar-credit-memo/$docNum/edit'
     | '/_layout/sales/ar-invoice/$docNum/edit'
     | '/_layout/sales/incoming-payment/$docNum/edit'
@@ -569,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSalesArCreditMemoRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/purchase/quotations': {
+      id: '/_layout/purchase/quotations'
+      path: '/purchase/quotations'
+      fullPath: '/purchase/quotations'
+      preLoaderRoute: typeof LayoutPurchaseQuotationsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/purchase/outgoing-payment': {
       id: '/_layout/purchase/outgoing-payment'
       path: '/purchase/outgoing-payment'
@@ -588,6 +634,13 @@ declare module '@tanstack/react-router' {
       path: '/purchase/grpo'
       fullPath: '/purchase/grpo'
       preLoaderRoute: typeof LayoutPurchaseGrpoRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/purchase/create-quotation': {
+      id: '/_layout/purchase/create-quotation'
+      path: '/purchase/create-quotation'
+      fullPath: '/purchase/create-quotation'
+      preLoaderRoute: typeof LayoutPurchaseCreateQuotationRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/purchase/create-outgoing-payment': {
@@ -702,6 +755,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSalesArCreditMemoDocNumEditRouteImport
       parentRoute: typeof LayoutSalesArCreditMemoRoute
     }
+    '/_layout/purchase/quotations/$docNum/edit': {
+      id: '/_layout/purchase/quotations/$docNum/edit'
+      path: '/$docNum/edit'
+      fullPath: '/purchase/quotations/$docNum/edit'
+      preLoaderRoute: typeof LayoutPurchaseQuotationsDocNumEditRouteImport
+      parentRoute: typeof LayoutPurchaseQuotationsRoute
+    }
     '/_layout/purchase/outgoing-payment/$docNum/edit': {
       id: '/_layout/purchase/outgoing-payment/$docNum/edit'
       path: '/$docNum/edit'
@@ -807,6 +867,21 @@ const LayoutPurchaseOutgoingPaymentRouteWithChildren =
     LayoutPurchaseOutgoingPaymentRouteChildren,
   )
 
+interface LayoutPurchaseQuotationsRouteChildren {
+  LayoutPurchaseQuotationsDocNumEditRoute: typeof LayoutPurchaseQuotationsDocNumEditRoute
+}
+
+const LayoutPurchaseQuotationsRouteChildren: LayoutPurchaseQuotationsRouteChildren =
+  {
+    LayoutPurchaseQuotationsDocNumEditRoute:
+      LayoutPurchaseQuotationsDocNumEditRoute,
+  }
+
+const LayoutPurchaseQuotationsRouteWithChildren =
+  LayoutPurchaseQuotationsRoute._addFileChildren(
+    LayoutPurchaseQuotationsRouteChildren,
+  )
+
 interface LayoutSalesArCreditMemoRouteChildren {
   LayoutSalesArCreditMemoCreateRoute: typeof LayoutSalesArCreditMemoCreateRoute
   LayoutSalesArCreditMemoSelectInvoiceRoute: typeof LayoutSalesArCreditMemoSelectInvoiceRoute
@@ -887,9 +962,11 @@ interface LayoutRouteChildren {
   LayoutPurchaseCreateGrpoRoute: typeof LayoutPurchaseCreateGrpoRoute
   LayoutPurchaseCreateOrderRoute: typeof LayoutPurchaseCreateOrderRoute
   LayoutPurchaseCreateOutgoingPaymentRoute: typeof LayoutPurchaseCreateOutgoingPaymentRoute
+  LayoutPurchaseCreateQuotationRoute: typeof LayoutPurchaseCreateQuotationRoute
   LayoutPurchaseGrpoRoute: typeof LayoutPurchaseGrpoRouteWithChildren
   LayoutPurchaseOrdersRoute: typeof LayoutPurchaseOrdersRouteWithChildren
   LayoutPurchaseOutgoingPaymentRoute: typeof LayoutPurchaseOutgoingPaymentRouteWithChildren
+  LayoutPurchaseQuotationsRoute: typeof LayoutPurchaseQuotationsRouteWithChildren
   LayoutSalesArCreditMemoRoute: typeof LayoutSalesArCreditMemoRouteWithChildren
   LayoutSalesArInvoiceRoute: typeof LayoutSalesArInvoiceRouteWithChildren
   LayoutSalesCreateArInvoiceRoute: typeof LayoutSalesCreateArInvoiceRoute
@@ -912,10 +989,12 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutPurchaseCreateOrderRoute: LayoutPurchaseCreateOrderRoute,
   LayoutPurchaseCreateOutgoingPaymentRoute:
     LayoutPurchaseCreateOutgoingPaymentRoute,
+  LayoutPurchaseCreateQuotationRoute: LayoutPurchaseCreateQuotationRoute,
   LayoutPurchaseGrpoRoute: LayoutPurchaseGrpoRouteWithChildren,
   LayoutPurchaseOrdersRoute: LayoutPurchaseOrdersRouteWithChildren,
   LayoutPurchaseOutgoingPaymentRoute:
     LayoutPurchaseOutgoingPaymentRouteWithChildren,
+  LayoutPurchaseQuotationsRoute: LayoutPurchaseQuotationsRouteWithChildren,
   LayoutSalesArCreditMemoRoute: LayoutSalesArCreditMemoRouteWithChildren,
   LayoutSalesArInvoiceRoute: LayoutSalesArInvoiceRouteWithChildren,
   LayoutSalesCreateArInvoiceRoute: LayoutSalesCreateArInvoiceRoute,

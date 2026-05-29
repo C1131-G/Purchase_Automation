@@ -15,6 +15,7 @@ import { masterDataRoutes } from "./master-data.routes";
 import { organizationRoutes } from "./organization.routes";
 import { outgoingPaymentRoutes } from "./outgoing-payment.routes";
 import { purchaseOrderRoutes } from "./purchase-order.routes";
+import { purchaseQuotationRoutes } from "./purchase-quotation.routes";
 import { salesOrderRoutes } from "./sales-order.routes";
 import { salesQuotationRoutes } from "./sales-quotation.routes";
 
@@ -29,6 +30,7 @@ router.use("/dashboard", dashboardRoutes);
 router.use("/master-data", masterDataRoutes);
 
 router.use("/purchase-orders", purchaseOrderRoutes);
+router.use("/purchase-quotations", purchaseQuotationRoutes);
 router.use("/grpos", grpoRoutes);
 router.use("/ap-invoices", apInvoiceRoutes);
 router.use("/ap-credit-memos", apCreditMemoRoutes);

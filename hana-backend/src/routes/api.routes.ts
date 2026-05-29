@@ -18,6 +18,7 @@ import { masterDataRoutes } from "@/routes/master-data.routes";
 import { organizationRoutes } from "@/routes/organization.routes";
 import { outgoingPaymentRoutes } from "@/routes/outgoing-payment.routes";
 import { purchaseOrderRoutes } from "@/routes/purchase-order.routes";
+import { purchaseQuotationRoutes } from "@/routes/purchase-quotation.routes";
 import { salesOrderRoutes } from "@/routes/sales-order.routes";
 
 const router = express.Router();
@@ -33,6 +34,7 @@ router.use("/dashboard", dashboardRoutes);
 
 // Procure-to-Pay (P2P): Routes primarily used by Vendors to track their orders, deliveries, and incoming credits.
 router.use("/purchase-orders", purchaseOrderRoutes);
+router.use("/purchase-quotations", purchaseQuotationRoutes);
 router.use("/grpos", grpoRoutes);
 router.use("/ap-invoices", apInvoiceRoutes);
 router.use("/ap-credit-memos", apCreditMemoRoutes);
