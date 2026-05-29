@@ -16,4 +16,3 @@ export const Route = createFileRoute("/_layout/purchase/create-quotation")({
   pendingComponent: CreatePageRouteSkeleton,
   pendingMs: 0,
 });
-

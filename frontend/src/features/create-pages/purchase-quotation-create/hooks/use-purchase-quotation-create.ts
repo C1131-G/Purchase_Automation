@@ -782,5 +782,3 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     updatePurchaseQuotationMutation,
   };
 }
-
-

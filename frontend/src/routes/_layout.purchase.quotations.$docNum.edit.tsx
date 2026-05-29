@@ -19,4 +19,3 @@ function PurchaseQuotationEditPage() {
   const { docNum } = Route.useParams();
   return <PurchaseQuotationCreate mode="edit" docNum={docNum} />;
 }
-

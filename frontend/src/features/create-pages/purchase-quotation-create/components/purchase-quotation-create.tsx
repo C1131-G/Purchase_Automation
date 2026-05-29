@@ -229,5 +229,3 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
     </div>
   );
 }
-
-

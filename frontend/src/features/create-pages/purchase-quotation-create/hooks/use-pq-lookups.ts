@@ -175,7 +175,12 @@ export function usePqLookups({
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
     void queryClient.prefetchQuery(
-      purchaseQuotationCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT, "purchase"),
+      purchaseQuotationCreateQueries.products(
+        item.code,
+        undefined,
+        QUICK_PRODUCT_LIMIT,
+        "purchase",
+      ),
     );
     setWarehouseFocused(false);
     closeModal();
@@ -331,5 +336,3 @@ export function usePqLookups({
     warehousesQuery,
   };
 }
-
-
