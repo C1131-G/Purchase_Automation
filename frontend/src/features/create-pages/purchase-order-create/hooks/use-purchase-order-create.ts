@@ -68,10 +68,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
-  const parsePurchaseOrderHeaderNotes = (detail: {
-    Comments?: unknown;
-    NumAtCard?: unknown;
-  }) => {
+  const parsePurchaseOrderHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
     const referenceNo = String(detail.NumAtCard ?? "").trim();
     const rawComments = String(detail.Comments ?? "").trim();
 
