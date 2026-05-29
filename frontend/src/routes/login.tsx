@@ -27,7 +27,7 @@ export const Route = createFileRoute("/login")({
     if (isAuthenticated) {
       throw redirect({
         search: { limit: 10, page: 1 },
-        to: "/purchase/orders",
+        to: "/purchase/quotations",
       });
     }
 
@@ -90,7 +90,7 @@ function LoginComponent() {
           limit: 10,
           page: 1,
         },
-        to: "/purchase/orders",
+        to: "/purchase/quotations",
       });
       return () => {
         isMounted = false;
@@ -119,7 +119,7 @@ function LoginComponent() {
               limit: 10,
               page: 1,
             },
-            to: "/purchase/orders",
+            to: "/purchase/quotations",
           });
         })
         .catch(() => {

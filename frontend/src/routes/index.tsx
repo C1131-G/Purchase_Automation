@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
           limit: 10,
           page: 1,
         },
-        to: "/purchase/orders",
+        to: "/purchase/quotations",
       });
     }
 
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/")({
           limit: 10,
           page: 1,
         },
-        to: "/purchase/orders",
+        to: "/purchase/quotations",
       });
     } catch {
       // No active session; continue to login.
