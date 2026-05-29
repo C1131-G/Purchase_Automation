@@ -388,9 +388,9 @@ export function useGRPOCreate({
             : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
-          headerDiscountPercent: resolvedHeaderDiscountPercent,
-          line: line as unknown as Record<string, unknown>,
-        });
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
+            line: line as unknown as Record<string, unknown>,
+          });
 
           return {
             id: `${currentDocNum}-${index}`,
