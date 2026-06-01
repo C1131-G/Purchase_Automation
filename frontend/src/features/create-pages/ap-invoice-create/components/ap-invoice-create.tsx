@@ -26,7 +26,7 @@ interface APInvoiceCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
-  sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | undefined;
+  sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | undefined;
 }
 
 export function APInvoiceCreate({
@@ -38,7 +38,7 @@ export function APInvoiceCreate({
   const router = useRouter();
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
   const [copyFromSourceType, setCopyFromSourceType] = useState<
-    "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | null
+    "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation" | null
   >(null);
 
   const state = useAPInvoiceCreate({
@@ -59,10 +59,14 @@ export function APInvoiceCreate({
     (mode === "edit" && !!docNum && !state.isEditHydrated) || state.isSourceHydrating;
 
   // Derive the active source family from draft rows to lock the opposite family.
-  // SAP BaseType: 22 = Purchase Order, 20 = Goods Receipt PO (GRPO)
-  const lockedSourceFamily = useMemo<"PurchaseOrder" | "GoodsReceiptPO" | null>(() => {
+  // SAP BaseType: 22 = Purchase Order, 20 = Goods Receipt PO (GRPO), 540000006 = Purchase Quotation
+  // SAP only allows one base type per A/P Invoice — switch the lock target to the dominant one.
+  const lockedSourceFamily = useMemo<
+    "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | null
+  >(() => {
     const hasPORows = state.rows.some((row) => row.baseType === 22 && row.baseEntry != null);
     const hasGRPORows = state.rows.some((row) => row.baseType === 20 && row.baseEntry != null);
+    const hasPQRows = state.rows.some((row) => row.baseType === 540000006 && row.baseEntry != null);
 
     if (hasPORows) {
       return "GoodsReceiptPO";
@@ -70,12 +74,15 @@ export function APInvoiceCreate({
     if (hasGRPORows) {
       return "PurchaseOrder";
     } // Lock PO if GRPO rows exist
+    if (hasPQRows) {
+      return "PurchaseOrder";
+    } // Lock PO if PQ rows exist (vendor-change guard catches any actual mixing)
     return null;
   }, [state.rows]);
 
   const handleLockedFamilyClick = () => {
     goeyToast.warning(
-      "SAP does not allow mixing Purchase Order and GRPO documents in one A/P Invoice.",
+      "SAP does not allow mixing Purchase Order, GRPO, and Purchase Quotation documents in one A/P Invoice.",
       { duration: 4000 },
     );
   };
@@ -94,7 +101,7 @@ export function APInvoiceCreate({
   const handleCopyFromSelect = (
     selected: {
       docNum: string;
-      docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice";
+      docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
     }[],
   ) => {
     if (selected.length === 0) {
@@ -125,9 +132,15 @@ export function APInvoiceCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            sourceDocTypes={["PurchaseOrder", "GoodsReceiptPO"]}
+            sourceDocTypes={["PurchaseOrder", "GoodsReceiptPO", "PurchaseQuotation"]}
             onSelectSource={(sourceType) => {
-              setCopyFromSourceType(sourceType as "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice");
+              setCopyFromSourceType(
+                sourceType as
+                  | "PurchaseOrder"
+                  | "GoodsReceiptPO"
+                  | "APInvoice"
+                  | "PurchaseQuotation",
+              );
               setCopyFromDialogOpen(true);
             }}
             lockedSourceFamily={lockedSourceFamily}
@@ -314,6 +327,7 @@ export function APInvoiceCreate({
             />
           ) : null
         }
+        warehouseErrors={state.warehouseErrors}
       />
 
       <APInvoiceModals state={state} />

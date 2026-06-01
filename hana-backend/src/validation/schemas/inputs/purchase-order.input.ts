@@ -131,6 +131,9 @@ const PurchaseOrderLineItemSchema = z.object({
   UoMEntry: z.coerce.number().int().optional(),
   VatGroup: z.string().optional(),
   WarehouseCode: z.string().optional(),
+  BaseType: z.number().int().optional(),
+  BaseEntry: z.number().int().optional(),
+  BaseLine: z.number().int().optional(),
 });
 
 // CreatePurchaseOrderInputSchema: Validates the full payload for a new procurement document.

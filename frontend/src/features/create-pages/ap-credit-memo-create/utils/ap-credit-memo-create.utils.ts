@@ -3,7 +3,6 @@ import type { LookupItem } from "@/features/create-pages/create-shared/api/creat
 export const AP_CREDIT_MEMO_MANDATORY_FIELDS = [
   "vendorName",
   "vendorCode",
-  "warehouseCode",
   "returnReason",
 ] as const;
 
@@ -13,14 +12,12 @@ export const AP_CREDIT_MEMO_FIELD_ERROR_TEXT: Record<APCreditMemoMandatoryField,
   returnReason: "Return Reason is required.",
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",
-  warehouseCode: "Warehouse is required.",
 };
 
 export const AP_CREDIT_MEMO_FIELD_LABEL_TEXT: Record<APCreditMemoMandatoryField, string> = {
   returnReason: "Return Reason",
   vendorCode: "Vendor Code",
   vendorName: "Vendor Name",
-  warehouseCode: "Warehouse",
 };
 
 export const getTodayISO = () => new Date().toISOString().slice(0, 10);

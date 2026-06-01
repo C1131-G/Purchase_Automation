@@ -79,6 +79,18 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
         ? Number(line.UoMEntry ?? line.uomEntry)
         : undefined,
     WarehouseCode: String(line.WarehouseCode ?? line.warehouseCode ?? ""),
+    ReqDate: String(
+      line.ReqDate ?? line.reqDate ?? line.RequiredDate ?? line.requiredDate ?? line.PQTReqDate ??
+        line.pqtReqDate ?? "",
+    )
+      .trim()
+      .slice(0, 10),
+    RequiredDate: String(
+      line.ReqDate ?? line.reqDate ?? line.RequiredDate ?? line.requiredDate ?? line.PQTReqDate ??
+        line.pqtReqDate ?? "",
+    )
+      .trim()
+      .slice(0, 10),
     LineNum: Number(line.LineNum ?? line.lineNum ?? 0) || 0,
     RemainingOpenQuantity: Number(
       line.RemainingOpenQuantity ??

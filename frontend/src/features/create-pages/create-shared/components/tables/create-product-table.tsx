@@ -33,6 +33,7 @@ interface CreateProductTableProps {
   showReturnReason?: boolean;
   nativeReturnReason?: boolean;
   showTaxCode?: boolean;
+  warehouseErrors?: Record<string, string> | undefined;
 }
 
 export function CreateProductTable({
@@ -58,6 +59,7 @@ export function CreateProductTable({
   nativeReturnReason = false,
   showTaxCode = false,
   linkedRow = false,
+  warehouseErrors,
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
@@ -122,6 +124,7 @@ export function CreateProductTable({
               showReturnReason={showReturnReason}
               nativeReturnReason={nativeReturnReason}
               showTaxCode={showTaxCode}
+              warehouseError={warehouseErrors?.[row.id]}
             />
           ))}
         </tbody>

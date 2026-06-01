@@ -26,7 +26,7 @@ interface GRPOCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
-  sourceDocType?: "PurchaseOrder" | undefined;
+  sourceDocType?: "PurchaseOrder" | "PurchaseQuotation" | undefined;
 }
 
 /**
@@ -70,7 +70,7 @@ export function GRPOCreate({
   const handleCopyFromSelect = (
     selected: {
       docNum: string;
-      docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice";
+      docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
     }[],
   ) => {
     if (selected.length === 0) {
@@ -101,7 +101,7 @@ export function GRPOCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            sourceDocTypes={["PurchaseOrder"]}
+            sourceDocTypes={["PurchaseOrder", "PurchaseQuotation"]}
             onSelectSource={() => setCopyFromDialogOpen(true)}
           />
         ) : null
@@ -280,6 +280,7 @@ export function GRPOCreate({
             />
           ) : null
         }
+        warehouseErrors={state.warehouseErrors}
       />
 
       <GRPOModals state={state} />

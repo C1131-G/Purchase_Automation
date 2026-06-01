@@ -38,8 +38,9 @@ import { resolveProductTaxRates } from "@/features/create-pages/create-shared/ut
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import type { CreateAPInvoiceInput } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
-import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
-import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
+import { grpoKeys, grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
+import { purchaseOrderKeys, purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
+import { purchaseQuotationKeys, purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import {
   useAPInvoiceHeader,
   useAPInvoiceLines,
@@ -88,7 +89,7 @@ interface UseAPInvoiceCreateOptions {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
-  sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | undefined;
+  sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | undefined;
   onCreateSuccess?: () => void;
 }
 
@@ -141,6 +142,7 @@ export function useAPInvoiceCreate({
   const header = useAPInvoiceHeader();
   const setHeader = useSetAPInvoiceHeaderAction();
   const rows = useAPInvoiceLines();
+  const filteredRows = useMemo(() => rows.filter((r) => r.quantity > 0), [rows]);
   const setLines = useSetAPInvoiceLinesAction();
   const resetAPInvoiceCreate = useResetAPInvoiceCreateAction();
   const createMutation = useCreateAPInvoice();
@@ -180,6 +182,7 @@ export function useAPInvoiceCreate({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [stockPreviewProduct, setStockPreviewProduct] = useState<StockPreviewProduct | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<APInvoiceFieldErrors>(
     EMPTY_AP_INVOICE_FIELD_ERRORS,
   );
@@ -198,6 +201,18 @@ export function useAPInvoiceCreate({
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }, []);
+
+  const warehouseErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!submitAttempted) return errors;
+
+    filteredRows.forEach((row) => {
+      if (!row.warehouseCode.trim()) {
+        errors[row.id] = "Warehouse is required.";
+      }
+    });
+    return errors;
+  }, [submitAttempted, filteredRows]);
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
@@ -440,6 +455,10 @@ export function useAPInvoiceCreate({
             const res = await queryClient.fetchQuery(grpoQueries.detailByDocNum(num));
             return res.data;
           }
+          if (currentSourceDocType === "PurchaseQuotation") {
+            const res = await queryClient.fetchQuery(purchaseQuotationQueries.detailByDocNum(num));
+            return res.data;
+          }
           const res = await queryClient.fetchQuery(purchaseOrderQueries.detailByDocNum(num));
           return res.data;
         }),
@@ -489,7 +508,12 @@ export function useAPInvoiceCreate({
       const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
 
       const allDetailLines = details.flatMap((d) => d.DocumentLines ?? []);
-      const baseType = currentSourceDocType === "GoodsReceiptPO" ? 20 : 22;
+      const baseType =
+        currentSourceDocType === "GoodsReceiptPO"
+          ? 20
+          : currentSourceDocType === "PurchaseQuotation"
+            ? 540000006
+            : 22;
       const currency = String(primaryDetail.DocCurr ?? "").trim();
 
       const taxRateByItemCode = await resolveProductTaxRates(
@@ -555,8 +579,15 @@ export function useAPInvoiceCreate({
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
       setWarehouseInput(warehouseCode);
-      setBillToAddress(String(primaryDetail.Address ?? "").trim());
-      setShipToAddress(String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim());
+      setBillToAddress(
+        String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
+      );
+      setShipToAddress(
+        String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim() ||
+          matchedVendor?.shipToAddress ||
+          matchedVendor?.billToAddress ||
+          "",
+      );
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -955,6 +986,7 @@ export function useAPInvoiceCreate({
   };
 
   const handleCreateAPInvoice = async () => {
+    setSubmitAttempted(true);
     if (!isEditMode) {
       const missing = AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
         if (field === "vendorName") {
@@ -981,7 +1013,6 @@ export function useAPInvoiceCreate({
       }
     }
 
-    const filteredRows = rows.filter((r) => r.quantity > 0);
     if (filteredRows.length === 0) {
       setCreateError("Set at least one line quantity greater than 0.");
       return;
@@ -990,8 +1021,6 @@ export function useAPInvoiceCreate({
     // Validate warehouse is selected for all lines
     const linesMissingWarehouse = filteredRows.filter((row) => !row.warehouseCode.trim());
     if (linesMissingWarehouse.length > 0) {
-      const missingItemCodes = linesMissingWarehouse.map((row) => row.productCode || "<unknown>");
-      setCreateError(`Warehouse is required for: ${missingItemCodes.join(", ")}`);
       return;
     }
 
@@ -1163,38 +1192,42 @@ export function useAPInvoiceCreate({
         hydratedDocNumRef.current = null;
         setHydratedDocNum(null);
 
-        // Invalidate PO and GRPO queries so source docs show updated quantities after AP Invoice save
-        void queryClient.invalidateQueries({
-          queryKey: purchaseOrderQueries.list({ limit: 10, page: 1 }).queryKey,
-        });
-        void queryClient.invalidateQueries({
-          queryKey: grpoQueries.list({ limit: 10, page: 1 }).queryKey,
-        });
-
-        // Invalidate specific PO detail queries if source was PO
-        if (sourceDocNum && sourceDocType === "PurchaseOrder") {
-          sourceDocNum.split(",").forEach((num) => {
-            const trimmed = num.trim();
-            if (trimmed) {
-              void queryClient.invalidateQueries({
-                queryKey: purchaseOrderQueries.detailByDocNum(trimmed).queryKey,
-              });
-            }
-          });
+        // Invalidate the specific source document detail queries used by copy-from hydration
+        // so the next AP Invoice copy reads fresh OpenQty / status from the backend
+        if (sourceDocNum) {
+          if (sourceDocType === "PurchaseOrder") {
+            sourceDocNum.split(",").forEach((num) => {
+              const trimmed = num.trim();
+              if (trimmed) {
+                void queryClient.invalidateQueries({
+                  queryKey: purchaseOrderQueries.detailByDocNum(trimmed).queryKey,
+                });
+              }
+            });
+            void queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
+          } else if (sourceDocType === "GoodsReceiptPO") {
+            sourceDocNum.split(",").forEach((num) => {
+              const trimmed = num.trim();
+              if (trimmed) {
+                void queryClient.invalidateQueries({
+                  queryKey: grpoQueries.detailByDocNum(trimmed).queryKey,
+                });
+              }
+            });
+            void queryClient.invalidateQueries({ queryKey: grpoKeys.all });
+          } else if (sourceDocType === "PurchaseQuotation") {
+            sourceDocNum.split(",").forEach((num) => {
+              const trimmed = num.trim();
+              if (trimmed) {
+                void queryClient.invalidateQueries({
+                  queryKey: purchaseQuotationQueries.detailByDocNum(trimmed).queryKey,
+                });
+              }
+            });
+            void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
+          }
         }
-
-        // Invalidate specific GRPO detail queries if source was GRPO
-        if (sourceDocNum && sourceDocType === "GoodsReceiptPO") {
-          sourceDocNum.split(",").forEach((num) => {
-            const trimmed = num.trim();
-            if (trimmed) {
-              void queryClient.invalidateQueries({
-                queryKey: grpoQueries.detailByDocNum(trimmed).queryKey,
-              });
-            }
-          });
-        }
-      }
+      setSubmitAttempted(false);
 
       // Scroll to top after successful save
       window.scrollTo({ behavior: "smooth", top: 0 });
@@ -1393,6 +1426,8 @@ export function useAPInvoiceCreate({
     requiredFieldsTotal: AP_INVOICE_MANDATORY_FIELDS.length,
     requiredFieldLabelText: AP_INVOICE_FIELD_LABEL_TEXT,
     handleCreateOrder: handleCreateAPInvoice,
+    submitAttempted,
+    warehouseErrors,
 
     setDocDate: (val: string) => setHeader({ docDate: val }),
     setDocDueDate: (val: string) =>

@@ -17,11 +17,13 @@ type SourceDocType =
   | "PurchaseOrder"
   | "GoodsReceiptPO"
   | "APInvoice"
+  | "PurchaseQuotation"
   | "SalesQuotation"
   | "SalesOrder"
   | "ARInvoice";
 
 type TargetType =
+  | "PO"
   | "GRPO"
   | "AP Invoice"
   | "AP Credit Memo"
@@ -38,6 +40,7 @@ interface CopyToDropdownProps {
 
 const targetIcon = (target: string) => {
   switch (target) {
+    case "PO":
     case "GRPO":
     case "Sales Order": {
       return <Truck className="h-4 w-4" />;
@@ -58,13 +61,24 @@ const targetIcon = (target: string) => {
 
 const targetMeta = (target: string, sourceDocType: string) => {
   switch (target) {
+    case "PO": {
+      return "Create Purchase Order from this Quotation";
+    }
     case "GRPO": {
-      return "Create GRPO from this PO";
+      return sourceDocType === "PurchaseOrder"
+        ? "Create GRPO from this PO"
+        : sourceDocType === "PurchaseQuotation"
+          ? "Create GRPO from this Quotation"
+          : "Create GRPO from this document";
     }
     case "AP Invoice": {
       return sourceDocType === "PurchaseOrder"
         ? "Create A/P Invoice from this PO"
-        : "Create A/P Invoice from this GRPO";
+        : sourceDocType === "GoodsReceiptPO"
+          ? "Create A/P Invoice from this GRPO"
+          : sourceDocType === "PurchaseQuotation"
+            ? "Create A/P Invoice from this Quotation"
+            : "Create A/P Invoice from this document";
     }
     case "AP Credit Memo": {
       return "Create A/P Credit Memo from this invoice";
@@ -244,17 +258,19 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
     label: target,
     meta: targetMeta(target, sourceDocType),
     to:
-      target === "GRPO"
-        ? "/purchase/create-grpo"
-        : target === "AP Invoice"
-          ? "/purchase/create-ap-invoice"
-          : target === "AP Credit Memo"
-            ? "/purchase/create-ap-credit-memo"
-            : target === "Sales Order"
-              ? "/sales/create-order"
-              : target === "A/R Invoice"
-                ? "/sales/create-ar-invoice"
-                : "/sales/ar-credit-memo/create",
+      target === "PO"
+        ? "/purchase/create-order"
+        : target === "GRPO"
+          ? "/purchase/create-grpo"
+          : target === "AP Invoice"
+            ? "/purchase/create-ap-invoice"
+            : target === "AP Credit Memo"
+              ? "/purchase/create-ap-credit-memo"
+              : target === "Sales Order"
+                ? "/sales/create-order"
+                : target === "A/R Invoice"
+                  ? "/sales/create-ar-invoice"
+                  : "/sales/ar-credit-memo/create",
   }));
 
   return (

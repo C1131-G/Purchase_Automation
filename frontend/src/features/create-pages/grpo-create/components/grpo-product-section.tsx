@@ -46,6 +46,7 @@ interface GRPOProductSectionProps {
   onEditRestrictedClick?: (fieldName: string) => void;
   secondaryActions?: ReactNode;
   headerDiscountPercent?: number;
+  warehouseErrors?: Record<string, string>;
 }
 
 /**
@@ -79,6 +80,7 @@ export function GRPOProductSection({
   onEditRestrictedClick,
   secondaryActions,
   headerDiscountPercent = 0,
+  warehouseErrors,
 }: GRPOProductSectionProps) {
   const totals = calculateOrderTotals(rows, { headerDiscountPercent });
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null;
@@ -147,6 +149,7 @@ export function GRPOProductSection({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
+          warehouseErrors={warehouseErrors}
         />
       </div>
     </BaseProductSection>

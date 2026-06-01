@@ -1,4 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
+import { useState } from "react";
 import type { MouseEvent } from "react";
 
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
@@ -6,8 +8,10 @@ import { DocumentDatesGrid } from "@/features/create-pages/create-shared/compone
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
+import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import { CopyFromDialog } from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
 import {
   parseISODate,
   toDisplayDate,
@@ -21,6 +25,8 @@ import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api
 interface PurchaseOrderCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
+  sourceDocNum?: string | undefined;
+  sourceDocType?: "PurchaseQuotation" | undefined;
 }
 
 /**
@@ -28,25 +34,62 @@ interface PurchaseOrderCreateProps {
  * State is centralized in usePurchaseOrderCreate to keep the UI declarative and clean.
  * Leverages CreatePageWrapper for consistent entity layout.
  */
-export function PurchaseOrderCreate({ mode = "create", docNum }: PurchaseOrderCreateProps) {
+export function PurchaseOrderCreate({
+  mode = "create",
+  docNum,
+  sourceDocNum,
+  sourceDocType,
+}: PurchaseOrderCreateProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
+
   const state = usePurchaseOrderCreate(
     docNum
       ? {
           docNum,
           mode,
         }
-      : { mode },
+      : {
+          mode,
+          sourceDocNum,
+          sourceDocType,
+          onCreateSuccess: () => {
+            router.navigate({
+              replace: true,
+              search: {},
+              to: "/purchase/create-order",
+            });
+          },
+        },
   );
+
+  const handleCopyFromSelect = (
+    selected: {
+      docNum: string;
+      docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
+    }[],
+  ) => {
+    if (selected.length === 0) {
+      return;
+    }
+    const docNums = selected.map((s) => s.docNum).join(",");
+    const { docType } = selected[0]!;
+    router.navigate({
+      to: "/purchase/create-order",
+      search: { sourceDocNum: docNums, sourceDocType: docType as "PurchaseQuotation" },
+    });
+  };
 
   const pageTitle = state.isEditMode
     ? `Update Purchase Order ${docNum || ""}`
     : "Create Purchase Order";
   const isFormHydrating = !state.isEditMode
-    ? state.vendorsQuery.isLoading &&
-      state.warehousesQuery.isLoading &&
-      state.salesEmployeesQuery.isLoading &&
-      !state.vendorsQuery.data
+    ? (state.vendorsQuery.isLoading &&
+        state.warehousesQuery.isLoading &&
+        state.salesEmployeesQuery.isLoading &&
+        !state.vendorsQuery.data) ||
+      state.isSourceHydrating
     : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleVendorRestrictedClick = state.isEditMode
@@ -74,7 +117,25 @@ export function PurchaseOrderCreate({ mode = "create", docNum }: PurchaseOrderCr
             : "Unable to load purchase order for editing."
           : null
       }
+      topActions={
+        !state.isEditMode ? (
+          <CopyFromDropdown
+            vendorCode={state.codeInput}
+            vendorName={state.nameInput}
+            sourceDocTypes={["PurchaseQuotation"]}
+            onSelectSource={() => setCopyFromDialogOpen(true)}
+          />
+        ) : null
+      }
     >
+      <CopyFromDialog
+        open={copyFromDialogOpen}
+        onClose={() => setCopyFromDialogOpen(false)}
+        sourceDocType="PurchaseQuotation"
+        vendorCode={state.codeInput}
+        vendorName={state.nameInput}
+        onSelectDocuments={handleCopyFromSelect}
+      />
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         <div
           onClickCapture={handleVendorRestrictedClick}
@@ -275,6 +336,7 @@ export function PurchaseOrderCreate({ mode = "create", docNum }: PurchaseOrderCr
             />
           ) : null
         }
+        warehouseErrors={state.warehouseErrors}
       />
       <PurchaseOrderModals state={state} />
     </CreatePageWrapper>

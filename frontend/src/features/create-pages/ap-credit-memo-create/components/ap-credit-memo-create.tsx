@@ -276,6 +276,7 @@ export function APCreditMemoCreate({
         onEditRestrictedClick={state.showEditRestrictedToast}
         isClosed={state.isClosed}
         headerDiscountPercent={state.headerDiscountPercent}
+        warehouseErrors={state.warehouseErrors}
       />
 
       <APCreditMemoModals state={state} />

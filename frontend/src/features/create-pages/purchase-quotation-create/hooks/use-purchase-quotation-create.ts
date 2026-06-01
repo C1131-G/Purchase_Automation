@@ -99,6 +99,14 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     };
   };
 
+  const getEffectivePurchaseQuotationDueDate = (docDueDate: string, docDate: string) => {
+    const trimmedDocDueDate = docDueDate.trim();
+    if (trimmedDocDueDate) {
+      return trimmedDocDueDate;
+    }
+    return docDate.trim();
+  };
+
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";
   const header = usePqHeader();
@@ -118,6 +126,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
@@ -176,6 +185,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     enabled: isEditMode && Boolean(editDocNum),
   });
 
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === "Closed" ||
+    editDetailQuery.data?.data?.DocStatus === "bost_Close" ||
+    editDetailQuery.data?.data?.DocStatus === "C";
+
   useEffect(() => {
     if (!isEditMode) {
       return;
@@ -227,6 +241,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
         const docDate = String(detail.DocDate ?? "").slice(0, 10);
         const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
+        const effectiveDocDueDate = getEffectivePurchaseQuotationDueDate(docDueDate, docDate);
         const address = String(detail.Address ?? "").trim();
 
         const detailLines = detail.DocumentLines ?? [];
@@ -275,6 +290,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
             line: line as Record<string, unknown>,
           });
+          const requiredDate = String(line.ReqDate ?? line.RequiredDate ?? effectiveDocDueDate)
+            .trim()
+            .slice(0, 10);
           return {
             id: `row-${currentDocNum}-${index}`,
             lineNum: typeof line.LineNum === "number" ? line.LineNum : index,
@@ -300,6 +318,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             discountAmount,
             comment: "",
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
+            requiredDate,
             selected: false,
           };
         });
@@ -539,9 +558,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(", ")}.`
       : !hasValidRowsForCreate
         ? `Add at least one product row before ${isEditMode ? "updating" : "creating"} Purchase Quotation.`
-        : hasRowsWithoutWarehouse
-          ? "Warehouse must be selected for all product rows."
-          : null;
+        : null;
 
   const requiredCompletionPercent =
     ((PURCHASE_QUOTATION_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
@@ -550,22 +567,32 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
   const requiredFieldsErrorText = `Fill required fields before ${isEditMode ? "updating" : "creating"} Purchase Quotation.`;
   const rowsErrorText = `Add at least one product row before ${isEditMode ? "updating" : "creating"} Purchase Quotation.`;
-  const warehouseErrorText = "Warehouse must be selected for all product rows.";
 
   const visibleCreateError =
     createError === requiredFieldsErrorText && !createDisabledReason
       ? null
       : createError === rowsErrorText && hasValidRowsForCreate
         ? null
-        : createError === warehouseErrorText && !hasRowsWithoutWarehouse
-          ? null
-          : createError;
+        : createError;
+
+  const warehouseErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!submitAttempted) return errors;
+
+    productsHook.productRows.forEach((row) => {
+      if (row.productCode.trim() && (!row.warehouseCode || !row.warehouseCode.trim())) {
+        errors[row.id] = "Warehouse is required.";
+      }
+    });
+    return errors;
+  }, [submitAttempted, productsHook.productRows]);
 
   function handleCreateOrderAction() {
     void handleCreateOrder();
   }
 
   const handleCreateOrder = async () => {
+    setSubmitAttempted(true);
     const nextErrors: ProductSearchFieldError = {
       ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
     };
@@ -589,8 +616,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     }
 
     if (hasRowsWithoutWarehouse) {
-      setCreateError(warehouseErrorText);
-      goeyToast.error(warehouseErrorText, { id: "warehouse-missing-error" });
       return;
     }
 
@@ -608,9 +633,14 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           Comments: existingCommentText.trim() || undefined,
           NumAtCard: existingReferenceNo.trim() || undefined,
           DocDate: String(detail.DocDate ?? "").slice(0, 10),
-          DocDueDate:
-            String(detail.DocDueDate ?? "").slice(0, 10) ||
+          DocDueDate: getEffectivePurchaseQuotationDueDate(
+            String(detail.DocDueDate ?? "").slice(0, 10),
             String(detail.DocDate ?? "").slice(0, 10),
+          ),
+          RequriedDate: getEffectivePurchaseQuotationDueDate(
+            String(detail.DocDueDate ?? "").slice(0, 10),
+            String(detail.DocDate ?? "").slice(0, 10),
+          ),
           DocumentLines: (detail.DocumentLines ?? [])
             .filter((line) => Number(line.Quantity ?? 0) > 0)
             .map((line) => {
@@ -626,6 +656,16 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
                 DiscountPercent: discountPercent,
                 ItemCode: String(line.ItemCode ?? "").trim(),
                 LineNum: typeof line.LineNum === "number" ? line.LineNum : undefined,
+                ReqDate: String(
+                  line.ReqDate ??
+                    line.RequiredDate ??
+                    getEffectivePurchaseQuotationDueDate(
+                      String(detail.DocDueDate ?? "").slice(0, 10),
+                      String(detail.DocDate ?? "").slice(0, 10),
+                    ),
+                )
+                  .trim()
+                  .slice(0, 10),
                 Quantity: quantity,
                 UnitPrice: unitPrice,
                 UoMCode: String(line.UoMCode ?? "").trim() || undefined,
@@ -648,11 +688,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
-          DocDueDate: header.docDueDate || header.docDate,
+          DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+          RequriedDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
           DocumentLines: validRows.map((row) => ({
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
             LineNum: row.lineNum,
+            ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
             Quantity: row.quantity,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
@@ -680,11 +722,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
-          DocDueDate: header.docDueDate || header.docDate,
+          DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+          RequriedDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
           DocumentLines: validRows.map((row) => ({
             LineNum: row.lineNum,
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
+            ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
             Quantity: row.quantity,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
@@ -694,17 +738,18 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
-      : {
+        : {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
-          DocDueDate: header.docDueDate || header.docDate,
+          DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
           DocumentLines: validRows.map((row) => ({
             LineNum: row.lineNum,
             DiscountPercent: row.discountPercent,
             ItemCode: row.productCode,
+            ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
             Quantity: row.quantity,
             UnitPrice: row.price,
             UoMCode: row.uomCode || undefined,
@@ -753,10 +798,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           void queryClient.prefetchQuery(purchaseQuotationQueries.detailByDocNum(currentDocNum));
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
+        setSubmitAttempted(false);
         return;
       }
 
       resetPQCreate();
+      setSubmitAttempted(false);
       lookups.setNameInput("");
       lookups.setCodeInput("");
       lookups.setWarehouseInput("");
@@ -830,6 +877,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       }),
     createDisabledReason,
     createError: visibleCreateError,
+    submitAttempted,
+    warehouseErrors,
     createPurchaseQuotationMutation: submitPurchaseQuotationMutation,
     deliveryDateContainerRef,
     docDateContainerRef,
@@ -837,6 +886,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     handleCreateOrder: handleCreateOrderAction,
     handleLookupModalSearchSync,
     header,
+    isClosed,
     isEditHydrated,
     isEditMode,
     missingMandatoryFields,

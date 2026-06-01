@@ -86,6 +86,10 @@ const PurchaseQuotationLineItemSchema = z.object({
   DiscountPercent: z.number().optional(),
   ItemCode: z.string().min(1),
   Quantity: z.number().positive(),
+  ReqDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
   UnitPrice: z.number().nonnegative().optional(),
   UoMCode: z.union([z.string(), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
@@ -108,6 +112,10 @@ export const CreatePurchaseQuotationInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
+  RequriedDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
   DocumentLines: z.array(PurchaseQuotationLineItemSchema).min(1),
   SalesPersonCode: z.coerce.number().int().optional(),
 });
@@ -123,6 +131,10 @@ export const UpdatePurchaseQuotationInputSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
     DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    RequriedDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),

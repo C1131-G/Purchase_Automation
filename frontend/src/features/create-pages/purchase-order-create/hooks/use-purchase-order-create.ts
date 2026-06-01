@@ -41,11 +41,16 @@ import {
 } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
 import type { PurchaseOrderDetailLine } from "@/features/table-pages/purchase-orders/api/purchase-order.service";
 import {
+  purchaseQuotationKeys,
+  purchaseQuotationQueries,
+} from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
+import {
   usePOHeader,
   useResetPOCreateAction,
   useSetPOHeaderAction,
 } from "@/store/create/po-create.store";
 
+import { generateSingleSourceReference } from "../../create-shared/utils/auto-reference";
 import { usePoLookups } from "./use-po-lookups";
 import { usePoModals } from "./use-po-modals";
 import { usePoProducts } from "./use-po-products";
@@ -55,10 +60,15 @@ type PurchaseOrderCreateMode = "create" | "edit";
 interface UsePurchaseOrderCreateOptions {
   mode?: PurchaseOrderCreateMode;
   docNum?: string;
+  sourceDocNum?: string | undefined;
+  sourceDocType?: "PurchaseQuotation" | undefined;
   onCreateSuccess?: () => void;
 }
 
 export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) {
+  const sourceDocNum = options?.sourceDocNum;
+  const sourceDocType = options?.sourceDocType;
+  const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false);
   const normalizeCodeForCompare = (value: unknown) => {
     const raw = String(value ?? "").trim();
     if (!raw) {
@@ -115,6 +125,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
@@ -331,6 +342,192 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     isEditMode,
     lookups,
     editDocNum,
+    productsHook,
+    setHeader,
+  ]);
+
+  // Copy-From Hydration (Purchase Quotation as source)
+  useEffect(() => {
+    if (isEditMode) {
+      return;
+    }
+    if (!sourceDocNum || !sourceDocType || sourceDocType !== "PurchaseQuotation") {
+      return;
+    }
+    const sourceDocNums = sourceDocNum
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sourceDocNums.length === 0) {
+      return;
+    }
+    const isMetadataLoaded = lookups.vendors.length > 0 && lookups.salesEmployees.length > 0;
+    const hydrationKey = `${sourceDocType}-${sourceDocNum}`;
+    if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) {
+      return;
+    }
+
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("Purchase Order", "create");
+    }
+
+    const fetchAllSources = async () => {
+      try {
+        const details = await Promise.all(
+          sourceDocNums.map(async (num) => {
+            const res = await queryClient.fetchQuery(purchaseQuotationQueries.detailByDocNum(num));
+            return res.data;
+          }),
+        );
+
+        const primaryDetail = details[0]!;
+        const vendorCode = String(primaryDetail.CardCode ?? "").trim();
+        const vendorName = String(primaryDetail.CardName ?? "").trim();
+        const matchedVendor = lookups.vendors.find((v) => String(v.code).trim() === vendorCode);
+        const warehouseCode = String(primaryDetail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const matchedWarehouse = lookups.warehouses.find(
+          (w) => String(w.code).trim() === warehouseCode,
+        );
+
+        const buyerFromDocCode =
+          primaryDetail.SalesPersonCode !== undefined && primaryDetail.SalesPersonCode !== null
+            ? lookups.salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(primaryDetail.SalesPersonCode),
+              )?.name
+            : "";
+        const buyerName = buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "";
+
+        const sourceComments = String(primaryDetail.Comments ?? "").trim();
+        const refs = sourceDocNums.map((num) => generateSingleSourceReference(sourceDocType, num));
+        const autoReference = refs.length === 1 ? refs[0]! : refs.join("\n");
+        const commentLines = sourceComments
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+        const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line));
+        const userRemarks = commentLines
+          .filter((line) => !/^based on /i.test(line))
+          .join("\n")
+          .trim();
+        const remarksParts = [refLinesFromComments.join("\n"), autoReference, userRemarks]
+          .filter(Boolean)
+          .join("\n")
+          .trim();
+
+        const sourceNumAtCard = String(
+          (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
+        ).trim();
+        const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
+        const resolvedHeaderDiscountPercent = Number(
+          (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
+
+        const baseType = 540000006;
+        let lineIndex = 0;
+        const mappedRows = details.flatMap((detail, docIdx) => {
+          const detailLines = detail.DocumentLines ?? [];
+          return detailLines.map((line: PurchaseOrderDetailLine) => {
+            const idx = lineIndex++;
+            const itemCode = String(line.ItemCode ?? "").trim();
+            const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
+            const openQty = Number(
+              (line as { OpenQty?: number }).OpenQty ??
+                (line as { RemainingOpenQuantity?: number }).RemainingOpenQuantity ??
+                line.Quantity ??
+                1,
+            );
+            const quantity = openQty;
+            const price = Number(line.Price ?? line.UnitPrice ?? 0);
+            const grossAmount = Math.max(0, price * quantity);
+            const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+              grossAmount,
+              headerDiscountPercent: resolvedHeaderDiscountPercent,
+              line: line as unknown as Record<string, unknown>,
+            });
+            const sapVatPrcnt = Number(line.VatPrcnt ?? 0);
+
+            return {
+              baseEntry: detail.DocEntry ?? (detail as { id?: number }).id,
+              baseLine: line.LineNum ?? idx,
+              baseQuantity: quantity,
+              baseType,
+              comment: "",
+              currency: String(primaryDetail.DocCurr ?? ""),
+              discountAmount,
+              discountPercent,
+              id: `row-copy-${sourceDocNums[docIdx] ?? "unknown"}-${idx}`,
+              lineNum: typeof line.LineNum === "number" ? line.LineNum : idx,
+              openQty,
+              price,
+              productCode: itemCode,
+              productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
+              quantity,
+              selected: false,
+              stock: 0,
+              taxRate: sapVatPrcnt > 0 ? sapVatPrcnt : 0,
+              uomCode: String(line.UoMCode ?? "").trim(),
+              uomEntry:
+                typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
+                  ? line.UoMEntry
+                  : undefined,
+              vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
+              warehouseCode: lineWarehouseCode,
+            };
+          });
+        });
+
+        setHeader({
+          comments: remarksParts,
+          docDate: header.docDate,
+          docDueDate,
+          referenceNo: sourceNumAtCard,
+          vendorCode,
+          vendorName,
+          warehouseCode: matchedWarehouse?.code ?? warehouseCode,
+        });
+        lookups.setNameInput(vendorName);
+        lookups.setCodeInput(vendorCode);
+        lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+        lookups.setSalesEmployeeInput(buyerName);
+        lookups.setBillToAddress(
+          String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
+        );
+        lookups.setShipToAddress(
+          String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim() ||
+            matchedVendor?.shipToAddress ||
+            matchedVendor?.billToAddress ||
+            "",
+        );
+        productsHook.setProductRows(mappedRows);
+        productsHook.setProductRowDrafts({});
+
+        if (isMetadataLoaded) {
+          hydratedDocNumRef.current = hydrationKey;
+        }
+        setSourceHydrationComplete(true);
+      } catch (error) {
+        goeyToast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to load Purchase Quotation for copying. Try again.",
+          { id: "copy-from-fetch-error-toast" },
+        );
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
+      }
+    };
+
+    void fetchAllSources();
+  }, [
+    isEditMode,
+    sourceDocNum,
+    sourceDocType,
+    queryClient,
+    lookups,
+    header.docDate,
     productsHook,
     setHeader,
   ]);
@@ -552,7 +749,20 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         ? null
         : createError;
 
+  const warehouseErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!submitAttempted) return errors;
+
+    productsHook.productRows.forEach((row) => {
+      if (row.productCode.trim() && !row.warehouseCode.trim()) {
+        errors[row.id] = "Warehouse is required.";
+      }
+    });
+    return errors;
+  }, [submitAttempted, productsHook.productRows]);
+
   const handleCreateOrder = async () => {
+    setSubmitAttempted(true);
     if (!isEditMode) {
       const nextErrors: ProductSearchFieldError = {
         ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
@@ -579,8 +789,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     // Validate warehouse is selected for all lines
     const linesMissingWarehouse = validRows.filter((row) => !row.warehouseCode.trim());
     if (linesMissingWarehouse.length > 0) {
-      const missingItemCodes = linesMissingWarehouse.map((row) => row.productCode || "<unknown>");
-      setCreateError(`Warehouse is required for: ${missingItemCodes.join(", ")}`);
       return;
     }
 
@@ -651,6 +859,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
             WarehouseCode: row.warehouseCode || undefined,
+            BaseType: typeof row.baseType === "number" ? row.baseType : undefined,
+            BaseEntry: typeof row.baseEntry === "number" ? row.baseEntry : undefined,
+            BaseLine: typeof row.baseLine === "number" ? row.baseLine : undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
@@ -684,6 +895,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
             WarehouseCode: row.warehouseCode || undefined,
+            BaseType: typeof row.baseType === "number" ? row.baseType : undefined,
+            BaseEntry: typeof row.baseEntry === "number" ? row.baseEntry : undefined,
+            BaseLine: typeof row.baseLine === "number" ? row.baseLine : undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
@@ -695,17 +909,63 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
           NumAtCard: header.referenceNo.trim() || undefined,
-          DocumentLines: validRows.map((row) => ({
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            LineNum: row.lineNum,
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
-          })),
+          DocumentLines: (() => {
+            const lines: Record<string, unknown>[] = [];
+            for (const row of validRows) {
+              const hasCompleteBaseLink =
+                Number.isFinite(row.baseEntry) &&
+                Number.isFinite(row.baseLine) &&
+                Number.isFinite(row.baseType);
+
+              if (!hasCompleteBaseLink) {
+                lines.push({
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: row.quantity,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                });
+                continue;
+              }
+
+              const baseQty = row.baseQuantity ?? 0;
+              const linkedQty = Math.min(row.quantity, baseQty);
+
+              if (linkedQty > 0) {
+                lines.push({
+                  BaseEntry: row.baseEntry,
+                  BaseLine: row.baseLine,
+                  BaseType: row.baseType,
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: linkedQty,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                });
+              }
+
+              const excessQty = row.quantity - baseQty;
+              if (excessQty > 0) {
+                lines.push({
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: excessQty,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                });
+              }
+            }
+            return lines;
+          })(),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
 
@@ -741,16 +1001,31 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         queryClient.prefetchQuery(purchaseOrderQueries.docNumSuggestions(undefined, 100)),
       ]);
 
+      // Invalidate specific PurchaseQuotation detail and list queries used by copy-from hydration
+      if (sourceDocNum && sourceDocType === "PurchaseQuotation") {
+        sourceDocNum.split(",").forEach((num) => {
+          const trimmed = num.trim();
+          if (trimmed) {
+            void queryClient.invalidateQueries({
+              queryKey: purchaseQuotationQueries.detailByDocNum(trimmed).queryKey,
+            });
+          }
+        });
+        void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
+      }
+
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? "").trim();
         if (currentDocNum) {
           void queryClient.prefetchQuery(purchaseOrderQueries.detailByDocNum(currentDocNum));
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
+        setSubmitAttempted(false);
         return;
       }
 
       resetPOCreate();
+      setSubmitAttempted(false);
       lookups.setNameInput("");
       lookups.setCodeInput("");
       lookups.setWarehouseInput("");
@@ -808,6 +1083,11 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   );
   const summaryCurrencyLabel = summaryCurrency === "MULTI" ? "MULTI" : summaryCurrency;
   const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum;
+  const isSourceHydrating =
+    !isEditMode &&
+    Boolean(sourceDocNum) &&
+    sourceDocType === "PurchaseQuotation" &&
+    !sourceHydrationComplete;
 
   // Derive the product code of the currently active row for seeding modal selection
   const activeRowProductCode = useMemo(() => {
@@ -836,6 +1116,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       }),
     createDisabledReason,
     createError: visibleCreateError,
+    submitAttempted,
+    warehouseErrors,
     createPurchaseOrderMutation: submitPurchaseOrderMutation,
     deliveryDateContainerRef,
     docDateContainerRef,
@@ -854,6 +1136,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       editDetailQuery.data?.data?.DocStatus === "C",
     isEditHydrated,
     isEditMode,
+    isSourceHydrating,
     missingMandatoryFields,
     missingSearchMandatoryFields,
     openPopup: openPopupWithContext,

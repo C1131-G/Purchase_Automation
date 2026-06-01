@@ -146,6 +146,7 @@ export function useAPCreditMemoCreate({
   const header = useAPCreditMemoHeader();
   const setHeader = useSetAPCreditMemoHeaderAction();
   const rows = useAPCreditMemoLines();
+  const filteredRows = useMemo(() => rows.filter((r) => r.selected && r.quantity > 0), [rows]);
   const setLines = useSetAPCreditMemoLinesAction();
   const resetAPCreditMemoCreate = useResetAPCreditMemoCreateAction();
   const createMutation = useCreateAPCreditMemo();
@@ -185,6 +186,7 @@ export function useAPCreditMemoCreate({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [stockPreviewProduct, setStockPreviewProduct] = useState<StockPreviewProduct | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<APCreditMemoFieldErrors>(
     EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS,
   );
@@ -202,6 +204,19 @@ export function useAPCreditMemoCreate({
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }, []);
+
+  const warehouseErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!submitAttempted) return errors;
+
+    filteredRows.forEach((row) => {
+      if (!row.warehouseCode.trim()) {
+        errors[row.id] = "Warehouse is required.";
+      }
+    });
+    return errors;
+  }, [submitAttempted, filteredRows]);
+
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
@@ -969,7 +984,7 @@ export function useAPCreditMemoCreate({
   };
 
   const handleCreateAPCreditMemo = async () => {
-    const filteredRows = rows.filter((r) => r.selected && r.quantity > 0);
+    setSubmitAttempted(true);
 
     if (!isEditMode) {
       const missing = AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
@@ -1001,10 +1016,9 @@ export function useAPCreditMemoCreate({
       return;
     }
 
+    // Validate warehouse is selected for all lines
     const linesMissingWarehouse = filteredRows.filter((row) => !row.warehouseCode.trim());
     if (linesMissingWarehouse.length > 0) {
-      const missingItemCodes = linesMissingWarehouse.map((row) => row.productCode || "<unknown>");
-      setCreateError(`Warehouse is required for: ${missingItemCodes.join(", ")}`);
       return;
     }
 
@@ -1156,6 +1170,7 @@ export function useAPCreditMemoCreate({
         setHydratedDocNum(null);
       }
 
+      setSubmitAttempted(false);
       window.scrollTo({ behavior: "smooth", top: 0 });
 
       if (!isEditMode) {
@@ -1308,6 +1323,8 @@ export function useAPCreditMemoCreate({
     requiredFieldLabelText: AP_CREDIT_MEMO_FIELD_LABEL_TEXT,
     requiredFieldsTotal: AP_CREDIT_MEMO_MANDATORY_FIELDS.length,
     rows,
+    submitAttempted,
+    warehouseErrors,
     salesEmployees,
     salesEmployeesQuery,
     searchMandatoryFields: useMemo(() => ["vendorName", "vendorCode"] as const, []),

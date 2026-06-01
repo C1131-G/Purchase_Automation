@@ -29,7 +29,6 @@ export const MANDATORY_ERROR_TEXT: Record<
 > = {
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",
-  docDueDate: "Delivery Date is required.",
 };
 export const REQUIRED_FIELD_LABEL_TEXT: Record<
   (typeof PURCHASE_QUOTATION_MANDATORY_FIELDS)[number],
@@ -37,7 +36,6 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
 > = {
   vendorCode: "Vendor Code",
   vendorName: "Vendor Name",
-  docDueDate: "Delivery Date",
 };
 export const QUICK_PRODUCT_LIMIT = 10;
 export const FULL_PRODUCT_LIMIT = 100;

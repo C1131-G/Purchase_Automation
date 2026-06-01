@@ -46,6 +46,7 @@ interface APInvoiceProductSectionProps {
   secondaryActions?: ReactNode;
   isClosed?: boolean;
   headerDiscountPercent?: number;
+  warehouseErrors?: Record<string, string>;
 }
 
 /**
@@ -79,6 +80,7 @@ export function APInvoiceProductSection({
   secondaryActions,
   isClosed = false,
   headerDiscountPercent = 0,
+  warehouseErrors,
 }: APInvoiceProductSectionProps) {
   const totals = calculateOrderTotals(rows, { headerDiscountPercent });
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null;
@@ -149,6 +151,7 @@ export function APInvoiceProductSection({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
+          warehouseErrors={warehouseErrors}
         />
       </div>
     </BaseProductSection>

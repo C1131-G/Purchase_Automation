@@ -41,6 +41,7 @@ export interface ProductGridRow {
   discountAmount: number;
   comment: string;
   warehouseCode: string;
+  requiredDate?: string | undefined;
   lineNum?: number | undefined;
   baseEntry?: number | undefined;
   baseLine?: number | undefined;

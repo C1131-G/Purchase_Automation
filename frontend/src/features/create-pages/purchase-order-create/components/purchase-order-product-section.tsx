@@ -37,6 +37,7 @@ interface PurchaseOrderProductSectionProps {
   isEditMode: boolean;
   isClosed: boolean;
   allowSearchInEditMode?: boolean;
+  warehouseErrors: PurchaseOrderState["warehouseErrors"];
 }
 
 /**
@@ -72,6 +73,7 @@ export function PurchaseOrderProductSection({
   isEditMode,
   isClosed,
   allowSearchInEditMode = false,
+  warehouseErrors,
 }: PurchaseOrderProductSectionProps) {
   return (
     <BaseProductSection
@@ -118,6 +120,7 @@ export function PurchaseOrderProductSection({
         warehousesLoading={warehousesLoading}
         disableLineInputs={isClosed}
         showExplicitZeroDiscount={true}
+        warehouseErrors={warehouseErrors}
       />
     </BaseProductSection>
   );

@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_layout/purchase/create-grpo")({
   pendingComponent: CreatePageRouteSkeleton,
   validateSearch: z.object({
     sourceDocNum: z.string().or(z.number()).transform(String).optional(),
-    sourceDocType: z.enum(["PurchaseOrder"]).optional(),
+    sourceDocType: z.enum(["PurchaseOrder", "PurchaseQuotation"]).optional(),
   }),
 });
 

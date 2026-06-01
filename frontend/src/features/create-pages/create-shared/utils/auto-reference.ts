@@ -12,6 +12,7 @@ const DOC_TYPE_DISPLAY_NAMES: Record<string, string> = {
   GoodsReceiptPO: "GRPO",
   OutgoingPayment: "Outgoing Payment",
   PurchaseOrder: "Purchase Order",
+  PurchaseQuotation: "Purchase Quotation",
 };
 
 /**
@@ -23,6 +24,7 @@ const DOC_TYPE_PLURALS: Record<string, string> = {
   GoodsReceiptPO: "GRPOs",
   OutgoingPayment: "Outgoing Payments",
   PurchaseOrder: "Purchase Orders",
+  PurchaseQuotation: "Purchase Quotations",
 };
 
 /**

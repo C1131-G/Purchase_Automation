@@ -15,6 +15,17 @@ import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
+const normalizeSapDateValue = (value: unknown) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "";
+  }
+  if (/^\d{8}$/.test(raw)) {
+    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  }
+  return raw.slice(0, 10);
+};
+
 // Fetches a filtered and paginated list of Purchase Quotations from the tenant-specific HANA database.
 export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuotationFilters) => {
   try {
@@ -177,6 +188,7 @@ export const getPurchaseQuotation = async (sessionId: string, id: string) => {
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
@@ -251,18 +263,22 @@ export const createPurchaseQuotation = async (
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
+      RequriedDate: (payload as Record<string, unknown>).RequriedDate ?? payload.DocDueDate ?? payload.DocDate,
       DiscountPercent: roundedHeaderDiscount,
       DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((line) => {
-        const docLine: Record<string, unknown> = {
-          ItemCode: line.ItemCode as string,
-          Quantity: line.Quantity as number,
-          UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: Number(line.DiscountPercent ?? 0),
-          UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
-          VatGroup: line.VatGroup as string,
-          WarehouseCode: line.WarehouseCode as string,
-        };
+      const docLine: Record<string, unknown> = {
+        ItemCode: line.ItemCode as string,
+        Quantity: line.Quantity as number,
+        UnitPrice: (line.UnitPrice || line.Price) as number,
+        DiscountPercent: Number(line.DiscountPercent ?? 0),
+        ReqDate: normalizeSapDateValue(
+          line.ReqDate ?? line.RequiredDate ?? line.requiredDate ?? payload.DocDueDate ?? payload.DocDate,
+        ),
+        UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
+        VatGroup: line.VatGroup as string,
+        WarehouseCode: line.WarehouseCode as string,
+      };
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
           docLine.UoMEntry = Math.trunc(uomEntry);
@@ -354,6 +370,9 @@ export const updatePurchaseQuotation = async (
     if (payload.DocDueDate !== undefined) {
       sapPayload.DocDueDate = payload.DocDueDate;
     }
+    if ((payload as Record<string, unknown>).RequriedDate !== undefined) {
+      sapPayload.RequriedDate = (payload as Record<string, unknown>).RequriedDate;
+    }
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
@@ -377,6 +396,9 @@ export const updatePurchaseQuotation = async (
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
+          ReqDate: normalizeSapDateValue(
+            line.ReqDate ?? line.RequiredDate ?? line.requiredDate ?? payload.DocDueDate ?? payload.DocDate,
+          ),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,

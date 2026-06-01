@@ -34,6 +34,10 @@ interface PurchaseQuotationProductSectionProps {
   submitLabel?: string;
   submitLoadingText?: string;
   secondaryActions?: ReactNode;
+  isEditMode: boolean;
+  isClosed: boolean;
+  allowSearchInEditMode?: boolean;
+  warehouseErrors: PurchaseQuotationState["warehouseErrors"];
 }
 
 /**
@@ -66,6 +70,10 @@ export function PurchaseQuotationProductSection({
   submitLabel = "Create",
   submitLoadingText = "Creating...",
   secondaryActions,
+  isEditMode,
+  isClosed,
+  allowSearchInEditMode = false,
+  warehouseErrors,
 }: PurchaseQuotationProductSectionProps) {
   return (
     <BaseProductSection
@@ -90,6 +98,10 @@ export function PurchaseQuotationProductSection({
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={PURCHASE_QUOTATION_MANDATORY_FIELDS.length}
+      hideSearch={isClosed}
+      isEditMode={isEditMode}
+      isReadOnly={isClosed}
+      allowSearchInEditMode={allowSearchInEditMode}
     >
       <CreateProductTable
         productRows={productRows}
@@ -108,6 +120,8 @@ export function PurchaseQuotationProductSection({
         enforceStockLimit={false}
         showTaxCode={false}
         showExplicitZeroDiscount={true}
+        disableLineInputs={isClosed}
+        warehouseErrors={warehouseErrors}
       />
     </BaseProductSection>
   );

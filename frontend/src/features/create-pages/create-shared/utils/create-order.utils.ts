@@ -43,6 +43,7 @@ const normalizeServiceLayerFieldMessage = (message: string) => {
 
   if (
     /Enter due date/i.test(compactMessage) ||
+    /Specify the required date/i.test(compactMessage) ||
     /\[(ORDR|OPOR)\.DocDueDate\]/i.test(compactMessage)
   ) {
     return "Delivery Date is required.";

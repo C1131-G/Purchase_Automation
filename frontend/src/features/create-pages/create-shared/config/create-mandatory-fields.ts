@@ -8,11 +8,7 @@ export const SALES_ORDER_MANDATORY_FIELDS = ["vendorCode", "vendorName"] as cons
 
 export const SALES_QUOTATION_MANDATORY_FIELDS = ["vendorCode", "vendorName"] as const;
 
-export const PURCHASE_QUOTATION_MANDATORY_FIELDS = [
-  "vendorCode",
-  "vendorName",
-  "docDueDate",
-] as const;
+export const PURCHASE_QUOTATION_MANDATORY_FIELDS = ["vendorCode", "vendorName"] as const;
 
 export const AR_INVOICE_MANDATORY_FIELDS = ["vendorCode", "vendorName"] as const;
 

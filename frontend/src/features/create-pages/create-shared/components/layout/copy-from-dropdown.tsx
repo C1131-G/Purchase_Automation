@@ -5,8 +5,13 @@ import { Button } from "@/components/button";
 import { Popover } from "@/components/popover";
 import { cn } from "@/shared/utils/cn";
 
-export type SourceDocType = "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "APCreditMemo";
-type SourceFamily = "PurchaseOrder" | "GoodsReceiptPO";
+export type SourceDocType =
+  | "PurchaseOrder"
+  | "GoodsReceiptPO"
+  | "APInvoice"
+  | "APCreditMemo"
+  | "PurchaseQuotation";
+type SourceFamily = "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation";
 
 interface CopyFromSourceOption {
   label: string;
@@ -43,6 +48,9 @@ const sourceIcon = (code: string) => {
     case "APCreditMemo": {
       return <FileText className="h-4 w-4" />;
     }
+    case "PurchaseQuotation": {
+      return <FileText className="h-4 w-4" />;
+    }
     default: {
       return <ClipboardList className="h-4 w-4" />;
     }
@@ -62,6 +70,9 @@ const sourceMeta = (code: string) => {
     }
     case "APCreditMemo": {
       return "Copy from A/P Credit Memo";
+    }
+    case "PurchaseQuotation": {
+      return "Copy from Purchase Quotation";
     }
     default: {
       return "";
@@ -190,7 +201,9 @@ function CopyFromDropdownInner({
                 ? "GRPO"
                 : code === "APInvoice"
                   ? "A/P Invoice"
-                  : "A/P Credit Memo",
+                  : code === "APCreditMemo"
+                    ? "A/P Credit Memo"
+                    : "Purchase Quotation",
           meta: sourceMeta(code),
         };
         if (isLocked) {

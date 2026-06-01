@@ -40,7 +40,8 @@ import {
 } from "@/features/create-pages/grpo-create/utils/grpo-create.utils";
 import type { GRPOMandatoryField } from "@/features/create-pages/grpo-create/utils/grpo-create.utils";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
-import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
+import { purchaseOrderKeys, purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
+import { purchaseQuotationKeys, purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import {
   useGRPOHeader,
   useGRPOLines,
@@ -90,7 +91,7 @@ interface UseGRPOCreateOptions {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
-  sourceDocType?: "PurchaseOrder" | undefined;
+  sourceDocType?: "PurchaseOrder" | "PurchaseQuotation" | undefined;
   onCreateSuccess?: () => void;
 }
 
@@ -185,6 +186,7 @@ export function useGRPOCreate({
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [stockPreviewProduct, setStockPreviewProduct] = useState<StockPreviewProduct | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<GRPOFieldErrors>(EMPTY_GRPO_FIELD_ERRORS);
   const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
 
@@ -520,6 +522,10 @@ export function useGRPOCreate({
     const fetchAllSources = async () => {
       const details = await Promise.all(
         sourceDocNums.map(async (num) => {
+          if (currentSourceDocType === "PurchaseQuotation") {
+            const res = await queryClient.fetchQuery(purchaseQuotationQueries.detailByDocNum(num));
+            return res.data;
+          }
           const res = await queryClient.fetchQuery(purchaseOrderQueries.detailByDocNum(num));
           return res.data;
         }),
@@ -612,6 +618,7 @@ export function useGRPOCreate({
       setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
       let lineIndex = 0;
+      const baseType = currentSourceDocType === "PurchaseQuotation" ? 540000006 : 22;
       const mappedLines = details.flatMap((detail, docIdx) => {
         const detailLines = detail.DocumentLines ?? [];
         return detailLines.map((line) => {
@@ -660,7 +667,7 @@ export function useGRPOCreate({
             warehouseCode: lineWarehouseCode,
             baseEntry: detail.DocEntry ?? detail.id,
             baseLine: line.LineNum ?? idx,
-            baseType: 22, // Purchase Order base type
+            baseType,
             selected: false,
           };
         });
@@ -673,8 +680,15 @@ export function useGRPOCreate({
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
       setWarehouseInput(warehouseCode);
-      setBillToAddress(String(primaryDetail.Address ?? "").trim());
-      setShipToAddress(String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim());
+      setBillToAddress(
+        String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
+      );
+      setShipToAddress(
+        String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim() ||
+          matchedVendor?.shipToAddress ||
+          matchedVendor?.billToAddress ||
+          "",
+      );
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
@@ -831,6 +845,18 @@ export function useGRPOCreate({
   };
 
   const filteredRows = useMemo(() => rows.filter((row) => row.quantity > 0), [rows]);
+
+  const warehouseErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!submitAttempted) return errors;
+
+    filteredRows.forEach((row) => {
+      if (!row.warehouseCode.trim()) {
+        errors[row.id] = "Warehouse is required.";
+      }
+    });
+    return errors;
+  }, [submitAttempted, filteredRows]);
 
   const selectVendor = (vendor: LookupItem) => {
     // If document has copied rows, confirm before breaking the link
@@ -1360,6 +1386,7 @@ export function useGRPOCreate({
   }, [buyerInput, salesEmployees]);
 
   const handleCreateGRPO = async () => {
+    setSubmitAttempted(true);
     if (!isEditMode && missingMandatoryFields.length > 0) {
       const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS };
       missingMandatoryFields.forEach((field) => {
@@ -1378,8 +1405,6 @@ export function useGRPOCreate({
     // Validate warehouse is selected for all lines
     const linesMissingWarehouse = filteredRows.filter((row) => !row.warehouseCode.trim());
     if (linesMissingWarehouse.length > 0) {
-      const missingItemCodes = linesMissingWarehouse.map((row) => row.productCode || "<unknown>");
-      setCreateError(`Warehouse is required for: ${missingItemCodes.join(", ")}`);
       return;
     }
 
@@ -1547,10 +1572,12 @@ export function useGRPOCreate({
           void queryClient.prefetchQuery(grpoQueries.detailByDocNum(currentDocNum));
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
+        setSubmitAttempted(false);
         return;
       }
 
       resetGRPOCreate();
+      setSubmitAttempted(false);
       setVendorNameInput("");
       setVendorCodeInput("");
       setBuyerInput("");
@@ -1573,22 +1600,30 @@ export function useGRPOCreate({
       hydratedDocNumRef.current = null;
       setHydratedDocNum(null);
 
-      // Invalidate PO queries so PO edit shows updated quantities after GRPO save
-      void queryClient.invalidateQueries({
-        queryKey: purchaseOrderQueries.list({ limit: 10, page: 1 }).queryKey,
-      });
-
-      // Invalidate the specific PO detail queries used by copy-from hydration
-      // so the next GRPO copy reads fresh OpenQty from the backend
-      if (sourceDocNum && sourceDocType === "PurchaseOrder") {
-        sourceDocNum.split(",").forEach((num) => {
-          const trimmed = num.trim();
-          if (trimmed) {
-            void queryClient.invalidateQueries({
-              queryKey: purchaseOrderQueries.detailByDocNum(trimmed).queryKey,
-            });
-          }
-        });
+      // Invalidate the specific source document detail queries used by copy-from hydration
+      // so the next GRPO copy reads fresh OpenQty / status from the backend
+      if (sourceDocNum) {
+        if (sourceDocType === "PurchaseOrder") {
+          sourceDocNum.split(",").forEach((num) => {
+            const trimmed = num.trim();
+            if (trimmed) {
+              void queryClient.invalidateQueries({
+                queryKey: purchaseOrderQueries.detailByDocNum(trimmed).queryKey,
+              });
+            }
+          });
+          void queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
+        } else if (sourceDocType === "PurchaseQuotation") {
+          sourceDocNum.split(",").forEach((num) => {
+            const trimmed = num.trim();
+            if (trimmed) {
+              void queryClient.invalidateQueries({
+                queryKey: purchaseQuotationQueries.detailByDocNum(trimmed).queryKey,
+              });
+            }
+          });
+          void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
+        }
       }
 
       void Promise.allSettled([
@@ -1722,6 +1757,8 @@ export function useGRPOCreate({
     requiredFieldsTotal,
     requiredFieldLabelText: GRPO_FIELD_LABEL_TEXT,
     handleCreateOrder: handleCreateGRPO,
+    submitAttempted,
+    warehouseErrors,
 
     setDocDate: (val: string) =>
       isEditMode ? notifyRestricted("Document Date") : setHeader({ docDate: val }),

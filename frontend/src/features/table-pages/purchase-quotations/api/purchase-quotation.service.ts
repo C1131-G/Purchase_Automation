@@ -35,6 +35,8 @@ export interface PurchaseQuotationDetailLine {
   Price?: number;
   UnitPrice?: number;
   DiscountPercent?: number;
+  ReqDate?: string;
+  RequiredDate?: string;
   UoMCode?: string | number;
   UoMEntry?: number;
   VatGroup?: string;
@@ -60,6 +62,7 @@ export interface PurchaseQuotationDetail {
   NumAtCard?: string;
   DocCurr?: string;
   DocStatus?: string;
+  DocTotal?: number | string;
   DocumentLines?: PurchaseQuotationDetailLine[];
 }
 export interface PurchaseQuotationDetailResponse {

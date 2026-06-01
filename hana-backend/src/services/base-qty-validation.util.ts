@@ -15,10 +15,12 @@ import type { SAPDocumentResponse } from "@/services/types/sap.types";
 // SAP object type constants (BaseType values used in document line references)
 const BASE_TYPE_PURCHASE_ORDER = 22;
 const BASE_TYPE_GRPO = 20;
+const BASE_TYPE_PURCHASE_QUOTATION = 540000006;
 
 const BASE_TYPE_ENDPOINT_MAP: Record<number, string> = {
   [BASE_TYPE_PURCHASE_ORDER]: "PurchaseOrders",
   [BASE_TYPE_GRPO]: "PurchaseDeliveryNotes",
+  [BASE_TYPE_PURCHASE_QUOTATION]: "PurchaseQuotations",
 };
 
 /**

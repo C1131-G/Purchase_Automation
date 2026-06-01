@@ -11,6 +11,10 @@ import { grpoAPI } from "@/features/table-pages/grpo/api/grpo.service";
 import type { PurchaseOrderDetail } from "@/features/table-pages/purchase-orders/api/purchase-order.service";
 import { purchaseOrderAPI } from "@/features/table-pages/purchase-orders/api/purchase-order.service";
 import {
+  purchaseQuotationAPI,
+  type PurchaseQuotationDetail,
+} from "@/features/table-pages/purchase-quotations/api/purchase-quotation.service";
+import {
   formatDateDisplay,
   toDateOnly,
 } from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
@@ -37,7 +41,7 @@ const isCalendarRangeSelection = (value: unknown): value is CalendarRangeSelecti
   return fromValid && toValid;
 };
 
-type SourceDocType = "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice";
+type SourceDocType = "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
 
 const VISIBLE_LINES = 6;
 
@@ -78,12 +82,14 @@ const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
   APInvoice: "AP Invoice",
   GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
+  PurchaseQuotation: "Quotation",
 };
 
 const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
   APInvoice: <FileText className="h-4 w-4" />,
   GoodsReceiptPO: <StickyNote className="h-4 w-4" />,
   PurchaseOrder: <FileText className="h-4 w-4" />,
+  PurchaseQuotation: <FileText className="h-4 w-4" />,
 };
 
 function detailCacheKey(docType: SourceDocType, docCode: string): string {
@@ -92,7 +98,7 @@ function detailCacheKey(docType: SourceDocType, docCode: string): string {
 
 function computeDetail(
   _docType: SourceDocType,
-  data: PurchaseOrderDetail | GRPODetail | APInvoiceDetail,
+  data: PurchaseOrderDetail | GRPODetail | APInvoiceDetail | PurchaseQuotationDetail,
 ): DocDetailCache {
   const lines = data.DocumentLines ?? [];
   const result: DocDetailCache = {
@@ -262,6 +268,24 @@ export function CopyFromDialog({
             params.DocDateEnd = dateRange.to;
           }
           result = await grpoAPI.getGRPOs(params);
+        } else if (sourceDocType === "PurchaseQuotation") {
+          const params: Record<string, unknown> = {
+            CardCode: vendorCode,
+            limit,
+          };
+          if (query) {
+            params.DocNum = query;
+          }
+          if (!query && isLoadMore) {
+            params.page = page;
+          }
+          if (dateRange.from) {
+            params.DocDateStart = dateRange.from;
+          }
+          if (dateRange.to) {
+            params.DocDateEnd = dateRange.to;
+          }
+          result = await purchaseQuotationAPI.getPurchaseQuotations(params);
         } else {
           const params: Record<string, unknown> = {
             CardCode: vendorCode,
@@ -404,7 +428,12 @@ export function CopyFromDialog({
     setHoverDetailLoading(true);
 
     try {
-      let data: PurchaseOrderDetail | GRPODetail | APInvoiceDetail | null = null;
+      let data:
+        | PurchaseOrderDetail
+        | GRPODetail
+        | APInvoiceDetail
+        | PurchaseQuotationDetail
+        | null = null;
       if (doc.docType === "PurchaseOrder") {
         const res = await purchaseOrderAPI.getPurchaseOrderByDocNum(doc.code);
         ({ data } = res);
@@ -413,6 +442,9 @@ export function CopyFromDialog({
           const res = await grpoAPI.getGRPOById(doc.docEntry);
           ({ data } = res);
         }
+      } else if (doc.docType === "PurchaseQuotation") {
+        const res = await purchaseQuotationAPI.getPurchaseQuotationByDocNum(doc.code);
+        ({ data } = res);
       } else {
         const res = await apInvoiceAPI.getAPInvoice(doc.code);
         ({ data } = res);

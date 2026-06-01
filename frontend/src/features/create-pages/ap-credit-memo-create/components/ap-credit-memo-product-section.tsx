@@ -46,6 +46,7 @@ interface APCreditMemoProductSectionProps {
   secondaryActions?: ReactNode;
   isClosed?: boolean;
   headerDiscountPercent?: number;
+  warehouseErrors?: Record<string, string>;
 }
 
 export function APCreditMemoProductSection({
@@ -75,6 +76,7 @@ export function APCreditMemoProductSection({
   secondaryActions,
   isClosed = false,
   headerDiscountPercent = 0,
+  warehouseErrors,
 }: APCreditMemoProductSectionProps) {
   const selectedRows = rows.filter((r) => r.selected);
   const totals = calculateOrderTotals(selectedRows, { headerDiscountPercent });
@@ -149,6 +151,7 @@ export function APCreditMemoProductSection({
           showExplicitZeroDiscount={true}
           showSelection={true}
           showReturnReason={true}
+          warehouseErrors={warehouseErrors}
         />
       </div>
     </BaseProductSection>

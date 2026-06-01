@@ -142,6 +142,7 @@ interface CreateProductTableRowProps {
   showReturnReason?: boolean;
   nativeReturnReason?: boolean;
   showTaxCode?: boolean;
+  warehouseError?: string | undefined;
 }
 
 export function CreateProductTableRow({
@@ -167,6 +168,7 @@ export function CreateProductTableRow({
   showTaxCode = false,
   maxQuantity,
   linkedRow = false,
+  warehouseError,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState("");
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState("");
@@ -480,7 +482,11 @@ export function CreateProductTableRow({
             }}
             disabled={warehousesLoading || effectiveDisableInputs}
             placeholder="Select Warehouse"
-            className={`h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs text-zinc-800 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
+            className={`h-9 w-full rounded-lg border px-2 text-xs text-zinc-800 outline-none ${
+              warehouseError
+                ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+                : "border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+            } ${
               disableInputs ? "cursor-not-allowed opacity-70" : "cursor-text"
             } ${row.warehouseCode ? "pr-[4.5rem]" : "pr-10"}`}
           />
@@ -537,6 +543,11 @@ export function CreateProductTableRow({
               </div>,
               document.body,
             )}
+          {warehouseError && (
+            <span className="absolute top-[calc(100%+1px)] left-1 text-[10px] font-semibold text-red-500 whitespace-nowrap pointer-events-none z-10">
+              {warehouseError}
+            </span>
+          )}
         </div>
 
         <ProductWarehouseStockModal
