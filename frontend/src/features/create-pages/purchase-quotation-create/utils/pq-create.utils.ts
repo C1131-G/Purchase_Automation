@@ -1,5 +1,5 @@
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
-import type { SALES_QUOTATION_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
+import { PURCHASE_QUOTATION_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
 
 export interface ProductSearchFieldError {
   vendorName: string | undefined;
@@ -24,18 +24,20 @@ export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
   warehouseCode: undefined,
 };
 export const MANDATORY_ERROR_TEXT: Record<
-  (typeof SALES_QUOTATION_MANDATORY_FIELDS)[number],
+  (typeof PURCHASE_QUOTATION_MANDATORY_FIELDS)[number],
   string
 > = {
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",
+  docDueDate: "Delivery Date is required.",
 };
 export const REQUIRED_FIELD_LABEL_TEXT: Record<
-  (typeof SALES_QUOTATION_MANDATORY_FIELDS)[number],
+  (typeof PURCHASE_QUOTATION_MANDATORY_FIELDS)[number],
   string
 > = {
   vendorCode: "Vendor Code",
   vendorName: "Vendor Name",
+  docDueDate: "Delivery Date",
 };
 export const QUICK_PRODUCT_LIMIT = 10;
 export const FULL_PRODUCT_LIMIT = 100;

@@ -1,6 +1,7 @@
 import { Calendar as CalendarIcon, CheckCircle2, Delete } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { Calendar } from "@/components/calendar/calendar";
@@ -86,6 +87,48 @@ export function PaymentModal({
   const [transferReference, setTransferReference] = useState("");
   const [transferDatePickerOpen, setTransferDatePickerOpen] = useState(false);
   const transferDateContainerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({
+    position: "fixed",
+    zIndex: 999999,
+  });
+
+  const updatePopoverPosition = () => {
+    if (!transferDateContainerRef.current) return;
+    const rect = transferDateContainerRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const calendarHeight = 310; // slightly conservative height to prevent clipping
+    const calendarWidth = 270;
+    const margin = 8;
+
+    const shouldFlip = spaceBelow < calendarHeight && rect.top > calendarHeight;
+
+    const top = shouldFlip ? rect.top - calendarHeight - margin : rect.bottom + margin;
+    const left = Math.min(rect.left, window.innerWidth - calendarWidth - 16);
+
+    setPopoverStyle({
+      position: "fixed",
+      zIndex: 999999,
+      top: `${top}px`,
+      left: `${left}px`,
+    });
+  };
+
+  useEffect(() => {
+    if (!transferDatePickerOpen) {
+      return;
+    }
+    updatePopoverPosition();
+    const handleScroll = () => updatePopoverPosition();
+    const handleResize = () => updatePopoverPosition();
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [transferDatePickerOpen]);
 
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const bankCountryFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -218,7 +261,9 @@ export function PaymentModal({
       if (
         transferDatePickerOpen &&
         transferDateContainerRef.current &&
-        !transferDateContainerRef.current.contains(e.target as Node)
+        !transferDateContainerRef.current.contains(e.target as Node) &&
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node)
       ) {
         setTransferDatePickerOpen(false);
       }
@@ -763,22 +808,28 @@ export function PaymentModal({
                           <CalendarIcon className="h-3 w-3" />
                         </div>
                       </button>
-                      {transferDatePickerOpen && (
-                        <div className="absolute left-0 top-full z-40 mt-2">
-                          <TransferCalendar
-                            mode="single"
-                            selected={parseISODate(transferDate)}
-                            maxDate={today}
-                            onSelect={(value) => {
-                              if (!(value instanceof Date)) {
-                                return;
-                              }
-                              setTransferDate(toISODate(value));
-                              setTransferDatePickerOpen(false);
-                            }}
-                          />
-                        </div>
-                      )}
+                      {transferDatePickerOpen &&
+                        createPortal(
+                          <div
+                            ref={popoverRef}
+                            style={popoverStyle}
+                            className="bg-white rounded-xl border border-zinc-200 shadow-xl p-1.5 animate-in fade-in zoom-in-95 duration-100"
+                          >
+                            <TransferCalendar
+                              mode="single"
+                              selected={parseISODate(transferDate)}
+                              maxDate={today}
+                              onSelect={(value) => {
+                                if (!(value instanceof Date)) {
+                                  return;
+                                }
+                                setTransferDate(toISODate(value));
+                                setTransferDatePickerOpen(false);
+                              }}
+                            />
+                          </div>,
+                          document.body,
+                        )}
                     </div>
                   </div>
 

@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import type { MouseEvent } from "react";
 
@@ -30,7 +31,24 @@ interface PurchaseQuotationCreateProps {
  */
 export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuotationCreateProps) {
   const queryClient = useQueryClient();
-  const state = usePurchaseQuotationCreate(docNum ? { docNum, mode } : { mode });
+  const router = useRouter();
+  const state = usePurchaseQuotationCreate(
+    docNum
+      ? {
+          docNum,
+          mode,
+        }
+      : {
+          mode,
+          onCreateSuccess: () => {
+            router.navigate({
+              replace: true,
+              search: {},
+              to: "/purchase/create-quotation",
+            });
+          },
+        },
+  );
 
   const pageTitle = state.isEditMode ? "Update Purchase Quotation" : "Create Purchase Quotation";
   const isFormHydrating = !state.isEditMode
@@ -141,6 +159,8 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
             toDisplayDate={toDisplayDate}
             parseISODate={parseISODate}
             toISODate={toISODate}
+            docDueDateInvalid={Boolean(state.productSearchFieldErrors.docDueDate)}
+            docDueDateErrorText={state.productSearchFieldErrors.docDueDate}
             onSetActiveDatePicker={state.setActiveDatePicker}
             onDocDateChange={(value) => state.setHeader({ docDate: value })}
             onDocDueDateChange={(value) => {

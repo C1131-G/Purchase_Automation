@@ -108,6 +108,33 @@ export function useAPInvoiceCreate({
   sourceDocType,
   onCreateSuccess,
 }: UseAPInvoiceCreateOptions) {
+  const parseAPInvoiceHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
   const isEditMode = mode === "edit";
   const editDocNum = (docNum ?? "").trim();
   const queryClient = useQueryClient();
@@ -189,6 +216,7 @@ export function useAPInvoiceCreate({
   const vendorsQuery = useQuery(createSharedQueries.vendors());
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const salesEmployeesQuery = useQuery(createSharedQueries.salesEmployees());
+  const financialPeriodQuery = useQuery(createSharedQueries.financialPeriod());
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
@@ -275,12 +303,7 @@ export function useAPInvoiceCreate({
       setVendorCodeInput(String(detail.CardCode ?? "").trim());
       setVendorNameInput(String(detail.CardName ?? "").trim());
       const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
-      const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? "").trim();
-      const rawComments = String(detail.Comments ?? "").trim();
-
-      // Keep the full Comments content as remarks (including any "Based on" lines).
-      // referenceNo stays as-is from NumAtCard (manual user entry only).
-      const remarks = rawComments;
+      const { comments: remarks, referenceNo } = parseAPInvoiceHeaderNotes(detail);
 
       const matchedVendor = vendors.find(
         (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
@@ -525,6 +548,9 @@ export function useAPInvoiceCreate({
         });
       });
 
+      const sourceNumAtCard = String(
+        (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
+      ).trim();
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
@@ -535,7 +561,7 @@ export function useAPInvoiceCreate({
         docDate: getTodayISO(),
         docDueDate,
         referenceAutoFilled: referenceWasAutoFilled,
-        referenceNo: "",
+        referenceNo: sourceNumAtCard,
         remarks: remarksParts,
       });
       setLines(mappedLines);
@@ -969,10 +995,60 @@ export function useAPInvoiceCreate({
       return;
     }
 
+    // Validate dates against active financial period
+    if (financialPeriodQuery.data) {
+      const fRefDateStr = financialPeriodQuery.data.F_RefDate
+        ? String(financialPeriodQuery.data.F_RefDate).slice(0, 10)
+        : "";
+      const tRefDateStr = financialPeriodQuery.data.T_RefDate
+        ? String(financialPeriodQuery.data.T_RefDate).slice(0, 10)
+        : "";
+
+      if (fRefDateStr && tRefDateStr) {
+        const docDateVal = String(header.docDate ?? "").slice(0, 10);
+        if (docDateVal && (docDateVal < fRefDateStr || docDateVal > tRefDateStr)) {
+          const errorMsg = `Document Date (${docDateVal}) deviates from permissible range. Must fall within active period ${fRefDateStr} to ${tRefDateStr}.`;
+          setCreateError(errorMsg);
+          goeyToast.error(errorMsg, { id: "date-range-error-toast" });
+          return;
+        }
+
+        const docDueDateVal = String(header.docDueDate ?? "").slice(0, 10);
+        if (docDueDateVal && (docDueDateVal < fRefDateStr || docDueDateVal > tRefDateStr)) {
+          const errorMsg = `Due Date (${docDueDateVal}) deviates from permissible range. Must fall within active period ${fRefDateStr} to ${tRefDateStr}.`;
+          setCreateError(errorMsg);
+          goeyToast.error(errorMsg, { id: "due-date-range-error-toast" });
+          return;
+        }
+      }
+    }
+
     const toastHandle = documentActionToast("A/P Invoice", isEditMode ? "update" : "create");
     try {
       let createdDocNum: number | undefined;
       if (isEditMode) {
+        const detail = editDetailQuery.data?.data;
+        const existingDocDueDate = String(detail?.DocDueDate ?? "")
+          .slice(0, 10)
+          .trim();
+        const { comments: existingComments, referenceNo: existingReferenceNo } = detail
+          ? parseAPInvoiceHeaderNotes(detail)
+          : { comments: "", referenceNo: "" };
+        const currentDocDueDate = String(header.docDueDate ?? "").trim();
+        const currentComments = String(header.remarks ?? "").trim();
+        const currentReferenceNo = String(header.referenceNo ?? "").trim();
+
+        if (
+          currentDocDueDate === existingDocDueDate &&
+          currentComments === existingComments.trim() &&
+          currentReferenceNo === existingReferenceNo
+        ) {
+          const noChangeMessage = "Change at least one field before update.";
+          setCreateError(noChangeMessage);
+          goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+          return;
+        }
+
         const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry;
         const updatePayload = {
           Comments: header.remarks.trim() || undefined,
@@ -1177,6 +1253,7 @@ export function useAPInvoiceCreate({
     vendorsQuery,
     warehousesQuery,
     salesEmployeesQuery,
+    financialPeriodQuery,
     productsQuery,
     productWarehouseStocksQuery,
     editDetailQuery,

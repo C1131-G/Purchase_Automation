@@ -418,10 +418,10 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
-    if (payload.Comments) {
+    if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;
     }
-    if (payload.NumAtCard) {
+    if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;
     }
     if (payload.DocDueDate) {

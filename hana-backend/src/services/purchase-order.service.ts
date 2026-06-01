@@ -334,6 +334,7 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       Address2: payload.Address2,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
+      NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
       DiscountPercent: discountData.percent,
@@ -423,6 +424,9 @@ export const updatePurchaseOrder = async (
 
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;
+    }
+    if (payload.NumAtCard !== undefined) {
+      sapPayload.NumAtCard = payload.NumAtCard;
     }
     if (payload.Address !== undefined) {
       sapPayload.Address = payload.Address;

@@ -222,6 +222,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       Comments: payload.Comments,
+      NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
         const line: Record<string, unknown> = {
@@ -294,10 +295,10 @@ export const updateCreditNote = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
-    if (payload.Comments) {
+    if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;
     }
-    if (payload.NumAtCard) {
+    if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;
     }
     if (payload.DocDueDate) {

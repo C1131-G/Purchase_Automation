@@ -142,6 +142,10 @@ export const CreatePurchaseOrderInputSchema = z.object({
     .string()
     .optional()
     .openapi({ description: "Comments", example: "Urgent delivery required" }),
+  NumAtCard: z
+    .string()
+    .optional()
+    .openapi({ description: "Vendor Reference Number (NumAtCard)", example: "REF-12345" }),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -175,6 +179,7 @@ export const UpdatePurchaseOrderInputSchema = z
     Address: z.string().optional(),
     Address2: z.string().optional(),
     Comments: z.string().optional(),
+    NumAtCard: z.string().optional(),
     DocDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")

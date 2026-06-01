@@ -17,9 +17,7 @@ export function resolveDocumentLineDiscount({
   const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
   const lineTotal = Number(line.LineTotal ?? Number.NaN);
   const derivedDiscountAmountFromLineTotal =
-    Number.isFinite(lineTotal) && grossAmount > 0
-      ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
-      : 0;
+    Number.isFinite(lineTotal) && grossAmount > 0 ? grossAmount - lineTotal : 0;
 
   let discountPercent = Number.isFinite(apiDiscountPercent)
     ? apiDiscountPercent

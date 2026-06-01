@@ -99,6 +99,7 @@ export const CreatePurchaseQuotationInputSchema = z.object({
   Address: z.string().optional(),
   CardCode: z.string().min(1),
   Comments: z.string().optional(),
+  NumAtCard: z.string().optional(),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -116,6 +117,7 @@ export const UpdatePurchaseQuotationInputSchema = z
   .object({
     Address: z.string().optional(),
     Comments: z.string().optional(),
+    NumAtCard: z.string().optional(),
     DocDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")

@@ -112,6 +112,33 @@ export function useGRPOCreate({
   sourceDocType,
   onCreateSuccess,
 }: UseGRPOCreateOptions) {
+  const parseGRPOHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
   const isEditMode = mode === "edit";
   const editDocNum = (docNum ?? "").trim();
   const queryClient = useQueryClient();
@@ -192,6 +219,7 @@ export function useGRPOCreate({
   const vendorsQuery = useQuery(createSharedQueries.vendors());
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const salesEmployeesQuery = useQuery(createSharedQueries.salesEmployees());
+  const financialPeriodQuery = useQuery(createSharedQueries.financialPeriod());
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
@@ -296,18 +324,12 @@ export function useGRPOCreate({
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("GRPO", "edit");
     }
-
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
         setVendorNameInput(String(detail.CardName ?? "").trim());
         const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
-        const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? "").trim();
-        const rawComments = String(detail.Comments ?? "").trim();
-
-        // Keep the full Comments content as remarks (including any "Based on" lines).
-        // referenceNo stays as-is from NumAtCard (manual user entry only).
-        const remarks = rawComments;
+        const { comments: remarks, referenceNo } = parseGRPOHeaderNotes(detail);
 
         const matchedVendor = vendors.find(
           (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
@@ -644,6 +666,9 @@ export function useGRPOCreate({
         });
       });
 
+      const sourceNumAtCard = String(
+        (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
+      ).trim();
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
@@ -654,7 +679,7 @@ export function useGRPOCreate({
         docDate: getTodayISO(),
         docDueDate,
         referenceAutoFilled: referenceWasAutoFilled,
-        referenceNo: "",
+        referenceNo: sourceNumAtCard,
         remarks: remarksParts,
       });
       setLines(mappedLines);
@@ -1358,6 +1383,34 @@ export function useGRPOCreate({
       return;
     }
 
+    // Validate dates against active financial period
+    if (financialPeriodQuery.data) {
+      const fRefDateStr = financialPeriodQuery.data.F_RefDate
+        ? String(financialPeriodQuery.data.F_RefDate).slice(0, 10)
+        : "";
+      const tRefDateStr = financialPeriodQuery.data.T_RefDate
+        ? String(financialPeriodQuery.data.T_RefDate).slice(0, 10)
+        : "";
+
+      if (fRefDateStr && tRefDateStr) {
+        const docDateVal = String(header.docDate ?? "").slice(0, 10);
+        if (docDateVal && (docDateVal < fRefDateStr || docDateVal > tRefDateStr)) {
+          const errorMsg = `Document Date (${docDateVal}) deviates from permissible range. Must fall within active period ${fRefDateStr} to ${tRefDateStr}.`;
+          setCreateError(errorMsg);
+          goeyToast.error(errorMsg, { id: "date-range-error-toast" });
+          return;
+        }
+
+        const docDueDateVal = String(header.docDueDate ?? "").slice(0, 10);
+        if (docDueDateVal && (docDueDateVal < fRefDateStr || docDueDateVal > tRefDateStr)) {
+          const errorMsg = `Due Date (${docDueDateVal}) deviates from permissible range. Must fall within active period ${fRefDateStr} to ${tRefDateStr}.`;
+          setCreateError(errorMsg);
+          goeyToast.error(errorMsg, { id: "due-date-range-error-toast" });
+          return;
+        }
+      }
+    }
+
     if (isEditMode) {
       const detail = editDetailQuery.data?.data;
       const existingDocDueDate = String(detail?.DocDueDate ?? "")
@@ -1365,9 +1418,16 @@ export function useGRPOCreate({
         .trim();
       const currentDocDueDate = String(header.docDueDate ?? "").trim();
       const currentReferenceNo = String(header.referenceNo ?? "").trim();
-      const existingReferenceNo = String(detail?.NumAtCard ?? "").trim();
+      const { comments: existingComments, referenceNo: existingReferenceNo } = detail
+        ? parseGRPOHeaderNotes(detail)
+        : { comments: "", referenceNo: "" };
+      const currentComments = String(header.remarks ?? "").trim();
 
-      if (currentDocDueDate === existingDocDueDate && currentReferenceNo === existingReferenceNo) {
+      if (
+        currentDocDueDate === existingDocDueDate &&
+        currentReferenceNo === existingReferenceNo &&
+        currentComments === existingComments.trim()
+      ) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
         goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
@@ -1382,6 +1442,7 @@ export function useGRPOCreate({
           Address2: shipToAddress.trim() || undefined,
           Comments: header.remarks.trim() || undefined,
           DocDueDate: header.docDueDate || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
         }
       : {
           Address: billToAddress.trim() || undefined,
@@ -1571,6 +1632,7 @@ export function useGRPOCreate({
     vendorsQuery,
     warehousesQuery,
     salesEmployeesQuery,
+    financialPeriodQuery,
     productsQuery,
     productWarehouseStocksQuery,
     editDetailQuery,

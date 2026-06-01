@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { BaseProductSection } from "@/features/create-pages/create-shared/components/sections/base-product-section";
 import { CreateProductTable } from "@/features/create-pages/create-shared/components/tables/create-product-table";
-import { SALES_QUOTATION_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
+import { PURCHASE_QUOTATION_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
 import type { usePurchaseQuotationCreate } from "@/features/create-pages/purchase-quotation-create/hooks/use-purchase-quotation-create";
 import { REQUIRED_FIELD_LABEL_TEXT } from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
 
@@ -89,7 +89,7 @@ export function PurchaseQuotationProductSection({
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
-      mandatoryFieldsTotal={SALES_QUOTATION_MANDATORY_FIELDS.length}
+      mandatoryFieldsTotal={PURCHASE_QUOTATION_MANDATORY_FIELDS.length}
     >
       <CreateProductTable
         productRows={productRows}
@@ -105,9 +105,9 @@ export function PurchaseQuotationProductSection({
         createError={createError}
         warehouses={warehouses}
         warehousesLoading={warehousesLoading}
-        stockLimitReserve={1}
-        minStockToSelectWarehouse={2}
-        showTaxCode={true}
+        enforceStockLimit={false}
+        showTaxCode={false}
+        showExplicitZeroDiscount={true}
       />
     </BaseProductSection>
   );

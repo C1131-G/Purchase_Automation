@@ -113,6 +113,33 @@ export function useAPCreditMemoCreate({
   sourceDocType,
   onCreateSuccess,
 }: UseAPCreditMemoCreateOptions) {
+  const parseAPCreditMemoHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
   const isEditMode = mode === "edit";
   const editDocNum = (docNum ?? "").trim();
   const queryClient = useQueryClient();
@@ -277,10 +304,7 @@ export function useAPCreditMemoCreate({
       setVendorCodeInput(String(detail.CardCode ?? "").trim());
       setVendorNameInput(String(detail.CardName ?? "").trim());
       const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
-      const referenceNo = String((detail as { NumAtCard?: string }).NumAtCard ?? "").trim();
-      const rawComments = String(detail.Comments ?? "").trim();
-
-      const remarks = rawComments;
+      const { comments: remarks, referenceNo } = parseAPCreditMemoHeaderNotes(detail);
 
       const matchedVendor = vendors.find(
         (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
@@ -535,18 +559,20 @@ export function useAPCreditMemoCreate({
         });
       });
 
+      const sourceNumAtCard = String(
+        (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
+      ).trim();
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
       setWarehouseInput(warehouseCode);
       setBillToAddress(String(primaryDetail.Address ?? "").trim());
       setShipToAddress(String(primaryDetail.Address2 ?? "").trim());
-
       setHeader({
         docDate: getTodayISO(),
         docDueDate,
         referenceAutoFilled: true,
-        referenceNo: "",
+        referenceNo: sourceNumAtCard,
         remarks: remarksParts,
       });
       setLines(mappedLines);
@@ -985,6 +1011,28 @@ export function useAPCreditMemoCreate({
     const toastHandle = documentActionToast("A/P Credit Memo", isEditMode ? "update" : "create");
     try {
       if (isEditMode) {
+        const detail = editDetailQuery.data?.data;
+        const existingDocDueDate = String(detail?.DocDueDate ?? "")
+          .slice(0, 10)
+          .trim();
+        const { comments: existingComments, referenceNo: existingReferenceNo } = detail
+          ? parseAPCreditMemoHeaderNotes(detail)
+          : { comments: "", referenceNo: "" };
+        const currentDocDueDate = String(header.docDueDate ?? "").trim();
+        const currentComments = String(header.remarks ?? "").trim();
+        const currentReferenceNo = String(header.referenceNo ?? "").trim();
+
+        if (
+          currentDocDueDate === existingDocDueDate &&
+          currentComments === existingComments.trim() &&
+          currentReferenceNo === existingReferenceNo
+        ) {
+          const noChangeMessage = "Change at least one field before update.";
+          setCreateError(noChangeMessage);
+          goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+          return;
+        }
+
         const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry;
         const updatePayload: UpdateAPCreditMemoInput = {
           Comments: header.remarks.trim() || undefined,

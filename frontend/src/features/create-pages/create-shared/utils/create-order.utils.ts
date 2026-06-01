@@ -48,6 +48,10 @@ const normalizeServiceLayerFieldMessage = (message: string) => {
     return "Delivery Date is required.";
   }
 
+  if (/deviates from permissible range/i.test(compactMessage)) {
+    return "Date deviates from permissible range. Please select a date within the active financial period.";
+  }
+
   return compactMessage.replaceAll(/\s*\[[^[\]]+\]\s*$/g, "").trim();
 };
 
