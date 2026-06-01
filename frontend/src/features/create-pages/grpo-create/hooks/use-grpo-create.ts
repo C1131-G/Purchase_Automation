@@ -40,8 +40,14 @@ import {
 } from "@/features/create-pages/grpo-create/utils/grpo-create.utils";
 import type { GRPOMandatoryField } from "@/features/create-pages/grpo-create/utils/grpo-create.utils";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
-import { purchaseOrderKeys, purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
-import { purchaseQuotationKeys, purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
+import {
+  purchaseOrderKeys,
+  purchaseOrderQueries,
+} from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
+import {
+  purchaseQuotationKeys,
+  purchaseQuotationQueries,
+} from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import {
   useGRPOHeader,
   useGRPOLines,

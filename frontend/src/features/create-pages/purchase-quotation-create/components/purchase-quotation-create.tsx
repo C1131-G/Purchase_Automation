@@ -157,7 +157,9 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
                 salesEmployeeSuggestions={state.salesEmployeeSuggestions}
                 onSalesEmployeeChange={state.handleSalesEmployeeChange}
                 onSalesEmployeeFocus={() => state.setSalesEmployeeFocused(true)}
-                onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
+                onSalesEmployeeBlur={() =>
+                  setTimeout(() => state.setSalesEmployeeFocused(false), 120)
+                }
                 onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
                 onSelectSalesEmployee={state.selectSalesEmployee}
                 salesEmployeeDisabled={state.isClosed}

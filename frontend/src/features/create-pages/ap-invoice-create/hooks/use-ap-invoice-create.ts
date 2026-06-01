@@ -39,8 +39,14 @@ import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shar
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import type { CreateAPInvoiceInput } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
 import { grpoKeys, grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
-import { purchaseOrderKeys, purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
-import { purchaseQuotationKeys, purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
+import {
+  purchaseOrderKeys,
+  purchaseOrderQueries,
+} from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
+import {
+  purchaseQuotationKeys,
+  purchaseQuotationQueries,
+} from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import {
   useAPInvoiceHeader,
   useAPInvoiceLines,
@@ -1227,6 +1233,7 @@ export function useAPInvoiceCreate({
             void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
           }
         }
+      }
       setSubmitAttempted(false);
 
       // Scroll to top after successful save

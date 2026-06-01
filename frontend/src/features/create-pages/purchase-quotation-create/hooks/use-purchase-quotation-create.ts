@@ -738,7 +738,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
-        : {
+      : {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
           Comments: header.comments.trim() || undefined,

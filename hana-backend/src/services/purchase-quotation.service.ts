@@ -263,22 +263,27 @@ export const createPurchaseQuotation = async (
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      RequriedDate: (payload as Record<string, unknown>).RequriedDate ?? payload.DocDueDate ?? payload.DocDate,
+      RequriedDate:
+        (payload as Record<string, unknown>).RequriedDate ?? payload.DocDueDate ?? payload.DocDate,
       DiscountPercent: roundedHeaderDiscount,
       DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((line) => {
-      const docLine: Record<string, unknown> = {
-        ItemCode: line.ItemCode as string,
-        Quantity: line.Quantity as number,
-        UnitPrice: (line.UnitPrice || line.Price) as number,
-        DiscountPercent: Number(line.DiscountPercent ?? 0),
-        ReqDate: normalizeSapDateValue(
-          line.ReqDate ?? line.RequiredDate ?? line.requiredDate ?? payload.DocDueDate ?? payload.DocDate,
-        ),
-        UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
-        VatGroup: line.VatGroup as string,
-        WarehouseCode: line.WarehouseCode as string,
-      };
+        const docLine: Record<string, unknown> = {
+          ItemCode: line.ItemCode as string,
+          Quantity: line.Quantity as number,
+          UnitPrice: (line.UnitPrice || line.Price) as number,
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
+          ReqDate: normalizeSapDateValue(
+            line.ReqDate ??
+              line.RequiredDate ??
+              line.requiredDate ??
+              payload.DocDueDate ??
+              payload.DocDate,
+          ),
+          UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
+          VatGroup: line.VatGroup as string,
+          WarehouseCode: line.WarehouseCode as string,
+        };
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
           docLine.UoMEntry = Math.trunc(uomEntry);
@@ -397,7 +402,11 @@ export const updatePurchaseQuotation = async (
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
           ReqDate: normalizeSapDateValue(
-            line.ReqDate ?? line.RequiredDate ?? line.requiredDate ?? payload.DocDueDate ?? payload.DocDate,
+            line.ReqDate ??
+              line.RequiredDate ??
+              line.requiredDate ??
+              payload.DocDueDate ??
+              payload.DocDate,
           ),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,

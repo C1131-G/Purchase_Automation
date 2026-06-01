@@ -86,7 +86,6 @@ const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
   returnReason: undefined,
   vendorCode: undefined,
   vendorName: undefined,
-  warehouseCode: undefined,
 };
 
 interface UseAPCreditMemoCreateOptions {
@@ -858,7 +857,6 @@ export function useAPCreditMemoCreate({
 
   const handleWarehouseInputChange = (value: string) => {
     setWarehouseInput(value);
-    setFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }));
     const matched = warehouses.find(
       (w) =>
         w.name.trim().toLowerCase() === value.trim().toLowerCase() ||
@@ -872,7 +870,6 @@ export function useAPCreditMemoCreate({
 
   const handleBuyerChange = (value: string) => {
     setBuyerInput(value);
-    setFieldErrors((prev) => ({ ...prev, salesEmployee: undefined }));
     const matched = salesEmployees.find(
       (s) =>
         s.name.trim().toLowerCase() === value.trim().toLowerCase() ||
@@ -994,8 +991,8 @@ export function useAPCreditMemoCreate({
         if (field === "vendorCode") {
           return !vendorCodeInput.trim();
         }
-        if (field === "warehouseCode") {
-          return !filteredRows.some((row) => row.warehouseCode?.trim());
+        if (field === "returnReason") {
+          return false;
         }
         return false;
       });
@@ -1197,8 +1194,8 @@ export function useAPCreditMemoCreate({
       if (field === "vendorCode") {
         return !vendorCodeInput.trim();
       }
-      if (field === "warehouseCode") {
-        return !rows.some((row) => row.warehouseCode?.trim());
+      if (field === "returnReason") {
+        return false;
       }
       return false;
     });
