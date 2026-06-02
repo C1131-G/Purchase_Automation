@@ -90,4 +90,8 @@ export const arInvoiceAPI = {
       body: JSON.stringify(payload),
       method: "PATCH",
     }),
+  reopenARInvoice: async (id: string | number) =>
+    apiClient<unknown>(`/api/v1/ar-invoices/${id}/reopen`, {
+      method: "POST",
+    }),
 };

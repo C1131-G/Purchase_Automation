@@ -21,6 +21,8 @@ import type {
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
 import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
+import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
+import { useMutation } from "@tanstack/react-query";
 
 interface UseArCreditMemoCreateProps {
   mode?: "create" | "edit";
@@ -321,13 +323,15 @@ export function useArCreditMemoCreate({
           productName: String(line.ItemDescription || productMeta?.name || ""),
           quantity: isEditMode
             ? Number(line.Quantity ?? 0)
-            : Number(
-                line.RemainingOpenQuantity ??
-                  line.OpenQuantity ??
-                  line.OpenQty ??
-                  line.Quantity ??
-                  1,
-              ),
+            : line.LineStatus === "C" || line.LineStatus === "bost_Close"
+              ? 0
+              : Number(
+                  line.RemainingOpenQuantity ??
+                    line.OpenQuantity ??
+                    line.OpenQty ??
+                    line.Quantity ??
+                    1,
+                ),
           returnReason: String((line as Record<string, unknown>).U_ReturnReason || ""),
           selected: isEditMode,
           stock: lineStock,
@@ -383,6 +387,25 @@ export function useArCreditMemoCreate({
     setSalesEmployeeInput,
     setHeader,
   ]);
+
+  const sourceInvoiceData = sourceInvoiceQuery.data?.data as Record<string, unknown> | undefined;
+  const isSourceClosed = sourceInvoiceData?.DocStatus === "C";
+
+  const reopenInvoiceMutation = useMutation({
+    mutationFn: async () => {
+      const entry = Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id);
+      if (!entry) throw new Error("No source invoice ID found");
+      return arInvoiceAPI.reopenARInvoice(entry);
+    },
+    onSuccess: () => {
+      const toastHandle = documentActionToast("Base Invoice", "update");
+      void queryClient.invalidateQueries({ queryKey: arInvoiceQueries.detailByDocNum(sourceDocNum || "").queryKey });
+      toastHandle.success();
+    },
+    onError: (err) => {
+      console.error("Failed to reopen base invoice", (err as Error).message);
+    }
+  });
 
   // Mutations
   const createArCreditMemoMutation = useCreateArCreditMemoMutation();
@@ -471,25 +494,43 @@ export function useArCreditMemoCreate({
       return;
     }
 
+    // Try to reopen the invoice if it's closed, as requested. 
+    // We catch and swallow the error if SAP doesn't support reopening this specific invoice, 
+    // so we can still attempt to create the linked Credit Memo!
+    if (isSourceClosed) {
+      try {
+        const entry = Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id);
+        if (entry) {
+          await arInvoiceAPI.reopenARInvoice(entry);
+        }
+      } catch (err) {
+        console.warn(`SAP Reopen failed (continuing to Credit Memo creation): ${(err as Error).message}`);
+      }
+    }
+
     const payload = {
       CardCode: header.vendorCode,
       Comments: header.comments,
       DocDate: header.docDate,
       DocDueDate: header.docDueDate,
-      DocumentLines: selectedRows.map((row) => ({
-        BaseEntry: row.baseEntry,
-        BaseLine: row.baseLine,
-        BaseType: row.baseType,
-        DiscountPercent: row.discountPercent,
-        ItemCode: row.productCode,
-        Quantity: row.quantity,
-        U_ReturnReason: row.returnReason || "",
-        UnitPrice: row.price,
-        UoMCode: row.uomCode,
-        UoMEntry: row.uomEntry,
-        VatGroup: row.vatGroup,
-        WarehouseCode: row.warehouseCode || header.warehouseCode.trim() || undefined,
-      })),
+      DocumentLines: selectedRows.map((row) => {
+        const line: Record<string, unknown> = {
+          BaseEntry: row.baseEntry,
+          BaseLine: row.baseLine,
+          BaseType: row.baseType,
+          DiscountPercent: row.discountPercent,
+          ItemCode: row.productCode,
+          Quantity: row.quantity,
+          U_ReturnReason: row.returnReason || "",
+          UnitPrice: row.price,
+          UoMCode: row.uomCode,
+          UoMEntry: row.uomEntry,
+          VatGroup: row.vatGroup,
+          WarehouseCode: row.warehouseCode || header.warehouseCode.trim() || undefined,
+        };
+
+        return line;
+      }),
       NumAtCard: header.referenceNo,
     };
 
@@ -580,5 +621,7 @@ export function useArCreditMemoCreate({
     warehouses: warehousesQuery.data ?? ([] as CreateLookupOption[]),
     warehousesLoading: warehousesQuery.isLoading,
     isLoading: vendorsQuery.isLoading || warehousesQuery.isLoading || salesEmployeesQuery.isLoading,
+    isSourceClosed,
+    reopenInvoiceMutation,
   };
 }

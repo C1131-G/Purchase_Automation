@@ -507,11 +507,37 @@ export const cancelInvoice = async (sessionId: string, id: string) => {
   }
 };
 
+export const reopenInvoice = async (sessionId: string, id: string) => {
+  try {
+    await serviceLayerClient.request(sessionId, "POST", `/Invoices(${id})/Reopen`);
+
+    // Dashboard caches Must be purged to reflect the change.
+    const session = serviceLayerClient.getSession(sessionId);
+    if (session?.companyDB) {
+      purgeCache(`dash:sales:${session.companyDB}:`);
+    }
+
+    return {
+      message: "A/R Invoice reopened successfully",
+      success: true,
+    };
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.error({
+      error: caughtError.message,
+      id,
+      msg: "Failed to reopen A/R Invoice",
+    });
+    throw caughtError;
+  }
+};
+
 export const arInvoiceService = {
   cancelInvoice,
   createInvoice,
   getInvoice,
   getInvoiceDocNums,
   getInvoices,
+  reopenInvoice,
   updateInvoice,
 };
