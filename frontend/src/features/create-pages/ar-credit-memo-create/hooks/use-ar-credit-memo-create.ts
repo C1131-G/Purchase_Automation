@@ -399,12 +399,14 @@ export function useArCreditMemoCreate({
     },
     onSuccess: () => {
       const toastHandle = documentActionToast("Base Invoice", "update");
-      void queryClient.invalidateQueries({ queryKey: arInvoiceQueries.detailByDocNum(sourceDocNum || "").queryKey });
+      void queryClient.invalidateQueries({
+        queryKey: arInvoiceQueries.detailByDocNum(sourceDocNum || "").queryKey,
+      });
       toastHandle.success();
     },
     onError: (err) => {
       console.error("Failed to reopen base invoice", (err as Error).message);
-    }
+    },
   });
 
   // Mutations
@@ -494,8 +496,8 @@ export function useArCreditMemoCreate({
       return;
     }
 
-    // Try to reopen the invoice if it's closed, as requested. 
-    // We catch and swallow the error if SAP doesn't support reopening this specific invoice, 
+    // Try to reopen the invoice if it's closed, as requested.
+    // We catch and swallow the error if SAP doesn't support reopening this specific invoice,
     // so we can still attempt to create the linked Credit Memo!
     if (isSourceClosed) {
       try {
@@ -504,7 +506,9 @@ export function useArCreditMemoCreate({
           await arInvoiceAPI.reopenARInvoice(entry);
         }
       } catch (err) {
-        console.warn(`SAP Reopen failed (continuing to Credit Memo creation): ${(err as Error).message}`);
+        console.warn(
+          `SAP Reopen failed (continuing to Credit Memo creation): ${(err as Error).message}`,
+        );
       }
     }
 
