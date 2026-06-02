@@ -283,7 +283,14 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         const mappedRows = detailLines.map((line: PurchaseQuotationDetailLine, index) => {
           const itemCode = String(line.ItemCode ?? "").trim();
           const productMeta = productByCode.get(itemCode);
-          const quantity = Number(line.Quantity ?? 1);
+          // Purchase Quotation stores the user-entered quantity in PQT1.PQTReqQty
+          // (Service Layer: RequiredQuantity). The backend surfaces this as
+          // line.Quantity on read, so prefer RequiredQuantity as a defensive
+          // fallback for older payloads.
+          const lineData = line as Record<string, unknown>;
+          const quantity = Number(
+            lineData.RequiredQuantity ?? lineData.requiredQuantity ?? line.Quantity ?? 1,
+          );
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount: price * quantity,

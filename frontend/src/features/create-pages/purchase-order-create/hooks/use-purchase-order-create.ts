@@ -432,9 +432,16 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             const idx = lineIndex++;
             const itemCode = String(line.ItemCode ?? "").trim();
             const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
+            const lineData = line as Record<string, unknown>;
+            // For Purchase Quotation sources (baseType 540000006), the user-entered
+            // quantity lives in PQT1.PQTReqQty (Service Layer: RequiredQuantity),
+            // while PQT1.Quantity stays 0. Prefer RequiredQuantity as a fallback
+            // so the copied-to PO receives the same quantity the user requested.
             const openQty = Number(
               (line as { OpenQty?: number }).OpenQty ??
                 (line as { RemainingOpenQuantity?: number }).RemainingOpenQuantity ??
+                lineData.RequiredQuantity ??
+                lineData.requiredQuantity ??
                 line.Quantity ??
                 1,
             );

@@ -538,7 +538,18 @@ export function useAPInvoiceCreate({
         return detailLines.map((line) => {
           const idx = lineIndex++;
           const lineData = line as Record<string, unknown>;
-          const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1);
+          // For Purchase Quotation sources (baseType 540000006), the user-entered
+          // quantity lives in PQT1.PQTReqQty (Service Layer: RequiredQuantity),
+          // while PQT1.Quantity stays 0. Prefer RequiredQuantity as a fallback
+          // so the copied-to AP Invoice receives the same quantity the user requested.
+          const openQty = Number(
+            lineData.OpenQty ??
+              lineData.OpenQuantity ??
+              lineData.RequiredQuantity ??
+              lineData.requiredQuantity ??
+              line.Quantity ??
+              1,
+          );
           const quantity = openQty;
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);

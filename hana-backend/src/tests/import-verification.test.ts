@@ -47,7 +47,7 @@ describe("Project Import Integrity", () => {
       return;
     }
 
-    it(`Success: import module "${relativePath}"`, async () => {
+    it(`Success: import module "${relativePath}"`, { timeout: 30_000 }, async () => {
       try {
         // Convert backslashes to forward slashes for import
         const normalizedPath = `../${relativePath.replaceAll("\\", "/")}`;

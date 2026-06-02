@@ -198,7 +198,23 @@ export const getPurchaseQuotation = async (sessionId: string, id: string) => {
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard ?? "",
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
-        return normalizeSAPLineData(lineData);
+        const normalized = normalizeSAPLineData(lineData);
+        // PQT1.PQTReqQty is the user-entered quantity on a Purchase Quotation,
+        // while PQT1.Quantity stays 0 by design. Surface RequiredQuantity as
+        // Quantity in the API response so the vendor portal edit/copy-from
+        // hydration reads the same value the user originally entered.
+        const requiredQuantity = Number(
+          lineData.RequiredQuantity ?? lineData.requiredQuantity ?? 0,
+        );
+        if (requiredQuantity > 0) {
+          normalized.Quantity = requiredQuantity;
+          if (Number(normalized.OpenQty) <= 0 || normalized.OpenQty === normalized.Quantity) {
+            normalized.OpenQty = requiredQuantity;
+            normalized.OpenQuantity = requiredQuantity;
+            normalized.RemainingOpenQuantity = requiredQuantity;
+          }
+        }
+        return normalized;
       }),
     };
   } catch (err: unknown) {
@@ -270,7 +286,11 @@ export const createPurchaseQuotation = async (
       DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
-          Quantity: line.Quantity as number,
+          // PQT1.Quantity drives LineTotal / DocTotal computation in SAP.
+          // PQT1.PQTReqQty carries the user-entered required quantity semantic
+          // requested by the vendor portal flow.
+          Quantity: Number(line.Quantity ?? 0),
+          RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
           ReqDate: normalizeSapDateValue(
@@ -398,7 +418,10 @@ export const updatePurchaseQuotation = async (
         const docLine: Record<string, unknown> = {
           LineNum: line.LineNum !== undefined ? Number(line.LineNum) : undefined,
           ItemCode: line.ItemCode as string,
-          Quantity: line.Quantity as number,
+          // Mirror the create path: drive DocTotal via PQT1.Quantity and
+          // carry the required-qty semantic in PQT1.PQTReqQty.
+          Quantity: Number(line.Quantity ?? 0),
+          RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
           ReqDate: normalizeSapDateValue(

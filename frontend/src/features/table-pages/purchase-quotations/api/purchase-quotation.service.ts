@@ -32,6 +32,7 @@ export interface PurchaseQuotationDetailLine {
   ItemCode?: string;
   ItemDescription?: string;
   Quantity?: number;
+  RequiredQuantity?: number;
   Price?: number;
   UnitPrice?: number;
   DiscountPercent?: number;
@@ -46,6 +47,8 @@ export interface PurchaseQuotationDetailLine {
   LineTotal?: number;
   LineNum?: number;
   RemainingOpenQuantity?: number;
+  OpenQty?: number;
+  OpenQuantity?: number;
 }
 
 export interface PurchaseQuotationDetail {

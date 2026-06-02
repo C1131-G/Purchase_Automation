@@ -537,7 +537,9 @@ export const getOpenSalesOrderLines = async (sessionId: string, cardCode: string
             UoMEntry?: number;
           };
           openLines.push({
-            DiscountPercent: line.DiscountPercent || order.DiscountPercent,
+            DiscountPercent:
+              Number(line.DiscountPercent ?? 0) ||
+              Number((order as unknown as { DiscountPercent?: number }).DiscountPercent ?? 0),
             DocCurr: order.DocCurrency,
             DocDate: order.DocDate,
             DocEntry: order.DocEntry,
