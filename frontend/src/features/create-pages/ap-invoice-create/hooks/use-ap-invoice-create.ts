@@ -934,6 +934,7 @@ export function useAPInvoiceCreate({
   const applyProductToRow = (product: ProductLookupItem) => {
     setLines((prev) => {
       if (activeProductRowId) {
+        // Updating an existing row: leave the user-chosen warehouse untouched.
         return prev.map((row) =>
           row.id === activeProductRowId
             ? {
@@ -945,11 +946,11 @@ export function useAPInvoiceCreate({
                 stock: Number(product.stock ?? 0),
                 uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
-                warehouseCode: effectiveWarehouseCode || "",
               }
             : row,
         );
       }
+      // New row: force user to pick a warehouse explicitly.
       return [
         ...prev,
         {
@@ -968,7 +969,7 @@ export function useAPInvoiceCreate({
           uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
-          warehouseCode: effectiveWarehouseCode || "",
+          warehouseCode: "",
         },
       ];
     });
@@ -995,7 +996,7 @@ export function useAPInvoiceCreate({
         uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: String(product.vatGroup ?? ""),
-        warehouseCode: effectiveWarehouseCode || "",
+        warehouseCode: "",
       })),
     ]);
     setProductPopupOpen(false);

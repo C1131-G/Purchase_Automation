@@ -284,22 +284,26 @@ export const createPurchaseQuotation = async (
       DiscountPercent: roundedHeaderDiscount,
       DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((line) => {
+        // PQT1.Quantity drives LineTotal / DocTotal computation in SAP.
+        // PQT1.PQTReqQty carries the user-entered required quantity semantic
+        // requested by the vendor portal flow.
+        // PQT1.ShipDate mirrors PQT1.ReqDate so the quoted shipping date
+        // matches the user-entered required date in the vendor portal flow.
+        const reqDate = normalizeSapDateValue(
+          line.ReqDate ??
+            line.RequiredDate ??
+            line.requiredDate ??
+            payload.DocDueDate ??
+            payload.DocDate,
+        );
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
-          // PQT1.Quantity drives LineTotal / DocTotal computation in SAP.
-          // PQT1.PQTReqQty carries the user-entered required quantity semantic
-          // requested by the vendor portal flow.
           Quantity: Number(line.Quantity ?? 0),
           RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
-          ReqDate: normalizeSapDateValue(
-            line.ReqDate ??
-              line.RequiredDate ??
-              line.requiredDate ??
-              payload.DocDueDate ??
-              payload.DocDate,
-          ),
+          ReqDate: reqDate,
+          ShipDate: reqDate,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
@@ -415,22 +419,25 @@ export const updatePurchaseQuotation = async (
       sapPayload.DiscountAmount = discountData.amount;
 
       sapPayload.DocumentLines = lines.map((line) => {
+        // Mirror the create path: drive DocTotal via PQT1.Quantity,
+        // carry the required-qty semantic in PQT1.PQTReqQty, and keep
+        // PQT1.ShipDate in lockstep with PQT1.ReqDate.
+        const reqDate = normalizeSapDateValue(
+          line.ReqDate ??
+            line.RequiredDate ??
+            line.requiredDate ??
+            payload.DocDueDate ??
+            payload.DocDate,
+        );
         const docLine: Record<string, unknown> = {
           LineNum: line.LineNum !== undefined ? Number(line.LineNum) : undefined,
           ItemCode: line.ItemCode as string,
-          // Mirror the create path: drive DocTotal via PQT1.Quantity and
-          // carry the required-qty semantic in PQT1.PQTReqQty.
           Quantity: Number(line.Quantity ?? 0),
           RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
-          ReqDate: normalizeSapDateValue(
-            line.ReqDate ??
-              line.RequiredDate ??
-              line.requiredDate ??
-              payload.DocDueDate ??
-              payload.DocDate,
-          ),
+          ReqDate: reqDate,
+          ShipDate: reqDate,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,

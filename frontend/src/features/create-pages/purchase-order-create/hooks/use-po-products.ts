@@ -206,11 +206,8 @@ export function usePoProducts({
   ) => {
     void queryClient.prefetchQuery(purchaseOrderCreateQueries.productWarehouseStocks(product.code));
 
-    // In edit mode, leave warehouse empty so user can select per product.
-    // In create mode, use effectiveWarehouseCode from header.
-    const resolvedWarehouseCode = isEditMode ? "" : effectiveWarehouseCode || "";
-
     if (activeProductRowId) {
+      // Updating an existing row: leave the user-chosen warehouse untouched.
       updateProductRow(activeProductRowId, {
         currency: product.currency,
         discountAmount: 0,
@@ -224,9 +221,9 @@ export function usePoProducts({
         uomCode: product.purchaseUomCode || product.uomCode,
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: product.vatGroup,
-        warehouseCode: resolvedWarehouseCode,
       });
     } else {
+      // New row: force user to pick a warehouse explicitly.
       setProductRows((prev) => [
         ...prev,
         {
@@ -245,7 +242,7 @@ export function usePoProducts({
           uomCode: product.purchaseUomCode || product.uomCode,
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: product.vatGroup,
-          warehouseCode: resolvedWarehouseCode,
+          warehouseCode: "",
         },
       ]);
     }
@@ -258,10 +255,7 @@ export function usePoProducts({
     callbacks: { closeProductPopup: () => void },
   ) => {
     const nextRows: ProductRow[] = products.map((product) => {
-      // In edit mode, leave warehouse empty so user can select per product.
-      // In create mode, use effectiveWarehouseCode from header.
-      const resolvedWarehouseCode = isEditMode ? "" : effectiveWarehouseCode || "";
-
+      // New row: force user to pick a warehouse explicitly.
       return {
         comment: "",
         currency: product.currency,
@@ -278,7 +272,7 @@ export function usePoProducts({
         uomCode: product.purchaseUomCode || product.uomCode,
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: product.vatGroup,
-        warehouseCode: resolvedWarehouseCode,
+        warehouseCode: "",
       };
     });
 

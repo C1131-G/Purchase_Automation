@@ -206,7 +206,8 @@ export function usePqProducts({
     });
 
     if (activeProductRowId) {
-      // If we were editing a specific row, only update that row with the first selected product
+      // If we were editing a specific row, only update that row with the first selected product.
+      // Leave the row's user-chosen warehouse untouched.
       const product = products[0];
       if (product) {
         updateProductRow(activeProductRowId, {
@@ -222,11 +223,10 @@ export function usePqProducts({
           uomCode: product.purchaseUomCode || product.uomCode,
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: product.vatGroup,
-          warehouseCode: effectiveWarehouseCode ?? "",
         });
       }
     } else {
-      // Add all selected products as new rows
+      // New row: force user to pick a warehouse explicitly.
       const newRows: ProductRow[] = products.map((product, index) => ({
         comment: "",
         currency: product.currency,
@@ -243,7 +243,7 @@ export function usePqProducts({
         uomCode: product.purchaseUomCode || product.uomCode,
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: product.vatGroup,
-        warehouseCode: effectiveWarehouseCode ?? "",
+        warehouseCode: "",
       }));
       setProductRows((prev) => [...prev, ...newRows]);
     }

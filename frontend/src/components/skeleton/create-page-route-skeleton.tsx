@@ -69,6 +69,19 @@ function TextareaSkeleton({ height = "h-24" }: { height?: string }) {
   );
 }
 
+/** Skeleton for the CopyFromDropdown trigger button in the page wrapper's topActions slot. */
+function CopyFromButtonSkeleton() {
+  return (
+    <div className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 shadow-sm">
+      <Pulse className="size-3.5 rounded-sm bg-zinc-100" />
+      <Pulse className="h-3 w-16" />
+      <div className="mx-1.5 h-3.5 w-px bg-zinc-200" />
+      <Pulse className="h-3 w-20" />
+      <Pulse className="size-3 rounded-sm bg-zinc-200" />
+    </div>
+  );
+}
+
 function SectionShell({
   titleWidth,
   className = "",
@@ -92,7 +105,12 @@ function SectionShell({
 
 export function CreatePageRouteSkeleton() {
   return (
-    <div className="w-full bg-zinc-50 p-3 pb-20">
+    <div className="relative w-full bg-zinc-50 p-3 pb-20">
+      {/* Top Actions placeholder (Copy From) */}
+      <div className="absolute right-3 top-3 z-10">
+        <CopyFromButtonSkeleton />
+      </div>
+
       {/* Breadcrumb bar */}
       <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
         <Pulse className="h-3 w-16" />
