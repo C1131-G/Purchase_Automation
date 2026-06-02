@@ -64,4 +64,8 @@ export const apInvoiceAPI = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  reopenAPInvoice: async (id: string | number) =>
+    apiClient<{ success: boolean; message: string }>("/api/v1/ap-invoices/" + id + "/reopen", {
+      method: "POST",
+    }),
 };

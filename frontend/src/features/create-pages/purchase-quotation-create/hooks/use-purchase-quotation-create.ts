@@ -295,10 +295,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           // row so downstream CopyTo cascades (PO/GRPO/AP Invoice) and any
           // partial-fulfillment UI can consume it.
           const openQty = Number(
-            lineData.OpenQty ??
-              lineData.OpenQuantity ??
-              lineData.RemainingOpenQuantity ??
-              quantity,
+            lineData.OpenQty ?? lineData.OpenQuantity ?? lineData.RemainingOpenQuantity ?? quantity,
           );
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({

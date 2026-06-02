@@ -37,4 +37,7 @@ router.patch("/:id", apInvoiceDal.updateInvoice);
 // POST /:id/cancel: Triggers a cancellation for the invoice in SAP.
 router.post("/:id/cancel", apInvoiceDal.cancelInvoice);
 
+// POST /:id/reopen: Triggers a reopen for the invoice in SAP.
+router.post("/:id/reopen", apInvoiceDal.reopenInvoice);
+
 export const apInvoiceRoutes = router;

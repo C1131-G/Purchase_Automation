@@ -152,11 +152,28 @@ export const cancelInvoice = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// Reopens an A/P Invoice in the SAP system.
+export const reopenInvoice = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.session;
+    const { id } = authReq.params;
+
+    logger.info({ id, msg: "Reopening A/P Invoice" });
+
+    const result = await apInvoiceService.reopenInvoice(sessionId, id as string);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const apInvoiceDal = {
   cancelInvoice,
   createInvoice,
   getInvoice,
   getInvoiceDocNums,
   getInvoices,
+  reopenInvoice,
   updateInvoice,
 };

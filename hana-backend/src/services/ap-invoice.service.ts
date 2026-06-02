@@ -472,6 +472,25 @@ export const cancelInvoice = async (sessionId: string, id: string) => {
   }
 };
 
+// Reopens a closed A/P Invoice in the SAP system.
+export const reopenInvoice = async (sessionId: string, id: string) => {
+  try {
+    await serviceLayerClient.request(sessionId, "POST", `/PurchaseInvoices(${id})/Reopen`);
+    return {
+      message: "A/P Invoice reopened successfully",
+      success: true,
+    };
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.error({
+      error: caughtError.message,
+      id,
+      msg: "Failed to reopen A/P Invoice",
+    });
+    throw caughtError;
+  }
+};
+
 export const apInvoiceService = {
   cancelInvoice,
   createInvoice,
@@ -479,5 +498,6 @@ export const apInvoiceService = {
   getInvoiceByDocNum,
   getInvoiceDocNums,
   getInvoices,
+  reopenInvoice,
   updateInvoice,
 };

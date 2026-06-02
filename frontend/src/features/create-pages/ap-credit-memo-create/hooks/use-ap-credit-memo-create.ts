@@ -49,6 +49,7 @@ import { resolveProductTaxRates } from "@/features/create-pages/create-shared/ut
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
+import { apInvoiceAPI } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
 
 import {
   generateSingleSourceReference,
@@ -273,6 +274,15 @@ export function useAPCreditMemoCreate({
     ...apCreditMemoQueries.detailByDocNum(editDocNum),
     enabled: isEditMode && Boolean(editDocNum),
   });
+
+  const sourceInvoiceQuery = useQuery({
+    ...apInvoiceQueries.detailByDocNum(sourceDocNum || ""),
+    enabled: !isEditMode && !!sourceDocNum && sourceDocType === "APInvoice",
+  });
+
+  const sourceInvoiceData = sourceInvoiceQuery.data?.data as Record<string, unknown> | undefined;
+  const isSourceClosed =
+    sourceInvoiceData?.DocStatus === "Closed" || sourceInvoiceData?.DocStatus === "C";
 
   const isClosed =
     editDetailQuery.data?.data?.DocStatus === "Closed" ||
@@ -1114,6 +1124,23 @@ export function useAPCreditMemoCreate({
           ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
           DocumentLines: buildDocumentLines(),
         };
+
+        // Try to reopen the base A/P Invoice if it's closed, as requested.
+        // We catch and swallow the error if SAP doesn't support reopening this specific invoice,
+        // so we can still attempt to create the linked Credit Memo!
+        if (isSourceClosed) {
+          try {
+            const entry = Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id);
+            if (entry) {
+              await apInvoiceAPI.reopenAPInvoice(entry);
+            }
+          } catch (err) {
+            console.warn(
+              `SAP Reopen failed (continuing to Credit Memo creation): ${(err as Error).message}`,
+            );
+          }
+        }
+
         const result = await createMutation.mutateAsync({
           payload: createPayload,
         });
@@ -1221,6 +1248,7 @@ export function useAPCreditMemoCreate({
     })(),
     applyProductToRow,
     applyProductsToRows,
+    isSourceClosed,
     billToAddress,
     buyerFocused,
     buyerInput,
