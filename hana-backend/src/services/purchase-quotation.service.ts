@@ -203,16 +203,14 @@ export const getPurchaseQuotation = async (sessionId: string, id: string) => {
         // while PQT1.Quantity stays 0 by design. Surface RequiredQuantity as
         // Quantity in the API response so the vendor portal edit/copy-from
         // hydration reads the same value the user originally entered.
+        // Do not overwrite OpenQty here: SAP's real OpenQty must flow through
+        // unchanged so that downstream copy-to cascades (PO/GRPO/AP Invoice)
+        // can use the actual remaining quantity for partial-fulfillment checks.
         const requiredQuantity = Number(
           lineData.RequiredQuantity ?? lineData.requiredQuantity ?? 0,
         );
         if (requiredQuantity > 0) {
           normalized.Quantity = requiredQuantity;
-          if (Number(normalized.OpenQty) <= 0 || normalized.OpenQty === normalized.Quantity) {
-            normalized.OpenQty = requiredQuantity;
-            normalized.OpenQuantity = requiredQuantity;
-            normalized.RemainingOpenQuantity = requiredQuantity;
-          }
         }
         return normalized;
       }),

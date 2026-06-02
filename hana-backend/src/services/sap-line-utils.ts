@@ -58,10 +58,22 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
     ItemDescription: String(line.ItemDescription ?? line.itemDescription ?? ""),
     Quantity: quantity,
     OpenQty: Number(
-      line.OpenQty ?? line.OpenQuantity ?? line.openQty ?? line.openQuantity ?? quantity,
+      line.RemainingOpenQuantity ??
+        line.remainingOpenQuantity ??
+        line.OpenQty ??
+        line.OpenQuantity ??
+        line.openQty ??
+        line.openQuantity ??
+        quantity,
     ),
     OpenQuantity: Number(
-      line.OpenQuantity ?? line.OpenQty ?? line.openQuantity ?? line.openQty ?? quantity,
+      line.RemainingOpenQuantity ??
+        line.remainingOpenQuantity ??
+        line.OpenQuantity ??
+        line.OpenQty ??
+        line.openQuantity ??
+        line.openQty ??
+        quantity,
     ),
     Price: unitPrice,
     DiscountPercent: discountPercent,

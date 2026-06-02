@@ -291,6 +291,15 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           const quantity = Number(
             lineData.RequiredQuantity ?? lineData.requiredQuantity ?? line.Quantity ?? 1,
           );
+          // OpenQty is the real remaining-fulfillable quantity. Surface it on the
+          // row so downstream CopyTo cascades (PO/GRPO/AP Invoice) and any
+          // partial-fulfillment UI can consume it.
+          const openQty = Number(
+            lineData.OpenQty ??
+              lineData.OpenQuantity ??
+              lineData.RemainingOpenQuantity ??
+              quantity,
+          );
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount: price * quantity,
@@ -326,6 +335,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             comment: "",
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
             requiredDate,
+            openQty,
             selected: false,
           };
         });
