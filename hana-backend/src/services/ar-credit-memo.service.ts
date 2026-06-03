@@ -233,7 +233,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
-          DiscountPercent: Number(item.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
           VatGroup: (item.VatGroup ?? item.TaxCode) as string,
           WarehouseCode: item.WarehouseCode as string,
         };
