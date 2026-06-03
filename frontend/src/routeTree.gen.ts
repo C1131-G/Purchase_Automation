@@ -33,8 +33,6 @@ import { Route as LayoutPurchaseCreateApInvoiceRouteImport } from './routes/_lay
 import { Route as LayoutPurchaseCreateApCreditMemoRouteImport } from './routes/_layout.purchase.create-ap-credit-memo'
 import { Route as LayoutPurchaseApInvoiceRouteImport } from './routes/_layout.purchase.ap-invoice'
 import { Route as LayoutPurchaseApCreditMemoRouteImport } from './routes/_layout.purchase.ap-credit-memo'
-import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout.dashboard.sales'
-import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout.dashboard.purchase'
 import { Route as LayoutSalesArCreditMemoSelectInvoiceRouteImport } from './routes/_layout.sales.ar-credit-memo.select-invoice'
 import { Route as LayoutSalesArCreditMemoCreateRouteImport } from './routes/_layout.sales.ar-credit-memo.create'
 import { Route as LayoutSalesQuotationsDocNumEditRouteImport } from './routes/_layout.sales.quotations.$docNum.edit'
@@ -181,16 +179,6 @@ const LayoutPurchaseApCreditMemoRoute =
     path: '/purchase/ap-credit-memo',
     getParentRoute: () => LayoutRoute,
   } as any)
-const LayoutDashboardSalesRoute = LayoutDashboardSalesRouteImport.update({
-  id: '/dashboard/sales',
-  path: '/dashboard/sales',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutDashboardPurchaseRoute = LayoutDashboardPurchaseRouteImport.update({
-  id: '/dashboard/purchase',
-  path: '/dashboard/purchase',
-  getParentRoute: () => LayoutRoute,
-} as any)
 const LayoutSalesArCreditMemoSelectInvoiceRoute =
   LayoutSalesArCreditMemoSelectInvoiceRouteImport.update({
     id: '/select-invoice',
@@ -273,8 +261,6 @@ const LayoutPurchaseApCreditMemoDocNumEditRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
-  '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -313,8 +299,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
-  '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -355,8 +339,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_layout': typeof LayoutRouteWithChildren
   '/login': typeof LoginRoute
-  '/_layout/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
-  '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/_layout/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -397,8 +379,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/dashboard/purchase'
-    | '/dashboard/sales'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/create-ap-credit-memo'
@@ -437,8 +417,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/dashboard/purchase'
-    | '/dashboard/sales'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/create-ap-credit-memo'
@@ -478,8 +456,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_layout'
     | '/login'
-    | '/_layout/dashboard/purchase'
-    | '/_layout/dashboard/sales'
     | '/_layout/purchase/ap-credit-memo'
     | '/_layout/purchase/ap-invoice'
     | '/_layout/purchase/create-ap-credit-memo'
@@ -690,20 +666,6 @@ declare module '@tanstack/react-router' {
       path: '/purchase/ap-credit-memo'
       fullPath: '/purchase/ap-credit-memo'
       preLoaderRoute: typeof LayoutPurchaseApCreditMemoRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/dashboard/sales': {
-      id: '/_layout/dashboard/sales'
-      path: '/dashboard/sales'
-      fullPath: '/dashboard/sales'
-      preLoaderRoute: typeof LayoutDashboardSalesRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/dashboard/purchase': {
-      id: '/_layout/dashboard/purchase'
-      path: '/dashboard/purchase'
-      fullPath: '/dashboard/purchase'
-      preLoaderRoute: typeof LayoutDashboardPurchaseRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/sales/ar-credit-memo/select-invoice': {
@@ -953,8 +915,6 @@ const LayoutSalesQuotationsRouteWithChildren =
   )
 
 interface LayoutRouteChildren {
-  LayoutDashboardPurchaseRoute: typeof LayoutDashboardPurchaseRoute
-  LayoutDashboardSalesRoute: typeof LayoutDashboardSalesRoute
   LayoutPurchaseApCreditMemoRoute: typeof LayoutPurchaseApCreditMemoRouteWithChildren
   LayoutPurchaseApInvoiceRoute: typeof LayoutPurchaseApInvoiceRouteWithChildren
   LayoutPurchaseCreateApCreditMemoRoute: typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -979,8 +939,6 @@ interface LayoutRouteChildren {
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
-  LayoutDashboardPurchaseRoute: LayoutDashboardPurchaseRoute,
-  LayoutDashboardSalesRoute: LayoutDashboardSalesRoute,
   LayoutPurchaseApCreditMemoRoute: LayoutPurchaseApCreditMemoRouteWithChildren,
   LayoutPurchaseApInvoiceRoute: LayoutPurchaseApInvoiceRouteWithChildren,
   LayoutPurchaseCreateApCreditMemoRoute: LayoutPurchaseCreateApCreditMemoRoute,

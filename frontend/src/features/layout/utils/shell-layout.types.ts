@@ -1,1 +1,1 @@
-export type SectionKey = "purchase" | "sales" | "dashboard";
+export type SectionKey = "purchase" | "sales";

@@ -213,7 +213,8 @@ export const getProducts = async (
   type?: "sales" | "purchase",
 ) => {
   const normalizedWarehouseCode = toTrimmed(warehouseCode);
-  const normalizedSearch = toTrimmed(search).toLowerCase();
+  const normalizedSearch = toTrimmed(search);
+  const cacheSearchKey = normalizedSearch ? normalizedSearch.toLowerCase() : "all";
   const resolvedLimit =
     typeof limit === "number" && Number.isFinite(limit)
       ? Math.max(1, Math.min(500, limit))
@@ -226,35 +227,46 @@ export const getProducts = async (
       ? String(resolvedLimit)
       : "unlimited"
     : String(resolvedLimit ?? defaultListLimit);
-  const cacheKey = `master:${dbName}:Products:v9:${normalizedWarehouseCode || "default"}:${normalizedSearch || "all"}:${cacheLimitToken}:${type || "default"}`;
+  const cacheKey = `master:${dbName}:Products:v9:${normalizedWarehouseCode || "default"}:${cacheSearchKey}:${cacheLimitToken}:${type || "default"}`;
 
   return getCachedData(
     cacheKey,
     async () => {
-      // Step 1: Pre-fetch setup data that doesn't depend on specific item codes (Tax, UOMs, Currency).
-      // These are relatively small tables and can be fetched in parallel.
+      // Step 1: Pre-fetch setup data with independent caches so product search misses don't re-fetch static lookups.
       const [adminSettings, taxGroups, uoms] = await Promise.all([
-        (async () => {
-          const repository = await getTenantRepository(dbName, AdminSettingsSchema);
-          const rows = await repository.find({
-            select: ["Code", "MainCurncy"] as const,
-            take: 1,
-          });
-          return rows[0] ?? null;
-        })(),
-        (async () => {
-          const repository = await getTenantRepository(dbName, TaxGroupSchema);
-          return repository.find({
-            select: ["Code", "Rate"] as const,
-            where: { Inactive: "N" } as Record<string, unknown>,
-          });
-        })(),
-        (async () => {
-          const repository = await getTenantRepository(dbName, UnitOfMeasurementSchema);
-          return repository.find({
-            select: ["UomEntry", "UomCode", "UomName"] as const,
-          });
-        })(),
+        getCachedData(
+          `master:${dbName}:AdminSettings`,
+          async () => {
+            const repository = await getTenantRepository(dbName, AdminSettingsSchema);
+            const rows = await repository.find({
+              select: ["Code", "MainCurncy"] as const,
+              take: 1,
+            });
+            return rows[0] ?? null;
+          },
+          1000 * 60 * 60,
+        ),
+        getCachedData(
+          `master:${dbName}:TaxGroups:active`,
+          async () => {
+            const repository = await getTenantRepository(dbName, TaxGroupSchema);
+            return repository.find({
+              select: ["Code", "Rate"] as const,
+              where: { Inactive: "N" } as Record<string, unknown>,
+            });
+          },
+          1000 * 60 * 30,
+        ),
+        getCachedData(
+          `master:${dbName}:UoMs`,
+          async () => {
+            const repository = await getTenantRepository(dbName, UnitOfMeasurementSchema);
+            return repository.find({
+              select: ["UomEntry", "UomCode", "UomName"] as const,
+            });
+          },
+          1000 * 60 * 60,
+        ),
       ]);
 
       // Step 2: Fetch Item headers based on search and limit.
@@ -282,7 +294,7 @@ export const getProducts = async (
       }
 
       if (normalizedSearch) {
-        query.andWhere("(LOWER(item.ItemCode) LIKE :search OR LOWER(item.ItemName) LIKE :search)", {
+        query.andWhere("(item.ItemCode LIKE :search OR item.ItemName LIKE :search)", {
           search: `%${normalizedSearch}%`,
         });
       }

@@ -45,7 +45,7 @@ export function useArProducts({
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedProductSearch(productSearch.trim());
-    }, 180);
+    }, 350);
     return () => window.clearTimeout(timer);
   }, [productSearch]);
 
