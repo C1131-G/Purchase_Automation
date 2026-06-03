@@ -245,7 +245,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: Number(line.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
@@ -365,7 +365,7 @@ export const updateSalesQuotation = async (
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: Number(line.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,

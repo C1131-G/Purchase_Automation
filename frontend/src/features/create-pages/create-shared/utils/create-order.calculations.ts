@@ -34,7 +34,7 @@ export interface CalculateOrderTotalsOptions {
 
 export const calculateOrderTotals = (
   productRows: ProductRow[],
-  options?: CalculateOrderTotalsOptions,
+  _options?: CalculateOrderTotalsOptions,
 ) => {
   // 1. Calculate overall weighted average header discount percentage using integer cents arithmetic
   let totalGrossCents = 0;
@@ -53,13 +53,7 @@ export const calculateOrderTotals = (
     totalDiscountCents += lineDiscountCents;
   }
 
-  const inferredHeaderDiscountPercent =
-    totalGrossCents > 0 ? (totalDiscountCents / totalGrossCents) * 100 : 0;
-  const roundedInferredHeaderDiscountPercent = round2(inferredHeaderDiscountPercent);
-  const roundedExplicitHeaderDiscountPercent =
-    options?.headerDiscountPercent !== undefined ? round2(options.headerDiscountPercent) : null;
-  const effectiveHeaderDiscountPercent =
-    roundedExplicitHeaderDiscountPercent ?? roundedInferredHeaderDiscountPercent;
+  // Inferred header discount logic removed as we no longer apply it to netTotal to avoid double-discounting
 
   // 2. Sum per-line net totals and compute a weighted-average tax rate across all rows.
   //    Using weighted-avg tax rate on the final netTotal mirrors SAP's approach:
@@ -77,8 +71,9 @@ export const calculateOrderTotals = (
     weightedTaxRateDenominator += lineNet;
   }
 
-  // 3. Apply the rounded header discount percent to net total
-  const netTotal = round2(rawNetTotal * (1 - effectiveHeaderDiscountPercent / 100));
+  // 3. The rawNetTotal already includes individual line discounts.
+  // We do NOT apply the header discount factor again here to prevent double-discounting.
+  const netTotal = round2(rawNetTotal);
 
   // 4. Derive tax from the final netTotal using the weighted-average tax rate.
   //    This matches SAP: tax is computed once on the post-discount net, not double-discounted.
