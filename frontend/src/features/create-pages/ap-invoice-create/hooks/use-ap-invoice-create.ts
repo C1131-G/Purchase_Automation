@@ -330,7 +330,7 @@ export function useAPInvoiceCreate({
   useEffect(() => {
     if (header.warehouseCode && warehouses.length > 0) {
       const matched = warehouses.find(
-        (w) => String(w.code).trim() === String(header.warehouseCode).trim()
+        (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
       if (matched && warehouseInput !== matched.name) {
         setWarehouseInput(matched.name);

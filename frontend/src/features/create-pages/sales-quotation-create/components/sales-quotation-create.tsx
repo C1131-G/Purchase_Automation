@@ -133,7 +133,6 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
             onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
             onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
             onSelectSalesEmployee={state.selectSalesEmployee}
-
             showWarehouseInsteadOfDocNum={true}
             warehouseLabel="Warehouse"
             warehouseInput={state.warehouseInput}

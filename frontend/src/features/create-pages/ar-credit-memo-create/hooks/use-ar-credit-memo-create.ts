@@ -212,7 +212,9 @@ export function useArCreditMemoCreate({
       return;
     }
     const matched = warehouses.find(
-      (w) => w.name.toLowerCase() === value.trim().toLowerCase() || w.code.toLowerCase() === value.trim().toLowerCase(),
+      (w) =>
+        w.name.toLowerCase() === value.trim().toLowerCase() ||
+        w.code.toLowerCase() === value.trim().toLowerCase(),
     );
     if (matched) {
       selectWarehouse(matched);
@@ -431,7 +433,7 @@ export function useArCreditMemoCreate({
   useEffect(() => {
     if (header.warehouseCode && warehouses.length > 0) {
       const matched = warehouses.find(
-        (w) => String(w.code).trim() === String(header.warehouseCode).trim()
+        (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
       if (matched && warehouseInput !== matched.name) {
         setWarehouseInput(matched.name);

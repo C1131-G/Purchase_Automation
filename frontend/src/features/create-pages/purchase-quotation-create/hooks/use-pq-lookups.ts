@@ -308,7 +308,7 @@ export function usePqLookups({
   useEffect(() => {
     if (headerWarehouseCode && warehouses.length > 0) {
       const matched = warehouses.find(
-        (w) => String(w.code).trim() === String(headerWarehouseCode).trim()
+        (w) => String(w.code).trim() === String(headerWarehouseCode).trim(),
       );
       if (matched && warehouseInput !== matched.name) {
         setWarehouseInput(matched.name);
