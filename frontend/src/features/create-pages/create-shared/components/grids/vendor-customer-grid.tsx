@@ -136,6 +136,8 @@ export function VendorCustomerGrid({
             onSelect={onSelectVendor}
             floating
             query={codeInput}
+            codeOnly={true}
+            codeLabel={codeLabel.replace(/\s*\*$/, "")}
           />
         ) : null}
       </div>

@@ -1,6 +1,6 @@
 // Master Data Service: Centralized logic for retrieving organizational lookup data (Products, Partners, Tax, etc.) from SAP HANA.
 
-import { In } from "typeorm";
+import { Brackets, In } from "typeorm";
 import type { EntitySchema, FindManyOptions, ObjectLiteral } from "typeorm";
 
 import { logger } from "@/core/logger/pino-logger";
@@ -227,7 +227,7 @@ export const getProducts = async (
       ? String(resolvedLimit)
       : "unlimited"
     : String(resolvedLimit ?? defaultListLimit);
-  const cacheKey = `master:${dbName}:Products:v9:${normalizedWarehouseCode || "default"}:${cacheSearchKey}:${cacheLimitToken}:${type || "default"}`;
+  const cacheKey = `master:${dbName}:Products:v10:${normalizedWarehouseCode || "default"}:${cacheSearchKey}:${cacheLimitToken}:${type || "default"}`;
 
   return getCachedData(
     cacheKey,
@@ -294,14 +294,31 @@ export const getProducts = async (
       }
 
       if (normalizedSearch) {
-        query.andWhere("(item.ItemCode LIKE :search OR item.ItemName LIKE :search)", {
-          search: `%${normalizedSearch}%`,
+        const words = normalizedSearch.split(/\s+/).filter(Boolean);
+        words.forEach((word, index) => {
+          const lowerWord = word.toLowerCase();
+          query.andWhere(
+            new Brackets((qb) => {
+              qb.where("LOWER(item.ItemCode) LIKE :word_" + index, {
+                ["word_" + index]: `%${lowerWord}%`,
+              }).orWhere("LOWER(item.ItemName) LIKE :word_" + index, {
+                ["word_" + index]: `%${lowerWord}%`,
+              });
+            }),
+          );
         });
       }
 
       // Default sorting: if no search, sort by ItemCode.
-      // Pagination: take the requested limit or the default.
-      query.orderBy("item.ItemCode", "ASC").take(resolvedLimit ?? defaultListLimit);
+      // Pagination: only apply limits when NOT searching.
+      query.orderBy("item.ItemCode", "ASC");
+      if (!normalizedSearch) {
+        if (resolvedLimit !== undefined) {
+          query.take(resolvedLimit);
+        } else {
+          query.take(defaultListLimit);
+        }
+      }
 
       const items = await query.getMany();
       if (items.length === 0) {

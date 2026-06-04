@@ -81,7 +81,6 @@ export interface APCreditMemoCreateLine {
 }
 type APCreditMemoFieldErrors = Record<APCreditMemoMandatoryField, string | undefined>;
 const QUICK_PRODUCT_LIMIT = 10;
-const FULL_PRODUCT_LIMIT = 500;
 
 const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
   returnReason: undefined,
@@ -247,6 +246,7 @@ export function useAPCreditMemoCreate({
   }, [warehouseInput, warehouses]);
 
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
+  const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
 
   const productsQuery = useQuery({
     ...createSharedQueries.products(
@@ -264,6 +264,34 @@ export function useAPCreditMemoCreate({
     }, 180);
     return () => window.clearTimeout(timer);
   }, [productSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setProductQueryLimit(QUICK_PRODUCT_LIMIT);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [debouncedProductSearch, vendorSelected, productPopupOpen]);
+
+  const prefetchProducts = useCallback(() => {
+    if (!vendorSelected) {
+      return;
+    }
+    void queryClient.prefetchQuery(
+      createSharedQueries.products(
+        effectiveWarehouseCode || undefined,
+        productSearch.trim() || undefined,
+        QUICK_PRODUCT_LIMIT,
+        "purchase",
+      ),
+    );
+  }, [vendorSelected, effectiveWarehouseCode, productSearch, queryClient]);
+
+  useEffect(() => {
+    if (!vendorSelected) {
+      return;
+    }
+    prefetchProducts();
+  }, [vendorLookupToken, vendorSelected, prefetchProducts]);
 
   const productWarehouseStocksQuery = useQuery({
     ...createSharedQueries.productWarehouseStocks(stockPreviewProduct?.code),
@@ -1023,12 +1051,6 @@ export function useAPCreditMemoCreate({
       return;
     }
 
-    // Validate warehouse is selected for all lines
-    const linesMissingWarehouse = filteredRows.filter((row) => !row.warehouseCode.trim());
-    if (linesMissingWarehouse.length > 0) {
-      return;
-    }
-
     const toastHandle = documentActionToast("A/P Credit Memo", isEditMode ? "update" : "create");
     try {
       if (isEditMode) {
@@ -1296,7 +1318,25 @@ export function useAPCreditMemoCreate({
         : salesEmployeesQuery.isLoading,
     isProductsLoading: productsQuery.isLoading,
     isSourceHydrating: mode === "create" && Boolean(sourceDocNum) && !hydratedDocNumRef.current,
-    loadMoreProducts: () => setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT)),
+    loadMoreProducts: () => {
+      if (!productPopupOpen) {
+        return;
+      }
+      if (productsQuery.isFetching) {
+        return;
+      }
+      const currentCount = productsQuery.data?.length ?? 0;
+      if (currentCount < productQueryLimit) {
+        return;
+      }
+      if (debouncedProductSearch.trim().length > 0) {
+        return;
+      }
+      if (productQueryLimit >= 50) {
+        return;
+      }
+      setProductQueryLimit((prev) => Math.min(prev + 10, 50));
+    },
     lookupError:
       (modalMode.includes("vendor")
         ? vendorsQuery.error
@@ -1332,7 +1372,7 @@ export function useAPCreditMemoCreate({
         ),
       [vendors, warehouses, salesEmployees, modalSearch, modalMode],
     ),
-    prefetchProducts: () => {},
+    prefetchProducts: isEditMode ? () => {} : prefetchProducts,
     productPopupOpen,
     productRowDrafts,
     productSearch,

@@ -1,4 +1,5 @@
 // SuggestionList: A high-performance, keyboard-accessible dropdown for lookup hints.
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -10,6 +11,7 @@ interface SuggestionListProps {
   emptyText?: string;
   floating?: boolean;
   showCode?: boolean;
+  codeOnly?: boolean;
   showStock?: boolean;
   codeLabel?: string;
   nameLabel?: string;
@@ -26,6 +28,7 @@ export function SuggestionList({
   floating = false,
   showStock = false,
   showCode = false,
+  codeOnly = false,
   codeLabel = "Code",
   nameLabel = "Name",
   maxHeight = "max-h-[190px]",
@@ -89,6 +92,13 @@ export function SuggestionList({
     }, 120);
   };
 
+  const rowVirtualizer = useVirtualizer({
+    count: visibleItems.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 36,
+    overscan: 5,
+  });
+
   const gridColumns = showCode
     ? "grid-cols-[80px_minmax(0,1fr)]"
     : showStock
@@ -103,59 +113,90 @@ export function SuggestionList({
 
   return (
     <div className={outerClass}>
+      {visibleItems.length > 0 && (
+        <div
+          className={`border-b border-zinc-100 bg-zinc-50 pl-3 py-1 ${scrollable ? "pr-[29px]" : "pr-3"}`}
+        >
+          {showCode ? (
+            <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-2">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                {codeLabel}
+              </span>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                {nameLabel}
+              </span>
+            </div>
+          ) : showStock ? (
+            <div className="grid grid-cols-[minmax(0,1fr)_56px] gap-x-2">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                {codeOnly ? codeLabel : nameLabel}
+              </span>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                Stock
+              </span>
+            </div>
+          ) : (
+            <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+              {codeOnly ? codeLabel : nameLabel}
+            </span>
+          )}
+        </div>
+      )}
       <div
         ref={listRef}
-        className={`${maxHeight} overflow-auto`}
+        className={`${maxHeight} ${scrollable ? "overflow-y-scroll" : "overflow-auto"} relative`}
         onScroll={scrollable ? handleScroll : undefined}
       >
         {visibleItems.length === 0 ? (
           <div className="px-3 py-3 text-sm text-zinc-500">{emptyText}</div>
-        ) : null}
-        {visibleItems.length > 0 && (
-          <div className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 px-3 py-1">
-            {showCode ? (
-              <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-2">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                  {codeLabel}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                  {nameLabel}
-                </span>
-              </div>
-            ) : (
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-                {nameLabel}
-              </span>
-            )}
-          </div>
-        )}
-        {visibleItems.map((item) => (
-          <button
-            key={item.code}
-            type="button"
-            disabled={item.disabled}
-            className={`grid w-full cursor-pointer ${gridColumns} gap-x-2 items-center border-b border-zinc-100 px-3 py-2 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-50 disabled:hover:bg-transparent`}
-            onMouseDown={(event) => {
-              if (item.disabled) {
-                return;
-              }
-              event.preventDefault();
-              onSelect(item);
+        ) : (
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: "100%",
+              position: "relative",
             }}
           >
-            {showCode && (
-              <span className="text-[11px] font-medium text-zinc-500 truncate">{item.code}</span>
-            )}
-            <span className="text-sm leading-tight text-zinc-800 transition-colors py-0.5 truncate">
-              {item.name}
-            </span>
-            {showStock && (
-              <span className="text-[11px] font-medium text-zinc-600 text-right">
-                {typeof item.stock === "number" ? item.stock : "-"}
-              </span>
-            )}
-          </button>
-        ))}
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = visibleItems[virtualRow.index]!;
+              return (
+                <button
+                  key={item.code}
+                  type="button"
+                  disabled={item.disabled}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className={`grid w-full cursor-pointer ${gridColumns} gap-x-2 items-center border-b border-zinc-100 px-3 py-2 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-50 disabled:hover:bg-transparent`}
+                  onMouseDown={(event) => {
+                    if (item.disabled) {
+                      return;
+                    }
+                    event.preventDefault();
+                    onSelect(item);
+                  }}
+                >
+                  {showCode && (
+                    <span className="text-[11px] text-zinc-500 truncate">{item.code}</span>
+                  )}
+                  <span className="text-sm leading-tight text-zinc-800 transition-colors py-0.5 truncate">
+                    {codeOnly ? item.code : item.name}
+                  </span>
+                  {showStock && (
+                    <span className="text-[11px] text-zinc-600">
+                      {typeof item.stock === "number" ? item.stock : "-"}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {loadingMore ? (
           <div className="flex items-center justify-center px-3 py-2 text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" />

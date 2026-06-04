@@ -11,7 +11,7 @@ import { CopyFromDropdown } from "@/features/create-pages/create-shared/componen
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { CopyFromDialog } from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
-import { PURCHASE_ORDER_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
+
 import {
   parseISODate,
   toDisplayDate,
@@ -253,7 +253,7 @@ export function GRPOCreate({
         searchMandatoryFields={state.searchMandatoryFields}
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
-        requiredFieldsTotal={PURCHASE_ORDER_MANDATORY_FIELDS.length}
+        requiredFieldsTotal={state.requiredFieldsTotal}
         requiredFieldLabelText={GRPO_FIELD_LABEL_TEXT}
         openProductPopup={state.openProductPopup}
         prefetchProducts={state.prefetchProducts}

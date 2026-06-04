@@ -1,5 +1,4 @@
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
-import type { PURCHASE_ORDER_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
 
 export interface ProductSearchFieldError {
   vendorName: string | undefined;
@@ -25,17 +24,14 @@ export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
   warehouseCode: undefined,
 };
 
-export const MANDATORY_ERROR_TEXT: Record<
-  (typeof PURCHASE_ORDER_MANDATORY_FIELDS)[number],
-  string
-> = {
+export const MANDATORY_ERROR_TEXT: Record<"vendorCode" | "vendorName" | "warehouseCode", string> = {
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",
   warehouseCode: "Warehouse is required.",
 };
 
 export const REQUIRED_FIELD_LABEL_TEXT: Record<
-  (typeof PURCHASE_ORDER_MANDATORY_FIELDS)[number],
+  "vendorCode" | "vendorName" | "warehouseCode",
   string
 > = {
   vendorCode: "Vendor Code",
@@ -51,6 +47,10 @@ export const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSea
   if (!term) {
     return items;
   }
+  const words = term.split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return items;
+  }
 
   const score = (item: ProductLookupItem) => {
     const code = item.code.toLowerCase();
@@ -61,10 +61,20 @@ export const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSea
     if (code.startsWith(term) || name.startsWith(term)) {
       return 1;
     }
-    if (code.includes(term) || name.includes(term)) {
+    const allWordsStart = words.every(
+      (word) =>
+        code.startsWith(word) ||
+        name.startsWith(word) ||
+        name.split(/\s+/).some((n) => n.startsWith(word)),
+    );
+    if (allWordsStart) {
       return 2;
     }
-    return 3;
+    const allWordsIncluded = words.every((word) => code.includes(word) || name.includes(word));
+    if (allWordsIncluded) {
+      return 3;
+    }
+    return 4;
   };
 
   return [...items].toSorted((a, b) => {

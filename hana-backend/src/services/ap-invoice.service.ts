@@ -12,6 +12,7 @@ import { calculateHeaderDiscount } from "@/services/discount.util";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
+import { adjustPayloadDates } from "./date-adjustment.util";
 
 import { resolveBaseLineQuantities } from "./base-qty-validation.util";
 import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
@@ -224,7 +225,13 @@ export const getInvoice = async (sessionId: string, id: string, dbName?: string)
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
       DocumentLines: enrichedLines,
-      NumAtCard: result.NumAtCard,
+      NumAtCard: (() => {
+        const ref = result.NumAtCard;
+        if (ref && /\s\(\d{6}\)$/.test(ref)) {
+          return ref.replace(/\s\(\d{6}\)$/, "");
+        }
+        return ref;
+      })(),
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       id: result.DocEntry,
     };
@@ -329,6 +336,7 @@ export const createInvoice = async (
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
+    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -445,6 +453,7 @@ export const updateInvoice = async (
     }
     if (payload.DocDueDate) {
       sapPayload.DocDueDate = payload.DocDueDate;
+      await adjustPayloadDates(sessionId, sapPayload, true, `/PurchaseInvoices(${id})`);
     }
 
     // PATCH request to SAP: Partial updates are standard for meta fields like comments.

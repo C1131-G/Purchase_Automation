@@ -793,12 +793,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       return;
     }
 
-    // Validate warehouse is selected for all lines
-    const linesMissingWarehouse = validRows.filter((row) => !row.warehouseCode.trim());
-    if (linesMissingWarehouse.length > 0) {
-      return;
-    }
-
     if (isEditMode) {
       const detail = editDetailQuery.data?.data;
       if (detail) {

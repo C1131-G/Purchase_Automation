@@ -704,18 +704,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const hasValidRowsForCreate = productsHook.productRows.some(
     (row) => row.productCode.trim() && row.quantity > 0,
   );
-  const hasRowsWithoutWarehouse = productsHook.productRows
-    .filter((row) => row.productCode.trim() && row.quantity > 0)
-    .some((row) => !row.warehouseCode || !row.warehouseCode.trim());
+  const hasRowsWithoutWarehouse = false;
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
       ? `Complete required fields: ${missingMandatoryFields.map((field) => REQUIRED_FIELD_LABEL_TEXT[field as keyof typeof REQUIRED_FIELD_LABEL_TEXT]).join(", ")}.`
       : !hasValidRowsForCreate
         ? `Add at least one product row before ${isEditMode ? "updating" : "creating"} A/R invoice.`
-        : hasRowsWithoutWarehouse
-          ? "Warehouse must be selected for all product rows."
-          : null;
+        : null;
 
   const requiredCompletionPercent =
     ((AR_INVOICE_MANDATORY_FIELDS.length - missingMandatoryFields.length) /
@@ -759,12 +755,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     );
     if (validRows.length === 0) {
       setCreateError(rowsErrorText);
-      return;
-    }
-
-    if (hasRowsWithoutWarehouse) {
-      setCreateError(warehouseErrorText);
-      goeyToast.error(warehouseErrorText, { id: "warehouse-missing-error" });
       return;
     }
 

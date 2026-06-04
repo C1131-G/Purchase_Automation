@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  FULL_PRODUCT_LIMIT,
   QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
@@ -53,7 +52,7 @@ export function useArProducts({
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setProductQueryLimit(FULL_PRODUCT_LIMIT);
+      setProductQueryLimit(QUICK_PRODUCT_LIMIT);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [normalizedProductSearch, customerSelected, productPopupOpen]);
@@ -62,7 +61,7 @@ export function useArProducts({
     ...arInvoiceCreateQueries.products(
       effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
-      productQueryLimit,
+      normalizedProductSearch ? undefined : productQueryLimit,
       "sales",
     ),
     enabled: customerSelected,
@@ -139,10 +138,13 @@ export function useArProducts({
       return;
     }
     const isSearchMode = normalizedProductSearch.length > 0;
-    if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) {
+    if (isSearchMode) {
       return;
     }
-    setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT));
+    if (productQueryLimit >= 50) {
+      return;
+    }
+    setProductQueryLimit((prev) => Math.min(prev + 10, 50));
   };
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {

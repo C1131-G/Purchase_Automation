@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   createSharedKeys,
@@ -11,7 +11,6 @@ import type {
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
-  FULL_PRODUCT_LIMIT,
   QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
@@ -56,7 +55,7 @@ export function usePqProducts({
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setProductQueryLimit(FULL_PRODUCT_LIMIT);
+      setProductQueryLimit(QUICK_PRODUCT_LIMIT);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [normalizedProductSearch, vendorSelected, productPopupOpen]);
@@ -67,7 +66,7 @@ export function usePqProducts({
     ...purchaseQuotationCreateQueries.products(
       effectiveWarehouseCode || undefined,
       normalizedProductSearch || undefined,
-      productQueryLimit,
+      normalizedProductSearch ? undefined : productQueryLimit,
       "purchase",
     ),
     enabled: productPopupOpen && vendorSelected,
@@ -92,7 +91,7 @@ export function usePqProducts({
     enabled: Boolean(stockPreviewProductCode),
   });
 
-  const prefetchProducts = () => {
+  const prefetchProducts = useCallback(() => {
     if (!vendorSelected) {
       return;
     }
@@ -104,7 +103,14 @@ export function usePqProducts({
         "purchase",
       ),
     );
-  };
+  }, [vendorSelected, effectiveWarehouseCode, normalizedProductSearch, queryClient]);
+
+  useEffect(() => {
+    if (!vendorSelected) {
+      return;
+    }
+    prefetchProducts();
+  }, [vendorLookupToken, vendorSelected, prefetchProducts]);
 
   const openProductPopup = (
     rowId: string | null,
@@ -146,10 +152,13 @@ export function usePqProducts({
       return;
     }
     const isSearchMode = normalizedProductSearch.length > 0;
-    if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) {
+    if (isSearchMode) {
       return;
     }
-    setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT));
+    if (productQueryLimit >= 50) {
+      return;
+    }
+    setProductQueryLimit((prev) => Math.min(prev + 10, 50));
   };
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {

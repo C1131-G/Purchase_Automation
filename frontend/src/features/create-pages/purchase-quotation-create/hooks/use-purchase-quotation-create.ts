@@ -563,9 +563,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   const hasValidRowsForCreate = productsHook.productRows.some(
     (row) => row.productCode.trim() && row.quantity > 0,
   );
-  const hasRowsWithoutWarehouse = productsHook.productRows
-    .filter((row) => row.productCode.trim() && row.quantity > 0)
-    .some((row) => !row.warehouseCode || !row.warehouseCode.trim());
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
@@ -590,16 +587,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         : createError;
 
   const warehouseErrors = useMemo(() => {
-    const errors: Record<string, string> = {};
-    if (!submitAttempted) return errors;
-
-    productsHook.productRows.forEach((row) => {
-      if (row.productCode.trim() && (!row.warehouseCode || !row.warehouseCode.trim())) {
-        errors[row.id] = "Warehouse is required.";
-      }
-    });
-    return errors;
-  }, [submitAttempted, productsHook.productRows]);
+    return {} as Record<string, string>;
+  }, []);
 
   function handleCreateOrderAction() {
     void handleCreateOrder();
@@ -626,10 +615,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     );
     if (validRows.length === 0) {
       setCreateError(rowsErrorText);
-      return;
-    }
-
-    if (hasRowsWithoutWarehouse) {
       return;
     }
 

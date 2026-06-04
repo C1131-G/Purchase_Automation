@@ -47,6 +47,10 @@ export const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSea
   if (!term) {
     return items;
   }
+  const words = term.split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return items;
+  }
 
   const score = (item: ProductLookupItem) => {
     const code = item.code.toLowerCase();
@@ -57,10 +61,20 @@ export const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSea
     if (code.startsWith(term) || name.startsWith(term)) {
       return 1;
     }
-    if (code.includes(term) || name.includes(term)) {
+    const allWordsStart = words.every(
+      (word) =>
+        code.startsWith(word) ||
+        name.startsWith(word) ||
+        name.split(/\s+/).some((n) => n.startsWith(word)),
+    );
+    if (allWordsStart) {
       return 2;
     }
-    return 3;
+    const allWordsIncluded = words.every((word) => code.includes(word) || name.includes(word));
+    if (allWordsIncluded) {
+      return 3;
+    }
+    return 4;
   };
 
   return [...items].toSorted((a, b) => {

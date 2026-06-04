@@ -13,6 +13,7 @@ import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
+import { adjustPayloadDates } from "./date-adjustment.util";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 const normalizeSapDateValue = (value: unknown) => {
@@ -331,12 +332,20 @@ export const createPurchaseQuotation = async (
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
+    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
         4,
         6,
       )}-${docDueDate.slice(6, 8)}`;
+    }
+    const requiredDate = sapPayload.RequriedDate as string;
+    if (requiredDate && requiredDate.length === 8) {
+      sapPayload.RequriedDate = `${requiredDate.slice(0, 4)}-${requiredDate.slice(
+        4,
+        6,
+      )}-${requiredDate.slice(6, 8)}`;
     }
 
     const result = (await serviceLayerClient.request(
@@ -400,6 +409,7 @@ export const updatePurchaseQuotation = async (
     if ((payload as Record<string, unknown>).RequriedDate !== undefined) {
       sapPayload.RequriedDate = (payload as Record<string, unknown>).RequriedDate;
     }
+    await adjustPayloadDates(sessionId, sapPayload, true, `/PurchaseQuotations(${id})`);
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }

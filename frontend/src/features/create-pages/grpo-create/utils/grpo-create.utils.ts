@@ -1,19 +1,17 @@
 import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 
-export const GRPO_MANDATORY_FIELDS = ["vendorName", "vendorCode", "warehouseCode"] as const;
+export const GRPO_MANDATORY_FIELDS = ["vendorName", "vendorCode"] as const;
 
 export type GRPOMandatoryField = (typeof GRPO_MANDATORY_FIELDS)[number];
 
 export const GRPO_FIELD_ERROR_TEXT: Record<GRPOMandatoryField, string> = {
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",
-  warehouseCode: "Warehouse is required.",
 };
 
 export const GRPO_FIELD_LABEL_TEXT: Record<GRPOMandatoryField, string> = {
   vendorCode: "Vendor Code",
   vendorName: "Vendor Name",
-  warehouseCode: "Warehouse",
 };
 
 export const getTodayISO = () => new Date().toISOString().slice(0, 10);
@@ -23,6 +21,11 @@ export const filterAndRankLookups = <T extends LookupItem>(items: T[], term: str
   if (!normalized) {
     return items;
   }
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return items;
+  }
+
   const score = (item: T) => {
     const code = item.code.toLowerCase();
     const name = item.name.toLowerCase();
@@ -32,16 +35,27 @@ export const filterAndRankLookups = <T extends LookupItem>(items: T[], term: str
     if (code.startsWith(normalized) || name.startsWith(normalized)) {
       return 1;
     }
-    if (code.includes(normalized) || name.includes(normalized)) {
+    const allWordsStart = words.every(
+      (word) =>
+        code.startsWith(word) ||
+        name.startsWith(word) ||
+        name.split(/\s+/).some((n) => n.startsWith(word)),
+    );
+    if (allWordsStart) {
       return 2;
     }
-    return 3;
+    const allWordsIncluded = words.every((word) => code.includes(word) || name.includes(word));
+    if (allWordsIncluded) {
+      return 3;
+    }
+    return 4;
   };
+
   return [...items]
     .filter((item) => {
       const code = item.code.toLowerCase();
       const name = item.name.toLowerCase();
-      return code.includes(normalized) || name.includes(normalized);
+      return words.every((word) => code.includes(word) || name.includes(word));
     })
     .toSorted((a, b) => {
       const byScore = score(a) - score(b);

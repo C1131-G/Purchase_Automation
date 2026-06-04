@@ -14,6 +14,7 @@ import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
+import { adjustPayloadDates } from "./date-adjustment.util";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 export const getSalesQuotations = async (dbName: string, filters: SalesQuotationFilters) => {
@@ -276,6 +277,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
+    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -342,6 +344,7 @@ export const updateSalesQuotation = async (
     }
     if (payload.DocDueDate !== undefined) {
       sapPayload.DocDueDate = payload.DocDueDate;
+      await adjustPayloadDates(sessionId, sapPayload, true, `/Quotations(${id})`);
     }
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;

@@ -10,7 +10,7 @@ export interface ProductSearchFieldError {
   comments: string | undefined;
 }
 
-export const QUICK_PRODUCT_LIMIT = 50;
+export const QUICK_PRODUCT_LIMIT = 10;
 export const FULL_PRODUCT_LIMIT = 500;
 
 export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
@@ -53,32 +53,48 @@ export function rankProductsBySearchRelevance<T extends { code: string; name: st
   products: T[],
   searchTerm: string,
 ): T[] {
-  if (!searchTerm) {
+  const term = searchTerm.trim().toLowerCase();
+  if (!term) {
     return products;
   }
-  const term = searchTerm.toLowerCase();
+  const words = term.split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return products;
+  }
+
+  const score = (item: T) => {
+    const code = item.code.toLowerCase();
+    const name = item.name.toLowerCase();
+    if (code === term || name === term) {
+      return 0;
+    }
+    if (code.startsWith(term) || name.startsWith(term)) {
+      return 1;
+    }
+    const allWordsStart = words.every(
+      (word) =>
+        code.startsWith(word) ||
+        name.startsWith(word) ||
+        name.split(/\s+/).some((n) => n.startsWith(word)),
+    );
+    if (allWordsStart) {
+      return 2;
+    }
+    const allWordsIncluded = words.every((word) => code.includes(word) || name.includes(word));
+    if (allWordsIncluded) {
+      return 3;
+    }
+    return 4;
+  };
+
   return [...products].toSorted((a, b) => {
-    const aLower = a.name.toLowerCase();
-    const bLower = b.name.toLowerCase();
-    const aCodeLower = a.code.toLowerCase();
-    const bCodeLower = b.code.toLowerCase();
-
-    if (aLower === term || aCodeLower === term) {
-      return -1;
+    const byScore = score(a) - score(b);
+    if (byScore !== 0) {
+      return byScore;
     }
-    if (bLower === term || bCodeLower === term) {
-      return 1;
-    }
-
-    const aStartsWith = aLower.startsWith(term) || aCodeLower.startsWith(term);
-    const bStartsWith = bLower.startsWith(term) || bCodeLower.startsWith(term);
-    if (aStartsWith && !bStartsWith) {
-      return -1;
-    }
-    if (bStartsWith && !aStartsWith) {
-      return 1;
-    }
-
-    return 0;
+    return a.code.localeCompare(b.code, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
   });
 }

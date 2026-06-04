@@ -27,6 +27,11 @@ export const filterAndRankLookups = <T extends LookupItem>(items: T[], term: str
   if (!normalized) {
     return items;
   }
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return items;
+  }
+
   const score = (item: T) => {
     const code = item.code.toLowerCase();
     const name = item.name.toLowerCase();
@@ -36,16 +41,27 @@ export const filterAndRankLookups = <T extends LookupItem>(items: T[], term: str
     if (code.startsWith(normalized) || name.startsWith(normalized)) {
       return 1;
     }
-    if (code.includes(normalized) || name.includes(normalized)) {
+    const allWordsStart = words.every(
+      (word) =>
+        code.startsWith(word) ||
+        name.startsWith(word) ||
+        name.split(/\s+/).some((n) => n.startsWith(word)),
+    );
+    if (allWordsStart) {
       return 2;
     }
-    return 3;
+    const allWordsIncluded = words.every((word) => code.includes(word) || name.includes(word));
+    if (allWordsIncluded) {
+      return 3;
+    }
+    return 4;
   };
+
   return [...items]
     .filter((item) => {
       const code = item.code.toLowerCase();
       const name = item.name.toLowerCase();
-      return code.includes(normalized) || name.includes(normalized);
+      return words.every((word) => code.includes(word) || name.includes(word));
     })
     .toSorted((a, b) => {
       const byScore = score(a) - score(b);

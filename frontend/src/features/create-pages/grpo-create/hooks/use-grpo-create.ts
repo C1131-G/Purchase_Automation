@@ -85,12 +85,10 @@ export interface GRPOCreateLine {
 }
 type GRPOFieldErrors = Record<GRPOMandatoryField, string | undefined>;
 const QUICK_PRODUCT_LIMIT = 10;
-const FULL_PRODUCT_LIMIT = 500;
 
 const EMPTY_GRPO_FIELD_ERRORS: GRPOFieldErrors = {
   vendorCode: undefined,
   vendorName: undefined,
-  warehouseCode: undefined,
 };
 
 interface UseGRPOCreateOptions {
@@ -1083,8 +1081,8 @@ export function useGRPOCreate({
     setBuyerFocused(true);
   };
 
-  const prefetchProducts = () => {
-    if (!effectiveWarehouseCode) {
+  const prefetchProducts = useCallback(() => {
+    if (!vendorSelected) {
       return;
     }
     void queryClient.prefetchQuery(
@@ -1095,7 +1093,14 @@ export function useGRPOCreate({
         "purchase",
       ),
     );
-  };
+  }, [vendorSelected, effectiveWarehouseCode, productSearch, queryClient]);
+
+  useEffect(() => {
+    if (!vendorSelected) {
+      return;
+    }
+    prefetchProducts();
+  }, [vendorLookupToken, vendorSelected, prefetchProducts]);
 
   const openProductPopup = (rowId: string | null = null) => {
     setActiveProductRowId(rowId);
@@ -1127,10 +1132,13 @@ export function useGRPOCreate({
       return;
     }
     const isSearchMode = debouncedProductSearch.trim().length > 0;
-    if (!isSearchMode && productQueryLimit >= FULL_PRODUCT_LIMIT) {
+    if (isSearchMode) {
       return;
     }
-    setProductQueryLimit((prev) => Math.min(prev + 10, FULL_PRODUCT_LIMIT));
+    if (productQueryLimit >= 50) {
+      return;
+    }
+    setProductQueryLimit((prev) => Math.min(prev + 10, 50));
   };
 
   const selectBuyer = (item: LookupItem) => {
@@ -1282,10 +1290,6 @@ export function useGRPOCreate({
       if (field === "vendorCode") {
         return !vendorCodeInput.trim();
       }
-      if (field === "warehouseCode") {
-        // Check if ANY row has a warehouseCode selected
-        return !rows.some((row) => row.warehouseCode?.trim());
-      }
       return false;
     });
   }, [isEditMode, vendorNameInput, vendorCodeInput, rows]);
@@ -1417,12 +1421,6 @@ export function useGRPOCreate({
 
     if (filteredRows.length === 0) {
       setCreateError("Set at least one line quantity greater than 0.");
-      return;
-    }
-
-    // Validate warehouse is selected for all lines
-    const linesMissingWarehouse = filteredRows.filter((row) => !row.warehouseCode.trim());
-    if (linesMissingWarehouse.length > 0) {
       return;
     }
 
@@ -1744,7 +1742,7 @@ export function useGRPOCreate({
     loadMoreProducts,
     applyProductToRow,
     applyProductsToRows,
-    prefetchProducts: () => (isEditMode ? null : prefetchProducts()),
+    prefetchProducts: isEditMode ? () => {} : prefetchProducts,
     // Derive the product code of the currently active row for seeding modal selection
     activeRowProductCode: (() => {
       if (!activeProductRowId) {

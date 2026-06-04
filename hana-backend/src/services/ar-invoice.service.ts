@@ -12,6 +12,7 @@ import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { calculateHeaderDiscount } from "@/services/discount.util";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
+import { adjustPayloadDates } from "./date-adjustment.util";
 
 // Fetches a paginated list of A/R Invoices from HANA with dynamic filtering support.
 export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
@@ -362,6 +363,7 @@ export const createInvoice = async (
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
+    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -409,11 +411,12 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
-    if (Object.hasOwn(payload, "DocDueDate")) {
-      sapPayload.DocDueDate = payload.DocDueDate;
-    }
     if (Object.hasOwn(payload, "Comments")) {
       sapPayload.Comments = payload.Comments;
+    }
+    if (payload.DocDueDate) {
+      sapPayload.DocDueDate = payload.DocDueDate;
+      await adjustPayloadDates(sessionId, sapPayload, true, `/Invoices(${id})`);
     }
     if (Object.hasOwn(payload, "NumAtCard")) {
       sapPayload.NumAtCard = payload.NumAtCard;
