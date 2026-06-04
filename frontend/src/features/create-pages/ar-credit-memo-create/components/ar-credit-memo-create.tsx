@@ -66,6 +66,10 @@ export function ArCreditMemoCreate({
     setSalesEmployeeFocused,
     salesEmployeeFocused,
     salesEmployeeSuggestions,
+    warehouseInput,
+    warehouseFocused,
+    warehouseSuggestions,
+    handleWarehouseChange,
     handleVendorNameChange,
     handleVendorCodeChange,
     handleSalesEmployeeChange,
@@ -178,7 +182,11 @@ export function ArCreditMemoCreate({
             salesEmployeeLabel="Sales Employee"
             salesEmployeeInput={salesEmployeeInput}
             salesEmployeesLoading={salesEmployeesQuery.isLoading}
-            error={salesEmployeesQuery.isError ? "Unable to load sales employees." : null}
+            error={
+              salesEmployeesQuery.isError || warehousesQuery.isError
+                ? "Unable to load logistics details."
+                : null
+            }
             salesEmployeeFocused={salesEmployeeFocused}
             salesEmployeeSuggestions={salesEmployeeSuggestions}
             onSalesEmployeeChange={handleSalesEmployeeChange}
@@ -186,6 +194,19 @@ export function ArCreditMemoCreate({
             onSalesEmployeeBlur={() => setTimeout(() => setSalesEmployeeFocused(false), 120)}
             onOpenSalesEmployeePopup={() => openPopup("sales-employee")}
             onSelectSalesEmployee={state.selectSalesEmployee}
+            showWarehouseInsteadOfDocNum={true}
+            warehouseLabel="Warehouse"
+            warehouseInput={warehouseInput}
+            warehousesLoading={warehousesQuery.isLoading}
+            warehouseFocused={warehouseFocused}
+            warehouseSuggestions={warehouseSuggestions}
+            onWarehouseChange={handleWarehouseChange}
+            onWarehouseFocus={() => state.setWarehouseFocused(true)}
+            onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+            onOpenWarehousePopup={() => openPopup("warehouse")}
+            onSelectWarehouse={state.selectWarehouse}
+            warehouseDisabled={state.isEditMode}
+            warehouseCode={header.warehouseCode}
           />
 
           <DocumentDatesGrid

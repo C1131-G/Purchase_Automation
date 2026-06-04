@@ -24,6 +24,24 @@ interface LogisticsGridProps {
   salesEmployeeEditableHighlight?: boolean;
   readOnly?: boolean;
   uniformReadOnlyAppearance?: boolean;
+
+  // Optional props to display Warehouse instead of Doc Number (used in Sales Quotation)
+  showWarehouseInsteadOfDocNum?: boolean | undefined;
+  warehouseInput?: string | undefined;
+  warehousesLoading?: boolean | undefined;
+  warehouseFocused?: boolean | undefined;
+  warehouseSuggestions?: CreateLookupOption[] | undefined;
+  onWarehouseChange?: ((value: string) => void) | undefined;
+  onWarehouseFocus?: (() => void) | undefined;
+  onWarehouseBlur?: (() => void) | undefined;
+  onOpenWarehousePopup?: (() => void) | undefined;
+  onSelectWarehouse?: ((item: CreateLookupOption) => void) | undefined;
+  warehouseInvalid?: boolean | undefined;
+  warehouseErrorText?: string | undefined;
+  warehouseLabel?: string | undefined;
+  warehousePlaceholder?: string | undefined;
+  warehouseDisabled?: boolean | undefined;
+  warehouseCode?: string | undefined;
 }
 
 export function LogisticsGrid({
@@ -45,6 +63,23 @@ export function LogisticsGrid({
   salesEmployeeEditableHighlight = false,
   readOnly = false,
   uniformReadOnlyAppearance = false,
+
+  showWarehouseInsteadOfDocNum = false,
+  warehouseInput = "",
+  warehousesLoading = false,
+  warehouseFocused = false,
+  warehouseSuggestions = [],
+  onWarehouseChange = () => {},
+  onWarehouseFocus = () => {},
+  onWarehouseBlur = () => {},
+  onOpenWarehousePopup = () => {},
+  onSelectWarehouse = () => {},
+  warehouseInvalid = false,
+  warehouseErrorText,
+  warehouseLabel = "WAREHOUSE",
+  warehousePlaceholder = "Select Warehouse",
+  warehouseDisabled = false,
+  warehouseCode,
 }: LogisticsGridProps) {
   return (
     <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1 min-h-[220px]">
@@ -54,17 +89,45 @@ export function LogisticsGrid({
         </div>
       ) : null}
       <div className="grid grid-cols-1 gap-4">
-        <div>
-          <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-            <span className="inline-flex items-center gap-1.5">
-              <span>DOC NUMBER</span>
-              {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
-            </span>
-          </label>
-          <div className="flex h-10 items-center justify-start rounded-xl border border-blue-200 bg-blue-50 pl-3 text-sm font-semibold text-blue-700">
-            Generated on Save
+        {showWarehouseInsteadOfDocNum ? (
+          <div className="relative">
+            <FieldBlock
+              label={warehouseLabel}
+              placeholder={warehousePlaceholder}
+              value={warehouseInput}
+              onChange={onWarehouseChange}
+              onFocus={onWarehouseFocus}
+              onBlur={onWarehouseBlur}
+              onOpenPopup={onOpenWarehousePopup}
+              loading={warehousesLoading}
+              invalid={warehouseInvalid}
+              errorText={warehouseErrorText}
+              disabled={warehouseDisabled}
+              uniformReadOnlyAppearance={uniformReadOnlyAppearance}
+              badge={warehouseCode}
+            />
+            {warehouseFocused ? (
+              <SuggestionList
+                items={warehouseSuggestions}
+                onSelect={onSelectWarehouse}
+                floating
+                query={warehouseInput}
+              />
+            ) : null}
           </div>
-        </div>
+        ) : (
+          <div>
+            <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              <span className="inline-flex items-center gap-1.5">
+                <span>DOC NUMBER</span>
+                {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+              </span>
+            </label>
+            <div className="flex h-10 items-center justify-start rounded-xl border border-blue-200 bg-blue-50 pl-3 text-sm font-semibold text-blue-700">
+              Generated on Save
+            </div>
+          </div>
+        )}
 
         <div className="relative">
           <FieldBlock

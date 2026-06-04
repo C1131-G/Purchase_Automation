@@ -209,6 +209,11 @@ export function APInvoiceCreate({
             <LogisticsGrid
               salesEmployeeInput={state.buyerInput}
               salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
+              error={
+                state.salesEmployeesQuery.isError || state.warehousesQuery.isError
+                  ? "Unable to load logistics details."
+                  : null
+              }
               salesEmployeeFocused={state.buyerFocused}
               salesEmployeeSuggestions={state.buyerSuggestions}
               onSalesEmployeeChange={state.setBuyerInput}
@@ -220,6 +225,21 @@ export function APInvoiceCreate({
               salesEmployeePlaceholder="Select Buyer"
               salesEmployeeDisabled={state.isEditMode}
               uniformReadOnlyAppearance={state.isEditMode}
+              showWarehouseInsteadOfDocNum={true}
+              warehouseLabel="Warehouse"
+              warehouseInput={state.warehouseInput}
+              warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
+              warehouseFocused={state.warehouseFocused}
+              warehouseSuggestions={state.warehouseSuggestions}
+              onWarehouseChange={state.setWarehouseInput}
+              onWarehouseFocus={() => state.setWarehouseFocused(true)}
+              onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+              onOpenWarehousePopup={() => state.openPopup("warehouse")}
+              onSelectWarehouse={state.selectWarehouse}
+              warehouseInvalid={Boolean(state.fieldErrors.warehouseCode)}
+              warehouseErrorText={state.fieldErrors.warehouseCode}
+              warehouseDisabled={state.isEditMode}
+              warehouseCode={state.warehouseCode}
             />
           </div>
         </div>

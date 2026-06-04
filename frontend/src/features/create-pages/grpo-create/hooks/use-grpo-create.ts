@@ -83,7 +83,9 @@ export interface GRPOCreateLine {
   baseEntry?: number | undefined;
   baseType?: number | undefined;
 }
-type GRPOFieldErrors = Record<GRPOMandatoryField, string | undefined>;
+type GRPOFieldErrors = Record<GRPOMandatoryField, string | undefined> & {
+  warehouseCode?: string | undefined;
+};
 const QUICK_PRODUCT_LIMIT = 10;
 
 const EMPTY_GRPO_FIELD_ERRORS: GRPOFieldErrors = {
@@ -230,11 +232,13 @@ export function useGRPOCreate({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
-    const normalized = warehouseInput.trim().toLowerCase();
+    const lookup = warehouseInput.trim().toLowerCase();
+    const match = lookup.match(/^\[(.*?)\]/);
+    const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = warehouses.find(
-      (item) => item.name.toLowerCase() === normalized || item.code.toLowerCase() === normalized,
+      (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
     );
-    return matched?.code ?? warehouseInput.trim();
+    return matched?.code ?? lookup;
   }, [warehouseInput, warehouses]);
 
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
@@ -307,6 +311,17 @@ export function useGRPOCreate({
     resetGRPOCreate();
     hydratedDocNumRef.current = null;
   }, [isEditMode, resetGRPOCreate]);
+
+  useEffect(() => {
+    if (header.warehouseCode && warehouses.length > 0) {
+      const matched = warehouses.find(
+        (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
+      );
+      if (matched && warehouseInput !== matched.name) {
+        setWarehouseInput(matched.name);
+      }
+    }
+  }, [header.warehouseCode, warehouses, warehouseInput]);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -1058,6 +1073,21 @@ export function useGRPOCreate({
   const handleWarehouseInputChange = (value: string) => {
     setWarehouseInput(value);
     setFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }));
+    if (value.trim() === "") {
+      setWarehouseFocused(true);
+      setHeader({ warehouseCode: "" });
+      return;
+    }
+    const matched = warehouses.find(
+      (w) =>
+        w.name.toLowerCase() === value.trim().toLowerCase() ||
+        w.code.toLowerCase() === value.trim().toLowerCase(),
+    );
+    if (matched) {
+      selectWarehouse(matched);
+      return;
+    }
+    setHeader({ warehouseCode: "" });
   };
 
   const handleBuyerChange = (value: string) => {
@@ -1149,6 +1179,7 @@ export function useGRPOCreate({
 
   const selectWarehouse = (warehouse: LookupItem) => {
     setWarehouseInput(warehouse.name);
+    setHeader({ warehouseCode: warehouse.code });
     setProductQueryLimit(QUICK_PRODUCT_LIMIT);
     void queryClient.prefetchQuery(
       createSharedQueries.products(
@@ -1192,6 +1223,7 @@ export function useGRPOCreate({
                 uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
                 vatGroup: String(product.vatGroup ?? ""),
+                warehouseCode: effectiveWarehouseCode || "",
               }
             : row,
         );
@@ -1218,7 +1250,7 @@ export function useGRPOCreate({
           uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
-          warehouseCode: "",
+          warehouseCode: effectiveWarehouseCode || "",
         },
       ];
     });
@@ -1248,7 +1280,7 @@ export function useGRPOCreate({
         uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: String(product.vatGroup ?? ""),
-        warehouseCode: "",
+        warehouseCode: effectiveWarehouseCode || "",
       }));
       return [...prev, ...nextRows];
     });

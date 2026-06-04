@@ -80,6 +80,8 @@ export function useArCreditMemoCreate({
   const [codeFocused, setCodeFocused] = useState(false);
   const [salesEmployeeInput, setSalesEmployeeInput] = useState("");
   const [salesEmployeeFocused, setSalesEmployeeFocused] = useState(false);
+  const [warehouseInput, setWarehouseInput] = useState("");
+  const [warehouseFocused, setWarehouseFocused] = useState(false);
 
   const hydratedDocNumRef = useRef<string | null>(null);
 
@@ -123,6 +125,16 @@ export function useArCreditMemoCreate({
     );
   }, [salesEmployees, salesEmployeeInput]);
 
+  const warehouseSuggestions = useMemo(() => {
+    const term = warehouseInput.trim().toLowerCase();
+    if (!term) {
+      return warehouses;
+    }
+    return [...warehouses].filter(
+      (w) => w.name.toLowerCase().includes(term) || w.code.toLowerCase().includes(term),
+    );
+  }, [warehouses, warehouseInput]);
+
   // Modal helpers
   const openPopup = (mode: PopupMode) => {
     setModalMode(mode);
@@ -132,6 +144,8 @@ export function useArCreditMemoCreate({
       setModalSearch(codeInput);
     } else if (mode === "sales-employee") {
       setModalSearch(salesEmployeeInput);
+    } else if (mode === "warehouse") {
+      setModalSearch(warehouseInput);
     }
     setModalOpen(true);
   };
@@ -152,7 +166,15 @@ export function useArCreditMemoCreate({
   };
 
   const selectWarehouse = (item: { code: string; name: string }) => {
+    setWarehouseInput(item.name);
     setHeader({ warehouseCode: item.code });
+    productsHook.setProductRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        warehouseCode: item.code,
+      })),
+    );
+    setWarehouseFocused(false);
     setModalOpen(false);
   };
 
@@ -180,6 +202,25 @@ export function useArCreditMemoCreate({
       return;
     }
     setHeader({ vendorCode: value, vendorName: "" });
+  };
+
+  const handleWarehouseChange = (value: string) => {
+    setWarehouseInput(value);
+    if (value.trim() === "") {
+      setWarehouseFocused(true);
+      setHeader({ warehouseCode: "" });
+      return;
+    }
+    const matched = warehouses.find(
+      (w) =>
+        w.name.toLowerCase() === value.trim().toLowerCase() ||
+        w.code.toLowerCase() === value.trim().toLowerCase(),
+    );
+    if (matched) {
+      selectWarehouse(matched);
+      return;
+    }
+    setHeader({ warehouseCode: "" });
   };
 
   const handleSalesEmployeeChange = (value: string) => {
@@ -388,6 +429,18 @@ export function useArCreditMemoCreate({
     setHeader,
   ]);
 
+  // Robust Name Resolver for Hydration & Copy-From flows
+  useEffect(() => {
+    if (header.warehouseCode && warehouses.length > 0) {
+      const matched = warehouses.find(
+        (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
+      );
+      if (matched && warehouseInput !== matched.name) {
+        setWarehouseInput(matched.name);
+      }
+    }
+  }, [header.warehouseCode, warehouses, warehouseInput]);
+
   const sourceInvoiceData = sourceInvoiceQuery.data?.data as Record<string, unknown> | undefined;
   const isSourceClosed = sourceInvoiceData?.DocStatus === "C";
 
@@ -582,6 +635,12 @@ export function useArCreditMemoCreate({
     salesEmployeeFocused,
     setSalesEmployeeFocused,
     salesEmployeeSuggestions,
+    warehouseInput,
+    setWarehouseInput,
+    warehouseFocused,
+    setWarehouseFocused,
+    warehouseSuggestions,
+    handleWarehouseChange,
     handleVendorNameChange,
     handleVendorCodeChange,
     handleSalesEmployeeChange,

@@ -18,6 +18,7 @@ interface FieldBlockProps {
   editableHighlight?: boolean | undefined;
   /** Visual-only override: disabled fields render with the same background as editable fields. */
   uniformReadOnlyAppearance?: boolean | undefined;
+  badge?: string | undefined;
 }
 
 function Pulse({ className }: { className: string }) {
@@ -40,6 +41,7 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
     onDisabledClick,
     editableHighlight,
     uniformReadOnlyAppearance,
+    badge,
   },
   ref,
 ) {
@@ -105,7 +107,9 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
           id={inputId}
           ref={ref}
           autoComplete="off"
-          className={`h-10 w-full rounded-xl border pl-3 pr-12 text-sm outline-none transition placeholder:text-zinc-400 ${
+          className={`h-10 w-full rounded-xl border pl-3 text-sm outline-none transition placeholder:text-zinc-400 ${
+            badge ? "pr-24" : "pr-12"
+          } ${
             invalid
               ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
               : editableHighlight
@@ -145,6 +149,11 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
           }}
           onBlur={onBlur}
         />
+        {badge ? (
+          <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 flex h-5 items-center justify-center rounded bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20 px-1.5 text-[10px] font-bold uppercase">
+            {badge}
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={() => {

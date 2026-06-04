@@ -252,7 +252,7 @@ export function usePqProducts({
         uomCode: product.purchaseUomCode || product.uomCode,
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: product.vatGroup,
-        warehouseCode: "",
+        warehouseCode: effectiveWarehouseCode || "",
       }));
       setProductRows((prev) => [...prev, ...newRows]);
     }

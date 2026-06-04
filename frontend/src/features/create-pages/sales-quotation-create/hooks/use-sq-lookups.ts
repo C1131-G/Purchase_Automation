@@ -1,6 +1,6 @@
 /** useSqLookups: Orchestrates customer and logistics lookups for Sales Quotations. */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { createSharedQueries as salesQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -14,6 +14,7 @@ interface useSQLookupsProps {
   setHeader: (patch: Partial<SQHeaderState>) => void;
   clearFieldError: (field: keyof ProductSearchFieldError) => void;
   closeModal: () => void;
+  onWarehouseSelected?: (warehouseCode: string) => void;
 }
 
 export function useSqLookups({
@@ -21,6 +22,7 @@ export function useSqLookups({
   setHeader,
   clearFieldError,
   closeModal,
+  onWarehouseSelected,
 }: useSQLookupsProps) {
   const normalizeCodeForCompare = (value: unknown) => {
     const raw = String(value ?? "").trim();
@@ -116,9 +118,11 @@ export function useSqLookups({
 
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase();
+    const match = lookup.match(/^\[(.*?)\]/);
+    const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = (warehouses as ProductLookupItem[]).find(
       (item: ProductLookupItem) =>
-        item.name.toLowerCase() === lookup || item.code.toLowerCase() === lookup,
+        item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
     );
     if (matched?.code) {
       return matched.code;
@@ -178,6 +182,7 @@ export function useSqLookups({
       salesQuotationCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT),
     );
     setWarehouseFocused(false);
+    onWarehouseSelected?.(item.code);
     closeModal();
   };
 
@@ -285,6 +290,18 @@ export function useSqLookups({
     const ranked = rankLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput);
     return limitInlineSuggestions(ranked);
   }, [salesEmployees, salesEmployeeInput]);
+
+  // Robust Name Resolver for Hydration & Copy-From flows
+  useEffect(() => {
+    if (headerWarehouseCode && warehouses.length > 0) {
+      const matched = warehouses.find(
+        (w) => String(w.code).trim() === String(headerWarehouseCode).trim(),
+      );
+      if (matched && warehouseInput !== matched.name) {
+        setWarehouseInput(matched.name);
+      }
+    }
+  }, [headerWarehouseCode, warehouses, warehouseInput]);
 
   return {
     billToAddress,

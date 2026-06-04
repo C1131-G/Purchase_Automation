@@ -1,6 +1,6 @@
 /** usePqLookups: Orchestrates Vendor and logistics lookups for Purchase Quotations. */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createSharedQueries as purchaseQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -15,6 +15,7 @@ interface usePqLookupsProps {
   setHeader: (patch: Partial<PQHeaderState>) => void;
   clearFieldError: (field: keyof ProductSearchFieldError) => void;
   closeModal: () => void;
+  onWarehouseSelected?: (warehouseCode: string) => void;
 }
 
 export function usePqLookups({
@@ -22,6 +23,7 @@ export function usePqLookups({
   setHeader,
   clearFieldError,
   closeModal,
+  onWarehouseSelected,
 }: usePqLookupsProps) {
   const normalizeCodeForCompare = (value: unknown) => {
     const raw = String(value ?? "").trim();
@@ -124,9 +126,11 @@ export function usePqLookups({
 
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase();
+    const match = lookup.match(/^\[(.*?)\]/);
+    const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = (warehouses as ProductLookupItem[]).find(
       (item: ProductLookupItem) =>
-        item.name.toLowerCase() === lookup || item.code.toLowerCase() === lookup,
+        item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
     );
     if (matched?.code) {
       return matched.code;
@@ -191,6 +195,7 @@ export function usePqLookups({
       ),
     );
     setWarehouseFocused(false);
+    onWarehouseSelected?.(item.code);
     closeModal();
   };
 
@@ -298,6 +303,18 @@ export function usePqLookups({
     const ranked = rankLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput);
     return limitInlineSuggestions(ranked);
   }, [salesEmployees, salesEmployeeInput]);
+
+  // Robust Name Resolver for Hydration & Copy-From flows
+  useEffect(() => {
+    if (headerWarehouseCode && warehouses.length > 0) {
+      const matched = warehouses.find(
+        (w) => String(w.code).trim() === String(headerWarehouseCode).trim(),
+      );
+      if (matched && warehouseInput !== matched.name) {
+        setWarehouseInput(matched.name);
+      }
+    }
+  }, [headerWarehouseCode, warehouses, warehouseInput]);
 
   return {
     billToAddress,

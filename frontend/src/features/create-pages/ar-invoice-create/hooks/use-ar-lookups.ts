@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
@@ -13,6 +13,7 @@ interface UseArLookupsProps {
   setHeader: (patch: Partial<ARInvoiceHeaderState>) => void;
   clearFieldError: (field: keyof ProductSearchFieldError) => void;
   closeModal: () => void;
+  onWarehouseSelected?: (warehouseCode: string) => void;
 }
 
 export function useArLookups({
@@ -20,6 +21,7 @@ export function useArLookups({
   setHeader,
   clearFieldError,
   closeModal,
+  onWarehouseSelected,
 }: UseArLookupsProps) {
   const normalizeCodeForCompare = (value: unknown) => {
     const raw = String(value ?? "").trim();
@@ -113,9 +115,11 @@ export function useArLookups({
 
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase();
+    const match = lookup.match(/^\[(.*?)\]/);
+    const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = (warehouses as ProductLookupItem[]).find(
       (item: ProductLookupItem) =>
-        item.name.toLowerCase() === lookup || item.code.toLowerCase() === lookup,
+        item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
     );
     if (matched?.code) {
       return matched.code;
@@ -166,6 +170,7 @@ export function useArLookups({
       arInvoiceCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT),
     );
     setWarehouseFocused(false);
+    onWarehouseSelected?.(item.code);
     closeModal();
   };
 
@@ -272,6 +277,18 @@ export function useArLookups({
     const ranked = rankLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput);
     return limitInlineSuggestions(ranked);
   }, [salesEmployees, salesEmployeeInput]);
+
+  // Robust Name Resolver for Hydration & Copy-From flows
+  useEffect(() => {
+    if (headerWarehouseCode && warehouses.length > 0) {
+      const matched = warehouses.find(
+        (w) => String(w.code).trim() === String(headerWarehouseCode).trim(),
+      );
+      if (matched && warehouseInput !== matched.name) {
+        setWarehouseInput(matched.name);
+      }
+    }
+  }, [headerWarehouseCode, warehouses, warehouseInput]);
 
   return {
     billToAddress,
