@@ -1122,6 +1122,7 @@ export function useAPCreditMemoCreate({
           ...(header.docDate ? { DocDate: header.docDate } : {}),
           ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
           ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
+          ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
           DocumentLines: buildDocumentLines(),
         };
 

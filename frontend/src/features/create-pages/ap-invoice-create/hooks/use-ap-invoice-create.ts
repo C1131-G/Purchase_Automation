@@ -1176,6 +1176,7 @@ export function useAPInvoiceCreate({
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           DocumentLines: buildDocumentLines(),
+          NumAtCard: header.referenceNo.trim() || undefined,
         };
         const result = await createMutation.mutateAsync({
           payload: createPayload,

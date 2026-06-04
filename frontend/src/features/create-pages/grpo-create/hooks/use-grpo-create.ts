@@ -1494,6 +1494,7 @@ export function useGRPOCreate({
           Comments: header.remarks.trim() || undefined,
           DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
           DocumentLines: (() => {
             const lines: Record<string, unknown>[] = [];
             for (const row of filteredRows) {

@@ -8,6 +8,7 @@ import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import type { APInvoice } from "@/db/schemas/ap-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { calculateHeaderDiscount } from "@/services/discount.util";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -265,7 +266,15 @@ export const createInvoice = async (
   payload: Record<string, unknown>,
   dbName?: string,
 ) => {
-  // Build SAP payload in function scope so it's accessible in both try and catch blocks
+  const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+  const discountData = calculateHeaderDiscount(
+    lines.map((l) => ({
+      price: ((l.UnitPrice || l.Price) as number) || 0,
+      quantity: (l.Quantity as number) || 1,
+      discountPercent: (l.DiscountPercent as number) || 0,
+    })),
+  );
+
   const sapPayload: Record<string, unknown> = {
     Address: payload.Address,
     Address2: payload.Address2,
@@ -273,17 +282,27 @@ export const createInvoice = async (
     Comments: payload.Comments,
     DocDate: payload.DocDate,
     DocDueDate: payload.DocDueDate || payload.DocDate,
-    DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+    DiscountPercent: discountData.percent,
+    DiscountAmount: discountData.amount,
+    DocumentLines: lines.map((item) => {
       const docLine: Record<string, unknown> = {
         ItemCode: item.ItemCode as string,
         Quantity: item.Quantity as number,
         UnitPrice: (item.UnitPrice || item.Price) as number,
-        UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
         UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
         VatGroup: item.VatGroup as string,
         WarehouseCode: item.WarehouseCode as string,
-        DiscountPercent: item.DiscountPercent as number,
+        DiscountPercent: 0,
       };
+      const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+      if (Number.isFinite(uomEntry) && uomEntry > 0) {
+        docLine.UoMEntry = Math.trunc(uomEntry);
+      } else {
+        const uomCode = item.UoMCode ?? item.UomCode;
+        if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+          docLine.UoMCode = uomCode as string | number;
+        }
+      }
 
       if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
         docLine.BaseType = item.BaseType;

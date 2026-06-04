@@ -9,6 +9,7 @@ import type { APCreditMemo } from "@/db/schemas/ap-credit-memo.schema";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
+import { calculateHeaderDiscount } from "@/services/discount.util";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -217,6 +218,15 @@ export const getCreditNote = async (sessionId: string, id: string) =>
 
 // Creates a formal A/P Credit Memo in SAP. Handles payload conversion.
 export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
+  const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+  const discountData = calculateHeaderDiscount(
+    lines.map((l) => ({
+      price: ((l.UnitPrice || l.Price) as number) || 0,
+      quantity: (l.Quantity as number) || 1,
+      discountPercent: (l.DiscountPercent as number) || 0,
+    })),
+  );
+
   try {
     // Construct the SAP Service Layer compatible payload.
     const sapPayload: Record<string, unknown> = {
@@ -224,27 +234,33 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
       Comments: payload.Comments,
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
-      DocumentLines: (payload.DocumentLines as Record<string, unknown>[])?.map((item) => {
+      DiscountPercent: discountData.percent,
+      DiscountAmount: discountData.amount,
+      DocumentLines: lines.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
-          UoMCode: (item.UoMCode ?? item.UomCode) as string | number,
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
-          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
+          DiscountPercent: 0,
         };
+        const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          line.UoMEntry = Math.trunc(uomEntry);
+        } else {
+          const uomCode = item.UoMCode ?? item.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            line.UoMCode = uomCode as string | number;
+          }
+        }
         if (item.U_ReturnReason) {
           line.U_ReturnReason = item.U_ReturnReason as string;
         }
-        if (item.BaseType !== undefined) {
+        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
           line.BaseType = item.BaseType as number;
-        }
-        if (item.BaseEntry !== undefined) {
           line.BaseEntry = item.BaseEntry as number;
-        }
-        if (item.BaseLine !== undefined) {
           line.BaseLine = item.BaseLine as number;
         }
         return line;
