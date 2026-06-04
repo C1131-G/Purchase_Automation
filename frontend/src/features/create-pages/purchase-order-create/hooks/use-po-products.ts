@@ -249,9 +249,8 @@ export function usePoProducts({
           stock: product.stock,
           taxRate: product.taxRate,
           uomCode: product.purchaseUomCode || product.uomCode,
-          uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: product.vatGroup,
-          warehouseCode: "",
+          warehouseCode: effectiveWarehouseCode || "",
         },
       ]);
     }
@@ -279,9 +278,8 @@ export function usePoProducts({
         stock: product.stock,
         taxRate: product.taxRate,
         uomCode: product.purchaseUomCode || product.uomCode,
-        uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: product.vatGroup,
-        warehouseCode: "",
+        warehouseCode: effectiveWarehouseCode || "",
       };
     });
 

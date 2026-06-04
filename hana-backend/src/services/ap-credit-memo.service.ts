@@ -9,7 +9,6 @@ import type { APCreditMemo } from "@/db/schemas/ap-credit-memo.schema";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
-import { calculateHeaderDiscount } from "@/services/discount.util";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -219,13 +218,6 @@ export const getCreditNote = async (sessionId: string, id: string) =>
 // Creates a formal A/P Credit Memo in SAP. Handles payload conversion.
 export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
   const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-  const discountData = calculateHeaderDiscount(
-    lines.map((l) => ({
-      price: ((l.UnitPrice || l.Price) as number) || 0,
-      quantity: (l.Quantity as number) || 1,
-      discountPercent: (l.DiscountPercent as number) || 0,
-    })),
-  );
 
   try {
     // Construct the SAP Service Layer compatible payload.
@@ -234,8 +226,6 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
       Comments: payload.Comments,
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
-      DiscountPercent: discountData.percent,
-      DiscountAmount: discountData.amount,
       DocumentLines: lines.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
@@ -244,7 +234,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
-          DiscountPercent: 0,
+          DiscountPercent: Number(item.DiscountPercent ?? 0),
         };
         const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {

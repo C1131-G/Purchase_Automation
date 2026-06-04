@@ -178,6 +178,20 @@ export function APCreditMemoCreate({
               salesEmployeePlaceholder="Select Buyer"
               salesEmployeeDisabled={state.isEditMode}
               uniformReadOnlyAppearance={state.isEditMode}
+              showWarehouseInsteadOfDocNum={true}
+              warehouseLabel="Warehouse"
+              warehouseInput={state.warehouseInput}
+              warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
+              warehouseFocused={state.warehouseFocused}
+              warehouseSuggestions={state.warehouseSuggestions}
+              onWarehouseChange={state.setWarehouseInput}
+              onWarehouseFocus={() => state.setWarehouseFocused(true)}
+              onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+              onOpenWarehousePopup={() => state.openPopup("warehouse")}
+              onSelectWarehouse={state.selectWarehouse}
+              warehouseInvalid={Boolean(state.fieldErrors.warehouseCode)}
+              warehouseErrorText={state.fieldErrors.warehouseCode}
+              warehouseDisabled={state.isEditMode}
             />
           </div>
         </div>

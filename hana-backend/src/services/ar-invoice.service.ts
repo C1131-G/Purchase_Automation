@@ -9,7 +9,7 @@ import type { ARInvoice } from "@/db/schemas/ar-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
-import { calculateHeaderDiscount } from "@/services/discount.util";
+
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 import { adjustPayloadDates } from "./date-adjustment.util";
@@ -303,15 +303,6 @@ export const createInvoice = async (
 ) => {
   try {
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-    const discountData = calculateHeaderDiscount(
-      lines.map((l) => ({
-        price: ((l.UnitPrice || l.Price) as number) || 0,
-        quantity: (l.Quantity as number) || 1,
-        discountPercent: (l.DiscountPercent as number) || 0,
-      })),
-    );
-    const roundedHeaderDiscount = discountData.percent;
-    const roundedHeaderDiscountAmount = discountData.amount;
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -319,14 +310,12 @@ export const createInvoice = async (
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DiscountPercent: roundedHeaderDiscount,
-      DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
@@ -425,15 +414,6 @@ export const updateInvoice = async (
     // Recalculate discount if document lines are provided
     if (Array.isArray(payload.DocumentLines)) {
       const lines = payload.DocumentLines as Record<string, unknown>[];
-      const discountData = calculateHeaderDiscount(
-        lines.map((l) => ({
-          price: ((l.PriceBefDi || l.Price || l.UnitPrice) as number) || 0,
-          quantity: (l.Quantity as number) || 1,
-          discountPercent: (l.DiscountPercent as number) || (l.DiscPrcnt as number) || 0,
-        })),
-      );
-      sapPayload.DiscountPercent = discountData.percent;
-      sapPayload.DiscountAmount = discountData.amount;
 
       sapPayload.DocumentLines = lines.map((line) => {
         const docLine: Record<string, unknown> = {
@@ -441,7 +421,7 @@ export const updateInvoice = async (
           ItemCode: line.ItemCode as string,
           Quantity: line.Quantity as number,
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,

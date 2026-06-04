@@ -81,7 +81,9 @@ export interface APInvoiceCreateLine {
   baseEntry?: number | undefined;
   baseType?: number | undefined;
 }
-type APInvoiceFieldErrors = Record<APInvoiceMandatoryField, string | undefined>;
+type APInvoiceFieldErrors = Record<APInvoiceMandatoryField, string | undefined> & {
+  warehouseCode?: string | undefined;
+};
 const QUICK_PRODUCT_LIMIT = 10;
 
 const EMPTY_AP_INVOICE_FIELD_ERRORS: APInvoiceFieldErrors = {
@@ -240,11 +242,13 @@ export function useAPInvoiceCreate({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
-    const normalized = warehouseInput.trim().toLowerCase();
+    const lookup = warehouseInput.trim().toLowerCase();
+    const match = lookup.match(/^\[(.*?)\]/);
+    const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = warehouses.find(
-      (item) => item.name.toLowerCase() === normalized || item.code.toLowerCase() === normalized,
+      (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
     );
-    return matched?.code ?? warehouseInput.trim();
+    return matched?.code ?? lookup;
   }, [warehouseInput, warehouses]);
 
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
@@ -322,6 +326,17 @@ export function useAPInvoiceCreate({
     resetAPInvoiceCreate();
     hydratedDocNumRef.current = null;
   }, [isEditMode, resetAPInvoiceCreate]);
+
+  useEffect(() => {
+    if (header.warehouseCode && warehouses.length > 0) {
+      const matched = warehouses.find(
+        (w) => String(w.code).trim() === String(header.warehouseCode).trim()
+      );
+      if (matched && warehouseInput !== matched.name) {
+        setWarehouseInput(matched.name);
+      }
+    }
+  }, [header.warehouseCode, warehouses, warehouseInput]);
 
   // Edit Mode Hydration
   useEffect(() => {
@@ -909,15 +924,21 @@ export function useAPInvoiceCreate({
   const handleWarehouseInputChange = (value: string) => {
     setWarehouseInput(value);
     setFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }));
+    if (value.trim() === "") {
+      setWarehouseFocused(true);
+      setHeader({ warehouseCode: "" });
+      return;
+    }
     const matched = warehouses.find(
       (w) =>
         w.name.trim().toLowerCase() === value.trim().toLowerCase() ||
         w.code.trim().toLowerCase() === value.trim().toLowerCase(),
     );
     if (matched) {
-      setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: matched.code })));
-      setWarehouseFocused(false);
+      selectWarehouse(matched);
+      return;
     }
+    setHeader({ warehouseCode: "" });
   };
 
   const handleBuyerChange = (value: string) => {
@@ -949,6 +970,7 @@ export function useAPInvoiceCreate({
 
   const selectWarehouse = (warehouse: LookupItem) => {
     setWarehouseInput(warehouse.name);
+    setHeader({ warehouseCode: warehouse.code });
     setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: warehouse.code })));
     setWarehouseFocused(false);
   };
@@ -973,6 +995,7 @@ export function useAPInvoiceCreate({
                 stock: Number(product.stock ?? 0),
                 uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
+                warehouseCode: effectiveWarehouseCode || "",
               }
             : row,
         );
@@ -996,7 +1019,7 @@ export function useAPInvoiceCreate({
           uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
-          warehouseCode: "",
+          warehouseCode: effectiveWarehouseCode || "",
         },
       ];
     });
@@ -1023,7 +1046,7 @@ export function useAPInvoiceCreate({
         uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: String(product.vatGroup ?? ""),
-        warehouseCode: "",
+        warehouseCode: effectiveWarehouseCode || "",
       })),
     ]);
     setProductPopupOpen(false);

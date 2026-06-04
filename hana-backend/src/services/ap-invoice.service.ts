@@ -8,7 +8,6 @@ import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import type { APInvoice } from "@/db/schemas/ap-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
-import { calculateHeaderDiscount } from "@/services/discount.util";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -274,13 +273,6 @@ export const createInvoice = async (
   dbName?: string,
 ) => {
   const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-  const discountData = calculateHeaderDiscount(
-    lines.map((l) => ({
-      price: ((l.UnitPrice || l.Price) as number) || 0,
-      quantity: (l.Quantity as number) || 1,
-      discountPercent: (l.DiscountPercent as number) || 0,
-    })),
-  );
 
   const sapPayload: Record<string, unknown> = {
     Address: payload.Address,
@@ -289,8 +281,6 @@ export const createInvoice = async (
     Comments: payload.Comments,
     DocDate: payload.DocDate,
     DocDueDate: payload.DocDueDate || payload.DocDate,
-    DiscountPercent: discountData.percent,
-    DiscountAmount: discountData.amount,
     DocumentLines: lines.map((item) => {
       const docLine: Record<string, unknown> = {
         ItemCode: item.ItemCode as string,
@@ -299,7 +289,7 @@ export const createInvoice = async (
         UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
         VatGroup: item.VatGroup as string,
         WarehouseCode: item.WarehouseCode as string,
-        DiscountPercent: 0,
+        DiscountPercent: Number(item.DiscountPercent ?? 0),
       };
       const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
       if (Number.isFinite(uomEntry) && uomEntry > 0) {

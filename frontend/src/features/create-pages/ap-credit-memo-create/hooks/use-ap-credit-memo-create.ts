@@ -79,7 +79,9 @@ export interface APCreditMemoCreateLine {
   baseType?: number | undefined;
   selected?: boolean | undefined;
 }
-type APCreditMemoFieldErrors = Record<APCreditMemoMandatoryField, string | undefined>;
+type APCreditMemoFieldErrors = Record<APCreditMemoMandatoryField, string | undefined> & {
+  warehouseCode?: string | undefined;
+};
 const QUICK_PRODUCT_LIMIT = 10;
 
 const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
@@ -238,11 +240,13 @@ export function useAPCreditMemoCreate({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
-    const normalized = warehouseInput.trim().toLowerCase();
+    const lookup = warehouseInput.trim().toLowerCase();
+    const match = lookup.match(/^\[(.*?)\]/);
+    const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = warehouses.find(
-      (item) => item.name.toLowerCase() === normalized || item.code.toLowerCase() === normalized,
+      (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
     );
-    return matched?.code ?? warehouseInput.trim();
+    return matched?.code ?? lookup;
   }, [warehouseInput, warehouses]);
 
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
@@ -321,6 +325,17 @@ export function useAPCreditMemoCreate({
       : editDetailQuery.data?.data?.DocStatus === "C"
         ? "Closed"
         : (editDetailQuery.data?.data?.DocStatus ?? "Open");
+
+  useEffect(() => {
+    if (header.warehouseCode && warehouses.length > 0) {
+      const matched = warehouses.find(
+        (w) => String(w.code).trim() === String(header.warehouseCode).trim()
+      );
+      if (matched && warehouseInput !== `[${matched.code}] ${matched.name}`) {
+        setWarehouseInput(`[${matched.code}] ${matched.name}`);
+      }
+    }
+  }, [header.warehouseCode, warehouses, warehouseInput]);
 
   useEffect(() => {
     if (isEditMode) {
@@ -895,15 +910,21 @@ export function useAPCreditMemoCreate({
 
   const handleWarehouseInputChange = (value: string) => {
     setWarehouseInput(value);
+    if (value.trim() === "") {
+      setWarehouseFocused(true);
+      setHeader({ warehouseCode: "" });
+      return;
+    }
     const matched = warehouses.find(
       (w) =>
         w.name.trim().toLowerCase() === value.trim().toLowerCase() ||
         w.code.trim().toLowerCase() === value.trim().toLowerCase(),
     );
     if (matched) {
-      setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: matched.code })));
-      setWarehouseFocused(false);
+      selectWarehouse(matched);
+      return;
     }
+    setHeader({ warehouseCode: "" });
   };
 
   const handleBuyerChange = (value: string) => {
@@ -937,7 +958,8 @@ export function useAPCreditMemoCreate({
   };
 
   const selectWarehouse = (warehouse: LookupItem) => {
-    setWarehouseInput(warehouse.name);
+    setWarehouseInput(`[${warehouse.code}] ${warehouse.name}`);
+    setHeader({ warehouseCode: warehouse.code });
     setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: warehouse.code })));
     setWarehouseFocused(false);
   };

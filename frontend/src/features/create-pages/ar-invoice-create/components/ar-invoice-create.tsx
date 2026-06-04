@@ -197,7 +197,11 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
             salesEmployeeLabel="Sales Employee"
             salesEmployeeInput={state.salesEmployeeInput}
             salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
-            error={state.salesEmployeesQuery.isError ? "Unable to load sales employees." : null}
+            error={
+              state.salesEmployeesQuery.isError || state.warehousesQuery.isError
+                ? "Unable to load logistics details."
+                : null
+            }
             salesEmployeeFocused={state.salesEmployeeFocused}
             salesEmployeeSuggestions={state.salesEmployeeSuggestions}
             onSalesEmployeeChange={state.handleSalesEmployeeChange}
@@ -206,6 +210,20 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
             onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
             onSelectSalesEmployee={state.selectSalesEmployee}
             salesEmployeeDisabled={state.isEditMode}
+            showWarehouseInsteadOfDocNum={true}
+            warehouseLabel="Warehouse"
+            warehouseInput={state.warehouseInput}
+            warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
+            warehouseFocused={state.warehouseFocused}
+            warehouseSuggestions={state.warehouseSuggestions}
+            onWarehouseChange={state.handleWarehouseChange}
+            onWarehouseFocus={() => state.setWarehouseFocused(true)}
+            onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+            onOpenWarehousePopup={() => state.openPopup("warehouse")}
+            onSelectWarehouse={state.selectWarehouse}
+            warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
+            warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
+            warehouseDisabled={state.isEditMode}
           />
 
           <DocumentDatesGrid

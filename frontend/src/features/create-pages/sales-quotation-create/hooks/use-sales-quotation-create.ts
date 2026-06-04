@@ -114,6 +114,14 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     closeModal: () => modals.setModalOpen(false),
     headerWarehouseCode: header.warehouseCode ?? "",
     setHeader,
+    onWarehouseSelected: (warehouseCode: string) => {
+      productsHook.setProductRows((prev) =>
+        prev.map((row) => ({
+          ...row,
+          warehouseCode,
+        })),
+      );
+    },
   });
 
   const productsHook = useSqProducts({

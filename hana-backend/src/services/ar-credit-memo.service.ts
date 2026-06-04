@@ -9,7 +9,7 @@ import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
-import { calculateHeaderDiscount } from "@/services/discount.util";
+
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -209,31 +209,19 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     // Map input payload to the canonical SAP Service Layer JSON structure for Credit Notes.
 
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-    const discountData = calculateHeaderDiscount(
-      lines.map((l) => ({
-        price: ((l.UnitPrice || l.Price) as number) || 0,
-        quantity: (l.Quantity as number) || 1,
-        discountPercent: (l.DiscountPercent as number) || 0,
-      })),
-    );
-
-    const roundedHeaderDiscount = discountData.percent;
-    const roundedHeaderDiscountAmount = discountData.amount;
 
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
-      DiscountPercent: roundedHeaderDiscount,
-      DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((item) => {
         const line: Record<string, unknown> = {
           LineNum: item.LineNum !== undefined ? Number(item.LineNum) : undefined,
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
-          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
+          DiscountPercent: Number(item.DiscountPercent ?? 0), // SAP requires 0 to avoid double-discounting when Header Discount is used
           VatGroup: (item.VatGroup ?? item.TaxCode) as string,
           WarehouseCode: item.WarehouseCode as string,
         };

@@ -11,7 +11,7 @@ import type { PurchaseQuotation } from "@/db/schemas/purchase-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
-import { calculateHeaderDiscount } from "@/services/discount.util";
+
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { adjustPayloadDates } from "./date-adjustment.util";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -261,15 +261,6 @@ export const createPurchaseQuotation = async (
 ) => {
   try {
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-    const discountData = calculateHeaderDiscount(
-      lines.map((l) => ({
-        price: ((l.UnitPrice || l.Price) as number) || 0,
-        quantity: (l.Quantity as number) || 1,
-        discountPercent: (l.DiscountPercent as number) || 0,
-      })),
-    );
-    const roundedHeaderDiscount = discountData.percent;
-    const roundedHeaderDiscountAmount = discountData.amount;
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -280,8 +271,6 @@ export const createPurchaseQuotation = async (
       DocDueDate: payload.DocDueDate,
       RequriedDate:
         (payload as Record<string, unknown>).RequriedDate ?? payload.DocDueDate ?? payload.DocDate,
-      DiscountPercent: roundedHeaderDiscount,
-      DiscountAmount: roundedHeaderDiscountAmount,
       DocumentLines: lines.map((line) => {
         // PQT1.Quantity drives LineTotal / DocTotal computation in SAP.
         // PQT1.PQTReqQty carries the user-entered required quantity semantic
@@ -300,7 +289,7 @@ export const createPurchaseQuotation = async (
           Quantity: Number(line.Quantity ?? 0),
           RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           ReqDate: reqDate,
           ShipDate: reqDate,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
@@ -416,16 +405,6 @@ export const updatePurchaseQuotation = async (
 
     const lines = payload.DocumentLines as Record<string, unknown>[];
     if (lines) {
-      const discountData = calculateHeaderDiscount(
-        lines.map((l) => ({
-          price: ((l.UnitPrice || l.Price) as number) || 0,
-          quantity: (l.Quantity as number) || 1,
-          discountPercent: (l.DiscountPercent as number) || (l.DiscPrcnt as number) || 0,
-        })),
-      );
-      sapPayload.DiscountPercent = discountData.percent;
-      sapPayload.DiscountAmount = discountData.amount;
-
       sapPayload.DocumentLines = lines.map((line) => {
         // Mirror the create path: drive DocTotal via PQT1.Quantity,
         // carry the required-qty semantic in PQT1.PQTReqQty, and keep
@@ -443,7 +422,7 @@ export const updatePurchaseQuotation = async (
           Quantity: Number(line.Quantity ?? 0),
           RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
+          DiscountPercent: Number(line.DiscountPercent ?? 0),
           ReqDate: reqDate,
           ShipDate: reqDate,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,

@@ -230,7 +230,8 @@ export function CreateProductTableRow({
   // Sync warehouseInput with row.warehouseCode or matching warehouse name
   const committedWarehouseName = React.useMemo(() => {
     const matched = warehouses.find((w) => w.code === row.warehouseCode);
-    return matched?.name ?? row.warehouseCode;
+    if (!matched) return row.warehouseCode;
+    return matched.name;
   }, [row.warehouseCode, warehouses]);
 
   React.useEffect(() => {
@@ -488,10 +489,13 @@ export function CreateProductTableRow({
                 : "border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
             } ${
               disableInputs ? "cursor-not-allowed opacity-70" : "cursor-text"
-            } ${row.warehouseCode ? "pr-[4.5rem]" : "pr-10"}`}
+            } ${row.warehouseCode ? "pr-[7.5rem]" : "pr-10"}`}
           />
           {row.warehouseCode && (
-            <div className="pointer-events-none absolute right-9 top-1/2 -translate-y-1/2">
+            <div className="pointer-events-none absolute right-9 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <span className="flex h-5 items-center justify-center rounded bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20 px-1.5 text-[10px] font-bold uppercase">
+                {row.warehouseCode}
+              </span>
               <span
                 className={`flex h-5 items-center justify-center rounded px-1.5 text-[10px] font-bold ${
                   row.stock > 0

@@ -181,7 +181,11 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
             salesEmployeeLabel="Sales Employee"
             salesEmployeeInput={state.salesEmployeeInput}
             salesEmployeesLoading={state.salesEmployeesQuery.isLoading || isFormHydrating}
-            error={state.salesEmployeesQuery.isError ? "Unable to load sales employees." : null}
+            error={
+              state.salesEmployeesQuery.isError || state.warehousesQuery.isError
+                ? "Unable to load logistics details."
+                : null
+            }
             salesEmployeeFocused={state.salesEmployeeFocused}
             salesEmployeeSuggestions={state.salesEmployeeSuggestions}
             onSalesEmployeeChange={state.handleSalesEmployeeChange}
@@ -189,6 +193,19 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
             onSalesEmployeeBlur={() => setTimeout(() => state.setSalesEmployeeFocused(false), 120)}
             onOpenSalesEmployeePopup={() => state.openPopup("sales-employee")}
             onSelectSalesEmployee={state.selectSalesEmployee}
+            showWarehouseInsteadOfDocNum={true}
+            warehouseLabel="Warehouse"
+            warehouseInput={state.warehouseInput}
+            warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
+            warehouseFocused={state.warehouseFocused}
+            warehouseSuggestions={state.warehouseSuggestions}
+            onWarehouseChange={state.handleWarehouseChange}
+            onWarehouseFocus={() => state.setWarehouseFocused(true)}
+            onWarehouseBlur={() => setTimeout(() => state.setWarehouseFocused(false), 120)}
+            onOpenWarehousePopup={() => state.openPopup("warehouse")}
+            onSelectWarehouse={state.selectWarehouse}
+            warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
+            warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
           />
 
           <DocumentDatesGrid
