@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { PurchaseQuotationCreate } from "@/features/create-pages/purchase-quotation-create/components/purchase-quotation-create";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 /**
@@ -12,7 +13,12 @@ export const Route = createFileRoute("/_layout/purchase/create-quotation")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
-  component: PurchaseQuotationCreate,
+  component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
   pendingMs: 0,
 });
+
+function RouteComponent() {
+  useDocumentTitle("Create Purchase Quotation | ERP Portal");
+  return <PurchaseQuotationCreate />;
+}

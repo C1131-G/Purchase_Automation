@@ -1,9 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { goeyToast } from "goey-toast";
 import { Check } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import { Button } from "@/components/button";
 import { OutgoingPaymentEditSkeleton } from "@/components/skeleton/outgoing-payment-edit-skeleton";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
-import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
+import {
+  outgoingPaymentKeys,
+  outgoingPaymentQueries,
+} from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
+import { outgoingPaymentAPI } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.service";
 
 export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
   const {
@@ -14,6 +21,27 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
   } = useQuery(outgoingPaymentQueries.detail(docNum));
 
   const paymentDetail = response?.data;
+  const queryClient = useQueryClient();
+
+  const [remarks, setRemarks] = useState("");
+
+  useEffect(() => {
+    if (paymentDetail?.Remarks) {
+      setRemarks(paymentDetail.Remarks);
+    }
+  }, [paymentDetail?.Remarks]);
+
+  const updateMutation = useMutation({
+    mutationFn: () => outgoingPaymentAPI.updatePayment(paymentDetail!.id, { Remarks: remarks }),
+    onSuccess: () => {
+      goeyToast.success("Payment updated successfully");
+      queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.detailByDocNum(docNum) });
+      queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.all });
+    },
+    onError: (err) => {
+      goeyToast.error(err instanceof Error ? err.message : "Failed to update payment");
+    },
+  });
 
   if (isLoading) {
     return <OutgoingPaymentEditSkeleton />;
@@ -112,10 +140,10 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                 </label>
                 <textarea
                   id="remarks"
-                  readOnly
-                  value={paymentDetail.Remarks || ""}
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
                   rows={2}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-900"
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                 />
               </div>
             </div>
@@ -252,6 +280,18 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   ).toFixed(2)}
                 </span>
               </div>
+            </div>
+
+            <div className="mt-6 border-t border-zinc-100 pt-4">
+              <Button
+                onClick={() => updateMutation.mutate()}
+                disabled={updateMutation.isPending || (paymentDetail?.Remarks || "") === remarks}
+                className="w-full"
+                size="md"
+                variant="primary"
+              >
+                {updateMutation.isPending ? "Updating..." : "Update Payment"}
+              </Button>
             </div>
 
             {paymentDetail.PaymentChecks?.length > 0 && (

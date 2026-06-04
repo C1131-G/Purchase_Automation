@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { lazy, Suspense } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { grpoSearchSchema } from "@/features/table-pages/grpo/schemas/grpo-search.schema";
 
 const GRPOTable = lazy(() =>
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/_layout/purchase/grpo")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("GRPO | ERP Portal");
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });

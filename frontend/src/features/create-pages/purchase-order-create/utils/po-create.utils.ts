@@ -44,7 +44,7 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
 };
 
 export const QUICK_PRODUCT_LIMIT = 10;
-export const FULL_PRODUCT_LIMIT = 100;
+export const FULL_PRODUCT_LIMIT = 500;
 
 export const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSearch: string) => {
   const term = rawSearch.trim().toLowerCase();

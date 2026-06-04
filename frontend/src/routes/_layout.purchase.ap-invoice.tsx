@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { lazy, Suspense } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { apInvoiceSearchSchema } from "@/features/table-pages/ap-invoices/schemas/ap-invoice-search.schema";
 
 const APInvoiceTable = lazy(() =>
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/_layout/purchase/ap-invoice")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("AP Invoices | ERP Portal");
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });

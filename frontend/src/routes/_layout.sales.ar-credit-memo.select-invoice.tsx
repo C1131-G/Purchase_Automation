@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { ARInvoiceTable } from "@/features/table-pages/ar-invoices/components/ar-invoice-table";
 import { arInvoiceSearchSchema } from "@/features/table-pages/ar-invoices/schemas/ar-invoice-search.schema";
 
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/_layout/sales/ar-credit-memo/select-invoi
 });
 
 function SelectInvoicePage() {
+  useDocumentTitle("Select Invoice | ERP Portal");
   const navigate = useNavigate();
 
   const handleInvoiceSelect = (docNum: string) => {

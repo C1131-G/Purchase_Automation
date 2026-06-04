@@ -11,7 +11,7 @@ export interface ProductSearchFieldError {
 }
 
 export const QUICK_PRODUCT_LIMIT = 50;
-export const FULL_PRODUCT_LIMIT = 200;
+export const FULL_PRODUCT_LIMIT = 500;
 
 export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
   billToAddress: undefined,

@@ -60,7 +60,7 @@ export function usePoProducts({
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setProductQueryLimit(QUICK_PRODUCT_LIMIT);
+      setProductQueryLimit(FULL_PRODUCT_LIMIT);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [normalizedProductSearch, vendorSelected, productPopupOpen]);

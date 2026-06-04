@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { PurchaseOrderCreate } from "@/features/create-pages/purchase-order-create/components/purchase-order-create";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 /**
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_layout/purchase/create-order")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("Create Purchase Order | ERP Portal");
   const { sourceDocNum, sourceDocType } = Route.useSearch();
   return <PurchaseOrderCreate sourceDocNum={sourceDocNum} sourceDocType={sourceDocType} />;
 }

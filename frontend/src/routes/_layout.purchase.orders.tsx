@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { lazy, Suspense } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { purchaseOrderSearchSchema } from "@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema";
 
 const PurchaseOrderTable = lazy(() =>
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_layout/purchase/orders")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("Purchase Orders | ERP Portal");
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });

@@ -3,6 +3,8 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect } from "react";
 
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
 import { GOEY_LOGIN_TOAST_DURATION } from "@/components/goey-toast.config";
 import { authKeys, authQueries } from "@/features/auth/api/auth.queries";
 import type { User } from "@/features/auth/api/auth.service";
@@ -41,6 +43,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginComponent() {
+  useDocumentTitle("Login | ERP Portal");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const SESSION_WARNING_TOAST_ID = "auth-session-ended";

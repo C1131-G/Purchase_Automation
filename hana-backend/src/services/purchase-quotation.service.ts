@@ -299,7 +299,7 @@ export const createPurchaseQuotation = async (
           Quantity: Number(line.Quantity ?? 0),
           RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: Number(line.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
           ReqDate: reqDate,
           ShipDate: reqDate,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
@@ -433,7 +433,7 @@ export const updatePurchaseQuotation = async (
           Quantity: Number(line.Quantity ?? 0),
           RequiredQuantity: Number(line.Quantity ?? 0),
           UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: Number(line.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
           ReqDate: reqDate,
           ShipDate: reqDate,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,

@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { lazy, Suspense } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { apCreditMemoSearchSchema } from "@/features/table-pages/ap-credit-memo/schemas/ap-credit-memo-search.schema";
 
 const APCreditMemoTable = lazy(() =>
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_layout/purchase/ap-credit-memo")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("AP Credit Memos | ERP Portal");
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });

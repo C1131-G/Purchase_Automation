@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { ARInvoiceCreate } from "@/features/create-pages/ar-invoice-create/components/ar-invoice-create";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 /** SalesARInvoiceCreateRoute: Page for creating new AR Invoices. */
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/_layout/sales/create-ar-invoice")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
-  component: ARInvoiceCreate,
+  component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
   pendingMs: 0,
   validateSearch: z.object({
@@ -18,3 +19,8 @@ export const Route = createFileRoute("/_layout/sales/create-ar-invoice")({
     sourceDocType: z.enum(["SalesQuotation", "SalesOrder"]).optional(),
   }),
 });
+
+function RouteComponent() {
+  useDocumentTitle("Create AR Invoice | ERP Portal");
+  return <ARInvoiceCreate />;
+}

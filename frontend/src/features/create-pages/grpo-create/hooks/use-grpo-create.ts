@@ -85,7 +85,7 @@ export interface GRPOCreateLine {
 }
 type GRPOFieldErrors = Record<GRPOMandatoryField, string | undefined>;
 const QUICK_PRODUCT_LIMIT = 10;
-const FULL_PRODUCT_LIMIT = 100;
+const FULL_PRODUCT_LIMIT = 500;
 
 const EMPTY_GRPO_FIELD_ERRORS: GRPOFieldErrors = {
   vendorCode: undefined,

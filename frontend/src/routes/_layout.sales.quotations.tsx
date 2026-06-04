@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { lazy, Suspense } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { salesQuotationSearchSchema } from "@/features/table-pages/sales-quotations/schemas/sales-quotation-search.schema";
 
 const SalesQuotationTable = lazy(() =>
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_layout/sales/quotations")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("Sales Quotations | ERP Portal");
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });

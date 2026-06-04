@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import GRPOCreate from "@/features/create-pages/grpo-create/components/grpo-create";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 export const Route = createFileRoute("/_layout/purchase/grpo/$docNum/edit")({
@@ -17,5 +18,6 @@ export const Route = createFileRoute("/_layout/purchase/grpo/$docNum/edit")({
 
 function GRPOEditPage() {
   const { docNum } = Route.useParams();
+  useDocumentTitle(`Edit GRPO #${docNum} | ERP Portal`);
   return <GRPOCreate mode="edit" docNum={docNum} />;
 }

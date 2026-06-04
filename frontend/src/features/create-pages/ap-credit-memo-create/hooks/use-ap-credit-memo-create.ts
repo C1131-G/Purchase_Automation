@@ -81,7 +81,7 @@ export interface APCreditMemoCreateLine {
 }
 type APCreditMemoFieldErrors = Record<APCreditMemoMandatoryField, string | undefined>;
 const QUICK_PRODUCT_LIMIT = 10;
-const FULL_PRODUCT_LIMIT = 100;
+const FULL_PRODUCT_LIMIT = 500;
 
 const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
   returnReason: undefined,

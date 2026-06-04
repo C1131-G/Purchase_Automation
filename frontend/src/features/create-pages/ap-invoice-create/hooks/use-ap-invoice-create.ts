@@ -83,7 +83,7 @@ export interface APInvoiceCreateLine {
 }
 type APInvoiceFieldErrors = Record<APInvoiceMandatoryField, string | undefined>;
 const QUICK_PRODUCT_LIMIT = 10;
-const FULL_PRODUCT_LIMIT = 100;
+const FULL_PRODUCT_LIMIT = 500;
 
 const EMPTY_AP_INVOICE_FIELD_ERRORS: APInvoiceFieldErrors = {
   vendorCode: undefined,

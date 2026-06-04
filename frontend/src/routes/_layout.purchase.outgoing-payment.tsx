@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { lazy, Suspense } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { outgoingPaymentSearchSchema } from "@/features/table-pages/outgoing-payment/schemas/outgoing-payment-search.schema";
 
 const OutgoingPaymentTable = lazy(() =>
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_layout/purchase/outgoing-payment")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("Outgoing Payments | ERP Portal");
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { SalesQuotationCreate } from "@/features/create-pages/sales-quotation-create/components/sales-quotation-create";
 import { salesQuotationQueries } from "@/features/table-pages/sales-quotations/api/sales-quotation.queries";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 export const Route = createFileRoute("/_layout/sales/quotations/$docNum/edit")({
@@ -17,5 +18,6 @@ export const Route = createFileRoute("/_layout/sales/quotations/$docNum/edit")({
 
 function SalesQuotationEditPage() {
   const { docNum } = Route.useParams();
+  useDocumentTitle(`Edit Sales Quotation #${docNum} | ERP Portal`);
   return <SalesQuotationCreate mode="edit" docNum={docNum} />;
 }

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { SalesQuotationCreate } from "@/features/create-pages/sales-quotation-create/components/sales-quotation-create";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 /**
@@ -12,7 +13,12 @@ export const Route = createFileRoute("/_layout/sales/create-quotation")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
-  component: SalesQuotationCreate,
+  component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
   pendingMs: 0,
 });
+
+function RouteComponent() {
+  useDocumentTitle("Create Sales Quotation | ERP Portal");
+  return <SalesQuotationCreate />;
+}

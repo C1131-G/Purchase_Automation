@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { IncomingPaymentEdit } from "@/features/create-pages/incoming-payment-create/components/incoming-payment-edit";
 import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 export const Route = createFileRoute("/_layout/sales/incoming-payment/$docNum/edit")({
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_layout/sales/incoming-payment/$docNum/ed
 
 function IncomingPaymentEditPage() {
   const { docNum } = Route.useParams();
+  useDocumentTitle(`Edit Incoming Payment #${docNum} | ERP Portal`);
   console.log(
     "[_layout.sales.incoming-payment.$docNum.edit] Rendering IncomingPaymentEditPage for docNum:",
     docNum,

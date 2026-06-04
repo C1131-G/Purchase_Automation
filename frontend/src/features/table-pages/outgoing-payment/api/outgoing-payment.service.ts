@@ -159,4 +159,9 @@ export const outgoingPaymentAPI = {
     const path = `/api/v1/financial-period/resolve-transfer-account?${query}`;
     return apiClient<TransferAccountResponse>(path);
   },
+  updatePayment: async (id: number | string, payload: { Remarks?: string }) =>
+    apiClient<{ success: boolean; message: string }>(`/api/v1/outgoing-payments/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 };

@@ -345,7 +345,7 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
-          DiscountPercent: Number(item.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
@@ -462,7 +462,7 @@ export const updatePurchaseOrder = async (
           ItemCode: item.ItemCode as string,
           Quantity: item.Quantity as number,
           UnitPrice: (item.UnitPrice || item.Price) as number,
-          DiscountPercent: Number(item.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,

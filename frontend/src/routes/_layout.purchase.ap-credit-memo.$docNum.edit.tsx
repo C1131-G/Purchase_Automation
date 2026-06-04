@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import APCreditMemoCreate from "@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-create";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 /** PurchaseAPCreditMemoEditRoute: Page for editing existing AP Credit Memos. */
@@ -18,5 +19,6 @@ export const Route = createFileRoute("/_layout/purchase/ap-credit-memo/$docNum/e
 
 function RouteComponent() {
   const { docNum } = Route.useParams();
+  useDocumentTitle(`Edit AP Credit Memo #${docNum} | ERP Portal`);
   return <APCreditMemoCreate mode="edit" docNum={docNum} />;
 }

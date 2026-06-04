@@ -233,7 +233,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
           UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
           VatGroup: item.VatGroup as string,
           WarehouseCode: item.WarehouseCode as string,
-          DiscountPercent: Number(item.DiscountPercent ?? 0),
+          DiscountPercent: 0, // SAP requires 0 to avoid double-discounting when Header Discount is used
         };
         if (item.U_ReturnReason) {
           line.U_ReturnReason = item.U_ReturnReason as string;

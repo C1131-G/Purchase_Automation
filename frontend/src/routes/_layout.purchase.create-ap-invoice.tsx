@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import APInvoiceCreate from "@/features/create-pages/ap-invoice-create/components/ap-invoice-create";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 /** PurchaseAPInvoiceCreateRoute: Page for creating new A/P Invoices. */
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_layout/purchase/create-ap-invoice")({
 });
 
 function RouteComponent() {
+  useDocumentTitle("Create AP Invoice | ERP Portal");
   const { sourceDocNum, sourceDocType } = Route.useSearch();
   return <APInvoiceCreate sourceDocNum={sourceDocNum} sourceDocType={sourceDocType} />;
 }

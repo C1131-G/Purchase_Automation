@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { PurchaseOrderCreate } from "@/features/create-pages/purchase-order-create/components/purchase-order-create";
 import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
 export const Route = createFileRoute("/_layout/purchase/orders/$docNum/edit")({
@@ -17,5 +18,6 @@ export const Route = createFileRoute("/_layout/purchase/orders/$docNum/edit")({
 
 function PurchaseOrderEditPage() {
   const { docNum } = Route.useParams();
+  useDocumentTitle(`Edit Purchase Order #${docNum} | ERP Portal`);
   return <PurchaseOrderCreate mode="edit" docNum={docNum} />;
 }
