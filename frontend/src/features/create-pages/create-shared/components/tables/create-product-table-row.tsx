@@ -810,7 +810,9 @@ export function CreateProductTableRow({
             const rawAmount = Math.round((Number(trimmedValue) || 0) * 100) / 100;
             const nextAmount = Math.min(grossAmount, rawAmount);
             const nextPercent =
-              grossAmount > 0 ? Math.ceil((nextAmount / grossAmount) * 100 * 1000000) / 1000000 : 0;
+              grossAmount > 0
+                ? Math.round((nextAmount / grossAmount) * 100 * 1000000) / 1000000
+                : 0;
             updateProductRow(row.id, {
               discountAmount: nextAmount,
               discountPercent: nextPercent,
@@ -824,7 +826,9 @@ export function CreateProductTableRow({
             const rawAmount = rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
             const nextAmount = Math.min(grossAmount, rawAmount);
             const nextPercent =
-              grossAmount > 0 ? Math.ceil((nextAmount / grossAmount) * 100 * 1000000) / 1000000 : 0;
+              grossAmount > 0
+                ? Math.round((nextAmount / grossAmount) * 100 * 1000000) / 1000000
+                : 0;
             updateProductRow(row.id, {
               discountAmount: nextAmount,
               discountPercent: nextPercent,

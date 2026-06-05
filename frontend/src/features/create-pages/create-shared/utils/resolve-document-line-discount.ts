@@ -22,7 +22,7 @@ export function resolveDocumentLineDiscount({
   let discountPercent = 0;
   if (Number.isFinite(lineTotal) && grossAmount > 0 && derivedDiscountAmountFromLineTotal > 0) {
     discountPercent =
-      Math.ceil((derivedDiscountAmountFromLineTotal / grossAmount) * 100 * 1000000) / 1000000;
+      Math.round((derivedDiscountAmountFromLineTotal / grossAmount) * 100 * 1000000) / 1000000;
   } else if (Number.isFinite(apiDiscountPercent)) {
     discountPercent = apiDiscountPercent;
   }
