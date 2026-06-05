@@ -14,6 +14,7 @@ import {
 import type { ProductSearchFieldError } from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
+import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import type {
   CreateLookupOption,
   PopupMode,
@@ -166,7 +167,7 @@ export function useArCreditMemoCreate({
   };
 
   const selectWarehouse = (item: { code: string; name: string }) => {
-    setWarehouseInput(item.name);
+    setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     productsHook.setProductRows((prev) =>
       prev.map((row) => ({
@@ -294,7 +295,6 @@ export function useArCreditMemoCreate({
       const detail = (rawDetail?.data as unknown as Record<string, unknown>) ?? rawDetail;
       const vendorCode = (detail as Record<string, unknown>).CardCode || "";
       const vendorName = (detail as Record<string, unknown>).CardName || "";
-      const warehouseCode = (detail as Record<string, unknown>).WarehouseCode || "";
       const comments = (detail as Record<string, unknown>).Comments || "";
       const referenceNo = (detail as Record<string, unknown>).NumAtCard || "";
       const billToAddress = (detail as Record<string, unknown>).Address || "";
@@ -305,6 +305,11 @@ export function useArCreditMemoCreate({
         string,
         unknown
       >[];
+      // Warehouse lives on document lines, not on the invoice header.
+      // Read it from the first line — same pattern used by AR Invoice create/edit hydration.
+      const warehouseCode = String(
+        detailLines[0]?.WarehouseCode ?? (detail as Record<string, unknown>).WarehouseCode ?? "",
+      ).trim();
       const itemCodes = [
         ...new Set(
           detailLines.map((l: Record<string, unknown>) => String(l.ItemCode ?? "")).filter(Boolean),
@@ -398,6 +403,15 @@ export function useArCreditMemoCreate({
       if (salesEmployeeName) {
         setSalesEmployeeInput(salesEmployeeName);
       }
+      // Resolve warehouse display name eagerly so the header field is populated on arrival.
+      // The reactive useEffect (header.warehouseCode + warehouses) also updates it once the
+      // warehouses list is available, providing a belt-and-suspenders approach.
+      if (warehouseCode) {
+        const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
+      }
       setHeader({
         billToAddress: String(billToAddress),
         comments: isEditMode
@@ -435,8 +449,8 @@ export function useArCreditMemoCreate({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
-      if (matched && warehouseInput !== matched.name) {
-        setWarehouseInput(matched.name);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [header.warehouseCode, warehouses, warehouseInput]);
@@ -538,6 +552,8 @@ export function useArCreditMemoCreate({
           payload,
         });
         toastHandle.success();
+        setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
         void navigate({
           search: { limit: 10, page: 1 },
           to: "/sales/ar-credit-memo",
@@ -597,6 +613,8 @@ export function useArCreditMemoCreate({
       // Invalidate AR Invoice cache so that remaining quantities are updated immediately
       void queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
       toastHandle.success();
+      setWarehouseInput("");
+      setHeader({ warehouseCode: "" });
       void navigate({
         search: { limit: 10, page: 1 },
         to: "/sales/ar-credit-memo",

@@ -312,7 +312,7 @@ export function PaymentModal({
       CashSum?: number;
     } = {
       PaymentCreditCards: cards.map((c) => ({
-        CardValidUntil: "2025-12-31",
+        CardValidUntil: "2099-12-31",
         CreditCard: c.creditCardId,
         CreditCardNumber: "123",
         CreditSum: Number((c.amount + c.surchargeAmount).toFixed(2)),

@@ -38,7 +38,10 @@ import type {
   ProductRowDraft,
   StockPreviewProduct,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import {
   getLookupInlineSearchByMode,
@@ -331,18 +334,20 @@ export function useAPCreditMemoCreate({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
-      if (matched && warehouseInput !== `[${matched.code}] ${matched.name}`) {
-        setWarehouseInput(`[${matched.code}] ${matched.name}`);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [header.warehouseCode, warehouses, warehouseInput]);
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetAPCreditMemoCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetAPCreditMemoCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetAPCreditMemoCreate();
+    };
   }, [isEditMode, resetAPCreditMemoCreate]);
 
   useEffect(() => {
@@ -450,7 +455,18 @@ export function useAPCreditMemoCreate({
       );
       setLines(mappedLines);
       setProductRowDrafts({});
-      setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim());
+
+      // Populate header warehouseCode so the reactive useEffect resolves the display name.
+      const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+      if (editWarehouseCode) {
+        setHeader({ warehouseCode: editWarehouseCode });
+        const matchedWarehouse = warehouses.find(
+          (w) => String(w.code).trim() === editWarehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? editWarehouseCode, editWarehouseCode),
+        );
+      }
 
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = currentDocNum;
@@ -632,7 +648,10 @@ export function useAPCreditMemoCreate({
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
-      setWarehouseInput(warehouseCode);
+      const matchedWarehouseCopy = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+      setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
+      );
       setBillToAddress(String(primaryDetail.Address ?? "").trim());
       setShipToAddress(String(primaryDetail.Address2 ?? "").trim());
       setHeader({
@@ -641,6 +660,7 @@ export function useAPCreditMemoCreate({
         referenceAutoFilled: true,
         referenceNo: sourceNumAtCard,
         remarks: remarksParts,
+        warehouseCode, // ← required so the reactive useEffect can resolve the display name
       });
       setLines(mappedLines);
       setProductRowDrafts({});
@@ -958,7 +978,7 @@ export function useAPCreditMemoCreate({
   };
 
   const selectWarehouse = (warehouse: LookupItem) => {
-    setWarehouseInput(`[${warehouse.code}] ${warehouse.name}`);
+    setWarehouseInput(formatWarehouseDisplay(warehouse.name, warehouse.code));
     setHeader({ warehouseCode: warehouse.code });
     setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: warehouse.code })));
     setWarehouseFocused(false);
@@ -1209,6 +1229,11 @@ export function useAPCreditMemoCreate({
         }
 
         toastHandle.success(createdDocNum);
+      }
+
+      if (isEditMode) {
+        setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
       }
 
       if (!isEditMode) {
