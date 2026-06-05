@@ -207,6 +207,7 @@ export function ArCreditMemoCreate({
             onSelectWarehouse={state.selectWarehouse}
             warehouseDisabled={state.isEditMode}
             warehouseCode={header.warehouseCode}
+            salesEmployeeDisabled={state.isEditMode}
           />
 
           <DocumentDatesGrid

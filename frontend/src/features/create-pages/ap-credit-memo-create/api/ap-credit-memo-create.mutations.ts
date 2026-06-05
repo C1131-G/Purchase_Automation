@@ -23,12 +23,14 @@ export interface CreateAPCreditMemoInput {
     BaseType?: number;
     U_ReturnReason?: string;
   }[];
+  SalesPersonCode?: number | undefined;
 }
 
 export interface UpdateAPCreditMemoInput {
   DocDueDate?: string | undefined;
   Comments?: string | undefined;
   NumAtCard?: string | undefined;
+  SalesPersonCode?: number | undefined;
 }
 
 export function useCreateAPCreditMemo() {

@@ -984,6 +984,23 @@ export function useAPCreditMemoCreate({
     setWarehouseFocused(false);
   };
 
+  const resolvedBuyerCode = useMemo(() => {
+    const normalize = (val: unknown) =>
+      String(val ?? "")
+        .trim()
+        .toLowerCase();
+    const input = normalize(buyerInput);
+    if (!input) return undefined;
+
+    const byName = salesEmployees.find((item) => normalize(item.name) === input);
+    if (byName) return Number(byName.code);
+
+    const byCode = salesEmployees.find((item) => normalize(item.code) === input);
+    if (byCode) return Number(byCode.code);
+
+    return undefined;
+  }, [buyerInput, salesEmployees]);
+
   const selectBuyer = (item: LookupItem) => {
     setBuyerInput(item.name);
     setBuyerFocused(false);
@@ -1106,11 +1123,17 @@ export function useAPCreditMemoCreate({
         const currentDocDueDate = String(header.docDueDate ?? "").trim();
         const currentComments = String(header.remarks ?? "").trim();
         const currentReferenceNo = String(header.referenceNo ?? "").trim();
+        const existingSalesPersonCode =
+          detail?.SalesPersonCode !== undefined && detail?.SalesPersonCode !== null
+            ? Number(detail.SalesPersonCode)
+            : undefined;
+        const currentSalesPersonCode = resolvedBuyerCode;
 
         if (
           currentDocDueDate === existingDocDueDate &&
           currentComments === existingComments.trim() &&
-          currentReferenceNo === existingReferenceNo
+          currentReferenceNo === existingReferenceNo &&
+          currentSalesPersonCode === existingSalesPersonCode
         ) {
           const noChangeMessage = "Change at least one field before update.";
           setCreateError(noChangeMessage);
@@ -1123,6 +1146,7 @@ export function useAPCreditMemoCreate({
           Comments: header.remarks.trim() || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
+          SalesPersonCode: currentSalesPersonCode,
         };
 
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
@@ -1188,6 +1212,7 @@ export function useAPCreditMemoCreate({
           ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
           ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
           DocumentLines: buildDocumentLines(),
+          SalesPersonCode: resolvedBuyerCode,
         };
 
         // Try to reopen the base A/P Invoice if it's closed, as requested.

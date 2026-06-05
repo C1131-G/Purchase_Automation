@@ -12,6 +12,7 @@ import {
   MANDATORY_ERROR_TEXT,
 } from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
@@ -135,6 +136,23 @@ export function useArCreditMemoCreate({
       (w) => w.name.toLowerCase().includes(term) || w.code.toLowerCase().includes(term),
     );
   }, [warehouses, warehouseInput]);
+
+  const resolvedSalesEmployeeCode = useMemo(() => {
+    const normalize = (val: unknown) =>
+      String(val ?? "")
+        .trim()
+        .toLowerCase();
+    const input = normalize(salesEmployeeInput);
+    if (!input) return undefined;
+
+    const byName = salesEmployees.find((item) => normalize(item.name) === input);
+    if (byName) return Number(byName.code);
+
+    const byCode = salesEmployees.find((item) => normalize(item.code) === input);
+    if (byCode) return Number(byCode.code);
+
+    return undefined;
+  }, [salesEmployeeInput, salesEmployees]);
 
   // Modal helpers
   const openPopup = (mode: PopupMode) => {
@@ -339,6 +357,14 @@ export function useArCreditMemoCreate({
           ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
           : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
 
+        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+        const quantity = Number(line.Quantity ?? 0);
+        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+          line: line as Record<string, unknown>,
+          grossAmount: price * quantity,
+          headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
+        });
+
         return {
           baseEntry:
             Number(
@@ -352,17 +378,8 @@ export function useArCreditMemoCreate({
           currency: String(
             (detail as Record<string, unknown>).DocCurr || productMeta?.currency || "",
           ),
-          discountAmount:
-            (Number(line.Price ?? line.UnitPrice ?? 0) *
-              Number(line.Quantity ?? 0) *
-              (Number(line.DiscountPercent ?? 0) !== 0
-                ? Number(line.DiscountPercent ?? 0)
-                : Number((detail as Record<string, unknown>).DiscountPercent ?? 0))) /
-            100,
-          discountPercent:
-            Number(line.DiscountPercent ?? 0) !== 0
-              ? Number(line.DiscountPercent ?? 0)
-              : Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
+          discountAmount,
+          discountPercent,
           id: `row-copy-${cleanDocNum}-${index}`,
           price: Number(line.Price || line.UnitPrice || productMeta?.price || 0),
           productCode: itemCode,
@@ -523,15 +540,21 @@ export function useArCreditMemoCreate({
         .trim();
       const existingComments = String(detail?.Comments ?? "").trim();
       const existingReferenceNo = String(detail?.NumAtCard ?? "").trim();
+      const existingSalesPersonCode =
+        detail?.SalesPersonCode !== undefined && detail?.SalesPersonCode !== null
+          ? Number(detail.SalesPersonCode)
+          : undefined;
 
       const currentDocDueDate = String(header.docDueDate ?? "").trim();
       const currentComments = String(header.comments ?? "").trim();
       const currentReferenceNo = String(header.referenceNo ?? "").trim();
+      const currentSalesPersonCode = resolvedSalesEmployeeCode;
 
       if (
         currentDocDueDate === existingDocDueDate &&
         currentComments === existingComments &&
-        currentReferenceNo === existingReferenceNo
+        currentReferenceNo === existingReferenceNo &&
+        currentSalesPersonCode === existingSalesPersonCode
       ) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
@@ -542,6 +565,7 @@ export function useArCreditMemoCreate({
         Comments: currentComments || undefined,
         DocDueDate: header.docDueDate || undefined,
         NumAtCard: currentReferenceNo || undefined,
+        SalesPersonCode: currentSalesPersonCode,
       };
 
       const toastHandle = documentActionToast("A/R Credit Memo", "update");
@@ -605,6 +629,7 @@ export function useArCreditMemoCreate({
         return line;
       }),
       NumAtCard: header.referenceNo,
+      SalesPersonCode: resolvedSalesEmployeeCode,
     };
 
     const toastHandle = documentActionToast("A/R Credit Memo", "create");

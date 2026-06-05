@@ -3,6 +3,7 @@ import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import {
@@ -260,11 +261,11 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 1);
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
-        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
-        const discountPercent =
-          lineDiscountPercent !== 0 ? lineDiscountPercent : headerDiscountPercent;
-        const discountAmount = (price * quantity * discountPercent) / 100;
+        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+          line: line as Record<string, unknown>,
+          grossAmount: price * quantity,
+          headerDiscountPercent: Number((detail as any).DiscountPercent ?? 0),
+        });
         return {
           baseEntry: detail.DocEntry ?? detail.id,
           baseLine: line.LineNum ?? index,
@@ -416,11 +417,11 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         const quantity = Number(line.Quantity ?? 1);
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
-        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
-        const discountPercent =
-          lineDiscountPercent !== 0 ? lineDiscountPercent : headerDiscountPercent;
-        const discountAmount = (price * quantity * discountPercent) / 100;
+        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+          line: line as Record<string, unknown>,
+          grossAmount: price * quantity,
+          headerDiscountPercent: Number((detail as any).DiscountPercent ?? 0),
+        });
         return {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
@@ -983,19 +984,12 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
       const price = Number(line.Price ?? line.UnitPrice ?? 0);
       const openQty = Number(line.OpenQty ?? line.Quantity ?? 1);
-      const grossAmount = Math.max(0, price * openQty);
-      const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
-      const lineTotal = Number(line.LineTotal ?? Number.NaN);
-      const derivedDiscountAmountFromLineTotal =
-        Number.isFinite(lineTotal) && grossAmount > 0
-          ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
-          : 0;
-      const discountPercent = Number.isFinite(apiDiscountPercent)
-        ? apiDiscountPercent
-        : grossAmount > 0
-          ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
-          : 0;
-      const discountAmount = (grossAmount * discountPercent) / 100;
+      const quantity = Number(line.OpenQty ?? line.Quantity ?? 1);
+      const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+        line: line as Record<string, unknown>,
+        grossAmount: price * quantity,
+        headerDiscountPercent: Number((editDetailQuery.data?.data as any)?.DiscountPercent ?? 0),
+      });
 
       return {
         baseEntry: line.DocEntry,

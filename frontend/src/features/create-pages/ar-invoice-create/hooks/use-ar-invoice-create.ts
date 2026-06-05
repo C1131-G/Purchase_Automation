@@ -782,11 +782,17 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const currentDocDueDate = String(header.docDueDate ?? "").trim();
       const currentComments = String(header.comments ?? "").trim();
       const currentReferenceNo = String(header.referenceNo ?? "").trim();
+      const existingSalesPersonCode =
+        detail?.SalesPersonCode !== undefined && detail?.SalesPersonCode !== null
+          ? Number(detail.SalesPersonCode)
+          : undefined;
+      const currentSalesPersonCode = resolvedSalesEmployeeCode;
 
       if (
         currentDocDueDate === existingDocDueDate &&
         currentComments === existingComments.trim() &&
-        currentReferenceNo === existingReferenceNo
+        currentReferenceNo === existingReferenceNo &&
+        currentSalesPersonCode === existingSalesPersonCode
       ) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
@@ -802,6 +808,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           Comments: header.comments.trim() || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
+          SalesPersonCode: resolvedSalesEmployeeCode,
         }
       : {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
