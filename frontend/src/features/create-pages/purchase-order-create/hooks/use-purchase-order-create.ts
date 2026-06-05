@@ -19,6 +19,7 @@ import type {
   PopupMode,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import {
   getLookupInlineSearchByMode,
@@ -328,7 +329,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         });
         lookups.setNameInput(vendorName);
         lookups.setCodeInput(vendorCode);
-        lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+        lookups.setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(billToAddress);
         lookups.setShipToAddress(shipToAddress);
@@ -504,7 +507,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         });
         lookups.setNameInput(vendorName);
         lookups.setCodeInput(vendorCode);
-        lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+        lookups.setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
         lookups.setSalesEmployeeInput(buyerName);
         lookups.setBillToAddress(
           String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
@@ -1030,6 +1035,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);
+        lookups.setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
         return;
       }
 

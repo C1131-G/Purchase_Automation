@@ -27,7 +27,10 @@ import type {
   ProductRowDraft,
   StockPreviewProduct,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import {
   getLookupInlineSearchByMode,
@@ -332,8 +335,8 @@ export function useAPInvoiceCreate({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
-      if (matched && warehouseInput !== matched.name) {
-        setWarehouseInput(matched.name);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [header.warehouseCode, warehouses, warehouseInput]);
@@ -443,8 +446,11 @@ export function useAPInvoiceCreate({
         };
       });
       setLines(mappedLines);
-      setProductRowDrafts({});
-      setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim());
+      const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+      const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+      setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+      );
 
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = currentDocNum;
@@ -637,7 +643,10 @@ export function useAPInvoiceCreate({
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
-      setWarehouseInput(warehouseCode);
+      const matchedWarehouseCopy = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+      setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
+      );
       setBillToAddress(
         String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
       );
@@ -969,7 +978,7 @@ export function useAPInvoiceCreate({
   };
 
   const selectWarehouse = (warehouse: LookupItem) => {
-    setWarehouseInput(warehouse.name);
+    setWarehouseInput(formatWarehouseDisplay(warehouse.name, warehouse.code));
     setHeader({ warehouseCode: warehouse.code });
     setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: warehouse.code })));
     setWarehouseFocused(false);
@@ -1224,6 +1233,10 @@ export function useAPInvoiceCreate({
         createdDocNum = result?.data?.DocNum;
       }
       toastHandle.success(createdDocNum);
+      if (isEditMode) {
+        setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
+      }
       if (!isEditMode) {
         resetAPInvoiceCreate();
         setVendorNameInput("");

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createSharedQueries as salesOrderCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/sales-order-create/utils/so-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/sales-order-create/utils/so-create.utils";
 import type { SOHeaderState } from "@/store/create/so-create.store";
@@ -175,7 +176,7 @@ export function useSoLookups({
   };
 
   const selectWarehouse = (item: { code: string; name: string }) => {
-    setWarehouseInput(item.name);
+    setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
     void queryClient.prefetchQuery(
@@ -297,8 +298,8 @@ export function useSoLookups({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(headerWarehouseCode).trim(),
       );
-      if (matched && warehouseInput !== matched.name) {
-        setWarehouseInput(matched.name);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [headerWarehouseCode, warehouses, warehouseInput]);

@@ -60,6 +60,12 @@ export const normalizeCreateOrderErrorMessage = (error: unknown, fallbackMessage
   if (error instanceof Error && error.message.trim()) {
     return normalizeServiceLayerFieldMessage(error.message);
   }
-
   return fallbackMessage;
+};
+
+export const formatWarehouseDisplay = (name: string, code: string) => {
+  if (!name && !code) return "";
+  if (!name) return code;
+  if (!code) return name;
+  return `${name.trim()} [${code.trim()}]`;
 };

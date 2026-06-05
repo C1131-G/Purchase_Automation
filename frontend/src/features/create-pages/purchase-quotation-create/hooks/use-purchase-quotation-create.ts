@@ -18,6 +18,7 @@ import type {
   PopupMode,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
@@ -356,7 +357,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         });
         lookups.setNameInput(vendorName);
         lookups.setCodeInput(vendorCode);
-        lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+        lookups.setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
         lookups.setShipToAddress(address);
@@ -806,6 +809,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);
+        lookups.setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
         return;
       }
 

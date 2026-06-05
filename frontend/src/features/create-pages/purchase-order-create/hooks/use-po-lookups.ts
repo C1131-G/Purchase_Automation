@@ -6,6 +6,7 @@ import { createSharedQueries as purchaseOrderCreateQueries } from "@/features/cr
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
 import type { POHeaderState } from "@/store/create/po-create.store";
@@ -183,7 +184,7 @@ export function usePoLookups({
   };
 
   const selectWarehouse = (item: { code: string; name: string }) => {
-    setWarehouseInput(item.name);
+    setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
     void queryClient.prefetchQuery(
@@ -305,8 +306,8 @@ export function usePoLookups({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(headerWarehouseCode).trim(),
       );
-      if (matched && warehouseInput !== matched.name) {
-        setWarehouseInput(matched.name);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [headerWarehouseCode, warehouses, warehouseInput]);

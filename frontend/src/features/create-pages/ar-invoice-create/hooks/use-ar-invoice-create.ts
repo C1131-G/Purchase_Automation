@@ -31,7 +31,10 @@ import type {
   PopupMode,
   ProductRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import {
   getLookupInlineSearchByMode,
@@ -865,6 +868,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         if (currentDocNum) {
           void queryClient.prefetchQuery(arInvoiceQueries.detailByDocNum(currentDocNum));
         }
+        lookups.setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
         return;
       }
 
@@ -996,7 +1001,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         (w) => String(w.code).trim() === firstWarehouseCode,
       );
       setHeader({ warehouseCode: firstWarehouseCode });
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? firstWarehouseCode);
+      lookups.setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouse?.name ?? firstWarehouseCode, firstWarehouseCode),
+      );
     }
 
     setPullFromSOModalOpen(false);
@@ -1098,7 +1105,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         (w) => String(w.code).trim() === firstWarehouseCode,
       );
       setHeader({ warehouseCode: firstWarehouseCode });
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? firstWarehouseCode);
+      lookups.setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouse?.name ?? firstWarehouseCode, firstWarehouseCode),
+      );
     }
 
     setPullFromSQModalOpen(false);

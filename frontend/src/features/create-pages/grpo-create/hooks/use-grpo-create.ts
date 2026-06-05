@@ -17,7 +17,10 @@ import type {
   ProductRowDraft,
   StockPreviewProduct,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import {
   getLookupInlineSearchByMode,
@@ -317,8 +320,8 @@ export function useGRPOCreate({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
-      if (matched && warehouseInput !== matched.name) {
-        setWarehouseInput(matched.name);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [header.warehouseCode, warehouses, warehouseInput]);
@@ -475,7 +478,16 @@ export function useGRPOCreate({
           };
         });
         setLines(mappedLines);
-        setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim());
+        const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const matchedWarehouseEdit = warehouses.find(
+          (w) => String(w.code).trim() === editWarehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(
+            matchedWarehouseEdit?.name ?? editWarehouseCode,
+            editWarehouseCode,
+          ),
+        );
         // Set addresses from document: Address = Bill To, Address2 = Ship To
         setBillToAddress(String(detail.Address ?? "").trim());
         setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
@@ -709,7 +721,10 @@ export function useGRPOCreate({
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
-      setWarehouseInput(warehouseCode);
+      const matchedWarehouseCopy = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+      setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
+      );
       setBillToAddress(
         String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
       );
@@ -1178,7 +1193,7 @@ export function useGRPOCreate({
   };
 
   const selectWarehouse = (warehouse: LookupItem) => {
-    setWarehouseInput(warehouse.name);
+    setWarehouseInput(formatWarehouseDisplay(warehouse.name, warehouse.code));
     setHeader({ warehouseCode: warehouse.code });
     setProductQueryLimit(QUICK_PRODUCT_LIMIT);
     void queryClient.prefetchQuery(
@@ -1622,6 +1637,8 @@ export function useGRPOCreate({
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);
+        setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
         return;
       }
 

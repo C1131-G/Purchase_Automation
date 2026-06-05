@@ -19,6 +19,7 @@ import type {
   ProductGridRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import {
   getLookupInlineSearchByMode,
@@ -302,7 +303,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       });
       lookups.setNameInput(vendorName);
       lookups.setCodeInput(vendorCode);
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+      lookups.setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+      );
       lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
       lookups.setBillToAddress(address);
       lookups.setShipToAddress(address);
@@ -455,7 +458,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       });
       lookups.setNameInput(vendorName);
       lookups.setCodeInput(vendorCode);
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+      lookups.setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+      );
       lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
       lookups.setBillToAddress(address);
       lookups.setShipToAddress(address);
@@ -879,6 +884,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         if (currentDocNum) {
           void queryClient.prefetchQuery(salesOrderQueries.detailByDocNum(currentDocNum));
         }
+        lookups.setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
         return;
       }
 
@@ -1024,7 +1031,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         (w) => String(w.code).trim() === firstWarehouseCode,
       );
       setHeader({ warehouseCode: firstWarehouseCode });
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? firstWarehouseCode);
+      lookups.setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouse?.name ?? firstWarehouseCode, firstWarehouseCode),
+      );
     }
 
     setPullFromSQModalOpen(false);

@@ -9,7 +9,7 @@ const round2 = (num: number) => Math.round(num * 100 + (num >= 0 ? 1e-9 : -1e-9)
  * We must match this to prevent pre-post total discrepancies.
  */
 const sapTruncDiscount = (gross: number, discountPercent: number): number =>
-  Math.trunc((gross * discountPercent) / 100 * 100) / 100;
+  Math.trunc(((gross * discountPercent) / 100) * 100) / 100;
 
 /** Calculate totals for a single product line with tax-exclusive unit price. */
 export const calculateLineTotals = (row: ProductRow) => {
@@ -19,9 +19,7 @@ export const calculateLineTotals = (row: ProductRow) => {
   // Trusting row.discountAmount (computed with Math.round) causes a 0.01 mismatch
   // where the pre-post displayed total differs from what SAP actually posts.
   const discount =
-    row.discountPercent > 0
-      ? sapTruncDiscount(gross, row.discountPercent)
-      : row.discountAmount;
+    row.discountPercent > 0 ? sapTruncDiscount(gross, row.discountPercent) : row.discountAmount;
   // Net line subtotal (pre-tax). SAP rounds this to currency precision (typically 2) per line.
   const rawLineNet = gross - discount;
   const lineNet = round2(rawLineNet);

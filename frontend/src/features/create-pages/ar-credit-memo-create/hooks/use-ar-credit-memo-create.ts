@@ -14,6 +14,7 @@ import {
 import type { ProductSearchFieldError } from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
+import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import type {
   CreateLookupOption,
   PopupMode,
@@ -166,7 +167,7 @@ export function useArCreditMemoCreate({
   };
 
   const selectWarehouse = (item: { code: string; name: string }) => {
-    setWarehouseInput(item.name);
+    setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     productsHook.setProductRows((prev) =>
       prev.map((row) => ({
@@ -406,10 +407,10 @@ export function useArCreditMemoCreate({
       // The reactive useEffect (header.warehouseCode + warehouses) also updates it once the
       // warehouses list is available, providing a belt-and-suspenders approach.
       if (warehouseCode) {
-        const matchedWarehouse = warehouses.find(
-          (w) => String(w.code).trim() === warehouseCode,
+        const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
         );
-        setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
       }
       setHeader({
         billToAddress: String(billToAddress),
@@ -448,8 +449,8 @@ export function useArCreditMemoCreate({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
-      if (matched && warehouseInput !== matched.name) {
-        setWarehouseInput(matched.name);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [header.warehouseCode, warehouses, warehouseInput]);
@@ -551,6 +552,8 @@ export function useArCreditMemoCreate({
           payload,
         });
         toastHandle.success();
+        setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
         void navigate({
           search: { limit: 10, page: 1 },
           to: "/sales/ar-credit-memo",
@@ -610,6 +613,8 @@ export function useArCreditMemoCreate({
       // Invalidate AR Invoice cache so that remaining quantities are updated immediately
       void queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
       toastHandle.success();
+      setWarehouseInput("");
+      setHeader({ warehouseCode: "" });
       void navigate({
         search: { limit: 10, page: 1 },
         to: "/sales/ar-credit-memo",

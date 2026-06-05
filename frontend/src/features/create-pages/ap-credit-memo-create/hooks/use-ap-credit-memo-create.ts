@@ -38,7 +38,10 @@ import type {
   ProductRowDraft,
   StockPreviewProduct,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
 import {
   getLookupInlineSearchByMode,
@@ -331,8 +334,8 @@ export function useAPCreditMemoCreate({
       const matched = warehouses.find(
         (w) => String(w.code).trim() === String(header.warehouseCode).trim(),
       );
-      if (matched && warehouseInput !== `[${matched.code}] ${matched.name}`) {
-        setWarehouseInput(`[${matched.code}] ${matched.name}`);
+      if (matched && warehouseInput !== formatWarehouseDisplay(matched.name, matched.code)) {
+        setWarehouseInput(formatWarehouseDisplay(matched.name, matched.code));
       }
     }
   }, [header.warehouseCode, warehouses, warehouseInput]);
@@ -455,9 +458,12 @@ export function useAPCreditMemoCreate({
       const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
       if (editWarehouseCode) {
         setHeader({ warehouseCode: editWarehouseCode });
-        // Also set the input immediately — the reactive effect will update to [code] name format
-        // once the warehouses list is available.
-        setWarehouseInput(editWarehouseCode);
+        const matchedWarehouse = warehouses.find(
+          (w) => String(w.code).trim() === editWarehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? editWarehouseCode, editWarehouseCode),
+        );
       }
 
       if (isMetadataLoaded) {
@@ -640,10 +646,10 @@ export function useAPCreditMemoCreate({
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
-      // Set raw code immediately so the field is not blank;
-      // the reactive useEffect (line ~329) will replace it with the formatted [code] name display
-      // once the warehouses list finishes loading.
-      setWarehouseInput(warehouseCode);
+      const matchedWarehouseCopy = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+      setWarehouseInput(
+        formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
+      );
       setBillToAddress(String(primaryDetail.Address ?? "").trim());
       setShipToAddress(String(primaryDetail.Address2 ?? "").trim());
       setHeader({
@@ -970,7 +976,7 @@ export function useAPCreditMemoCreate({
   };
 
   const selectWarehouse = (warehouse: LookupItem) => {
-    setWarehouseInput(`[${warehouse.code}] ${warehouse.name}`);
+    setWarehouseInput(formatWarehouseDisplay(warehouse.name, warehouse.code));
     setHeader({ warehouseCode: warehouse.code });
     setLines((prev) => prev.map((row) => ({ ...row, warehouseCode: warehouse.code })));
     setWarehouseFocused(false);
@@ -1221,6 +1227,11 @@ export function useAPCreditMemoCreate({
         }
 
         toastHandle.success(createdDocNum);
+      }
+
+      if (isEditMode) {
+        setWarehouseInput("");
+        setHeader({ warehouseCode: "" });
       }
 
       if (!isEditMode) {
