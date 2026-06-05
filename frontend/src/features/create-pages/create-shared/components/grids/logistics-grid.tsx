@@ -111,6 +111,7 @@ export function LogisticsGrid({
                 items={warehouseSuggestions}
                 onSelect={onSelectWarehouse}
                 floating
+                showCode
                 query={warehouseInput}
               />
             ) : null}

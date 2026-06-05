@@ -148,11 +148,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   });
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetSOCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetSOCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetSOCreate();
+    };
   }, [isEditMode, resetSOCreate]);
 
   const editDetailQuery = useQuery({

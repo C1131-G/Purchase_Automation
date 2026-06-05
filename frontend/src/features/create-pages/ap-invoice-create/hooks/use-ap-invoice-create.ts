@@ -323,11 +323,13 @@ export function useAPInvoiceCreate({
         : (editDetailQuery.data?.data?.DocStatus ?? "Open");
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetAPInvoiceCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetAPInvoiceCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetAPInvoiceCreate();
+    };
   }, [isEditMode, resetAPInvoiceCreate]);
 
   useEffect(() => {

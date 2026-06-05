@@ -181,11 +181,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   });
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetPOCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetPOCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetPOCreate();
+    };
   }, [isEditMode, resetPOCreate]);
 
   const editDetailQuery = useQuery({

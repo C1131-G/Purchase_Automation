@@ -542,6 +542,7 @@ export function CreateProductTableRow({
                   }}
                   containerClassName="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl"
                   showStock
+                  showCode
                   query={warehouseInput}
                 />
               </div>,

@@ -139,11 +139,13 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   });
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetSQCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetSQCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetSQCreate();
+    };
   }, [isEditMode, resetSQCreate]);
 
   const editDetailQuery = useQuery({

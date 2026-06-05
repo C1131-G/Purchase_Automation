@@ -341,11 +341,13 @@ export function useAPCreditMemoCreate({
   }, [header.warehouseCode, warehouses, warehouseInput]);
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetAPCreditMemoCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetAPCreditMemoCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetAPCreditMemoCreate();
+    };
   }, [isEditMode, resetAPCreditMemoCreate]);
 
   useEffect(() => {

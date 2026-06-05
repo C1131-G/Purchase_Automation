@@ -150,11 +150,13 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   });
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetARInvoiceCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetARInvoiceCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetARInvoiceCreate();
+    };
   }, [isEditMode, resetARInvoiceCreate]);
 
   const editDetailQuery = useQuery({

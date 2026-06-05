@@ -308,11 +308,13 @@ export function useGRPOCreate({
         : (editDetailQuery.data?.data?.DocStatus ?? "Open");
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetGRPOCreate();
+      hydratedDocNumRef.current = null;
     }
-    resetGRPOCreate();
-    hydratedDocNumRef.current = null;
+    return () => {
+      resetGRPOCreate();
+    };
   }, [isEditMode, resetGRPOCreate]);
 
   useEffect(() => {
