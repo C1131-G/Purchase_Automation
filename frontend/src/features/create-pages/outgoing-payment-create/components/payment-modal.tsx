@@ -59,6 +59,9 @@ export function PaymentModal({
 
   const [activeTab, setActiveTab] = useState<"Cash" | "Cheque" | "Bank Transfer">("Cash");
 
+  const [fullTab, setFullTab] = useState<"Cash" | "Cheque" | "Bank Transfer" | null>(null);
+  const [fullTabThreshold, setFullTabThreshold] = useState<number>(0);
+
   const [cashAmount, setCashAmount] = useState<string>("");
   const [accountInput, setAccountInput] = useState("");
   const [accountFocused, setAccountFocused] = useState(false);
@@ -162,15 +165,14 @@ export function PaymentModal({
   const bankRecords = bankData?.data ?? [];
 
   const countryCodeSuggestions: CreateLookupOption[] = useMemo(() => {
-    const unique = [...new Set(bankRecords.map((b) => b.CountryCod))].filter(Boolean);
+    const unique = [...new Set(bankRecords.map((b) => b.CountryCode))].filter(Boolean);
     return unique.map((code) => ({ code, name: code }));
   }, [bankRecords]);
 
   const bankNameSuggestions: CreateLookupOption[] = useMemo(() => {
     if (!bankCountryCode) return [];
-    return bankRecords
-      .filter((b) => b.CountryCod === bankCountryCode)
-      .map((b) => ({ code: b.BankCode, name: b.BankName }));
+    const filtered = bankRecords.filter((b) => b.CountryCode === bankCountryCode);
+    return filtered.map((b) => ({ code: b.BankCode, name: b.BankName }));
   }, [bankRecords, bankCountryCode]);
 
   const handleAccountChange = (value: string) => {
@@ -219,31 +221,37 @@ export function PaymentModal({
     name: s.name,
   }));
 
+  const resetAllFields = () => {
+    setCashAmount("");
+    setAccountInput("");
+    setAccountFocused(false);
+    setSelectedAccount(null);
+    setChequeAmount("");
+    setBankCountryCode("");
+    setBankName("");
+    setChequeAccount("");
+    setChequeGLAccount("");
+    setChequeIssuedBy("");
+    setChequeBranch("");
+    setChequeNo("");
+    setManualCheckNo(false);
+    setCountryLookupOpen(false);
+    setBankNameLookupOpen(false);
+    setChequeAccountLookupOpen(false);
+    setChequeGLAccountLookupOpen(false);
+    setTransferAmount("");
+    setTransferDate(toISODate(new Date()));
+    setTransferReference("");
+    setTransferDatePickerOpen(false);
+    setActiveTab("Cash");
+    setFullTab(null);
+    setFullTabThreshold(0);
+  };
+
   useEffect(() => {
     if (open) {
       const timer = setTimeout(() => {
-        setCashAmount("");
-        setAccountInput("");
-        setAccountFocused(false);
-        setSelectedAccount(null);
-        setChequeAmount("");
-        setBankCountryCode("");
-        setBankName("");
-        setChequeAccount("");
-        setChequeGLAccount("");
-        setChequeIssuedBy("");
-        setChequeBranch("");
-        setChequeNo("");
-        setManualCheckNo(false);
-        setCountryLookupOpen(false);
-        setBankNameLookupOpen(false);
-        setChequeAccountLookupOpen(false);
-        setChequeGLAccountLookupOpen(false);
-        setTransferAmount("");
-        setTransferDate(toISODate(new Date()));
-        setTransferReference("");
-        setTransferDatePickerOpen(false);
-        setActiveTab("Cash");
+        resetAllFields();
       }, 0);
       return () => {
         clearTimeout(timer);
@@ -303,6 +311,13 @@ export function PaymentModal({
       return;
     }
 
+    const otherTabsTotal =
+      totalCurrentPayments -
+      (activeTab === "Cash" ? cash : activeTab === "Cheque" ? cheque : transfer);
+    const threshold = balanceDue - otherTabsTotal;
+    setFullTabThreshold(threshold);
+    setFullTab(activeTab);
+
     if (activeTab === "Cash") {
       setCashAmount((Number(cashAmount) + remaining).toFixed(2));
     } else if (activeTab === "Cheque") {
@@ -314,12 +329,20 @@ export function PaymentModal({
 
   const handleReset = () => {
     setActiveAmount("");
+    if (fullTab === activeTab) {
+      setFullTab(null);
+      setFullTabThreshold(0);
+    }
   };
 
   const handleKeypadPress = (digit: string) => {
     const current = getActiveAmount();
     if ((current === "" || current === "0") && digit !== ".") {
       setActiveAmount(digit);
+      if (fullTab === activeTab && Number(digit) < fullTabThreshold) {
+        setFullTab(null);
+        setFullTabThreshold(0);
+      }
       return;
     }
     if (digit === "." && current.includes(".")) {
@@ -331,15 +354,29 @@ export function PaymentModal({
         return;
       }
     }
-    setActiveAmount(current + digit);
+    const newAmount = current + digit;
+    setActiveAmount(newAmount);
+    if (fullTab === activeTab && Number(newAmount) < fullTabThreshold) {
+      setFullTab(null);
+      setFullTabThreshold(0);
+    }
   };
 
   const handleBackspace = () => {
     const current = getActiveAmount();
     if (current.length <= 1 || current === "") {
       setActiveAmount("");
+      if (fullTab === activeTab) {
+        setFullTab(null);
+        setFullTabThreshold(0);
+      }
     } else {
-      setActiveAmount(current.slice(0, -1));
+      const newAmount = current.slice(0, -1);
+      setActiveAmount(newAmount);
+      if (fullTab === activeTab && Number(newAmount) < fullTabThreshold) {
+        setFullTab(null);
+        setFullTabThreshold(0);
+      }
     }
   };
 
@@ -400,6 +437,7 @@ export function PaymentModal({
     }
 
     onPaymentSubmit(paymentDetails);
+    resetAllFields();
     onClose();
   };
 
@@ -407,10 +445,12 @@ export function PaymentModal({
     (Number(cashAmount) || 0) + (Number(chequeAmount) || 0) + (Number(transferAmount) || 0);
   const remainingBalance = balanceDue - totalPaid;
 
-  const showReset = remainingBalance <= 0;
+  const isTabFull = (tab: "Cash" | "Cheque" | "Bank Transfer") => fullTab === tab;
+  const isPayFullDisabled = (tab: "Cash" | "Cheque" | "Bank Transfer") =>
+    fullTab !== null && fullTab !== tab;
 
   const handleAction = () => {
-    if (showReset) {
+    if (isTabFull(activeTab)) {
       handleReset();
     } else {
       handlePayFull();
@@ -464,19 +504,22 @@ export function PaymentModal({
           </div>
         </div>
 
-        <div className="px-4 pb-2 flex flex-col flex-1">
-          <div className="flex-1">
+        <div className="px-4 pb-2 flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 h-[380px]">
             {activeTab === "Cash" ? (
               <div className="flex gap-4 border border-slate-100 rounded-xl p-3 h-full cursor-pointer">
                 <div className="w-[260px] flex-shrink-0">
                   <button
                     onClick={handleAction}
+                    disabled={isPayFullDisabled("Cash")}
                     className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-semibold mb-2 shadow-sm transition-all cursor-pointer ${
-                      showReset ? "bg-rose-500 hover:bg-rose-600" : "bg-blue-600 hover:bg-blue-700"
-                    }`}
+                      isTabFull("Cash")
+                        ? "bg-rose-500 hover:bg-rose-600"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    } ${isPayFullDisabled("Cash") ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    {showReset ? "Reset" : "PAY FULL"}
-                    {!showReset && <CheckCircle2 className="w-3.5 h-3.5" />}
+                    {isTabFull("Cash") ? "Reset" : "PAY FULL"}
+                    {!isTabFull("Cash") && <CheckCircle2 className="w-3.5 h-3.5" />}
                   </button>
                   <div className="mb-2">
                     <input
@@ -486,8 +529,13 @@ export function PaymentModal({
                         const val = e.target.value;
                         if (/^\d*\.?\d{0,2}$/.test(val)) {
                           setActiveAmount(val);
+                          if (fullTab === "Cash" && Number(val) < fullTabThreshold) {
+                            setFullTab(null);
+                            setFullTabThreshold(0);
+                          }
                         }
                       }}
+                      placeholder="Enter amount"
                       className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
@@ -562,17 +610,30 @@ export function PaymentModal({
                   <input
                     type="number"
                     value={chequeAmount}
-                    onChange={(e) => setChequeAmount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d*\.?\d{0,2}$/.test(val)) {
+                        setChequeAmount(val);
+                        if (fullTab === "Cheque" && Number(val) < fullTabThreshold) {
+                          setFullTab(null);
+                          setFullTabThreshold(0);
+                        }
+                      }
+                    }}
+                    placeholder="Enter amount"
                     className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none w-40 bg-white"
                   />
                   <button
                     onClick={handleAction}
+                    disabled={isPayFullDisabled("Cheque")}
                     className={`flex items-center justify-center gap-1.5 min-w-[130px] px-5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer ${
-                      showReset ? "bg-rose-500 hover:bg-rose-600" : "bg-blue-600 hover:bg-blue-700"
-                    }`}
+                      isTabFull("Cheque")
+                        ? "bg-rose-500 hover:bg-rose-600"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    } ${isPayFullDisabled("Cheque") ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    {showReset ? "Reset" : "PAY FULL"}
-                    {!showReset && <CheckCircle2 className="w-3.5 h-3.5" />}
+                    {isTabFull("Cheque") ? "Reset" : "PAY FULL"}
+                    {!isTabFull("Cheque") && <CheckCircle2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>
 
@@ -655,6 +716,7 @@ export function PaymentModal({
                       type="text"
                       value={chequeBranch}
                       onChange={(e) => setChequeBranch(e.target.value)}
+                      placeholder="Enter branch"
                       className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
                     />
                   </div>
@@ -685,7 +747,7 @@ export function PaymentModal({
                           setChequeGLAccount(item.code);
                           setChequeAccountFocused(false);
                         }}
-                        floating
+                        containerClassName="absolute left-0 right-0 bottom-full z-30 mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg"
                         nameLabel="Account"
                         emptyText="No accounts found"
                         maxHeight="max-h-[150px]"
@@ -712,6 +774,7 @@ export function PaymentModal({
                         type="text"
                         value={chequeNo}
                         onChange={(e) => setChequeNo(e.target.value)}
+                        placeholder="Enter cheque number"
                         disabled={!manualCheckNo}
                         className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                       />
@@ -724,6 +787,7 @@ export function PaymentModal({
                         type="text"
                         value={chequeIssuedBy}
                         onChange={(e) => setChequeIssuedBy(e.target.value)}
+                        placeholder="Enter issued by"
                         className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
                       />
                     </div>
@@ -771,18 +835,30 @@ export function PaymentModal({
                   <input
                     type="number"
                     value={transferAmount}
-                    onChange={(e) => setTransferAmount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d*\.?\d{0,2}$/.test(val)) {
+                        setTransferAmount(val);
+                        if (fullTab === "Bank Transfer" && Number(val) < fullTabThreshold) {
+                          setFullTab(null);
+                          setFullTabThreshold(0);
+                        }
+                      }
+                    }}
                     className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none w-40 bg-white"
                     placeholder="Transfer amount"
                   />
                   <button
                     onClick={handleAction}
+                    disabled={isPayFullDisabled("Bank Transfer")}
                     className={`flex items-center justify-center gap-1.5 min-w-[130px] px-5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer ${
-                      showReset ? "bg-rose-500 hover:bg-rose-600" : "bg-blue-600 hover:bg-blue-700"
-                    }`}
+                      isTabFull("Bank Transfer")
+                        ? "bg-rose-500 hover:bg-rose-600"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    } ${isPayFullDisabled("Bank Transfer") ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    {showReset ? "Reset" : "PAY FULL"}
-                    {!showReset && <CheckCircle2 className="w-3.5 h-3.5" />}
+                    {isTabFull("Bank Transfer") ? "Reset" : "PAY FULL"}
+                    {!isTabFull("Bank Transfer") && <CheckCircle2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>
 
@@ -872,7 +948,10 @@ export function PaymentModal({
 
         <div className="mt-auto flex-shrink-0 px-4 pb-6 pt-3 border-t border-slate-100 flex items-center justify-between">
           <button
-            onClick={onClose}
+            onClick={() => {
+              resetAllFields();
+              onClose();
+            }}
             className="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors cursor-pointer"
           >
             Cancel

@@ -1,3 +1,4 @@
+import { useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 const PRODUCT_ROW_KEYS = ["prod-1"] as const;
@@ -104,12 +105,20 @@ function SectionShell({
 }
 
 export function CreatePageRouteSkeleton() {
+  const location = useLocation();
+  const pathname = location.pathname.toLowerCase();
+  const isEdit = pathname.includes("/edit");
+  const isQuotation = pathname.includes("quotation");
+  const hasCopyFrom = !isEdit && !isQuotation;
+
   return (
     <div className="relative w-full bg-zinc-50 p-3 pb-20">
       {/* Top Actions placeholder (Copy From) */}
-      <div className="absolute right-3 top-3 z-10">
-        <CopyFromButtonSkeleton />
-      </div>
+      {hasCopyFrom && (
+        <div className="absolute right-3 top-3 z-10">
+          <CopyFromButtonSkeleton />
+        </div>
+      )}
 
       {/* Breadcrumb bar */}
       <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">

@@ -197,6 +197,7 @@ export const getPayment = async (sessionId: string, id: string) => {
       Remarks: result.Remarks,
       PaymentMode: (result as unknown as Record<string, unknown>).U_Mode_Pay,
       CashSum: (result as unknown as Record<string, unknown>).CashSum || 0,
+      CashAccount: (result as unknown as Record<string, unknown>).CashAccount,
       CheckSum: (result as unknown as Record<string, unknown>).CheckSum || 0,
       TrsfrSum:
         (result as unknown as Record<string, unknown>).TransferSum ||
@@ -480,6 +481,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
               CheckAccount: await resolveGLAccount(dbName, branch, "Check"),
               Endorse: chk.Endorse || "tNO",
               OriginallyIssuedBy: chk.OriginallyIssuedBy,
+              CountryCode: chk.CountryCode,
             };
           }),
         );

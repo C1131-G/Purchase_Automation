@@ -1093,7 +1093,6 @@ export function useAPInvoiceCreate({
       return;
     }
 
-
     const toastHandle = documentActionToast("A/P Invoice", isEditMode ? "update" : "create");
     try {
       let createdDocNum: number | undefined;

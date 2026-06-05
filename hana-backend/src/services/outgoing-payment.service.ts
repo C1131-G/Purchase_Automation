@@ -258,6 +258,10 @@ export const getPayment = async (sessionId: string, id: string) => {
       })(),
       PaymentMode: (result as unknown as Record<string, unknown>).U_Mode_Pay,
       Remarks: result.Remarks,
+      CashAccount: (result as unknown as Record<string, unknown>).CashAccount,
+      TransferDate: (result as unknown as Record<string, unknown>).TransferDate,
+      TransferAccount: (result as unknown as Record<string, unknown>).TransferAccount,
+      TransferReference: (result as unknown as Record<string, unknown>).TransferReference,
       TrsfrSum:
         (result as unknown as Record<string, unknown>).TransferSum ||
         (result as unknown as Record<string, unknown>).TrsfrSum ||
@@ -441,6 +445,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           DueDate: chk.DueDate || sapPayload.DocDate,
           Endorse: "tNO",
           LineNum: idx,
+          CountryCode: chk.CountryCode,
         }));
       }
     }

@@ -62,6 +62,7 @@ export interface IncomingPaymentDetail {
   Remarks: string;
   PaymentMode?: string;
   CashSum: number;
+  CashAccount?: string;
   CheckSum: number;
   TrsfrSum: number;
   PaymentChecks: {
@@ -70,6 +71,7 @@ export interface IncomingPaymentDetail {
     CheckNumber: number;
     DueDate: string;
     Branch: string;
+    CountryCode?: string;
   }[];
   PaymentCreditCards: {
     CreditSum: number;

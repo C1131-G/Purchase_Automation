@@ -294,36 +294,129 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               </Button>
             </div>
 
-            {paymentDetail.PaymentChecks?.length > 0 && (
+            {(Number(paymentDetail.CashSum || 0) > 0 ||
+              Number(paymentDetail.TrsfrSum || 0) > 0 ||
+              paymentDetail.PaymentChecks?.length > 0) && (
               <>
                 <div className="mb-4 mt-8 flex items-center justify-between border-t border-zinc-100 pt-6">
                   <h2 className="text-sm font-bold text-zinc-900">Method Details</h2>
                 </div>
                 <div className="space-y-3">
-                  {paymentDetail.PaymentChecks?.map(
-                    (
-                      chk: {
-                        BankCode: string;
-                        CheckSum: number;
-                        CheckNumber: number;
-                      },
-                      idx: number,
-                    ) => (
-                      <div
-                        key={`chk-${idx}`}
-                        className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs"
-                      >
-                        <div className="font-bold text-zinc-800 mb-1 flex justify-between">
-                          <span>Check Payment</span>
-                          <span>FJD {Number(chk.CheckSum || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="text-zinc-600 flex justify-between">
-                          <span>Bank: {chk.BankCode || "N/A"}</span>
-                          <span>No: {chk.CheckNumber || "N/A"}</span>
-                        </div>
+                  {/* Cash Card */}
+                  {Number(paymentDetail.CashSum || 0) > 0 && (
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">
+                      <div className="font-bold text-zinc-800 mb-2 flex justify-between">
+                        <span>Cash Payment</span>
+                        <span>FJD {Number(paymentDetail.CashSum || 0).toFixed(2)}</span>
                       </div>
-                    ),
+                      {paymentDetail.CashAccount && (
+                        <div className="space-y-1.5 text-zinc-600">
+                          <div className="flex justify-between">
+                            <span>Cash Account</span>
+                            <span className="font-medium text-zinc-900">
+                              {paymentDetail.CashAccount}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
+
+                  {/* Transfer Card */}
+                  {(Number(paymentDetail.TrsfrSum || 0) > 0 ||
+                    paymentDetail.TransferDate ||
+                    paymentDetail.TransferAccount ||
+                    paymentDetail.TransferReference) && (
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">
+                      <div className="font-bold text-zinc-800 mb-2 flex justify-between">
+                        <span>Bank Transfer</span>
+                        <span>FJD {Number(paymentDetail.TrsfrSum || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="space-y-1.5 text-zinc-600">
+                        {paymentDetail.TransferDate && (
+                          <div className="flex justify-between">
+                            <span>Transfer Date</span>
+                            <span className="font-medium text-zinc-900">
+                              {new Date(paymentDetail.TransferDate).toLocaleDateString("en-GB")}
+                            </span>
+                          </div>
+                        )}
+                        {paymentDetail.TransferAccount && (
+                          <div className="flex justify-between">
+                            <span>Transfer Account</span>
+                            <span className="font-medium text-zinc-900">
+                              {paymentDetail.TransferAccount}
+                            </span>
+                          </div>
+                        )}
+                        {paymentDetail.TransferReference && (
+                          <div className="flex justify-between">
+                            <span>Transfer Reference</span>
+                            <span className="font-medium text-zinc-900">
+                              {paymentDetail.TransferReference}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cheque Cards */}
+                  {paymentDetail.PaymentChecks?.length > 0 &&
+                    paymentDetail.PaymentChecks.map(
+                      (
+                        chk: {
+                          BankCode: string;
+                          CheckSum: number;
+                          CheckNumber: number;
+                          DueDate?: string;
+                          CountryCode?: string;
+                          CountryCod?: string;
+                        },
+                        idx: number,
+                      ) => {
+                        const countryCode = chk.CountryCode ?? chk.CountryCod;
+                        return (
+                          <div
+                            key={`chk-${idx}`}
+                            className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs"
+                          >
+                            <div className="font-bold text-zinc-800 mb-2 flex justify-between">
+                              <span>Check Payment</span>
+                              <span>FJD {Number(chk.CheckSum || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="space-y-1.5 text-zinc-600">
+                              <div className="flex justify-between">
+                                <span>Bank Code</span>
+                                <span className="font-medium text-zinc-900">
+                                  {chk.BankCode || "N/A"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Check Number</span>
+                                <span className="font-medium text-zinc-900">
+                                  {chk.CheckNumber || "N/A"}
+                                </span>
+                              </div>
+                              {chk.DueDate && (
+                                <div className="flex justify-between">
+                                  <span>Due Date</span>
+                                  <span className="font-medium text-zinc-900">
+                                    {new Date(chk.DueDate).toLocaleDateString("en-GB")}
+                                  </span>
+                                </div>
+                              )}
+                              {countryCode && (
+                                <div className="flex justify-between">
+                                  <span>Country Code</span>
+                                  <span className="font-medium text-zinc-900">{countryCode}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      },
+                    )}
                 </div>
               </>
             )}

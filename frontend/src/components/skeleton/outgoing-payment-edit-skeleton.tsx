@@ -128,6 +128,32 @@ export function OutgoingPaymentEditSkeleton() {
               <Pulse className="h-5 w-24" />
             </div>
           </div>
+
+          <div className="mt-6 border-t border-zinc-100 pt-4">
+            <Pulse className="h-10 w-full rounded-xl" />
+          </div>
+
+          <div className="mb-4 mt-8 flex items-center justify-between border-t border-zinc-100 pt-6">
+            <Pulse className="h-3.5 w-28" />
+          </div>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+              <div className="flex justify-between mb-2">
+                <Pulse className="h-3 w-24" />
+                <Pulse className="h-3 w-16" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between">
+                  <Pulse className="h-2.5 w-24" />
+                  <Pulse className="h-2.5 w-16" />
+                </div>
+                <div className="flex justify-between">
+                  <Pulse className="h-2.5 w-28" />
+                  <Pulse className="h-2.5 w-20" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

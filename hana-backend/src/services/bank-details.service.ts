@@ -10,15 +10,14 @@ export const getBankDetails = async (dbName: string, query: MasterDataQuery) => 
     const repo = await getTenantRepository(dbName, BankDetailsSchema);
     const qb = repo.createQueryBuilder("b");
 
-    qb.select(["b.CountryCod", "b.BankCode", "b.BankName"]);
+    qb.select(["b.Country", "b.BankCode", "b.BankName"]);
 
     if (query.search) {
       qb.andWhere(
-        "(LOWER(b.CountryCod) LIKE LOWER(:search) OR LOWER(b.BankName) LIKE LOWER(:search))",
+        "(LOWER(b.Country) LIKE LOWER(:search) OR LOWER(b.BankName) LIKE LOWER(:search))",
         { search: `%${query.search}%` },
       );
     }
-
     qb.orderBy("b.BankName", "ASC").take(query.limit ?? 20);
 
     const rows = await qb.getRawMany<Record<string, unknown>>();

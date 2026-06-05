@@ -62,14 +62,20 @@ export interface OutgoingPaymentDetail {
   Remarks?: string;
   PaymentMode?: string;
   CashSum: number;
+  CashAccount?: string;
   CheckSum: number;
   TrsfrSum: number;
+  TransferDate?: string;
+  TransferAccount?: string;
+  TransferReference?: string;
   PaymentChecks: {
     BankCode: string;
     CheckSum: number;
     CheckNumber: number;
     DueDate: string;
     Branch: string;
+    CountryCode?: string;
+    CountryCod?: string;
   }[];
   PaymentCreditCards: {
     CreditSum: number;
@@ -95,8 +101,22 @@ export interface OutgoingPaymentAccount {
   Account: string;
 }
 
-export interface BankDetail {
+// Wire types (raw response from backend /api/v1/bank-details)
+interface BankDetailWire {
   CountryCod: string;
+  BankCode: string;
+  BankName: string;
+}
+
+interface BankDetailsResponseWire {
+  success: boolean;
+  data: BankDetailWire[];
+  total: number;
+}
+
+// Normalized model for UI consumers
+export interface BankDetail {
+  CountryCode: string;
   BankCode: string;
   BankName: string;
 }
@@ -152,7 +172,16 @@ export const outgoingPaymentAPI = {
   getBankDetails: async (search?: string, limit?: number) => {
     const query = toQueryString({ search, limit });
     const path = query ? `/api/v1/bank-details?${query}` : "/api/v1/bank-details";
-    return apiClient<BankDetailsResponse>(path);
+    const wire = await apiClient<BankDetailsResponseWire>(path);
+    return {
+      success: wire.success,
+      total: wire.total,
+      data: wire.data.map((row) => ({
+        CountryCode: row.CountryCod,
+        BankCode: row.BankCode,
+        BankName: row.BankName,
+      })),
+    };
   },
   resolveTransferAccount: async (date: string) => {
     const query = toQueryString({ date });
