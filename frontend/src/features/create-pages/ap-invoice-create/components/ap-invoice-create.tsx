@@ -55,6 +55,18 @@ export function APInvoiceCreate({
     sourceDocType,
   });
 
+  const warningText = useMemo(() => {
+    if (!state.docDueDate || !state.financialPeriodQuery.data?.T_RefDate) {
+      return null;
+    }
+    const tRefDateStr = String(state.financialPeriodQuery.data.T_RefDate).slice(0, 10);
+    const docDueDateVal = state.docDueDate.slice(0, 10);
+    if (docDueDateVal > tRefDateStr) {
+      return `Due Date deviates from permissible range. Backend will auto-adjust to ${toDisplayDate(tRefDateStr)}.`;
+    }
+    return null;
+  }, [state.docDueDate, state.financialPeriodQuery.data?.T_RefDate]);
+
   const isFormHydrating =
     (mode === "edit" && !!docNum && !state.isEditHydrated) || state.isSourceHydrating;
 
@@ -274,6 +286,7 @@ export function APInvoiceCreate({
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
           uniformReadOnlyAppearance={state.isEditMode}
+          warningText={warningText}
         />
       </div>
 

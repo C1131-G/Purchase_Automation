@@ -83,6 +83,8 @@ export const getPayment = async (req: Request, res: Response, next: NextFunction
 
 // Fetches the detailed information for a single outgoing payment by its Document Number.
 export const getPaymentByDocNum = async (req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  console.log(`[TIMING] Backend /by-doc-num/:docNum START for DocNum: ${req.params.docNum} at ${start}`);
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
@@ -95,6 +97,10 @@ export const getPaymentByDocNum = async (req: Request, res: Response, next: Next
       sessionId,
       dbName,
       docNum as string,
+    );
+    const end = Date.now();
+    console.log(
+      `[TIMING] Backend /by-doc-num/:docNum FINISH for DocNum: ${docNum} at ${end} (took ${end - start}ms)`,
     );
     if (!data) {
       return res.status(404).json({ message: "Outgoing Payment not found", success: false });

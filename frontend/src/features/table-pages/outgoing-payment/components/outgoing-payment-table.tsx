@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -67,43 +67,74 @@ const toOutgoingPaymentColumnFilters = (
 export function OutgoingPaymentTable() {
   const searchParams = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
-  const globalNavigate = useNavigate();
+  const router = useRouter();
   const setSorting = useSetSortingAction();
   const setVisibility = useSetVisibilityAction();
   const setOrder = useSetOrderAction();
   const setPagination = useSetPaginationAction();
   const setColumnFilters = useSetColumnFiltersAction();
   const clearAllFilters = useClearAllFiltersAction();
+  const queryClient = useQueryClient();
 
   /** Tracks which user action last triggered a fetch for action-specific toasts. */
   const lastActionRef = useRef<TableFetchAction>("fetching");
-
-  const queryClient = useQueryClient();
+  const docNumPrefetchRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      const normalizedDocNum = docNum.trim();
+      if (!normalizedDocNum) {
+        return;
+      }
+      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
+        return;
+      }
+      docNumPrefetchRef.current.add(normalizedDocNum);
+
+      void queryClient
+        .fetchQuery(outgoingPaymentQueries.detail(normalizedDocNum))
+        .then(() => {
+          void router.preloadRoute({
+            params: { docNum: normalizedDocNum },
+            to: "/purchase/outgoing-payment/$docNum/edit",
+          } as never);
+          void Promise.allSettled([queryClient.prefetchQuery(createSharedQueries.vendors())]);
+        })
+        .catch(() => {
+          docNumPrefetchRef.current.delete(normalizedDocNum);
+        });
+    },
+    [queryClient, router],
+  );
+
   const columns = useMemo(
     () =>
       createOutgoingPaymentColumns({
         onDocNumDoubleClick: (docNum) => {
-          void globalNavigate({
-            params: { docNum: String(docNum) },
+          const normalized = String(docNum).trim();
+          if (!normalized) {
+            return;
+          }
+          prefetchEditRouteData(normalized);
+          void navigate({
+            params: { docNum: normalized },
             to: "/purchase/outgoing-payment/$docNum/edit",
-          } as never)
-            .then(() => {
-              console.log("[OutgoingPaymentTable] Navigation resolved for", docNum);
-            })
-            .catch((error: unknown) => {
-              console.error("[OutgoingPaymentTable] Navigation failed:", error);
-            });
+            viewTransition: true,
+          } as never);
         },
         onDocNumHover: (docNum) => {
-          void queryClient.prefetchQuery(outgoingPaymentQueries.detailByDocNum(String(docNum)));
+          const normalized = String(docNum).trim();
+          if (!normalized) {
+            return;
+          }
+          prefetchEditRouteData(normalized);
         },
       }),
-    [globalNavigate, queryClient],
+    [navigate, prefetchEditRouteData],
   );
   const columnIds = useMemo(
     () =>

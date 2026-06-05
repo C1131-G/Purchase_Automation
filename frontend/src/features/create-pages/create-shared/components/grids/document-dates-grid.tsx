@@ -1,4 +1,4 @@
-import { Calendar as CalendarIcon, Lock } from "lucide-react";
+import { Calendar as CalendarIcon, Lock, AlertTriangle } from "lucide-react";
 import type { ComponentProps, ReactElement, RefObject } from "react";
 
 import { Calendar } from "@/components/calendar/calendar";
@@ -36,6 +36,7 @@ interface DocumentDatesGridProps {
   docDueDateReadOnly?: boolean;
   /** Visual-only override: read-only fields render with the same background as editable fields. */
   uniformReadOnlyAppearance?: boolean;
+  warningText?: string | null;
 }
 
 export function DocumentDatesGrid({
@@ -58,6 +59,7 @@ export function DocumentDatesGrid({
   docDateReadOnly = false,
   docDueDateReadOnly = false,
   uniformReadOnlyAppearance = false,
+  warningText = null,
 }: DocumentDatesGridProps) {
   return (
     <SectionCard title="DOCUMENT DATES" className="lg:col-span-1">
@@ -184,6 +186,12 @@ export function DocumentDatesGrid({
           ) : null}
           {docDueDateInvalid && docDueDateErrorText ? (
             <p className="mt-1 text-xs text-red-600">{docDueDateErrorText}</p>
+          ) : null}
+          {warningText ? (
+            <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-200/60 bg-amber-50/50 p-2 text-xs leading-normal text-amber-700">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+              <span>{warningText}</span>
+            </div>
           ) : null}
         </div>
       </div>

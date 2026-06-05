@@ -273,7 +273,7 @@ export function CreateOutgoingPaymentForm() {
     const selectedCreditMemos = selectedList.filter((d) => d.type === "it_PurchCredItnote");
     const totalCredit = selectedCreditMemos.reduce((sum, cm) => sum + cm.amount, 0);
 
-    let amountToDistribute = totalCash + totalChecks + totalCredit;
+    let amountToDistribute = totalCash + totalChecks + (paymentDetails.TransferSum || 0) + totalCredit;
     const paymentInvoices: {
       DocEntry: number;
       SumApplied: number;

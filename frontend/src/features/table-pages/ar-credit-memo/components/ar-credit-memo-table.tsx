@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -67,6 +67,7 @@ const toArCreditMemoColumnFilters = (filters: ColumnFiltersState): ArCreditMemoC
 export function ArCreditMemoTable() {
   const searchParams = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
+  const router = useRouter();
   const setSorting = useSetSortingAction();
   const setVisibility = useSetVisibilityAction();
   const setOrder = useSetOrderAction();
@@ -76,6 +77,7 @@ export function ArCreditMemoTable() {
 
   /** Tracks which user action last triggered a fetch for action-specific toasts. */
   const lastActionRef = useRef<TableFetchAction>("fetching");
+  const docNumPrefetchRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
@@ -85,12 +87,32 @@ export function ArCreditMemoTable() {
 
   const prefetchEditRouteData = useCallback(
     (docNum: string) => {
-      if (!docNum) {
+      const normalizedDocNum = docNum.trim();
+      if (!normalizedDocNum) {
         return;
       }
-      void queryClient.prefetchQuery(arCreditMemoQueries.detailByDocNum(docNum));
+      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
+        return;
+      }
+      docNumPrefetchRef.current.add(normalizedDocNum);
+
+      void queryClient
+        .fetchQuery(arCreditMemoQueries.detailByDocNum(normalizedDocNum))
+        .then(() => {
+          void router.preloadRoute({
+            params: { docNum: normalizedDocNum },
+            to: "/sales/ar-credit-memo/$docNum/edit",
+          } as never);
+          void Promise.allSettled([
+            queryClient.prefetchQuery(createSharedQueries.warehouses()),
+            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+          ]);
+        })
+        .catch(() => {
+          docNumPrefetchRef.current.delete(normalizedDocNum);
+        });
     },
-    [queryClient],
+    [queryClient, router],
   );
 
   const columns = useMemo(

@@ -40,9 +40,15 @@ router.get("/docnums", lookupLimiter, async (req, res, next) => {
 });
 
 router.get("/by-doc-num/:docNum", async (req, res, next) => {
+  const start = Date.now();
+  console.log(`[TIMING] Backend /by-doc-num/:docNum START for DocNum: ${req.params.docNum} at ${start}`);
   try {
     const dbName = getDbName(req);
     const data = await outgoingPaymentService.getPaymentByDocNum(dbName, req.params.docNum);
+    const end = Date.now();
+    console.log(
+      `[TIMING] Backend /by-doc-num/:docNum FINISH for DocNum: ${req.params.docNum} at ${end} (took ${end - start}ms)`,
+    );
     if (!data) {
       return res.status(404).json({ message: "Payment not found", success: false });
     }

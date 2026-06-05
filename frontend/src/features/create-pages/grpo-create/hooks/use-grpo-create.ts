@@ -1456,33 +1456,6 @@ export function useGRPOCreate({
       return;
     }
 
-    // Validate dates against active financial period
-    if (financialPeriodQuery.data) {
-      const fRefDateStr = financialPeriodQuery.data.F_RefDate
-        ? String(financialPeriodQuery.data.F_RefDate).slice(0, 10)
-        : "";
-      const tRefDateStr = financialPeriodQuery.data.T_RefDate
-        ? String(financialPeriodQuery.data.T_RefDate).slice(0, 10)
-        : "";
-
-      if (fRefDateStr && tRefDateStr) {
-        const docDateVal = String(header.docDate ?? "").slice(0, 10);
-        if (docDateVal && (docDateVal < fRefDateStr || docDateVal > tRefDateStr)) {
-          const errorMsg = `Document Date (${docDateVal}) deviates from permissible range. Must fall within active period ${fRefDateStr} to ${tRefDateStr}.`;
-          setCreateError(errorMsg);
-          goeyToast.error(errorMsg, { id: "date-range-error-toast" });
-          return;
-        }
-
-        const docDueDateVal = String(header.docDueDate ?? "").slice(0, 10);
-        if (docDueDateVal && (docDueDateVal < fRefDateStr || docDueDateVal > tRefDateStr)) {
-          const errorMsg = `Due Date (${docDueDateVal}) deviates from permissible range. Must fall within active period ${fRefDateStr} to ${tRefDateStr}.`;
-          setCreateError(errorMsg);
-          goeyToast.error(errorMsg, { id: "due-date-range-error-toast" });
-          return;
-        }
-      }
-    }
 
     if (isEditMode) {
       const detail = editDetailQuery.data?.data;

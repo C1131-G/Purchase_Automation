@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -74,6 +74,7 @@ const toIncomingPaymentColumnFilters = (
 export function IncomingPaymentTable() {
   const searchParams = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
+  const router = useRouter();
   const setSorting = useSetSortingAction();
   const setVisibility = useSetVisibilityAction();
   const setOrder = useSetOrderAction();
@@ -83,6 +84,7 @@ export function IncomingPaymentTable() {
 
   /** Tracks which user action last triggered a fetch for action-specific toasts. */
   const lastActionRef = useRef<TableFetchAction>("fetching");
+  const docNumPrefetchRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
@@ -90,29 +92,57 @@ export function IncomingPaymentTable() {
 
   const queryClient = useQueryClient();
 
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      const normalizedDocNum = docNum.trim();
+      if (!normalizedDocNum) {
+        return;
+      }
+      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
+        return;
+      }
+      docNumPrefetchRef.current.add(normalizedDocNum);
+
+      void queryClient
+        .fetchQuery(incomingPaymentQueries.detail(normalizedDocNum))
+        .then(() => {
+          void router.preloadRoute({
+            params: { docNum: normalizedDocNum },
+            to: "/sales/incoming-payment/$docNum/edit",
+          } as never);
+          void Promise.allSettled([queryClient.prefetchQuery(createSharedQueries.customers())]);
+        })
+        .catch(() => {
+          docNumPrefetchRef.current.delete(normalizedDocNum);
+        });
+    },
+    [queryClient, router],
+  );
+
   const columns = useMemo(
     () =>
       createIncomingPaymentColumns({
         onDocNumDoubleClick: (docNum) => {
-          console.log("[IncomingPaymentTable] DocNum clicked/double-clicked:", docNum);
+          const normalized = String(docNum).trim();
+          if (!normalized) {
+            return;
+          }
+          prefetchEditRouteData(normalized);
           void navigate({
-            params: { docNum: String(docNum) },
+            params: { docNum: normalized },
             to: "/sales/incoming-payment/$docNum/edit",
             viewTransition: true,
-          } as never)
-            .then(() => {
-              console.log("[IncomingPaymentTable] Navigation promise resolved for", docNum);
-            })
-            .catch((error) => {
-              console.error("[IncomingPaymentTable] Navigation failed:", error);
-            });
+          } as never);
         },
         onDocNumHover: (docNum) => {
-          console.log("[IncomingPaymentTable] Hovering over DocNum:", docNum);
-          void queryClient.prefetchQuery(incomingPaymentQueries.detail(String(docNum)));
+          const normalized = String(docNum).trim();
+          if (!normalized) {
+            return;
+          }
+          prefetchEditRouteData(normalized);
         },
       }),
-    [navigate, queryClient],
+    [navigate, prefetchEditRouteData],
   );
   const columnIds = useMemo(
     () =>

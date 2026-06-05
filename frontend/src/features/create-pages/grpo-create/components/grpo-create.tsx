@@ -1,5 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
@@ -54,6 +54,18 @@ export function GRPOCreate({
   });
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
+
+  const warningText = useMemo(() => {
+    if (!state.docDueDate || !state.financialPeriodQuery.data?.T_RefDate) {
+      return null;
+    }
+    const tRefDateStr = String(state.financialPeriodQuery.data.T_RefDate).slice(0, 10);
+    const docDueDateVal = state.docDueDate.slice(0, 10);
+    if (docDueDateVal > tRefDateStr) {
+      return `Due Date deviates from permissible range. Backend will auto-adjust to ${toDisplayDate(tRefDateStr)}.`;
+    }
+    return null;
+  }, [state.docDueDate, state.financialPeriodQuery.data?.T_RefDate]);
 
   const isFormHydrating =
     (mode === "edit" && !!docNum && !state.isEditHydrated) || state.isSourceHydrating;
@@ -229,6 +241,7 @@ export function GRPOCreate({
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
           uniformReadOnlyAppearance={state.isEditMode}
+          warningText={warningText}
         />
       </div>
 
