@@ -337,6 +337,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     const sapPayload: Record<string, unknown> = {
       CardCode: payload.CardCode,
       DocDate: payload.DocDate,
+      TaxDate: payload.DocDate,
+      DueDate: payload.DocDate,
       DocObjectCode: "bopot_IncomingPayments",
       PaymentInvoices:
         (payload.PaymentInvoices as Record<string, unknown>[])
@@ -501,6 +503,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       const invoicePayload = {
         CardCode: payload.CardCode,
         DocDate: sapPayload.DocDate,
+        DocDueDate: sapPayload.DocDate,
+        TaxDate: sapPayload.DocDate,
         DocType: "dDocument_Service",
         DocumentLines: [
           {
