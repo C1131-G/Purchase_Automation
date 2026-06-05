@@ -1015,6 +1015,18 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       const existing = prev.filter((r) => r.productCode.trim());
       return [...existing, ...newRows];
     });
+
+    // Populate header warehouse from the first pulled line — mirrors the URL-based
+    // "copy from Sales Quotation" flow that calls setWarehouseInput at line 305.
+    const firstWarehouseCode = newRows[0]?.warehouseCode ?? "";
+    if (firstWarehouseCode) {
+      const matchedWarehouse = lookups.warehouses.find(
+        (w) => String(w.code).trim() === firstWarehouseCode,
+      );
+      setHeader({ warehouseCode: firstWarehouseCode });
+      lookups.setWarehouseInput(matchedWarehouse?.name ?? firstWarehouseCode);
+    }
+
     setPullFromSQModalOpen(false);
   };
 

@@ -294,7 +294,6 @@ export function useArCreditMemoCreate({
       const detail = (rawDetail?.data as unknown as Record<string, unknown>) ?? rawDetail;
       const vendorCode = (detail as Record<string, unknown>).CardCode || "";
       const vendorName = (detail as Record<string, unknown>).CardName || "";
-      const warehouseCode = (detail as Record<string, unknown>).WarehouseCode || "";
       const comments = (detail as Record<string, unknown>).Comments || "";
       const referenceNo = (detail as Record<string, unknown>).NumAtCard || "";
       const billToAddress = (detail as Record<string, unknown>).Address || "";
@@ -305,6 +304,11 @@ export function useArCreditMemoCreate({
         string,
         unknown
       >[];
+      // Warehouse lives on document lines, not on the invoice header.
+      // Read it from the first line — same pattern used by AR Invoice create/edit hydration.
+      const warehouseCode = String(
+        detailLines[0]?.WarehouseCode ?? (detail as Record<string, unknown>).WarehouseCode ?? "",
+      ).trim();
       const itemCodes = [
         ...new Set(
           detailLines.map((l: Record<string, unknown>) => String(l.ItemCode ?? "")).filter(Boolean),
@@ -397,6 +401,15 @@ export function useArCreditMemoCreate({
       setCodeInput(String(vendorCode));
       if (salesEmployeeName) {
         setSalesEmployeeInput(salesEmployeeName);
+      }
+      // Resolve warehouse display name eagerly so the header field is populated on arrival.
+      // The reactive useEffect (header.warehouseCode + warehouses) also updates it once the
+      // warehouses list is available, providing a belt-and-suspenders approach.
+      if (warehouseCode) {
+        const matchedWarehouse = warehouses.find(
+          (w) => String(w.code).trim() === warehouseCode,
+        );
+        setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
       }
       setHeader({
         billToAddress: String(billToAddress),

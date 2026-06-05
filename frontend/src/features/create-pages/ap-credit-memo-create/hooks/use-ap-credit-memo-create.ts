@@ -450,7 +450,15 @@ export function useAPCreditMemoCreate({
       );
       setLines(mappedLines);
       setProductRowDrafts({});
-      setWarehouseInput(String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim());
+
+      // Populate header warehouseCode so the reactive useEffect resolves the display name.
+      const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+      if (editWarehouseCode) {
+        setHeader({ warehouseCode: editWarehouseCode });
+        // Also set the input immediately — the reactive effect will update to [code] name format
+        // once the warehouses list is available.
+        setWarehouseInput(editWarehouseCode);
+      }
 
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = currentDocNum;
@@ -632,6 +640,9 @@ export function useAPCreditMemoCreate({
       setVendorCodeInput(vendorCode);
       setVendorNameInput(vendorName);
       setBuyerInput(buyerName);
+      // Set raw code immediately so the field is not blank;
+      // the reactive useEffect (line ~329) will replace it with the formatted [code] name display
+      // once the warehouses list finishes loading.
       setWarehouseInput(warehouseCode);
       setBillToAddress(String(primaryDetail.Address ?? "").trim());
       setShipToAddress(String(primaryDetail.Address2 ?? "").trim());
@@ -641,6 +652,7 @@ export function useAPCreditMemoCreate({
         referenceAutoFilled: true,
         referenceNo: sourceNumAtCard,
         remarks: remarksParts,
+        warehouseCode, // ← required so the reactive useEffect can resolve the display name
       });
       setLines(mappedLines);
       setProductRowDrafts({});

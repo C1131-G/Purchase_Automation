@@ -987,6 +987,18 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const existing = prev.filter((r) => r.productCode.trim());
       return [...existing, ...newRows];
     });
+
+    // Populate header warehouse from the first pulled line — mirrors how the URL-based
+    // "copy from" (SalesOrder / SalesQuotation route param) sets the warehouse header.
+    const firstWarehouseCode = newRows[0]?.warehouseCode ?? "";
+    if (firstWarehouseCode) {
+      const matchedWarehouse = lookups.warehouses.find(
+        (w) => String(w.code).trim() === firstWarehouseCode,
+      );
+      setHeader({ warehouseCode: firstWarehouseCode });
+      lookups.setWarehouseInput(matchedWarehouse?.name ?? firstWarehouseCode);
+    }
+
     setPullFromSOModalOpen(false);
   };
 
@@ -1078,6 +1090,17 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const existing = prev.filter((r) => r.productCode.trim());
       return [...existing, ...newRows];
     });
+
+    // Populate header warehouse from the first pulled line.
+    const firstWarehouseCode = newRows[0]?.warehouseCode ?? "";
+    if (firstWarehouseCode) {
+      const matchedWarehouse = lookups.warehouses.find(
+        (w) => String(w.code).trim() === firstWarehouseCode,
+      );
+      setHeader({ warehouseCode: firstWarehouseCode });
+      lookups.setWarehouseInput(matchedWarehouse?.name ?? firstWarehouseCode);
+    }
+
     setPullFromSQModalOpen(false);
   };
 
