@@ -41,7 +41,9 @@ router.get("/docnums", lookupLimiter, async (req, res, next) => {
 
 router.get("/by-doc-num/:docNum", async (req, res, next) => {
   const start = Date.now();
-  console.log(`[TIMING] Backend /by-doc-num/:docNum START for DocNum: ${req.params.docNum} at ${start}`);
+  console.log(
+    `[TIMING] Backend /by-doc-num/:docNum START for DocNum: ${req.params.docNum} at ${start}`,
+  );
   try {
     const dbName = getDbName(req);
     const data = await outgoingPaymentService.getPaymentByDocNum(dbName, req.params.docNum);

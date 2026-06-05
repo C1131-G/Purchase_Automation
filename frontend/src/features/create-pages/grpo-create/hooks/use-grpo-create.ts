@@ -1473,7 +1473,6 @@ export function useGRPOCreate({
       return;
     }
 
-
     if (isEditMode) {
       const detail = editDetailQuery.data?.data;
       const existingDocDueDate = String(detail?.DocDueDate ?? "")
