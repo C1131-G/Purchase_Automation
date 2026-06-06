@@ -246,6 +246,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
         return line;
       }),
       NumAtCard: payload.NumAtCard,
+      SalesPersonCode: payload.SalesPersonCode,
     };
 
     // Correct date formatting to YYYY-MM-DD.
@@ -312,8 +313,11 @@ export const updateCreditNote = async (
     if (payload.Comments) {
       sapPayload.Comments = payload.Comments;
     }
-    if (payload.NumAtCard) {
+    if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;
+    }
+    if (payload.SalesPersonCode !== undefined) {
+      sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
 
     // Partial update via PATCH.

@@ -98,10 +98,12 @@ export const createAPInvoiceInputSchema = z.object({
     }),
   ),
   NumAtCard: z.string().optional(),
+  SalesPersonCode: z.number().optional(),
 });
 
 export const updateAPInvoiceInputSchema = z.object({
   Comments: z.string().optional(),
   DocDueDate: z.string().optional(),
   NumAtCard: z.string().optional(),
+  SalesPersonCode: z.number().optional(),
 });

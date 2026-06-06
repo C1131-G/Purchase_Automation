@@ -3,26 +3,19 @@ import type { ProductRow } from "@/features/create-pages/create-shared/utils/cre
 
 const round2 = (num: number) => Math.round(num * 100 + (num >= 0 ? 1e-9 : -1e-9)) / 100;
 
-/**
- * SAP B1 truncates discount amounts (floors for positive values) rather than rounding.
- * e.g. 2.35 × 10% = 0.235 → SAP stores 0.23, not 0.24.
- * We must match this to prevent pre-post total discrepancies.
- */
-const sapTruncDiscount = (gross: number, discountPercent: number): number =>
-  Math.trunc(((gross * discountPercent) / 100) * 100) / 100;
-
 /** Calculate totals for a single product line with tax-exclusive unit price. */
 export const calculateLineTotals = (row: ProductRow) => {
   const gross = row.price * row.quantity;
-  // Always recompute discount from percent using SAP-compatible truncation.
-  // SAP B1 truncates (floors) the discount amount, not rounds it.
-  // Trusting row.discountAmount (computed with Math.round) causes a 0.01 mismatch
-  // where the pre-post displayed total differs from what SAP actually posts.
-  const discount =
-    row.discountPercent > 0 ? sapTruncDiscount(gross, row.discountPercent) : row.discountAmount;
-  // Net line subtotal (pre-tax). SAP rounds this to currency precision (typically 2) per line.
-  const rawLineNet = gross - discount;
-  const lineNet = round2(rawLineNet);
+  // Always recompute discount from percent using SAP-compatible calculation.
+  // SAP B1 computes the Line Total by applying the percentage and rounding it to 2 decimal places.
+  // The actual discount amount is then mathematically (Gross - Line Total).
+  let discount = row.discountAmount;
+  let lineNet = round2(gross - discount);
+
+  if (row.discountPercent > 0) {
+    lineNet = round2((gross * (100 - row.discountPercent)) / 100);
+    discount = round2(gross - lineNet);
+  }
 
   const taxRate = Math.max(0, row.taxRate ?? 0);
   // Tax derived from net subtotal. SAP rounds tax per line.

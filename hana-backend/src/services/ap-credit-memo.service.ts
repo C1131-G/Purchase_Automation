@@ -255,6 +255,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
         }
         return line;
       }),
+      SalesPersonCode: payload.SalesPersonCode,
     };
 
     // Date normalization to ensure SAP acceptance (YYYY-MM-DD).
@@ -309,6 +310,9 @@ export const updateCreditNote = async (
     }
     if (payload.DocDueDate) {
       sapPayload.DocDueDate = payload.DocDueDate;
+    }
+    if (payload.SalesPersonCode !== undefined) {
+      sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
 
     await serviceLayerClient.request(sessionId, "PATCH", `/PurchaseCreditNotes(${id})`, sapPayload);

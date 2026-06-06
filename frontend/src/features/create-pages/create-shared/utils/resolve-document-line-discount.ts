@@ -19,11 +19,13 @@ export function resolveDocumentLineDiscount({
   const derivedDiscountAmountFromLineTotal =
     Number.isFinite(lineTotal) && grossAmount > 0 ? grossAmount - lineTotal : 0;
 
-  let discountPercent = Number.isFinite(apiDiscountPercent)
-    ? apiDiscountPercent
-    : grossAmount > 0
-      ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
-      : 0;
+  let discountPercent = 0;
+  if (Number.isFinite(lineTotal) && grossAmount > 0 && derivedDiscountAmountFromLineTotal > 0) {
+    discountPercent =
+      Math.round((derivedDiscountAmountFromLineTotal / grossAmount) * 100 * 1000000) / 1000000;
+  } else if (Number.isFinite(apiDiscountPercent)) {
+    discountPercent = apiDiscountPercent;
+  }
 
   if (discountPercent === 0 && headerDiscountPercent !== 0) {
     discountPercent = headerDiscountPercent;

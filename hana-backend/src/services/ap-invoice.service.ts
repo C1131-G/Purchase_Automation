@@ -310,6 +310,7 @@ export const createInvoice = async (
       return docLine;
     }),
     NumAtCard: payload.NumAtCard,
+    SalesPersonCode: payload.SalesPersonCode,
   };
 
   // Resolve base document quantities for copy-to flows before submitting to SAP.
@@ -444,6 +445,9 @@ export const updateInvoice = async (
     if (payload.DocDueDate) {
       sapPayload.DocDueDate = payload.DocDueDate;
       await adjustPayloadDates(sessionId, sapPayload, true, `/PurchaseInvoices(${id})`);
+    }
+    if (payload.SalesPersonCode !== undefined) {
+      sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
 
     // PATCH request to SAP: Partial updates are standard for meta fields like comments.

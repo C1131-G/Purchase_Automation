@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import {
@@ -240,11 +241,11 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         const productMeta = productByCode.get(itemCode);
         const quantity = Number(line.Quantity ?? 1);
         const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const lineDiscountPercent = Number(line.DiscountPercent ?? 0);
-        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
-        const discountPercent =
-          lineDiscountPercent !== 0 ? lineDiscountPercent : headerDiscountPercent;
-        const discountAmount = (price * quantity * discountPercent) / 100;
+        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+          line: line as Record<string, unknown>,
+          grossAmount: price * quantity,
+          headerDiscountPercent: Number((detail as any).DiscountPercent ?? 0),
+        });
         return {
           id: `row-${currentDocNum}-${index}`,
           productCode: itemCode,
