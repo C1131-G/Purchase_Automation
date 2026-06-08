@@ -20,6 +20,7 @@ interface ReferenceGridProps {
   commentsErrorText?: string | undefined;
   /** Visual-only override: read-only fields render with the same background as editable fields. */
   uniformReadOnlyAppearance?: boolean;
+  referenceLabel?: string;
 }
 
 function Pulse({ className }: { className: string }) {
@@ -106,6 +107,7 @@ export function ReferenceGrid({
   referenceNoErrorText,
   commentsErrorText,
   uniformReadOnlyAppearance = false,
+  referenceLabel,
 }: ReferenceGridProps) {
   return (
     <SectionCard title="REFERENCE" className="lg:col-span-1">
@@ -115,7 +117,7 @@ export function ReferenceGrid({
           className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
         >
           <span className="inline-flex items-center gap-1.5">
-            <span>CUSTOMER REF NO</span>
+            <span>{referenceLabel || "CUSTOMER REF NO"}</span>
             {referenceNoDisabled ? (
               <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
             ) : null}

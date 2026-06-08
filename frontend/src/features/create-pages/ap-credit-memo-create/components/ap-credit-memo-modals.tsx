@@ -38,7 +38,7 @@ export function APCreditMemoModals({ state }: APCreditMemoModalsProps) {
       <ProductPopupModal
         open={state.productPopupOpen}
         onClose={() => state.setProductPopupOpen(false)}
-        warehouseCode={state.warehouseCode}
+        warehouseCode={state.searchWarehouseCode || state.warehouseCode}
         search={state.productSearch}
         results={state.products as ProductLookupItem[]}
         loading={state.isProductsLoading}

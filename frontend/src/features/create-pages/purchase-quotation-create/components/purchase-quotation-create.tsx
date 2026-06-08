@@ -275,6 +275,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
             commentsInvalid={Boolean(state.productSearchFieldErrors.comments)}
             referenceNoErrorText={state.productSearchFieldErrors.referenceNo}
             commentsErrorText={state.productSearchFieldErrors.comments}
+            referenceLabel="VENDOR REF NO"
           />
         </div>
 

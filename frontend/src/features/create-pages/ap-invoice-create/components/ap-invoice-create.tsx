@@ -55,24 +55,17 @@ export function APInvoiceCreate({
     sourceDocType,
   });
 
-  const warningText = useMemo(() => {
-    if (!state.docDueDate || !state.financialPeriodQuery.data?.T_RefDate) {
-      return null;
-    }
-    const tRefDateStr = String(state.financialPeriodQuery.data.T_RefDate).slice(0, 10);
-    const docDueDateVal = state.docDueDate.slice(0, 10);
-    if (docDueDateVal > tRefDateStr) {
-      return `Due Date deviates from permissible range. Backend will auto-adjust to ${toDisplayDate(tRefDateStr)}.`;
-    }
-    return null;
-  }, [state.docDueDate, state.financialPeriodQuery.data?.T_RefDate]);
+  const committedDocNums = sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
+  const activeSourceType = committedDocNums.length > 0 ? (sourceDocType ?? null) : null;
 
   const isFormHydrating =
     (mode === "edit" && !!docNum && !state.isEditHydrated) || state.isSourceHydrating;
 
   // Derive the active source family from draft rows to lock the opposite family.
   // SAP BaseType: 22 = Purchase Order, 20 = Goods Receipt PO (GRPO), 540000006 = Purchase Quotation
-  // SAP only allows one base type per A/P Invoice — switch the lock target to the dominant one.
+  // SAP only allows one base type per A/P Invoice — lock the *other* families out.
+  // CopyFromDropdown currently supports locking one family at a time; we lock the dominant
+  // "opposite" family so the user can only add from the type they started with.
   const lockedSourceFamily = useMemo<
     "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | null
   >(() => {
@@ -81,14 +74,14 @@ export function APInvoiceCreate({
     const hasPQRows = state.rows.some((row) => row.baseType === 540000006 && row.baseEntry != null);
 
     if (hasPORows) {
-      return "GoodsReceiptPO";
-    } // Lock GRPO if PO rows exist
+      return "GoodsReceiptPO"; // Lock GRPO (and PQ is implicitly excluded by the same SAP rule)
+    }
     if (hasGRPORows) {
-      return "PurchaseOrder";
-    } // Lock PO if GRPO rows exist
+      return "PurchaseOrder"; // Lock PO (and PQ is implicitly excluded)
+    }
     if (hasPQRows) {
-      return "PurchaseOrder";
-    } // Lock PO if PQ rows exist (vendor-change guard catches any actual mixing)
+      return "PurchaseOrder"; // Lock PO (GRPO is also excluded; vendor-change guard handles mixing)
+    }
     return null;
   }, [state.rows]);
 
@@ -144,7 +137,11 @@ export function APInvoiceCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            sourceDocTypes={["PurchaseOrder", "GoodsReceiptPO", "PurchaseQuotation"]}
+            sourceDocTypes={
+              activeSourceType
+                ? [activeSourceType as "PurchaseQuotation" | "PurchaseOrder" | "GoodsReceiptPO"]
+                : ["PurchaseQuotation", "PurchaseOrder", "GoodsReceiptPO"]
+            }
             onSelectSource={(sourceType) => {
               setCopyFromSourceType(
                 sourceType as
@@ -167,9 +164,10 @@ export function APInvoiceCreate({
           setCopyFromDialogOpen(false);
           setCopyFromSourceType(null);
         }}
-        sourceDocType={copyFromSourceType ?? "PurchaseOrder"}
+        sourceDocType={copyFromSourceType ?? sourceDocType ?? "PurchaseOrder"}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
+        committedDocNums={committedDocNums}
         onSelectDocuments={handleCopyFromSelect}
       />
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -286,7 +284,6 @@ export function APInvoiceCreate({
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
           uniformReadOnlyAppearance={state.isEditMode}
-          warningText={warningText}
         />
       </div>
 
@@ -320,6 +317,7 @@ export function APInvoiceCreate({
           onCommentsChange={state.setRemarks}
           commentsDisabled={false}
           onCommentsDisabledClick={() => state.setRemarks(state.remarks)}
+          referenceLabel="VENDOR REF NO"
         />
       </div>
 

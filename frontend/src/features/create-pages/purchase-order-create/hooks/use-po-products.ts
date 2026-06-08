@@ -7,7 +7,10 @@ import {
   createSharedKeys,
   createSharedQueries as purchaseOrderCreateQueries,
 } from "@/features/create-pages/create-shared/api/create-shared.queries";
-import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
+import type {
+  ProductLookupItem,
+  ProductWarehouseStockItem,
+} from "@/features/create-pages/create-shared/api/create-shared.types";
 import type {
   ProductRow,
   ProductRowDraft,
@@ -57,19 +60,24 @@ export function usePoProducts({
 
   const normalizedProductSearch = debouncedProductSearch.trim();
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setProductQueryLimit(QUICK_PRODUCT_LIMIT);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [normalizedProductSearch, vendorSelected, productPopupOpen]);
+  const searchWarehouseCode = useMemo(() => {
+    if (isEditMode) {
+      return undefined;
+    }
+    if (activeProductRowId) {
+      const activeRow = productRows.find((r) => r.id === activeProductRowId);
+      if (activeRow?.warehouseCode) {
+        return activeRow.warehouseCode;
+      }
+    }
+    return effectiveWarehouseCode || undefined;
+  }, [activeProductRowId, productRows, effectiveWarehouseCode, isEditMode]);
 
-  // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
-  // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
-  // In edit mode, fetch products WITHOUT warehouse filter to show total stock across all warehouses.
+  // Product Discovery Query: Reactively fetches products based on search term.
+  // Enabled only when the popup is open and a vendor is selected to minimize redundant traffic.
   const productsQuery = useQuery({
     ...purchaseOrderCreateQueries.products(
-      isEditMode ? undefined : effectiveWarehouseCode || undefined,
+      undefined, // Pass undefined to keep search warehouse-agnostic
       normalizedProductSearch || undefined,
       normalizedProductSearch ? undefined : productQueryLimit,
       "purchase",
@@ -102,13 +110,13 @@ export function usePoProducts({
     }
     void queryClient.prefetchQuery(
       purchaseOrderCreateQueries.products(
-        isEditMode ? undefined : effectiveWarehouseCode || undefined,
+        undefined, // Pass undefined to keep search warehouse-agnostic
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
       ),
     );
-  }, [vendorSelected, isEditMode, effectiveWarehouseCode, normalizedProductSearch, queryClient]);
+  }, [vendorSelected, normalizedProductSearch, queryClient]);
 
   useEffect(() => {
     if (!vendorSelected) {
@@ -217,6 +225,16 @@ export function usePoProducts({
 
     if (activeProductRowId) {
       // Updating an existing row: leave the user-chosen warehouse untouched.
+      const activeRow = productRows.find((r) => r.id === activeProductRowId);
+      const targetWhs = activeRow?.warehouseCode || effectiveWarehouseCode || "";
+      const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+        purchaseOrderCreateQueries.productWarehouseStocks(product.code).queryKey,
+      );
+      const matchedStock = stocksData?.find(
+        (s) => String(s.code).trim() === String(targetWhs).trim(),
+      );
+      const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
       updateProductRow(activeProductRowId, {
         currency: product.currency,
         discountAmount: 0,
@@ -225,14 +243,24 @@ export function usePoProducts({
         productCode: product.code,
         productName: product.name,
         quantity: 1,
-        stock: product.stock,
+        stock: resolvedStock,
         taxRate: product.taxRate,
         uomCode: product.purchaseUomCode || product.uomCode,
         uomEntry: product.purchaseUomEntry ?? product.uomEntry,
         vatGroup: product.vatGroup,
+        warehouseCode: targetWhs,
       });
     } else {
       // New row: force user to pick a warehouse explicitly.
+      const targetWhs = effectiveWarehouseCode || "";
+      const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+        purchaseOrderCreateQueries.productWarehouseStocks(product.code).queryKey,
+      );
+      const matchedStock = stocksData?.find(
+        (s) => String(s.code).trim() === String(targetWhs).trim(),
+      );
+      const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
       setProductRows((prev) => [
         ...prev,
         {
@@ -240,17 +268,17 @@ export function usePoProducts({
           currency: product.currency,
           discountAmount: 0,
           discountPercent: 0,
-          id: `row - ${Date.now()} -${Math.random().toString(36).slice(2, 8)} `,
+          id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           price: product.price,
           productCode: product.code,
           productName: product.name,
           quantity: 1,
           selected: false,
-          stock: product.stock,
+          stock: resolvedStock,
           taxRate: product.taxRate,
           uomCode: product.purchaseUomCode || product.uomCode,
           vatGroup: product.vatGroup,
-          warehouseCode: effectiveWarehouseCode || "",
+          warehouseCode: targetWhs,
         },
       ]);
     }
@@ -262,7 +290,22 @@ export function usePoProducts({
     products: ProductLookupItem[],
     callbacks: { closeProductPopup: () => void },
   ) => {
+    products.forEach((product) => {
+      void queryClient.prefetchQuery(
+        purchaseOrderCreateQueries.productWarehouseStocks(product.code),
+      );
+    });
+
     const nextRows: ProductRow[] = products.map((product) => {
+      const targetWhs = effectiveWarehouseCode || "";
+      const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+        purchaseOrderCreateQueries.productWarehouseStocks(product.code).queryKey,
+      );
+      const matchedStock = stocksData?.find(
+        (s) => String(s.code).trim() === String(targetWhs).trim(),
+      );
+      const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
       // New row: force user to pick a warehouse explicitly.
       return {
         comment: "",
@@ -275,11 +318,11 @@ export function usePoProducts({
         productName: product.name,
         quantity: 1,
         selected: false,
-        stock: product.stock,
+        stock: resolvedStock,
         taxRate: product.taxRate,
         uomCode: product.purchaseUomCode || product.uomCode,
         vatGroup: product.vatGroup,
-        warehouseCode: effectiveWarehouseCode || "",
+        warehouseCode: targetWhs,
       };
     });
 
@@ -303,6 +346,7 @@ export function usePoProducts({
     products,
     productsQuery,
     removeProductRow,
+    searchWarehouseCode,
     setActiveProductRowId,
     setDebouncedProductSearch,
     setProductRowDraft,

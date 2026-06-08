@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { ChevronDown, ClipboardList, FileText } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 
 import { ARInvoiceProductSection } from "@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section";
@@ -50,6 +50,30 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
 
   const [copyFromOpen, setCopyFromOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Derive which SO / SQ doc numbers are already represented in productRows so the
+  // pull modals can mark them pre-checked and non-selectable (prevents duplicate pulls).
+  const committedSODocNums = useMemo(() => {
+    const nums = new Set<number>();
+    for (const row of state.productRows) {
+      if (row.baseType === 17 && row.comment) {
+        const match = /Based on SO (\d+)/.exec(row.comment);
+        if (match?.[1]) nums.add(Number(match[1]));
+      }
+    }
+    return [...nums];
+  }, [state.productRows]);
+
+  const committedSQDocNums = useMemo(() => {
+    const nums = new Set<number>();
+    for (const row of state.productRows) {
+      if (row.baseType === 23 && row.comment) {
+        const match = /Based on SQ (\d+)/.exec(row.comment);
+        if (match?.[1]) nums.add(Number(match[1]));
+      }
+    }
+    return [...nums];
+  }, [state.productRows]);
 
   useEffect(() => {
     function handleClickOutside(event: Event) {
@@ -319,12 +343,14 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
               onClose={() => state.setPullFromSOModalOpen(false)}
               cardCode={state.codeInput}
               onConfirm={state.addProductsFromSOs}
+              committedDocNums={committedSODocNums}
             />
             <PullFromSQModal
               open={state.pullFromSQModalOpen}
               onClose={() => state.setPullFromSQModalOpen(false)}
               cardCode={state.codeInput}
               onConfirm={state.addProductsFromSQs}
+              committedDocNums={committedSQDocNums}
             />
           </>
         )}

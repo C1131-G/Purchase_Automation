@@ -84,6 +84,7 @@ export function PurchaseOrderCreate({
   const pageTitle = state.isEditMode
     ? `Update Purchase Order ${docNum || ""}`
     : "Create Purchase Order";
+  const committedDocNums = sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
   const isFormHydrating = !state.isEditMode
     ? (state.vendorsQuery.isLoading &&
         state.warehousesQuery.isLoading &&
@@ -134,6 +135,7 @@ export function PurchaseOrderCreate({
         sourceDocType="PurchaseQuotation"
         vendorCode={state.codeInput}
         vendorName={state.nameInput}
+        committedDocNums={committedDocNums}
         onSelectDocuments={handleCopyFromSelect}
       />
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -314,6 +316,7 @@ export function PurchaseOrderCreate({
           commentsInvalid={Boolean(state.productSearchFieldErrors.comments)}
           referenceNoErrorText={state.productSearchFieldErrors.referenceNo}
           commentsErrorText={state.productSearchFieldErrors.comments}
+          referenceLabel="VENDOR REF NO"
         />
       </div>
 

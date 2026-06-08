@@ -85,6 +85,18 @@ export function useArCreditMemoCreate({
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
 
+  const resetWarehouse = useCallback(() => {
+    setWarehouseInput("");
+    setHeader({ warehouseCode: "" });
+    setWarehouseFocused(false);
+  }, [setHeader]);
+
+  useEffect(() => {
+    return () => {
+      resetWarehouse();
+    };
+  }, [resetWarehouse]);
+
   const hydratedDocNumRef = useRef<string | null>(null);
 
   // Lookup data queries
@@ -576,8 +588,7 @@ export function useArCreditMemoCreate({
           payload,
         });
         toastHandle.success();
-        setWarehouseInput("");
-        setHeader({ warehouseCode: "" });
+        resetWarehouse();
         void navigate({
           search: { limit: 10, page: 1 },
           to: "/sales/ar-credit-memo",
@@ -638,8 +649,7 @@ export function useArCreditMemoCreate({
       // Invalidate AR Invoice cache so that remaining quantities are updated immediately
       void queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
       toastHandle.success();
-      setWarehouseInput("");
-      setHeader({ warehouseCode: "" });
+      resetWarehouse();
       void navigate({
         search: { limit: 10, page: 1 },
         to: "/sales/ar-credit-memo",

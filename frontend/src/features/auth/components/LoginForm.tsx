@@ -75,7 +75,7 @@ export function LoginForm() {
     <div className="w-full sm:w-105 mx-auto space-y-7">
       <div className="space-y-1.5 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 uppercase font-outfit">
-          Portal Access
+          Access Gateway
         </h1>
         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.25em]">
           Secure Gateway Entrance
@@ -107,7 +107,7 @@ export function LoginForm() {
           control={control}
           render={({ field }) => (
             <Field error={errors.organization?.message || ""}>
-              <Field.Label>Access Gateway</Field.Label>
+              <Field.Label>Company DB</Field.Label>
               <Select
                 id="organization"
                 name="organization"

@@ -116,6 +116,7 @@ export function ArCreditMemoCreate({
     products: productsHook.products,
     productsQuery: productsHook.productsQuery,
     salesEmployeesQuery,
+    searchWarehouseCode: productsHook.searchWarehouseCode,
     selectSalesEmployee: state.selectSalesEmployee,
     selectVendor,
     selectWarehouse: state.selectWarehouse,

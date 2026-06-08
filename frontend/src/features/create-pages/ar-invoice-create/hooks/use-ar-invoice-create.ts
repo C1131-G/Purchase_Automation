@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   useCreateARInvoice,
@@ -119,9 +119,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     });
   };
 
-  const clearFieldError = (field: keyof ProductSearchFieldError) => {
+  const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  }, []);
 
   const lookups = useArLookups({
     clearFieldError,
@@ -156,8 +156,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     }
     return () => {
       resetARInvoiceCreate();
+      lookups.resetWarehouse();
     };
-  }, [isEditMode, resetARInvoiceCreate]);
+  }, [isEditMode, resetARInvoiceCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
     ...arInvoiceQueries.detailByDocNum(editDocNum),
@@ -877,21 +878,19 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         if (currentDocNum) {
           void queryClient.prefetchQuery(arInvoiceQueries.detailByDocNum(currentDocNum));
         }
-        lookups.setWarehouseInput("");
-        setHeader({ warehouseCode: "" });
+        lookups.resetWarehouse();
         return;
       }
 
       resetARInvoiceCreate();
       lookups.setNameInput("");
       lookups.setCodeInput("");
-      lookups.setWarehouseInput("");
+      lookups.resetWarehouse();
       lookups.setSalesEmployeeInput("");
       lookups.setBillToAddress("");
       lookups.setShipToAddress("");
       lookups.setNameFocused(false);
       lookups.setCodeFocused(false);
-      lookups.setWarehouseFocused(false);
       lookups.setSalesEmployeeFocused(false);
       setActiveDatePicker(null);
       modals.setModalOpen(false);

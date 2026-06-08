@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
@@ -291,6 +291,13 @@ export function useArLookups({
     }
   }, [headerWarehouseCode, warehouses, warehouseInput]);
 
+  const resetWarehouse = useCallback(() => {
+    setWarehouseInput("");
+    setHeader({ warehouseCode: "" });
+    setWarehouseFocused(false);
+    clearFieldError("warehouseCode");
+  }, [setHeader, clearFieldError]);
+
   return {
     billToAddress,
     codeFocused,
@@ -334,5 +341,6 @@ export function useArLookups({
     warehouseSuggestions,
     warehouses,
     warehousesQuery,
+    resetWarehouse,
   };
 }

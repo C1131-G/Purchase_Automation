@@ -1,6 +1,6 @@
 /** useSqLookups: Orchestrates customer and logistics lookups for Sales Quotations. */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createSharedQueries as salesQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -304,6 +304,13 @@ export function useSqLookups({
     }
   }, [headerWarehouseCode, warehouses, warehouseInput]);
 
+  const resetWarehouse = useCallback(() => {
+    setWarehouseInput("");
+    setHeader({ warehouseCode: "" });
+    setWarehouseFocused(false);
+    clearFieldError("warehouseCode");
+  }, [setHeader, clearFieldError]);
+
   return {
     billToAddress,
     codeFocused,
@@ -347,5 +354,6 @@ export function useSqLookups({
     warehouseSuggestions,
     warehouses,
     warehousesQuery,
+    resetWarehouse,
   };
 }

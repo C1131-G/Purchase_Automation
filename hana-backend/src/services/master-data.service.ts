@@ -130,8 +130,8 @@ const formatAddress = (row: BusinessPartnerAddress): string => {
   return toTrimmed(row.Address);
 };
 
-const fetchVendorAddresses = async (dbName: string, vendorCodes: string[]) => {
-  if (vendorCodes.length === 0) {
+const fetchBusinessPartnerAddresses = async (dbName: string, partnerCodes: string[]) => {
+  if (partnerCodes.length === 0) {
     return new Map<string, { billToAddress?: string; shipToAddress?: string }>();
   }
 
@@ -150,7 +150,7 @@ const fetchVendorAddresses = async (dbName: string, vendorCodes: string[]) => {
       "Country",
     ] as const,
     where: {
-      CardCode: In(vendorCodes),
+      CardCode: In(partnerCodes),
       AdresType: In(["B", "S"]),
     } as Record<string, unknown>,
   });
@@ -510,6 +510,8 @@ export const getProductWarehouseStocks = async (dbName: string, itemCode: string
 };
 
 // Fetches active Vendors (Business Partners with type 'S' = Supplier).
+// OCRD.CardType is the source of truth ('S' for vendors/suppliers, 'C' for customers).
+// OCRD.SlpCode refers to Sales Employee (for customers) or Buyer (for vendors), both joining to OSLP.
 export const getVendors = async (dbName: string) => {
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
@@ -525,7 +527,7 @@ export const getVendors = async (dbName: string) => {
     ),
   ];
   const [vendorAddressMap, salesEmployeeMap] = await Promise.all([
-    fetchVendorAddresses(dbName, vendorCodes),
+    fetchBusinessPartnerAddresses(dbName, vendorCodes),
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 
@@ -551,6 +553,8 @@ export const getVendors = async (dbName: string) => {
 };
 
 // Fetches active Customers (Business Partners with type 'C' = Customer).
+// OCRD.CardType is the source of truth ('C' for customers, 'S' for vendors/suppliers).
+// OCRD.SlpCode refers to Sales Employee (for customers) or Buyer (for vendors), both joining to OSLP.
 export const getCustomers = async (dbName: string) => {
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
@@ -566,7 +570,7 @@ export const getCustomers = async (dbName: string) => {
     ),
   ];
   const [customerAddressMap, salesEmployeeMap] = await Promise.all([
-    fetchVendorAddresses(dbName, customerCodes),
+    fetchBusinessPartnerAddresses(dbName, customerCodes),
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 

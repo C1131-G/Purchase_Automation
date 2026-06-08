@@ -1,7 +1,7 @@
 /** usePurchaseOrderCreate: State and logic for creating/updating purchase orders. */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -149,9 +149,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     });
   };
 
-  const clearFieldError = (field: keyof ProductSearchFieldError) => {
+  const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  }, []);
 
   const lookups = usePoLookups({
     clearFieldError,
@@ -187,8 +187,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     }
     return () => {
       resetPOCreate();
+      lookups.resetWarehouse();
     };
-  }, [isEditMode, resetPOCreate]);
+  }, [isEditMode, resetPOCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
     ...purchaseOrderQueries.detailByDocNum(editDocNum),
@@ -1037,8 +1038,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);
-        lookups.setWarehouseInput("");
-        setHeader({ warehouseCode: "" });
+        lookups.resetWarehouse();
         return;
       }
 
@@ -1046,13 +1046,12 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       setSubmitAttempted(false);
       lookups.setNameInput("");
       lookups.setCodeInput("");
-      lookups.setWarehouseInput("");
+      lookups.resetWarehouse();
       lookups.setSalesEmployeeInput("");
       lookups.setBillToAddress("");
       lookups.setShipToAddress("");
       lookups.setNameFocused(false);
       lookups.setCodeFocused(false);
-      lookups.setWarehouseFocused(false);
       lookups.setSalesEmployeeFocused(false);
       setActiveDatePicker(null);
       modals.setModalOpen(false);

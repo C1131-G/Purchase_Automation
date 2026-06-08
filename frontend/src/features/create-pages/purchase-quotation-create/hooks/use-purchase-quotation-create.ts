@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -150,9 +150,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     });
   };
 
-  const clearFieldError = (field: keyof ProductSearchFieldError) => {
+  const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  }, []);
 
   const lookups = usePqLookups({
     clearFieldError,
@@ -181,13 +181,16 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   });
 
   useEffect(() => {
-    if (isEditMode) {
-      return;
+    if (!isEditMode) {
+      resetPQCreate();
+      hydratedDocNumRef.current = null;
+      setHydratedDocNum(null);
     }
-    resetPQCreate();
-    hydratedDocNumRef.current = null;
-    setHydratedDocNum(null);
-  }, [isEditMode, resetPQCreate]);
+    return () => {
+      resetPQCreate();
+      lookups.resetWarehouse();
+    };
+  }, [isEditMode, resetPQCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
     ...purchaseQuotationQueries.detailByDocNum(editDocNum),
@@ -809,8 +812,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);
-        lookups.setWarehouseInput("");
-        setHeader({ warehouseCode: "" });
+        lookups.resetWarehouse();
         return;
       }
 
@@ -818,13 +820,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       setSubmitAttempted(false);
       lookups.setNameInput("");
       lookups.setCodeInput("");
-      lookups.setWarehouseInput("");
+      lookups.resetWarehouse();
       lookups.setSalesEmployeeInput("");
       lookups.setBillToAddress("");
       lookups.setShipToAddress("");
       lookups.setNameFocused(false);
       lookups.setCodeFocused(false);
-      lookups.setWarehouseFocused(false);
       lookups.setSalesEmployeeFocused(false);
       setActiveDatePicker(null);
       modals.setModalOpen(false);

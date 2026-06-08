@@ -1,6 +1,7 @@
 *.md
 !README.md
 AGENTS.md
+tables.md
 .env
 .zed
 .pnpm-store/

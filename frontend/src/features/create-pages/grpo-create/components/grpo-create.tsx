@@ -1,5 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { MouseEvent } from "react";
 
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
@@ -54,18 +54,12 @@ export function GRPOCreate({
   });
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
+  const [copyFromSourceType, setCopyFromSourceType] = useState<
+    "PurchaseOrder" | "PurchaseQuotation" | null
+  >(null);
 
-  const warningText = useMemo(() => {
-    if (!state.docDueDate || !state.financialPeriodQuery.data?.T_RefDate) {
-      return null;
-    }
-    const tRefDateStr = String(state.financialPeriodQuery.data.T_RefDate).slice(0, 10);
-    const docDueDateVal = state.docDueDate.slice(0, 10);
-    if (docDueDateVal > tRefDateStr) {
-      return `Due Date deviates from permissible range. Backend will auto-adjust to ${toDisplayDate(tRefDateStr)}.`;
-    }
-    return null;
-  }, [state.docDueDate, state.financialPeriodQuery.data?.T_RefDate]);
+  const committedDocNums = sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
+  const activeSourceType = committedDocNums.length > 0 ? (sourceDocType ?? null) : null;
 
   const isFormHydrating =
     (mode === "edit" && !!docNum && !state.isEditHydrated) || state.isSourceHydrating;
@@ -113,18 +107,29 @@ export function GRPOCreate({
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
-            sourceDocTypes={["PurchaseOrder", "PurchaseQuotation"]}
-            onSelectSource={() => setCopyFromDialogOpen(true)}
+            sourceDocTypes={
+              activeSourceType
+                ? [activeSourceType as "PurchaseQuotation" | "PurchaseOrder"]
+                : ["PurchaseQuotation", "PurchaseOrder"]
+            }
+            onSelectSource={(sourceType) => {
+              setCopyFromSourceType(sourceType as "PurchaseOrder" | "PurchaseQuotation");
+              setCopyFromDialogOpen(true);
+            }}
           />
         ) : null
       }
     >
       <CopyFromDialog
         open={copyFromDialogOpen}
-        onClose={() => setCopyFromDialogOpen(false)}
-        sourceDocType="PurchaseOrder"
+        onClose={() => {
+          setCopyFromDialogOpen(false);
+          setCopyFromSourceType(null);
+        }}
+        sourceDocType={copyFromSourceType ?? sourceDocType ?? "PurchaseOrder"}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
+        committedDocNums={committedDocNums}
         onSelectDocuments={handleCopyFromSelect}
       />
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -241,7 +246,6 @@ export function GRPOCreate({
           docDateReadOnly={state.isEditMode}
           docDueDateReadOnly={state.isEditMode}
           uniformReadOnlyAppearance={state.isEditMode}
-          warningText={warningText}
         />
       </div>
 
@@ -273,6 +277,7 @@ export function GRPOCreate({
           onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
+          referenceLabel="VENDOR REF NO"
         />
       </div>
 

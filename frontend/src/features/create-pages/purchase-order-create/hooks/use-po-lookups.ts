@@ -312,6 +312,13 @@ export function usePoLookups({
     }
   }, [headerWarehouseCode, warehouses, warehouseInput]);
 
+  const resetWarehouse = useCallback(() => {
+    setWarehouseInput("");
+    setHeader({ warehouseCode: "" });
+    setWarehouseFocused(false);
+    clearFieldError("warehouseCode");
+  }, [setHeader, clearFieldError]);
+
   return {
     billToAddress,
     codeFocused,
@@ -355,5 +362,6 @@ export function usePoLookups({
     warehouseSuggestions,
     warehouses,
     warehousesQuery,
+    resetWarehouse,
   };
 }

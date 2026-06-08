@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -118,9 +118,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     });
   };
 
-  const clearFieldError = (field: keyof ProductSearchFieldError) => {
+  const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  }, []);
 
   const lookups = useSoLookups({
     clearFieldError,
@@ -155,8 +155,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     }
     return () => {
       resetSOCreate();
+      lookups.resetWarehouse();
     };
-  }, [isEditMode, resetSOCreate]);
+  }, [isEditMode, resetSOCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
     ...salesOrderQueries.detailByDocNum(editDocNum),
@@ -887,21 +888,19 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         if (currentDocNum) {
           void queryClient.prefetchQuery(salesOrderQueries.detailByDocNum(currentDocNum));
         }
-        lookups.setWarehouseInput("");
-        setHeader({ warehouseCode: "" });
+        lookups.resetWarehouse();
         return;
       }
 
       resetSOCreate();
       lookups.setNameInput("");
       lookups.setCodeInput("");
-      lookups.setWarehouseInput("");
+      lookups.resetWarehouse();
       lookups.setSalesEmployeeInput("");
       lookups.setBillToAddress("");
       lookups.setShipToAddress("");
       lookups.setNameFocused(false);
       lookups.setCodeFocused(false);
-      lookups.setWarehouseFocused(false);
       lookups.setSalesEmployeeFocused(false);
       setActiveDatePicker(null);
       modals.setModalOpen(false);

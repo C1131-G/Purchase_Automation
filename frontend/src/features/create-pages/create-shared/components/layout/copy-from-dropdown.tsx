@@ -124,13 +124,10 @@ function CopyFromPanel({
             <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 transition-all duration-150 group-hover/row:bg-zinc-100 group-hover/row:text-zinc-600">
               {option.icon}
             </span>
-            <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 flex-col justify-center">
               <span className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-700 transition-colors group-hover/row:text-zinc-900">
                 {option.label}
                 {option.disabled && <Lock className="h-3 w-3 text-zinc-400" />}
-              </span>
-              <span className="text-[11px] leading-tight text-zinc-400 transition-colors group-hover/row:text-zinc-500">
-                {option.meta}
               </span>
             </span>
           </button>

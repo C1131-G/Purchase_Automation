@@ -71,6 +71,7 @@ interface SharedCreateModalsProps {
     applyProductToRow: (product: ProductLookupItem) => void;
     applyProductsToRows: (products: ProductLookupItem[]) => void;
     effectiveWarehouseCode: string;
+    searchWarehouseCode: string | undefined;
     /** The product code of the currently active row, used to seed modal selection. */
     activeRowProductCode?: string | null;
     /** The row ID being edited — used as key for persisted selection state. */
@@ -165,7 +166,7 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
       {state.productPopupOpen ? (
         <ProductPopupModal
           open={state.productPopupOpen}
-          warehouseCode={state.effectiveWarehouseCode}
+          warehouseCode={state.searchWarehouseCode || state.effectiveWarehouseCode}
           search={state.productSearch}
           results={state.products}
           loading={state.productsQuery.isLoading}

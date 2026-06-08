@@ -43,7 +43,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginComponent() {
-  useDocumentTitle("Login | ERP Portal");
+  useDocumentTitle("Access Gateway | ERP Portal");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const SESSION_WARNING_TOAST_ID = "auth-session-ended";

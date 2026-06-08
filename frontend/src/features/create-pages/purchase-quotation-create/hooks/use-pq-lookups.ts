@@ -317,6 +317,13 @@ export function usePqLookups({
     }
   }, [headerWarehouseCode, warehouses, warehouseInput]);
 
+  const resetWarehouse = useCallback(() => {
+    setWarehouseInput("");
+    setHeader({ warehouseCode: "" });
+    setWarehouseFocused(false);
+    clearFieldError("warehouseCode");
+  }, [setHeader, clearFieldError]);
+
   return {
     billToAddress,
     codeFocused,
@@ -360,5 +367,6 @@ export function usePqLookups({
     warehouseSuggestions,
     warehouses,
     warehousesQuery,
+    resetWarehouse,
   };
 }

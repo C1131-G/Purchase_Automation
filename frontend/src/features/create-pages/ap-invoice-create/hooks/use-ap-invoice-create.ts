@@ -19,6 +19,7 @@ import { createSharedQueries } from "@/features/create-pages/create-shared/api/c
 import type {
   LookupItem,
   ProductLookupItem,
+  ProductWarehouseStockItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import type {
@@ -178,6 +179,13 @@ export function useAPInvoiceCreate({
   const [warehouseInput, setWarehouseInput] = useState("");
   const [warehouseFocused, setWarehouseFocused] = useState(false);
 
+  const resetWarehouse = useCallback(() => {
+    setWarehouseInput("");
+    setHeader({ warehouseCode: "" });
+    setWarehouseFocused(false);
+    setFieldErrors((prev) => ({ ...prev, warehouseCode: undefined }));
+  }, [setHeader]);
+
   const [billToAddress, setBillToAddressRaw] = useState("");
   const [shipToAddress, setShipToAddressRaw] = useState("");
 
@@ -254,12 +262,22 @@ export function useAPInvoiceCreate({
     return matched?.code ?? lookup;
   }, [warehouseInput, warehouses]);
 
+  const searchWarehouseCode = useMemo(() => {
+    if (activeProductRowId) {
+      const activeRow = rows.find((r) => r.id === activeProductRowId);
+      if (activeRow?.warehouseCode) {
+        return activeRow.warehouseCode;
+      }
+    }
+    return effectiveWarehouseCode || undefined;
+  }, [activeProductRowId, rows, effectiveWarehouseCode]);
+
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
   const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
 
   const productsQuery = useQuery({
     ...createSharedQueries.products(
-      effectiveWarehouseCode || undefined,
+      undefined, // Pass undefined to keep search warehouse-agnostic
       debouncedProductSearch.trim() || undefined,
       debouncedProductSearch.trim() ? undefined : productQueryLimit,
       "purchase",
@@ -287,13 +305,13 @@ export function useAPInvoiceCreate({
     }
     void queryClient.prefetchQuery(
       createSharedQueries.products(
-        effectiveWarehouseCode || undefined,
+        undefined, // Pass undefined to keep search warehouse-agnostic
         productSearch.trim() || undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
       ),
     );
-  }, [vendorSelected, effectiveWarehouseCode, productSearch, queryClient]);
+  }, [vendorSelected, productSearch, queryClient]);
 
   useEffect(() => {
     if (!vendorSelected) {
@@ -329,8 +347,9 @@ export function useAPInvoiceCreate({
     }
     return () => {
       resetAPInvoiceCreate();
+      resetWarehouse();
     };
-  }, [isEditMode, resetAPInvoiceCreate]);
+  }, [isEditMode, resetAPInvoiceCreate, resetWarehouse]);
 
   useEffect(() => {
     if (header.warehouseCode && warehouses.length > 0) {
@@ -992,9 +1011,19 @@ export function useAPInvoiceCreate({
   };
 
   const applyProductToRow = (product: ProductLookupItem) => {
+    void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(product.code));
     setLines((prev) => {
       if (activeProductRowId) {
-        // Updating an existing row: leave the user-chosen warehouse untouched.
+        const activeRow = prev.find((r) => r.id === activeProductRowId);
+        const targetWhs = activeRow?.warehouseCode || effectiveWarehouseCode || "";
+        const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+          createSharedQueries.productWarehouseStocks(product.code).queryKey,
+        );
+        const matchedStock = stocksData?.find(
+          (s) => String(s.code).trim() === String(targetWhs).trim(),
+        );
+        const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
         return prev.map((row) =>
           row.id === activeProductRowId
             ? {
@@ -1003,15 +1032,23 @@ export function useAPInvoiceCreate({
                 productCode: product.code,
                 productName: product.name,
                 quantity: 1,
-                stock: Number(product.stock ?? 0),
+                stock: resolvedStock,
                 uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
-                warehouseCode: effectiveWarehouseCode || "",
+                warehouseCode: targetWhs,
               }
             : row,
         );
       }
-      // New row: force user to pick a warehouse explicitly.
+      const targetWhs = effectiveWarehouseCode || "";
+      const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+        createSharedQueries.productWarehouseStocks(product.code).queryKey,
+      );
+      const matchedStock = stocksData?.find(
+        (s) => String(s.code).trim() === String(targetWhs).trim(),
+      );
+      const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
       return [
         ...prev,
         {
@@ -1025,12 +1062,12 @@ export function useAPInvoiceCreate({
           productName: product.name,
           quantity: 1,
           selected: false,
-          stock: Number(product.stock ?? 0),
+          stock: resolvedStock,
           taxRate: Number(product.taxRate ?? 0),
           uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
-          warehouseCode: effectiveWarehouseCode || "",
+          warehouseCode: targetWhs,
         },
       ];
     });
@@ -1056,26 +1093,41 @@ export function useAPInvoiceCreate({
   }, [buyerInput, salesEmployees]);
 
   const applyProductsToRows = (products: ProductLookupItem[]) => {
+    products.forEach((product) => {
+      void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(product.code));
+    });
+
     setLines((prev) => [
       ...prev,
-      ...products.map((product) => ({
-        comment: "",
-        currency: String(product.currency ?? ""),
-        discountAmount: 0,
-        discountPercent: 0,
-        id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        price: Number(product.price ?? 0),
-        productCode: product.code,
-        productName: product.name,
-        quantity: 1,
-        selected: false,
-        stock: Number(product.stock ?? 0),
-        taxRate: Number(product.taxRate ?? 0),
-        uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
-        uomEntry: product.purchaseUomEntry ?? product.uomEntry,
-        vatGroup: String(product.vatGroup ?? ""),
-        warehouseCode: effectiveWarehouseCode || "",
-      })),
+      ...products.map((product) => {
+        const targetWhs = effectiveWarehouseCode || "";
+        const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+          createSharedQueries.productWarehouseStocks(product.code).queryKey,
+        );
+        const matchedStock = stocksData?.find(
+          (s) => String(s.code).trim() === String(targetWhs).trim(),
+        );
+        const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
+        return {
+          comment: "",
+          currency: String(product.currency ?? ""),
+          discountAmount: 0,
+          discountPercent: 0,
+          id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          price: Number(product.price ?? 0),
+          productCode: product.code,
+          productName: product.name,
+          quantity: 1,
+          selected: false,
+          stock: resolvedStock,
+          taxRate: Number(product.taxRate ?? 0),
+          uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
+          uomEntry: product.purchaseUomEntry ?? product.uomEntry,
+          vatGroup: String(product.vatGroup ?? ""),
+          warehouseCode: targetWhs,
+        };
+      }),
     ]);
     setProductPopupOpen(false);
     setProductSearch("");
@@ -1233,21 +1285,19 @@ export function useAPInvoiceCreate({
       }
       toastHandle.success(createdDocNum);
       if (isEditMode) {
-        setWarehouseInput("");
-        setHeader({ warehouseCode: "" });
+        resetWarehouse();
       }
       if (!isEditMode) {
         resetAPInvoiceCreate();
         setVendorNameInput("");
         setVendorCodeInput("");
         setBuyerInput("");
-        setWarehouseInput("");
+        resetWarehouse();
         setBillToAddress("");
         setShipToAddress("");
         setVendorNameFocused(false);
         setVendorCodeFocused(false);
         setBuyerFocused(false);
-        setWarehouseFocused(false);
         setActiveDatePicker(null);
         setModalOpen(false);
         setModalMode("vendor-name");
@@ -1464,6 +1514,7 @@ export function useAPInvoiceCreate({
     isProductsLoading: productsQuery.isLoading,
     productsError: productsQuery.error?.message ?? null,
     warehouseCode: effectiveWarehouseCode,
+    searchWarehouseCode,
 
     rows,
     productRowDrafts,

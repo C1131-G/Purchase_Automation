@@ -102,9 +102,7 @@ export function ProductPopupModal({
   const scrollKey = warehouseCode?.trim() || "__no_warehouse__";
   const emptyMessage = search.trim()
     ? `No products match "${search.trim()}".`
-    : warehouseCode
-      ? "No products available for selected warehouse."
-      : "Select warehouse first to load products.";
+    : "No products available.";
 
   /* ---------- normalize optional props ---------- */
   const normalizedProductCode = selectedProductCode ?? null;

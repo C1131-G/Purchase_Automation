@@ -12,6 +12,8 @@ interface PullFromSQModalProps {
   onClose: () => void;
   cardCode: string;
   onConfirm: (selectedLines: OpenSalesQuotationLine[]) => void;
+  /** Doc numbers already pulled into the invoice. Shown pre-checked + locked to prevent re-pull. */
+  committedDocNums?: number[];
 }
 
 interface GroupedOrder {
@@ -24,8 +26,15 @@ interface GroupedOrder {
   lines: OpenSalesQuotationLine[];
 }
 
-export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFromSQModalProps) {
+export function PullFromSQModal({
+  open,
+  onClose,
+  cardCode,
+  onConfirm,
+  committedDocNums,
+}: PullFromSQModalProps) {
   const [search, setSearch] = useState("");
+  const committedSet = useMemo(() => new Set(committedDocNums ?? []), [committedDocNums]);
   const [selectedDocNums, setSelectedDocNums] = useState<Set<number>>(new Set());
 
   const { data, isLoading, isError, error } = useQuery({
@@ -78,6 +87,9 @@ export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFrom
   }, [groupedOrders, search]);
 
   const toggleSelect = (docNum: number) => {
+    if (committedSet.has(docNum)) {
+      return;
+    }
     const next = new Set(selectedDocNums);
     if (next.has(docNum)) {
       next.delete(docNum);
@@ -88,21 +100,35 @@ export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFrom
   };
 
   const toggleSelectAll = () => {
-    if (selectedDocNums.size === filteredOrders.length) {
-      setSelectedDocNums(new Set());
+    const selectableOrders = filteredOrders.filter((o) => !committedSet.has(o.DocNum));
+    const allSelectableSelected = selectableOrders.every((o) => selectedDocNums.has(o.DocNum));
+    if (allSelectableSelected) {
+      const next = new Set(selectedDocNums);
+      for (const o of selectableOrders) {
+        next.delete(o.DocNum);
+      }
+      setSelectedDocNums(next);
     } else {
-      setSelectedDocNums(new Set(filteredOrders.map((o) => o.DocNum)));
+      const next = new Set(selectedDocNums);
+      for (const o of selectableOrders) {
+        next.add(o.DocNum);
+      }
+      setSelectedDocNums(next);
     }
   };
 
   const handleConfirm = () => {
-    const selectedLines = lines.filter((l) => selectedDocNums.has(l.DocNum));
+    const selectedLines = lines.filter(
+      (l) => selectedDocNums.has(l.DocNum) && !committedSet.has(l.DocNum),
+    );
     onConfirm(selectedLines);
     setSelectedDocNums(new Set());
     setSearch("");
   };
 
-  const isAllSelected = filteredOrders.length > 0 && selectedDocNums.size === filteredOrders.length;
+  const selectableOrders = filteredOrders.filter((o) => !committedSet.has(o.DocNum));
+  const isAllSelected =
+    selectableOrders.length > 0 && selectableOrders.every((o) => selectedDocNums.has(o.DocNum));
 
   return (
     <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-4xl">
@@ -195,18 +221,27 @@ export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFrom
                 ) : (
                   filteredOrders.map((order) => {
                     const isSelected = selectedDocNums.has(order.DocNum);
+                    const isCommitted = committedSet.has(order.DocNum);
                     return (
                       <tr
                         key={order.DocNum}
-                        className={`transition hover:bg-zinc-50/80 cursor-pointer ${isSelected ? "bg-blue-50/30" : ""}`}
+                        className={`transition ${
+                          isCommitted
+                            ? "opacity-60 bg-zinc-50"
+                            : isSelected
+                              ? "bg-blue-50/30 cursor-pointer hover:bg-zinc-50/80"
+                              : "cursor-pointer hover:bg-zinc-50/80"
+                        }`}
                         onClick={() => toggleSelect(order.DocNum)}
                       >
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                            checked={isSelected}
+                            checked={isSelected || isCommitted}
+                            disabled={isCommitted}
                             onChange={() => toggleSelect(order.DocNum)}
+                            autoComplete="off"
                           />
                         </td>
                         <td className="px-4 py-3 font-bold text-zinc-900">{order.DocNum}</td>
@@ -221,7 +256,15 @@ export function PullFromSQModal({ open, onClose, cardCode, onConfirm }: PullFrom
                         <td className="px-4 py-3 text-right font-semibold text-blue-600">
                           {order.TotalQty.toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-zinc-500 font-medium">{order.DocCurr}</td>
+                        <td className="px-4 py-3 text-zinc-500 font-medium">
+                          {isCommitted ? (
+                            <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Added
+                            </span>
+                          ) : (
+                            order.DocCurr
+                          )}
+                        </td>
                       </tr>
                     );
                   })

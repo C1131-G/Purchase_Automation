@@ -130,7 +130,7 @@ interface CreateProductTableRowProps {
   removeProductRow: (id: string) => void;
   setProductRowDraft: (id: string, field: keyof ProductRowDraft, value: string) => void;
   clearProductRowDraft: (id: string, field: keyof ProductRowDraft) => void;
-  prefetchProducts: () => void;
+  prefetchProducts: (warehouseCode?: string) => void;
   warehouses: CreateLookupOption[];
   warehousesLoading: boolean;
   disableInputs?: boolean;
@@ -453,8 +453,8 @@ export function CreateProductTableRow({
                 }
                 openProductPopup(row.id);
               }}
-              onMouseEnter={prefetchProducts}
-              onFocus={prefetchProducts}
+              onMouseEnter={() => prefetchProducts(row.warehouseCode)}
+              onFocus={() => prefetchProducts(row.warehouseCode)}
               className={`block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-zinc-800 transition-all duration-150 ${
                 effectiveDisableInputs
                   ? "cursor-not-allowed opacity-70"
@@ -630,7 +630,9 @@ export function CreateProductTableRow({
                 }
 
                 const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
-                const clamped = Math.min(maxAllowed, typedQuantityVal);
+                const clamped = row.warehouseCode
+                  ? Math.min(maxAllowed, typedQuantityVal)
+                  : typedQuantityVal;
 
                 if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
                   goeyToast.error("Quantity cannot exceed base quantity", {

@@ -2,7 +2,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createSharedQueries as salesOrderCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
-import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
+import type {
+  ProductLookupItem,
+  ProductWarehouseStockItem,
+} from "@/features/create-pages/create-shared/api/create-shared.types";
 import type {
   ProductRow,
   ProductRowDraft,
@@ -57,11 +60,21 @@ export function useSoProducts({
     return () => window.clearTimeout(timer);
   }, [normalizedProductSearch, customerSelected, productPopupOpen]);
 
+  const searchWarehouseCode = useMemo(() => {
+    if (activeProductRowId) {
+      const activeRow = productRows.find((r) => r.id === activeProductRowId);
+      if (activeRow?.warehouseCode) {
+        return activeRow.warehouseCode;
+      }
+    }
+    return effectiveWarehouseCode || undefined;
+  }, [activeProductRowId, productRows, effectiveWarehouseCode]);
+
   // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
   // Enabled as soon as a customer is selected to allow background prefetching.
   const productsQuery = useQuery({
     ...salesOrderCreateQueries.products(
-      effectiveWarehouseCode || undefined,
+      undefined, // Pass undefined to keep search warehouse-agnostic
       normalizedProductSearch || undefined,
       normalizedProductSearch ? undefined : productQueryLimit,
       "sales",
@@ -76,13 +89,13 @@ export function useSoProducts({
     }
     void queryClient.prefetchQuery(
       salesOrderCreateQueries.products(
-        effectiveWarehouseCode || undefined,
+        undefined, // Pass undefined to keep search warehouse-agnostic
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
         "sales",
       ),
     );
-  }, [customerSelected, effectiveWarehouseCode, normalizedProductSearch, queryClient]);
+  }, [customerSelected, normalizedProductSearch, queryClient]);
 
   useEffect(() => {
     if (!customerSelected) {
@@ -205,6 +218,16 @@ export function useSoProducts({
       // If we were editing a specific row, only update that row with the first selected product
       const product = products[0];
       if (product) {
+        const activeRow = productRows.find((r) => r.id === activeProductRowId);
+        const targetWhs = activeRow?.warehouseCode || effectiveWarehouseCode || "";
+        const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+          salesOrderCreateQueries.productWarehouseStocks(product.code).queryKey,
+        );
+        const matchedStock = stocksData?.find(
+          (s) => String(s.code).trim() === String(targetWhs).trim(),
+        );
+        const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
         updateProductRow(activeProductRowId, {
           currency: product.currency,
           discountAmount: 0,
@@ -213,34 +236,45 @@ export function useSoProducts({
           productCode: product.code,
           productName: product.name,
           quantity: 1,
-          stock: product.stock,
+          stock: resolvedStock,
           taxRate: product.taxRate,
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
           vatGroup: product.vatGroup,
-          warehouseCode: effectiveWarehouseCode ?? "",
+          warehouseCode: targetWhs,
         });
       }
     } else {
       // Add all selected products as new rows
-      const newRows: ProductRow[] = products.map((product, index) => ({
-        comment: "",
-        currency: product.currency,
-        discountAmount: 0,
-        discountPercent: 0,
-        id: `row-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-        price: product.price,
-        productCode: product.code,
-        productName: product.name,
-        quantity: 1,
-        selected: false,
-        stock: product.stock,
-        taxRate: product.taxRate,
-        uomCode: product.uomCode,
-        uomEntry: product.uomEntry,
-        vatGroup: product.vatGroup,
-        warehouseCode: effectiveWarehouseCode ?? "",
-      }));
+      const newRows: ProductRow[] = products.map((product, index) => {
+        const targetWhs = effectiveWarehouseCode || "";
+        const stocksData = queryClient.getQueryData<ProductWarehouseStockItem[]>(
+          salesOrderCreateQueries.productWarehouseStocks(product.code).queryKey,
+        );
+        const matchedStock = stocksData?.find(
+          (s) => String(s.code).trim() === String(targetWhs).trim(),
+        );
+        const resolvedStock = matchedStock ? Number(matchedStock.stock ?? 0) : 0;
+
+        return {
+          comment: "",
+          currency: product.currency,
+          discountAmount: 0,
+          discountPercent: 0,
+          id: `row-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+          price: product.price,
+          productCode: product.code,
+          productName: product.name,
+          quantity: 1,
+          selected: false,
+          stock: resolvedStock,
+          taxRate: product.taxRate,
+          uomCode: product.uomCode,
+          uomEntry: product.uomEntry,
+          vatGroup: product.vatGroup,
+          warehouseCode: targetWhs,
+        };
+      });
       setProductRows((prev) => [...prev, ...newRows]);
     }
     callbacks.closeProductPopup();
@@ -269,6 +303,7 @@ export function useSoProducts({
     products,
     productsQuery,
     removeProductRow,
+    searchWarehouseCode,
     setActiveProductRowId,
     setDebouncedProductSearch,
     setProductRowDraft,

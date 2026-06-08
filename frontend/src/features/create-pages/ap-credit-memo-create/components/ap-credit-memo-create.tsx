@@ -57,6 +57,8 @@ export function APCreditMemoCreate({
   const isFormHydrating =
     (mode === "edit" && !!docNum && !state.isEditHydrated) || state.isSourceHydrating;
 
+  const committedDocNums = sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
+
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>
     (event: MouseEvent<HTMLDivElement> | undefined) => {
@@ -116,6 +118,7 @@ export function APCreditMemoCreate({
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
         includeClosed={true}
+        committedDocNums={committedDocNums}
         onSelectDocuments={handleCopyFromSelect}
       />
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -259,6 +262,7 @@ export function APCreditMemoCreate({
           onCommentsChange={state.setRemarks}
           commentsDisabled={false}
           onCommentsDisabledClick={() => state.setRemarks(state.remarks)}
+          referenceLabel="VENDOR REF NO"
         />
       </div>
 
