@@ -41,6 +41,7 @@ export function APInvoiceCreate({
   const [copyFromSourceType, setCopyFromSourceType] = useState<
     "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation" | null
   >(null);
+  const [sourceCleared, setSourceCleared] = useState(false);
 
   const state = useAPInvoiceCreate({
     docNum: docNum || "",
@@ -56,7 +57,8 @@ export function APInvoiceCreate({
     sourceDocType,
   });
 
-  const committedDocNums = sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
+  const committedDocNums =
+    !sourceCleared && sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
   const activeSourceType = committedDocNums.length > 0 ? (sourceDocType ?? null) : null;
 
   const isFormHydrating =
@@ -110,6 +112,7 @@ export function APInvoiceCreate({
       docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
     }[],
   ) => {
+    setSourceCleared(false);
     if (selected.length === 0) {
       return;
     }
@@ -155,16 +158,25 @@ export function APInvoiceCreate({
             }}
             lockedSourceFamily={lockedSourceFamily}
             onLockedFamilyClick={handleLockedFamilyClick}
+            onReset={
+              committedDocNums.length > 0
+                ? () => {
+                    state.clearLines();
+                    state.clearProductRowDrafts();
+                    state.setReferenceNo("");
+                    state.setRemarks("");
+                    state.resetWarehouse();
+                    setSourceCleared(true);
+                  }
+                : undefined
+            }
           />
         ) : null
       }
     >
-      <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-        <h1 className="text-2xl font-bold text-zinc-900 whitespace-nowrap mb-1">
-          {state.isEditMode ? `Update A/P Invoice ${docNum}` : "Create A/P Invoice"}
-        </h1>
-        <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-          {state.trackerDocType && state.trackerDocEntry && (
+      {state.trackerDocType && state.trackerDocEntry && (
+        <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+          <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
             <div className="relative z-10 overflow-x-auto max-w-full">
               <RelationshipMapTracker
                 docType={state.trackerDocType}
@@ -172,9 +184,9 @@ export function APInvoiceCreate({
                 compact={true}
               />
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
       <CopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => {

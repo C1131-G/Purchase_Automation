@@ -16,7 +16,6 @@ export const Route = createFileRoute("/_layout/purchase/create-order")({
   },
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
-  pendingMs: 0,
   validateSearch: z.object({
     sourceDocNum: z.string().or(z.number()).transform(String).optional(),
     sourceDocType: z.enum(["PurchaseQuotation"]).optional(),

@@ -341,12 +341,14 @@ export function useGRPOCreate({
 
   useEffect(() => {
     if (!isEditMode) {
-      resetGRPOCreate();
-      hydratedDocNumRef.current = null;
+      // Preserve store state during same-page route transitions (e.g. search param updates).
+      // Cleanup is handled when unmounting and leaving the page.
     }
     return () => {
-      resetGRPOCreate();
-      resetWarehouse();
+      if (window.location.pathname !== "/purchase/create-grpo") {
+        resetGRPOCreate();
+        resetWarehouse();
+      }
     };
   }, [isEditMode, resetGRPOCreate, resetWarehouse]);
 
@@ -1787,6 +1789,7 @@ export function useGRPOCreate({
     setBuyerFocused,
     warehouseFocused,
     setWarehouseFocused,
+    resetWarehouse,
     docDate: header.docDate,
     docDueDate: header.docDueDate,
     referenceNo: header.referenceNo,
@@ -1827,7 +1830,9 @@ export function useGRPOCreate({
     })(),
 
     rows,
+    setProductRows: setLines,
     productRowDrafts,
+    setProductRowDrafts,
     setProductRowDraft,
     clearProductRowDraft,
     updateProductRow,

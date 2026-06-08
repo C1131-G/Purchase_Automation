@@ -73,10 +73,9 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
             : null
         }
       >
-        <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-          <h1 className="text-2xl font-bold text-zinc-900 whitespace-nowrap mb-1">{pageTitle}</h1>
-          <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-            {state.trackerDocType && state.trackerDocEntry && (
+        {state.trackerDocType && state.trackerDocEntry && (
+          <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+            <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
               <div className="relative z-10 overflow-x-auto max-w-full">
                 <RelationshipMapTracker
                   docType={state.trackerDocType as any}
@@ -84,9 +83,9 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
                   compact={true}
                 />
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
           <div

@@ -44,6 +44,7 @@ export function PurchaseOrderCreate({
   const queryClient = useQueryClient();
   const router = useRouter();
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
+  const [sourceCleared, setSourceCleared] = useState(false);
 
   const state = usePurchaseOrderCreate(
     docNum
@@ -71,7 +72,12 @@ export function PurchaseOrderCreate({
       docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
     }[],
   ) => {
+    setSourceCleared(false);
     if (selected.length === 0) {
+      router.navigate({
+        to: "/purchase/create-order",
+        search: {},
+      });
       return;
     }
     const docNums = selected.map((s) => s.docNum).join(",");
@@ -85,7 +91,8 @@ export function PurchaseOrderCreate({
   const pageTitle = state.isEditMode
     ? `Update Purchase Order ${docNum || ""}`
     : "Create Purchase Order";
-  const committedDocNums = sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
+  const committedDocNums =
+    !sourceCleared && sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
   const isFormHydrating = !state.isEditMode
     ? (state.vendorsQuery.isLoading &&
         state.warehousesQuery.isLoading &&
@@ -126,14 +133,24 @@ export function PurchaseOrderCreate({
             vendorName={state.nameInput}
             sourceDocTypes={["PurchaseQuotation"]}
             onSelectSource={() => setCopyFromDialogOpen(true)}
+            onReset={
+              committedDocNums.length > 0
+                ? () => {
+                    state.setProductRows([]);
+                    state.setProductRowDrafts({});
+                    state.setHeader({ referenceNo: "", comments: "" });
+                    state.resetWarehouse();
+                    setSourceCleared(true);
+                  }
+                : undefined
+            }
           />
         ) : null
       }
     >
-      <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-        <h1 className="text-2xl font-bold text-zinc-900 whitespace-nowrap mb-1">{pageTitle}</h1>
-        <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-          {state.trackerDocType && state.trackerDocEntry && (
+      {state.trackerDocType && state.trackerDocEntry && (
+        <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+          <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
             <div className="relative z-10 overflow-x-auto max-w-full">
               <RelationshipMapTracker
                 docType={state.trackerDocType}
@@ -141,9 +158,9 @@ export function PurchaseOrderCreate({
                 compact={true}
               />
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
       <CopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => setCopyFromDialogOpen(false)}

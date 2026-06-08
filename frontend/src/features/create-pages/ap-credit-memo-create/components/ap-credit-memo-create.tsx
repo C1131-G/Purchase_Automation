@@ -40,6 +40,7 @@ export function APCreditMemoCreate({
   const router = useRouter();
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
   const [copyFromSourceType, setCopyFromSourceType] = useState<CopyFromSourceType | null>(null);
+  const [sourceCleared, setSourceCleared] = useState(false);
 
   const state = useAPCreditMemoCreate({
     docNum: docNum || "",
@@ -58,7 +59,8 @@ export function APCreditMemoCreate({
   const isFormHydrating =
     (mode === "edit" && !!docNum && !state.isEditHydrated) || state.isSourceHydrating;
 
-  const committedDocNums = sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
+  const committedDocNums =
+    !sourceCleared && sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
 
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>
@@ -72,6 +74,7 @@ export function APCreditMemoCreate({
     };
 
   const handleCopyFromSelect = (selected: { docNum: string; docType: SourceDocType }[]) => {
+    setSourceCleared(false);
     if (selected.length === 0) {
       return;
     }
@@ -105,16 +108,25 @@ export function APCreditMemoCreate({
               setCopyFromSourceType(sourceType as CopyFromSourceType);
               setCopyFromDialogOpen(true);
             }}
+            onReset={
+              committedDocNums.length > 0
+                ? () => {
+                    state.clearLines();
+                    state.clearProductRowDrafts();
+                    state.setReferenceNo("");
+                    state.setRemarks("");
+                    state.resetWarehouse();
+                    setSourceCleared(true);
+                  }
+                : undefined
+            }
           />
         ) : null
       }
     >
-      <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-        <h1 className="text-2xl font-bold text-zinc-900 whitespace-nowrap mb-1">
-          {state.isEditMode ? `Update A/P Credit Memo ${docNum}` : "Create A/P Credit Memo"}
-        </h1>
-        <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-          {state.trackerDocType && state.trackerDocEntry && (
+      {state.trackerDocType && state.trackerDocEntry && (
+        <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+          <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
             <div className="relative z-10 overflow-x-auto max-w-full">
               <RelationshipMapTracker
                 docType={state.trackerDocType}
@@ -122,9 +134,9 @@ export function APCreditMemoCreate({
                 compact={true}
               />
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
       <CopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => {

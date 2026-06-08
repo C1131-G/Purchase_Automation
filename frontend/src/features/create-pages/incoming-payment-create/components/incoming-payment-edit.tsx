@@ -66,10 +66,6 @@ export function IncomingPaymentEdit({ docNum }: { docNum: string }) {
         }}
         pageTitle={`Incoming Payment #${docNum}`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-zinc-900">Incoming Payment #{docNum}</h1>
-        </div>
-
         <div className="grid gap-3 lg:grid-cols-2">
           {/* Read-only Customer Info */}
           <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">

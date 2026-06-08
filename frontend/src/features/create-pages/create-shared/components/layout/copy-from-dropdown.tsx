@@ -1,4 +1,4 @@
-import { ChevronRight, ClipboardList, FileText, Lock, StickyNote } from "lucide-react";
+import { ChevronRight, ClipboardList, FileText, Lock, RotateCcw, StickyNote } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/button";
@@ -32,6 +32,7 @@ interface CopyFromDropdownProps {
   lockedSourceFamily?: SourceFamily | null | undefined;
   /** Called when user clicks a disabled/locked source option. */
   onLockedFamilyClick?: () => void | undefined;
+  onReset?: (() => void) | undefined;
 }
 
 const sourceIcon = (code: string) => {
@@ -85,11 +86,13 @@ function CopyFromPanel({
   panelWidth,
   onSelect,
   onDisabledClick,
+  onReset,
 }: {
   options: CopyFromSourceOption[];
   panelWidth: number | null;
   onSelect: (code: SourceDocType) => void;
   onDisabledClick?: (code: SourceDocType) => void;
+  onReset?: (() => void) | undefined;
 }) {
   return (
     <div
@@ -133,6 +136,18 @@ function CopyFromPanel({
           </button>
         ))}
       </div>
+      {onReset && (
+        <div className="border-t border-zinc-100 bg-zinc-50/50">
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/30 transition-all active:scale-[0.98] cursor-pointer"
+          >
+            <RotateCcw className="size-3" />
+            <span>Reset to Default</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -146,6 +161,7 @@ function CopyFromDropdownInner({
   sourceDocTypes,
   lockedSourceFamily,
   onLockedFamilyClick,
+  onReset,
 }: {
   vendorCode?: string | undefined;
   vendorName?: string | undefined;
@@ -155,6 +171,7 @@ function CopyFromDropdownInner({
   sourceDocTypes: SourceDocType[];
   lockedSourceFamily?: SourceFamily | null | undefined;
   onLockedFamilyClick?: () => void | undefined;
+  onReset?: (() => void) | undefined;
 }) {
   const { open, setOpen } = Popover.usePopoverContext();
   const [panelWidth, setPanelWidth] = useState<number | null>(null);
@@ -265,6 +282,7 @@ function CopyFromDropdownInner({
           panelWidth={panelWidth}
           onSelect={handleSelect}
           onDisabledClick={handleDisabledClick}
+          onReset={onReset}
         />
       </Popover.Content>
     </>
@@ -280,6 +298,7 @@ export function CopyFromDropdown({
   sourceDocTypes,
   lockedSourceFamily,
   onLockedFamilyClick,
+  onReset,
 }: CopyFromDropdownProps) {
   const defaultSourceTypes: SourceDocType[] = sourceDocTypes ?? ["PurchaseOrder"];
 
@@ -294,6 +313,7 @@ export function CopyFromDropdown({
         sourceDocTypes={defaultSourceTypes}
         {...(lockedSourceFamily !== undefined ? { lockedSourceFamily } : {})}
         {...(onLockedFamilyClick ? { onLockedFamilyClick } : {})}
+        onReset={onReset}
       />
     </Popover.Root>
   );

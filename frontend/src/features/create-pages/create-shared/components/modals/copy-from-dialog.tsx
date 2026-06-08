@@ -379,10 +379,6 @@ export function CopyFromDialog({
   }, [hasMore, isLoading, isSearching, fetchDocuments]);
 
   const handleToggleDocument = (docCode: string) => {
-    // Committed docs (from a prior session) are locked — cannot be deselected.
-    if (committedSet.has(docCode)) {
-      return;
-    }
     setSelectedDocs((prev) => {
       const next = new Set(prev);
       if (next.has(docCode)) {
@@ -395,12 +391,11 @@ export function CopyFromDialog({
   };
 
   const handleConfirm = () => {
-    // Only emit newly selected docs — exclude already-committed ones so the parent
-    // doesn't re-process docs that were applied in a prior copy session.
-    const selected = documents.filter(
-      (doc) => selectedDocs.has(doc.code) && !committedSet.has(doc.code),
-    );
-    onSelectDocuments(selected.map((doc) => ({ docNum: doc.code, docType: doc.docType })));
+    const selected = Array.from(selectedDocs).map((docNum) => ({
+      docNum,
+      docType: sourceDocType,
+    }));
+    onSelectDocuments(selected);
     handleCancel();
   };
 
@@ -590,28 +585,19 @@ export function CopyFromDialog({
                         onClick={() => handleToggleDocument(doc.code)}
                         onMouseEnter={() => handleRowMouseEnter(doc)}
                         onMouseLeave={handleRowMouseLeave}
-                        aria-disabled={isCommitted}
-                        className={`relative flex w-full items-center border-t border-zinc-100 px-4 py-2.5 text-left transition ${
-                          isCommitted
-                            ? "cursor-not-allowed bg-zinc-50 opacity-70"
-                            : isSelected
-                              ? "cursor-pointer bg-blue-50"
-                              : "cursor-pointer bg-white hover:bg-zinc-50"
+                        className={`relative flex w-full items-center border-t border-zinc-100 px-4 py-2.5 text-left transition cursor-pointer ${
+                          isSelected ? "bg-blue-50" : "bg-white hover:bg-zinc-50"
                         }`}
                       >
                         <span className="w-[160px] shrink-0 flex items-center gap-2">
                           <div
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
-                              isCommitted
-                                ? "border-zinc-300 bg-zinc-200 text-zinc-400"
-                                : isSelected
-                                  ? "border-blue-500 bg-blue-500 text-white"
-                                  : "border-zinc-300 bg-white"
+                              isSelected
+                                ? "border-blue-500 bg-blue-500 text-white"
+                                : "border-zinc-300 bg-white"
                             }`}
                           >
-                            {(isSelected || isCommitted) && (
-                              <Check className="h-3.5 w-3.5 stroke-[3]" />
-                            )}
+                            {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                           </div>
                           <span className="text-sm font-medium text-zinc-900 truncate">
                             {doc.code}
@@ -620,7 +606,7 @@ export function CopyFromDialog({
                         <span className="w-28 shrink-0 pl-3 text-sm text-zinc-500 tabular-nums">
                           {doc.docDate || "—"}
                         </span>
-                        {isCommitted && (
+                        {isCommitted && isSelected && (
                           <span className="ml-auto shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                             Added
                           </span>
