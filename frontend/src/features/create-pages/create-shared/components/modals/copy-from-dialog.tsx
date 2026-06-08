@@ -1,9 +1,6 @@
-import { Calendar as LucideCalendar, Check, FileText, Loader2, StickyNote } from "lucide-react";
+import { Check, FileText, Loader2, StickyNote } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Calendar } from "@/components/calendar/calendar";
-import { usePopover } from "@/components/context/popover-context";
-import { Popover } from "@/components/popover";
 import { apInvoiceAPI } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
 import type { APInvoiceDetail } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
 import type { GRPODetail } from "@/features/table-pages/grpo/api/grpo.service";
@@ -14,32 +11,11 @@ import {
   purchaseQuotationAPI,
   type PurchaseQuotationDetail,
 } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.service";
-import {
-  formatDateDisplay,
-  toDateOnly,
-} from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
-import {
-  isDateRangeFilter,
-  toDateRangeFilter,
-} from "@/features/table-pages/table-shared/utils/table-filter-values";
+import { formatDateDisplay } from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
+import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import type { DateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
-import { cn } from "@/shared/utils/cn";
-import { MOTION_MS } from "@/shared/utils/motion";
 
-interface CalendarRangeSelection {
-  from?: Date | undefined;
-  to?: Date | undefined;
-}
-
-const isCalendarRangeSelection = (value: unknown): value is CalendarRangeSelection => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const candidate = value as { from?: unknown; to?: unknown };
-  const fromValid = candidate.from === undefined || candidate.from instanceof Date;
-  const toValid = candidate.to === undefined || candidate.to instanceof Date;
-  return fromValid && toValid;
-};
+import { CopyFromDateFilter } from "./copy-from-date-filter";
 
 type SourceDocType = "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
 
@@ -774,76 +750,4 @@ function useDebouncedValue(value: string, delayMs: number): string {
     return () => clearTimeout(timer);
   }, [value, delayMs]);
   return debounced;
-}
-
-interface CopyFromDateFilterProps {
-  dateFilterLabel: string;
-  hasDateRange: boolean;
-  selectedRange: { from?: Date; to?: Date };
-  onDateSelect: (range: DateRangeFilter | undefined) => void;
-}
-
-function CopyFromDateFilterButton({
-  dateFilterLabel,
-  hasDateRange,
-  selectedRange,
-  onDateSelect,
-}: CopyFromDateFilterProps) {
-  const { setOpen } = usePopover();
-  const today = new Date();
-  const maxDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-  const handleDateSelect = (value: unknown) => {
-    if (!value) {
-      onDateSelect(undefined);
-      return;
-    }
-    if (!isCalendarRangeSelection(value)) {
-      return;
-    }
-    const from = value.from ? toDateOnly(value.from) : undefined;
-    const to = value.to ? toDateOnly(value.to) : undefined;
-    const next = toDateRangeFilter(from, to);
-    onDateSelect(next);
-    if (from && to) {
-      window.setTimeout(() => setOpen(false), MOTION_MS.calendarAutoClose);
-    }
-  };
-
-  return (
-    <>
-      <Popover.Trigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "flex h-8 items-center rounded-full border px-3 text-xs font-medium transition hover:bg-zinc-50",
-            hasDateRange
-              ? "border-blue-300 bg-blue-50 text-blue-700"
-              : "border-zinc-200 bg-white text-zinc-700",
-          )}
-        >
-          <LucideCalendar className="mr-1.5 size-3.5" />
-          {dateFilterLabel}
-        </button>
-      </Popover.Trigger>
-      <Popover.Content align="end" className="p-0 will-change-transform" unstyled>
-        <div className="p-3">
-          <Calendar
-            mode="range"
-            maxDate={maxDate}
-            selected={selectedRange}
-            onSelect={handleDateSelect}
-          />
-        </div>
-      </Popover.Content>
-    </>
-  );
-}
-
-function CopyFromDateFilter(props: CopyFromDateFilterProps) {
-  return (
-    <Popover.Root>
-      <CopyFromDateFilterButton {...props} />
-    </Popover.Root>
-  );
 }

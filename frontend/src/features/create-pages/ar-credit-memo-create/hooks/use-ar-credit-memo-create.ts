@@ -739,5 +739,14 @@ export function useArCreditMemoCreate({
     isLoading: vendorsQuery.isLoading || warehousesQuery.isLoading || salesEmployeesQuery.isLoading,
     isSourceClosed,
     reopenInvoiceMutation,
+    trackerDocType: (isEditMode ? "ar-credit-memo" : "ar-invoice") as
+      | "ar-credit-memo"
+      | "ar-invoice",
+    trackerDocEntry: isEditMode
+      ? Number(
+          ((editDetailQuery.data as Record<string, unknown>)?.data as Record<string, unknown>)
+            ?.id ?? (editDetailQuery.data as Record<string, unknown>)?.id,
+        )
+      : Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id),
   };
 }

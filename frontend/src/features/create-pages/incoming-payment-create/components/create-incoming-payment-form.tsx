@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { Check, HandCoins, Search } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { LookupPopupModal } from "@/features/create-pages/create-shared/components/modals/lookup-popup-modal";
+import { CopyFromDateFilter } from "@/features/create-pages/create-shared/components/modals/copy-from-date-filter";
 import { toISODate } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { formatDateDisplay } from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
+import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
+import type { DateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import {
   ArCreditMemoKeys,
   arCreditMemoQueries,
@@ -40,6 +44,27 @@ export function CreateIncomingPaymentForm() {
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
   const [isPaymentOnAccount, setIsPaymentOnAccount] = useState(false);
   const [openDocsSearch, setOpenDocsSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeFilter>({});
+
+  const dateFilterLabel = useMemo(() => {
+    const applied = isDateRangeFilter(dateRange) ? dateRange : {};
+    let lbl = "Filter by date";
+    if (applied.from && applied.to) {
+      lbl = `${formatDateDisplay(applied.from)} - ${formatDateDisplay(applied.to)}`;
+    } else if (applied.from) {
+      lbl = `From ${formatDateDisplay(applied.from)}`;
+    } else if (applied.to) {
+      lbl = `Until ${formatDateDisplay(applied.to)}`;
+    }
+    return lbl;
+  }, [dateRange]);
+
+  const selectedRange = useMemo((): { from?: Date; to?: Date } => {
+    const r: { from?: Date; to?: Date } = {};
+    if (dateRange.from) r.from = new Date(`${dateRange.from}T00:00:00`);
+    if (dateRange.to) r.to = new Date(`${dateRange.to}T00:00:00`);
+    return r;
+  }, [dateRange]);
 
   const { data: invoicesData, isLoading: isLoadingInvoices } = useQuery({
     ...arInvoiceQueries.list({
@@ -108,12 +133,30 @@ export function CreateIncomingPaymentForm() {
     (a, b) => new Date(a.date || "").getTime() - new Date(b.date || "").getTime(),
   );
 
-  const filteredDocuments = allDocuments.filter(
-    (doc) =>
-      doc.balanceDue > 0 &&
-      (doc.docNum?.toString().includes(openDocsSearch) ||
-        doc.label.toLowerCase().includes(openDocsSearch.toLowerCase())),
-  );
+  const filteredDocuments = allDocuments.filter((doc) => {
+    if (doc.balanceDue <= 0) return false;
+
+    if (dateRange.from || dateRange.to) {
+      if (!doc.date) return false;
+      const d = new Date(doc.date);
+      d.setHours(0, 0, 0, 0);
+      if (dateRange.from) {
+        const from = new Date(dateRange.from);
+        from.setHours(0, 0, 0, 0);
+        if (d < from) return false;
+      }
+      if (dateRange.to) {
+        const to = new Date(dateRange.to);
+        to.setHours(0, 0, 0, 0);
+        if (d > to) return false;
+      }
+    }
+
+    return (
+      doc.docNum?.toString().includes(openDocsSearch) ||
+      doc.label.toLowerCase().includes(openDocsSearch.toLowerCase())
+    );
+  });
 
   const handleToggleDoc = (
     docEntry: number,
@@ -337,6 +380,12 @@ export function CreateIncomingPaymentForm() {
               <div className="bg-zinc-50 px-5 py-4 border-b border-zinc-100 flex justify-between items-center">
                 <h2 className="text-sm font-bold text-zinc-900">Open Documents</h2>
                 <div className="flex items-center gap-3">
+                  <CopyFromDateFilter
+                    dateFilterLabel={dateFilterLabel}
+                    hasDateRange={isDateRangeFilter(dateRange)}
+                    selectedRange={selectedRange}
+                    onDateSelect={(range) => setDateRange(range ?? {})}
+                  />
                   {(isLoadingInvoices || isLoadingCreditMemos) && (
                     <span className="text-xs text-zinc-500">Loading...</span>
                   )}

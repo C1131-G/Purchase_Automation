@@ -1170,6 +1170,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     summaryCurrencyLabel,
     today,
     totals,
+    trackerDocType: isEditMode ? ("purchase-order" as const) : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : null,
     updatePurchaseOrderMutation,
   };
 }

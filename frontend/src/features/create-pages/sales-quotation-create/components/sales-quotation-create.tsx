@@ -14,6 +14,7 @@ import {
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { RelationshipMapTracker } from "@/features/create-shared/components/layout/relationship-map-tracker";
 import { SalesQuotationModals } from "@/features/create-pages/sales-quotation-create/components/sales-quotation-modals";
 import { SalesQuotationProductSection } from "@/features/create-pages/sales-quotation-create/components/sales-quotation-product-section";
 import { useSalesQuotationCreate } from "@/features/create-pages/sales-quotation-create/hooks/use-sales-quotation-create";
@@ -72,6 +73,21 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
             : null
         }
       >
+        <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+          <h1 className="text-2xl font-bold text-zinc-900 whitespace-nowrap mb-1">{pageTitle}</h1>
+          <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
+            {state.trackerDocType && state.trackerDocEntry && (
+              <div className="relative z-10 overflow-x-auto max-w-full">
+                <RelationshipMapTracker
+                  docType={state.trackerDocType as any}
+                  docEntry={state.trackerDocEntry}
+                  compact={true}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
           <div
             onClickCapture={handleVendorRestrictedClick}

@@ -20,6 +20,7 @@ import { outgoingPaymentRoutes } from "@/routes/outgoing-payment.routes";
 import { purchaseOrderRoutes } from "@/routes/purchase-order.routes";
 import { purchaseQuotationRoutes } from "@/routes/purchase-quotation.routes";
 import { salesOrderRoutes } from "@/routes/sales-order.routes";
+import salesRelationshipRoutes from "@/routes/sales-relationship.routes";
 
 const router = express.Router();
 
@@ -48,6 +49,7 @@ router.use("/sales-orders", salesOrderRoutes);
 router.use("/ar-invoices", arInvoiceRoutes);
 router.use("/ar-credit-memos", arCreditMemoRoutes);
 router.use("/incoming-payments", incomingPaymentRoutes);
+router.use("/relationship-map", salesRelationshipRoutes);
 
 // Utility: Read-only master data lookups for dropdowns and UI auto-completion.
 router.use("/master-data", masterDataRoutes);

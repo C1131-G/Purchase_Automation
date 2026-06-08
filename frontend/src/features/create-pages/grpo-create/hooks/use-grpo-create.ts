@@ -1883,5 +1883,9 @@ export function useGRPOCreate({
     hasCopiedRows,
     confirmVendorChange,
     cancelVendorChange,
+    trackerDocType: isEditMode ? ("grpo" as const) : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : null,
   };
 }

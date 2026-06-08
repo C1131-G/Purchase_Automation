@@ -1078,6 +1078,14 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     summaryCurrencyLabel,
     today,
     totals,
+    trackerDocType: isEditMode
+      ? "sales-order"
+      : sourceDocType === "SalesQuotation"
+        ? "sales-quotation"
+        : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
     updateSalesOrderMutation,
   };
 }

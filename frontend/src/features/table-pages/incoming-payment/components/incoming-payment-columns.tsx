@@ -2,6 +2,7 @@
 import { createColumnHelper } from "@tanstack/react-table";
 
 import { Tooltip } from "@/components/tooltip";
+import { DocNumCell } from "@/features/table-pages/table-shared/components/core/doc-num-cell";
 import type { IncomingPaymentListItem } from "@/features/table-pages/incoming-payment/api/incoming-payment.service";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import {
@@ -19,25 +20,13 @@ interface CreateIncomingPaymentColumnsOptions {
 export const createIncomingPaymentColumns = (options?: CreateIncomingPaymentColumnsOptions) => [
   columnHelper.accessor("DocNum", {
     cell: (info) => (
-      <Tooltip content="Click to view details">
-        <span
-          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
-          role="button"
-          tabIndex={0}
-          onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
-          onFocus={() => options?.onDocNumHover?.(info.getValue())}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              options?.onDocNumDoubleClick?.(info.getValue());
-            }
-          }}
-          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
-          onClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
-        >
-          {info.getValue()}
-        </span>
-      </Tooltip>
+      <DocNumCell
+        value={info.getValue()}
+        docEntry={info.row.original.id as number}
+        docType="incoming-payment"
+        onHover={options?.onDocNumHover}
+        onDoubleClick={options?.onDocNumDoubleClick}
+      />
     ),
     enableSorting: true,
     filterFn: "includesString",
