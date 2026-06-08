@@ -29,7 +29,7 @@ import {
 } from "@/store/sidebar/sidebar.store";
 
 const SIDEBAR_WIDTH = "16rem";
-const SIDEBAR_WIDTH_ICON = "3rem";
+const SIDEBAR_WIDTH_ICON = "5.5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 /**
@@ -119,7 +119,7 @@ export function Sidebar({
 
   return (
     <>
-      {collapsible === "offcanvas" && open ? (
+      {open ? (
         <button
           type="button"
           aria-label="Close sidebar"
@@ -145,9 +145,14 @@ export function Sidebar({
           className,
         )}
         data-state={state}
-        data-collapsible={collapsible}
+        data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        onClick={() => {
+          if (!open) {
+            setOpen(true);
+          }
+        }}
         {...props}
       >
         <div
@@ -155,7 +160,10 @@ export function Sidebar({
             {
               transitionDuration: `${MOTION_MS.sidebarContentFade}ms`,
               transitionTimingFunction: MOTION_EASING.smoothOut,
-              width: "var(--sidebar-width)",
+              width:
+                state === "collapsed" && collapsible === "icon"
+                  ? "var(--sidebar-width-icon)"
+                  : "var(--sidebar-width)",
             } as React.CSSProperties
           }
           className={cn(
@@ -232,7 +240,15 @@ export function SidebarContent({ className, ...props }: SidebarContentProps) {
 }
 
 export function SidebarGroup({ className, ...props }: SidebarGroupProps) {
-  return <div className={cn("p-2 relative flex w-full min-w-0 flex-col", className)} {...props} />;
+  return (
+    <div
+      className={cn(
+        "p-2 relative flex w-full min-w-0 flex-col group-data-[collapsible=icon]:px-0",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function SidebarGroupContent({ className, ...props }: SidebarGroupContentProps) {
@@ -244,7 +260,12 @@ export function SidebarMenu({ className, ...props }: SidebarMenuProps) {
 }
 
 export function SidebarMenuItem({ className, ...props }: SidebarMenuItemProps) {
-  return <li className={cn("relative px-2", className)} {...props} />;
+  return (
+    <li
+      className={cn("relative px-2 group-data-[collapsible=icon]:px-0.5", className)}
+      {...props}
+    />
+  );
 }
 
 export function SidebarMenuButton({
@@ -259,7 +280,7 @@ export function SidebarMenuButton({
         "flex w-full items-center gap-3 rounded-xl p-2.5 text-sm font-semibold transition-all duration-300 cursor-pointer",
         "hover:bg-blue-50 hover:text-blue-600 text-zinc-500",
         isActive && "bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)]",
-        "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2",
+        "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto",
         className,
       )}
       {...props}
@@ -285,12 +306,12 @@ export function SidebarMenuCollapsible({
         className="justify-between group/trigger"
       >
         <div className="flex items-center gap-3">
-          <Icon className="size-4" />
-          <span>{title}</span>
+          <Icon className="size-5" />
+          <span className="group-data-[collapsible=icon]:hidden">{title}</span>
         </div>
         <ChevronRight
           className={cn(
-            "size-3.5 transition-transform duration-300 text-zinc-300 group-hover/trigger:text-blue-600",
+            "size-3.5 transition-transform duration-300 text-zinc-300 group-hover/trigger:text-blue-600 group-data-[collapsible=icon]:hidden",
             isOpen && "rotate-90",
             isActive && "text-white group-hover/trigger:text-white",
           )}

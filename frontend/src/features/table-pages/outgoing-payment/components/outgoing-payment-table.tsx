@@ -411,7 +411,7 @@ export function OutgoingPaymentTable() {
       />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
-        <Table className="w-full min-w-300">
+        <Table className="w-full">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

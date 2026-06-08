@@ -55,14 +55,8 @@ function ToolbarSkeleton() {
   return (
     <div className="border-b border-zinc-100 bg-white">
       <div className="flex items-center justify-between px-6 py-3">
-        {/* Left: SidebarTrigger + separator + breadcrumb pill */}
+        {/* Left: breadcrumb pill */}
         <div className="flex items-center gap-2">
-          {/* SidebarTrigger (~size-7 square icon button) */}
-          <div className="size-7 rounded-md bg-zinc-100 animate-pulse -ml-3" />
-
-          {/* Vertical separator */}
-          <div className="mx-2 h-6 w-px bg-zinc-200" />
-
           {/* Breadcrumb pill: rounded-2xl border, "Section > Page" */}
           <div className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 shadow-sm">
             <div className="h-3 w-14 rounded bg-zinc-200 animate-pulse" />
@@ -133,7 +127,7 @@ export function TableSkeleton() {
       <ToolbarSkeleton />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
-        <Table className="w-full min-w-300">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               {COLUMN_WIDTHS.map((width, i) => (

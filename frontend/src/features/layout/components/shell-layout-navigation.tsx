@@ -1,4 +1,4 @@
-import { BadgePercent, ShoppingCart } from "lucide-react";
+import { BadgePercent, LayoutDashboard, ShoppingCart } from "lucide-react";
 
 import {
   SidebarContent,
@@ -31,6 +31,30 @@ export function ShellLayoutNavigation({
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
+            <SidebarMenuCollapsible
+              title="Dashboard"
+              icon={LayoutDashboard}
+              isOpen={isSectionOpen("dashboard")}
+              onToggle={() => onToggleSection("dashboard")}
+              isActive={pathname.startsWith("/dashboard")}
+            >
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/dashboard/purchase"
+                  isActive={pathname === "/dashboard/purchase"}
+                >
+                  Purchase
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/dashboard/sales"
+                  isActive={pathname === "/dashboard/sales"}
+                >
+                  Sales
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            </SidebarMenuCollapsible>
             <SidebarMenuCollapsible
               title="Purchase"
               icon={ShoppingCart}

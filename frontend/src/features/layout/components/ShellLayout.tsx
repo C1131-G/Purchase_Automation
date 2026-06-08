@@ -57,13 +57,16 @@ export function ShellLayout() {
 
   // Accordion Logic: current section from URL.
   const activeSection = React.useMemo<SectionKey>(() => {
+    if (location.pathname.startsWith("/dashboard")) {
+      return "dashboard";
+    }
     if (location.pathname.startsWith("/purchase")) {
       return "purchase";
     }
     if (location.pathname.startsWith("/sales")) {
       return "sales";
     }
-    return "purchase";
+    return "dashboard";
   }, [location.pathname]);
 
   const [expandedSectionOverride, setExpandedSectionOverride] = React.useState<
@@ -137,7 +140,7 @@ export function ShellLayout() {
 
   return (
     <SidebarProvider>
-      <Sidebar className={cn("border-r border-zinc-100 bg-white")} collapsible="offcanvas">
+      <Sidebar className={cn("border-r border-zinc-100 bg-white")} collapsible="icon">
         <ShellLayoutBrandHeader />
         <ShellLayoutNavigation
           pathname={location.pathname}
@@ -150,8 +153,9 @@ export function ShellLayout() {
 
       <SidebarInset
         className={cn(
-          "bg-zinc-50 transition-[filter,opacity] duration-150",
+          "bg-zinc-50 transition-[filter,opacity,padding] duration-150",
           isSidebarOpen && "md:opacity-80 md:blur-[2px]",
+          "md:pl-[5.5rem]",
           logoutBusy && "pointer-events-none opacity-80 blur-[2px]",
         )}
       >

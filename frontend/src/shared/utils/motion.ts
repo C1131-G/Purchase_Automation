@@ -7,12 +7,12 @@ export const MOTION_MS = {
   calendarView: 200,
   popoverEnter: 160,
   popoverExit: 120,
-  sidebarBackdrop: 300,
-  sidebarContentFade: 280,
-  sidebarOpenClose: 420,
+  sidebarBackdrop: 200,
+  sidebarContentFade: 150,
+  sidebarOpenClose: 200,
 } as const;
 
 /** MOTION_EASING: Standardized CSS transition functions for smooth animations. */
 export const MOTION_EASING = {
-  smoothOut: "ease-in-out",
+  smoothOut: "cubic-bezier(0.16, 1, 0.3, 1)",
 } as const;

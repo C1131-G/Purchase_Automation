@@ -13,11 +13,7 @@ export const Route = createFileRoute("/")({
 
     if (isAuthenticated) {
       throw redirect({
-        search: {
-          limit: 10,
-          page: 1,
-        },
-        to: "/purchase/quotations",
+        to: "/dashboard/purchase",
       });
     }
 
@@ -25,11 +21,7 @@ export const Route = createFileRoute("/")({
       const user = await context.queryClient.ensureQueryData(authQueries.user());
       useAuthStore.getState().login(user);
       throw redirect({
-        search: {
-          limit: 10,
-          page: 1,
-        },
-        to: "/purchase/quotations",
+        to: "/dashboard/purchase",
       });
     } catch {
       // No active session; continue to login.
