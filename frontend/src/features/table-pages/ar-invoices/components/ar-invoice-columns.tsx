@@ -2,6 +2,7 @@
 import { createColumnHelper } from "@tanstack/react-table";
 
 import { Tooltip } from "@/components/tooltip";
+import { DocNumCell } from "@/features/table-pages/table-shared/components/core/doc-num-cell";
 import type { ARInvoiceListItem } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import {
@@ -30,16 +31,13 @@ interface CreateARInvoiceColumnsOptions {
 export const createARInvoiceColumns = (options?: CreateARInvoiceColumnsOptions) => [
   columnHelper.accessor("DocNum", {
     cell: (info) => (
-      <Tooltip content="Double click to edit">
-        <span
-          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
-          onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
-          onFocus={() => options?.onDocNumHover?.(info.getValue())}
-          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
-        >
-          {info.getValue()}
-        </span>
-      </Tooltip>
+      <DocNumCell
+        value={info.getValue()}
+        docEntry={info.row.original.id as number}
+        docType="ar-invoice"
+        onHover={options?.onDocNumHover}
+        onDoubleClick={options?.onDocNumDoubleClick}
+      />
     ),
     enableSorting: true,
     filterFn: "includesString",

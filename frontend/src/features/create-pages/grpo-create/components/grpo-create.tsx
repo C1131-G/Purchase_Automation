@@ -17,6 +17,7 @@ import {
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { RelationshipMapTracker } from "@/features/create-shared/components/layout/relationship-map-tracker";
 import { GRPOModals } from "@/features/create-pages/grpo-create/components/grpo-modals";
 import { GRPOProductSection } from "@/features/create-pages/grpo-create/components/grpo-product-section";
 import { useGRPOCreate } from "@/features/create-pages/grpo-create/hooks/use-grpo-create";
@@ -120,6 +121,22 @@ export function GRPOCreate({
         ) : null
       }
     >
+      <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+        <h1 className="text-2xl font-bold text-zinc-900 whitespace-nowrap mb-1">
+          {state.isEditMode ? `Update GRPO ${docNum}` : "Create GRPO"}
+        </h1>
+        <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
+          {state.trackerDocType && state.trackerDocEntry && (
+            <div className="relative z-10 overflow-x-auto max-w-full">
+              <RelationshipMapTracker
+                docType={state.trackerDocType}
+                docEntry={state.trackerDocEntry}
+                compact={true}
+              />
+            </div>
+          )}
+        </div>
+      </div>
       <CopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => {

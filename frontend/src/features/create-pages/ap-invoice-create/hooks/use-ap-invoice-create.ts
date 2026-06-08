@@ -1595,5 +1595,9 @@ export function useAPInvoiceCreate({
     hasCopiedRows,
     confirmVendorChange,
     cancelVendorChange,
+    trackerDocType: isEditMode ? ("ap-invoice" as const) : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : null,
   };
 }

@@ -79,6 +79,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";
+  const sourceDocType = options?.sourceDocType;
   const queryClient = useQueryClient();
   const header = useARInvoiceHeader();
   const resetARInvoiceCreate = useResetARInvoiceCreateAction();
@@ -1246,6 +1247,18 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     summaryCurrencyLabel,
     today,
     totals,
+    trackerDocType: isEditMode
+      ? "ar-invoice"
+      : sourceDocType === "SalesOrder"
+        ? "sales-order"
+        : sourceDocType === "SalesQuotation"
+          ? "sales-quotation"
+          : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : sourceDocType === "SalesOrder"
+        ? (sourceDetailQuerySO.data?.data?.DocEntry ?? sourceDetailQuerySO.data?.data?.id)
+        : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
     updateARInvoiceMutation,
     updateProductRow: (id: string, patch: Partial<ProductRow>) =>
       isEditMode ? notifyRestricted("Products") : productsHook.updateProductRow(id, patch),

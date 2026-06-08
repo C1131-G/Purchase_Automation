@@ -10,6 +10,7 @@ import { LogisticsGrid } from "@/features/create-pages/create-shared/components/
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import { RelationshipMapTracker } from "@/features/create-shared/components/layout/relationship-map-tracker";
 import { SharedCreateModals } from "@/features/create-pages/create-shared/components/modals/shared-create-modals";
 import {
   parseISODate,
@@ -146,6 +147,24 @@ export function ArCreditMemoCreate({
         }}
         pageTitle={state.isEditMode ? `A/R Credit Memo - ${docNum}` : "Create A/R Credit Memo"}
       >
+        <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+          <h1 className="text-2xl font-bold text-zinc-900 whitespace-nowrap mb-1">
+            {state.isEditMode ? `A/R Credit Memo - ${docNum}` : "Create A/R Credit Memo"}
+          </h1>
+
+          <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
+            {state.trackerDocEntry > 0 && (
+              <div className="relative z-10 overflow-x-auto max-w-full">
+                <RelationshipMapTracker
+                  docType={state.trackerDocType}
+                  docEntry={state.trackerDocEntry}
+                  compact={true}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Row 1: Customer Info | Document Details (Logistics) | Document Dates — matches AR Invoice */}
         <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
           <VendorCustomerGrid

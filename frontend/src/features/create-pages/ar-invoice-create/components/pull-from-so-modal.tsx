@@ -1,9 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, Loader2, Search, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ClipboardList, FileText, Loader2, Search, X } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { AnimatedModalShell } from "@/features/create-pages/create-shared/components/core/animated-modal-shell";
+import { CopyFromDateFilter } from "@/features/create-pages/create-shared/components/modals/copy-from-date-filter";
 import { toDisplayDate } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { formatDateDisplay } from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
+import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
+import type { DateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import { salesOrderQueries } from "@/features/table-pages/sales-orders/api/sales-order.queries";
 import type { OpenSalesOrderLine } from "@/features/table-pages/sales-orders/api/sales-order.service";
 
@@ -35,7 +39,45 @@ export function PullFromSOModal({
 }: PullFromSOModalProps) {
   const [search, setSearch] = useState("");
   const committedSet = useMemo(() => new Set(committedDocNums ?? []), [committedDocNums]);
+  const [dateRange, setDateRange] = useState<DateRangeFilter>({});
   const [selectedDocNums, setSelectedDocNums] = useState<Set<number>>(new Set());
+
+  const [hoveredOrder, setHoveredOrder] = useState<GroupedOrder | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleRowMouseEnter = useCallback((order: GroupedOrder) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setHoveredOrder(order);
+    }, 200);
+  }, []);
+
+  const handleRowMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  }, []);
+
+  const dateFilterLabel = useMemo(() => {
+    const applied = isDateRangeFilter(dateRange) ? dateRange : {};
+    let lbl = "Filter by date";
+    if (applied.from && applied.to) {
+      lbl = `${formatDateDisplay(applied.from)} - ${formatDateDisplay(applied.to)}`;
+    } else if (applied.from) {
+      lbl = `From ${formatDateDisplay(applied.from)}`;
+    } else if (applied.to) {
+      lbl = `Until ${formatDateDisplay(applied.to)}`;
+    }
+    return lbl;
+  }, [dateRange]);
+
+  const selectedRange = useMemo((): { from?: Date; to?: Date } => {
+    const r: { from?: Date; to?: Date } = {};
+    if (dateRange.from) r.from = new Date(`${dateRange.from}T00:00:00`);
+    if (dateRange.to) r.to = new Date(`${dateRange.to}T00:00:00`);
+    return r;
+  }, [dateRange]);
 
   const { data, isLoading, isError, error } = useQuery({
     ...salesOrderQueries.openLines(cardCode),
@@ -72,10 +114,30 @@ export function PullFromSOModal({
 
   const filteredOrders = useMemo(() => {
     const term = search.toLowerCase().trim();
-    if (!term) {
-      return groupedOrders;
+    let result = groupedOrders;
+
+    if (dateRange.from || dateRange.to) {
+      result = result.filter((order) => {
+        const d = new Date(order.DocDate);
+        d.setHours(0, 0, 0, 0);
+        if (dateRange.from) {
+          const from = new Date(dateRange.from);
+          from.setHours(0, 0, 0, 0);
+          if (d < from) return false;
+        }
+        if (dateRange.to) {
+          const to = new Date(dateRange.to);
+          to.setHours(0, 0, 0, 0);
+          if (d > to) return false;
+        }
+        return true;
+      });
     }
-    return groupedOrders.filter(
+
+    if (!term) {
+      return result;
+    }
+    return result.filter(
       (order) =>
         order.DocNum.toString().includes(term) ||
         order.lines.some(
@@ -84,7 +146,7 @@ export function PullFromSOModal({
             l.ItemDescription.toLowerCase().includes(term),
         ),
     );
-  }, [groupedOrders, search]);
+  }, [groupedOrders, search, dateRange]);
 
   const toggleSelect = (docNum: number) => {
     if (committedSet.has(docNum)) {
@@ -146,12 +208,20 @@ export function PullFromSOModal({
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-4">
+          <CopyFromDateFilter
+            dateFilterLabel={dateFilterLabel}
+            hasDateRange={isDateRangeFilter(dateRange)}
+            selectedRange={selectedRange}
+            onDateSelect={(range) => setDateRange(range ?? {})}
+          />
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <div className="p-6">
@@ -167,8 +237,8 @@ export function PullFromSOModal({
           />
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <div className="max-h-[400px] overflow-auto">
+        <div className="flex overflow-hidden rounded-xl border border-zinc-200 bg-white min-h-[400px]">
+          <div className="flex-1 max-h-[400px] overflow-auto">
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 z-10 bg-zinc-50 text-zinc-600">
                 <tr className="border-b border-zinc-200">
@@ -234,6 +304,8 @@ export function PullFromSOModal({
                               : "cursor-pointer hover:bg-zinc-50/80"
                         }`}
                         onClick={() => toggleSelect(order.DocNum)}
+                        onMouseEnter={() => handleRowMouseEnter(order)}
+                        onMouseLeave={handleRowMouseLeave}
                       >
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -271,6 +343,57 @@ export function PullFromSOModal({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Preview rail */}
+          <div className="w-80 shrink-0 border-l border-zinc-100 overflow-auto bg-white">
+            {hoveredOrder ? (
+              <div className="flex flex-col">
+                <div className="flex flex-col gap-0.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  <div className="flex items-center gap-1.5">
+                    <FileText className="h-4 w-4" />
+                    <span>Sales Order #{hoveredOrder.DocNum}</span>
+                  </div>
+                  {hoveredOrder.DocDate && (
+                    <div className="flex items-center gap-1.5 font-normal normal-case">
+                      <span>
+                        {new Date(hoveredOrder.DocDate).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {hoveredOrder.lines.slice(0, 6).map((line, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start justify-between gap-3 border-t border-zinc-100 px-4 py-2"
+                  >
+                    <span className="flex-1 text-[13px] font-medium leading-snug text-zinc-900">
+                      {line.ItemDescription}
+                    </span>
+                    <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-blue-700">
+                      {line.OpenQty}
+                    </span>
+                  </div>
+                ))}
+                {hoveredOrder.lines.length > 6 && (
+                  <div className="border-t border-zinc-100 px-4 py-1.5 text-[11px] text-zinc-400">
+                    +
+                    <span className="font-semibold text-blue-600">
+                      {hoveredOrder.lines.length - 6}
+                    </span>{" "}
+                    more
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center px-4 py-8 text-center">
+                <p className="text-xs text-zinc-400">Hover an order to see details</p>
+              </div>
+            )}
           </div>
         </div>
 

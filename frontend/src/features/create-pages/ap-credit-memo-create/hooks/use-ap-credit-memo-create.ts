@@ -1577,5 +1577,9 @@ export function useAPCreditMemoCreate({
     warehouseSuggestions,
     warehouses,
     warehousesQuery,
+    trackerDocType: isEditMode ? ("ap-credit-memo" as const) : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : null,
   };
 }

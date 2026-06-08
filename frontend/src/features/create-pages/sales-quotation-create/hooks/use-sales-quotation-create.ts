@@ -786,6 +786,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     summaryCurrencyLabel,
     today,
     totals,
+    trackerDocType: isEditMode ? "sales-quotation" : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : null,
     updateSalesQuotationMutation,
   };
 }

@@ -919,6 +919,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     summaryCurrencyLabel,
     today,
     totals,
+    trackerDocType: isEditMode ? ("purchase-quotation" as const) : null,
+    trackerDocEntry: isEditMode
+      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+      : null,
     updatePurchaseQuotationMutation,
   };
 }

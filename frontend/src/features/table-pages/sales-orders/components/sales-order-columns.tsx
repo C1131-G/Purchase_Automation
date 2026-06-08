@@ -2,6 +2,7 @@
 import { createColumnHelper } from "@tanstack/react-table";
 
 import { Tooltip } from "@/components/tooltip";
+import { DocNumCell } from "@/features/table-pages/table-shared/components/core/doc-num-cell";
 import type { SalesOrderListItem } from "@/features/table-pages/sales-orders/api/sales-order.service";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import {
@@ -30,16 +31,13 @@ interface CreateSalesOrderColumnsOptions {
 export const createSalesOrderColumns = (options?: CreateSalesOrderColumnsOptions) => [
   columnHelper.accessor("DocNum", {
     cell: (info) => (
-      <Tooltip content="Double click to edit">
-        <span
-          className="block cursor-pointer truncate transition-colors hover:text-blue-600"
-          onMouseEnter={() => options?.onDocNumHover?.(info.getValue())}
-          onFocus={() => options?.onDocNumHover?.(info.getValue())}
-          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.getValue())}
-        >
-          {info.getValue()}
-        </span>
-      </Tooltip>
+      <DocNumCell
+        value={info.getValue()}
+        docEntry={info.row.original.id as number}
+        docType="sales-order"
+        onHover={options?.onDocNumHover}
+        onDoubleClick={options?.onDocNumDoubleClick}
+      />
     ),
     enableSorting: true,
     filterFn: "includesString",
