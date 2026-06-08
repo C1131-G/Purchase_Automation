@@ -4,7 +4,6 @@ import { ArrowRight, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { Separator } from "@/components/separator";
-import { SidebarTrigger } from "@/components/sidebar";
 import { hasFilterValue } from "@/components/types/filter-utils";
 import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { useSetActiveFilterAction, useTableActiveFilter } from "@/store/table/table-filter.store";
@@ -114,10 +113,8 @@ export function TableToolbar<TData>({
   return (
     <div className="border-b border-zinc-100 bg-white">
       <div className="flex items-center justify-between px-6 py-3">
-        {/* Left Side: Sidebar & Breadcrumb */}
+        {/* Left Side: Breadcrumb */}
         <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-3" />
-          <Separator orientation="vertical" className="mx-2 h-6" />
           {breadcrumb ? (
             <div className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
               <span>{breadcrumb.section}</span>

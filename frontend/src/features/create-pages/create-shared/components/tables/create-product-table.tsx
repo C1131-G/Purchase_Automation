@@ -63,7 +63,7 @@ export function CreateProductTable({
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
-      <table className="min-w-300 w-full table-fixed text-left text-sm text-zinc-700">
+      <table className="w-full table-fixed text-left text-sm text-zinc-700">
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
             {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}

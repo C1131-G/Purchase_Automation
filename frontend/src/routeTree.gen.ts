@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LayoutDashboardRouteImport } from './routes/_layout.dashboard'
 import { Route as LayoutSalesQuotationsRouteImport } from './routes/_layout.sales.quotations'
 import { Route as LayoutSalesOrdersRouteImport } from './routes/_layout.sales.orders'
 import { Route as LayoutSalesIncomingPaymentRouteImport } from './routes/_layout.sales.incoming-payment'
@@ -33,6 +34,8 @@ import { Route as LayoutPurchaseCreateApInvoiceRouteImport } from './routes/_lay
 import { Route as LayoutPurchaseCreateApCreditMemoRouteImport } from './routes/_layout.purchase.create-ap-credit-memo'
 import { Route as LayoutPurchaseApInvoiceRouteImport } from './routes/_layout.purchase.ap-invoice'
 import { Route as LayoutPurchaseApCreditMemoRouteImport } from './routes/_layout.purchase.ap-credit-memo'
+import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout.dashboard.sales'
+import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout.dashboard.purchase'
 import { Route as LayoutSalesArCreditMemoSelectInvoiceRouteImport } from './routes/_layout.sales.ar-credit-memo.select-invoice'
 import { Route as LayoutSalesArCreditMemoCreateRouteImport } from './routes/_layout.sales.ar-credit-memo.create'
 import { Route as LayoutSalesQuotationsDocNumEditRouteImport } from './routes/_layout.sales.quotations.$docNum.edit'
@@ -60,6 +63,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LayoutDashboardRoute = LayoutDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutSalesQuotationsRoute = LayoutSalesQuotationsRouteImport.update({
   id: '/sales/quotations',
@@ -179,6 +187,16 @@ const LayoutPurchaseApCreditMemoRoute =
     path: '/purchase/ap-credit-memo',
     getParentRoute: () => LayoutRoute,
   } as any)
+const LayoutDashboardSalesRoute = LayoutDashboardSalesRouteImport.update({
+  id: '/sales',
+  path: '/sales',
+  getParentRoute: () => LayoutDashboardRoute,
+} as any)
+const LayoutDashboardPurchaseRoute = LayoutDashboardPurchaseRouteImport.update({
+  id: '/purchase',
+  path: '/purchase',
+  getParentRoute: () => LayoutDashboardRoute,
+} as any)
 const LayoutSalesArCreditMemoSelectInvoiceRoute =
   LayoutSalesArCreditMemoSelectInvoiceRouteImport.update({
     id: '/select-invoice',
@@ -261,6 +279,9 @@ const LayoutPurchaseApCreditMemoDocNumEditRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/dashboard': typeof LayoutDashboardRouteWithChildren
+  '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
+  '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -299,6 +320,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/dashboard': typeof LayoutDashboardRouteWithChildren
+  '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
+  '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -339,6 +363,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_layout': typeof LayoutRouteWithChildren
   '/login': typeof LoginRoute
+  '/_layout/dashboard': typeof LayoutDashboardRouteWithChildren
+  '/_layout/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
+  '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteWithChildren
   '/_layout/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -379,6 +406,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/dashboard'
+    | '/dashboard/purchase'
+    | '/dashboard/sales'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/create-ap-credit-memo'
@@ -417,6 +447,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/dashboard'
+    | '/dashboard/purchase'
+    | '/dashboard/sales'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/create-ap-credit-memo'
@@ -456,6 +489,9 @@ export interface FileRouteTypes {
     | '/'
     | '/_layout'
     | '/login'
+    | '/_layout/dashboard'
+    | '/_layout/dashboard/purchase'
+    | '/_layout/dashboard/sales'
     | '/_layout/purchase/ap-credit-memo'
     | '/_layout/purchase/ap-invoice'
     | '/_layout/purchase/create-ap-credit-memo'
@@ -520,6 +556,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_layout/dashboard': {
+      id: '/_layout/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof LayoutDashboardRouteImport
+      parentRoute: typeof LayoutRoute
     }
     '/_layout/sales/quotations': {
       id: '/_layout/sales/quotations'
@@ -668,6 +711,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPurchaseApCreditMemoRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/dashboard/sales': {
+      id: '/_layout/dashboard/sales'
+      path: '/sales'
+      fullPath: '/dashboard/sales'
+      preLoaderRoute: typeof LayoutDashboardSalesRouteImport
+      parentRoute: typeof LayoutDashboardRoute
+    }
+    '/_layout/dashboard/purchase': {
+      id: '/_layout/dashboard/purchase'
+      path: '/purchase'
+      fullPath: '/dashboard/purchase'
+      preLoaderRoute: typeof LayoutDashboardPurchaseRouteImport
+      parentRoute: typeof LayoutDashboardRoute
+    }
     '/_layout/sales/ar-credit-memo/select-invoice': {
       id: '/_layout/sales/ar-credit-memo/select-invoice'
       path: '/select-invoice'
@@ -761,6 +818,20 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface LayoutDashboardRouteChildren {
+  LayoutDashboardPurchaseRoute: typeof LayoutDashboardPurchaseRoute
+  LayoutDashboardSalesRoute: typeof LayoutDashboardSalesRoute
+}
+
+const LayoutDashboardRouteChildren: LayoutDashboardRouteChildren = {
+  LayoutDashboardPurchaseRoute: LayoutDashboardPurchaseRoute,
+  LayoutDashboardSalesRoute: LayoutDashboardSalesRoute,
+}
+
+const LayoutDashboardRouteWithChildren = LayoutDashboardRoute._addFileChildren(
+  LayoutDashboardRouteChildren,
+)
 
 interface LayoutPurchaseApCreditMemoRouteChildren {
   LayoutPurchaseApCreditMemoDocNumEditRoute: typeof LayoutPurchaseApCreditMemoDocNumEditRoute
@@ -915,6 +986,7 @@ const LayoutSalesQuotationsRouteWithChildren =
   )
 
 interface LayoutRouteChildren {
+  LayoutDashboardRoute: typeof LayoutDashboardRouteWithChildren
   LayoutPurchaseApCreditMemoRoute: typeof LayoutPurchaseApCreditMemoRouteWithChildren
   LayoutPurchaseApInvoiceRoute: typeof LayoutPurchaseApInvoiceRouteWithChildren
   LayoutPurchaseCreateApCreditMemoRoute: typeof LayoutPurchaseCreateApCreditMemoRoute
@@ -939,6 +1011,7 @@ interface LayoutRouteChildren {
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
+  LayoutDashboardRoute: LayoutDashboardRouteWithChildren,
   LayoutPurchaseApCreditMemoRoute: LayoutPurchaseApCreditMemoRouteWithChildren,
   LayoutPurchaseApInvoiceRoute: LayoutPurchaseApInvoiceRouteWithChildren,
   LayoutPurchaseCreateApCreditMemoRoute: LayoutPurchaseCreateApCreditMemoRoute,

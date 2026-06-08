@@ -27,6 +27,9 @@
     "fix": "pnpm lint:fix && pnpm format",
     "prepare": "husky"
   },
+  "dependencies": {
+    "recharts": "^3.8.1"
+  },
   "devDependencies": {
     "husky": "^9.1.7",
     "oxfmt": "^0.48.0",
