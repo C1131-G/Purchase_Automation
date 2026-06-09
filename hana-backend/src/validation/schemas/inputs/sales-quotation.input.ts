@@ -115,6 +115,8 @@ export const CreateSalesQuotationInputSchema = z.object({
   DocumentLines: z.array(SalesQuotationLineItemSchema).min(1),
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.coerce.number().int().optional(),
+  Rounding: z.enum(["tYES", "tNO"]).optional(),
+  RoundingDiffAmount: z.number().optional(),
 });
 
 // UpdateSalesQuotationInputSchema: Edit flow blocks customer updates (CardCode/CardName).
@@ -133,6 +135,8 @@ export const UpdateSalesQuotationInputSchema = z
     DocumentLines: z.array(SalesQuotationLineItemSchema).min(1).optional(),
     NumAtCard: z.string().optional(),
     SalesPersonCode: z.coerce.number().int().optional(),
+    Rounding: z.enum(["tYES", "tNO"]).optional(),
+    RoundingDiffAmount: z.number().optional(),
   })
   .strict();
 

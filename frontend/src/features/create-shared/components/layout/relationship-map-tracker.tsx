@@ -111,7 +111,7 @@ const NodeIcon = ({
 
 const ConnectingLine = ({ active, compact }: { active: boolean; compact?: boolean }) => (
   <div
-    className={`h-[2px] flex-1 mx-2 ${compact ? "mt-3.5" : "mt-6"} ${active ? "bg-blue-500" : "bg-slate-200"}`}
+    className={`h-[2px] flex-1 min-w-[32px] mx-1 ${compact ? "mt-3.5" : "mt-6"} ${active ? "bg-blue-500" : "bg-slate-200"} transition-colors`}
   />
 );
 
@@ -147,14 +147,97 @@ export function RelationshipMapTracker({
 
   const hasDoc1 = isAP ? !!data.purchaseQuotation?.length : !!data.salesQuotation?.length;
   const hasDoc2 = isAP ? !!data.purchaseOrder?.length : !!data.salesOrder?.length;
-  const hasDocGRPO = isAP ? !!data.grpo?.length : !!data.delivery?.length;
+  const hasDocGRPO = isAP ? !!data.grpo?.length : false;
   const hasDoc3 = isAP ? !!data.apInvoice?.length : !!data.arInvoice?.length;
   const hasDoc4 = isAP ? !!data.apCreditMemo?.length : !!data.arCreditMemo?.length;
   const hasDoc5 = isAP ? !!data.outgoingPayment?.length : !!data.incomingPayment?.length;
 
+  const nodes = isAP
+    ? [
+        {
+          icon: FileText,
+          label: "Purchase Quotation",
+          active: hasDoc1,
+          items: data.purchaseQuotation,
+          linkPrefix: "/purchase/quotations",
+        },
+        {
+          icon: ShoppingCart,
+          label: "Purchase Order",
+          active: hasDoc2,
+          items: data.purchaseOrder,
+          linkPrefix: "/purchase/orders",
+        },
+        {
+          icon: Truck,
+          label: "GRPO",
+          active: hasDocGRPO,
+          items: data.grpo,
+          linkPrefix: "/purchase/grpo",
+        },
+        {
+          icon: FileSpreadsheet,
+          label: "A/P Invoice",
+          active: hasDoc3,
+          items: data.apInvoice,
+          linkPrefix: "/purchase/ap-invoice",
+        },
+        {
+          icon: Undo2,
+          label: "A/P Credit Memo",
+          active: hasDoc4,
+          items: data.apCreditMemo,
+          linkPrefix: "/purchase/ap-credit-memo",
+        },
+        {
+          icon: Banknote,
+          label: "Outgoing Payment",
+          active: hasDoc5,
+          items: data.outgoingPayment,
+          linkPrefix: "/purchase/outgoing-payment",
+        },
+      ]
+    : [
+        {
+          icon: FileText,
+          label: "Sales Quotation",
+          active: hasDoc1,
+          items: data.salesQuotation,
+          linkPrefix: "/sales/quotations",
+        },
+        {
+          icon: ShoppingCart,
+          label: "Sales Order",
+          active: hasDoc2,
+          items: data.salesOrder,
+          linkPrefix: "/sales/orders",
+        },
+        {
+          icon: FileSpreadsheet,
+          label: "A/R Invoice",
+          active: hasDoc3,
+          items: data.arInvoice,
+          linkPrefix: "/sales/ar-invoice",
+        },
+        {
+          icon: Undo2,
+          label: "A/R Credit Memo",
+          active: hasDoc4,
+          items: data.arCreditMemo,
+          linkPrefix: "/sales/ar-credit-memo",
+        },
+        {
+          icon: Banknote,
+          label: "Incoming Payment",
+          active: hasDoc5,
+          items: data.incomingPayment,
+          linkPrefix: "/sales/incoming-payment",
+        },
+      ];
+
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border border-slate-100 w-max ${compact ? "min-w-[400px] px-4 py-2.5" : "min-w-[600px] p-6"}`}
+      className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${compact ? "min-w-[400px] px-4 py-2.5" : "min-w-[600px] p-6"}`}
     >
       <h3
         className={`font-semibold text-slate-800 ${compact ? "text-[11px] mb-2" : "text-sm mb-6"}`}
@@ -163,69 +246,25 @@ export function RelationshipMapTracker({
       </h3>
 
       <div className="flex items-start justify-between relative">
-        <NodeIcon
-          icon={FileText}
-          label={isAP ? "Purchase Quotation" : "Sales Quotation"}
-          active={hasDoc1}
-          items={isAP ? data.purchaseQuotation : data.salesQuotation}
-          linkPrefix={isAP ? "/purchase/quotations" : "/sales/quotations"}
-          compact={compact}
-        />
+        {nodes.map((node, index) => {
+          const hasAnyBefore = nodes.slice(0, index).some((n) => n.active);
+          const hasAnyAfter = nodes.slice(index).some((n) => n.active);
+          const lineActive = hasAnyBefore && hasAnyAfter;
 
-        <ConnectingLine active={hasDoc1 && hasDoc2} compact={compact} />
-
-        <NodeIcon
-          icon={ShoppingCart}
-          label={isAP ? "Purchase Order" : "Sales Order"}
-          active={hasDoc2}
-          items={isAP ? data.purchaseOrder : data.salesOrder}
-          linkPrefix={isAP ? "/purchase/orders" : "/sales/orders"}
-          compact={compact}
-        />
-
-        <ConnectingLine active={hasDoc2 && hasDocGRPO} compact={compact} />
-
-        <NodeIcon
-          icon={Truck}
-          label={isAP ? "GRPO" : "Delivery"}
-          active={hasDocGRPO}
-          items={isAP ? data.grpo : data.delivery}
-          linkPrefix={isAP ? "/purchase/grpo" : "/sales/delivery"}
-          compact={compact}
-        />
-
-        <ConnectingLine active={hasDocGRPO && hasDoc3} compact={compact} />
-
-        <NodeIcon
-          icon={FileSpreadsheet}
-          label={isAP ? "A/P Invoice" : "A/R Invoice"}
-          active={hasDoc3}
-          items={isAP ? data.apInvoice : data.arInvoice}
-          linkPrefix={isAP ? "/purchase/ap-invoice" : "/sales/ar-invoice"}
-          compact={compact}
-        />
-
-        <ConnectingLine active={hasDoc3 && (hasDoc4 || hasDoc5)} compact={compact} />
-
-        <NodeIcon
-          icon={Undo2}
-          label={isAP ? "A/P Credit Memo" : "A/R Credit Memo"}
-          active={hasDoc4}
-          items={isAP ? data.apCreditMemo : data.arCreditMemo}
-          linkPrefix={isAP ? "/purchase/ap-credit-memo" : "/sales/ar-credit-memo"}
-          compact={compact}
-        />
-
-        <ConnectingLine active={hasDoc3 && hasDoc5} compact={compact} />
-
-        <NodeIcon
-          icon={Banknote}
-          label={isAP ? "Outgoing Payment" : "Incoming Payment"}
-          active={hasDoc5}
-          items={isAP ? data.outgoingPayment : data.incomingPayment}
-          linkPrefix={isAP ? "/purchase/outgoing-payment" : "/sales/incoming-payment"}
-          compact={compact}
-        />
+          return (
+            <React.Fragment key={node.label}>
+              {index > 0 && <ConnectingLine active={lineActive} compact={compact} />}
+              <NodeIcon
+                icon={node.icon}
+                label={node.label}
+                active={node.active}
+                items={node.items}
+                linkPrefix={node.linkPrefix}
+                compact={compact}
+              />
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );

@@ -259,6 +259,8 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
         return docLine;
       }),
       SalesPersonCode: payload.SalesPersonCode,
+      Rounding: payload.Rounding,
+      RoundingDiffAmount: payload.RoundingDiffAmount,
     };
 
     // Standardize date into ISO format (YYYY-MM-DD) for Service Layer ingestion.

@@ -123,7 +123,9 @@ export const CreateInvoiceInputSchema = z.object({
     .optional(),
   DocumentLines: z.array(InvoiceLineItemSchema).min(1),
   NumAtCard: z.string().optional(), // Customer/Vendor reference number (BP Ref No).
-  SalesPersonCode: z.coerce.number().int().optional(), // Sales Employee code (OINV.SlpCode).
+  SalesPersonCode: z.coerce.number().int().optional(),
+  Rounding: z.enum(["tYES", "tNO"]).optional(),
+  RoundingDiffAmount: z.number().optional(), // Sales Employee code (OINV.SlpCode).
 });
 
 // UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.

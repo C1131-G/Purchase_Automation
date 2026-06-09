@@ -193,6 +193,8 @@ export const UpdatePurchaseOrderInputSchema = z
       .optional(),
     DocumentLines: z.array(PurchaseOrderLineItemSchema).min(1).optional(),
     SalesPersonCode: z.coerce.number().int().optional(),
+    Rounding: z.enum(["tYES", "tNO"]).optional(),
+    RoundingDiffAmount: z.number().optional(),
   })
   .strict();
 

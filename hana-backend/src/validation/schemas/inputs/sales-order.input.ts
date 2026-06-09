@@ -118,6 +118,8 @@ export const CreateSalesOrderInputSchema = z.object({
   DocumentLines: z.array(SalesOrderLineItemSchema).min(1),
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.coerce.number().int().optional(),
+  Rounding: z.enum(["tYES", "tNO"]).optional(),
+  RoundingDiffAmount: z.number().optional(),
 });
 
 // UpdateSalesOrderInputSchema: Edit flow blocks customer updates (CardCode/CardName).
@@ -136,6 +138,8 @@ export const UpdateSalesOrderInputSchema = z
     DocumentLines: z.array(SalesOrderLineItemSchema).min(1).optional(),
     NumAtCard: z.string().optional(),
     SalesPersonCode: z.coerce.number().int().optional(),
+    Rounding: z.enum(["tYES", "tNO"]).optional(),
+    RoundingDiffAmount: z.number().optional(),
   })
   .strict();
 
