@@ -21,7 +21,7 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
   getLookupInlineSearchByMode,
@@ -98,6 +98,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
@@ -721,11 +722,122 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           ? null
           : createError;
 
-  function handleCreateOrderAction() {
-    void handleCreateOrder();
+  const resetForm = useCallback(() => {
+    resetSOCreate();
+    lookups.setNameInput("");
+    lookups.setCodeInput("");
+    lookups.resetWarehouse();
+    lookups.setSalesEmployeeInput("");
+    lookups.setBillToAddress("");
+    lookups.setShipToAddress("");
+    lookups.setNameFocused(false);
+    lookups.setCodeFocused(false);
+    lookups.setSalesEmployeeFocused(false);
+    setActiveDatePicker(null);
+    modals.setModalOpen(false);
+    modals.setModalMode("vendor-name");
+    modals.setModalSearch("");
+    productsHook.setProductRows([]);
+    productsHook.setProductRowDrafts({});
+    setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
+    modals.setProductSearch("");
+    productsHook.setDebouncedProductSearch("");
+    productsHook.setActiveProductRowId(null);
+    modals.setProductPopupOpen(false);
+    modals.setStockPreviewProduct(null);
+    setCreateError(null);
+    setSubmitAttempted(false);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [resetSOCreate, lookups, modals, productsHook]);
+
+  const saveActions = useDocumentSaveActions({
+    documentName: "Sales Order",
+    moduleType: "sales",
+    defaultUrl: "/sales/create-order",
+    resetForm,
+    getPayloadString: () => {
+      const validRows = productsHook.productRows.filter(
+        (row) => row.productCode.trim() && row.quantity > 0,
+      );
+      const payload = isEditMode
+        ? {
+            Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+            Comments: header.comments.trim() || undefined,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            DocDate: header.docDate,
+            DocDueDate: header.docDueDate || header.docDate,
+            DocumentLines: validRows.map((row) => ({
+              LineNum: row.lineNum,
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              Quantity: row.quantity,
+              UnitPrice: row.price,
+              UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
+              VatGroup: row.vatGroup || undefined,
+              WarehouseCode:
+                row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+              ...(row.baseType !== undefined &&
+              row.baseEntry !== undefined &&
+              row.baseLine !== undefined
+                ? {
+                    BaseType: row.baseType,
+                    BaseEntry: row.baseEntry,
+                    BaseLine: row.baseLine,
+                  }
+                : {}),
+            })),
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          }
+        : {
+            Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+            CardCode: (header.vendorCode || lookups.codeInput).trim(),
+            Comments: header.comments.trim() || undefined,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            DocDate: header.docDate,
+            DocDueDate: header.docDueDate || header.docDate,
+            DocumentLines: validRows.map((row) => ({
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              Quantity: row.quantity,
+              UnitPrice: row.price,
+              UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
+              VatGroup: row.vatGroup || undefined,
+              WarehouseCode:
+                row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+              ...(row.baseType !== undefined &&
+              row.baseEntry !== undefined &&
+              row.baseLine !== undefined
+                ? {
+                    BaseType: row.baseType,
+                    BaseEntry: row.baseEntry,
+                    BaseLine: row.baseLine,
+                  }
+                : {}),
+            })),
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          };
+      return JSON.stringify(payload);
+    },
+    isEditMode,
+  });
+
+  function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
+    void handleCreateOrder(action);
   }
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
+    setSubmitAttempted(true);
     const nextErrors: ProductSearchFieldError = {
       ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
     };
@@ -880,7 +992,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
 
-    const toastHandle = documentActionToast("Sales Order", isEditMode ? "update" : "create");
+    saveActions.actionToast.startLoading("Sales Order", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
       if (isEditMode) {
@@ -888,7 +1000,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         const docEntry = detail?.DocEntry ?? detail?.id;
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update sales order. Document id is missing.");
-          toastHandle.error();
+          saveActions.actionToast.showError("Sales Order", "update", "Document ID is missing.");
           return;
         }
         await updateSalesOrderMutation.mutateAsync({ id: docEntry, payload });
@@ -897,7 +1009,6 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         const result = await createSalesOrderMutation.mutateAsync({ payload });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
-      toastHandle.success(createdDocNum);
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: salesOrderKeys.all });
@@ -912,38 +1023,18 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         if (currentDocNum) {
           void queryClient.prefetchQuery(salesOrderQueries.detailByDocNum(currentDocNum));
         }
-        lookups.resetWarehouse();
-        return;
       }
 
-      resetSOCreate();
-      lookups.setNameInput("");
-      lookups.setCodeInput("");
-      lookups.resetWarehouse();
-      lookups.setSalesEmployeeInput("");
-      lookups.setBillToAddress("");
-      lookups.setShipToAddress("");
-      lookups.setNameFocused(false);
-      lookups.setCodeFocused(false);
-      lookups.setSalesEmployeeFocused(false);
-      setActiveDatePicker(null);
-      modals.setModalOpen(false);
-      modals.setModalMode("vendor-name");
-      modals.setModalSearch("");
-      productsHook.setProductRows([]);
-      productsHook.setProductRowDrafts({});
-      setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
-      modals.setProductSearch("");
-      productsHook.setDebouncedProductSearch("");
-      productsHook.setActiveProductRowId(null);
-      modals.setProductPopupOpen(false);
-      modals.setStockPreviewProduct(null);
-      setCreateError(null);
+      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
     } catch (error) {
-      toastHandle.error();
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} sales order. Try again.`,
+      );
+      saveActions.actionToast.showError(
+        "Sales Order",
+        isEditMode ? "update" : action,
+        errorMessage,
       );
       setCreateError(errorMessage);
     }
@@ -1131,6 +1222,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     header,
     isEditHydrated,
     isEditMode,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,
     missingSearchMandatoryFields,
     openPopup: openPopupWithContext,
@@ -1138,6 +1231,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     popupResults,
     productSearchFieldErrors,
     requiredCompletionPercent,
+    resetForm: saveActions.handleReset,
+    submitAttempted,
     searchMandatoryFields,
     searchRequiredCompletionPercent,
     setActiveDatePicker,

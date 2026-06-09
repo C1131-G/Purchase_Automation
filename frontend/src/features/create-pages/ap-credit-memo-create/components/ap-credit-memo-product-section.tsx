@@ -47,6 +47,12 @@ interface APCreditMemoProductSectionProps {
   isClosed?: boolean;
   headerDiscountPercent?: number;
   warehouseErrors?: Record<string, string>;
+  onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  isSaved?: boolean;
+  savedDocNum?: string | number | null;
+  onDownload?: (type: "pdf" | "excel" | "word") => void;
+  onReset?: () => void;
+  submitLoadingText?: string;
 }
 
 export function APCreditMemoProductSection({
@@ -77,6 +83,12 @@ export function APCreditMemoProductSection({
   isClosed = false,
   headerDiscountPercent = 0,
   warehouseErrors,
+  onSubmitMode,
+  isSaved = false,
+  savedDocNum = null,
+  onDownload,
+  onReset,
+  submitLoadingText,
 }: APCreditMemoProductSectionProps) {
   const selectedRows = rows.filter((r) => r.selected);
   const totals = calculateOrderTotals(selectedRows, { headerDiscountPercent });
@@ -105,9 +117,14 @@ export function APCreditMemoProductSection({
       backToUrl="/purchase/ap-credit-memo"
       backToLabel="Back to Table"
       submitLabel={isEditMode ? "Update" : "Create"}
-      submitLoadingText={isEditMode ? "Updating..." : "Creating..."}
+      submitLoadingText={submitLoadingText || (isEditMode ? "Updating..." : "Adding...")}
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}
+      onSubmitMode={onSubmitMode}
+      isSaved={isSaved}
+      savedDocNum={savedDocNum}
+      onDownload={onDownload}
+      onReset={onReset}
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}

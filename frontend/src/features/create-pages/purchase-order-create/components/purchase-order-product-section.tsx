@@ -38,6 +38,11 @@ interface PurchaseOrderProductSectionProps {
   isClosed: boolean;
   allowSearchInEditMode?: boolean;
   warehouseErrors: PurchaseOrderState["warehouseErrors"];
+  onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  isSaved?: boolean;
+  savedDocNum?: string | number | null;
+  onDownload?: (type: "pdf" | "excel" | "word") => void;
+  onReset?: () => void;
 }
 
 /**
@@ -74,6 +79,11 @@ export function PurchaseOrderProductSection({
   isClosed,
   allowSearchInEditMode = false,
   warehouseErrors,
+  onSubmitMode,
+  isSaved = false,
+  savedDocNum = null,
+  onDownload,
+  onReset,
 }: PurchaseOrderProductSectionProps) {
   return (
     <BaseProductSection
@@ -92,6 +102,11 @@ export function PurchaseOrderProductSection({
       submitLoadingText={submitLoadingText}
       isSubmitting={createPurchaseOrderMutation.isPending}
       onSubmit={handleCreateOrder}
+      onSubmitMode={onSubmitMode}
+      isSaved={isSaved}
+      savedDocNum={savedDocNum}
+      onDownload={onDownload}
+      onReset={onReset}
       disabledReason={createDisabledReason}
       secondaryActions={secondaryActions}
       missingMandatoryFields={missingMandatoryFields}

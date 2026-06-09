@@ -34,6 +34,11 @@ interface SalesQuotationProductSectionProps {
   submitLabel?: string;
   submitLoadingText?: string;
   secondaryActions?: ReactNode;
+  onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  isSaved?: boolean;
+  savedDocNum?: string | number | null;
+  onDownload?: (type: "pdf" | "excel" | "word") => void;
+  onReset?: () => void;
 }
 
 /**
@@ -66,6 +71,11 @@ export function SalesQuotationProductSection({
   submitLabel = "Create",
   submitLoadingText = "Creating...",
   secondaryActions,
+  onSubmitMode,
+  isSaved = false,
+  savedDocNum = null,
+  onDownload,
+  onReset,
 }: SalesQuotationProductSectionProps) {
   return (
     <BaseProductSection
@@ -86,6 +96,11 @@ export function SalesQuotationProductSection({
       secondaryActions={secondaryActions}
       isSubmitting={createSalesQuotationMutation.isPending}
       onSubmit={handleCreateOrder}
+      onSubmitMode={onSubmitMode}
+      isSaved={isSaved}
+      savedDocNum={savedDocNum}
+      onDownload={onDownload}
+      onReset={onReset}
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}

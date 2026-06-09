@@ -19,7 +19,7 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
   getLookupInlineSearchByMode,
@@ -128,6 +128,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   );
   const [createError, setCreateError] = useState<string | null>(null);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
@@ -179,6 +180,35 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     vendorLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
   });
+
+  const resetForm = useCallback(() => {
+    resetPQCreate();
+    setSubmitAttempted(false);
+    lookups.setNameInput("");
+    lookups.setCodeInput("");
+    lookups.resetWarehouse();
+    lookups.setSalesEmployeeInput("");
+    lookups.setBillToAddress("");
+    lookups.setShipToAddress("");
+    lookups.setNameFocused(false);
+    lookups.setCodeFocused(false);
+    lookups.setSalesEmployeeFocused(false);
+    setActiveDatePicker(null);
+    modals.setModalOpen(false);
+    modals.setModalMode("vendor-name");
+    modals.setModalSearch("");
+    productsHook.setProductRows([]);
+    productsHook.setProductRowDrafts({});
+    setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
+    modals.setProductSearch("");
+    productsHook.setDebouncedProductSearch("");
+    productsHook.setActiveProductRowId(null);
+    modals.setProductPopupOpen(false);
+    modals.setStockPreviewProduct(null);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [resetPQCreate, lookups, modals, productsHook]);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -604,11 +634,51 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     return {} as Record<string, string>;
   }, []);
 
-  function handleCreateOrderAction() {
-    void handleCreateOrder();
+  const saveActions = useDocumentSaveActions({
+    documentName: "Purchase Quotation",
+    moduleType: "purchase",
+    defaultUrl: "/purchase/create-quotation",
+    resetForm,
+    getPayloadString: () => {
+      const payload = {
+        Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+        CardCode: (header.vendorCode || lookups.codeInput).trim(),
+        Comments: header.comments.trim() || undefined,
+        NumAtCard: header.referenceNo.trim() || undefined,
+        DocDate: header.docDate,
+        DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+        DocumentLines: productsHook.productRows.map((row) => ({
+          LineNum: row.lineNum,
+          DiscountPercent: row.discountPercent,
+          ItemCode: row.productCode,
+          ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+          Quantity: row.quantity,
+          UnitPrice: row.price,
+          UoMCode: row.uomCode || undefined,
+          UoMEntry: row.uomEntry ?? undefined,
+          VatGroup: row.vatGroup || undefined,
+          WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+        })),
+        SalesPersonCode: resolvedSalesEmployeeCode,
+      };
+      return JSON.stringify(payload);
+    },
+    isEditMode,
+  });
+
+  function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
+    void handleCreateOrder(action);
   }
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
     setSubmitAttempted(true);
     const nextErrors: ProductSearchFieldError = {
       ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
@@ -773,7 +843,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
 
-    const toastHandle = documentActionToast("Purchase Quotation", isEditMode ? "update" : "create");
+    saveActions.actionToast.startLoading("Purchase Quotation", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
       if (isEditMode) {
@@ -781,7 +851,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         const docEntry = detail?.DocEntry ?? detail?.id;
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update Purchase Quotation. Document id is missing.");
-          toastHandle.error();
+          saveActions.actionToast.showError(
+            "Purchase Quotation",
+            "update",
+            "Document ID is missing.",
+          );
           return;
         }
         await updatePurchaseQuotationMutation.mutateAsync({
@@ -795,7 +869,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
-      toastHandle.success(createdDocNum);
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
@@ -805,56 +878,16 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         queryClient.prefetchQuery(purchaseQuotationQueries.docNumSuggestions(undefined, 100)),
       ]);
 
-      if (isEditMode) {
-        const currentDocNum = (options?.docNum ?? "").trim();
-        if (currentDocNum) {
-          void queryClient.prefetchQuery(purchaseQuotationQueries.detailByDocNum(currentDocNum));
-        }
-        window.scrollTo({ behavior: "smooth", top: 0 });
-        setSubmitAttempted(false);
-        lookups.resetWarehouse();
-        return;
-      }
-
-      resetPQCreate();
-      setSubmitAttempted(false);
-      lookups.setNameInput("");
-      lookups.setCodeInput("");
-      lookups.resetWarehouse();
-      lookups.setSalesEmployeeInput("");
-      lookups.setBillToAddress("");
-      lookups.setShipToAddress("");
-      lookups.setNameFocused(false);
-      lookups.setCodeFocused(false);
-      lookups.setSalesEmployeeFocused(false);
-      setActiveDatePicker(null);
-      modals.setModalOpen(false);
-      modals.setModalMode("vendor-name");
-      modals.setModalSearch("");
-      productsHook.setProductRows([]);
-      productsHook.setProductRowDrafts({});
-      setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
-      modals.setProductSearch("");
-      productsHook.setDebouncedProductSearch("");
-      productsHook.setActiveProductRowId(null);
-      modals.setProductPopupOpen(false);
-      modals.setStockPreviewProduct(null);
-      setCreateError(null);
-      hydratedDocNumRef.current = null;
-      setHydratedDocNum(null);
-
-      // Scroll to top after successful save
-      window.scrollTo({ behavior: "smooth", top: 0 });
-
-      // Notify parent to navigate away after successful create
-      if (!isEditMode) {
-        options?.onCreateSuccess?.();
-      }
+      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
     } catch (error) {
-      toastHandle.error();
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} Purchase Quotation. Try again.`,
+      );
+      saveActions.actionToast.showError(
+        "Purchase Quotation",
+        isEditMode ? "update" : action,
+        errorMessage,
       );
       setCreateError(errorMessage);
     }
@@ -902,6 +935,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     isClosed,
     isEditHydrated,
     isEditMode,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,
     missingSearchMandatoryFields,
     openPopup: openPopupWithContext,
@@ -909,6 +944,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     popupResults,
     productSearchFieldErrors,
     requiredCompletionPercent,
+    resetForm: saveActions.handleReset,
     searchMandatoryFields,
     searchRequiredCompletionPercent,
     setActiveDatePicker,

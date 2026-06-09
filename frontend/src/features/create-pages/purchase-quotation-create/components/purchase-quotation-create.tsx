@@ -317,11 +317,31 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
           missingMandatoryFields={state.missingMandatoryFields}
           requiredCompletionPercent={state.requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
+          onSubmitMode={state.handleCreateOrder}
+          isSaved={state.isSaved}
+          savedDocNum={state.savedDocNum}
+          onDownload={(type) => {
+            if (state.savedDocNum) {
+              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
+              goeyToast.success(
+                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+              );
+            }
+          }}
+          onReset={() => {
+            state.resetForm();
+            window.scrollTo({ behavior: "smooth", top: 0 });
+            void router.navigate({
+              replace: true,
+              search: {},
+              to: "/purchase/create-quotation",
+            });
+          }}
           isEditMode={state.isEditMode}
           isClosed={state.isClosed}
           allowSearchInEditMode={state.isEditMode}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
+          submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
             state.isEditMode && !state.isClosed && docNum ? (
               <CopyToDropdown

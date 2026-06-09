@@ -1,6 +1,18 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Lock, Plus, RefreshCw, Save } from "lucide-react";
-import type { ReactNode } from "react";
+import {
+  ArrowLeft,
+  Lock,
+  Plus,
+  RefreshCw,
+  Save,
+  ChevronUp,
+  Eye,
+  CheckSquare,
+  FileText,
+  Download,
+  FileSpreadsheet,
+} from "lucide-react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/button";
 import { Tooltip } from "@/components/tooltip";
@@ -10,28 +22,28 @@ function Pulse({ className }: { className: string }) {
 }
 
 interface BaseProductSectionProps {
-  sectionId?: string;
-  title?: string;
+  sectionId?: string | undefined;
+  title?: string | undefined;
 
   // Search Action
   onSearchProducts: () => void;
-  onPrefetchProducts?: () => void;
-  searchLabel?: string;
-  hideSearch?: boolean;
-  allowSearchInEditMode?: boolean;
+  onPrefetchProducts?: (() => void) | undefined;
+  searchLabel?: string | undefined;
+  hideSearch?: boolean | undefined;
+  allowSearchInEditMode?: boolean | undefined;
 
   // Validation Hints (Search)
-  showRequiredHints?: boolean;
-  missingSearchFields?: string[];
-  searchCompletionPercent?: number;
-  searchFieldsTotal?: number;
-  requiredFieldLabels?: Record<string, string>;
+  showRequiredHints?: boolean | undefined;
+  missingSearchFields?: string[] | undefined;
+  searchCompletionPercent?: number | undefined;
+  searchFieldsTotal?: number | undefined;
+  requiredFieldLabels?: Record<string, string> | undefined;
 
   // Main Table Area
   children: ReactNode;
 
   // Loading state for edit hydration
-  loading?: boolean;
+  loading?: boolean | undefined;
 
   // Totals
   totals: {
@@ -39,26 +51,31 @@ interface BaseProductSectionProps {
     netTotal: number;
     grandTotal: number;
   };
-  currencyLabel?: string | null;
-  createError?: string | null;
+  currencyLabel?: string | null | undefined;
+  createError?: string | null | undefined;
 
   // Footer Actions
   backToUrl: string;
-  backToLabel?: string;
+  backToLabel?: string | undefined;
   submitLabel: string;
   submitLoadingText: string;
   isSubmitting: boolean;
   onSubmit: () => void;
+  onSubmitMode?: ((mode: "save-new" | "view" | "close" | "draft") => void) | undefined;
+  isSaved?: boolean | undefined;
+  savedDocNum?: string | number | null | undefined;
+  onDownload?: ((type: "pdf" | "excel" | "word") => void) | undefined;
+  onReset?: (() => void) | undefined;
 
   // Validation Hints (Submit)
-  disabledReason?: string | null;
-  missingMandatoryFields?: string[];
-  mandatoryCompletionPercent?: number;
-  mandatoryFieldsTotal?: number;
-  isEditMode?: boolean;
-  secondaryActions?: ReactNode;
-  showSubmitButton?: boolean;
-  isReadOnly?: boolean;
+  disabledReason?: string | null | undefined;
+  missingMandatoryFields?: string[] | undefined;
+  mandatoryCompletionPercent?: number | undefined;
+  mandatoryFieldsTotal?: number | undefined;
+  isEditMode?: boolean | undefined;
+  secondaryActions?: ReactNode | undefined;
+  showSubmitButton?: boolean | undefined;
+  isReadOnly?: boolean | undefined;
 }
 
 /**
@@ -87,6 +104,11 @@ export function BaseProductSection({
   submitLoadingText,
   isSubmitting,
   onSubmit,
+  onSubmitMode,
+  isSaved = false,
+  savedDocNum = null,
+  onDownload,
+  onReset,
   disabledReason,
   missingMandatoryFields = [],
   mandatoryCompletionPercent = 0,
@@ -102,6 +124,26 @@ export function BaseProductSection({
   const effectiveHideSearch = hideSearch || (isEditMode && !allowSearchInEditMode);
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
   const SubmitIcon = isUpdateAction ? RefreshCw : Save;
+
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false);
+  const downloadDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
+        setDropdownOpen(false);
+      }
+      if (downloadDropdownRef.current && !downloadDropdownRef.current.contains(target)) {
+        setDownloadDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Show skeleton when loading (edit hydration)
   if (loading) {
@@ -343,28 +385,169 @@ export function BaseProductSection({
               ) : null
             ) : null}
             {secondaryActions}
-            {showSubmitButton && (
-              <Button
-                type="button"
-                size="md"
-                variant="outline"
-                isLoading={isSubmitting}
-                loadingText={submitLoadingText}
-                onClick={onSubmit}
-                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <SubmitIcon
-                    className={
-                      isUpdateAction
-                        ? "h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600"
-                        : "h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600"
-                    }
-                  />
-                  {submitLabel}
-                </span>
-              </Button>
+            {isSaved && savedDocNum && onDownload && (
+              <div className="flex items-center gap-2">
+                {onReset && (
+                  <Button
+                    type="button"
+                    size="md"
+                    variant="outline"
+                    onClick={onReset}
+                    className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4 text-blue-600 transition-transform duration-300 group-hover:rotate-180" />
+                    Reset to Default
+                  </Button>
+                )}
+                <div className="relative inline-block" ref={downloadDropdownRef}>
+                  <Button
+                    type="button"
+                    size="md"
+                    variant="outline"
+                    onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
+                    className="group h-11 w-40 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Download className="h-4 w-4 text-blue-600" />
+                      Download
+                    </span>
+                    <ChevronUp
+                      className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
+                      style={{ transform: downloadDropdownOpen ? "rotate(180deg)" : "none" }}
+                    />
+                  </Button>
+
+                  {downloadDropdownOpen && (
+                    <div className="absolute bottom-full left-0 mb-2 z-50 w-40 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDownloadDropdownOpen(false);
+                          onDownload("pdf");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <FileText className="h-4 w-4 text-zinc-400" />
+                        PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDownloadDropdownOpen(false);
+                          onDownload("excel");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <FileSpreadsheet className="h-4 w-4 text-zinc-400" />
+                        Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDownloadDropdownOpen(false);
+                          onDownload("word");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <FileText className="h-4 w-4 text-zinc-400" />
+                        Word
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
+            {showSubmitButton &&
+              (isEditMode ? (
+                <Button
+                  type="button"
+                  size="md"
+                  variant="outline"
+                  isLoading={isSubmitting}
+                  loadingText={submitLoadingText}
+                  onClick={onSubmit}
+                  className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <SubmitIcon
+                      className={
+                        isUpdateAction
+                          ? "h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600"
+                          : "h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600"
+                      }
+                    />
+                    {submitLabel}
+                  </span>
+                </Button>
+              ) : (
+                <div className="relative inline-block" ref={dropdownRef}>
+                  <Button
+                    type="button"
+                    size="md"
+                    variant="outline"
+                    isLoading={isSubmitting}
+                    loadingText="Adding..."
+                    onClick={() => !isSubmitting && setDropdownOpen(!dropdownOpen)}
+                    disabled={Boolean(disabledReason)}
+                    className="group h-11 w-52 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
+                  >
+                    <span>Add</span>
+                    <ChevronUp
+                      className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
+                      style={{ transform: dropdownOpen ? "rotate(180deg)" : "none" }}
+                    />
+                  </Button>
+
+                  {dropdownOpen && (
+                    <div className="absolute bottom-full right-0 mb-2 z-50 w-52 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          onSubmitMode?.("save-new");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <Plus className="h-4 w-4 text-zinc-400" />
+                        Save New
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          onSubmitMode?.("view");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <Eye className="h-4 w-4 text-zinc-400" />
+                        Save View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          onSubmitMode?.("close");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <CheckSquare className="h-4 w-4 text-zinc-400" />
+                        Save Close
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          onSubmitMode?.("draft");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                      >
+                        <FileText className="h-4 w-4 text-zinc-400" />
+                        Save Draft
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
           </div>
         </div>
       </div>

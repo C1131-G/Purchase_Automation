@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
+import { useSearch, useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 
@@ -40,6 +40,7 @@ interface SalesOrderCreateProps {
  */
 export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreateProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const search = useSearch({ strict: false });
   const sourceDocNum =
     mode === "create" ? (search as Record<string, string | undefined>).sourceDocNum : undefined;
@@ -363,8 +364,28 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
           missingMandatoryFields={state.missingMandatoryFields}
           requiredCompletionPercent={state.requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
+          onSubmitMode={state.handleCreateOrder}
+          isSaved={state.isSaved}
+          savedDocNum={state.savedDocNum}
+          onDownload={(type) => {
+            if (state.savedDocNum) {
+              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
+              goeyToast.success(
+                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+              );
+            }
+          }}
+          onReset={() => {
+            state.resetForm();
+            window.scrollTo({ behavior: "smooth", top: 0 });
+            void router.navigate({
+              replace: true,
+              search: {},
+              to: "/sales/create-order",
+            });
+          }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
+          submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
             state.isEditMode && docNum ? (
               <CopyToDropdown

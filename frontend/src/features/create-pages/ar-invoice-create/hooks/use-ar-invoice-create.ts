@@ -35,7 +35,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
   getLookupInlineSearchByMode,
@@ -770,11 +770,102 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           ? null
           : createError;
 
-  function handleCreateOrderAction() {
-    void handleCreateOrder();
+  const resetForm = useCallback(() => {
+    resetARInvoiceCreate();
+    lookups.setNameInput("");
+    lookups.setCodeInput("");
+    lookups.resetWarehouse();
+    lookups.setSalesEmployeeInput("");
+    lookups.setBillToAddress("");
+    lookups.setShipToAddress("");
+    lookups.setNameFocused(false);
+    lookups.setCodeFocused(false);
+    lookups.setSalesEmployeeFocused(false);
+    setActiveDatePicker(null);
+    modals.setModalOpen(false);
+    modals.setModalMode("vendor-name");
+    modals.setModalSearch("");
+    productsHook.setProductRows([]);
+    productsHook.setProductRowDrafts({});
+    setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
+    modals.setProductSearch("");
+    productsHook.setDebouncedProductSearch("");
+    productsHook.setActiveProductRowId(null);
+    modals.setProductPopupOpen(false);
+    modals.setStockPreviewProduct(null);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [resetARInvoiceCreate, lookups, modals, productsHook]);
+
+  const saveActions = useDocumentSaveActions({
+    documentName: "AR Invoice",
+    moduleType: "sales",
+    defaultUrl: "/sales/create-ar-invoice",
+    resetForm,
+    getPayloadString: () => {
+      const validRows = productsHook.productRows.filter(
+        (row) => row.productCode.trim() && row.quantity > 0,
+      );
+      const payload = isEditMode
+        ? {
+            Comments: header.comments.trim() || undefined,
+            DocDueDate: header.docDueDate || undefined,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          }
+        : {
+            Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+            CardCode: (header.vendorCode || lookups.codeInput).trim(),
+            Comments: header.comments.trim() || undefined,
+            DocDate: header.docDate,
+            DocDueDate: header.docDueDate || header.docDate,
+            DocumentLines: validRows.map((row) => {
+              const hasCompleteBaseLink =
+                Number.isFinite(row.baseEntry) &&
+                Number.isFinite(row.baseLine) &&
+                Number.isFinite(row.baseType);
+
+              return {
+                LineNum: row.lineNum,
+                DiscountPercent: row.discountPercent,
+                ItemCode: row.productCode,
+                Quantity: row.quantity,
+                TaxCode: row.vatGroup || undefined,
+                UnitPrice: row.price,
+                UoMCode: row.uomCode || undefined,
+                UoMEntry: row.uomEntry ?? undefined,
+                WarehouseCode:
+                  row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+                ...(hasCompleteBaseLink
+                  ? {
+                      BaseEntry: row.baseEntry,
+                      BaseLine: row.baseLine,
+                      BaseType: row.baseType,
+                    }
+                  : {}),
+              };
+            }),
+            NumAtCard: header.referenceNo.trim() || undefined,
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          };
+      return JSON.stringify(payload);
+    },
+    isEditMode,
+  });
+
+  function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
+    void handleCreateOrder(action);
   }
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      return;
+    }
+
     const nextErrors: ProductSearchFieldError = {
       ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
     };
@@ -872,15 +963,15 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
 
-    const toastHandle = documentActionToast("A/R Invoice", isEditMode ? "update" : "create");
+    saveActions.actionToast.startLoading("AR Invoice", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
       if (isEditMode) {
         const detail = editDetailQuery.data?.data;
         const docEntry = detail?.DocEntry ?? detail?.id;
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update A/R invoice. Document id is missing.");
-          toastHandle.error();
+          setCreateError("Unable to update AR invoice. Document id is missing.");
+          saveActions.actionToast.showError("AR Invoice", "update", "Document ID is missing.");
           return;
         }
         await updateARInvoiceMutation.mutateAsync({ id: docEntry, payload });
@@ -889,7 +980,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const result = await createARInvoiceMutation.mutateAsync({ payload });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
-      toastHandle.success(createdDocNum);
 
       void queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all });
       void Promise.allSettled([
@@ -904,38 +994,17 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           void queryClient.prefetchQuery(arInvoiceQueries.detailByDocNum(currentDocNum));
         }
         lookups.resetWarehouse();
+        await saveActions.handleActionSuccess("update", createdDocNum);
         return;
       }
 
-      resetARInvoiceCreate();
-      lookups.setNameInput("");
-      lookups.setCodeInput("");
-      lookups.resetWarehouse();
-      lookups.setSalesEmployeeInput("");
-      lookups.setBillToAddress("");
-      lookups.setShipToAddress("");
-      lookups.setNameFocused(false);
-      lookups.setCodeFocused(false);
-      lookups.setSalesEmployeeFocused(false);
-      setActiveDatePicker(null);
-      modals.setModalOpen(false);
-      modals.setModalMode("vendor-name");
-      modals.setModalSearch("");
-      productsHook.setProductRows([]);
-      productsHook.setProductRowDrafts({});
-      setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
-      modals.setProductSearch("");
-      productsHook.setDebouncedProductSearch("");
-      productsHook.setActiveProductRowId(null);
-      modals.setProductPopupOpen(false);
-      modals.setStockPreviewProduct(null);
-      setCreateError(null);
+      await saveActions.handleActionSuccess(action, createdDocNum);
     } catch (error) {
-      toastHandle.error();
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        `Failed to ${isEditMode ? "update" : "create"} A/R Invoice. Try again.`,
+        `Failed to ${isEditMode ? "update" : "create"} AR Invoice. Try again.`,
       );
+      saveActions.actionToast.showError("AR Invoice", isEditMode ? "update" : action, errorMessage);
       setCreateError(errorMessage);
     }
   };
@@ -1266,6 +1335,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     docDateContainerRef,
     editDetailQuery,
     handleCreateOrder: handleCreateOrderAction,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
+    resetForm: saveActions.handleReset,
     handleLookupModalSearchSync: (mode: PopupMode, val: string) =>
       isEditMode ? notifyRestricted("Lookup Search") : handleLookupModalSearchSync(mode, val),
     handleSalesEmployeeChange: (val: string) =>

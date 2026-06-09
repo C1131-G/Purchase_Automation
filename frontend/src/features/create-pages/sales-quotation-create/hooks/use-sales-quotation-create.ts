@@ -21,7 +21,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
   getLookupInlineSearchByMode,
@@ -89,6 +89,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
@@ -141,10 +142,92 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
   });
 
+  const resolvedSalesEmployeeCode = useMemo(() => {
+    const byName = lookups.salesEmployees.find(
+      (item) => item.name.trim().toLowerCase() === lookups.salesEmployeeInput.trim().toLowerCase(),
+    );
+    if (byName) {
+      return Number(normalizeCodeForCompare(byName.code));
+    }
+
+    const byCode = lookups.salesEmployees.find(
+      (item) =>
+        normalizeCodeForCompare(item.code) === normalizeCodeForCompare(lookups.salesEmployeeInput),
+    );
+    if (byCode) {
+      return Number(normalizeCodeForCompare(byCode.code));
+    }
+
+    return;
+  }, [lookups.salesEmployeeInput, lookups.salesEmployees]);
+
+  const resetForm = useCallback(() => {
+    resetSQCreate();
+    setSubmitAttempted(false);
+    lookups.setNameInput("");
+    lookups.setCodeInput("");
+    lookups.resetWarehouse();
+    lookups.setSalesEmployeeInput("");
+    lookups.setBillToAddress("");
+    lookups.setShipToAddress("");
+    lookups.setNameFocused(false);
+    lookups.setCodeFocused(false);
+    lookups.setSalesEmployeeFocused(false);
+    setActiveDatePicker(null);
+    modals.setModalOpen(false);
+    modals.setModalMode("vendor-name");
+    modals.setModalSearch("");
+    productsHook.setProductRows([]);
+    productsHook.setProductRowDrafts({});
+    setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
+    modals.setProductSearch("");
+    productsHook.setDebouncedProductSearch("");
+    productsHook.setActiveProductRowId(null);
+    modals.setProductPopupOpen(false);
+    modals.setStockPreviewProduct(null);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [resetSQCreate, lookups, modals, productsHook]);
+
+  const saveActions = useDocumentSaveActions({
+    documentName: "Sales Quotation",
+    moduleType: "sales",
+    defaultUrl: "/sales/create-quotation",
+    resetForm,
+    getPayloadString: () => {
+      const payload = {
+        Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+        CardCode: (header.vendorCode || lookups.codeInput).trim(),
+        Comments: header.comments.trim() || undefined,
+        NumAtCard: header.referenceNo.trim() || undefined,
+        DocDate: header.docDate,
+        DocDueDate: header.docDueDate || header.docDate,
+        DocumentLines: productsHook.productRows
+          .filter((row) => row.productCode.trim() && row.quantity > 0)
+          .map((row) => ({
+            LineNum: row.lineNum,
+            DiscountPercent: row.discountPercent,
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            UnitPrice: row.price,
+            UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
+            VatGroup: row.vatGroup || undefined,
+            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+          })),
+        SalesPersonCode: resolvedSalesEmployeeCode,
+      };
+      return JSON.stringify(payload);
+    },
+    isEditMode,
+  });
+
   useEffect(() => {
     if (!isEditMode) {
       resetSQCreate();
       hydratedDocNumRef.current = null;
+      setHydratedDocNum(null);
     }
     return () => {
       resetSQCreate();
@@ -480,25 +563,6 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     [createMandatoryValues, searchMandatoryFields],
   );
 
-  const resolvedSalesEmployeeCode = useMemo(() => {
-    const byName = lookups.salesEmployees.find(
-      (item) => item.name.trim().toLowerCase() === lookups.salesEmployeeInput.trim().toLowerCase(),
-    );
-    if (byName) {
-      return Number(normalizeCodeForCompare(byName.code));
-    }
-
-    const byCode = lookups.salesEmployees.find(
-      (item) =>
-        normalizeCodeForCompare(item.code) === normalizeCodeForCompare(lookups.salesEmployeeInput),
-    );
-    if (byCode) {
-      return Number(normalizeCodeForCompare(byCode.code));
-    }
-
-    return;
-  }, [lookups.salesEmployeeInput, lookups.salesEmployees]);
-
   const searchRequiredCompletionPercent =
     ((searchMandatoryFields.length - missingSearchMandatoryFields.length) /
       searchMandatoryFields.length) *
@@ -533,11 +597,20 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           ? null
           : createError;
 
-  function handleCreateOrderAction() {
-    void handleCreateOrder();
+  function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
+    void handleCreateOrder(action);
   }
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
+    setSubmitAttempted(true);
     const nextErrors: ProductSearchFieldError = {
       ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
     };
@@ -667,7 +740,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
 
-    const toastHandle = documentActionToast("Sales Quotation", isEditMode ? "update" : "create");
+    saveActions.actionToast.startLoading("Sales Quotation", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
       if (isEditMode) {
@@ -675,7 +748,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         const docEntry = detail?.DocEntry ?? detail?.id;
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update sales quotation. Document id is missing.");
-          toastHandle.error();
+          saveActions.actionToast.showError("Sales Quotation", "update", "Document ID is missing.");
           return;
         }
         await updateSalesQuotationMutation.mutateAsync({
@@ -689,7 +762,6 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
-      toastHandle.success(createdDocNum);
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: salesQuotationKeys.all });
@@ -705,37 +777,18 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           void queryClient.prefetchQuery(salesQuotationQueries.detailByDocNum(currentDocNum));
         }
         lookups.resetWarehouse();
-        return;
       }
 
-      resetSQCreate();
-      lookups.setNameInput("");
-      lookups.setCodeInput("");
-      lookups.resetWarehouse();
-      lookups.setSalesEmployeeInput("");
-      lookups.setBillToAddress("");
-      lookups.setShipToAddress("");
-      lookups.setNameFocused(false);
-      lookups.setCodeFocused(false);
-      lookups.setSalesEmployeeFocused(false);
-      setActiveDatePicker(null);
-      modals.setModalOpen(false);
-      modals.setModalMode("vendor-name");
-      modals.setModalSearch("");
-      productsHook.setProductRows([]);
-      productsHook.setProductRowDrafts({});
-      setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
-      modals.setProductSearch("");
-      productsHook.setDebouncedProductSearch("");
-      productsHook.setActiveProductRowId(null);
-      modals.setProductPopupOpen(false);
-      modals.setStockPreviewProduct(null);
-      setCreateError(null);
+      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
     } catch (error) {
-      toastHandle.error();
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} sales quotation. Try again.`,
+      );
+      saveActions.actionToast.showError(
+        "Sales Quotation",
+        isEditMode ? "update" : action,
+        errorMessage,
       );
       setCreateError(errorMessage);
     }
@@ -780,6 +833,8 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     header,
     isEditHydrated,
     isEditMode,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,
     missingSearchMandatoryFields,
     openPopup: openPopupWithContext,
@@ -787,6 +842,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     popupResults,
     productSearchFieldErrors,
     requiredCompletionPercent,
+    resetForm: saveActions.handleReset,
     searchMandatoryFields,
     searchRequiredCompletionPercent,
     setActiveDatePicker,
@@ -794,6 +850,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     setHeader,
     setProductSearchFieldErrors,
     showEditRestrictedToast: (fieldName = "Field") => notifyRestricted(fieldName),
+    submitAttempted,
     summaryCurrencyLabel,
     today,
     totals,

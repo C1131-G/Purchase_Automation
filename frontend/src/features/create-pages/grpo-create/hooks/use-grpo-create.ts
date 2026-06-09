@@ -22,7 +22,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -206,6 +206,31 @@ export function useGRPOCreate({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<GRPOFieldErrors>(EMPTY_GRPO_FIELD_ERRORS);
   const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
+
+  const resetForm = useCallback(() => {
+    resetGRPOCreate();
+    setSubmitAttempted(false);
+    setVendorNameInput("");
+    setVendorCodeInput("");
+    setBuyerInput("");
+    setProductRowDrafts({});
+    resetWarehouse();
+    setBillToAddress("");
+    setShipToAddress("");
+    setVendorNameFocused(false);
+    setVendorCodeFocused(false);
+    setBuyerFocused(false);
+    setActiveDatePicker(null);
+    setProductPopupOpen(false);
+    setProductSearch("");
+    setDebouncedProductSearch("");
+    setActiveProductRowId(null);
+    setStockPreviewProduct(null);
+    setFieldErrors(EMPTY_GRPO_FIELD_ERRORS);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [resetGRPOCreate, resetWarehouse]);
 
   /* ---------- vendor-change confirmation (copy-from guard) ---------- */
   const [pendingVendorChange, setPendingVendorChange] = useState<{
@@ -1510,7 +1535,111 @@ export function useGRPOCreate({
     return;
   }, [buyerInput, salesEmployees]);
 
-  const handleCreateGRPO = async () => {
+  const getPayloadString = useCallback(() => {
+    const payload = isEditMode
+      ? {
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
+          Comments: header.remarks.trim() || undefined,
+          DocDueDate: header.docDueDate || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
+        }
+      : {
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
+          CardCode: vendorCodeInput.trim(),
+          Comments: header.remarks.trim() || undefined,
+          DocDate: header.docDate || undefined,
+          DocDueDate: header.docDueDate || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
+          DocumentLines: (() => {
+            const lines: Record<string, unknown>[] = [];
+            for (const row of filteredRows) {
+              if (row.quantity <= 0) {
+                continue;
+              }
+              const hasCompleteBaseLink =
+                Number.isFinite(row.baseEntry) &&
+                Number.isFinite(row.baseLine) &&
+                Number.isFinite(row.baseType);
+              if (!hasCompleteBaseLink) {
+                lines.push({
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: row.quantity,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                });
+                continue;
+              }
+              const baseQty = row.baseQuantity ?? 0;
+              const linkedQty = Math.min(row.quantity, baseQty);
+              if (linkedQty > 0) {
+                lines.push({
+                  BaseEntry: row.baseEntry,
+                  BaseLine: row.baseLine,
+                  BaseType: row.baseType,
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: linkedQty,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                });
+              }
+              const excessQty = row.quantity - baseQty;
+              if (excessQty > 0) {
+                lines.push({
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: excessQty,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode: row.warehouseCode || undefined,
+                });
+              }
+            }
+            return lines;
+          })(),
+          SalesPersonCode: resolvedSalesEmployeeCode,
+        };
+    return JSON.stringify(payload);
+  }, [
+    isEditMode,
+    billToAddress,
+    shipToAddress,
+    header.remarks,
+    header.docDueDate,
+    header.docDate,
+    header.referenceNo,
+    vendorCodeInput,
+    filteredRows,
+    resolvedSalesEmployeeCode,
+  ]);
+
+  const saveActions = useDocumentSaveActions({
+    documentName: "GRPO",
+    moduleType: "purchase",
+    defaultUrl: "/purchase/create-grpo",
+    resetForm,
+    getPayloadString,
+    isEditMode,
+  });
+
+  const handleCreateGRPO = async (action: "save-new" | "view" | "close" | "draft" = "save-new") => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
     setSubmitAttempted(true);
     if (!isEditMode && missingMandatoryFields.length > 0) {
       const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS };
@@ -1552,92 +1681,9 @@ export function useGRPOCreate({
     }
 
     setCreateError(null);
-    const payload = isEditMode
-      ? {
-          Address: billToAddress.trim() || undefined,
-          Address2: shipToAddress.trim() || undefined,
-          Comments: header.remarks.trim() || undefined,
-          DocDueDate: header.docDueDate || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-        }
-      : {
-          Address: billToAddress.trim() || undefined,
-          Address2: shipToAddress.trim() || undefined,
-          CardCode: vendorCodeInput.trim(),
-          Comments: header.remarks.trim() || undefined,
-          DocDate: header.docDate || undefined,
-          DocDueDate: header.docDueDate || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          DocumentLines: (() => {
-            const lines: Record<string, unknown>[] = [];
-            for (const row of filteredRows) {
-              // Guard: never send zero-quantity lines
-              if (row.quantity <= 0) {
-                continue;
-              }
+    const payload = JSON.parse(getPayloadString());
 
-              const hasCompleteBaseLink =
-                Number.isFinite(row.baseEntry) &&
-                Number.isFinite(row.baseLine) &&
-                Number.isFinite(row.baseType);
-
-              // Manual rows (no base link): send single line with actual quantity
-              if (!hasCompleteBaseLink) {
-                lines.push({
-                  DiscountPercent: row.discountPercent,
-                  ItemCode: row.productCode,
-                  Quantity: row.quantity,
-                  UnitPrice: row.price,
-                  UoMCode: row.uomCode || undefined,
-                  UoMEntry: row.uomEntry ?? undefined,
-                  VatGroup: row.vatGroup || undefined,
-                  WarehouseCode: row.warehouseCode || undefined,
-                });
-                continue;
-              }
-
-              // Base-linked rows: split into base qty and excess portions
-              const baseQty = row.baseQuantity ?? 0;
-              const linkedQty = Math.min(row.quantity, baseQty);
-
-              // Only push base-linked portion if quantity is positive
-              if (linkedQty > 0) {
-                lines.push({
-                  BaseEntry: row.baseEntry,
-                  BaseLine: row.baseLine,
-                  BaseType: row.baseType,
-                  DiscountPercent: row.discountPercent,
-                  ItemCode: row.productCode,
-                  Quantity: linkedQty,
-                  UnitPrice: row.price,
-                  UoMCode: row.uomCode || undefined,
-                  UoMEntry: row.uomEntry ?? undefined,
-                  VatGroup: row.vatGroup || undefined,
-                  WarehouseCode: row.warehouseCode || undefined,
-                });
-              }
-
-              // Excess portion: manual line without base linkage
-              const excessQty = row.quantity - baseQty;
-              if (excessQty > 0) {
-                lines.push({
-                  DiscountPercent: row.discountPercent,
-                  ItemCode: row.productCode,
-                  Quantity: excessQty,
-                  UnitPrice: row.price,
-                  UoMCode: row.uomCode || undefined,
-                  UoMEntry: row.uomEntry ?? undefined,
-                  VatGroup: row.vatGroup || undefined,
-                  WarehouseCode: row.warehouseCode || undefined,
-                });
-              }
-            }
-            return lines;
-          })(),
-          SalesPersonCode: resolvedSalesEmployeeCode,
-        };
-
-    const toastHandle = documentActionToast("GRPO", isEditMode ? "update" : "create");
+    saveActions.actionToast.startLoading("GRPO", isEditMode ? "update" : action);
     try {
       let createdDocNum: number | undefined;
       if (isEditMode) {
@@ -1645,18 +1691,20 @@ export function useGRPOCreate({
         const id = detail?.id ?? detail?.DocEntry;
         if (id === undefined || id === null) {
           setCreateError("Unable to update GRPO. Document id is missing.");
-          toastHandle.error();
+          saveActions.actionToast.showError("GRPO", "update", "Document ID is missing.");
           return;
         }
         await updateMutation.mutateAsync({
           id,
           payload,
         });
+        createdDocNum = detail?.DocNum;
       } else {
         const result = await createMutation.mutateAsync({ payload });
         createdDocNum = result?.data?.DocNum;
       }
-      toastHandle.success(createdDocNum);
+
+      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
 
       if (isEditMode) {
         const currentDocNum = (docNum ?? "").trim();
@@ -1669,31 +1717,7 @@ export function useGRPOCreate({
         return;
       }
 
-      resetGRPOCreate();
-      setSubmitAttempted(false);
-      setVendorNameInput("");
-      setVendorCodeInput("");
-      setBuyerInput("");
-      setProductRowDrafts({});
-      resetWarehouse();
-      setBillToAddress("");
-      setShipToAddress("");
-      setVendorNameFocused(false);
-      setVendorCodeFocused(false);
-      setBuyerFocused(false);
-      setActiveDatePicker(null);
-      setProductPopupOpen(false);
-      setProductSearch("");
-      setDebouncedProductSearch("");
-      setActiveProductRowId(null);
-      setStockPreviewProduct(null);
-      setFieldErrors(EMPTY_GRPO_FIELD_ERRORS);
-      setCreateError(null);
-      hydratedDocNumRef.current = null;
-      setHydratedDocNum(null);
-
       // Invalidate the specific source document detail queries used by copy-from hydration
-      // so the next GRPO copy reads fresh OpenQty / status from the backend
       if (sourceDocNum) {
         if (sourceDocType === "PurchaseOrder") {
           sourceDocNum.split(",").forEach((num) => {
@@ -1734,11 +1758,11 @@ export function useGRPOCreate({
         onCreateSuccess?.();
       }
     } catch (error) {
-      toastHandle.error();
       const errorMsg = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} GRPO. Try again.`,
       );
+      saveActions.actionToast.showError("GRPO", isEditMode ? "update" : action, errorMsg);
       setCreateError(errorMsg);
     }
   };
@@ -1855,6 +1879,9 @@ export function useGRPOCreate({
     handleCreateOrder: handleCreateGRPO,
     submitAttempted,
     warehouseErrors,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
+    resetForm: saveActions.handleReset,
 
     setDocDate: (val: string) =>
       isEditMode ? notifyRestricted("Document Date") : setHeader({ docDate: val }),

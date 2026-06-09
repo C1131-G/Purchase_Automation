@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -21,6 +20,7 @@ import type {
   PopupMode,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
 import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
@@ -41,7 +41,6 @@ export function useArCreditMemoCreate({
   sourceDocType,
 }: UseArCreditMemoCreateProps = {}) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const [header, setHeaderState] = useState({
     billToAddress: "",
@@ -61,6 +60,7 @@ export function useArCreditMemoCreate({
   );
 
   const [createError, setCreateError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [missingSearchMandatoryFields] = useState<ProductSearchFieldError>(
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
@@ -303,6 +303,79 @@ export function useArCreditMemoCreate({
     setProductPopupOpen,
     setProductSearch,
     stockPreviewProductCode: stockPreviewProduct?.code,
+  });
+
+  const resetForm = useCallback(() => {
+    setHeader({
+      billToAddress: "",
+      comments: "",
+      docDate: new Date().toISOString().split("T")[0]!,
+      docDueDate: new Date().toISOString().split("T")[0]!,
+      referenceNo: "",
+      shipToAddress: "",
+      vendorCode: "",
+      vendorName: "",
+      warehouseCode: "",
+    });
+    setNameInput("");
+    setCodeInput("");
+    setSalesEmployeeInput("");
+    setWarehouseInput("");
+    setNameFocused(false);
+    setCodeFocused(false);
+    setSalesEmployeeFocused(false);
+    setWarehouseFocused(false);
+    setModalOpen(false);
+    setModalMode("vendor-name");
+    setModalSearch("");
+    setProductPopupOpen(false);
+    setProductSearch("");
+    setStockPreviewProduct(null);
+    setCreateError(null);
+    setSubmitAttempted(false);
+    hydratedDocNumRef.current = null;
+    productsHook.setProductRows([]);
+  }, [setHeader, productsHook]);
+
+  const saveActions = useDocumentSaveActions({
+    documentName: "AR Credit Memo",
+    moduleType: "sales",
+    defaultUrl: "/sales/ar-credit-memo/create",
+    resetForm,
+    getPayloadString: () => {
+      const selectedRows = productsHook.productRows.filter((r) => r.selected);
+      const payload = isEditMode
+        ? {
+            Comments: header.comments || undefined,
+            DocDueDate: header.docDueDate || undefined,
+            NumAtCard: header.referenceNo || undefined,
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          }
+        : {
+            CardCode: header.vendorCode,
+            Comments: header.comments,
+            DocDate: header.docDate,
+            DocDueDate: header.docDueDate,
+            DocumentLines: selectedRows.map((row) => ({
+              BaseEntry: row.baseEntry,
+              BaseLine: row.baseLine,
+              BaseType: row.baseType,
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              Quantity: row.quantity,
+              U_ReturnReason: row.returnReason || "",
+              UnitPrice: row.price,
+              UoMCode: row.uomCode,
+              UoMEntry: row.uomEntry,
+              VatGroup: row.vatGroup,
+              WarehouseCode: row.warehouseCode || header.warehouseCode.trim() || undefined,
+            })),
+            NumAtCard: header.referenceNo,
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          };
+      return JSON.stringify(payload);
+    },
+    isEditMode,
   });
 
   useEffect(() => {
@@ -555,7 +628,16 @@ export function useArCreditMemoCreate({
     return Math.round((completed / fields.length) * 100);
   }, [header.vendorCode, header.docDueDate, selectedRows.length]);
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
+    setSubmitAttempted(true);
     if (missingMandatoryFields.length > 0) {
       setCreateError(missingMandatoryFields[0] || "Please fill all required fields.");
       return;
@@ -597,22 +679,19 @@ export function useArCreditMemoCreate({
         SalesPersonCode: currentSalesPersonCode,
       };
 
-      const toastHandle = documentActionToast("A/R Credit Memo", "update");
+      saveActions.actionToast.startLoading("AR Credit Memo", "update");
       try {
         const docEntry = detail?.DocEntry ?? detail?.id;
         await updateArCreditMemoMutation.mutateAsync({
           id: docEntry as string | number,
           payload,
         });
-        toastHandle.success();
-        resetWarehouse();
-        void navigate({
-          search: { limit: 10, page: 1 },
-          to: "/sales/ar-credit-memo",
-        } as never);
+        const createdDocNum = detail?.DocNum as string | number | undefined;
+        await saveActions.handleActionSuccess("update", createdDocNum);
       } catch (_error) {
-        toastHandle.error();
-        setCreateError((_error as Error).message || "Failed to update A/R Credit Memo");
+        const errorMessage = (_error as Error).message || "Failed to update AR Credit Memo";
+        saveActions.actionToast.showError("AR Credit Memo", "update", errorMessage);
+        setCreateError(errorMessage);
       }
       return;
     }
@@ -660,20 +739,17 @@ export function useArCreditMemoCreate({
       SalesPersonCode: resolvedSalesEmployeeCode,
     };
 
-    const toastHandle = documentActionToast("A/R Credit Memo", "create");
+    saveActions.actionToast.startLoading("AR Credit Memo", action);
     try {
-      await createArCreditMemoMutation.mutateAsync(payload);
+      const result = await createArCreditMemoMutation.mutateAsync(payload);
       // Invalidate AR Invoice cache so that remaining quantities are updated immediately
       void queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
-      toastHandle.success();
-      resetWarehouse();
-      void navigate({
-        search: { limit: 10, page: 1 },
-        to: "/sales/ar-credit-memo",
-      } as never);
+      const createdDocNum = (result as { data?: { DocNum?: number | string } })?.data?.DocNum;
+      await saveActions.handleActionSuccess(action, createdDocNum);
     } catch (_error) {
-      toastHandle.error();
-      setCreateError((_error as Error).message || "Failed to create A/R Credit Memo");
+      const errorMessage = (_error as Error).message || "Failed to create AR Credit Memo";
+      saveActions.actionToast.showError("AR Credit Memo", action, errorMessage);
+      setCreateError(errorMessage);
     }
   };
 
@@ -742,6 +818,7 @@ export function useArCreditMemoCreate({
     totals,
     summaryCurrencyLabel: productsHook.productRows[0]?.currency || "FJD",
     createError,
+    submitAttempted,
     createDisabledReason: missingMandatoryFields.length > 0 ? missingMandatoryFields[0] : null,
     createArCreditMemoMutation,
     updateArCreditMemoMutation,
@@ -766,5 +843,8 @@ export function useArCreditMemoCreate({
             ?.id ?? (editDetailQuery.data as Record<string, unknown>)?.id,
         )
       : Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id),
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
+    resetForm: saveActions.handleReset,
   };
 }

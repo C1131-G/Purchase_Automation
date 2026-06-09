@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import type { MouseEvent } from "react";
 
@@ -32,6 +33,7 @@ interface SalesQuotationCreateProps {
  */
 export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotationCreateProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const state = useSalesQuotationCreate(docNum ? { docNum, mode } : { mode });
 
   const pageTitle = state.isEditMode ? "Update Sales Quotation" : "Create Sales Quotation";
@@ -254,8 +256,28 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
           missingMandatoryFields={state.missingMandatoryFields}
           requiredCompletionPercent={state.requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
+          onSubmitMode={state.handleCreateOrder}
+          isSaved={state.isSaved}
+          savedDocNum={state.savedDocNum}
+          onDownload={(type) => {
+            if (state.savedDocNum) {
+              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
+              goeyToast.success(
+                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+              );
+            }
+          }}
+          onReset={() => {
+            state.resetForm();
+            window.scrollTo({ behavior: "smooth", top: 0 });
+            void router.navigate({
+              replace: true,
+              search: {},
+              to: "/sales/create-quotation",
+            });
+          }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
+          submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
             state.isEditMode && docNum ? (
               <CopyToDropdown

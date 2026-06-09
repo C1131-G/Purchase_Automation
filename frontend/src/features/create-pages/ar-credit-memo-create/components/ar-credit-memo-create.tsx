@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -50,6 +51,7 @@ export function ArCreditMemoCreate({
   sourceDocType,
 }: ArCreditMemoCreateProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [sourceCleared, setSourceCleared] = useState(false);
 
@@ -503,8 +505,28 @@ export function ArCreditMemoCreate({
           missingMandatoryFields={missingMandatoryFields}
           requiredCompletionPercent={requiredCompletionPercent}
           handleCreateOrder={handleCreateOrder}
+          onSubmitMode={handleCreateOrder}
+          isSaved={state.isSaved}
+          savedDocNum={state.savedDocNum}
+          onDownload={(type) => {
+            if (state.savedDocNum) {
+              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
+              goeyToast.success(
+                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+              );
+            }
+          }}
+          onReset={() => {
+            state.resetForm();
+            window.scrollTo({ behavior: "smooth", top: 0 });
+            void router.navigate({
+              replace: true,
+              search: {},
+              to: "/sales/ar-credit-memo/create",
+            } as any);
+          }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
+          submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
         />

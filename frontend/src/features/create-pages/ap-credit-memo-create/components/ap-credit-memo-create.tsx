@@ -1,4 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
+import { goeyToast } from "goey-toast";
 import { useState } from "react";
 import type { MouseEvent } from "react";
 
@@ -318,6 +319,27 @@ export function APCreditMemoCreate({
         onSetProductRowDraft={state.setProductRowDraft}
         onClearProductRowDraft={state.clearProductRowDraft}
         onSubmit={state.handleCreateOrder}
+        onSubmitMode={state.handleCreateOrder}
+        isSaved={state.isSaved}
+        savedDocNum={state.savedDocNum}
+        onReset={() => {
+          state.resetForm();
+          window.scrollTo({ behavior: "smooth", top: 0 });
+          void router.navigate({
+            replace: true,
+            search: {},
+            to: "/purchase/create-ap-credit-memo",
+          });
+        }}
+        onDownload={(type) => {
+          if (state.savedDocNum) {
+            const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
+            goeyToast.success(
+              `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+            );
+          }
+        }}
+        submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}

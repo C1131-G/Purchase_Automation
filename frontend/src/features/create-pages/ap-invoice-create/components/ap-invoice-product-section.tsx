@@ -39,7 +39,7 @@ interface APInvoiceProductSectionProps {
     rowId: string,
     field: "quantity" | "discountPercent" | "discountAmount",
   ) => void;
-  onSubmit: () => void;
+  onSubmit: (mode?: "save-new" | "view" | "close" | "draft") => void;
   warehouses: CreateLookupOption[];
   warehousesLoading: boolean;
   onEditRestrictedClick?: (fieldName: string) => void;
@@ -47,6 +47,13 @@ interface APInvoiceProductSectionProps {
   isClosed?: boolean;
   headerDiscountPercent?: number;
   warehouseErrors?: Record<string, string>;
+  onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  isSaved?: boolean;
+  savedDocNum?: string | number | null;
+  onDownload?: (type: "pdf" | "excel" | "word") => void;
+  onReset?: () => void;
+  submitLabel?: string;
+  submitLoadingText?: string;
 }
 
 /**
@@ -81,6 +88,13 @@ export function APInvoiceProductSection({
   isClosed = false,
   headerDiscountPercent = 0,
   warehouseErrors,
+  onSubmitMode,
+  isSaved = false,
+  savedDocNum = null,
+  onDownload,
+  onReset,
+  submitLabel,
+  submitLoadingText,
 }: APInvoiceProductSectionProps) {
   const totals = calculateOrderTotals(rows, { headerDiscountPercent });
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null;
@@ -107,10 +121,15 @@ export function APInvoiceProductSection({
       createError={createError}
       backToUrl="/purchase/ap-invoice"
       backToLabel="Back to Table"
-      submitLabel={isEditMode ? "Update" : "Create"}
-      submitLoadingText={isEditMode ? "Updating..." : "Creating..."}
+      submitLabel={submitLabel ?? (isEditMode ? "Update" : "Create")}
+      submitLoadingText={submitLoadingText ?? (isEditMode ? "Updating..." : "Adding...")}
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}
+      onSubmitMode={onSubmitMode}
+      isSaved={isSaved}
+      savedDocNum={savedDocNum}
+      onDownload={onDownload}
+      onReset={onReset}
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}

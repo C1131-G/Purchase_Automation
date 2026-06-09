@@ -46,10 +46,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         {isLoading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <span className="inline-flex items-center justify-center gap-1.5">
+            <Loader2 className="h-4 w-4 animate-spin" />
             {loadingText || children}
-          </>
+          </span>
         ) : (
           children
         )}

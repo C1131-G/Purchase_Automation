@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
+import { useRouter, useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
@@ -42,6 +42,7 @@ interface ARInvoiceCreateProps {
  */
 export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const search = useSearch({ strict: false });
   const sourceDocNum = mode === "create" ? search.sourceDocNum : undefined;
   const rawSourceDocType = mode === "create" ? search.sourceDocType : undefined;
@@ -430,8 +431,28 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
           missingMandatoryFields={state.missingMandatoryFields}
           requiredCompletionPercent={state.requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
+          onSubmitMode={state.handleCreateOrder}
+          isSaved={state.isSaved}
+          savedDocNum={state.savedDocNum}
+          onDownload={(type) => {
+            if (state.savedDocNum) {
+              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
+              goeyToast.success(
+                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+              );
+            }
+          }}
+          onReset={() => {
+            state.resetForm();
+            window.scrollTo({ behavior: "smooth", top: 0 });
+            void router.navigate({
+              replace: true,
+              search: {},
+              to: "/sales/create-ar-invoice",
+            });
+          }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
+          submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           onEditRestrictedClick={state.showEditRestrictedToast}
           warehouses={state.warehouses}
           warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}

@@ -32,7 +32,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -1092,6 +1092,121 @@ export function useAPInvoiceCreate({
     return undefined;
   }, [buyerInput, salesEmployees]);
 
+  const resetForm = useCallback(() => {
+    resetAPInvoiceCreate();
+    setVendorNameInput("");
+    setVendorCodeInput("");
+    setBuyerInput("");
+    resetWarehouse();
+    setBillToAddress("");
+    setShipToAddress("");
+    setVendorNameFocused(false);
+    setVendorCodeFocused(false);
+    setBuyerFocused(false);
+    setActiveDatePicker(null);
+    setModalOpen(false);
+    setModalMode("vendor-name");
+    setModalSearch("");
+    setProductSearch("");
+    setDebouncedProductSearch("");
+    setActiveProductRowId(null);
+    setProductPopupOpen(false);
+    setProductRowDrafts({});
+    setStockPreviewProduct(null);
+    setFieldErrors(EMPTY_AP_INVOICE_FIELD_ERRORS);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [resetAPInvoiceCreate, resetWarehouse, setBillToAddress, setShipToAddress]);
+
+  const saveActions = useDocumentSaveActions({
+    documentName: "AP Invoice",
+    moduleType: "purchase",
+    defaultUrl: "/purchase/create-ap-invoice",
+    resetForm,
+    getPayloadString: () => {
+      const buildDocumentLines = () => {
+        const lines = [];
+        for (const row of filteredRows) {
+          if (row.quantity <= 0) {
+            continue;
+          }
+
+          const hasCompleteBaseLink =
+            Number.isFinite(row.baseEntry) &&
+            Number.isFinite(row.baseLine) &&
+            Number.isFinite(row.baseType);
+
+          if (!hasCompleteBaseLink) {
+            lines.push({
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              Quantity: row.quantity,
+              UnitPrice: row.price,
+              UoMCode: row.uomCode || undefined,
+              VatGroup: row.vatGroup || undefined,
+              WarehouseCode: row.warehouseCode || undefined,
+            });
+            continue;
+          }
+
+          const baseQty = row.baseQuantity ?? 0;
+          const linkedQty = Math.min(row.quantity, baseQty);
+
+          if (linkedQty > 0) {
+            lines.push({
+              BaseEntry: row.baseEntry,
+              BaseLine: row.baseLine,
+              BaseType: row.baseType,
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              Quantity: linkedQty,
+              UnitPrice: row.price,
+              UoMCode: row.uomCode || undefined,
+              VatGroup: row.vatGroup || undefined,
+              WarehouseCode: row.warehouseCode || undefined,
+            });
+          }
+
+          const excessQty = row.quantity - baseQty;
+          if (excessQty > 0) {
+            lines.push({
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              Quantity: excessQty,
+              UnitPrice: row.price,
+              UoMCode: row.uomCode || undefined,
+              VatGroup: row.vatGroup || undefined,
+              WarehouseCode: row.warehouseCode || undefined,
+            });
+          }
+        }
+        return lines;
+      };
+
+      const payload = isEditMode
+        ? {
+            Comments: header.remarks.trim() || undefined,
+            DocDueDate: header.docDueDate || undefined,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            SalesPersonCode: resolvedBuyerCode,
+          }
+        : {
+            Address: billToAddress.trim() || undefined,
+            Address2: shipToAddress.trim() || undefined,
+            CardCode: vendorCodeInput.trim(),
+            ...(header.docDate ? { DocDate: header.docDate } : {}),
+            ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
+            ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
+            ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
+            DocumentLines: buildDocumentLines(),
+            SalesPersonCode: resolvedBuyerCode,
+          };
+      return JSON.stringify(payload);
+    },
+    isEditMode,
+  });
+
   const applyProductsToRows = (products: ProductLookupItem[]) => {
     products.forEach((product) => {
       void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(product.code));
@@ -1133,7 +1248,15 @@ export function useAPInvoiceCreate({
     setProductSearch("");
   };
 
-  const handleCreateAPInvoice = async () => {
+  const handleCreateAPInvoice = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
     setSubmitAttempted(true);
     if (!isEditMode) {
       const missing = AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
@@ -1162,7 +1285,7 @@ export function useAPInvoiceCreate({
       return;
     }
 
-    const toastHandle = documentActionToast("A/P Invoice", isEditMode ? "update" : "create");
+    saveActions.actionToast.startLoading("AP Invoice", isEditMode ? "update" : action);
     try {
       let createdDocNum: number | undefined;
       if (isEditMode) {
@@ -1191,6 +1314,7 @@ export function useAPInvoiceCreate({
           const noChangeMessage = "Change at least one field before update.";
           setCreateError(noChangeMessage);
           goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+          saveActions.actionToast.showError("AP Invoice", "update", noChangeMessage);
           return;
         }
 
@@ -1283,36 +1407,9 @@ export function useAPInvoiceCreate({
         });
         createdDocNum = result?.data?.DocNum;
       }
-      toastHandle.success(createdDocNum);
-      if (isEditMode) {
-        resetWarehouse();
-      }
-      if (!isEditMode) {
-        resetAPInvoiceCreate();
-        setVendorNameInput("");
-        setVendorCodeInput("");
-        setBuyerInput("");
-        resetWarehouse();
-        setBillToAddress("");
-        setShipToAddress("");
-        setVendorNameFocused(false);
-        setVendorCodeFocused(false);
-        setBuyerFocused(false);
-        setActiveDatePicker(null);
-        setModalOpen(false);
-        setModalMode("vendor-name");
-        setModalSearch("");
-        setProductSearch("");
-        setDebouncedProductSearch("");
-        setActiveProductRowId(null);
-        setProductPopupOpen(false);
-        setProductRowDrafts({});
-        setStockPreviewProduct(null);
-        setFieldErrors(EMPTY_AP_INVOICE_FIELD_ERRORS);
-        setCreateError(null);
-        hydratedDocNumRef.current = null;
-        setHydratedDocNum(null);
 
+      // Proactive Cache Revalidation / Invalidation
+      if (!isEditMode) {
         // Invalidate the specific source document detail queries used by copy-from hydration
         // so the next AP Invoice copy reads fresh OpenQty / status from the backend
         if (sourceDocNum) {
@@ -1349,19 +1446,23 @@ export function useAPInvoiceCreate({
           }
         }
       }
+
+      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
+      if (isEditMode) {
+        resetWarehouse();
+      }
       setSubmitAttempted(false);
 
-      // Scroll to top after successful save
-      window.scrollTo({ behavior: "smooth", top: 0 });
-
-      // Notify parent to navigate away after successful create
       if (!isEditMode) {
         onCreateSuccess?.();
       }
     } catch (error) {
-      toastHandle.error();
-      const errorMsg = normalizeCreateOrderErrorMessage(error, "Failed to process A/P Invoice.");
-      setCreateError(errorMsg);
+      const errorMessage = normalizeCreateOrderErrorMessage(
+        error,
+        "Failed to process A/P Invoice.",
+      );
+      saveActions.actionToast.showError("AP Invoice", isEditMode ? "update" : action, errorMessage);
+      setCreateError(errorMessage);
     }
   };
 
@@ -1568,6 +1669,9 @@ export function useAPInvoiceCreate({
     handleCreateOrder: handleCreateAPInvoice,
     submitAttempted,
     warehouseErrors,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
+    resetForm: saveActions.handleReset,
 
     setDocDate: (val: string) => setHeader({ docDate: val }),
     setDocDueDate: (val: string) =>

@@ -20,7 +20,7 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -190,6 +190,45 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       lookups.resetWarehouse();
     };
   }, [isEditMode, resetPOCreate, lookups.resetWarehouse]);
+
+  const resetForm = useCallback(() => {
+    resetPOCreate();
+    setSubmitAttempted(false);
+    lookups.setNameInput("");
+    lookups.setCodeInput("");
+    lookups.resetWarehouse();
+    lookups.setSalesEmployeeInput("");
+    lookups.setBillToAddress("");
+    lookups.setShipToAddress("");
+    lookups.setNameFocused(false);
+    lookups.setCodeFocused(false);
+    lookups.setSalesEmployeeFocused(false);
+    setActiveDatePicker(null);
+    modals.setModalOpen(false);
+    modals.setModalMode("vendor-name");
+    modals.setModalSearch("");
+    productsHook.setProductRows([]);
+    productsHook.setProductRowDrafts({});
+    setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
+    modals.setProductSearch("");
+    productsHook.setDebouncedProductSearch("");
+    productsHook.setActiveProductRowId(null);
+    modals.setProductPopupOpen(false);
+    modals.setStockPreviewProduct(null);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [
+    resetPOCreate,
+    lookups,
+    modals,
+    productsHook,
+    setSubmitAttempted,
+    setActiveDatePicker,
+    setProductSearchFieldErrors,
+    setCreateError,
+    setHydratedDocNum,
+  ]);
 
   const editDetailQuery = useQuery({
     ...purchaseOrderQueries.detailByDocNum(editDocNum),
@@ -784,7 +823,124 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     return errors;
   }, [submitAttempted, productsHook.productRows]);
 
-  const handleCreateOrder = async () => {
+  const saveActions = useDocumentSaveActions({
+    documentName: "Purchase Order",
+    moduleType: "purchase",
+    defaultUrl: "/purchase/create-order",
+    resetForm,
+    getPayloadString: () => {
+      const validRows = productsHook.productRows.filter(
+        (row) => row.productCode.trim() && row.quantity > 0,
+      );
+      const payload = isEditMode
+        ? {
+            Address: lookups.billToAddress.trim() || undefined,
+            Address2: lookups.shipToAddress.trim() || undefined,
+            Comments: header.comments.trim() || undefined,
+            DocDate: header.docDate,
+            DocDueDate: header.docDueDate || header.docDate,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            DocumentLines: validRows.map((row) => ({
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              LineNum: row.lineNum,
+              Quantity: row.quantity,
+              UnitPrice: row.price,
+              UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
+              VatGroup: row.vatGroup || undefined,
+              WarehouseCode: row.warehouseCode || undefined,
+              BaseType: typeof row.baseType === "number" ? row.baseType : undefined,
+              BaseEntry: typeof row.baseEntry === "number" ? row.baseEntry : undefined,
+              BaseLine: typeof row.baseLine === "number" ? row.baseLine : undefined,
+            })),
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          }
+        : {
+            Address: lookups.billToAddress.trim() || undefined,
+            Address2: lookups.shipToAddress.trim() || undefined,
+            CardCode: (header.vendorCode || lookups.codeInput).trim(),
+            Comments: header.comments.trim() || undefined,
+            DocDate: header.docDate,
+            DocDueDate: header.docDueDate || header.docDate,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            DocumentLines: (() => {
+              const lines: Record<string, unknown>[] = [];
+              for (const row of validRows) {
+                const hasCompleteBaseLink =
+                  Number.isFinite(row.baseEntry) &&
+                  Number.isFinite(row.baseLine) &&
+                  Number.isFinite(row.baseType);
+
+                if (!hasCompleteBaseLink) {
+                  lines.push({
+                    DiscountPercent: row.discountPercent,
+                    ItemCode: row.productCode,
+                    Quantity: row.quantity,
+                    UnitPrice: row.price,
+                    UoMCode: row.uomCode || undefined,
+                    UoMEntry: row.uomEntry ?? undefined,
+                    VatGroup: row.vatGroup || undefined,
+                    WarehouseCode: row.warehouseCode || undefined,
+                  });
+                  continue;
+                }
+
+                const baseQty = row.baseQuantity ?? 0;
+                const linkedQty = Math.min(row.quantity, baseQty);
+
+                if (linkedQty > 0) {
+                  lines.push({
+                    BaseEntry: row.baseEntry,
+                    BaseLine: row.baseLine,
+                    BaseType: row.baseType,
+                    DiscountPercent: row.discountPercent,
+                    ItemCode: row.productCode,
+                    Quantity: linkedQty,
+                    UnitPrice: row.price,
+                    UoMCode: row.uomCode || undefined,
+                    UoMEntry: row.uomEntry ?? undefined,
+                    VatGroup: row.vatGroup || undefined,
+                    WarehouseCode: row.warehouseCode || undefined,
+                  });
+                }
+
+                const excessQty = row.quantity - baseQty;
+                if (excessQty > 0) {
+                  lines.push({
+                    DiscountPercent: row.discountPercent,
+                    ItemCode: row.productCode,
+                    Quantity: excessQty,
+                    UnitPrice: row.price,
+                    UoMCode: row.uomCode || undefined,
+                    UoMEntry: row.uomEntry ?? undefined,
+                    VatGroup: row.vatGroup || undefined,
+                    WarehouseCode: row.warehouseCode || undefined,
+                  });
+                }
+              }
+              return lines;
+            })(),
+            SalesPersonCode: resolvedSalesEmployeeCode,
+          };
+      return JSON.stringify(payload);
+    },
+    isEditMode,
+  });
+
+  function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
+    void handleCreateOrder(action);
+  }
+
+  const handleCreateOrder = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
     setSubmitAttempted(true);
     if (!isEditMode) {
       const nextErrors: ProductSearchFieldError = {
@@ -986,7 +1142,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
 
-    const toastHandle = documentActionToast("Purchase Order", isEditMode ? "update" : "create");
+    saveActions.actionToast.startLoading("Purchase Order", isEditMode ? "update" : action);
 
     try {
       let createdDocNum: number | undefined;
@@ -995,20 +1151,20 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         const docEntry = detail?.DocEntry ?? detail?.id;
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update purchase order. Document id is missing.");
-          toastHandle.error();
+          saveActions.actionToast.showError("Purchase Order", "update", "Document id is missing.");
           return;
         }
         await updatePurchaseOrderMutation.mutateAsync({
           id: docEntry,
           payload,
         });
+        createdDocNum = detail?.DocNum;
       } else {
         const result = await createPurchaseOrderMutation.mutateAsync({
           payload,
         });
         createdDocNum = result?.data?.DocNum;
       }
-      toastHandle.success(createdDocNum);
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
@@ -1031,58 +1187,25 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
       }
 
+      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
+
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? "").trim();
         if (currentDocNum) {
           void queryClient.prefetchQuery(purchaseOrderQueries.detailByDocNum(currentDocNum));
         }
-        window.scrollTo({ behavior: "smooth", top: 0 });
-        setSubmitAttempted(false);
-        lookups.resetWarehouse();
-        return;
-      }
-
-      resetPOCreate();
-      setSubmitAttempted(false);
-      lookups.setNameInput("");
-      lookups.setCodeInput("");
-      lookups.resetWarehouse();
-      lookups.setSalesEmployeeInput("");
-      lookups.setBillToAddress("");
-      lookups.setShipToAddress("");
-      lookups.setNameFocused(false);
-      lookups.setCodeFocused(false);
-      lookups.setSalesEmployeeFocused(false);
-      setActiveDatePicker(null);
-      modals.setModalOpen(false);
-      modals.setModalMode("vendor-name");
-      modals.setModalSearch("");
-      productsHook.setProductRows([]);
-      productsHook.setProductRowDrafts({});
-      setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
-      modals.setProductSearch("");
-      productsHook.setDebouncedProductSearch("");
-      productsHook.setActiveProductRowId(null);
-      modals.setProductPopupOpen(false);
-      modals.setStockPreviewProduct(null);
-      setCreateError(null);
-      hydratedDocNumRef.current = null;
-      setHydratedDocNum(null);
-
-      // Scroll to top after successful save
-      window.scrollTo({ behavior: "smooth", top: 0 });
-
-      // Notify parent to navigate away after successful create
-      if (!isEditMode) {
-        options?.onCreateSuccess?.();
       }
     } catch (error) {
-      toastHandle.error();
-      const errorMsg = normalizeCreateOrderErrorMessage(
+      const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} purchase order. Try again.`,
       );
-      setCreateError(errorMsg);
+      saveActions.actionToast.showError(
+        "Purchase Order",
+        isEditMode ? "update" : action,
+        errorMessage,
+      );
+      setCreateError(errorMessage);
     }
   };
 
@@ -1145,7 +1268,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           ? "Closed"
           : (editDetailQuery.data?.data?.DocStatus ?? "Open"),
     editDetailQuery,
-    handleCreateOrder,
+    handleCreateOrder: handleCreateOrderAction,
     handleLookupModalSearchSync,
     header,
     isClosed:
@@ -1154,6 +1277,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     isEditHydrated,
     isEditMode,
     isSourceHydrating,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,
     missingSearchMandatoryFields,
     openPopup: openPopupWithContext,
@@ -1161,6 +1286,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     popupResults,
     productSearchFieldErrors,
     requiredCompletionPercent,
+    resetForm: saveActions.handleReset,
     searchMandatoryFields,
     searchRequiredCompletionPercent,
     setActiveDatePicker,

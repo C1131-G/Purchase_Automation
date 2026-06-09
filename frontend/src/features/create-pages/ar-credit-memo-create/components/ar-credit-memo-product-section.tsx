@@ -34,6 +34,11 @@ interface ArCreditMemoProductSectionProps {
   onEditRestrictedClick?: (fieldName: string) => void;
   warehouses: ArCreditMemoState["warehouses"];
   warehousesLoading: boolean;
+  onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  isSaved?: boolean;
+  savedDocNum?: string | number | null;
+  onDownload?: (type: "pdf" | "excel" | "word") => void;
+  onReset?: () => void;
 }
 
 /**
@@ -66,6 +71,11 @@ export function ArCreditMemoProductSection({
   onEditRestrictedClick,
   warehouses,
   warehousesLoading,
+  onSubmitMode,
+  isSaved = false,
+  savedDocNum = null,
+  onDownload,
+  onReset,
 }: ArCreditMemoProductSectionProps) {
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
 
@@ -111,6 +121,11 @@ export function ArCreditMemoProductSection({
       submitLoadingText={submitLoadingText}
       isSubmitting={createArCreditMemoMutation.isPending}
       onSubmit={handleCreateOrder}
+      onSubmitMode={onSubmitMode}
+      isSaved={isSaved}
+      savedDocNum={savedDocNum}
+      onDownload={onDownload}
+      onReset={onReset}
       disabledReason={createDisabledReason ?? null}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}

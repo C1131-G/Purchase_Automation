@@ -43,7 +43,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -203,6 +203,33 @@ export function useAPCreditMemoCreate({
     EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS,
   );
   const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
+
+  const resetForm = useCallback(() => {
+    resetAPCreditMemoCreate();
+    setVendorNameInput("");
+    setVendorCodeInput("");
+    setBuyerInput("");
+    resetWarehouse();
+    setBillToAddress("");
+    setShipToAddress("");
+    setVendorNameFocused(false);
+    setVendorCodeFocused(false);
+    setBuyerFocused(false);
+    setActiveDatePicker(null);
+    setModalOpen(false);
+    setModalMode("vendor-name");
+    setModalSearch("");
+    setProductSearch("");
+    setDebouncedProductSearch("");
+    setActiveProductRowId(null);
+    setProductPopupOpen(false);
+    setProductRowDrafts({});
+    setStockPreviewProduct(null);
+    setFieldErrors(EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+  }, [resetAPCreditMemoCreate, resetWarehouse, setBillToAddress, setShipToAddress]);
 
   const [pendingVendorChange, setPendingVendorChange] = useState<{
     vendor: LookupItem;
@@ -1020,6 +1047,88 @@ export function useAPCreditMemoCreate({
     return undefined;
   }, [buyerInput, salesEmployees]);
 
+  const saveActions = useDocumentSaveActions({
+    documentName: "AP Credit Memo",
+    moduleType: "purchase",
+    defaultUrl: "/purchase/create-ap-credit-memo",
+    resetForm,
+    getPayloadString: () => {
+      if (isEditMode) {
+        const updatePayload: UpdateAPCreditMemoInput = {
+          Comments: header.remarks.trim() || undefined,
+          DocDueDate: header.docDueDate || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
+          SalesPersonCode: resolvedBuyerCode,
+        };
+        return JSON.stringify(updatePayload);
+      }
+
+      const buildDocumentLines = (): CreateAPCreditMemoInput["DocumentLines"] => {
+        const lines: CreateAPCreditMemoInput["DocumentLines"] = [];
+        for (const row of filteredRows) {
+          if (row.quantity <= 0) {
+            continue;
+          }
+
+          const hasCompleteBaseLink =
+            Number.isFinite(row.baseEntry) &&
+            Number.isFinite(row.baseLine) &&
+            Number.isFinite(row.baseType);
+
+          const baseLine: CreateAPCreditMemoInput["DocumentLines"][0] = {
+            DiscountPercent: row.discountPercent,
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            UnitPrice: row.price,
+            ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
+            ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
+            ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),
+            ...(row.returnReason ? { U_ReturnReason: row.returnReason } : {}),
+          };
+
+          if (!hasCompleteBaseLink) {
+            lines.push(baseLine);
+            continue;
+          }
+
+          const baseQty = row.baseQuantity ?? 0;
+          const linkedQty = Math.min(row.quantity, baseQty);
+
+          if (linkedQty > 0) {
+            lines.push({
+              ...baseLine,
+              Quantity: linkedQty,
+              ...(row.baseType !== undefined ? { BaseType: row.baseType } : {}),
+              ...(row.baseEntry !== undefined ? { BaseEntry: row.baseEntry } : {}),
+              ...(row.baseLine !== undefined ? { BaseLine: row.baseLine } : {}),
+            });
+          }
+
+          const excessQty = row.quantity - baseQty;
+          if (excessQty > 0) {
+            lines.push({
+              ...baseLine,
+              Quantity: excessQty,
+            });
+          }
+        }
+        return lines;
+      };
+
+      const createPayload: CreateAPCreditMemoInput = {
+        CardCode: vendorCodeInput.trim(),
+        ...(header.docDate ? { DocDate: header.docDate } : {}),
+        ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
+        ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
+        ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
+        DocumentLines: buildDocumentLines(),
+        SalesPersonCode: resolvedBuyerCode,
+      };
+      return JSON.stringify(createPayload);
+    },
+    isEditMode,
+  });
+
   const selectBuyer = (item: LookupItem) => {
     setBuyerInput(item.name);
     setBuyerFocused(false);
@@ -1131,7 +1240,15 @@ export function useAPCreditMemoCreate({
     setProductSearch("");
   };
 
-  const handleCreateAPCreditMemo = async () => {
+  const handleCreateAPCreditMemo = async (
+    action: "save-new" | "view" | "close" | "draft" = "save-new",
+  ) => {
+    if (action === "draft") {
+      await saveActions.handleActionSuccess("draft");
+      setSubmitAttempted(false);
+      return;
+    }
+
     setSubmitAttempted(true);
 
     if (!isEditMode) {
@@ -1164,8 +1281,8 @@ export function useAPCreditMemoCreate({
       return;
     }
 
-    const toastHandle = documentActionToast("A/P Credit Memo", isEditMode ? "update" : "create");
     try {
+      let createdDocNum: string | number | undefined;
       if (isEditMode) {
         const detail = editDetailQuery.data?.data;
         const existingDocDueDate = String(detail?.DocDueDate ?? "")
@@ -1205,7 +1322,7 @@ export function useAPCreditMemoCreate({
 
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
 
-        toastHandle.success(editDetailQuery.data?.data?.DocNum);
+        createdDocNum = editDetailQuery.data?.data?.DocNum;
       } else {
         const buildDocumentLines = (): CreateAPCreditMemoInput["DocumentLines"] => {
           const lines: CreateAPCreditMemoInput["DocumentLines"] = [];
@@ -1288,7 +1405,7 @@ export function useAPCreditMemoCreate({
         const result = await createMutation.mutateAsync({
           payload: createPayload,
         });
-        const createdDocNum = result?.data?.DocNum;
+        createdDocNum = result?.data?.DocNum;
 
         if (sourceDocNum && sourceDocType) {
           void queryClient.invalidateQueries({
@@ -1306,54 +1423,26 @@ export function useAPCreditMemoCreate({
             });
           }
         }
-
-        toastHandle.success(createdDocNum);
       }
 
       if (isEditMode) {
         resetWarehouse();
       }
 
-      if (!isEditMode) {
-        resetAPCreditMemoCreate();
-        setVendorNameInput("");
-        setVendorCodeInput("");
-        setBuyerInput("");
-        resetWarehouse();
-        setBillToAddress("");
-        setShipToAddress("");
-        setVendorNameFocused(false);
-        setVendorCodeFocused(false);
-        setBuyerFocused(false);
-        setActiveDatePicker(null);
-        setModalOpen(false);
-        setModalMode("vendor-name");
-        setModalSearch("");
-        setProductSearch("");
-        setDebouncedProductSearch("");
-        setActiveProductRowId(null);
-        setProductPopupOpen(false);
-        setProductRowDrafts({});
-        setStockPreviewProduct(null);
-        setFieldErrors(EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS);
-        setCreateError(null);
-        hydratedDocNumRef.current = null;
-        setHydratedDocNum(null);
-      }
+      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
 
       setSubmitAttempted(false);
-      window.scrollTo({ behavior: "smooth", top: 0 });
 
-      if (!isEditMode) {
+      if (!isEditMode && action === "save-new") {
         onCreateSuccess?.();
       }
     } catch (error) {
-      toastHandle.error();
       const errorMsg = normalizeCreateOrderErrorMessage(
         error,
         "Failed to process A/P Credit Memo.",
       );
       setCreateError(errorMsg);
+      saveActions.actionToast.showError("AP Credit Memo", isEditMode ? "update" : action, errorMsg);
     }
   };
 
@@ -1584,5 +1673,8 @@ export function useAPCreditMemoCreate({
     trackerDocEntry: isEditMode
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
+    isSaved: saveActions.isSaved,
+    savedDocNum: saveActions.savedDocNum,
+    resetForm: saveActions.handleReset,
   };
 }

@@ -376,6 +376,27 @@ export function APInvoiceCreate({
         onSetProductRowDraft={state.setProductRowDraft}
         onClearProductRowDraft={state.clearProductRowDraft}
         onSubmit={state.handleCreateOrder}
+        onSubmitMode={(mode) => state.handleCreateOrder(mode)}
+        isSaved={state.isSaved}
+        savedDocNum={state.savedDocNum}
+        onDownload={(type) => {
+          if (state.savedDocNum) {
+            const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
+            goeyToast.success(
+              `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+            );
+          }
+        }}
+        onReset={() => {
+          state.resetForm();
+          window.scrollTo({ behavior: "smooth", top: 0 });
+          void router.navigate({
+            replace: true,
+            search: {},
+            to: "/purchase/create-ap-invoice",
+          });
+        }}
+        submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}

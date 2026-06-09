@@ -33,6 +33,11 @@ interface ARInvoiceProductSectionProps {
   warehouses: ARInvoiceState["warehouses"];
   warehousesLoading: boolean;
   secondaryActions?: React.ReactNode;
+  onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  isSaved?: boolean;
+  savedDocNum?: string | number | null;
+  onDownload?: (type: "pdf" | "excel" | "word") => void;
+  onReset?: () => void;
 }
 
 /**
@@ -66,6 +71,11 @@ export function ARInvoiceProductSection({
   warehouses,
   warehousesLoading,
   secondaryActions,
+  onSubmitMode,
+  isSaved = false,
+  savedDocNum = null,
+  onDownload,
+  onReset,
 }: ARInvoiceProductSectionProps) {
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
 
@@ -93,6 +103,11 @@ export function ARInvoiceProductSection({
       submitLoadingText={submitLoadingText}
       isSubmitting={createARInvoiceMutation.isPending}
       onSubmit={handleCreateOrder}
+      onSubmitMode={onSubmitMode}
+      isSaved={isSaved}
+      savedDocNum={savedDocNum}
+      onDownload={onDownload}
+      onReset={onReset}
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
