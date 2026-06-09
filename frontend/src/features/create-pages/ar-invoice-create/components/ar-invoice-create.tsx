@@ -1,19 +1,24 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
-import { ChevronDown, ClipboardList, FileText } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
 import { ARInvoiceProductSection } from "@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section";
-import { PullFromSOModal } from "@/features/create-pages/ar-invoice-create/components/pull-from-so-modal";
-import { PullFromSQModal } from "@/features/create-pages/ar-invoice-create/components/pull-from-sq-modal";
+import {
+  CopyFromDialog,
+  type SourceDocType,
+} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
+import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
+import { salesOrderAPI } from "@/features/table-pages/sales-orders/api/sales-order.service";
+import { salesQuotationAPI } from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
 import { useARInvoiceCreate } from "@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
+import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { RelationshipMapTracker } from "@/features/create-shared/components/layout/relationship-map-tracker";
@@ -45,46 +50,172 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
       ? rawSourceDocType
       : undefined;
 
-  const state = useARInvoiceCreate(
-    docNum ? { docNum, mode } : { mode, sourceDocNum, sourceDocType },
-  );
+  const [sourceCleared, setSourceCleared] = useState(false);
 
-  const [copyFromOpen, setCopyFromOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setSourceCleared(false);
+  }, [sourceDocNum, sourceDocType]);
+
+  const state = useARInvoiceCreate(
+    docNum
+      ? { docNum, mode }
+      : {
+          mode,
+          sourceDocNum: !sourceCleared ? sourceDocNum : undefined,
+          sourceDocType: !sourceCleared ? sourceDocType : undefined,
+        },
+  );
 
   // Derive which SO / SQ doc numbers are already represented in productRows so the
   // pull modals can mark them pre-checked and non-selectable (prevents duplicate pulls).
   const committedSODocNums = useMemo(() => {
     const nums = new Set<number>();
     for (const row of state.productRows) {
-      if (row.baseType === 17 && row.comment) {
-        const match = /Based on SO (\d+)/.exec(row.comment);
-        if (match?.[1]) nums.add(Number(match[1]));
+      if (row.baseType === 17) {
+        if (row.comment) {
+          const match = /Based on SO (\d+)/.exec(row.comment);
+          if (match?.[1]) nums.add(Number(match[1]));
+        }
+      }
+    }
+    if (
+      !sourceCleared &&
+      state.productRows.some((r) => r.baseType === 17) &&
+      sourceDocType === "SalesOrder"
+    ) {
+      const urlDocNum = Number(sourceDocNum);
+      if (urlDocNum && !isNaN(urlDocNum)) {
+        nums.add(urlDocNum);
       }
     }
     return [...nums];
-  }, [state.productRows]);
+  }, [state.productRows, sourceDocNum, sourceDocType, sourceCleared]);
 
   const committedSQDocNums = useMemo(() => {
     const nums = new Set<number>();
     for (const row of state.productRows) {
-      if (row.baseType === 23 && row.comment) {
-        const match = /Based on SQ (\d+)/.exec(row.comment);
-        if (match?.[1]) nums.add(Number(match[1]));
+      if (row.baseType === 23) {
+        if (row.comment) {
+          const match = /Based on SQ (\d+)/.exec(row.comment);
+          if (match?.[1]) nums.add(Number(match[1]));
+        }
+      }
+    }
+    if (
+      !sourceCleared &&
+      state.productRows.some((r) => r.baseType === 23) &&
+      sourceDocType === "SalesQuotation"
+    ) {
+      const urlDocNum = Number(sourceDocNum);
+      if (urlDocNum && !isNaN(urlDocNum)) {
+        nums.add(urlDocNum);
       }
     }
     return [...nums];
-  }, [state.productRows]);
+  }, [state.productRows, sourceDocNum, sourceDocType, sourceCleared]);
 
-  useEffect(() => {
-    function handleClickOutside(event: Event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setCopyFromOpen(false);
-      }
+  const activeSourceType = useMemo<"SalesQuotation" | "SalesOrder" | null>(() => {
+    const hasSORows = state.productRows.some((r) => r.baseType === 17);
+    const hasSQRows = state.productRows.some((r) => r.baseType === 23);
+    if (hasSORows) return "SalesOrder";
+    if (hasSQRows) return "SalesQuotation";
+    if (!sourceCleared && sourceDocType) {
+      return sourceDocType;
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    return null;
+  }, [state.productRows, sourceCleared, sourceDocType]);
+
+  const hasCopiedRows = committedSODocNums.length > 0 || committedSQDocNums.length > 0;
+
+  const handleReset = () => {
+    state.setProductRows([]);
+    state.setProductRowDrafts({});
+    state.setHeader({ comments: "", referenceNo: "" });
+    state.resetWarehouse();
+    setSourceCleared(true);
+  };
+
+  const handleCopyFromSOSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
+    state.setPullFromSOModalOpen(false);
+    if (selected.length === 0) return;
+
+    const loadingToast = pageLoadingToast("A/R Invoice", "create");
+    try {
+      const details = await Promise.all(
+        selected.map(async (doc) => {
+          const res = await salesOrderAPI.getSalesOrderByDocNum(doc.docNum);
+          return res.data;
+        }),
+      );
+
+      const lines = details.flatMap((d) => {
+        const docLines = d.DocumentLines ?? [];
+        return docLines
+          .filter((line) => {
+            const openQty = line.RemainingOpenQuantity ?? line.Quantity ?? 0;
+            return openQty > 0;
+          })
+          .map((line) => ({
+            ...line,
+            DocEntry: d.DocEntry ?? d.id,
+            DocNum: d.DocNum,
+            DocDate: d.DocDate,
+            DocCurr: d.DocCurr,
+            OpenQty: line.RemainingOpenQuantity ?? line.Quantity ?? 0,
+          }));
+      });
+
+      const allSelectedDocNums = selected.map((s) => Number(s.docNum));
+      await state.addProductsFromSOs(lines as any, allSelectedDocNums);
+      loadingToast.dismiss();
+      goeyToast.success("Products added successfully");
+    } catch (err) {
+      console.error(err);
+      loadingToast.dismiss();
+      goeyToast.error("Failed to pull products");
+    }
+  };
+
+  const handleCopyFromSQSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
+    state.setPullFromSQModalOpen(false);
+    if (selected.length === 0) return;
+
+    const loadingToast = pageLoadingToast("A/R Invoice", "create");
+    try {
+      const details = await Promise.all(
+        selected.map(async (doc) => {
+          const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.docNum);
+          return res.data;
+        }),
+      );
+
+      const lines = details.flatMap((d) => {
+        const docLines = d.DocumentLines ?? [];
+        return docLines
+          .filter((line) => {
+            const openQty = line.RemainingOpenQuantity ?? line.Quantity ?? 0;
+            return openQty > 0;
+          })
+          .map((line) => ({
+            ...line,
+            DocEntry: d.DocEntry ?? d.id,
+            DocNum: d.DocNum,
+            DocDate: d.DocDate,
+            DocCurr: d.DocCurr,
+            OpenQty: line.RemainingOpenQuantity ?? line.Quantity ?? 0,
+          }));
+      });
+
+      const allSelectedDocNums = selected.map((s) => Number(s.docNum));
+      await state.addProductsFromSQs(lines as any, allSelectedDocNums);
+      loadingToast.dismiss();
+      goeyToast.success("Products added successfully");
+    } catch (err) {
+      console.error(err);
+      loadingToast.dismiss();
+      goeyToast.error("Failed to pull products");
+    }
+  };
 
   const pageTitle = state.isEditMode ? "Update A/R Invoice" : "Create A/R Invoice";
   const isFormHydrating = !state.isEditMode
@@ -124,10 +255,29 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
               : "Unable to load A/R invoice for editing."
             : null
         }
+        topActions={
+          !state.isEditMode ? (
+            <CopyFromDropdown
+              vendorCode={state.codeInput}
+              vendorName={state.nameInput}
+              sourceDocTypes={
+                activeSourceType ? [activeSourceType] : ["SalesQuotation", "SalesOrder"]
+              }
+              onSelectSource={(source) => {
+                if (source === "SalesOrder") {
+                  state.setPullFromSOModalOpen(true);
+                } else if (source === "SalesQuotation") {
+                  state.setPullFromSQModalOpen(true);
+                }
+              }}
+              onReset={hasCopiedRows ? handleReset : undefined}
+            />
+          ) : null
+        }
       >
-        <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-          <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-            {state.trackerDocType && state.trackerDocEntry && (
+        {state.trackerDocType && state.trackerDocEntry && (
+          <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+            <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
               <div className="relative z-10 overflow-x-auto max-w-full">
                 <RelationshipMapTracker
                   docType={state.trackerDocType as any}
@@ -135,54 +285,9 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
                   compact={true}
                 />
               </div>
-            )}
-
-            {!state.isEditMode && (
-              <div className="relative shrink-0" ref={dropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setCopyFromOpen(!copyFromOpen)}
-                  disabled={!state.codeInput.trim()}
-                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-blue-700 hover:shadow-blue-200 active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none disabled:cursor-not-allowed group"
-                >
-                  <span>Copy from</span>
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-200 ${copyFromOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-
-                {copyFromOpen && (
-                  <div className="absolute right-0 top-full z-[60] mt-2 w-56 origin-top-right overflow-hidden rounded-2xl border border-zinc-100 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in duration-150">
-                    <button
-                      onClick={() => {
-                        state.setPullFromSOModalOpen(true);
-                        setCopyFromOpen(false);
-                      }}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-blue-600"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                        <FileText className="h-4.5 w-4.5" />
-                      </div>
-                      <span>Sales Orders</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        state.setPullFromSQModalOpen(true);
-                        setCopyFromOpen(false);
-                      }}
-                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-orange-600"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
-                        <ClipboardList className="h-4.5 w-4.5" />
-                      </div>
-                      <span>Sales Quotations</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
           <div
@@ -350,19 +455,23 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
 
         {!state.isEditMode && (
           <>
-            <PullFromSOModal
+            <CopyFromDialog
               open={state.pullFromSOModalOpen}
               onClose={() => state.setPullFromSOModalOpen(false)}
-              cardCode={state.codeInput}
-              onConfirm={state.addProductsFromSOs}
-              committedDocNums={committedSODocNums}
+              vendorCode={state.codeInput}
+              vendorName={state.nameInput}
+              sourceDocType="SalesOrder"
+              onSelectDocuments={handleCopyFromSOSelect}
+              committedDocNums={committedSODocNums.map(String)}
             />
-            <PullFromSQModal
+            <CopyFromDialog
               open={state.pullFromSQModalOpen}
               onClose={() => state.setPullFromSQModalOpen(false)}
-              cardCode={state.codeInput}
-              onConfirm={state.addProductsFromSQs}
-              committedDocNums={committedSQDocNums}
+              vendorCode={state.codeInput}
+              vendorName={state.nameInput}
+              sourceDocType="SalesQuotation"
+              onSelectDocuments={handleCopyFromSQSelect}
+              committedDocNums={committedSQDocNums.map(String)}
             />
           </>
         )}

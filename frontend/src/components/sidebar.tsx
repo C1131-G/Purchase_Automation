@@ -103,6 +103,31 @@ export function Sidebar({
           : "var(--sidebar-width)"
       : "var(--sidebar-width)";
 
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!open) return;
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && open) {
+        event.preventDefault();
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, setOpen]);
+
   if (collapsible === "none") {
     return (
       <div
@@ -127,11 +152,12 @@ export function Sidebar({
             transitionDuration: `${MOTION_MS.sidebarBackdrop}ms`,
             transitionTimingFunction: MOTION_EASING.smoothOut,
           }}
-          className="fixed inset-0 z-[110] hidden bg-zinc-950/12 transition-opacity md:block"
+          className="fixed inset-0 z-[110] bg-zinc-950/8 backdrop-blur-sm transition-opacity block border-none outline-none cursor-pointer"
           onClick={() => setOpen(false)}
         />
       ) : null}
       <div
+        ref={sidebarRef}
         style={
           {
             transitionDuration: `${MOTION_MS.sidebarOpenClose}ms`,
@@ -140,7 +166,8 @@ export function Sidebar({
           } as React.CSSProperties
         }
         className={cn(
-          "group hidden md:block fixed left-0 top-0 h-screen z-[120] overflow-hidden border-r border-zinc-100 bg-white transition-[width,border-color,box-shadow] will-change-[width]",
+          "group fixed left-0 top-0 h-screen z-[120] overflow-hidden border-r border-zinc-100 bg-white transition-[width,border-color,box-shadow] will-change-[width]",
+          open ? "block" : "hidden md:block",
           state === "collapsed" && collapsible === "offcanvas" && "border-r-0!",
           className,
         )}
@@ -186,7 +213,7 @@ export function SidebarTrigger({ className, onClick, children, ...props }: Sideb
   return (
     <button
       className={cn(
-        "group inline-flex items-center justify-center rounded-xl p-2.5 text-zinc-400 hover:text-blue-600 focus-visible:outline-none focus:ring-0 transition-all duration-300 cursor-pointer border-none bg-transparent",
+        "group inline-flex items-center justify-center rounded-xl p-2.5 text-zinc-400 hover:text-blue-600 focus-visible:outline-none focus:ring-0 transition-colors duration-150 cursor-pointer border-none bg-transparent",
         className,
       )}
       onClick={(event) => {
@@ -195,9 +222,7 @@ export function SidebarTrigger({ className, onClick, children, ...props }: Sideb
       }}
       {...props}
     >
-      {children || (
-        <PanelLeftIcon className="size-5 transition-transform duration-300 group-hover:-translate-x-0.5 group-active:scale-95" />
-      )}
+      {children || <PanelLeftIcon className="size-5" />}
       <span className="sr-only">Toggle Sidebar</span>
     </button>
   );
@@ -277,7 +302,7 @@ export function SidebarMenuButton({
   return (
     <button
       className={cn(
-        "flex w-full items-center gap-3 rounded-xl p-2.5 text-sm font-semibold transition-all duration-300 cursor-pointer",
+        "flex w-full items-center gap-3 rounded-xl p-2.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 cursor-pointer",
         "hover:bg-blue-50 hover:text-blue-600 text-zinc-500",
         isActive && "bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)]",
         "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto",
@@ -362,7 +387,7 @@ export function SidebarMenuSubButton({
     <Link
       preload="intent"
       className={cn(
-        "relative flex w-full items-center text-[13px] py-1.5 text-zinc-400 hover:text-blue-600 transition-all duration-300 text-left cursor-pointer bg-transparent",
+        "relative flex w-full items-center text-[13px] py-1.5 text-zinc-400 hover:text-blue-600 transition-colors duration-150 text-left cursor-pointer bg-transparent",
         isActive && "text-blue-600 font-bold",
         className,
       )}
@@ -370,7 +395,7 @@ export function SidebarMenuSubButton({
       {...props}
     >
       {isActive && (
-        <div className="absolute -left-4.25 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-full animate-in slide-in-from-left-1 duration-300" />
+        <div className="absolute -left-4.25 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-full" />
       )}
       {children}
     </Link>

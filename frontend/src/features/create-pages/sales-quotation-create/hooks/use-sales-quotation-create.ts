@@ -22,6 +22,7 @@ import {
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -91,6 +92,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
+  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
   const editDocNum = (options?.docNum ?? "").trim();
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
@@ -168,6 +170,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       return;
     }
 
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("Sales Quotation", "edit");
+    }
+
     const vendorCode = String(detail.CardCode ?? "").trim();
     const vendorName = String(detail.CardName ?? "").trim();
     const matchedVendor = lookups.vendors.find((vendor) => String(vendor.code) === vendorCode);
@@ -201,102 +207,107 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(detail.Address ?? "").trim();
     void (async () => {
-      const detailLines = detail.DocumentLines ?? [];
-      const productsForWarehouse =
-        warehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(
-                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
-              )
-              .catch((): ProductLookupItem[] => [])
-          : [];
+      try {
+        const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse =
+          warehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(
+                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+                )
+                .catch((): ProductLookupItem[] => [])
+            : [];
 
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
-      const stockByItemCode = new Map<string, number>();
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const stockByItemCode = new Map<string, number>();
 
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
 
-      await Promise.all(
-        uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = await queryClient
-            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => []);
+        await Promise.all(
+          uniqueItemCodes.map(async (itemCode) => {
+            const warehouseStocks = await queryClient
+              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+              .catch(() => []);
 
-          const resolvedStock = warehouseCode
-            ? Number(
-                warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                  ?.stock ?? 0,
-              )
-            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
+            const resolvedStock = warehouseCode
+              ? Number(
+                  warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
+                    ?.stock ?? 0,
+                )
+              : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
 
-          stockByItemCode.set(itemCode, resolvedStock);
-        }),
-      );
+            stockByItemCode.set(itemCode, resolvedStock);
+          }),
+        );
 
-      const mappedRows = detailLines.map((line: SalesQuotationDetailLine, index) => {
-        const itemCode = String(line.ItemCode ?? "").trim();
-        const productMeta = productByCode.get(itemCode);
-        const quantity = Number(line.Quantity ?? 1);
-        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
-          line: line as Record<string, unknown>,
-          grossAmount: price * quantity,
-          headerDiscountPercent: Number((detail as any).DiscountPercent ?? 0),
+        const mappedRows = detailLines.map((line: SalesQuotationDetailLine, index) => {
+          const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
+          const quantity = Number(line.Quantity ?? 1);
+          const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            line: line as Record<string, unknown>,
+            grossAmount: price * quantity,
+            headerDiscountPercent: Number((detail as any).DiscountPercent ?? 0),
+          });
+          return {
+            id: `row-${currentDocNum}-${index}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
+            stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
+            price,
+            currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
+            vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
+            // SAP line tax is authoritative; fall back to product master only when missing
+            taxRate:
+              (line as Record<string, unknown>).VatPrcnt !== undefined &&
+              (line as Record<string, unknown>).VatPrcnt !== null
+                ? Number((line as Record<string, unknown>).VatPrcnt)
+                : Number(productMeta?.taxRate ?? 0),
+            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
+            uomEntry:
+              typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
+                ? line.UoMEntry
+                : productMeta?.uomEntry,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: "",
+            warehouseCode: String(line.WarehouseCode ?? "").trim(),
+            selected: false,
+          };
         });
-        return {
-          id: `row-${currentDocNum}-${index}`,
-          productCode: itemCode,
-          productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
-          stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
-          price,
-          currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
-          vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
-          // SAP line tax is authoritative; fall back to product master only when missing
-          taxRate:
-            (line as Record<string, unknown>).VatPrcnt !== undefined &&
-            (line as Record<string, unknown>).VatPrcnt !== null
-              ? Number((line as Record<string, unknown>).VatPrcnt)
-              : Number(productMeta?.taxRate ?? 0),
-          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
-          uomEntry:
-            typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-              ? line.UoMEntry
-              : productMeta?.uomEntry,
-          quantity,
-          discountPercent,
-          discountAmount,
-          comment: "",
-          warehouseCode: String(line.WarehouseCode ?? "").trim(),
-          selected: false,
-        };
-      });
 
-      setHeader({
-        comments,
-        docDate: docDate || header.docDate,
-        docDueDate,
-        referenceNo,
-        vendorCode,
-        vendorName,
-        warehouseCode,
-      });
-      lookups.setNameInput(vendorName);
-      lookups.setCodeInput(vendorCode);
-      lookups.setWarehouseInput(
-        formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
-      );
-      lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
-      lookups.setBillToAddress(address);
-      lookups.setShipToAddress(address);
-      productsHook.setProductRows(mappedRows);
-      productsHook.setProductRowDrafts({});
+        setHeader({
+          comments,
+          docDate: docDate || header.docDate,
+          docDueDate,
+          referenceNo,
+          vendorCode,
+          vendorName,
+          warehouseCode,
+        });
+        lookups.setNameInput(vendorName);
+        lookups.setCodeInput(vendorCode);
+        lookups.setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
+        lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
+        lookups.setBillToAddress(address);
+        lookups.setShipToAddress(address);
+        productsHook.setProductRows(mappedRows);
+        productsHook.setProductRowDrafts({});
 
-      hydratedDocNumRef.current = currentDocNum;
-      setHydratedDocNum(currentDocNum);
+        hydratedDocNumRef.current = currentDocNum;
+        setHydratedDocNum(currentDocNum);
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
+      }
     })();
   }, [
     queryClient,

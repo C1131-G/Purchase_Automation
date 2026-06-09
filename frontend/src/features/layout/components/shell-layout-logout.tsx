@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 
 import { Button } from "@/components/button";
 import { SidebarFooter, SidebarMenu, SidebarMenuItem } from "@/components/sidebar";
@@ -25,7 +25,10 @@ export function ShellLayoutLogout({ logoutBusy, onLogout }: ShellLayoutLogoutPro
           {isOpen ? (
             <Button
               type="button"
-              onClick={onLogout}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLogout();
+              }}
               isLoading={logoutBusy}
               loadingText="Logging out..."
               variant="danger"
@@ -36,12 +39,19 @@ export function ShellLayoutLogout({ logoutBusy, onLogout }: ShellLayoutLogoutPro
           ) : (
             <button
               type="button"
-              onClick={onLogout}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLogout();
+              }}
               disabled={logoutBusy}
-              className="size-9 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center border border-red-200/50 cursor-pointer mx-auto transition-all shadow-[0_2px_6px_rgba(248,113,113,0.1)] focus:outline-none focus:ring-2 focus:ring-red-300/40"
+              className="size-9 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center border border-red-200/50 cursor-pointer mx-auto transition-colors duration-150 shadow-[0_2px_6px_rgba(248,113,113,0.1)] focus:outline-none focus:ring-2 focus:ring-red-300/40"
               title="Log out"
             >
-              <LogOut className="size-4" />
+              {logoutBusy ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <LogOut className="size-4" />
+              )}
             </button>
           )}
         </SidebarMenuItem>

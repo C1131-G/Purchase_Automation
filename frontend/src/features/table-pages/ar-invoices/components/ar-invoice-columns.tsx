@@ -126,22 +126,7 @@ export const createARInvoiceColumns = (options?: CreateARInvoiceColumnsOptions) 
     minSize: 12,
     size: 14,
   }),
-  columnHelper.accessor("NumAtCard", {
-    cell: (info) => info.getValue() ?? "-",
-    enableColumnFilter: true,
-    filterFn: "includesString",
-    header: ({ column, table }) => (
-      <TableColumnSort
-        column={column}
-        sortingState={table.getState().sorting}
-        title="Customer Ref"
-      />
-    ),
-    id: "NumAtCard",
-    meta: { filterType: "text" },
-    minSize: 12,
-    size: 14,
-  }),
+
   columnHelper.accessor("DocStatus", {
     cell: (info) => mapDocStatusLabel(info.getValue()),
     filterFn: "equalsString",

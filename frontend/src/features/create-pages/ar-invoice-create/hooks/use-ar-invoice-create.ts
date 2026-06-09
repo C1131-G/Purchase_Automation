@@ -36,6 +36,7 @@ import {
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -102,6 +103,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
+  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
   const editDocNum = (options?.docNum ?? "").trim();
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
@@ -195,6 +197,10 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       return;
     }
 
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("A/R Invoice", "edit");
+    }
+
     const customerCode = String(detail.CardCode ?? "").trim();
     const customerName = String(detail.CardName ?? "").trim();
     const matchedCustomer = lookups.vendors.find((item) => String(item.code) === customerCode);
@@ -227,123 +233,130 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const address = String(detail.Address ?? "").trim();
 
     void (async () => {
-      const detailLines = detail.DocumentLines ?? [];
-      const productsForWarehouse = (
-        warehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(
-                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+      try {
+        const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse = (
+          warehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(
+                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+                )
+                .catch(() => [])
+            : []
+        ) as ProductLookupItem[];
+
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        await Promise.all(
+          uniqueItemCodes.map(async (itemCode) => {
+            const warehouseStocks = (await queryClient
+              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+              .catch(() => [])) as { code: string; stock: number }[];
+            stocksByItemCode.set(itemCode, warehouseStocks);
+          }),
+        );
+
+        const mappedRows = detailLines.map((line: ARInvoiceDetailLine, index) => {
+          const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
+          const lineWarehouse = String(line.WarehouseCode ?? "").trim();
+          const warehouseStocks = stocksByItemCode.get(itemCode) ?? [];
+          // Use line-specific stock lookup
+          const lineStock = lineWarehouse
+            ? Number(
+                warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
               )
-              .catch(() => [])
-          : []
-      ) as ProductLookupItem[];
+            : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
 
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
-      const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
+          const quantity = Number(line.Quantity ?? 1);
+          const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+          const grossAmount = Math.max(0, price * quantity);
+          const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
+          const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
+          const lineTotal = Number(line.LineTotal ?? Number.NaN);
+          const derivedDiscountAmountFromLineTotal =
+            Number.isFinite(lineTotal) && grossAmount > 0
+              ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+              : 0;
+          let discountPercent = Number.isFinite(apiDiscountPercent)
+            ? apiDiscountPercent
+            : grossAmount > 0
+              ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+              : 0;
+          if (discountPercent === 0 && headerDiscountPercent > 0) {
+            discountPercent = headerDiscountPercent;
+          }
+          const discountAmount = (grossAmount * discountPercent) / 100;
+          const resolvedUomEntry =
+            typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
+              ? line.UoMEntry
+              : productMeta?.uomEntry;
+          return {
+            id: `row-${currentDocNum}-${index}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
+            stock: lineStock,
+            price,
+            currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
+            vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
+            taxRate:
+              (line as Record<string, unknown>).VatPrcnt !== undefined &&
+              (line as Record<string, unknown>).VatPrcnt !== null
+                ? Number((line as Record<string, unknown>).VatPrcnt)
+                : Number(productMeta?.taxRate ?? 0),
+            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
+            ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: "",
+            baseEntry:
+              typeof line.BaseEntry === "number" && Number.isFinite(line.BaseEntry)
+                ? line.BaseEntry
+                : undefined,
+            baseLine:
+              typeof line.BaseLine === "number" && Number.isFinite(line.BaseLine)
+                ? line.BaseLine
+                : undefined,
+            baseType:
+              typeof line.BaseType === "number" && Number.isFinite(line.BaseType)
+                ? line.BaseType
+                : undefined,
+            warehouseCode: lineWarehouse,
+            selected: false,
+          };
+        });
 
-      await Promise.all(
-        uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = (await queryClient
-            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])) as { code: string; stock: number }[];
-          stocksByItemCode.set(itemCode, warehouseStocks);
-        }),
-      );
+        setHeader({
+          comments,
+          docDate: docDate || header.docDate,
+          docDueDate,
+          referenceNo,
+          vendorCode: customerCode,
+          vendorName: customerName,
+          warehouseCode,
+        });
+        lookups.setNameInput(customerName);
+        lookups.setCodeInput(customerCode);
+        lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+        lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
+        lookups.setBillToAddress(address);
+        lookups.setShipToAddress(address);
+        productsHook.setProductRows(mappedRows);
+        productsHook.setProductRowDrafts({});
 
-      const mappedRows = detailLines.map((line: ARInvoiceDetailLine, index) => {
-        const itemCode = String(line.ItemCode ?? "").trim();
-        const productMeta = productByCode.get(itemCode);
-        const lineWarehouse = String(line.WarehouseCode ?? "").trim();
-        const warehouseStocks = stocksByItemCode.get(itemCode) ?? [];
-        // Use line-specific stock lookup
-        const lineStock = lineWarehouse
-          ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
-          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
-
-        const quantity = Number(line.Quantity ?? 1);
-        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const grossAmount = Math.max(0, price * quantity);
-        const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
-        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
-        const lineTotal = Number(line.LineTotal ?? Number.NaN);
-        const derivedDiscountAmountFromLineTotal =
-          Number.isFinite(lineTotal) && grossAmount > 0
-            ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
-            : 0;
-        let discountPercent = Number.isFinite(apiDiscountPercent)
-          ? apiDiscountPercent
-          : grossAmount > 0
-            ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
-            : 0;
-        if (discountPercent === 0 && headerDiscountPercent > 0) {
-          discountPercent = headerDiscountPercent;
-        }
-        const discountAmount = (grossAmount * discountPercent) / 100;
-        const resolvedUomEntry =
-          typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-            ? line.UoMEntry
-            : productMeta?.uomEntry;
-        return {
-          id: `row-${currentDocNum}-${index}`,
-          productCode: itemCode,
-          productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
-          stock: lineStock,
-          price,
-          currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
-          vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
-          taxRate:
-            (line as Record<string, unknown>).VatPrcnt !== undefined &&
-            (line as Record<string, unknown>).VatPrcnt !== null
-              ? Number((line as Record<string, unknown>).VatPrcnt)
-              : Number(productMeta?.taxRate ?? 0),
-          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
-          ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
-          quantity,
-          discountPercent,
-          discountAmount,
-          comment: "",
-          baseEntry:
-            typeof line.BaseEntry === "number" && Number.isFinite(line.BaseEntry)
-              ? line.BaseEntry
-              : undefined,
-          baseLine:
-            typeof line.BaseLine === "number" && Number.isFinite(line.BaseLine)
-              ? line.BaseLine
-              : undefined,
-          baseType:
-            typeof line.BaseType === "number" && Number.isFinite(line.BaseType)
-              ? line.BaseType
-              : undefined,
-          warehouseCode: lineWarehouse,
-          selected: false,
-        };
-      });
-
-      setHeader({
-        comments,
-        docDate: docDate || header.docDate,
-        docDueDate,
-        referenceNo,
-        vendorCode: customerCode,
-        vendorName: customerName,
-        warehouseCode,
-      });
-      lookups.setNameInput(customerName);
-      lookups.setCodeInput(customerCode);
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
-      lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
-      lookups.setBillToAddress(address);
-      lookups.setShipToAddress(address);
-      productsHook.setProductRows(mappedRows);
-      productsHook.setProductRowDrafts({});
-
-      hydratedDocNumRef.current = currentDocNum;
-      setHydratedDocNum(currentDocNum);
+        hydratedDocNumRef.current = currentDocNum;
+        setHydratedDocNum(currentDocNum);
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
+      }
     })();
   }, [
     editDetailQuery.data,
@@ -376,6 +389,10 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     }
     if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}`) {
       return;
+    }
+
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("A/R Invoice", "create");
     }
 
     const customerCode = String(detail.CardCode ?? "").trim();
@@ -412,114 +429,121 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const address = String(detail.Address ?? "").trim();
 
     void (async () => {
-      const detailLines = detail.DocumentLines ?? [];
-      const productsForWarehouse = (
-        warehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(
-                createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+      try {
+        const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse = (
+          warehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(
+                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+                )
+                .catch(() => [])
+            : []
+        ) as ProductLookupItem[];
+
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        await Promise.all(
+          uniqueItemCodes.map(async (itemCode) => {
+            const warehouseStocks = (await queryClient
+              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+              .catch(() => [])) as { code: string; stock: number }[];
+            stocksByItemCode.set(itemCode, warehouseStocks);
+          }),
+        );
+
+        const baseType = currentSourceDocType === "SalesQuotation" ? 23 : 17;
+
+        const mappedRows = detailLines.map((line, index: number) => {
+          const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
+          const lineWarehouse = String(line.WarehouseCode ?? "").trim();
+
+          // Per-line stock derivation
+          const warehouseStocks = stocksByItemCode.get(itemCode) ?? [];
+          const lineStock = lineWarehouse
+            ? Number(
+                warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
               )
-              .catch(() => [])
-          : []
-      ) as ProductLookupItem[];
+            : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+          const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 1);
+          const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+          const grossAmount = Math.max(0, price * quantity);
+          const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
+          const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
+          const lineTotal = Number(line.LineTotal ?? Number.NaN);
+          const derivedDiscountAmountFromLineTotal =
+            Number.isFinite(lineTotal) && grossAmount > 0
+              ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
+              : 0;
+          let discountPercent = Number.isFinite(apiDiscountPercent)
+            ? apiDiscountPercent
+            : grossAmount > 0
+              ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
+              : 0;
+          if (discountPercent === 0 && headerDiscountPercent > 0) {
+            discountPercent = headerDiscountPercent;
+          }
+          const discountAmount = (grossAmount * discountPercent) / 100;
+          const resolvedUomEntry =
+            typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
+              ? line.UoMEntry
+              : productMeta?.uomEntry;
+          return {
+            id: `row-copy-${currentSourceDocNum}-${index}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
+            stock: lineStock,
+            price,
+            currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
+            vatGroup: String(line.TaxCode ?? line.VatGroup ?? productMeta?.vatGroup ?? "").trim(),
+            taxRate:
+              (line as Record<string, unknown>).VatPrcnt !== undefined &&
+              (line as Record<string, unknown>).VatPrcnt !== null
+                ? Number((line as Record<string, unknown>).VatPrcnt)
+                : Number(productMeta?.taxRate ?? 0),
+            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
+            ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: "",
+            baseEntry: detail.DocEntry ?? detail.id,
+            baseLine: line.LineNum ?? index,
+            baseType,
+            warehouseCode: lineWarehouse,
+            selected: false,
+          };
+        });
 
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
-      const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
+        setHeader({
+          comments,
+          docDueDate,
+          referenceNo,
+          vendorCode: customerCode,
+          vendorName: customerName,
+          warehouseCode,
+        });
+        lookups.setNameInput(customerName);
+        lookups.setCodeInput(customerCode);
+        lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
+        lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
+        lookups.setBillToAddress(address);
+        lookups.setShipToAddress(address);
+        productsHook.setProductRows(mappedRows);
+        productsHook.setProductRowDrafts({});
 
-      await Promise.all(
-        uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = (await queryClient
-            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])) as { code: string; stock: number }[];
-          stocksByItemCode.set(itemCode, warehouseStocks);
-        }),
-      );
-
-      const baseType = currentSourceDocType === "SalesQuotation" ? 23 : 17;
-
-      const mappedRows = detailLines.map((line, index: number) => {
-        const itemCode = String(line.ItemCode ?? "").trim();
-        const productMeta = productByCode.get(itemCode);
-        const lineWarehouse = String(line.WarehouseCode ?? "").trim();
-
-        // Per-line stock derivation
-        const warehouseStocks = stocksByItemCode.get(itemCode) ?? [];
-        const lineStock = lineWarehouse
-          ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
-          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
-        const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 1);
-        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const grossAmount = Math.max(0, price * quantity);
-        const apiDiscountPercent = Number(line.DiscountPercent ?? Number.NaN);
-        const headerDiscountPercent = Number((detail as any).DiscountPercent ?? 0);
-        const lineTotal = Number(line.LineTotal ?? Number.NaN);
-        const derivedDiscountAmountFromLineTotal =
-          Number.isFinite(lineTotal) && grossAmount > 0
-            ? Math.max(0, Math.min(grossAmount, grossAmount - lineTotal))
-            : 0;
-        let discountPercent = Number.isFinite(apiDiscountPercent)
-          ? apiDiscountPercent
-          : grossAmount > 0
-            ? (derivedDiscountAmountFromLineTotal / grossAmount) * 100
-            : 0;
-        if (discountPercent === 0 && headerDiscountPercent > 0) {
-          discountPercent = headerDiscountPercent;
-        }
-        const discountAmount = (grossAmount * discountPercent) / 100;
-        const resolvedUomEntry =
-          typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-            ? line.UoMEntry
-            : productMeta?.uomEntry;
-        return {
-          id: `row-copy-${currentSourceDocNum}-${index}`,
-          productCode: itemCode,
-          productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
-          stock: lineStock,
-          price,
-          currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
-          vatGroup: String(line.TaxCode ?? line.VatGroup ?? productMeta?.vatGroup ?? "").trim(),
-          taxRate:
-            (line as Record<string, unknown>).VatPrcnt !== undefined &&
-            (line as Record<string, unknown>).VatPrcnt !== null
-              ? Number((line as Record<string, unknown>).VatPrcnt)
-              : Number(productMeta?.taxRate ?? 0),
-          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
-          ...(resolvedUomEntry !== undefined ? { uomEntry: resolvedUomEntry } : {}),
-          quantity,
-          discountPercent,
-          discountAmount,
-          comment: "",
-          baseEntry: detail.DocEntry ?? detail.id,
-          baseLine: line.LineNum ?? index,
-          baseType,
-          warehouseCode: lineWarehouse,
-          selected: false,
-        };
-      });
-
-      setHeader({
-        comments,
-        docDueDate,
-        referenceNo,
-        vendorCode: customerCode,
-        vendorName: customerName,
-        warehouseCode,
-      });
-      lookups.setNameInput(customerName);
-      lookups.setCodeInput(customerCode);
-      lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
-      lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
-      lookups.setBillToAddress(address);
-      lookups.setShipToAddress(address);
-      productsHook.setProductRows(mappedRows);
-      productsHook.setProductRowDrafts({});
-
-      hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`;
+        hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`;
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
+      }
     })();
   }, [
     sourceDetailQuerySQ.data,
@@ -948,6 +972,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       OpenQty?: number;
       DiscountPercent?: number;
     }[],
+    allSelectedDocNums?: number[],
   ) => {
     const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))];
     const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
@@ -998,8 +1023,53 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     });
 
     productsHook.setProductRows((prev) => {
-      const existing = prev.filter((r) => r.productCode.trim());
-      return [...existing, ...newRows];
+      // 1. Keep non-SO rows OR SO rows whose SO number is in allSelectedDocNums
+      const filteredExisting = prev.filter((r) => {
+        if (allSelectedDocNums && r.baseType === 17) {
+          const match = /Based on SO (\d+)/.exec(r.comment ?? "");
+          if (match?.[1]) {
+            const docNum = Number(match[1]);
+            return allSelectedDocNums.includes(docNum);
+          }
+          // Fallback if comment is empty (URL param case)
+          const urlDocNum = Number(options?.sourceDocNum);
+          if (urlDocNum && !isNaN(urlDocNum) && options?.sourceDocType === "SalesOrder") {
+            return allSelectedDocNums.includes(urlDocNum);
+          }
+        }
+        return true;
+      });
+
+      // 2. Derive which SO numbers are already in filteredExisting
+      const existingSODocNums = new Set(
+        filteredExisting
+          .filter((r) => r.baseType === 17)
+          .map((r) => {
+            const match = /Based on SO (\d+)/.exec(r.comment ?? "");
+            if (match?.[1]) {
+              return Number(match[1]);
+            }
+            const urlDocNum = Number(options?.sourceDocNum);
+            if (urlDocNum && !isNaN(urlDocNum) && options?.sourceDocType === "SalesOrder") {
+              return urlDocNum;
+            }
+            return null;
+          })
+          .filter(Boolean) as number[],
+      );
+
+      // 3. Filter newRows to only include rows from SO numbers that are NOT already in filteredExisting
+      const uniqueNewRows = newRows.filter((row) => {
+        const match = /Based on SO (\d+)/.exec(row.comment ?? "");
+        if (match?.[1]) {
+          const docNum = Number(match[1]);
+          return !existingSODocNums.has(docNum);
+        }
+        return true;
+      });
+
+      const existingNonEmpty = filteredExisting.filter((r) => r.productCode.trim());
+      return [...existingNonEmpty, ...uniqueNewRows];
     });
 
     // Populate header warehouse from the first pulled line — mirrors how the URL-based
@@ -1039,6 +1109,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       DiscountPercent?: number;
       LineTotal?: number;
     }[],
+    allSelectedDocNums?: number[],
   ) => {
     const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))];
     const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
@@ -1103,8 +1174,53 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     });
 
     productsHook.setProductRows((prev) => {
-      const existing = prev.filter((r) => r.productCode.trim());
-      return [...existing, ...newRows];
+      // 1. Keep non-SQ rows OR SQ rows whose SQ number is in allSelectedDocNums
+      const filteredExisting = prev.filter((r) => {
+        if (allSelectedDocNums && r.baseType === 23) {
+          const match = /Based on SQ (\d+)/.exec(r.comment ?? "");
+          if (match?.[1]) {
+            const docNum = Number(match[1]);
+            return allSelectedDocNums.includes(docNum);
+          }
+          // Fallback if comment is empty (URL param case)
+          const urlDocNum = Number(options?.sourceDocNum);
+          if (urlDocNum && !isNaN(urlDocNum) && options?.sourceDocType === "SalesQuotation") {
+            return allSelectedDocNums.includes(urlDocNum);
+          }
+        }
+        return true;
+      });
+
+      // 2. Derive which SQ numbers are already in filteredExisting
+      const existingSQDocNums = new Set(
+        filteredExisting
+          .filter((r) => r.baseType === 23)
+          .map((r) => {
+            const match = /Based on SQ (\d+)/.exec(r.comment ?? "");
+            if (match?.[1]) {
+              return Number(match[1]);
+            }
+            const urlDocNum = Number(options?.sourceDocNum);
+            if (urlDocNum && !isNaN(urlDocNum) && options?.sourceDocType === "SalesQuotation") {
+              return urlDocNum;
+            }
+            return null;
+          })
+          .filter(Boolean) as number[],
+      );
+
+      // 3. Filter newRows to only include rows from SQ numbers that are NOT already in filteredExisting
+      const uniqueNewRows = newRows.filter((row) => {
+        const match = /Based on SQ (\d+)/.exec(row.comment ?? "");
+        if (match?.[1]) {
+          const docNum = Number(match[1]);
+          return !existingSQDocNums.has(docNum);
+        }
+        return true;
+      });
+
+      const existingNonEmpty = filteredExisting.filter((r) => r.productCode.trim());
+      return [...existingNonEmpty, ...uniqueNewRows];
     });
 
     // Populate header warehouse from the first pulled line.

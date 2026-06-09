@@ -1,4 +1,4 @@
-import { Check, FileText, Loader2, StickyNote } from "lucide-react";
+import { Check, ClipboardList, FileText, Loader2, StickyNote } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { apInvoiceAPI } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
@@ -11,13 +11,27 @@ import {
   purchaseQuotationAPI,
   type PurchaseQuotationDetail,
 } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.service";
+import { salesOrderAPI } from "@/features/table-pages/sales-orders/api/sales-order.service";
+import type { SalesOrderDetail } from "@/features/table-pages/sales-orders/api/sales-order.service";
+import {
+  salesQuotationAPI,
+  type SalesQuotationDetail,
+} from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
+import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
+import type { ARInvoiceDetail } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
 import { formatDateDisplay } from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
 import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import type { DateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
-
 import { CopyFromDateFilter } from "./copy-from-date-filter";
 
-type SourceDocType = "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
+export type SourceDocType =
+  | "PurchaseOrder"
+  | "GoodsReceiptPO"
+  | "APInvoice"
+  | "PurchaseQuotation"
+  | "SalesOrder"
+  | "SalesQuotation"
+  | "ARInvoice";
 
 const VISIBLE_LINES = 6;
 
@@ -62,6 +76,9 @@ const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
   GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
   PurchaseQuotation: "Quotation",
+  SalesOrder: "Sales Order",
+  SalesQuotation: "Quotation",
+  ARInvoice: "A/R Invoice",
 };
 
 const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
@@ -69,6 +86,9 @@ const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
   GoodsReceiptPO: <StickyNote className="h-4 w-4" />,
   PurchaseOrder: <FileText className="h-4 w-4" />,
   PurchaseQuotation: <FileText className="h-4 w-4" />,
+  SalesOrder: <FileText className="h-4 w-4" />,
+  SalesQuotation: <ClipboardList className="h-4 w-4" />,
+  ARInvoice: <FileText className="h-4 w-4" />,
 };
 
 function detailCacheKey(docType: SourceDocType, docCode: string): string {
@@ -77,19 +97,32 @@ function detailCacheKey(docType: SourceDocType, docCode: string): string {
 
 function computeDetail(
   _docType: SourceDocType,
-  data: PurchaseOrderDetail | GRPODetail | APInvoiceDetail | PurchaseQuotationDetail,
+  data:
+    | PurchaseOrderDetail
+    | GRPODetail
+    | APInvoiceDetail
+    | PurchaseQuotationDetail
+    | SalesOrderDetail
+    | SalesQuotationDetail
+    | ARInvoiceDetail,
 ): DocDetailCache {
   const lines = data.DocumentLines ?? [];
   const result: DocDetailCache = {
     docCurrency: data.DocCurr,
     docDate: data.DocDate,
-    docTotal: typeof data.DocTotal === "number" ? data.DocTotal : Number(data.DocTotal) || 0,
+    docTotal:
+      typeof (data as any).DocTotal === "number"
+        ? (data as any).DocTotal
+        : Number((data as any).DocTotal) || 0,
     lines: [],
     totalOpenQty: 0,
   };
   for (const line of lines) {
     const openQty =
-      (line as { OpenQty?: number }).OpenQty ?? (line as { Quantity?: number }).Quantity ?? 0;
+      (line as { OpenQty?: number }).OpenQty ??
+      (line as { RemainingOpenQuantity?: number }).RemainingOpenQuantity ??
+      (line as { Quantity?: number }).Quantity ??
+      0;
     result.totalOpenQty += openQty;
     result.lines.push({
       itemName:
@@ -274,6 +307,60 @@ export function CopyFromDialog({
             params.DocDateEnd = dateRange.to;
           }
           result = await purchaseQuotationAPI.getPurchaseQuotations(params);
+        } else if (sourceDocType === "SalesOrder") {
+          const params: Record<string, unknown> = {
+            CardCode: vendorCode,
+            limit,
+          };
+          if (query) {
+            params.DocNum = query;
+          }
+          if (!query && isLoadMore) {
+            params.page = page;
+          }
+          if (dateRange.from) {
+            params.DocDateStart = dateRange.from;
+          }
+          if (dateRange.to) {
+            params.DocDateEnd = dateRange.to;
+          }
+          result = await salesOrderAPI.getSalesOrders(params);
+        } else if (sourceDocType === "SalesQuotation") {
+          const params: Record<string, unknown> = {
+            CardCode: vendorCode,
+            limit,
+          };
+          if (query) {
+            params.DocNum = query;
+          }
+          if (!query && isLoadMore) {
+            params.page = page;
+          }
+          if (dateRange.from) {
+            params.DocDateStart = dateRange.from;
+          }
+          if (dateRange.to) {
+            params.DocDateEnd = dateRange.to;
+          }
+          result = await salesQuotationAPI.getSalesQuotations(params);
+        } else if (sourceDocType === "ARInvoice") {
+          const params: Record<string, unknown> = {
+            CardCode: vendorCode,
+            limit,
+          };
+          if (query) {
+            params.DocNum = query;
+          }
+          if (!query && isLoadMore) {
+            params.page = page;
+          }
+          if (dateRange.from) {
+            params.DocDateStart = dateRange.from;
+          }
+          if (dateRange.to) {
+            params.DocDateEnd = dateRange.to;
+          }
+          result = await arInvoiceAPI.getARInvoices(params);
         } else {
           const params: Record<string, unknown> = {
             CardCode: vendorCode,
@@ -424,6 +511,8 @@ export function CopyFromDialog({
         | GRPODetail
         | APInvoiceDetail
         | PurchaseQuotationDetail
+        | SalesOrderDetail
+        | SalesQuotationDetail
         | null = null;
       if (doc.docType === "PurchaseOrder") {
         const res = await purchaseOrderAPI.getPurchaseOrderByDocNum(doc.code);
@@ -436,6 +525,25 @@ export function CopyFromDialog({
       } else if (doc.docType === "PurchaseQuotation") {
         const res = await purchaseQuotationAPI.getPurchaseQuotationByDocNum(doc.code);
         ({ data } = res);
+      } else if (doc.docType === "SalesOrder") {
+        const res = await salesOrderAPI.getSalesOrderByDocNum(doc.code);
+        ({ data } = res);
+      } else if (doc.docType === "SalesQuotation") {
+        const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.code);
+        ({ data } = res);
+      } else if (doc.docType === "ARInvoice") {
+        const list = await arInvoiceAPI.getARInvoices({
+          page: 1,
+          limit: 10,
+          DocNum: doc.code,
+        });
+        const exact = (list.data ?? []).find((item) => String(item.DocNum).trim() === doc.code);
+        const fallback = list.data?.[0];
+        const target = exact ?? fallback;
+        if (target?.id || target?.id === 0) {
+          const res = await arInvoiceAPI.getARInvoiceById(target.id);
+          ({ data } = res);
+        }
       } else {
         const res = await apInvoiceAPI.getAPInvoice(doc.code);
         ({ data } = res);

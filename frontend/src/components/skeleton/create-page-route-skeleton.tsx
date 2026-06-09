@@ -161,9 +161,15 @@ export function CreatePageRouteSkeleton() {
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         {/* AddressGrid: 2-col layout, each with h-24 textarea */}
         <SectionShell titleWidth="w-20" className="lg:col-span-2">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <TextareaSkeleton />
-            <TextareaSkeleton />
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <TextareaSkeleton />
+              <TextareaSkeleton />
+            </div>
+            <div className="w-full space-y-2">
+              <Pulse className="h-2.5 w-20" />
+              <Pulse className="h-[92px] w-full rounded-xl" />
+            </div>
           </div>
         </SectionShell>
 

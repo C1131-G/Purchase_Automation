@@ -11,7 +11,10 @@ import { VendorCustomerGrid } from "@/features/create-pages/create-shared/compon
 import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
-import { CopyFromDialog } from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
+import {
+  CopyFromDialog,
+  type SourceDocType,
+} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
 import {
   parseISODate,
   toDisplayDate,
@@ -69,7 +72,7 @@ export function PurchaseOrderCreate({
   const handleCopyFromSelect = (
     selected: {
       docNum: string;
-      docType: "PurchaseOrder" | "GoodsReceiptPO" | "APInvoice" | "PurchaseQuotation";
+      docType: SourceDocType;
     }[],
   ) => {
     setSourceCleared(false);

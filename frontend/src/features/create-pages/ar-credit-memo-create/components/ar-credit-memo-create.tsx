@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ArCreditMemoProductSection } from "@/features/create-pages/ar-credit-memo-create/components/ar-credit-memo-product-section";
 import { useArCreditMemoCreate } from "@/features/create-pages/ar-credit-memo-create/hooks/use-ar-credit-memo-create";
@@ -9,14 +9,24 @@ import { DocumentDatesGrid } from "@/features/create-pages/create-shared/compone
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
+import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { RelationshipMapTracker } from "@/features/create-shared/components/layout/relationship-map-tracker";
+import {
+  CopyFromDialog,
+  type SourceDocType,
+} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
+import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { SharedCreateModals } from "@/features/create-pages/create-shared/components/modals/shared-create-modals";
 import {
+  formatWarehouseDisplay,
   parseISODate,
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
+import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
 import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
 
 export interface ArCreditMemoCreateProps {
@@ -40,14 +50,208 @@ export function ArCreditMemoCreate({
   sourceDocType,
 }: ArCreditMemoCreateProps) {
   const queryClient = useQueryClient();
+
+  const [sourceCleared, setSourceCleared] = useState(false);
+
+  useEffect(() => {
+    setSourceCleared(false);
+  }, [sourceDocNum, sourceDocType]);
+
   const state = useArCreditMemoCreate({
     docNum,
     mode,
-    sourceDocNum,
-    sourceDocType,
+    sourceDocNum: !sourceCleared ? sourceDocNum : undefined,
+    sourceDocType: !sourceCleared ? sourceDocType : undefined,
   });
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
+
+  const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
+
+  const handleReset = () => {
+    state.productsHook.setProductRows([]);
+    state.productsHook.setProductRowDrafts({});
+    state.setHeader({ comments: "", referenceNo: "" });
+    state.resetWarehouse();
+    setSourceCleared(true);
+  };
+
+  const committedDocNums = useMemo(() => {
+    const docNums = new Set<string>();
+    state.productsHook.productRows.forEach((r) => {
+      if (r.baseType === 13) {
+        const match = /row-copy-(\d+)-/.exec(r.id);
+        if (match?.[1]) {
+          docNums.add(match[1]);
+        }
+      }
+    });
+    if (
+      !sourceCleared &&
+      state.productsHook.productRows.some((r) => r.baseType === 13) &&
+      sourceDocNum
+    ) {
+      docNums.add(sourceDocNum);
+    }
+    return Array.from(docNums);
+  }, [state.productsHook.productRows, sourceDocNum, sourceCleared]);
+
+  const handleCopyFromSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
+    setCopyFromDialogOpen(false);
+    if (selected.length === 0) return;
+
+    const loadingToast = pageLoadingToast("A/R Credit Memo", "create");
+    try {
+      const details = await Promise.all(
+        selected.map(async (doc) => {
+          const list = await arInvoiceAPI.getARInvoices({
+            page: 1,
+            limit: 10,
+            DocNum: doc.docNum,
+          });
+          const exact = (list.data ?? []).find((item) => String(item.DocNum).trim() === doc.docNum);
+          const fallback = list.data?.[0];
+          const target = exact ?? fallback;
+          if (!target || (!target.id && target.id !== 0)) {
+            throw new Error("A/R invoice not found");
+          }
+          const res = await arInvoiceAPI.getARInvoiceById(target.id);
+          return res.data;
+        }),
+      );
+
+      const itemCodes = [
+        ...new Set(
+          details
+            .flatMap((d) => (d.DocumentLines ?? []).map((l) => String(l.ItemCode ?? "")))
+            .filter(Boolean),
+        ),
+      ];
+
+      const [productMetaResponse, stocksResponse] = await Promise.all([
+        queryClient.fetchQuery(
+          createSharedQueries.products(undefined, undefined, itemCodes.length || 10, "sales"),
+        ),
+        Promise.all(
+          itemCodes.map((code) =>
+            queryClient.fetchQuery(createSharedQueries.productWarehouseStocks(code as string)),
+          ),
+        ),
+      ]);
+
+      const productByCode = new Map(productMetaResponse.map((p) => [p.code, p]));
+      const stocksByCode = new Map(itemCodes.map((code, i) => [code, stocksResponse[i]]));
+
+      const mappedRows = details.flatMap((d) => {
+        const docLines = d.DocumentLines ?? [];
+        const firstWarehouseCode = String(
+          docLines[0]?.WarehouseCode ?? (d as any).WarehouseCode ?? "",
+        ).trim();
+
+        return docLines
+          .filter((line) => {
+            const openQty = line.RemainingOpenQuantity ?? line.Quantity ?? 0;
+            return openQty > 0;
+          })
+          .map((line, index) => {
+            const itemCode = String(line.ItemCode ?? "");
+            const productMeta = productByCode.get(itemCode);
+            const lineWarehouse = String(line.WarehouseCode || firstWarehouseCode);
+            const warehouseStocks = (stocksByCode.get(itemCode) || []) as Record<string, unknown>[];
+            const lineStock = lineWarehouse
+              ? Number(
+                  warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
+                )
+              : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+
+            const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+            const quantity = Number(line.RemainingOpenQuantity ?? line.Quantity ?? 0);
+            const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+              line: line as Record<string, unknown>,
+              grossAmount: price * quantity,
+              headerDiscountPercent: Number((d as Record<string, unknown>).DiscountPercent ?? 0),
+            });
+
+            return {
+              baseEntry: Number(d.DocEntry || d.id) || undefined,
+              baseLine: Number((line as any).LineNum ?? index),
+              baseQuantity: Number(line.Quantity || 1),
+              baseType: 13, // AR Invoice
+              comment: "",
+              currency: String(d.DocCurr || productMeta?.currency || ""),
+              discountAmount,
+              discountPercent,
+              id: `row-copy-${d.DocNum}-${index}`,
+              price,
+              productCode: itemCode,
+              productName: String(line.ItemDescription || productMeta?.name || ""),
+              quantity,
+              returnReason: "",
+              selected: true,
+              stock: lineStock,
+              taxRate:
+                line.VatPrcnt !== undefined
+                  ? Number(line.VatPrcnt)
+                  : Number(productMeta?.taxRate ?? 0),
+              uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? ""),
+              uomEntry: Number(line.UoMEntry ?? productMeta?.uomEntry ?? 0) || undefined,
+              vatGroup: String(line.VatGroup || line.TaxCode || productMeta?.vatGroup || ""),
+              warehouseCode: lineWarehouse,
+            };
+          });
+      });
+
+      const firstDetail = details[0]!;
+      const warehouseCode = String(
+        (firstDetail.DocumentLines || [])[0]?.WarehouseCode ??
+          (firstDetail as any).WarehouseCode ??
+          "",
+      ).trim();
+
+      let salesEmployeeName = "";
+      if (firstDetail.SalesPersonCode !== undefined && firstDetail.SalesPersonCode !== null) {
+        const employeesData = await queryClient.fetchQuery(createSharedQueries.salesEmployees());
+        const matched = employeesData.find(
+          (e) => String(e.code) === String(firstDetail.SalesPersonCode),
+        );
+        salesEmployeeName = matched?.name || "";
+      }
+
+      state.setNameInput(String(firstDetail.CardName || ""));
+      state.setCodeInput(String(firstDetail.CardCode || ""));
+      if (salesEmployeeName) {
+        state.setSalesEmployeeInput(salesEmployeeName);
+      }
+      if (warehouseCode) {
+        const matchedWarehouse = state.warehouses.find(
+          (w) => String(w.code).trim() === warehouseCode,
+        );
+        state.setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
+      }
+      state.setHeader({
+        billToAddress: String(firstDetail.Address || ""),
+        comments: `Based on AR Invoice ${firstDetail.DocNum}. ${String(firstDetail.Comments || "")}`,
+        docDate: new Date().toISOString().split("T")[0]!,
+        docDueDate: new Date().toISOString().split("T")[0]!,
+        referenceNo: String(firstDetail.NumAtCard || ""),
+        shipToAddress: String((firstDetail as any).Address2 || ""),
+        vendorCode: String(firstDetail.CardCode || ""),
+        vendorName: String(firstDetail.CardName || ""),
+        warehouseCode: String(warehouseCode),
+      });
+
+      state.productsHook.setProductRows(mappedRows);
+      state.productsHook.setProductRowDrafts({});
+      loadingToast.dismiss();
+      goeyToast.success("Products pulled successfully");
+    } catch (err) {
+      console.error(err);
+      loadingToast.dismiss();
+      goeyToast.error("Failed to pull products");
+    }
+  };
 
   const {
     header,
@@ -146,6 +350,17 @@ export function ArCreditMemoCreate({
           to: "/sales/ar-credit-memo",
         }}
         pageTitle={state.isEditMode ? `A/R Credit Memo - ${docNum}` : "Create A/R Credit Memo"}
+        topActions={
+          !state.isEditMode ? (
+            <CopyFromDropdown
+              vendorCode={codeInput}
+              vendorName={nameInput}
+              sourceDocTypes={["ARInvoice"]}
+              onSelectSource={() => setCopyFromDialogOpen(true)}
+              onReset={productsHook.productRows.length > 0 ? handleReset : undefined}
+            />
+          ) : null
+        }
       >
         {state.trackerDocEntry > 0 && (
           <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
@@ -301,6 +516,18 @@ export function ArCreditMemoCreate({
             vendorPopupTitle: "Search Customers",
           }}
         />
+
+        {!state.isEditMode && (
+          <CopyFromDialog
+            open={copyFromDialogOpen}
+            onClose={() => setCopyFromDialogOpen(false)}
+            vendorCode={codeInput}
+            vendorName={nameInput}
+            sourceDocType="ARInvoice"
+            onSelectDocuments={handleCopyFromSelect}
+            committedDocNums={committedDocNums}
+          />
+        )}
       </CreatePageWrapper>
     </div>
   );

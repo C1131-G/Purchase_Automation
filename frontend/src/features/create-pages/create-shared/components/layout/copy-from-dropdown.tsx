@@ -10,8 +10,17 @@ export type SourceDocType =
   | "GoodsReceiptPO"
   | "APInvoice"
   | "APCreditMemo"
-  | "PurchaseQuotation";
-type SourceFamily = "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation";
+  | "PurchaseQuotation"
+  | "SalesOrder"
+  | "SalesQuotation"
+  | "ARInvoice";
+type SourceFamily =
+  | "PurchaseOrder"
+  | "GoodsReceiptPO"
+  | "PurchaseQuotation"
+  | "SalesOrder"
+  | "SalesQuotation"
+  | "ARInvoice";
 
 interface CopyFromSourceOption {
   label: string;
@@ -52,6 +61,15 @@ const sourceIcon = (code: string) => {
     case "PurchaseQuotation": {
       return <FileText className="h-4 w-4" />;
     }
+    case "SalesOrder": {
+      return <FileText className="h-4 w-4" />;
+    }
+    case "SalesQuotation": {
+      return <ClipboardList className="h-4 w-4" />;
+    }
+    case "ARInvoice": {
+      return <FileText className="h-4 w-4" />;
+    }
     default: {
       return <ClipboardList className="h-4 w-4" />;
     }
@@ -74,6 +92,15 @@ const sourceMeta = (code: string) => {
     }
     case "PurchaseQuotation": {
       return "Copy from Purchase Quotation";
+    }
+    case "SalesOrder": {
+      return "Copy from Sales Order";
+    }
+    case "SalesQuotation": {
+      return "Copy from Sales Quotation";
+    }
+    case "ARInvoice": {
+      return "Copy from A/R Invoice";
     }
     default: {
       return "";
@@ -217,7 +244,13 @@ function CopyFromDropdownInner({
                   ? "A/P Invoice"
                   : code === "APCreditMemo"
                     ? "A/P Credit Memo"
-                    : "Purchase Quotation",
+                    : code === "PurchaseQuotation"
+                      ? "Purchase Quotation"
+                      : code === "SalesOrder"
+                        ? "Sales Order"
+                        : code === "SalesQuotation"
+                          ? "Sales Quotation"
+                          : "A/R Invoice",
           meta: sourceMeta(code),
         };
         if (isLocked) {

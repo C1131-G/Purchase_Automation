@@ -21,6 +21,7 @@ import type {
   PopupMode,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { documentActionToast } from "@/features/create-pages/create-shared/utils/document-action-toast";
+import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
 import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
 import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
@@ -98,6 +99,7 @@ export function useArCreditMemoCreate({
   }, [resetWarehouse]);
 
   const hydratedDocNumRef = useRef<string | null>(null);
+  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
 
   // Lookup data queries
   const vendorsQuery = useQuery(createSharedQueries.customers());
@@ -320,142 +322,157 @@ export function useArCreditMemoCreate({
       return;
     }
 
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("A/R Credit Memo", isEditMode ? "edit" : "create");
+    }
+
     void (async () => {
-      const rawDetail = isEditMode ? editDetailQuery.data : sourceInvoiceQuery.data;
-      const detail = (rawDetail?.data as unknown as Record<string, unknown>) ?? rawDetail;
-      const vendorCode = (detail as Record<string, unknown>).CardCode || "";
-      const vendorName = (detail as Record<string, unknown>).CardName || "";
-      const comments = (detail as Record<string, unknown>).Comments || "";
-      const referenceNo = (detail as Record<string, unknown>).NumAtCard || "";
-      const billToAddress = (detail as Record<string, unknown>).Address || "";
-      const shipToAddress = (detail as Record<string, unknown>).Address2 || "";
-      const salesPersonCode = (detail as Record<string, unknown>).SalesPersonCode;
+      try {
+        const rawDetail = isEditMode ? editDetailQuery.data : sourceInvoiceQuery.data;
+        const detail = (rawDetail?.data as unknown as Record<string, unknown>) ?? rawDetail;
+        const vendorCode = (detail as Record<string, unknown>).CardCode || "";
+        const vendorName = (detail as Record<string, unknown>).CardName || "";
+        const comments = (detail as Record<string, unknown>).Comments || "";
+        const referenceNo = (detail as Record<string, unknown>).NumAtCard || "";
+        const billToAddress = (detail as Record<string, unknown>).Address || "";
+        const shipToAddress = (detail as Record<string, unknown>).Address2 || "";
+        const salesPersonCode = (detail as Record<string, unknown>).SalesPersonCode;
 
-      const detailLines = ((detail as Record<string, unknown>).DocumentLines || []) as Record<
-        string,
-        unknown
-      >[];
-      // Warehouse lives on document lines, not on the invoice header.
-      // Read it from the first line — same pattern used by AR Invoice create/edit hydration.
-      const warehouseCode = String(
-        detailLines[0]?.WarehouseCode ?? (detail as Record<string, unknown>).WarehouseCode ?? "",
-      ).trim();
-      const itemCodes = [
-        ...new Set(
-          detailLines.map((l: Record<string, unknown>) => String(l.ItemCode ?? "")).filter(Boolean),
-        ),
-      ];
-
-      const [productMetaResponse, stocksResponse] = await Promise.all([
-        queryClient.fetchQuery(
-          createSharedQueries.products(undefined, undefined, itemCodes.length || 10, "sales"),
-        ),
-        Promise.all(
-          itemCodes.map((code) =>
-            queryClient.fetchQuery(createSharedQueries.productWarehouseStocks(code as string)),
+        const detailLines = ((detail as Record<string, unknown>).DocumentLines || []) as Record<
+          string,
+          unknown
+        >[];
+        // Warehouse lives on document lines, not on the invoice header.
+        // Read it from the first line — same pattern used by AR Invoice create/edit hydration.
+        const warehouseCode = String(
+          detailLines[0]?.WarehouseCode ?? (detail as Record<string, unknown>).WarehouseCode ?? "",
+        ).trim();
+        const itemCodes = [
+          ...new Set(
+            detailLines
+              .map((l: Record<string, unknown>) => String(l.ItemCode ?? ""))
+              .filter(Boolean),
           ),
-        ),
-      ]);
+        ];
 
-      const productByCode = new Map(productMetaResponse.map((p) => [p.code, p]));
-      const stocksByCode = new Map(itemCodes.map((code, i) => [code, stocksResponse[i]]));
+        const [productMetaResponse, stocksResponse] = await Promise.all([
+          queryClient.fetchQuery(
+            createSharedQueries.products(undefined, undefined, itemCodes.length || 10, "sales"),
+          ),
+          Promise.all(
+            itemCodes.map((code) =>
+              queryClient.fetchQuery(createSharedQueries.productWarehouseStocks(code as string)),
+            ),
+          ),
+        ]);
 
-      const mappedRows = detailLines.map((line: Record<string, unknown>, index: number) => {
-        const itemCode = String(line.ItemCode ?? "");
-        const productMeta = productByCode.get(itemCode);
-        const lineWarehouse = String(line.WarehouseCode || warehouseCode);
-        const warehouseStocks = (stocksByCode.get(itemCode) || []) as Record<string, unknown>[];
-        const lineStock = lineWarehouse
-          ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
-          : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+        const productByCode = new Map(productMetaResponse.map((p) => [p.code, p]));
+        const stocksByCode = new Map(itemCodes.map((code, i) => [code, stocksResponse[i]]));
 
-        const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
-        const quantity = Number(line.Quantity ?? 0);
-        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
-          line: line as Record<string, unknown>,
-          grossAmount: price * quantity,
-          headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
+        const mappedRows = detailLines.map((line: Record<string, unknown>, index: number) => {
+          const itemCode = String(line.ItemCode ?? "");
+          const productMeta = productByCode.get(itemCode);
+          const lineWarehouse = String(line.WarehouseCode || warehouseCode);
+          const warehouseStocks = (stocksByCode.get(itemCode) || []) as Record<string, unknown>[];
+          const lineStock = lineWarehouse
+            ? Number(
+                warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0,
+              )
+            : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+
+          const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+          const quantity = Number(line.Quantity ?? 0);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            line: line as Record<string, unknown>,
+            grossAmount: price * quantity,
+            headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
+          });
+
+          return {
+            baseEntry:
+              Number(
+                (detail as Record<string, unknown>).DocEntry ||
+                  (detail as Record<string, unknown>).id,
+              ) || undefined,
+            baseLine: Number(line.LineNum ?? index),
+            baseQuantity: Number(line.Quantity || 1),
+            baseType: cleanDocType === "AR_INVOICE" || cleanDocType === "ARInvoice" ? 13 : -1,
+            comment: "",
+            currency: String(
+              (detail as Record<string, unknown>).DocCurr || productMeta?.currency || "",
+            ),
+            discountAmount,
+            discountPercent,
+            id: `row-copy-${cleanDocNum}-${index}`,
+            price: Number(line.Price || line.UnitPrice || productMeta?.price || 0),
+            productCode: itemCode,
+            productName: String(line.ItemDescription || productMeta?.name || ""),
+            quantity: isEditMode
+              ? Number(line.Quantity ?? 0)
+              : line.LineStatus === "C" || line.LineStatus === "bost_Close"
+                ? 0
+                : Number(
+                    line.RemainingOpenQuantity ??
+                      line.OpenQuantity ??
+                      line.OpenQty ??
+                      line.Quantity ??
+                      1,
+                  ),
+            returnReason: String((line as Record<string, unknown>).U_ReturnReason || ""),
+            selected: isEditMode,
+            stock: lineStock,
+            taxRate:
+              line.VatPrcnt !== undefined
+                ? Number(line.VatPrcnt)
+                : Number(productMeta?.taxRate ?? 0),
+            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? ""),
+            uomEntry: Number(line.UoMEntry ?? productMeta?.uomEntry ?? 0) || undefined,
+            vatGroup: String(line.VatGroup || line.TaxCode || productMeta?.vatGroup || ""),
+            warehouseCode: lineWarehouse,
+          };
         });
 
-        return {
-          baseEntry:
-            Number(
-              (detail as Record<string, unknown>).DocEntry ||
-                (detail as Record<string, unknown>).id,
-            ) || undefined,
-          baseLine: Number(line.LineNum ?? index),
-          baseQuantity: Number(line.Quantity || 1),
-          baseType: cleanDocType === "AR_INVOICE" || cleanDocType === "ARInvoice" ? 13 : -1,
-          comment: "",
-          currency: String(
-            (detail as Record<string, unknown>).DocCurr || productMeta?.currency || "",
-          ),
-          discountAmount,
-          discountPercent,
-          id: `row-copy-${cleanDocNum}-${index}`,
-          price: Number(line.Price || line.UnitPrice || productMeta?.price || 0),
-          productCode: itemCode,
-          productName: String(line.ItemDescription || productMeta?.name || ""),
-          quantity: isEditMode
-            ? Number(line.Quantity ?? 0)
-            : line.LineStatus === "C" || line.LineStatus === "bost_Close"
-              ? 0
-              : Number(
-                  line.RemainingOpenQuantity ??
-                    line.OpenQuantity ??
-                    line.OpenQty ??
-                    line.Quantity ??
-                    1,
-                ),
-          returnReason: String((line as Record<string, unknown>).U_ReturnReason || ""),
-          selected: isEditMode,
-          stock: lineStock,
-          taxRate:
-            line.VatPrcnt !== undefined ? Number(line.VatPrcnt) : Number(productMeta?.taxRate ?? 0),
-          uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? ""),
-          uomEntry: Number(line.UoMEntry ?? productMeta?.uomEntry ?? 0) || undefined,
-          vatGroup: String(line.VatGroup || line.TaxCode || productMeta?.vatGroup || ""),
-          warehouseCode: lineWarehouse,
-        };
-      });
+        // Resolve the sales employee name from code
+        let salesEmployeeName = "";
+        if (salesPersonCode !== undefined && salesPersonCode !== null) {
+          const employeesData = await queryClient.fetchQuery(createSharedQueries.salesEmployees());
+          const matched = employeesData.find((e) => String(e.code) === String(salesPersonCode));
+          salesEmployeeName = matched?.name || "";
+        }
 
-      // Resolve the sales employee name from code
-      let salesEmployeeName = "";
-      if (salesPersonCode !== undefined && salesPersonCode !== null) {
-        const employeesData = await queryClient.fetchQuery(createSharedQueries.salesEmployees());
-        const matched = employeesData.find((e) => String(e.code) === String(salesPersonCode));
-        salesEmployeeName = matched?.name || "";
+        setNameInput(String(vendorName));
+        setCodeInput(String(vendorCode));
+        if (salesEmployeeName) {
+          setSalesEmployeeInput(salesEmployeeName);
+        }
+        // Resolve warehouse display name eagerly so the header field is populated on arrival.
+        // The reactive useEffect (header.warehouseCode + warehouses) also updates it once the
+        // warehouses list is available, providing a belt-and-suspenders approach.
+        if (warehouseCode) {
+          const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+          setWarehouseInput(
+            formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+          );
+        }
+        setHeader({
+          billToAddress: String(billToAddress),
+          comments: isEditMode
+            ? String(comments)
+            : `Based on AR Invoice ${cleanDocNum}. ${String(comments)}`,
+          docDate: new Date().toISOString().split("T")[0]!,
+          docDueDate: new Date().toISOString().split("T")[0]!,
+          referenceNo: String(referenceNo),
+          shipToAddress: String(shipToAddress),
+          vendorCode: String(vendorCode),
+          vendorName: String(vendorName),
+          warehouseCode: String(warehouseCode),
+        });
+        productsHook.setProductRows(mappedRows);
+        hydratedDocNumRef.current = cleanDocNum;
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
       }
-
-      setNameInput(String(vendorName));
-      setCodeInput(String(vendorCode));
-      if (salesEmployeeName) {
-        setSalesEmployeeInput(salesEmployeeName);
-      }
-      // Resolve warehouse display name eagerly so the header field is populated on arrival.
-      // The reactive useEffect (header.warehouseCode + warehouses) also updates it once the
-      // warehouses list is available, providing a belt-and-suspenders approach.
-      if (warehouseCode) {
-        const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
-        setWarehouseInput(
-          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
-        );
-      }
-      setHeader({
-        billToAddress: String(billToAddress),
-        comments: isEditMode
-          ? String(comments)
-          : `Based on AR Invoice ${cleanDocNum}. ${String(comments)}`,
-        docDate: new Date().toISOString().split("T")[0]!,
-        docDueDate: new Date().toISOString().split("T")[0]!,
-        referenceNo: String(referenceNo),
-        shipToAddress: String(shipToAddress),
-        vendorCode: String(vendorCode),
-        vendorName: String(vendorName),
-        warehouseCode: String(warehouseCode),
-      });
-      productsHook.setProductRows(mappedRows);
-      hydratedDocNumRef.current = cleanDocNum;
     })();
   }, [
     editDetailQuery.data,
@@ -694,6 +711,7 @@ export function useArCreditMemoCreate({
     setWarehouseFocused,
     warehouseSuggestions,
     handleWarehouseChange,
+    resetWarehouse,
     handleVendorNameChange,
     handleVendorCodeChange,
     handleSalesEmployeeChange,

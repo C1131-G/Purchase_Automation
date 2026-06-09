@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, FileText, Loader2, Search, X } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { ClipboardList, FileText, Loader2, RotateCcw, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AnimatedModalShell } from "@/features/create-pages/create-shared/components/core/animated-modal-shell";
 import { CopyFromDateFilter } from "@/features/create-pages/create-shared/components/modals/copy-from-date-filter";
@@ -15,9 +15,10 @@ interface PullFromSQModalProps {
   open: boolean;
   onClose: () => void;
   cardCode: string;
-  onConfirm: (selectedLines: OpenSalesQuotationLine[]) => void;
+  onConfirm: (selectedLines: OpenSalesQuotationLine[], allSelectedDocNums?: number[]) => void;
   /** Doc numbers already pulled into the invoice. Shown pre-checked + locked to prevent re-pull. */
   committedDocNums?: number[];
+  onReset?: () => void;
 }
 
 interface GroupedOrder {
@@ -36,11 +37,19 @@ export function PullFromSQModal({
   cardCode,
   onConfirm,
   committedDocNums,
+  onReset,
 }: PullFromSQModalProps) {
   const [search, setSearch] = useState("");
   const committedSet = useMemo(() => new Set(committedDocNums ?? []), [committedDocNums]);
   const [dateRange, setDateRange] = useState<DateRangeFilter>({});
   const [selectedDocNums, setSelectedDocNums] = useState<Set<number>>(new Set());
+
+  // Seed selection with committed SQ numbers on open
+  useEffect(() => {
+    if (open) {
+      setSelectedDocNums(new Set(committedDocNums ?? []));
+    }
+  }, [open, committedDocNums]);
 
   const [hoveredOrder, setHoveredOrder] = useState<GroupedOrder | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,9 +158,6 @@ export function PullFromSQModal({
   }, [groupedOrders, search, dateRange]);
 
   const toggleSelect = (docNum: number) => {
-    if (committedSet.has(docNum)) {
-      return;
-    }
     const next = new Set(selectedDocNums);
     if (next.has(docNum)) {
       next.delete(docNum);
@@ -162,17 +168,16 @@ export function PullFromSQModal({
   };
 
   const toggleSelectAll = () => {
-    const selectableOrders = filteredOrders.filter((o) => !committedSet.has(o.DocNum));
-    const allSelectableSelected = selectableOrders.every((o) => selectedDocNums.has(o.DocNum));
+    const allSelectableSelected = filteredOrders.every((o) => selectedDocNums.has(o.DocNum));
     if (allSelectableSelected) {
       const next = new Set(selectedDocNums);
-      for (const o of selectableOrders) {
+      for (const o of filteredOrders) {
         next.delete(o.DocNum);
       }
       setSelectedDocNums(next);
     } else {
       const next = new Set(selectedDocNums);
-      for (const o of selectableOrders) {
+      for (const o of filteredOrders) {
         next.add(o.DocNum);
       }
       setSelectedDocNums(next);
@@ -180,23 +185,21 @@ export function PullFromSQModal({
   };
 
   const handleConfirm = () => {
-    const selectedLines = lines.filter(
-      (l) => selectedDocNums.has(l.DocNum) && !committedSet.has(l.DocNum),
-    );
-    onConfirm(selectedLines);
+    const selectedLines = lines.filter((l) => selectedDocNums.has(l.DocNum));
+    const allSelectedDocNums = Array.from(selectedDocNums);
+    onConfirm(selectedLines, allSelectedDocNums);
     setSelectedDocNums(new Set());
     setSearch("");
   };
 
-  const selectableOrders = filteredOrders.filter((o) => !committedSet.has(o.DocNum));
   const isAllSelected =
-    selectableOrders.length > 0 && selectableOrders.every((o) => selectedDocNums.has(o.DocNum));
+    filteredOrders.length > 0 && filteredOrders.every((o) => selectedDocNums.has(o.DocNum));
 
   return (
     <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-4xl">
       <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400">
             <ClipboardList className="h-6 w-6" />
           </div>
           <div>
@@ -296,11 +299,9 @@ export function PullFromSQModal({
                       <tr
                         key={order.DocNum}
                         className={`transition ${
-                          isCommitted
-                            ? "opacity-60 bg-zinc-50"
-                            : isSelected
-                              ? "bg-blue-50/30 cursor-pointer hover:bg-zinc-50/80"
-                              : "cursor-pointer hover:bg-zinc-50/80"
+                          isSelected
+                            ? "bg-blue-50/30 cursor-pointer hover:bg-zinc-50/80"
+                            : "cursor-pointer hover:bg-zinc-50/80"
                         }`}
                         onClick={() => toggleSelect(order.DocNum)}
                         onMouseEnter={() => handleRowMouseEnter(order)}
@@ -310,8 +311,7 @@ export function PullFromSQModal({
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                            checked={isSelected || isCommitted}
-                            disabled={isCommitted}
+                            checked={isSelected}
                             onChange={() => toggleSelect(order.DocNum)}
                             autoComplete="off"
                           />
@@ -329,7 +329,7 @@ export function PullFromSQModal({
                           {order.TotalQty.toLocaleString()}
                         </td>
                         <td className="px-4 py-3 text-zinc-500 font-medium">
-                          {isCommitted ? (
+                          {isCommitted && isSelected ? (
                             <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                               Added
                             </span>
@@ -408,16 +408,30 @@ export function PullFromSQModal({
             )}
           </div>
           <div className="flex gap-3">
+            {onReset && (selectedDocNums.size > 0 || committedSet.size > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onReset();
+                  setSelectedDocNums(new Set());
+                  onClose();
+                }}
+                className="h-10 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 px-6 text-sm font-medium text-red-600 transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>Reset to Default</span>
+              </button>
+            )}
             <button
               onClick={onClose}
-              className="h-10 rounded-xl border border-zinc-200 bg-white px-6 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+              className="h-10 rounded-xl border border-zinc-200 bg-white px-6 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50 cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={handleConfirm}
-              disabled={selectedDocNums.size === 0}
-              className="h-10 rounded-xl bg-blue-600 px-8 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+              disabled={selectedDocNums.size === 0 && committedSet.size === 0}
+              className="h-10 rounded-xl bg-blue-600 px-8 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md cursor-pointer"
             >
               Add Selected Orders
             </button>

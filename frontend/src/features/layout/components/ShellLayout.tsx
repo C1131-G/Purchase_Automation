@@ -8,7 +8,7 @@ import { prefetchTableRouteIntent } from "@/features/table-pages/table-shared/ho
 import type { TableRoutePath } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
 import { cn } from "@/shared/utils/cn";
 import { useAuthStore } from "@/store/auth/auth.store";
-import { useSetSidebarAction, useSidebarOpen } from "@/store/sidebar/sidebar.store";
+import { useSetSidebarAction } from "@/store/sidebar/sidebar.store";
 
 import type { SectionKey } from "../utils/shell-layout.types";
 import { ShellLayoutBrandHeader } from "./shell-layout-brand-header";
@@ -25,7 +25,6 @@ export function ShellLayout() {
   const isAuthLoading = useAuthStore((state) => state.isLoading);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const logoutReason = useAuthStore((state) => state.logoutReason);
-  const isSidebarOpen = useSidebarOpen();
   const setSidebarOpen = useSetSidebarAction();
   const logoutBusy = isLoggingOut || isAuthLoading;
 
@@ -153,8 +152,7 @@ export function ShellLayout() {
 
       <SidebarInset
         className={cn(
-          "bg-zinc-50 transition-[filter,opacity,padding] duration-150",
-          isSidebarOpen && "md:opacity-80 md:blur-[2px]",
+          "bg-zinc-50 transition-[filter,opacity] duration-150",
           "md:pl-[5.5rem]",
           logoutBusy && "pointer-events-none opacity-80 blur-[2px]",
         )}
