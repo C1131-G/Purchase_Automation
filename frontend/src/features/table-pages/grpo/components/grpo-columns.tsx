@@ -113,7 +113,8 @@ export const createGRPOColumns = (options?: CreateGRPOColumnsOptions) => {
     }),
     columnHelper.accessor("DocTotal", {
       cell: (info) => {
-        const amount = Number.parseFloat(String(info.getValue()));
+        const rawAmount = Number.parseFloat(String(info.getValue()));
+        const amount = Math.round(rawAmount * 20) / 20;
         const currency = info.row.original.DocCurr ?? "";
         const formattedAmount = new Intl.NumberFormat("en-IN", {
           maximumFractionDigits: 2,

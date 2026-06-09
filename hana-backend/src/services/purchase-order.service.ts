@@ -361,6 +361,8 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
         return docLine;
       }),
       SalesPersonCode: payload.SalesPersonCode,
+      Rounding: payload.Rounding,
+      RoundingDiffAmount: payload.RoundingDiffAmount,
     };
 
     // Formats DocDate into SAP-compliant YYYY-MM-DD.

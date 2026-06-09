@@ -170,7 +170,27 @@ export const cancelPayment = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+export const getAccounts = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { search?: string; limit?: number }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { search, limit } = authReq.query;
+
+    const result = await incomingPaymentService.getAccounts(dbName, { search, limit });
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const incomingPaymentDal = {
+  getAccounts,
   cancelPayment,
   createPayment,
   getPayment,

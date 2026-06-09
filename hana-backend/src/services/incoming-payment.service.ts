@@ -8,6 +8,7 @@ import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PaymentFilters } from "@/dal/types/incoming-payment.types";
 import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
+import { ChartOfAccountSchema } from "@/db/schemas/chart-of-accounts.schema";
 import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
 import type { IncomingPayment } from "@/db/schemas/incoming-payment.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
@@ -424,6 +425,9 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
       sapPayload.TrsfrSum = payload.TrsfrSum;
+      if (payload.TransferAccount) sapPayload.TransferAccount = payload.TransferAccount;
+      if (payload.TransferDate) sapPayload.TransferDate = payload.TransferDate;
+      if (payload.TransferReference) sapPayload.TransferReference = payload.TransferReference;
     }
 
     if (Array.isArray(payload.PaymentCreditCards) && payload.PaymentCreditCards.length > 0) {
@@ -696,7 +700,55 @@ export const cancelPayment = async (sessionId: string, id: string) => {
   }
 };
 
+export const getAccounts = async (dbName: string, query: { search?: string; limit?: number }) => {
+  try {
+    const repo = await getTenantRepository(dbName, ChartOfAccountSchema);
+    const qb = repo.createQueryBuilder("a");
+
+    qb.select(["a.AcctCode", "a.AcctName"]);
+    qb.where("a.Finanse = 'Y'");
+
+    if (query.search) {
+      qb.andWhere(
+        "(LOWER(a.AcctCode) LIKE LOWER(:search) OR LOWER(a.AcctName) LIKE LOWER(:search))",
+        { search: `%${query.search}%` },
+      );
+    }
+
+    qb.orderBy("a.AcctCode", "ASC").take(query.limit ?? 20);
+
+    const rows = await qb.getRawMany<Record<string, unknown>>();
+
+    logger.info({
+      msg: "Fetched OACT cash accounts",
+      db: dbName,
+      count: rows.length,
+    });
+
+    return {
+      data: rows.map((r) => ({
+        GLAccount: r["a_AcctCode"] as string,
+        Account: r["a_AcctName"] as string,
+      })),
+      total: rows.length,
+    };
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.error({
+      db: dbName,
+      error: caughtError.message,
+      msg: "Failed to fetch OACT cash accounts",
+    });
+    const dbError = new Error(`Failed to retrieve accounts: ${caughtError.message}`) as Error & {
+      statusCode?: number;
+    };
+    dbError.statusCode = 500;
+    throw dbError;
+  }
+};
+
 export const incomingPaymentService = {
+  getAccounts,
   cancelPayment,
   createPayment,
   getPayment,

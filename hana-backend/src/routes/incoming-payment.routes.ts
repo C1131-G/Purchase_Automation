@@ -10,6 +10,7 @@ import {
   PaymentDocNumLookupQuerySchema,
   PaymentQuerySchema,
 } from "@/validation/schemas/inputs/payments.input";
+import { AccountQuerySchema } from "@/validation/schemas/inputs/outgoing-payment-account.input";
 
 const router = express.Router();
 
@@ -27,6 +28,9 @@ router.get(
 
 // GET /by-doc-num/:docNum: Fetches full details for a single incoming payment using its DocNum.
 router.get("/by-doc-num/:docNum", incomingPaymentDal.getPaymentByDocNum);
+
+// GET /accounts: Retrieves OACT cash accounts for the incoming payment account selection.
+router.get("/accounts", validateQuery(AccountQuerySchema), incomingPaymentDal.getAccounts);
 
 // GET /:id: Fetches full details for a single incoming payment, including settlement allocations.
 router.get("/:id", incomingPaymentDal.getPayment);

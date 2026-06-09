@@ -315,6 +315,8 @@ export const createPurchaseQuotation = async (
         return docLine;
       }),
       SalesPersonCode: payload.SalesPersonCode,
+      Rounding: payload.Rounding,
+      RoundingDiffAmount: payload.RoundingDiffAmount,
     };
 
     const docDate = sapPayload.DocDate as string;

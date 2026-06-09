@@ -1,0 +1,16 @@
+/*Table sort arrow*/
+.sort-direction {
+  display: inline-block;
+  height: 0;
+  width: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+
+  &.asc {
+    border-bottom: 4px solid #8898aa;
+  }
+
+  &.desc {
+    border-top: 4px solid #8898aa;
+  }
+}

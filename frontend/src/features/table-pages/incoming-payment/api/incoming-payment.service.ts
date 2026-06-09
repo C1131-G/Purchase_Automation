@@ -28,6 +28,9 @@ export interface CreateIncomingPaymentPayload {
   Remarks: string;
   CashSum: number;
   TrsfrSum: number;
+  TransferDate?: string;
+  TransferAccount?: string;
+  TransferReference?: string;
   CheckSum: number;
   PaymentCreditCards?: {
     CreditCard: number;
@@ -41,6 +44,7 @@ export interface CreateIncomingPaymentPayload {
     CheckSum: number;
     CheckAccount?: string;
     Endorse?: "tYES" | "tNO";
+    BankName?: string;
   }[];
   SurchargeTotal?: number;
   PaymentInvoices: {
@@ -93,6 +97,17 @@ export interface IncomingPaymentDetailResponse {
   data: IncomingPaymentDetail;
 }
 
+export interface BankDetail {
+  CountryCode: string;
+  BankCode: string;
+  BankName: string;
+}
+
+export interface IncomingPaymentAccount {
+  GLAccount: string;
+  Account: string;
+}
+
 export const incomingPaymentAPI = {
   createIncomingPayment: async (payload: CreateIncomingPaymentPayload) =>
     apiClient<{
@@ -115,6 +130,31 @@ export const incomingPaymentAPI = {
     const query = toQueryString(params);
     const path = query ? `/api/v1/incoming-payments?${query}` : "/api/v1/incoming-payments";
     return apiClient<IncomingPaymentListResponse>(path);
+  },
+  getAccounts: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit });
+    const path = query
+      ? `/api/v1/incoming-payments/accounts?${query}`
+      : "/api/v1/incoming-payments/accounts";
+    return apiClient<{ success: boolean; data: IncomingPaymentAccount[]; total: number }>(path);
+  },
+  getBankDetails: async (search?: string, limit?: number) => {
+    const query = toQueryString({ search, limit });
+    const path = query ? `/api/v1/bank-details?${query}` : "/api/v1/bank-details";
+    const wire = await apiClient<{
+      success: boolean;
+      data: { CountryCod: string; BankCode: string; BankName: string }[];
+      total: number;
+    }>(path);
+    return {
+      success: wire.success,
+      total: wire.total,
+      data: wire.data.map((row) => ({
+        CountryCode: row.CountryCod,
+        BankCode: row.BankCode,
+        BankName: row.BankName,
+      })),
+    };
   },
   updatePayment: async (id: number | string, payload: { Remarks?: string; Reference?: string }) =>
     apiClient<{ success: boolean; message: string }>(`/api/v1/incoming-payments/${id}`, {

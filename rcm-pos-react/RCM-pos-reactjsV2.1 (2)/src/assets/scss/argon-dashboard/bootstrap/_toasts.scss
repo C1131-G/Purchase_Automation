@@ -1,0 +1,133 @@
+.toast-lg {
+  max-width: "70%" !important;
+}
+.toast {
+  // width: 300px;
+  max-width: $toast-max-width;
+  overflow: hidden; // cheap rounded corners on nested items
+  //@include font-size($toast-font-size);
+  font-size: $toast-font-size;
+  color: $toast-color;
+  background-color: $toast-background-color;
+  background-clip: padding-box;
+  border: $toast-border-width solid $toast-border-color;
+  box-shadow: $toast-box-shadow;
+  backdrop-filter: blur(100px);
+  opacity: 0;
+  @include border-radius($toast-border-radius);
+  position: fixed;
+  z-index: 9999;
+
+  &:not(:last-child) {
+    margin-bottom: $toast-padding-x;
+  }
+
+  &.showing {
+    opacity: 1;
+  }
+
+  &.show {
+    display: block;
+    opacity: 1;
+  }
+
+  &.hide {
+    display: none;
+  }
+}
+
+.toast-header {
+  display: flex;
+  align-items: center;
+  padding: $toast-padding-y $toast-padding-x;
+  color: $toast-header-color;
+  //background-color: $toast-header-background-color;
+  background-clip: padding-box;
+  border-bottom: $toast-border-width solid $toast-header-border-color;
+}
+
+.toast-body {
+  background-color: $toast-background-color;
+  padding: $toast-padding-x; // apply to both vertical and horizontal
+}
+
+.toast-success {
+  background-color: $toast-success;
+}
+.toast-warning {
+  background-color: $toast-warning;
+}
+.toast-danger {
+  background-color: $toast-danger;
+}
+.toast-primary {
+  background-color: $toast-primary;
+}
+.toast-secondary {
+  background-color: $toast-secondary;
+}
+.toast-info {
+  background-color: $toast-info;
+}
+
+.top-right {
+  top: 12px;
+  right: 12px;
+  transition: transform 0.6s ease-in-out;
+  animation: toast-in-right 0.3s;
+}
+
+.bottom-right {
+  bottom: 12px;
+  right: 12px;
+  transition: transform 0.6s ease-in-out;
+  animation: toast-in-right 0.3s;
+}
+
+.top-left {
+  top: 12px;
+  left: 12px;
+  transition: transform 0.6s ease-in;
+  animation: toast-in-left 0.7s;
+}
+
+.bottom-left {
+  bottom: 12px;
+  left: 12px;
+  transition: transform 0.6s ease-in;
+  animation: toast-in-left 0.7s;
+}
+
+.center-left {
+  bottom: 7%;
+  left: 15px;
+  transition: transform 0.6s ease-in;
+  animation: toast-in-left 0.7s;
+}
+
+.top-center-middle {
+  top: 14px;
+  left: 41%;
+}
+.center-middle {
+  top: 37%;
+  left: 41%;
+}
+
+@keyframes toast-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
