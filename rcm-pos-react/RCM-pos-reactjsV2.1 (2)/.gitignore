@@ -1,0 +1,52 @@
+/_old
+/node_modules
+/build
+package-lock.json
+src/views/Returns/_old/
+src/assets/css/_old/
+src/components/_old/
+src/components/PageContainer/_old/
+src/components/RecordListCard/_old
+src/contexts/_old/
+src/views/components/_old/
+src/views/_old/
+src/views/components/AutoComplete/CustomerAutoComplete/_old
+src/views/components/AutoComplete/ItemAutoComplete/_old/
+src/views/components/BaseComponents/_old/
+src/views/components/ChildRecordsCardWithSaveAll/_old/
+src/views/components/AutoComplete/WarehouseAutoComplete/_old/
+src/views/components/ChildRecordsTableWithSaveAll/_old/
+src/views/components/RecordsTable/_old/
+src/views/Sales/_old/
+src/views/Sales/context/_old/
+src/views/SalesQuotation/_old/
+src/views/Stores/Warehouse/_old/
+src/views/Stores/Counter/_old/
+src/views/Stores/_old/
+src/views/Returns/Create/_old/
+src/helper/_old/
+src/components/ToastMessage.2 zz w react-hot-toast.js
+src/components/ToastMessageNew.zz W react-hot-toast.js
+src/routes.b4 B&W icons.js
+src/views/components/CounterSelectionModal/_old/
+src/views/components/RecordsTableWithInfinityScroll/_old/
+src/views/Sales/Create/PausedTransactions/_old/
+src/views/Sales/Create/InvoiceReceipt _Sample.js
+src/views/Sales/Create/Payment/_old/
+src/views/Stores/Users/_old/
+src/views/PrintQRCode/_old/
+public/meta.json
+.vscode/launch.json
+src/assets/img/cards/_old/
+src/views/components/RecordsTableWithFilter/_old/
+src/views/Returns/View/_old
+src/views/Returns/View/ItemSummary/_old/
+src/views/Returns/Create/ItemSummary/_old/
+src/views/Sales/View/context/_old/
+src/views/components/OneTimeCustomerPopup/_old/
+src/views/components/POS/_old/
+src/views/Sales/Create/ItemSummary/_old/
+src/views/components/POS/BatchSerialItemsModal/_old/
+src/views/common-utils/_old
+powershell_scripts/_old/
+public/_old/

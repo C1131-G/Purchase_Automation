@@ -1,0 +1,8 @@
+/node_modules
+/logs
+/sessions
+/build
+package-lock.json
+app/entities/services/_old
+app/controllers/_old
+_old/
