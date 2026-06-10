@@ -1,0 +1,115 @@
+import type { DashboardArea, DashboardPeriod } from "../utils/types";
+import {
+  useDashboardKpiSummary,
+  useDashboardModuleCards,
+  useDashboardTrend,
+  useDashboardFunnel,
+  useDashboardTopPartners,
+  useDashboardExceptions,
+} from "../queries/queries";
+import { KpiRow } from "./KpiRow";
+import { ModuleTiles } from "./ModuleTiles";
+import { TrendChart } from "./TrendChart";
+import { FunnelChart } from "./FunnelChart";
+import { PartnerTable } from "./PartnerTable";
+import { ExceptionsTable } from "./ExceptionsTable";
+import {
+  KpiRowSkeleton,
+  ModuleTilesSkeleton,
+  TrendChartSkeleton,
+  FunnelChartSkeleton,
+  TableSkeleton,
+} from "./DashboardSkeletons";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+
+interface DashboardCanvasProps {
+  area: DashboardArea;
+  period: DashboardPeriod;
+}
+
+export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
+  const color = area === "purchase" ? "blue" : "indigo";
+
+  // Run all queries in parallel for streaming segments
+  const kpiQuery = useDashboardKpiSummary(area, period);
+  const modulesQuery = useDashboardModuleCards(area, period);
+  const trendQuery = useDashboardTrend(area, period);
+  const funnelQuery = useDashboardFunnel(area, period);
+  const partnersQuery = useDashboardTopPartners(area, period);
+  const exceptionsQuery = useDashboardExceptions(area, period);
+
+  const queries = [kpiQuery, modulesQuery, trendQuery, funnelQuery, partnersQuery, exceptionsQuery];
+
+  const hasError = queries.some((q) => q.isError);
+  const isFirstLoading = queries.some((q) => q.isLoading);
+
+  const handleRetry = () => {
+    queries.forEach((q) => q.refetch());
+  };
+
+  // If loading for the first time (no cached/previous data available yet)
+  if (isFirstLoading) {
+    return (
+      <div className="flex flex-col gap-6 w-full">
+        <KpiRowSkeleton />
+        <ModuleTilesSkeleton />
+        <TrendChartSkeleton />
+        <FunnelChartSkeleton />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TableSkeleton />
+          <TableSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  // If any query failed and we have no valid data to show
+  if (hasError) {
+    return (
+      <div className="bg-white border border-rose-200/70 rounded-2xl p-12 text-center shadow-sm flex flex-col items-center justify-center gap-4 max-w-xl mx-auto my-12">
+        <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-100/50 text-rose-600 animate-bounce">
+          <AlertTriangle className="size-8" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-lg font-bold text-zinc-900">Failed to Load Dashboard</h3>
+          <p className="text-xs text-zinc-500 font-medium max-w-sm">
+            We encountered a problem retrieving your dashboard metrics. This may be due to a
+            temporary network issue or session expiry.
+          </p>
+        </div>
+        <button
+          onClick={handleRetry}
+          className="inline-flex items-center gap-2 cursor-pointer bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-4.5 py-2 rounded-xl transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-950/20 active:scale-95"
+        >
+          <RefreshCw className="size-3.5" />
+          Retry Request
+        </button>
+      </div>
+    );
+  }
+
+  // Get common currency code from loaded datasets
+  const currency = kpiQuery.data?.currency || "$";
+
+  return (
+    <div className="flex flex-col gap-6 w-full">
+      {/* KPI row */}
+      <KpiRow metrics={kpiQuery.data?.data} currency={currency} color={color} />
+
+      {/* Module Tiles */}
+      <ModuleTiles cards={modulesQuery.data?.data} currency={currency} color={color} />
+
+      {/* Trend Chart */}
+      <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />
+
+      {/* Process Funnel */}
+      <FunnelChart steps={funnelQuery.data?.data} currency={currency} color={color} />
+
+      {/* Pareto top partners and Actionable exceptions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <PartnerTable groups={partnersQuery.data?.data} currency={currency} color={color} />
+        <ExceptionsTable groups={exceptionsQuery.data?.data} currency={currency} color={color} />
+      </div>
+    </div>
+  );
+}

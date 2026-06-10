@@ -1,6 +1,5 @@
-// Dashboard Service: Aggregation logic for High-Level KPIs, utilizing HANA SQL for performant analytics and multi-layer caching.
+// Dashboard Service: Aggregates KPIs, charts, process funnel steps, exceptions, and partner Pareto tables.
 
-// Core & Utils
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
@@ -8,26 +7,36 @@ import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 
-// Helper: Generates HANA-specific SQL fragments for rolling date windows.
+import { loadAreaDataset } from "./dashboard/dashboard.data";
+import { buildPurchaseMain } from "./dashboard/purchase-dashboard";
+import { buildSalesMain } from "./dashboard/sales-dashboard";
+import type {
+  DashboardPeriod,
+  DashboardMetric,
+  DashboardModuleCard,
+  DashboardTrend,
+  DashboardFunnelStep,
+  DashboardPartnerGroup,
+  DashboardExceptionGroup,
+} from "./dashboard/dashboard.types";
+
+// Helper: Generates HANA-specific SQL fragments for rolling date windows (backward compatibility).
 const getDateFilter = (range?: string) => {
   switch (range?.toLowerCase()) {
     case "weekly": {
-      // HANA Syntax for subtracting 7 days.
       return "ADD_DAYS(CURRENT_DATE, -7)";
     }
     case "monthly": {
       return "ADD_MONTHS(CURRENT_DATE, -1)";
     }
     default: {
-      // Fallback to Yearly view for broader context.
       return "ADD_YEARS(CURRENT_DATE, -1)";
     }
   }
 };
 
-// Computes Purchase Order KPIs and Top Vendor rankings for Supply Chain visibility.
+// Original purchase summary (backward compatibility)
 export const getPurchaseSummary = async (dbName: string, range: string = "yearly") => {
-  // Tenant-specific caching to prevent heavy aggregation queries on every dashboard load.
   const cacheKey = `dash:purchase:${dbName}:${range}`;
 
   return getCachedData(cacheKey, async () => {
@@ -35,11 +44,9 @@ export const getPurchaseSummary = async (dbName: string, range: string = "yearly
       const repo = await getTenantRepository(dbName, PurchaseOrderSchema);
       const dateLimit = getDateFilter(range);
 
-      // 1. Aggregated Statistics: Uses getRawOne because queries return scalars (SUM/COUNT), not entities.
       const stats = await repo
         .createQueryBuilder("po")
         .select("COUNT(po.docEntry)", "totalOrders")
-        // Industry Logic: Open orders represent pending commitments.
         .addSelect("SUM(CASE WHEN po.docStatus = 'O' THEN 1 ELSE 0 END)", "openOrders")
         .addSelect("SUM(po.docTotal)", "totalSpend")
         .addSelect(
@@ -49,7 +56,6 @@ export const getPurchaseSummary = async (dbName: string, range: string = "yearly
         .where(`po.docDate >= ${dateLimit}`)
         .getRawOne();
 
-      // 2. Pareto Analysis: Identifies top 5 vendors by spend.
       const topVendors = await repo
         .createQueryBuilder("po")
         .select("po.cardCode", "code")
@@ -87,7 +93,7 @@ export const getPurchaseSummary = async (dbName: string, range: string = "yearly
   });
 };
 
-// Computes Sales Performance and Financial Health metrics (Receivables).
+// Original sales summary (backward compatibility)
 export const getSalesSummary = async (dbName: string, range: string = "yearly") => {
   const cacheKey = `dash:sales:${dbName}:${range}`;
 
@@ -97,7 +103,6 @@ export const getSalesSummary = async (dbName: string, range: string = "yearly") 
       const invRepo = await getTenantRepository(dbName, ARInvoiceSchema);
       const dateLimit = getDateFilter(range);
 
-      // 1. Sales Order Volume & Gross Revenue.
       const salesStats = await soRepo
         .createQueryBuilder("so")
         .select("COUNT(so.docEntry)", "totalOrders")
@@ -106,7 +111,6 @@ export const getSalesSummary = async (dbName: string, range: string = "yearly") 
         .where(`so.docDate >= ${dateLimit}`)
         .getRawOne();
 
-      // 2. Financials: Calculates current outstanding debt by subtracting payments from gross invoice totals.
       const financialStats = await invRepo
         .createQueryBuilder("inv")
         .select("SUM(inv.docTotal)", "totalInvoiced")
@@ -117,11 +121,9 @@ export const getSalesSummary = async (dbName: string, range: string = "yearly") 
         .where(`inv.docDate >= ${dateLimit}`)
         .getRawOne();
 
-      // 3. Time-Series Trend: For visual charts on the frontend.
-      // Dynamic grouping: Days for weekly views, Months for yearly views.
-      let groupBy = "TO_VARCHAR(so.docDate, 'YYYY-MM')"; // Monthly (e.g., 2023-01)
+      let groupBy = "TO_VARCHAR(so.docDate, 'YYYY-MM')";
       if (range === "weekly") {
-        groupBy = "TO_VARCHAR(so.docDate, 'YYYY-MM-DD')"; // Daily (e.g., 2023-01-01)
+        groupBy = "TO_VARCHAR(so.docDate, 'YYYY-MM-DD')";
       }
 
       const trends = await soRepo
@@ -157,7 +159,144 @@ export const getSalesSummary = async (dbName: string, range: string = "yearly") 
   });
 };
 
+type DashboardSectionResponse<T> = {
+  data: T;
+  currency: string;
+};
+
+// Purchase KPI summary
+export const getPurchaseKpiSummary = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardMetric[]>> => {
+  const dataset = await loadAreaDataset("purchase", period, dbName);
+  const output = buildPurchaseMain(dataset);
+  return { data: output.summary, currency: dataset.currency };
+};
+
+// Sales KPI summary
+export const getSalesKpiSummary = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardMetric[]>> => {
+  const dataset = await loadAreaDataset("sales", period, dbName);
+  const output = buildSalesMain(dataset);
+  return { data: output.summary, currency: dataset.currency };
+};
+
+// Purchase module cards
+export const getPurchaseModuleCards = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardModuleCard[]>> => {
+  const dataset = await loadAreaDataset("purchase", period, dbName);
+  const output = buildPurchaseMain(dataset);
+  return { data: output.moduleCards, currency: dataset.currency };
+};
+
+// Sales module cards
+export const getSalesModuleCards = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardModuleCard[]>> => {
+  const dataset = await loadAreaDataset("sales", period, dbName);
+  const output = buildSalesMain(dataset);
+  return { data: output.moduleCards, currency: dataset.currency };
+};
+
+// Purchase Trend
+export const getPurchaseTrend = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardTrend>> => {
+  const dataset = await loadAreaDataset("purchase", period, dbName);
+  const output = buildPurchaseMain(dataset);
+  return { data: output.trend, currency: dataset.currency };
+};
+
+// Sales Trend
+export const getSalesTrend = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardTrend>> => {
+  const dataset = await loadAreaDataset("sales", period, dbName);
+  const output = buildSalesMain(dataset);
+  return { data: output.trend, currency: dataset.currency };
+};
+
+// Purchase Funnel
+export const getPurchaseFunnel = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardFunnelStep[]>> => {
+  const dataset = await loadAreaDataset("purchase", period, dbName);
+  const output = buildPurchaseMain(dataset);
+  return { data: output.funnel, currency: dataset.currency };
+};
+
+// Sales Funnel
+export const getSalesFunnel = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardFunnelStep[]>> => {
+  const dataset = await loadAreaDataset("sales", period, dbName);
+  const output = buildSalesMain(dataset);
+  return { data: output.funnel, currency: dataset.currency };
+};
+
+// Purchase Top Partners
+export const getPurchaseTopPartners = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardPartnerGroup[]>> => {
+  const dataset = await loadAreaDataset("purchase", period, dbName);
+  const output = buildPurchaseMain(dataset);
+  return { data: output.topPartners, currency: dataset.currency };
+};
+
+// Sales Top Partners
+export const getSalesTopPartners = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardPartnerGroup[]>> => {
+  const dataset = await loadAreaDataset("sales", period, dbName);
+  const output = buildSalesMain(dataset);
+  return { data: output.topPartners, currency: dataset.currency };
+};
+
+// Purchase Exceptions
+export const getPurchaseExceptions = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardExceptionGroup[]>> => {
+  const dataset = await loadAreaDataset("purchase", period, dbName);
+  const output = buildPurchaseMain(dataset);
+  return { data: output.exceptions, currency: dataset.currency };
+};
+
+// Sales Exceptions
+export const getSalesExceptions = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardExceptionGroup[]>> => {
+  const dataset = await loadAreaDataset("sales", period, dbName);
+  const output = buildSalesMain(dataset);
+  return { data: output.exceptions, currency: dataset.currency };
+};
+
 export const dashboardService = {
   getPurchaseSummary,
   getSalesSummary,
+  getPurchaseKpiSummary,
+  getSalesKpiSummary,
+  getPurchaseModuleCards,
+  getSalesModuleCards,
+  getPurchaseTrend,
+  getSalesTrend,
+  getPurchaseFunnel,
+  getSalesFunnel,
+  getPurchaseTopPartners,
+  getSalesTopPartners,
+  getPurchaseExceptions,
+  getSalesExceptions,
 };

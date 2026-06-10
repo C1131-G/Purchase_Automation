@@ -14,6 +14,7 @@ export const Route = createFileRoute("/")({
     if (isAuthenticated) {
       throw redirect({
         to: "/dashboard/purchase",
+        search: { period: "year" },
       });
     }
 
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/")({
       useAuthStore.getState().login(user);
       throw redirect({
         to: "/dashboard/purchase",
+        search: { period: "year" },
       });
     } catch {
       // No active session; continue to login.

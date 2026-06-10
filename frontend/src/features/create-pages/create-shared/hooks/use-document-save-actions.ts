@@ -66,8 +66,11 @@ export function useDocumentSaveActions({
         setIsSaved(false);
         setSavedDocNum(null);
         lastSavedStateRef.current = "";
-        const dashboardUrl = moduleType === "purchase" ? "/dashboard/purchase" : "/dashboard/sales";
-        void router.navigate({ to: dashboardUrl });
+        const dashboardUrl =
+          moduleType === "purchase"
+            ? ("/dashboard/purchase" as const)
+            : ("/dashboard/sales" as const);
+        void router.navigate({ to: dashboardUrl, search: { period: "year" } });
       } else if (action === "view") {
         setIsSaved(true);
         setSavedDocNum(createdDocNum ?? null);

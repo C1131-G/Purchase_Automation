@@ -4,18 +4,18 @@ import type { NextFunction, Request, Response } from "express";
 
 // Core
 import { logger } from "@/core/logger/pino-logger";
-import type { DashboardQuery } from "@/dal/types/dashboard.types";
+import type { DashboardPeriod } from "@/services/dashboard/dashboard.types";
 import type { AuthenticatedRequest } from "@/dal/types/express.types";
 // Services
 import { dashboardService } from "@/services/dashboard.service";
 
-// Fetches a combined summary of Purchase and Sales data for the dashboard.
+// Original combined stats fetcher (backward compatibility)
 export const getDashboardStats = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest<
     Record<string, never>,
     unknown,
     unknown,
-    DashboardQuery
+    { range: string }
   >;
   try {
     const { dbName } = authReq.user;
@@ -27,7 +27,6 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
       range: range || "yearly",
     });
 
-    // Execute multiple summary fetches concurrently to minimize total request latency.
     const [purchase, sales] = await Promise.all([
       dashboardService.getPurchaseSummary(dbName, range),
       dashboardService.getSalesSummary(dbName, range),
@@ -45,13 +44,13 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
   }
 };
 
-// Retrieves purchase-specific metrics (e.g., total POs, GRPO vs Invoice progress) for the dashboard.
+// Original purchase summary (backward compatibility)
 export const getPurchaseSummary = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest<
     Record<string, never>,
     unknown,
     unknown,
-    DashboardQuery
+    { range: string }
   >;
   try {
     const { dbName } = authReq.user;
@@ -74,13 +73,13 @@ export const getPurchaseSummary = async (req: Request, res: Response, next: Next
   }
 };
 
-// Retrieves sales-specific metrics (e.g., total SOs, AR Invoices) for the dashboard.
+// Original sales summary (backward compatibility)
 export const getSalesSummary = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest<
     Record<string, never>,
     unknown,
     unknown,
-    DashboardQuery
+    { range: string }
   >;
   try {
     const { dbName } = authReq.user;
@@ -103,8 +102,238 @@ export const getSalesSummary = async (req: Request, res: Response, next: NextFun
   }
 };
 
+// --- NEW STREAMING CONTROLLERS ---
+
+// Purchase KPI Summary
+export const getPurchaseKpiSummary = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getPurchaseKpiSummary(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Sales KPI Summary
+export const getSalesKpiSummary = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getSalesKpiSummary(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Purchase Module Cards
+export const getPurchaseModuleCards = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getPurchaseModuleCards(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Sales Module Cards
+export const getSalesModuleCards = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getSalesModuleCards(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Purchase Trend
+export const getPurchaseTrend = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getPurchaseTrend(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Sales Trend
+export const getSalesTrend = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getSalesTrend(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Purchase Funnel
+export const getPurchaseFunnel = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getPurchaseFunnel(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Sales Funnel
+export const getSalesFunnel = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getSalesFunnel(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Purchase Top Partners
+export const getPurchaseTopPartners = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getPurchaseTopPartners(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Sales Top Partners
+export const getSalesTopPartners = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getSalesTopPartners(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Purchase Exceptions
+export const getPurchaseExceptions = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getPurchaseExceptions(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Sales Exceptions
+export const getSalesExceptions = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getSalesExceptions(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const dashboardDal = {
   getDashboardStats,
   getPurchaseSummary,
   getSalesSummary,
+  getPurchaseKpiSummary,
+  getSalesKpiSummary,
+  getPurchaseModuleCards,
+  getSalesModuleCards,
+  getPurchaseTrend,
+  getSalesTrend,
+  getPurchaseFunnel,
+  getSalesFunnel,
+  getPurchaseTopPartners,
+  getSalesTopPartners,
+  getPurchaseExceptions,
+  getSalesExceptions,
 };
