@@ -70,7 +70,7 @@ export function useDocumentSaveActions({
           moduleType === "purchase"
             ? ("/dashboard/purchase" as const)
             : ("/dashboard/sales" as const);
-        void router.navigate({ to: dashboardUrl, search: { period: "year" } });
+        void router.navigate({ to: dashboardUrl, search: { period: "week" } });
       } else if (action === "view") {
         setIsSaved(true);
         setSavedDocNum(createdDocNum ?? null);

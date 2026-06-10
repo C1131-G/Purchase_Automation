@@ -4,7 +4,7 @@ import { PurchaseDashboard } from "@/features/dashboard/components/PurchaseDashb
 import type { DashboardPeriod } from "@/features/dashboard/utils/types";
 
 const searchSchema = z.object({
-  period: z.enum(["week", "month", "year", "all"]).default("year"),
+  period: z.enum(["week", "month", "year", "all"]).default("week"),
 });
 
 export const Route = createFileRoute("/_layout/dashboard/purchase")({

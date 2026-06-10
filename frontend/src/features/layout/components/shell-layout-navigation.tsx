@@ -41,7 +41,7 @@ export function ShellLayoutNavigation({
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                   to="/dashboard/purchase"
-                  search={{ period: "year" } as any}
+                  search={{ period: "week" } as any}
                   isActive={pathname === "/dashboard/purchase"}
                 >
                   Purchase
@@ -50,7 +50,7 @@ export function ShellLayoutNavigation({
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                   to="/dashboard/sales"
-                  search={{ period: "year" } as any}
+                  search={{ period: "week" } as any}
                   isActive={pathname === "/dashboard/sales"}
                 >
                   Sales

@@ -56,6 +56,23 @@ const fetchModuleDocuments = async (
   const repo = await getTenantRepository(dbName, schema);
   const qb = repo.createQueryBuilder("doc");
 
+  // Optimize: query only mapped fields needed for dashboard metrics to speed up query execution
+  const possibleColumns = [
+    "docEntry",
+    "docNum",
+    "docDate",
+    "cardCode",
+    "cardName",
+    "docTotal",
+    "docCurr",
+    "docStatus",
+    "paidToDate",
+  ];
+  const selectColumns = possibleColumns
+    .filter((prop) => repo.metadata.findColumnWithPropertyName(prop))
+    .map((prop) => `doc.${prop}`);
+  qb.select(selectColumns);
+
   if (range.start) {
     qb.andWhere("doc.docDate >= :start", { start: range.start });
   }
@@ -119,38 +136,42 @@ export const loadAreaDataset = async (
 ): Promise<AreaDataset> => {
   const cacheKey = `dash:${area}:${dbName}:${period}`;
 
-  return getCachedData(cacheKey, async () => {
-    const window = getPeriodWindow(period);
-    const modules = area === "purchase" ? PURCHASE_MODULES : SALES_MODULES;
+  return getCachedData(
+    cacheKey,
+    async () => {
+      const window = getPeriodWindow(period);
+      const modules = area === "purchase" ? PURCHASE_MODULES : SALES_MODULES;
 
-    const datasets = await Promise.all(
-      modules.map(async (module) => {
-        const [current, previous] = await Promise.all([
-          fetchModuleDocuments(module, window.current, dbName),
-          window.previous
-            ? fetchModuleDocuments(module, window.previous, dbName)
-            : Promise.resolve([]),
-        ]);
+      const datasets = await Promise.all(
+        modules.map(async (module) => {
+          const [current, previous] = await Promise.all([
+            fetchModuleDocuments(module, window.current, dbName),
+            window.previous
+              ? fetchModuleDocuments(module, window.previous, dbName)
+              : Promise.resolve([]),
+          ]);
 
-        return { module, current, previous };
-      }),
-    );
+          return { module, current, previous };
+        }),
+      );
 
-    const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
-    const settingsRows = await adminSettingsRepo.find({
-      select: ["MainCurncy"],
-      take: 1,
-    });
-    const settings = settingsRows[0] ?? null;
-    const displayCurrency = settings?.MainCurncy || "USD";
+      const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
+      const settingsRows = await adminSettingsRepo.find({
+        select: ["MainCurncy"],
+        take: 1,
+      });
+      const settings = settingsRows[0] ?? null;
+      const displayCurrency = settings?.MainCurncy || "USD";
 
-    return {
-      currency: displayCurrency,
-      modules: datasets,
-      period,
-      granularity: window.granularity,
-    };
-  });
+      return {
+        currency: displayCurrency,
+        modules: datasets,
+        period,
+        granularity: window.granularity,
+      };
+    },
+    15 * 1000,
+  );
 };
 
 export const getModuleDataset = (dataset: AreaDataset, module: DocumentModule): ModuleDataset => {
