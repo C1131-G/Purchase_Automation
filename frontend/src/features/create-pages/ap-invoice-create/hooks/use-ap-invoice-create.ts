@@ -1636,6 +1636,7 @@ export function useAPInvoiceCreate({
     updateProductRow: (id: string, patch: Partial<APInvoiceCreateLine>) =>
       setLines((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r))),
     removeProductRow: (id: string) => setLines((prev) => prev.filter((r) => r.id !== id)),
+    setProductRows: setLines,
 
     stockPreviewProduct,
     setStockPreviewProduct,

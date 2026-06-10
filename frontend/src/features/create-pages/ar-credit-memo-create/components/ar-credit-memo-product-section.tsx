@@ -39,6 +39,10 @@ interface ArCreditMemoProductSectionProps {
   savedDocNum?: string | number | null;
   onDownload?: (type: "pdf" | "excel" | "word") => void;
   onReset?: () => void;
+  setProductRows: ArCreditMemoState["setProductRows"];
+  vendorName: ArCreditMemoState["nameInput"];
+  vendorCode: ArCreditMemoState["codeInput"];
+  defaultWarehouseCode: ArCreditMemoState["effectiveWarehouseCode"];
 }
 
 /**
@@ -76,6 +80,10 @@ export function ArCreditMemoProductSection({
   savedDocNum = null,
   onDownload,
   onReset,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: ArCreditMemoProductSectionProps) {
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
 
@@ -108,6 +116,11 @@ export function ArCreditMemoProductSection({
         });
       }}
       onPrefetchProducts={prefetchProducts}
+      productRows={productRows}
+      setProductRows={setProductRows}
+      defaultWarehouseCode={defaultWarehouseCode || ""}
+      vendorName={vendorName}
+      vendorCode={vendorCode}
       missingSearchFields={missingSearchFieldsList}
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}

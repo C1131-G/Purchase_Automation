@@ -1651,6 +1651,7 @@ export function useAPCreditMemoCreate({
     updateMutation,
     updateProductRow: (id: string, patch: Partial<APCreditMemoCreateLine>) =>
       setLines((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r))),
+    setProductRows: setLines,
     vendorCodeFocused,
     vendorCodeInput,
     vendorCodeSuggestions,

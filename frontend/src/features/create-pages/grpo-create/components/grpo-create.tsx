@@ -327,6 +327,10 @@ export function GRPOCreate({
       <GRPOProductSection
         rows={state.rows}
         productRowDrafts={state.productRowDrafts}
+        setProductRows={state.setProductRows}
+        vendorCode={state.vendorCodeInput}
+        vendorName={state.vendorNameInput}
+        defaultWarehouseCode={state.effectiveWarehouseCode}
         createError={state.createError}
         createDisabledReason={state.createDisabledReason}
         missingSearchMandatoryFields={state.missingSearchMandatoryFields}

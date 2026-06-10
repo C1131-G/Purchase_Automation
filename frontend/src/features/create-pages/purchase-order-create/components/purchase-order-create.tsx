@@ -365,6 +365,10 @@ export function PurchaseOrderCreate({
         prefetchProducts={state.prefetchProducts}
         productRows={state.productRows}
         productRowDrafts={state.productRowDrafts}
+        setProductRows={state.setProductRows}
+        vendorCode={state.codeInput}
+        vendorName={state.nameInput}
+        defaultWarehouseCode={state.effectiveWarehouseCode}
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading}
         updateProductRow={state.updateProductRow}

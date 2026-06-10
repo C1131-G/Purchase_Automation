@@ -39,6 +39,10 @@ interface SalesQuotationProductSectionProps {
   savedDocNum?: string | number | null;
   onDownload?: (type: "pdf" | "excel" | "word") => void;
   onReset?: () => void;
+  setProductRows: SalesQuotationState["setProductRows"];
+  vendorName: SalesQuotationState["nameInput"];
+  vendorCode: SalesQuotationState["codeInput"];
+  defaultWarehouseCode: SalesQuotationState["effectiveWarehouseCode"];
 }
 
 /**
@@ -76,12 +80,21 @@ export function SalesQuotationProductSection({
   savedDocNum = null,
   onDownload,
   onReset,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: SalesQuotationProductSectionProps) {
   return (
     <BaseProductSection
       sectionId={sectionId}
       onSearchProducts={() => openProductPopup(null)}
       onPrefetchProducts={prefetchProducts}
+      productRows={productRows}
+      setProductRows={setProductRows}
+      defaultWarehouseCode={defaultWarehouseCode || ""}
+      vendorName={vendorName}
+      vendorCode={vendorCode}
       missingSearchFields={missingSearchMandatoryFields}
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}

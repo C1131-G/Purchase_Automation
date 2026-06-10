@@ -43,6 +43,10 @@ interface PurchaseOrderProductSectionProps {
   savedDocNum?: string | number | null;
   onDownload?: (type: "pdf" | "excel" | "word") => void;
   onReset?: () => void;
+  setProductRows: PurchaseOrderState["setProductRows"];
+  vendorName: PurchaseOrderState["nameInput"];
+  vendorCode: PurchaseOrderState["codeInput"];
+  defaultWarehouseCode: PurchaseOrderState["effectiveWarehouseCode"];
 }
 
 /**
@@ -84,12 +88,21 @@ export function PurchaseOrderProductSection({
   savedDocNum = null,
   onDownload,
   onReset,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: PurchaseOrderProductSectionProps) {
   return (
     <BaseProductSection
       sectionId={sectionId}
       onSearchProducts={() => openProductPopup(null)}
       onPrefetchProducts={prefetchProducts}
+      productRows={productRows}
+      setProductRows={setProductRows}
+      defaultWarehouseCode={defaultWarehouseCode || ""}
+      vendorName={vendorName}
+      vendorCode={vendorCode}
       missingSearchFields={missingSearchMandatoryFields}
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}

@@ -53,6 +53,12 @@ interface APCreditMemoProductSectionProps {
   onDownload?: (type: "pdf" | "excel" | "word") => void;
   onReset?: () => void;
   submitLoadingText?: string;
+  setProductRows: (
+    rows: APCreditMemoCreateLine[] | ((prev: APCreditMemoCreateLine[]) => APCreditMemoCreateLine[]),
+  ) => void;
+  vendorName: string;
+  vendorCode: string;
+  defaultWarehouseCode: string;
 }
 
 export function APCreditMemoProductSection({
@@ -89,6 +95,10 @@ export function APCreditMemoProductSection({
   onDownload,
   onReset,
   submitLoadingText,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: APCreditMemoProductSectionProps) {
   const selectedRows = rows.filter((r) => r.selected);
   const totals = calculateOrderTotals(selectedRows, { headerDiscountPercent });
@@ -107,6 +117,11 @@ export function APCreditMemoProductSection({
         openProductPopup(null);
       }}
       onPrefetchProducts={prefetchProducts}
+      productRows={rows as any}
+      setProductRows={setProductRows as any}
+      defaultWarehouseCode={defaultWarehouseCode || ""}
+      vendorName={vendorName}
+      vendorCode={vendorCode}
       missingSearchFields={missingSearchMandatoryFields}
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}

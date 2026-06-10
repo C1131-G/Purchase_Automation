@@ -53,6 +53,10 @@ interface GRPOProductSectionProps {
   onDownload?: (type: "pdf" | "excel" | "word") => void;
   onReset?: () => void;
   submitLoadingText?: string;
+  setProductRows: (rows: GRPOCreateLine[] | ((prev: GRPOCreateLine[]) => GRPOCreateLine[])) => void;
+  vendorName: string;
+  vendorCode: string;
+  defaultWarehouseCode: string;
 }
 
 /**
@@ -93,6 +97,10 @@ export function GRPOProductSection({
   onDownload,
   onReset,
   submitLoadingText,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: GRPOProductSectionProps) {
   const totals = calculateOrderTotals(rows, { headerDiscountPercent });
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null;
@@ -108,6 +116,11 @@ export function GRPOProductSection({
         openProductPopup(null);
       }}
       onPrefetchProducts={prefetchProducts}
+      productRows={rows as any}
+      setProductRows={setProductRows as any}
+      defaultWarehouseCode={defaultWarehouseCode || ""}
+      vendorName={vendorName}
+      vendorCode={vendorCode}
       missingSearchFields={missingSearchMandatoryFields}
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}

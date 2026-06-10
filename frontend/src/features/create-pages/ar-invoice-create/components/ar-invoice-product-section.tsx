@@ -38,6 +38,10 @@ interface ARInvoiceProductSectionProps {
   savedDocNum?: string | number | null;
   onDownload?: (type: "pdf" | "excel" | "word") => void;
   onReset?: () => void;
+  setProductRows: ARInvoiceState["setProductRows"];
+  vendorName: ARInvoiceState["nameInput"];
+  vendorCode: ARInvoiceState["codeInput"];
+  defaultWarehouseCode: ARInvoiceState["effectiveWarehouseCode"];
 }
 
 /**
@@ -76,6 +80,10 @@ export function ARInvoiceProductSection({
   savedDocNum = null,
   onDownload,
   onReset,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: ARInvoiceProductSectionProps) {
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
 
@@ -90,6 +98,11 @@ export function ARInvoiceProductSection({
         openProductPopup(null);
       }}
       onPrefetchProducts={prefetchProducts}
+      productRows={productRows}
+      setProductRows={setProductRows}
+      defaultWarehouseCode={defaultWarehouseCode || ""}
+      vendorName={vendorName}
+      vendorCode={vendorCode}
       missingSearchFields={missingSearchMandatoryFields}
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}

@@ -493,6 +493,10 @@ export function ArCreditMemoCreate({
           prefetchProducts={productsHook.prefetchProducts}
           productRows={productsHook.productRows}
           productRowDrafts={productsHook.productRowDrafts}
+          setProductRows={productsHook.setProductRows}
+          vendorCode={codeInput}
+          vendorName={nameInput}
+          defaultWarehouseCode={header.warehouseCode}
           updateProductRow={productsHook.updateProductRow}
           removeProductRow={productsHook.removeProductRow}
           setProductRowDraft={productsHook.setProductRowDraft}

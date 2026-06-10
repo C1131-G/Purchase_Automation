@@ -356,6 +356,10 @@ export function APInvoiceCreate({
       <APInvoiceProductSection
         rows={state.rows}
         productRowDrafts={state.productRowDrafts}
+        setProductRows={state.setProductRows}
+        vendorCode={state.vendorCodeInput}
+        vendorName={state.vendorNameInput}
+        defaultWarehouseCode={state.warehouseCode}
         createError={state.createError}
         createDisabledReason={state.createDisabledReason}
         missingSearchMandatoryFields={state.missingSearchMandatoryFields}

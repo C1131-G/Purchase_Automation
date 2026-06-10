@@ -54,6 +54,12 @@ interface APInvoiceProductSectionProps {
   onReset?: () => void;
   submitLabel?: string;
   submitLoadingText?: string;
+  setProductRows: (
+    rows: APInvoiceCreateLine[] | ((prev: APInvoiceCreateLine[]) => APInvoiceCreateLine[]),
+  ) => void;
+  vendorName: string;
+  vendorCode: string;
+  defaultWarehouseCode: string;
 }
 
 /**
@@ -95,6 +101,10 @@ export function APInvoiceProductSection({
   onReset,
   submitLabel,
   submitLoadingText,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: APInvoiceProductSectionProps) {
   const totals = calculateOrderTotals(rows, { headerDiscountPercent });
   const summaryCurrencyLabel = calculateSummaryCurrency(rows) || null;
@@ -112,6 +122,11 @@ export function APInvoiceProductSection({
         openProductPopup(null);
       }}
       onPrefetchProducts={prefetchProducts}
+      productRows={rows as any}
+      setProductRows={setProductRows as any}
+      defaultWarehouseCode={defaultWarehouseCode || ""}
+      vendorName={vendorName}
+      vendorCode={vendorCode}
       missingSearchFields={missingSearchMandatoryFields}
       searchCompletionPercent={searchRequiredCompletionPercent}
       searchFieldsTotal={searchMandatoryFields.length}

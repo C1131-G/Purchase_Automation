@@ -16,6 +16,8 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/button";
 import { Tooltip } from "@/components/tooltip";
+import { SearchAndImportMenu } from "./search-and-import-menu";
+import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 
 function Pulse({ className }: { className: string }) {
   return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />;
@@ -76,6 +78,14 @@ interface BaseProductSectionProps {
   secondaryActions?: ReactNode | undefined;
   showSubmitButton?: boolean | undefined;
   isReadOnly?: boolean | undefined;
+  customSearchAction?: ReactNode | undefined;
+  productRows?: ProductRow[] | undefined;
+  setProductRows?:
+    | ((rows: ProductRow[] | ((prev: ProductRow[]) => ProductRow[])) => void)
+    | undefined;
+  vendorName?: string | undefined;
+  vendorCode?: string | undefined;
+  defaultWarehouseCode?: string | undefined;
 }
 
 /**
@@ -119,6 +129,12 @@ export function BaseProductSection({
   hideSearch = false,
   allowSearchInEditMode = false,
   isReadOnly = false,
+  customSearchAction,
+  productRows,
+  setProductRows,
+  vendorName,
+  vendorCode,
+  defaultWarehouseCode,
 }: BaseProductSectionProps) {
   const navigate = useNavigate();
   const effectiveHideSearch = hideSearch || (isEditMode && !allowSearchInEditMode);
@@ -277,18 +293,31 @@ export function BaseProductSection({
               </span>
             </Tooltip>
           ) : null}
-          {!effectiveHideSearch && (
-            <button
-              type="button"
-              onClick={onSearchProducts}
-              onMouseEnter={onPrefetchProducts}
-              onFocus={onPrefetchProducts}
-              className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
-            >
-              <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-              {searchLabel}
-            </button>
-          )}
+          {customSearchAction
+            ? customSearchAction
+            : !effectiveHideSearch &&
+              (productRows && setProductRows ? (
+                <SearchAndImportMenu
+                  onSearchProducts={onSearchProducts}
+                  onPrefetchProducts={onPrefetchProducts}
+                  productRows={productRows}
+                  setProductRows={setProductRows}
+                  defaultWarehouseCode={defaultWarehouseCode}
+                  vendorName={vendorName}
+                  vendorCode={vendorCode}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={onSearchProducts}
+                  onMouseEnter={onPrefetchProducts}
+                  onFocus={onPrefetchProducts}
+                  className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+                >
+                  <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                  {searchLabel}
+                </button>
+              ))}
         </div>
       </div>
 
