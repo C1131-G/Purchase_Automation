@@ -81,7 +81,7 @@ export function ArCreditMemoCreate({
     if (selectedFile) {
       try {
         const attachmentRes = await uploadAttachmentMutation.mutateAsync(selectedFile);
-        if (typeof attachmentRes === 'number') {
+        if (typeof attachmentRes === "number") {
           attachmentEntryId = attachmentRes;
         } else {
           throw new Error("Invalid response from attachment upload");
@@ -497,10 +497,7 @@ export function ArCreditMemoCreate({
               onShipToAddressChange={(value) => setHeader({ shipToAddress: value })}
             />
             {!state.isEditMode && (
-              <UploadAttachmentCard
-                ref={attachmentRef}
-                onFileSelect={setSelectedFile}
-              />
+              <UploadAttachmentCard ref={attachmentRef} onFileSelect={setSelectedFile} />
             )}
           </div>
 
@@ -564,7 +561,13 @@ export function ArCreditMemoCreate({
             } as any);
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : uploadAttachmentMutation.isPending ? "Uploading..." : "Creating..."}
+          submitLoadingText={
+            state.isEditMode
+              ? "Updating..."
+              : uploadAttachmentMutation.isPending
+                ? "Uploading..."
+                : "Creating..."
+          }
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
         />

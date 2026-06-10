@@ -78,12 +78,12 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
         {state.trackerDocType && state.trackerDocEntry && (
           <div className="mb-4 mt-2 w-full">
             <div className="relative z-10 overflow-x-auto w-full">
-                <RelationshipMapTracker
-                  docType={state.trackerDocType as any}
-                  docEntry={state.trackerDocEntry}
-                  compact={true}
-                />
-              </div>
+              <RelationshipMapTracker
+                docType={state.trackerDocType as any}
+                docEntry={state.trackerDocEntry}
+                compact={true}
+              />
+            </div>
           </div>
         )}
 

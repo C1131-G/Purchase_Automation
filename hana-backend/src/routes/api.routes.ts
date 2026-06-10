@@ -64,4 +64,3 @@ router.use("/financial-period", financialPeriodRoutes);
 router.use("/attachments", attachmentRoutes);
 
 export const apiRoutes = router;
-

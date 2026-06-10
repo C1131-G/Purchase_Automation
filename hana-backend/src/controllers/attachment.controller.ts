@@ -16,7 +16,7 @@ export const uploadAttachment = async (req: Request, res: Response, next: NextFu
     console.log("[uploadAttachment] req.file:", file ? file.originalname : "undefined");
     console.log("[uploadAttachment] req.body:", req.body);
     console.log("[uploadAttachment] req.headers.content-type:", req.headers["content-type"]);
-    
+
     if (!file) {
       res.status(400).json({ error: "No file uploaded" });
       return;

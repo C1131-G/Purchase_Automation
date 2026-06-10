@@ -120,10 +120,9 @@ export function AddressGrid({
             {shipToAddressInvalid && shipToAddressErrorText ? (
               <p className="mt-1 text-xs text-red-600">{shipToAddressErrorText}</p>
             ) : null}
+          </div>
         </div>
-      </div>
       </div>
     </SectionCard>
   );
 }
-

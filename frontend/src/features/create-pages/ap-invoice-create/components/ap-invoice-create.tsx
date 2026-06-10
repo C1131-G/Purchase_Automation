@@ -179,14 +179,14 @@ export function APInvoiceCreate({
     >
       {state.trackerDocType && state.trackerDocEntry && (
         <div className="mb-4 mt-2 w-full">
-            <div className="relative z-10 overflow-x-auto w-full">
-              <RelationshipMapTracker
-                docType={state.trackerDocType}
-                docEntry={state.trackerDocEntry}
-                compact={true}
-              />
-            </div>
+          <div className="relative z-10 overflow-x-auto w-full">
+            <RelationshipMapTracker
+              docType={state.trackerDocType}
+              docEntry={state.trackerDocEntry}
+              compact={true}
+            />
           </div>
+        </div>
       )}
       <CopyFromDialog
         open={copyFromDialogOpen}
