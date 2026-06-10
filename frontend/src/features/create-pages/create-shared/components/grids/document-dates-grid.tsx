@@ -36,6 +36,8 @@ interface DocumentDatesGridProps {
   docDueDateReadOnly?: boolean;
   /** Visual-only override: read-only fields render with the same background as editable fields. */
   uniformReadOnlyAppearance?: boolean;
+  docDueDateLabel?: string;
+  docDueDatePlaceholder?: string;
 }
 
 export function DocumentDatesGrid({
@@ -58,6 +60,8 @@ export function DocumentDatesGrid({
   docDateReadOnly = false,
   docDueDateReadOnly = false,
   uniformReadOnlyAppearance = false,
+  docDueDateLabel = "DELIVERY DATE",
+  docDueDatePlaceholder = "Select delivery date",
 }: DocumentDatesGridProps) {
   return (
     <SectionCard title="DOCUMENT DATES" className="lg:col-span-1">
@@ -125,11 +129,11 @@ export function DocumentDatesGrid({
 
         <div ref={deliveryDateContainerRef} className="relative">
           <label
-            htmlFor="po-delivery-date"
+            htmlFor="po-due-date"
             className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
           >
             <span className="inline-flex items-center gap-1.5">
-              <span>DELIVERY DATE</span>
+              <span>{docDueDateLabel}</span>
               {docDueDateReadOnly ? (
                 <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
               ) : null}
@@ -139,6 +143,7 @@ export function DocumentDatesGrid({
             <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
           ) : (
             <button
+              id="po-due-date"
               type="button"
               disabled={docDueDateReadOnly}
               onClick={() =>
@@ -155,7 +160,7 @@ export function DocumentDatesGrid({
               }`}
             >
               <span className={docDueDate ? "text-zinc-800" : "text-zinc-400"}>
-                {docDueDate ? toDisplayDate(docDueDate) : "Select delivery date"}
+                {docDueDate ? toDisplayDate(docDueDate) : docDueDatePlaceholder}
               </span>
               <div
                 className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${

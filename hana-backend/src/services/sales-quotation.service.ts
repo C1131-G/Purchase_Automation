@@ -268,7 +268,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
-    await adjustPayloadDates(sessionId, sapPayload);
+    await adjustPayloadDates(sessionId, sapPayload, false, undefined, "Valid until date");
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -335,7 +335,13 @@ export const updateSalesQuotation = async (
     }
     if (payload.DocDueDate !== undefined) {
       sapPayload.DocDueDate = payload.DocDueDate;
-      await adjustPayloadDates(sessionId, sapPayload, true, `/Quotations(${id})`);
+      await adjustPayloadDates(
+        sessionId,
+        sapPayload,
+        true,
+        `/Quotations(${id})`,
+        "Valid until date",
+      );
     }
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;

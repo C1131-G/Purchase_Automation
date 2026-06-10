@@ -185,6 +185,8 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
                 docDueDate: undefined,
               }));
             }}
+            docDueDateLabel="VALID UNTIL"
+            docDueDatePlaceholder="Select validity date"
           />
         </div>
 

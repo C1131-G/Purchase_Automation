@@ -227,6 +227,8 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
                 docDueDate: undefined,
               }));
             }}
+            docDueDateLabel="VALID UNTIL"
+            docDueDatePlaceholder="Select validity date"
           />
         </div>
 
