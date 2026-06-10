@@ -341,6 +341,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
 
         <SalesOrderProductSection
           sectionId="sales-order-product-section"
+          submitDisabled={state.submitDisabled}
           missingSearchMandatoryFields={state.missingSearchMandatoryFields}
           searchRequiredCompletionPercent={state.searchRequiredCompletionPercent}
           searchMandatoryFields={state.searchMandatoryFields}
@@ -373,7 +374,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
             if (state.savedDocNum) {
               const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
               goeyToast.success(
-                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
               );
             }
           }}

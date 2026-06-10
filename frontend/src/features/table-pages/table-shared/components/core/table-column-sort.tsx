@@ -1,5 +1,5 @@
 import type { Column, SortingState } from "@tanstack/react-table";
-import { ArrowUp, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import React from "react";
 
 import { cn } from "@/shared/utils/cn";
@@ -54,6 +54,7 @@ export function TableColumnSort<TData, TValue>({
       <span className="font-sans whitespace-nowrap truncate">{title}</span>
       <div className="flex items-center justify-center shrink-0">
         {isSorted === "asc" && <ArrowUp className="size-3.5 stroke-[2.5px]" />}
+        {isSorted === "desc" && <ArrowDown className="size-3.5 stroke-[2.5px]" />}
         {!isSorted && (
           <ChevronsUpDown className="size-3.5 text-zinc-300 group-hover/sort:text-blue-500 transition-colors stroke-[2px]" />
         )}

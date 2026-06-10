@@ -159,6 +159,7 @@ export function useAPInvoiceCreate({
   const updateMutation = useUpdateAPInvoice();
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const lastRestrictedToastAtRef = useRef(0);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
 
@@ -333,6 +334,19 @@ export function useAPInvoiceCreate({
   const isClosed =
     editDetailQuery.data?.data?.DocStatus === "Closed" ||
     editDetailQuery.data?.data?.DocStatus === "C";
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      remarks: (header.remarks || "").trim(),
+      referenceNo: (header.referenceNo || "").trim(),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo]);
+
+  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O"
       ? "Open"
@@ -476,6 +490,10 @@ export function useAPInvoiceCreate({
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = currentDocNum;
       }
+      setFormSnapshot({
+        remarks: (remarks || "").trim(),
+        referenceNo: (referenceNo || "").trim(),
+      });
       setHydratedDocNum(currentDocNum);
       // Dismiss loading toast when edit hydration is complete
       loadingToastRef.current?.dismiss();
@@ -1117,6 +1135,7 @@ export function useAPInvoiceCreate({
     setCreateError(null);
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
+    setFormSnapshot(null);
   }, [resetAPInvoiceCreate, resetWarehouse, setBillToAddress, setShipToAddress]);
 
   const saveActions = useDocumentSaveActions({
@@ -1288,44 +1307,26 @@ export function useAPInvoiceCreate({
     saveActions.actionToast.startLoading("AP Invoice", isEditMode ? "update" : action);
     try {
       let createdDocNum: number | undefined;
+      if (isEditMode && !isDirty) {
+        const noChangeMessage = "Change at least one field before update.";
+        setCreateError(noChangeMessage);
+        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+        saveActions.actionToast.showError("AP Invoice", "update", noChangeMessage);
+        return;
+      }
+
       if (isEditMode) {
-        const detail = editDetailQuery.data?.data;
-        const existingDocDueDate = String(detail?.DocDueDate ?? "")
-          .slice(0, 10)
-          .trim();
-        const { comments: existingComments, referenceNo: existingReferenceNo } = detail
-          ? parseAPInvoiceHeaderNotes(detail)
-          : { comments: "", referenceNo: "" };
-        const currentDocDueDate = String(header.docDueDate ?? "").trim();
-        const currentComments = String(header.remarks ?? "").trim();
-        const currentReferenceNo = String(header.referenceNo ?? "").trim();
-        const existingSalesPersonCode =
-          detail?.SalesPersonCode !== undefined && detail?.SalesPersonCode !== null
-            ? Number(detail.SalesPersonCode)
-            : undefined;
-        const currentSalesPersonCode = resolvedBuyerCode;
-
-        if (
-          currentDocDueDate === existingDocDueDate &&
-          currentComments === existingComments.trim() &&
-          currentReferenceNo === existingReferenceNo &&
-          currentSalesPersonCode === existingSalesPersonCode
-        ) {
-          const noChangeMessage = "Change at least one field before update.";
-          setCreateError(noChangeMessage);
-          goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-          saveActions.actionToast.showError("AP Invoice", "update", noChangeMessage);
-          return;
-        }
-
         const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry;
         const updatePayload = {
           Comments: header.remarks.trim() || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
-          SalesPersonCode: currentSalesPersonCode,
+          SalesPersonCode: resolvedBuyerCode,
         };
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       } else {
         const buildDocumentLines = (): CreateAPInvoiceInput["DocumentLines"] => {
           const lines: CreateAPInvoiceInput["DocumentLines"] = [];
@@ -1642,6 +1643,7 @@ export function useAPInvoiceCreate({
     setStockPreviewProduct,
     openStockPreview: setStockPreviewProduct,
 
+    submitDisabled,
     fieldErrors,
     createError,
     createDisabledReason:

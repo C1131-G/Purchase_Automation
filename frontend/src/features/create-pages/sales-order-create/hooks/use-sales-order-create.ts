@@ -3,6 +3,7 @@ import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -98,6 +99,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
   const [createError, setCreateError] = useState<string | null>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
@@ -492,6 +494,25 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
+        setFormSnapshot({
+          comments: comments.trim(),
+          referenceNo: referenceNo.trim(),
+          docDueDate: docDueDate,
+          salesEmployee: associatedSalesEmployeeName.trim(),
+          warehouseCode: warehouseCode.trim(),
+          billToAddress: formatAddressForDisplay(address).trim(),
+          shipToAddress: formatAddressForDisplay(address).trim(),
+          productRows: mappedRows
+            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+            })),
+        });
+
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
       } finally {
@@ -749,6 +770,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     setSubmitAttempted(false);
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
+    setFormSnapshot(null);
   }, [resetSOCreate, lookups, modals, productsHook]);
 
   const saveActions = useDocumentSaveActions({
@@ -860,76 +882,11 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       return;
     }
 
-    if (isEditMode) {
-      const detail = editDetailQuery.data?.data;
-      if (detail) {
-        const existingReferenceNo = String(detail.NumAtCard ?? "").trim();
-        const existingCommentText = String(detail.Comments ?? "").trim();
-
-        const existingComparable = {
-          Address: String(detail.Address ?? "").trim() || undefined,
-          Comments: existingCommentText,
-          NumAtCard: existingReferenceNo || undefined,
-          DocDate: String(detail.DocDate ?? "").slice(0, 10),
-          DocDueDate:
-            String(detail.DocDueDate ?? "").slice(0, 10) ||
-            String(detail.DocDate ?? "").slice(0, 10),
-          DocumentLines: (detail.DocumentLines ?? [])
-            .filter((line) => Number(line.Quantity ?? 0) > 0)
-            .map((line) => ({
-              DiscountPercent: Number(line.DiscountPercent ?? 0),
-              ItemCode: String(line.ItemCode ?? "").trim(),
-              Quantity: Number(line.Quantity ?? 0),
-              UnitPrice: Number(line.Price ?? line.UnitPrice ?? 0),
-              UoMCode: String(line.UoMCode ?? "").trim() || undefined,
-              UoMEntry:
-                typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                  ? line.UoMEntry
-                  : undefined,
-              VatGroup: String(line.TaxCode ?? "").trim() || undefined,
-              WarehouseCode: String(line.WarehouseCode ?? "").trim() || undefined,
-            })),
-          SalesPersonCode:
-            detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
-              ? Number(normalizeCodeForCompare(detail.SalesPersonCode))
-              : undefined,
-        };
-
-        const currentComparable = {
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
-          Comments: header.comments.trim(),
-          NumAtCard: header.referenceNo.trim() || undefined,
-          DocDate: header.docDate,
-          DocDueDate: header.docDueDate || header.docDate,
-          DocumentLines: validRows.map((row) => ({
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-            ...(row.baseType !== undefined &&
-            row.baseEntry !== undefined &&
-            row.baseLine !== undefined
-              ? {
-                  BaseType: row.baseType,
-                  BaseEntry: row.baseEntry,
-                  BaseLine: row.baseLine,
-                }
-              : {}),
-          })),
-          SalesPersonCode: resolvedSalesEmployeeCode,
-        };
-
-        if (JSON.stringify(currentComparable) === JSON.stringify(existingComparable)) {
-          const noChangeMessage = "Change at least one field before update.";
-          setCreateError(noChangeMessage);
-          goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-          return;
-        }
-      }
+    if (isEditMode && !isDirty) {
+      const noChangeMessage = "Change at least one field before update.";
+      setCreateError(noChangeMessage);
+      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+      return;
     }
 
     setCreateError(null);
@@ -1005,6 +962,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         }
         await updateSalesOrderMutation.mutateAsync({ id: docEntry, payload });
         createdDocNum = detail?.DocNum;
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       } else {
         const result = await createSalesOrderMutation.mutateAsync({ payload });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
@@ -1041,6 +1001,48 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   };
 
   const submitSalesOrderMutation = isEditMode ? updateSalesOrderMutation : createSalesOrderMutation;
+
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === "Closed" ||
+    editDetailQuery.data?.data?.DocStatus === "C";
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      comments: header.comments.trim(),
+      referenceNo: header.referenceNo.trim(),
+      docDueDate: header.docDueDate,
+      salesEmployee: lookups.salesEmployeeInput.trim(),
+      warehouseCode: lookups.effectiveWarehouseCode.trim(),
+      billToAddress: formatAddressForDisplay(lookups.billToAddress).trim(),
+      shipToAddress: formatAddressForDisplay(lookups.shipToAddress).trim(),
+      productRows: productsHook.productRows
+        .filter((row) => row.productCode.trim() && row.quantity > 0)
+        .map((row) => ({
+          productCode: row.productCode,
+          quantity: row.quantity,
+          price: row.price,
+          discountPercent: row.discountPercent,
+          warehouseCode: row.warehouseCode,
+        })),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.comments,
+    header.referenceNo,
+    header.docDueDate,
+    lookups.salesEmployeeInput,
+    lookups.effectiveWarehouseCode,
+    lookups.billToAddress,
+    lookups.shipToAddress,
+    productsHook.productRows,
+  ]);
+
+  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),
@@ -1212,6 +1214,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
     createDisabledReason,
+    submitDisabled,
     createError: visibleCreateError,
     createSalesOrderMutation: submitSalesOrderMutation,
     deliveryDateContainerRef,

@@ -1,28 +1,23 @@
-import { BadgePercent, ChevronRight } from "lucide-react";
+import type { DashboardPeriod } from "../utils/types";
+import { DashboardHeader } from "./DashboardHeader";
+import { DashboardWorkspace } from "./DashboardWorkspace";
+import { SalesDashboardCanvas } from "./SalesDashboardCanvas";
 
-export function SalesDashboard() {
+interface SalesDashboardProps {
+  period: DashboardPeriod;
+  onPeriodChange: (period: DashboardPeriod) => void;
+}
+
+export function SalesDashboard({ period, onPeriodChange }: SalesDashboardProps) {
   return (
-    <div className="h-full w-full bg-zinc-50 flex flex-col">
-      {/* Top Header */}
-      <div className="border-b border-zinc-100 bg-white shrink-0">
-        <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-              <span>Home</span>
-              <ChevronRight className="size-3.5 text-zinc-300" />
-              <span>Dashboard</span>
-              <ChevronRight className="size-3.5 text-zinc-300" />
-              <span className="text-blue-600 flex items-center gap-1.5 font-bold">
-                <BadgePercent className="size-3.5" />
-                Sales
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="h-full w-full bg-zinc-50 flex flex-col overflow-hidden">
+      {/* Top Header with title and period select */}
+      <DashboardHeader area="sales" period={period} onPeriodChange={onPeriodChange} />
 
-      {/* Empty page body */}
-      <div className="flex-1 bg-zinc-50" />
+      {/* Main scrollable content workspace */}
+      <DashboardWorkspace>
+        <SalesDashboardCanvas period={period} />
+      </DashboardWorkspace>
     </div>
   );
 }

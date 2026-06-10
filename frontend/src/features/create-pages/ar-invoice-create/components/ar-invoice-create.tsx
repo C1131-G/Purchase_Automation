@@ -410,6 +410,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
 
         <ARInvoiceProductSection
           sectionId="ar-invoice-product-section"
+          submitDisabled={state.submitDisabled}
           missingSearchMandatoryFields={state.missingSearchMandatoryFields}
           searchRequiredCompletionPercent={state.searchRequiredCompletionPercent}
           searchMandatoryFields={state.searchMandatoryFields}
@@ -440,7 +441,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
             if (state.savedDocNum) {
               const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
               goeyToast.success(
-                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
               );
             }
           }}

@@ -158,6 +158,7 @@ export function useAPCreditMemoCreate({
   const updateMutation = useUpdateAPCreditMemo();
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const lastRestrictedToastAtRef = useRef(0);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
 
@@ -229,6 +230,7 @@ export function useAPCreditMemoCreate({
     setCreateError(null);
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
+    setFormSnapshot(null);
   }, [resetAPCreditMemoCreate, resetWarehouse, setBillToAddress, setShipToAddress]);
 
   const [pendingVendorChange, setPendingVendorChange] = useState<{
@@ -367,6 +369,19 @@ export function useAPCreditMemoCreate({
   const isClosed =
     editDetailQuery.data?.data?.DocStatus === "Closed" ||
     editDetailQuery.data?.data?.DocStatus === "C";
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      remarks: (header.remarks || "").trim(),
+      referenceNo: (header.referenceNo || "").trim(),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo]);
+
+  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O"
       ? "Open"
@@ -517,6 +532,10 @@ export function useAPCreditMemoCreate({
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = currentDocNum;
       }
+      setFormSnapshot({
+        remarks: (remarks || "").trim(),
+        referenceNo: (referenceNo || "").trim(),
+      });
       setHydratedDocNum(currentDocNum);
       loadingToastRef.current?.dismiss();
       loadingToastRef.current = null;
@@ -1284,28 +1303,9 @@ export function useAPCreditMemoCreate({
     try {
       let createdDocNum: string | number | undefined;
       if (isEditMode) {
-        const detail = editDetailQuery.data?.data;
-        const existingDocDueDate = String(detail?.DocDueDate ?? "")
-          .slice(0, 10)
-          .trim();
-        const { comments: existingComments, referenceNo: existingReferenceNo } = detail
-          ? parseAPCreditMemoHeaderNotes(detail)
-          : { comments: "", referenceNo: "" };
-        const currentDocDueDate = String(header.docDueDate ?? "").trim();
-        const currentComments = String(header.remarks ?? "").trim();
-        const currentReferenceNo = String(header.referenceNo ?? "").trim();
-        const existingSalesPersonCode =
-          detail?.SalesPersonCode !== undefined && detail?.SalesPersonCode !== null
-            ? Number(detail.SalesPersonCode)
-            : undefined;
         const currentSalesPersonCode = resolvedBuyerCode;
 
-        if (
-          currentDocDueDate === existingDocDueDate &&
-          currentComments === existingComments.trim() &&
-          currentReferenceNo === existingReferenceNo &&
-          currentSalesPersonCode === existingSalesPersonCode
-        ) {
+        if (isEditMode && !isDirty) {
           const noChangeMessage = "Change at least one field before update.";
           setCreateError(noChangeMessage);
           goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
@@ -1323,6 +1323,9 @@ export function useAPCreditMemoCreate({
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
 
         createdDocNum = editDetailQuery.data?.data?.DocNum;
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       } else {
         const buildDocumentLines = (): CreateAPCreditMemoInput["DocumentLines"] => {
           const lines: CreateAPCreditMemoInput["DocumentLines"] = [];
@@ -1497,6 +1500,7 @@ export function useAPCreditMemoCreate({
         return { ...prev, [id]: next };
       }),
     confirmVendorChange,
+    submitDisabled,
     createDisabledReason:
       missingMandatoryFields.length > 0
         ? "Mandatory fields missing"

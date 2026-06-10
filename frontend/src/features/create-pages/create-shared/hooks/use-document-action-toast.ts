@@ -33,7 +33,7 @@ export function useDocumentActionToast() {
       loadingToastIdRef.current = null;
     }
 
-    const docSuffix = docNum ? ` #${docNum}` : "";
+    const docSuffix = docNum ? ` ${docNum}` : "";
     let successMessage = "";
 
     switch (action) {

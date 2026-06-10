@@ -225,6 +225,8 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
                 docDueDate: undefined,
               }));
             }}
+            docDueDateLabel="VALID UNTIL"
+            docDueDatePlaceholder="Select validity date"
           />
         </div>
 
@@ -326,7 +328,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
             if (state.savedDocNum) {
               const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
               goeyToast.success(
-                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
               );
             }
           }}
@@ -354,6 +356,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
             ) : null
           }
           warehouseErrors={state.warehouseErrors}
+          submitDisabled={state.submitDisabled}
         />
         <PurchaseQuotationModals state={state} />
       </CreatePageWrapper>

@@ -15,6 +15,7 @@ interface APInvoiceProductSectionProps {
     string,
     { quantity?: string; discountPercent?: string; discountAmount?: string }
   >;
+  submitDisabled?: boolean;
   createError: string | null;
   createDisabledReason: string | null;
   missingSearchMandatoryFields: string[];
@@ -69,6 +70,7 @@ interface APInvoiceProductSectionProps {
 export function APInvoiceProductSection({
   rows,
   productRowDrafts,
+  submitDisabled,
   createError,
   createDisabledReason,
   missingSearchMandatoryFields,
@@ -113,6 +115,7 @@ export function APInvoiceProductSection({
 
   return (
     <BaseProductSection
+      submitDisabled={submitDisabled}
       sectionId="ap-invoice-product-section"
       onSearchProducts={() => {
         if (isReadOnlyMode) {

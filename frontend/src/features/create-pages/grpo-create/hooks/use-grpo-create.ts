@@ -162,6 +162,7 @@ export function useGRPOCreate({
   const updateMutation = useUpdateGRPO();
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false);
   const lastRestrictedToastAtRef = useRef(0);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
@@ -230,6 +231,7 @@ export function useGRPOCreate({
     setCreateError(null);
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
+    setFormSnapshot(null);
   }, [resetGRPOCreate, resetWarehouse]);
 
   /* ---------- vendor-change confirmation (copy-from guard) ---------- */
@@ -355,6 +357,19 @@ export function useGRPOCreate({
     editDetailQuery.data?.data?.DocStatus === "Closed" ||
     editDetailQuery.data?.data?.DocStatus === "bost_Close" ||
     editDetailQuery.data?.data?.DocStatus === "C";
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      remarks: (header.remarks || "").trim(),
+      referenceNo: (header.referenceNo || "").trim(),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo]);
+
+  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O" ||
     editDetailQuery.data?.data?.DocStatus === "bost_Open"
@@ -557,6 +572,10 @@ export function useGRPOCreate({
         if (isMetadataLoaded) {
           hydratedDocNumRef.current = currentDocNum;
         }
+        setFormSnapshot({
+          remarks: (remarks || "").trim(),
+          referenceNo: (referenceNo || "").trim(),
+        });
         setHydratedDocNum(currentDocNum);
       } finally {
         // Dismiss loading toast when edit hydration is complete (success or error)
@@ -1656,28 +1675,11 @@ export function useGRPOCreate({
       return;
     }
 
-    if (isEditMode) {
-      const detail = editDetailQuery.data?.data;
-      const existingDocDueDate = String(detail?.DocDueDate ?? "")
-        .slice(0, 10)
-        .trim();
-      const currentDocDueDate = String(header.docDueDate ?? "").trim();
-      const currentReferenceNo = String(header.referenceNo ?? "").trim();
-      const { comments: existingComments, referenceNo: existingReferenceNo } = detail
-        ? parseGRPOHeaderNotes(detail)
-        : { comments: "", referenceNo: "" };
-      const currentComments = String(header.remarks ?? "").trim();
-
-      if (
-        currentDocDueDate === existingDocDueDate &&
-        currentReferenceNo === existingReferenceNo &&
-        currentComments === existingComments.trim()
-      ) {
-        const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);
-        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-        return;
-      }
+    if (isEditMode && !isDirty) {
+      const noChangeMessage = "Change at least one field before update.";
+      setCreateError(noChangeMessage);
+      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+      return;
     }
 
     setCreateError(null);
@@ -1699,6 +1701,9 @@ export function useGRPOCreate({
           payload,
         });
         createdDocNum = detail?.DocNum;
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       } else {
         const result = await createMutation.mutateAsync({ payload });
         createdDocNum = result?.data?.DocNum;
@@ -1866,6 +1871,7 @@ export function useGRPOCreate({
     setStockPreviewProduct,
     openStockPreview,
 
+    submitDisabled,
     fieldErrors,
     createError,
     createDisabledReason,

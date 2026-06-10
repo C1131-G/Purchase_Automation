@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
-import { Check } from "lucide-react";
+import { Check, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/button";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import {
   incomingPaymentKeys,
@@ -308,13 +309,19 @@ export function IncomingPaymentEdit({ docNum }: { docNum: string }) {
             </div>
 
             <div className="mt-6 border-t border-zinc-100 pt-4">
-              <button
+              <Button
+                type="button"
                 onClick={() => updateMutation.mutate()}
                 disabled={updateMutation.isPending || (paymentDetail?.Remarks || "") === remarks}
-                className="w-full rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-zinc-800 disabled:opacity-50"
+                className="group h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
+                size="md"
+                variant="outline"
               >
-                {updateMutation.isPending ? "Updating..." : "Update Payment"}
-              </button>
+                <span className="inline-flex items-center justify-center gap-2 w-full">
+                  <RefreshCw className="h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600" />
+                  {updateMutation.isPending ? "Updating..." : "Update Payment"}
+                </span>
+              </Button>
             </div>
 
             {/* Payment Methods Breakdown */}

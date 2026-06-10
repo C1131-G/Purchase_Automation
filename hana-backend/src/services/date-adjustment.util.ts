@@ -82,6 +82,7 @@ export const adjustPayloadDates = async (
   sapPayload: any,
   isUpdate = false,
   documentEndpoint?: string,
+  dateLabel = "Delivery date",
 ): Promise<void> => {
   let docDueDateAdjusted = false;
   let docDueDateOrig = "";
@@ -110,7 +111,7 @@ export const adjustPayloadDates = async (
 
   if (docDueDateAdjusted) {
     remarks.push(
-      `Delivery date adjusted from ${formatDateToDDMMYYYY(docDueDateOrig)} to ${formatDateToDDMMYYYY(docDueDateNew)} due to financial period`,
+      `${dateLabel} adjusted from ${formatDateToDDMMYYYY(docDueDateOrig)} to ${formatDateToDDMMYYYY(docDueDateNew)} due to financial period`,
     );
   }
 

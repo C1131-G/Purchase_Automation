@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
+import { Building2 } from "lucide-react";
 import { useEffect } from "react";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -151,9 +152,50 @@ function LoginComponent() {
   }, [navigate, queryClient]);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-8 bg-white">
-      <div>
-        <LoginForm />
+    <div className="flex h-svh overflow-hidden">
+      {/* Left panel — visual anchor */}
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-zinc-950 p-12 lg:flex lg:w-[55%]">
+        <div
+          aria-hidden
+          className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-blue-600/30 blur-3xl opacity-50"
+        />
+        <div
+          aria-hidden
+          className="absolute bottom-0 right-0 h-80 w-80 translate-x-1/4 translate-y-1/4 rounded-full bg-violet-600/20 blur-3xl opacity-40"
+        />
+
+        {/* Brand mark */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 shadow-lg shadow-blue-500/25 ring-1 ring-white/20">
+            <Building2 className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-xl font-bold tracking-tight text-white uppercase tracking-wider">
+            ERP Portal
+          </span>
+        </div>
+
+        {/* Hero copy */}
+        <div className="relative z-10 space-y-6">
+          <h2 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-white lg:text-5xl">
+            Enterprise operations,
+            <span className="block text-indigo-400 mt-2">one unified view.</span>
+          </h2>
+          <p className="max-w-md text-base leading-relaxed text-zinc-400 font-normal">
+            Manage orders, invoices, and payments across every entity — all from a single, connected
+            workspace.
+          </p>
+        </div>
+
+        <p className="relative z-10 text-xs font-medium text-zinc-600">
+          © {new Date().getFullYear()} Vedhasoft. All rights reserved.
+        </p>
+      </div>
+
+      {/* Right panel — form content */}
+      <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-8 lg:bg-zinc-50">
+        <div className="w-full max-w-100">
+          <LoginForm />
+        </div>
       </div>
     </div>
   );

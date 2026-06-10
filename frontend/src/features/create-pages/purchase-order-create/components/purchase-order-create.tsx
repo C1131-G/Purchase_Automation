@@ -388,7 +388,7 @@ export function PurchaseOrderCreate({
           if (state.savedDocNum) {
             const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
             goeyToast.success(
-              `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+              `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
             );
           }
         }}
@@ -416,6 +416,7 @@ export function PurchaseOrderCreate({
           ) : null
         }
         warehouseErrors={state.warehouseErrors}
+        submitDisabled={state.submitDisabled}
       />
       <PurchaseOrderModals state={state} />
     </CreatePageWrapper>

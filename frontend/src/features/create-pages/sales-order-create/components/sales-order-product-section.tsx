@@ -10,6 +10,7 @@ type SalesOrderState = ReturnType<typeof useSalesOrderCreate>;
 
 interface SalesOrderProductSectionProps {
   sectionId: string;
+  submitDisabled?: boolean;
   missingSearchMandatoryFields: SalesOrderState["missingSearchMandatoryFields"];
   searchRequiredCompletionPercent: SalesOrderState["searchRequiredCompletionPercent"];
   searchMandatoryFields: SalesOrderState["searchMandatoryFields"];
@@ -51,6 +52,7 @@ interface SalesOrderProductSectionProps {
  */
 export function SalesOrderProductSection({
   sectionId,
+  submitDisabled,
   missingSearchMandatoryFields,
   searchRequiredCompletionPercent,
   searchMandatoryFields,
@@ -87,6 +89,7 @@ export function SalesOrderProductSection({
 }: SalesOrderProductSectionProps) {
   return (
     <BaseProductSection
+      submitDisabled={submitDisabled}
       sectionId={sectionId}
       onSearchProducts={() => openProductPopup(null)}
       onPrefetchProducts={prefetchProducts}

@@ -98,6 +98,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
   const [createError, setCreateError] = useState<string | null>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [pullFromSOModalOpen, setPullFromSOModalOpen] = useState(false);
   const [pullFromSQModalOpen, setPullFromSQModalOpen] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
@@ -350,6 +351,11 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         lookups.setShipToAddress(address);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+
+        setFormSnapshot({
+          comments: comments.trim(),
+          referenceNo: referenceNo.trim(),
+        });
 
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
@@ -796,6 +802,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     setCreateError(null);
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
+    setFormSnapshot(null);
   }, [resetARInvoiceCreate, lookups, modals, productsHook]);
 
   const saveActions = useDocumentSaveActions({
@@ -888,34 +895,11 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       return;
     }
 
-    if (isEditMode) {
-      const detail = editDetailQuery.data?.data;
-      const existingDocDueDate = String(detail?.DocDueDate ?? "")
-        .slice(0, 10)
-        .trim();
-      const rawComments = String(detail?.Comments ?? "").trim();
-      const existingComments = rawComments;
-      const existingReferenceNo = String(detail?.NumAtCard ?? "").trim();
-      const currentDocDueDate = String(header.docDueDate ?? "").trim();
-      const currentComments = String(header.comments ?? "").trim();
-      const currentReferenceNo = String(header.referenceNo ?? "").trim();
-      const existingSalesPersonCode =
-        detail?.SalesPersonCode !== undefined && detail?.SalesPersonCode !== null
-          ? Number(detail.SalesPersonCode)
-          : undefined;
-      const currentSalesPersonCode = resolvedSalesEmployeeCode;
-
-      if (
-        currentDocDueDate === existingDocDueDate &&
-        currentComments === existingComments.trim() &&
-        currentReferenceNo === existingReferenceNo &&
-        currentSalesPersonCode === existingSalesPersonCode
-      ) {
-        const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);
-        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-        return;
-      }
+    if (isEditMode && !isDirty) {
+      const noChangeMessage = "Change at least one field before update.";
+      setCreateError(noChangeMessage);
+      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+      return;
     }
 
     setCreateError(null);
@@ -976,6 +960,9 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         }
         await updateARInvoiceMutation.mutateAsync({ id: docEntry, payload });
         createdDocNum = detail?.DocNum;
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       } else {
         const result = await createARInvoiceMutation.mutateAsync({ payload });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
@@ -1010,6 +997,23 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   };
 
   const submitARInvoiceMutation = isEditMode ? updateARInvoiceMutation : createARInvoiceMutation;
+
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === "Closed" ||
+    editDetailQuery.data?.data?.DocStatus === "C";
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      comments: (header.comments || "").trim(),
+      referenceNo: (header.referenceNo || "").trim(),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [isEditMode, formSnapshot, header.comments, header.referenceNo]);
+
+  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),
@@ -1330,6 +1334,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     codeSuggestions: lookups.codeSuggestions,
     createARInvoiceMutation: submitARInvoiceMutation,
     createDisabledReason,
+    submitDisabled,
     createError: visibleCreateError,
     deliveryDateContainerRef,
     docDateContainerRef,

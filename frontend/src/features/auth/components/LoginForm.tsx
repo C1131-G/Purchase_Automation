@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
-import { Building2, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Building2, ChevronRight, Eye, EyeOff, Lock, LogIn, User } from "lucide-react";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
@@ -72,13 +72,13 @@ export function LoginForm() {
   };
 
   return (
-    <div className="w-full sm:w-105 mx-auto space-y-7">
-      <div className="space-y-1.5 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 uppercase font-outfit">
+    <div className="w-full max-w-100 mx-auto space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 font-sans">
           Access Gateway
         </h1>
-        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.25em]">
-          Secure Gateway Entrance
+        <p className="text-[0.9375rem] text-zinc-500 font-medium">
+          Enter your credentials to access your secure portal.
         </p>
       </div>
 
@@ -116,7 +116,7 @@ export function LoginForm() {
                 disabled={isLoadingOrgs || isLoggingIn}
                 autoComplete="off"
               >
-                <Select.Trigger>
+                <Select.Trigger className="border-zinc-200 bg-white hover:bg-white hover:border-zinc-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white">
                   <div className="flex items-center gap-3 overflow-hidden flex-1">
                     <Building2 className="size-4 text-zinc-400 shrink-0" />
                     <div className="truncate text-left">
@@ -168,34 +168,39 @@ export function LoginForm() {
         {/* --- Username --- */}
         <Field error={errors.username?.message || ""}>
           <Field.Label>Username</Field.Label>
-          <Input
-            {...register("username")}
-            placeholder="Username"
-            autoComplete="off"
-            disabled={isLoggingIn}
-          />
+          <div className="relative group">
+            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
+            <Input
+              {...register("username")}
+              placeholder="Enter your username"
+              autoComplete="off"
+              disabled={isLoggingIn}
+              className="pl-11 border border-zinc-200 bg-white shadow-sm outline-none transition-all placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white disabled:pointer-events-none disabled:opacity-60"
+            />
+          </div>
           <Field.Error />
         </Field>
 
         {/* --- Password --- */}
         <Field error={errors.password?.message || ""}>
           <Field.Label>Password</Field.Label>
-          <div className="relative w-full">
+          <div className="relative group">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
             <Input
               {...register("password")}
               type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
+              placeholder="Enter your password"
               autoComplete="new-password"
               disabled={isLoggingIn}
-              className="pr-12"
+              className="pl-11 pr-12 border border-zinc-200 bg-white shadow-sm outline-none transition-all placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white disabled:pointer-events-none disabled:opacity-60"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 size-9 flex items-center justify-center text-zinc-300 hover:text-zinc-950 hover:bg-zinc-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 focus:outline-none transition-colors hover:cursor-pointer border-none bg-transparent"
               disabled={isLoggingIn}
             >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showPassword ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
             </button>
           </div>
           <Field.Error />
@@ -213,8 +218,9 @@ export function LoginForm() {
             isLoading={isLoggingIn}
             loadingText="Authenticating..."
             disabled={isLoadingOrgs}
-            className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
+            className="h-11 w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-950 text-sm font-semibold tracking-normal text-white shadow-xl shadow-zinc-950/10 transition-all hover:bg-zinc-800 hover:shadow-zinc-950/20 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 active:scale-[0.98] border-none"
           >
+            {!isLoggingIn && <LogIn className="h-4 w-4" />}
             Sign In
           </Button>
         </div>

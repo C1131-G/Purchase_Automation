@@ -517,6 +517,7 @@ export function ArCreditMemoCreate({
         {/* Row 3: Product lines with checkboxes + return reason */}
         <ArCreditMemoProductSection
           sectionId="ar-credit-memo-product-section"
+          submitDisabled={state.submitDisabled}
           missingSearchMandatoryFields={missingSearchMandatoryFields}
           searchRequiredCompletionPercent={searchRequiredCompletionPercent}
           searchMandatoryFields={searchMandatoryFields}
@@ -547,7 +548,7 @@ export function ArCreditMemoCreate({
             if (state.savedDocNum) {
               const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
               goeyToast.success(
-                `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
               );
             }
           }}

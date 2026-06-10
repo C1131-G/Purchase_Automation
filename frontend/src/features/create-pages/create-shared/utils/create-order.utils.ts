@@ -41,12 +41,19 @@ const normalizeServiceLayerFieldMessage = (message: string) => {
     return "Request timed out. Please try again.";
   }
 
-  if (
-    /Enter due date/i.test(compactMessage) ||
-    /Specify the required date/i.test(compactMessage) ||
-    /\[(ORDR|OPOR)\.DocDueDate\]/i.test(compactMessage)
-  ) {
+  if (/Enter due date/i.test(compactMessage) || /Specify the required date/i.test(compactMessage)) {
+    if (/\[(OQUT|OPQT)\.DocDueDate\]/i.test(compactMessage)) {
+      return "Valid Until is required.";
+    }
     return "Delivery Date is required.";
+  }
+
+  if (/\[(ORDR|OPOR|ODPI|OPCH|ORPC|OINV|ORIN|OPDN)\.DocDueDate\]/i.test(compactMessage)) {
+    return "Delivery Date is required.";
+  }
+
+  if (/\[(OQUT|OPQT)\.DocDueDate\]/i.test(compactMessage)) {
+    return "Valid Until is required.";
   }
 
   if (/deviates from permissible range/i.test(compactMessage)) {
