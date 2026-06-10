@@ -123,6 +123,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   }, []);
 
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [productSearchFieldErrors, setProductSearchFieldErrors] = useState<ProductSearchFieldError>(
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
@@ -208,6 +209,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     setCreateError(null);
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
+    setFormSnapshot(null);
   }, [resetPQCreate, lookups, modals, productsHook]);
 
   useEffect(() => {
@@ -398,6 +400,25 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         lookups.setShipToAddress(address);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+
+        setFormSnapshot({
+          comments: comments.trim(),
+          referenceNo: referenceNo.trim(),
+          docDueDate: docDueDate,
+          salesEmployee: associatedSalesEmployeeName.trim(),
+          warehouseCode: warehouseCode.trim(),
+          billToAddress: address.trim(),
+          shipToAddress: address.trim(),
+          productRows: mappedRows
+            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+            })),
+        });
 
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
@@ -604,9 +625,46 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     ((searchMandatoryFields.length - missingSearchMandatoryFields.length) /
       searchMandatoryFields.length) *
     100;
-  const hasValidRowsForCreate = productsHook.productRows.some(
-    (row) => row.productCode.trim() && row.quantity > 0,
+  const validRows = useMemo(
+    () => productsHook.productRows.filter((row) => row.productCode.trim() && row.quantity > 0),
+    [productsHook.productRows],
   );
+
+  const hasValidRowsForCreate = validRows.length > 0;
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      comments: header.comments.trim(),
+      referenceNo: header.referenceNo.trim(),
+      docDueDate: header.docDueDate,
+      salesEmployee: lookups.salesEmployeeInput.trim(),
+      warehouseCode: lookups.effectiveWarehouseCode.trim(),
+      billToAddress: lookups.billToAddress.trim(),
+      shipToAddress: lookups.shipToAddress.trim(),
+      productRows: validRows.map((row) => ({
+        productCode: row.productCode,
+        quantity: row.quantity,
+        price: row.price,
+        discountPercent: row.discountPercent,
+        warehouseCode: row.warehouseCode,
+      })),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.comments,
+    header.referenceNo,
+    header.docDueDate,
+    lookups.salesEmployeeInput,
+    lookups.effectiveWarehouseCode,
+    lookups.billToAddress,
+    lookups.shipToAddress,
+    validRows,
+  ]);
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
@@ -694,107 +752,16 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       return;
     }
 
-    const validRows = productsHook.productRows.filter(
-      (row) => row.productCode.trim() && row.quantity > 0,
-    );
     if (validRows.length === 0) {
       setCreateError(rowsErrorText);
       return;
     }
 
-    if (isEditMode) {
-      const detail = editDetailQuery.data?.data;
-      if (detail) {
-        const headerDiscountPercent = Number(
-          (detail as Record<string, unknown>).DiscountPercent ?? 0,
-        );
-        const { comments: existingCommentText, referenceNo: existingReferenceNo } =
-          parsePurchaseQuotationHeaderNotes(detail);
-
-        const existingComparable = {
-          Address: String(detail.Address ?? "").trim() || undefined,
-          Comments: existingCommentText.trim() || undefined,
-          NumAtCard: existingReferenceNo.trim() || undefined,
-          DocDate: String(detail.DocDate ?? "").slice(0, 10),
-          DocDueDate: getEffectivePurchaseQuotationDueDate(
-            String(detail.DocDueDate ?? "").slice(0, 10),
-            String(detail.DocDate ?? "").slice(0, 10),
-          ),
-          RequriedDate: getEffectivePurchaseQuotationDueDate(
-            String(detail.DocDueDate ?? "").slice(0, 10),
-            String(detail.DocDate ?? "").slice(0, 10),
-          ),
-          DocumentLines: (detail.DocumentLines ?? [])
-            .filter((line) => Number(line.Quantity ?? 0) > 0)
-            .map((line) => {
-              const quantity = Number(line.Quantity ?? 0);
-              const unitPrice = Number(line.Price ?? line.UnitPrice ?? 0);
-              const { discountPercent } = resolveDocumentLineDiscount({
-                grossAmount: Math.max(0, unitPrice * quantity),
-                headerDiscountPercent,
-                line: line as Record<string, unknown>,
-              });
-
-              return {
-                DiscountPercent: discountPercent,
-                ItemCode: String(line.ItemCode ?? "").trim(),
-                LineNum: typeof line.LineNum === "number" ? line.LineNum : undefined,
-                ReqDate: String(
-                  line.ReqDate ??
-                    line.RequiredDate ??
-                    getEffectivePurchaseQuotationDueDate(
-                      String(detail.DocDueDate ?? "").slice(0, 10),
-                      String(detail.DocDate ?? "").slice(0, 10),
-                    ),
-                )
-                  .trim()
-                  .slice(0, 10),
-                Quantity: quantity,
-                UnitPrice: unitPrice,
-                UoMCode: String(line.UoMCode ?? "").trim() || undefined,
-                UoMEntry:
-                  typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                    ? line.UoMEntry
-                    : undefined,
-                VatGroup: String(line.TaxCode ?? "").trim() || undefined,
-                WarehouseCode: String(line.WarehouseCode ?? "").trim() || undefined,
-              };
-            }),
-          SalesPersonCode:
-            detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
-              ? Number(normalizeCodeForCompare(detail.SalesPersonCode))
-              : undefined,
-        };
-
-        const currentComparable = {
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
-          Comments: header.comments.trim() || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          DocDate: header.docDate,
-          DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-          RequriedDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-          DocumentLines: validRows.map((row) => ({
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            LineNum: row.lineNum,
-            ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-          })),
-          SalesPersonCode: resolvedSalesEmployeeCode,
-        };
-
-        if (JSON.stringify(currentComparable) === JSON.stringify(existingComparable)) {
-          const noChangeMessage = "Change at least one field before update.";
-          setCreateError(noChangeMessage);
-          goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-          return;
-        }
-      }
+    if (isEditMode && !isDirty) {
+      const noChangeMessage = "Change at least one field before update.";
+      setCreateError(noChangeMessage);
+      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+      return;
     }
 
     setCreateError(null);
@@ -863,6 +830,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           payload,
         });
         createdDocNum = detail?.DocNum;
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       } else {
         const result = await createPurchaseQuotationMutation.mutateAsync({
           payload,
@@ -960,5 +930,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
     updatePurchaseQuotationMutation,
+    submitDisabled: isEditMode ? !isDirty || isClosed : false,
   };
 }

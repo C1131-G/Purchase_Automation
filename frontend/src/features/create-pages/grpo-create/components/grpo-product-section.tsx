@@ -15,6 +15,7 @@ interface GRPOProductSectionProps {
     string,
     { quantity?: string; discountPercent?: string; discountAmount?: string }
   >;
+  submitDisabled?: boolean;
   createError: string | null;
   createDisabledReason: string | null;
   missingSearchMandatoryFields: string[];
@@ -66,6 +67,7 @@ interface GRPOProductSectionProps {
 export function GRPOProductSection({
   rows,
   productRowDrafts,
+  submitDisabled,
   createError,
   createDisabledReason,
   missingSearchMandatoryFields,
@@ -107,6 +109,7 @@ export function GRPOProductSection({
 
   return (
     <BaseProductSection
+      submitDisabled={submitDisabled}
       sectionId="grpo-product-section"
       onSearchProducts={() => {
         if (isEditMode) {

@@ -47,6 +47,7 @@ interface PurchaseQuotationProductSectionProps {
   vendorName: PurchaseQuotationState["nameInput"];
   vendorCode: PurchaseQuotationState["codeInput"];
   defaultWarehouseCode: PurchaseQuotationState["effectiveWarehouseCode"];
+  submitDisabled?: boolean;
 }
 
 /**
@@ -92,6 +93,7 @@ export function PurchaseQuotationProductSection({
   vendorName,
   vendorCode,
   defaultWarehouseCode,
+  submitDisabled,
 }: PurchaseQuotationProductSectionProps) {
   return (
     <BaseProductSection
@@ -130,6 +132,7 @@ export function PurchaseQuotationProductSection({
       isEditMode={isEditMode}
       isReadOnly={isClosed}
       allowSearchInEditMode={allowSearchInEditMode}
+      submitDisabled={submitDisabled}
     >
       <CreateProductTable
         productRows={productRows}

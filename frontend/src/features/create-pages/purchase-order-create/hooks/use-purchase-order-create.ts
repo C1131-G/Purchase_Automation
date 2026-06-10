@@ -51,6 +51,7 @@ import {
   useSetPOHeaderAction,
 } from "@/store/create/po-create.store";
 
+import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { generateSingleSourceReference } from "../../create-shared/utils/auto-reference";
 import { usePoLookups } from "./use-po-lookups";
 import { usePoModals } from "./use-po-modals";
@@ -122,6 +123,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   }, []);
 
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [productSearchFieldErrors, setProductSearchFieldErrors] = useState<ProductSearchFieldError>(
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
@@ -218,6 +220,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     setCreateError(null);
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
+    setFormSnapshot(null);
   }, [
     resetPOCreate,
     lookups,
@@ -379,6 +382,25 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         lookups.setShipToAddress(shipToAddress);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+
+        setFormSnapshot({
+          comments: comments.trim(),
+          referenceNo: referenceNo.trim(),
+          docDueDate: docDueDate,
+          salesEmployee: associatedSalesEmployeeName.trim(),
+          warehouseCode: warehouseCode.trim(),
+          billToAddress: formatAddressForDisplay(billToAddress).trim(),
+          shipToAddress: formatAddressForDisplay(shipToAddress).trim(),
+          productRows: mappedRows
+            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+            })),
+        });
 
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
@@ -785,9 +807,52 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     ((searchMandatoryFields.length - missingSearchMandatoryFields.length) /
       searchMandatoryFields.length) *
     100;
-  const hasValidRowsForCreate = productsHook.productRows.some(
-    (row) => row.productCode.trim() && row.quantity > 0,
+  const validRows = useMemo(
+    () => productsHook.productRows.filter((row) => row.productCode.trim() && row.quantity > 0),
+    [productsHook.productRows],
   );
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      comments: header.comments.trim(),
+      referenceNo: header.referenceNo.trim(),
+      docDueDate: header.docDueDate,
+      salesEmployee: lookups.salesEmployeeInput.trim(),
+      warehouseCode: lookups.effectiveWarehouseCode.trim(),
+      billToAddress: formatAddressForDisplay(lookups.billToAddress).trim(),
+      shipToAddress: formatAddressForDisplay(lookups.shipToAddress).trim(),
+      productRows: validRows.map((row) => ({
+        productCode: row.productCode,
+        quantity: row.quantity,
+        price: row.price,
+        discountPercent: row.discountPercent,
+        warehouseCode: row.warehouseCode,
+      })),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.comments,
+    header.referenceNo,
+    header.docDueDate,
+    lookups.salesEmployeeInput,
+    lookups.effectiveWarehouseCode,
+    lookups.billToAddress,
+    lookups.shipToAddress,
+    validRows,
+  ]);
+
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === "Closed" ||
+    editDetailQuery.data?.data?.DocStatus === "C";
+
+  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+
+  const hasValidRowsForCreate = validRows.length > 0;
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
@@ -965,87 +1030,11 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       return;
     }
 
-    if (isEditMode) {
-      const detail = editDetailQuery.data?.data;
-      if (detail) {
-        const headerDiscountPercent = Number(
-          (detail as Record<string, unknown>).DiscountPercent ?? 0,
-        );
-        const { comments: existingCommentText, referenceNo: existingReferenceNo } =
-          parsePurchaseOrderHeaderNotes(detail);
-
-        const existingComparable = {
-          Address: String(detail.Address ?? "").trim() || undefined,
-          Address2: String((detail as Record<string, unknown>).Address2 ?? "").trim() || undefined,
-          Comments: existingCommentText.trim() || undefined,
-          NumAtCard: existingReferenceNo.trim() || undefined,
-          DocDate: String(detail.DocDate ?? "").slice(0, 10),
-          DocDueDate:
-            String(detail.DocDueDate ?? "").slice(0, 10) ||
-            String(detail.DocDate ?? "").slice(0, 10),
-          DocumentLines: (detail.DocumentLines ?? [])
-            .filter((line) => Number(line.Quantity ?? 0) > 0)
-            .map((line) => {
-              const quantity = Number(line.Quantity ?? 0);
-              const unitPrice = Number(line.Price ?? line.UnitPrice ?? 0);
-              const { discountPercent } = resolveDocumentLineDiscount({
-                grossAmount: Math.max(0, unitPrice * quantity),
-                headerDiscountPercent,
-                line: line as Record<string, unknown>,
-              });
-
-              return {
-                DiscountPercent: discountPercent,
-                ItemCode: String(line.ItemCode ?? "").trim(),
-                LineNum: typeof line.LineNum === "number" ? line.LineNum : undefined,
-                Quantity: quantity,
-                UnitPrice: unitPrice,
-                UoMCode: String(line.UoMCode ?? "").trim() || undefined,
-                UoMEntry:
-                  typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                    ? line.UoMEntry
-                    : undefined,
-                VatGroup: String(line.TaxCode ?? "").trim() || undefined,
-                WarehouseCode: String(line.WarehouseCode ?? "").trim() || undefined,
-              };
-            }),
-          SalesPersonCode:
-            detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
-              ? Number(normalizeCodeForCompare(detail.SalesPersonCode))
-              : undefined,
-        };
-
-        const currentComparable = {
-          Address: lookups.billToAddress.trim() || undefined,
-          Address2: lookups.shipToAddress.trim() || undefined,
-          Comments: header.comments.trim() || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          DocDate: header.docDate,
-          DocDueDate: header.docDueDate || header.docDate,
-          DocumentLines: validRows.map((row) => ({
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            LineNum: row.lineNum,
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || undefined,
-            BaseType: typeof row.baseType === "number" ? row.baseType : undefined,
-            BaseEntry: typeof row.baseEntry === "number" ? row.baseEntry : undefined,
-            BaseLine: typeof row.baseLine === "number" ? row.baseLine : undefined,
-          })),
-          SalesPersonCode: resolvedSalesEmployeeCode,
-        };
-
-        if (JSON.stringify(currentComparable) === JSON.stringify(existingComparable)) {
-          const noChangeMessage = "Change at least one field before update.";
-          setCreateError(noChangeMessage);
-          goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-          return;
-        }
-      }
+    if (isEditMode && !isDirty) {
+      const noChangeMessage = "Change at least one field before update.";
+      setCreateError(noChangeMessage);
+      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+      return;
     }
 
     setCreateError(null);
@@ -1159,6 +1148,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           payload,
         });
         createdDocNum = detail?.DocNum;
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       } else {
         const result = await createPurchaseOrderMutation.mutateAsync({
           payload,
@@ -1254,6 +1246,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       productsHook.applyProductsToRows(products, {
         closeProductPopup: () => modals.setProductPopupOpen(false),
       }),
+    submitDisabled,
     createDisabledReason,
     createError: visibleCreateError,
     submitAttempted,
@@ -1271,9 +1264,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     handleCreateOrder: handleCreateOrderAction,
     handleLookupModalSearchSync,
     header,
-    isClosed:
-      editDetailQuery.data?.data?.DocStatus === "Closed" ||
-      editDetailQuery.data?.data?.DocStatus === "C",
+    isClosed,
     isEditHydrated,
     isEditMode,
     isSourceHydrating,

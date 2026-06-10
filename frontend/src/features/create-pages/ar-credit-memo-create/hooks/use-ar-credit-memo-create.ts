@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -60,6 +61,7 @@ export function useArCreditMemoCreate({
   );
 
   const [createError, setCreateError] = useState<string | null>(null);
+  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [missingSearchMandatoryFields] = useState<ProductSearchFieldError>(
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
@@ -334,6 +336,7 @@ export function useArCreditMemoCreate({
     setCreateError(null);
     setSubmitAttempted(false);
     hydratedDocNumRef.current = null;
+    setFormSnapshot(null);
     productsHook.setProductRows([]);
   }, [setHeader, productsHook]);
 
@@ -541,6 +544,10 @@ export function useArCreditMemoCreate({
           warehouseCode: String(warehouseCode),
         });
         productsHook.setProductRows(mappedRows);
+        setFormSnapshot({
+          comments: String(comments).trim(),
+          referenceNo: String(referenceNo).trim(),
+        });
         hydratedDocNumRef.current = cleanDocNum;
       } finally {
         loadingToastRef.current?.dismiss();
@@ -599,6 +606,23 @@ export function useArCreditMemoCreate({
   const createArCreditMemoMutation = useCreateArCreditMemoMutation();
   const updateArCreditMemoMutation = useUpdateArCreditMemoMutation();
 
+  const isClosed =
+    (editDetailQuery.data?.data as any)?.DocStatus === "Closed" ||
+    (editDetailQuery.data?.data as any)?.DocStatus === "C";
+
+  const isDirty = useMemo(() => {
+    if (!isEditMode || !formSnapshot) {
+      return false;
+    }
+    const current = {
+      comments: (header.comments || "").trim(),
+      referenceNo: (header.referenceNo || "").trim(),
+    };
+    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
+  }, [isEditMode, formSnapshot, header.comments, header.referenceNo]);
+
+  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+
   // Totals — only compute from selected (checked) rows
   const selectedRows = useMemo(
     () => productsHook.productRows.filter((r) => r.selected),
@@ -644,33 +668,18 @@ export function useArCreditMemoCreate({
     }
 
     if (isEditMode) {
+      if (!isDirty) {
+        const noChangeMessage = "Change at least one field before update.";
+        setCreateError(noChangeMessage);
+        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+        return;
+      }
+
       const detail = ((editDetailQuery.data as Record<string, unknown>)?.data ??
         editDetailQuery.data) as Record<string, unknown>;
-      const existingDocDueDate = String(detail?.DocDueDate ?? "")
-        .slice(0, 10)
-        .trim();
-      const existingComments = String(detail?.Comments ?? "").trim();
-      const existingReferenceNo = String(detail?.NumAtCard ?? "").trim();
-      const existingSalesPersonCode =
-        detail?.SalesPersonCode !== undefined && detail?.SalesPersonCode !== null
-          ? Number(detail.SalesPersonCode)
-          : undefined;
-
-      const currentDocDueDate = String(header.docDueDate ?? "").trim();
       const currentComments = String(header.comments ?? "").trim();
       const currentReferenceNo = String(header.referenceNo ?? "").trim();
       const currentSalesPersonCode = resolvedSalesEmployeeCode;
-
-      if (
-        currentDocDueDate === existingDocDueDate &&
-        currentComments === existingComments &&
-        currentReferenceNo === existingReferenceNo &&
-        currentSalesPersonCode === existingSalesPersonCode
-      ) {
-        const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);
-        return;
-      }
 
       const payload = {
         Comments: currentComments || undefined,
@@ -687,6 +696,8 @@ export function useArCreditMemoCreate({
           payload,
         });
         const createdDocNum = detail?.DocNum as string | number | undefined;
+        hydratedDocNumRef.current = null;
+        setFormSnapshot(null);
         await saveActions.handleActionSuccess("update", createdDocNum);
       } catch (_error) {
         const errorMessage = (_error as Error).message || "Failed to update AR Credit Memo";
@@ -819,6 +830,7 @@ export function useArCreditMemoCreate({
     summaryCurrencyLabel: productsHook.productRows[0]?.currency || "FJD",
     createError,
     submitAttempted,
+    submitDisabled,
     createDisabledReason: missingMandatoryFields.length > 0 ? missingMandatoryFields[0] : null,
     createArCreditMemoMutation,
     updateArCreditMemoMutation,

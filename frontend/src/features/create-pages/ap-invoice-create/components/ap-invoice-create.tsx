@@ -356,6 +356,7 @@ export function APInvoiceCreate({
       <APInvoiceProductSection
         rows={state.rows}
         productRowDrafts={state.productRowDrafts}
+        submitDisabled={state.submitDisabled}
         setProductRows={state.setProductRows}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
@@ -387,7 +388,7 @@ export function APInvoiceCreate({
           if (state.savedDocNum) {
             const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
             goeyToast.success(
-              `Downloading ${label} for Document #${state.savedDocNum} (Feature coming soon!)`,
+              `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
             );
           }
         }}

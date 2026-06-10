@@ -8,6 +8,7 @@ type ARInvoiceState = ReturnType<typeof useARInvoiceCreate>;
 
 interface ARInvoiceProductSectionProps {
   sectionId: string;
+  submitDisabled?: boolean;
   missingSearchMandatoryFields: ARInvoiceState["missingSearchMandatoryFields"];
   searchRequiredCompletionPercent: ARInvoiceState["searchRequiredCompletionPercent"];
   searchMandatoryFields: ARInvoiceState["searchMandatoryFields"];
@@ -50,6 +51,7 @@ interface ARInvoiceProductSectionProps {
  */
 export function ARInvoiceProductSection({
   sectionId,
+  submitDisabled,
   missingSearchMandatoryFields,
   searchRequiredCompletionPercent,
   searchMandatoryFields,
@@ -89,6 +91,7 @@ export function ARInvoiceProductSection({
 
   return (
     <BaseProductSection
+      submitDisabled={submitDisabled}
       sectionId={sectionId}
       onSearchProducts={() => {
         if (isUpdateAction) {

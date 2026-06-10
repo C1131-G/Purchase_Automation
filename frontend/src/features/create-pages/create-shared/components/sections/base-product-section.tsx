@@ -78,6 +78,7 @@ interface BaseProductSectionProps {
   secondaryActions?: ReactNode | undefined;
   showSubmitButton?: boolean | undefined;
   isReadOnly?: boolean | undefined;
+  submitDisabled?: boolean | undefined;
   customSearchAction?: ReactNode | undefined;
   productRows?: ProductRow[] | undefined;
   setProductRows?:
@@ -127,6 +128,7 @@ export function BaseProductSection({
   showSubmitButton = true,
   isEditMode = false,
   hideSearch = false,
+  submitDisabled = false,
   allowSearchInEditMode = false,
   isReadOnly = false,
   customSearchAction,
@@ -495,6 +497,7 @@ export function BaseProductSection({
                   isLoading={isSubmitting}
                   loadingText={submitLoadingText}
                   onClick={onSubmit}
+                  disabled={submitDisabled || Boolean(disabledReason)}
                   className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
                 >
                   <span className="inline-flex items-center gap-2">
