@@ -29,6 +29,8 @@ import { createSharedQueries } from "@/features/create-pages/create-shared/api/c
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
 import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
+import { UploadAttachmentCard } from "@/features/create-shared/components/layout/upload-attachment-card";
+import { useUploadAttachmentMutation } from "@/features/create-pages/ar-credit-memo-create/api/ar-credit-memo-create.mutations";
 
 export interface ArCreditMemoCreateProps {
   mode?: "create" | "edit";
@@ -69,6 +71,30 @@ export function ArCreditMemoCreate({
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const attachmentRef = useRef<{ clearFile: () => void }>(null);
+  const uploadAttachmentMutation = useUploadAttachmentMutation();
+
+  const handleSubmit = async (action: "save-new" | "view" | "close" | "draft" = "save-new") => {
+    let attachmentEntryId: number | undefined = undefined;
+    if (selectedFile) {
+      try {
+        const attachmentRes = await uploadAttachmentMutation.mutateAsync(selectedFile);
+        if (typeof attachmentRes === 'number') {
+          attachmentEntryId = attachmentRes;
+        } else {
+          throw new Error("Invalid response from attachment upload");
+        }
+      } catch (err) {
+        console.error("Failed to upload attachment", err);
+        goeyToast.error("Failed to upload attachment.");
+        return;
+      }
+    }
+    await state.handleCreateOrder(action, attachmentEntryId);
+    attachmentRef.current?.clearFile();
+  };
 
   const handleReset = () => {
     state.productsHook.setProductRows([]);
@@ -290,7 +316,6 @@ export function ArCreditMemoCreate({
     createArCreditMemoMutation,
     missingMandatoryFields,
     requiredCompletionPercent,
-    handleCreateOrder,
     missingSearchMandatoryFields,
     searchRequiredCompletionPercent,
     searchMandatoryFields,
@@ -365,15 +390,13 @@ export function ArCreditMemoCreate({
         }
       >
         {state.trackerDocEntry > 0 && (
-          <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-            <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-              <div className="relative z-10 overflow-x-auto max-w-full">
-                <RelationshipMapTracker
-                  docType={state.trackerDocType}
-                  docEntry={state.trackerDocEntry}
-                  compact={true}
-                />
-              </div>
+          <div className="mb-4 w-full">
+            <div className="w-full relative z-10 overflow-x-auto">
+              <RelationshipMapTracker
+                docType={state.trackerDocType}
+                docEntry={state.trackerDocEntry}
+                compact={true}
+              />
             </div>
           </div>
         )}
@@ -461,26 +484,37 @@ export function ArCreditMemoCreate({
           />
         </div>
 
-        {/* Row 2: Address | Reference — matches AR Invoice */}
-        <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-          <AddressGrid
-            loading={false}
-            billToAddress={header.billToAddress ?? ""}
-            shipToAddress={header.shipToAddress ?? ""}
-            readOnly={false}
-            onBillToAddressChange={(value) => setHeader({ billToAddress: value })}
-            onShipToAddressChange={(value) => setHeader({ shipToAddress: value })}
-          />
+        {/* Row 2: Address + Attachment | Reference */}
+        <div className="mt-3 grid items-start gap-3 lg:grid-cols-3">
+          <div className="flex flex-col gap-3 lg:col-span-2">
+            <AddressGrid
+              className=""
+              loading={false}
+              billToAddress={header.billToAddress ?? ""}
+              shipToAddress={header.shipToAddress ?? ""}
+              readOnly={false}
+              onBillToAddressChange={(value) => setHeader({ billToAddress: value })}
+              onShipToAddressChange={(value) => setHeader({ shipToAddress: value })}
+            />
+            {!state.isEditMode && (
+              <UploadAttachmentCard
+                ref={attachmentRef}
+                onFileSelect={setSelectedFile}
+              />
+            )}
+          </div>
 
-          <ReferenceGrid
-            loading={false}
-            referenceNo={header.referenceNo}
-            comments={header.comments}
-            referenceNoDisabled={false}
-            commentsDisabled={false}
-            onReferenceNoChange={(value) => setHeader({ referenceNo: value })}
-            onCommentsChange={(value) => setHeader({ comments: value })}
-          />
+          <div className="h-full lg:col-span-1">
+            <ReferenceGrid
+              loading={false}
+              referenceNo={header.referenceNo}
+              comments={header.comments}
+              referenceNoDisabled={false}
+              commentsDisabled={false}
+              onReferenceNoChange={(value) => setHeader({ referenceNo: value })}
+              onCommentsChange={(value) => setHeader({ comments: value })}
+            />
+          </div>
         </div>
 
         {/* Row 3: Product lines with checkboxes + return reason */}
@@ -508,8 +542,8 @@ export function ArCreditMemoCreate({
           createArCreditMemoMutation={createArCreditMemoMutation}
           missingMandatoryFields={missingMandatoryFields}
           requiredCompletionPercent={requiredCompletionPercent}
-          handleCreateOrder={handleCreateOrder}
-          onSubmitMode={handleCreateOrder}
+          handleCreateOrder={handleSubmit}
+          onSubmitMode={handleSubmit}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
           onDownload={(type) => {
@@ -530,7 +564,7 @@ export function ArCreditMemoCreate({
             } as any);
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
+          submitLoadingText={state.isEditMode ? "Updating..." : uploadAttachmentMutation.isPending ? "Uploading..." : "Creating..."}
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
         />

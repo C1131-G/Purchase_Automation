@@ -104,6 +104,7 @@ const CreditNoteLineItemSchema = z.object({
 
 // CreateCreditNoteInputSchema: Validates new credit note creation.
 export const CreateCreditNoteInputSchema = z.object({
+  AttachmentEntry: z.number().int().optional(),
   CardCode: z.string().min(1),
   Comments: z.string().optional(),
   DocDate: z

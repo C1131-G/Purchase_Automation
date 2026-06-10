@@ -92,16 +92,14 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
         }
       >
         {state.trackerDocType && state.trackerDocEntry && (
-          <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-            <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-              <div className="relative z-10 overflow-x-auto max-w-full">
+          <div className="mb-4 mt-2 w-full">
+            <div className="relative z-10 overflow-x-auto w-full">
                 <RelationshipMapTracker
                   docType={state.trackerDocType}
                   docEntry={state.trackerDocEntry}
                   compact={true}
                 />
               </div>
-            </div>
           </div>
         )}
 

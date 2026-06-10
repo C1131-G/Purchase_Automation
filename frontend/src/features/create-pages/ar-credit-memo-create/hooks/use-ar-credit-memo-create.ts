@@ -630,6 +630,7 @@ export function useArCreditMemoCreate({
 
   const handleCreateOrder = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
+    attachmentEntry?: number
   ) => {
     if (action === "draft") {
       await saveActions.handleActionSuccess("draft");
@@ -713,6 +714,7 @@ export function useArCreditMemoCreate({
     }
 
     const payload = {
+      AttachmentEntry: attachmentEntry,
       CardCode: header.vendorCode,
       Comments: header.comments,
       DocDate: header.docDate,

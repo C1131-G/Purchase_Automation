@@ -170,12 +170,26 @@ class ServiceLayerClient {
     // Slide the inactivity window.
     sessionInfo.lastSapCall = Date.now();
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Cookie: sessionInfo.cookieString,
+    };
+
+    if (customHeaders) {
+      for (const [key, value] of Object.entries(customHeaders)) {
+        if (key.toLowerCase() === "content-type") {
+          delete headers["Content-Type"];
+        }
+        headers[key] = value;
+      }
+    }
+
+    if (data instanceof FormData) {
+      delete headers["Content-Type"];
+    }
+
     const requestConfig: AxiosRequestConfig = {
-      headers: {
-        "Content-Type": "application/json",
-        Cookie: sessionInfo.cookieString,
-        ...customHeaders,
-      },
+      headers,
       method,
       url: endpoint,
     };
