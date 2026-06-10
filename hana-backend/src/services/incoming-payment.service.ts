@@ -340,6 +340,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       DocDate: payload.DocDate,
       TaxDate: payload.DocDate,
       DueDate: payload.DocDate,
+      DocCurrency: payload.DocCurrency || "FJD",
       DocObjectCode: "bopot_IncomingPayments",
       PaymentInvoices:
         (payload.PaymentInvoices as Record<string, unknown>[])
@@ -424,7 +425,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     }
 
     if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
-      sapPayload.TrsfrSum = payload.TrsfrSum;
+      sapPayload.TransferSum = payload.TrsfrSum;
       if (payload.TransferAccount) sapPayload.TransferAccount = payload.TransferAccount;
       if (payload.TransferDate) sapPayload.TransferDate = payload.TransferDate;
       if (payload.TransferReference) sapPayload.TransferReference = payload.TransferReference;
@@ -599,7 +600,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
           cardName: (payload.CardName as string) || (result.CardName as string) || "",
           docTotal:
             ((sapPayload.CashSum as number) || 0) +
-            ((sapPayload.TrsfrSum as number) || 0) +
+            ((sapPayload.TransferSum as number) || 0) +
             ((sapPayload.PaymentCreditCards as any[])?.reduce(
               (sum, c) => sum + (c.CreditSum || 0),
               0,
@@ -703,34 +704,45 @@ export const cancelPayment = async (sessionId: string, id: string) => {
 export const getAccounts = async (dbName: string, query: { search?: string; limit?: number }) => {
   try {
     const repo = await getTenantRepository(dbName, ChartOfAccountSchema);
-    const qb = repo.createQueryBuilder("a");
-
-    qb.select(["a.AcctCode", "a.AcctName"]);
-    qb.where("a.Finanse = 'Y'");
-
-    if (query.search) {
-      qb.andWhere(
-        "(LOWER(a.AcctCode) LIKE LOWER(:search) OR LOWER(a.AcctName) LIKE LOWER(:search))",
-        { search: `%${query.search}%` },
-      );
+    
+    // DEBUG: Dump first 5 accounts
+    try {
+      const debugRows = await repo.query('SELECT TOP 5 "AcctCode", "AcctName", "Postable", "Finanse" FROM "OACT"');
+      logger.info({ msg: "DEBUG OACT", data: debugRows });
+    } catch (e) {
+      logger.error({ msg: "DEBUG OACT ERROR", error: e });
     }
 
-    qb.orderBy("a.AcctCode", "ASC").take(query.limit ?? 20);
+    let sql = `SELECT "AcctCode", "AcctName" FROM "OACT" WHERE "Postable" = 'Y'`;
+    if (query.search) {
+      const s = query.search.toLowerCase().replace(/'/g, "''");
+      sql += ` AND (LOWER("AcctCode") LIKE '%${s}%' OR LOWER("AcctName") LIKE '%${s}%')`;
+    }
+    sql += ` ORDER BY "AcctCode" ASC LIMIT ${query.limit ?? 20}`;
 
-    const rows = await qb.getRawMany<Record<string, unknown>>();
+    const rows = await repo.query(sql);
+
+    // Write debug info to file so agent can inspect it if needed
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      fs.writeFileSync(path.join(process.cwd(), "hana-debug.json"), JSON.stringify({ sql, rows }));
+    } catch {}
 
     logger.info({
-      msg: "Fetched OACT cash accounts",
-      db: dbName,
-      count: rows.length,
+      dbName,
+      limit: query.limit,
+      msg: "Fetched OACT accounts raw",
+      rowsReturned: rows?.length,
+      search: query.search,
     });
 
     return {
-      data: rows.map((r) => ({
-        GLAccount: r["a_AcctCode"] as string,
-        Account: r["a_AcctName"] as string,
+      data: (rows || []).map((r: any) => ({
+        GLAccount: r.AcctCode || r.ACCTCODE || r.acctcode || r.a_AcctCode,
+        Account: r.AcctName || r.ACCTNAME || r.acctname || r.a_AcctName,
       })),
-      total: rows.length,
+      total: rows?.length || 0,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
