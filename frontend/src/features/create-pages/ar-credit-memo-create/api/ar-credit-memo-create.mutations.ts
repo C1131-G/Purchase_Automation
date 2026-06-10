@@ -35,29 +35,4 @@ export const useUpdateArCreditMemoMutation = () => {
   });
 };
 
-export const useUploadAttachmentMutation = () => {
-  return useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const BASE_URL: string = import.meta.env.VITE_API_URL || "http://localhost:4000";
-      const response = await fetch(`${BASE_URL}/api/v1/attachments`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      if (!response.ok) {
-        let errorMsg = "Failed to upload attachment";
-        try {
-          const errData = await response.json();
-          errorMsg = JSON.stringify(errData);
-        } catch {
-          errorMsg = await response.text();
-        }
-        throw new Error(`Upload failed: ${response.status} ${errorMsg}`);
-      }
-      const data = await response.json();
-      return data.attachmentEntry as number;
-    },
-  });
-};
+

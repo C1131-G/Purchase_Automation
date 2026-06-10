@@ -29,8 +29,6 @@ import { createSharedQueries } from "@/features/create-pages/create-shared/api/c
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
 import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
-import { UploadAttachmentCard } from "@/features/create-shared/components/layout/upload-attachment-card";
-import { useUploadAttachmentMutation } from "@/features/create-pages/ar-credit-memo-create/api/ar-credit-memo-create.mutations";
 
 export interface ArCreditMemoCreateProps {
   mode?: "create" | "edit";
@@ -72,29 +70,7 @@ export function ArCreditMemoCreate({
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const attachmentRef = useRef<{ clearFile: () => void }>(null);
-  const uploadAttachmentMutation = useUploadAttachmentMutation();
 
-  const handleSubmit = async (action: "save-new" | "view" | "close" | "draft" = "save-new") => {
-    let attachmentEntryId: number | undefined = undefined;
-    if (selectedFile) {
-      try {
-        const attachmentRes = await uploadAttachmentMutation.mutateAsync(selectedFile);
-        if (typeof attachmentRes === "number") {
-          attachmentEntryId = attachmentRes;
-        } else {
-          throw new Error("Invalid response from attachment upload");
-        }
-      } catch (err) {
-        console.error("Failed to upload attachment", err);
-        goeyToast.error("Failed to upload attachment.");
-        return;
-      }
-    }
-    await state.handleCreateOrder(action, attachmentEntryId);
-    attachmentRef.current?.clearFile();
-  };
 
   const handleReset = () => {
     state.productsHook.setProductRows([]);
@@ -484,34 +460,26 @@ export function ArCreditMemoCreate({
           />
         </div>
 
-        {/* Row 2: Address + Attachment | Reference */}
-        <div className="mt-3 grid items-start gap-3 lg:grid-cols-3">
-          <div className="flex flex-col gap-3 lg:col-span-2">
-            <AddressGrid
-              className=""
-              loading={false}
-              billToAddress={header.billToAddress ?? ""}
-              shipToAddress={header.shipToAddress ?? ""}
-              readOnly={false}
-              onBillToAddressChange={(value) => setHeader({ billToAddress: value })}
-              onShipToAddressChange={(value) => setHeader({ shipToAddress: value })}
-            />
-            {!state.isEditMode && (
-              <UploadAttachmentCard ref={attachmentRef} onFileSelect={setSelectedFile} />
-            )}
-          </div>
+        {/* Row 2: Address | Reference — matches AR Invoice */}
+        <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
+          <AddressGrid
+            loading={false}
+            billToAddress={header.billToAddress ?? ""}
+            shipToAddress={header.shipToAddress ?? ""}
+            readOnly={false}
+            onBillToAddressChange={(value) => setHeader({ billToAddress: value })}
+            onShipToAddressChange={(value) => setHeader({ shipToAddress: value })}
+          />
 
-          <div className="h-full lg:col-span-1">
-            <ReferenceGrid
-              loading={false}
-              referenceNo={header.referenceNo}
-              comments={header.comments}
-              referenceNoDisabled={false}
-              commentsDisabled={false}
-              onReferenceNoChange={(value) => setHeader({ referenceNo: value })}
-              onCommentsChange={(value) => setHeader({ comments: value })}
-            />
-          </div>
+          <ReferenceGrid
+            loading={false}
+            referenceNo={header.referenceNo}
+            comments={header.comments}
+            referenceNoDisabled={false}
+            commentsDisabled={false}
+            onReferenceNoChange={(value) => setHeader({ referenceNo: value })}
+            onCommentsChange={(value) => setHeader({ comments: value })}
+          />
         </div>
 
         {/* Row 3: Product lines with checkboxes + return reason */}
@@ -540,8 +508,8 @@ export function ArCreditMemoCreate({
           createArCreditMemoMutation={createArCreditMemoMutation}
           missingMandatoryFields={missingMandatoryFields}
           requiredCompletionPercent={requiredCompletionPercent}
-          handleCreateOrder={handleSubmit}
-          onSubmitMode={handleSubmit}
+          handleCreateOrder={state.handleCreateOrder}
+          onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
           onDownload={(type) => {
@@ -562,13 +530,7 @@ export function ArCreditMemoCreate({
             } as any);
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={
-            state.isEditMode
-              ? "Updating..."
-              : uploadAttachmentMutation.isPending
-                ? "Uploading..."
-                : "Creating..."
-          }
+          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
         />
