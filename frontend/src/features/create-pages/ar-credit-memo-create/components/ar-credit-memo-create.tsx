@@ -70,8 +70,6 @@ export function ArCreditMemoCreate({
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
 
-
-
   const handleReset = () => {
     state.productsHook.setProductRows([]);
     state.productsHook.setProductRowDrafts({});

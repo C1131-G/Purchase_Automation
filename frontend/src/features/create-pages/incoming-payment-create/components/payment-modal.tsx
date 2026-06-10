@@ -20,7 +20,8 @@ import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/
 
 const TransferCalendar = Calendar as unknown as (
   props: React.ComponentProps<typeof Calendar> & { minDate?: Date; maxDate?: Date },
-) => React.ReactElement;import amexImg from "@/assets/payment-icons/Amex.jpg";
+) => React.ReactElement;
+import amexImg from "@/assets/payment-icons/Amex.jpg";
 import qrpayImg from "@/assets/payment-icons/Card.jpg"; // Using Card.jpg as placeholder for QR Pay or generic
 import debitImg from "@/assets/payment-icons/Debit.jpg";
 import masterImg from "@/assets/payment-icons/Master.jpg";
@@ -126,7 +127,6 @@ export function PaymentModal({
     code: acc.GLAccount,
     name: acc.Account,
   }));
-
 
   const selectTransferAccount = (item: CreateLookupOption) => {
     setTransferAccountInput(item.code);
@@ -1046,7 +1046,10 @@ export function PaymentModal({
                 return true;
               }
               // Validate Bank Transfer specifics
-              if (Number(transferAmount) > 0 && (!selectedTransferAccount || !transferReference.trim())) {
+              if (
+                Number(transferAmount) > 0 &&
+                (!selectedTransferAccount || !transferReference.trim())
+              ) {
                 return true;
               }
               return false;
@@ -1057,7 +1060,7 @@ export function PaymentModal({
           </button>
         </div>
       </div>
-      
+
       <LookupPopup
         open={isTransferAccountLookupOpen}
         search={transferAccountInput}

@@ -226,7 +226,9 @@ export function CreateIncomingPaymentForm() {
     const surcharge = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));
 
     // The amount available to cover invoices is what was actually paid minus any surcharges
-    const totalPaid = Number((totalCash + totalChecks + totalCards + totalTransfer - surcharge).toFixed(2));
+    const totalPaid = Number(
+      (totalCash + totalChecks + totalCards + totalTransfer - surcharge).toFixed(2),
+    );
 
     // 2. Group selected documents
     const selectedList = Object.entries(selectedDocs).map(([key, val]) => ({
@@ -298,8 +300,12 @@ export function CreateIncomingPaymentForm() {
       SurchargeTotal: surchargeTotal,
       TrsfrSum: trsfrSum,
       ...(paymentDetails.TransferDate ? { TransferDate: paymentDetails.TransferDate } : {}),
-      ...(paymentDetails.TransferAccount ? { TransferAccount: paymentDetails.TransferAccount } : {}),
-      ...(paymentDetails.TransferReference ? { TransferReference: paymentDetails.TransferReference } : {}),
+      ...(paymentDetails.TransferAccount
+        ? { TransferAccount: paymentDetails.TransferAccount }
+        : {}),
+      ...(paymentDetails.TransferReference
+        ? { TransferReference: paymentDetails.TransferReference }
+        : {}),
       ...(paymentDetails.PaymentChecks ? { PaymentChecks: paymentDetails.PaymentChecks } : {}),
     });
   };

@@ -704,10 +704,12 @@ export const cancelPayment = async (sessionId: string, id: string) => {
 export const getAccounts = async (dbName: string, query: { search?: string; limit?: number }) => {
   try {
     const repo = await getTenantRepository(dbName, ChartOfAccountSchema);
-    
+
     // DEBUG: Dump first 5 accounts
     try {
-      const debugRows = await repo.query('SELECT TOP 5 "AcctCode", "AcctName", "Postable", "Finanse" FROM "OACT"');
+      const debugRows = await repo.query(
+        'SELECT TOP 5 "AcctCode", "AcctName", "Postable", "Finanse" FROM "OACT"',
+      );
       logger.info({ msg: "DEBUG OACT", data: debugRows });
     } catch (e) {
       logger.error({ msg: "DEBUG OACT ERROR", error: e });
