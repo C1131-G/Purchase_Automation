@@ -27,7 +27,7 @@ const aggregatePartners = (docs: RawDashboardDocument[]): DashboardPartnerEntry[
 
   return Array.from(entries.values())
     .sort((left, right) => right.totalValue - left.totalValue)
-    .slice(0, 10)
+    .slice(0, 5)
     .map((entry) => ({
       code: entry.code,
       name: entry.name,

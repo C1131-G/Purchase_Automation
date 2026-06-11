@@ -110,11 +110,11 @@ export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
         />
       </div>
 
-      {/* Pareto top partners and Actionable exceptions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <PartnerTable groups={partnersQuery.data?.data} currency={currency} color={color} />
-        <ExceptionsTable groups={exceptionsQuery.data?.data} currency={currency} color={color} />
-      </div>
+      {/* Pareto top partners (Pareto Analytics Redesigned) */}
+      <PartnerTable groups={partnersQuery.data?.data} currency={currency} color={color} />
+
+      {/* Actionable exceptions */}
+      <ExceptionsTable groups={exceptionsQuery.data?.data} currency={currency} color={color} />
     </div>
   );
 }
