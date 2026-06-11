@@ -25,6 +25,9 @@ export const EMPTY_PRODUCT_SEARCH_FIELD_ERRORS: ProductSearchFieldError = {
   warehouse: undefined,
 };
 
+export const AR_CREDIT_MEMO_MANDATORY_FIELDS = ["vendorCode", "vendorName"] as const;
+export type ArCreditMemoMandatoryField = (typeof AR_CREDIT_MEMO_MANDATORY_FIELDS)[number];
+
 export const MANDATORY_ERROR_TEXT = {
   billToAddress: "Bill To Address is required.",
   comments: "Comments are required.",

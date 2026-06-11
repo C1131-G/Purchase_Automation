@@ -8,6 +8,7 @@ import {
 } from "@/features/create-pages/ar-credit-memo-create/api/ar-credit-memo-create.mutations";
 import { useArCnProducts } from "@/features/create-pages/ar-credit-memo-create/hooks/use-ar-cm-products";
 import {
+  AR_CREDIT_MEMO_MANDATORY_FIELDS,
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   MANDATORY_ERROR_TEXT,
 } from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
@@ -630,27 +631,54 @@ export function useArCreditMemoCreate({
   );
   const totals = useMemo(() => calculateOrderTotals(selectedRows), [selectedRows]);
 
+  const createMandatoryValues = useMemo(
+    () => ({
+      vendorCode: codeInput.trim() || header.vendorCode.trim(),
+      vendorName: nameInput.trim() || header.vendorName.trim(),
+    }),
+    [codeInput, nameInput, header.vendorCode, header.vendorName],
+  );
+
   const missingMandatoryFields = useMemo(() => {
     const missing: string[] = [];
-    if (!header.vendorCode) {
-      missing.push(MANDATORY_ERROR_TEXT.vendorCode);
+    if (!createMandatoryValues.vendorCode) {
+      missing.push("vendorCode");
     }
-    if (!header.docDueDate) {
-      missing.push(MANDATORY_ERROR_TEXT.docDueDate);
-    }
-    if (productsHook.productRows.length === 0) {
-      missing.push("At least one product is required.");
-    } else if (selectedRows.length === 0) {
-      missing.push("Select at least one product to return.");
+    if (!createMandatoryValues.vendorName) {
+      missing.push("vendorName");
     }
     return missing;
-  }, [header.vendorCode, header.docDueDate, productsHook.productRows.length, selectedRows.length]);
+  }, [createMandatoryValues]);
 
   const requiredCompletionPercent = useMemo(() => {
-    const fields = [header.vendorCode, header.docDueDate, selectedRows.length > 0];
-    const completed = fields.filter(Boolean).length;
-    return Math.round((completed / fields.length) * 100);
-  }, [header.vendorCode, header.docDueDate, selectedRows.length]);
+    const completed = AR_CREDIT_MEMO_MANDATORY_FIELDS.length - missingMandatoryFields.length;
+    return Math.round((completed / AR_CREDIT_MEMO_MANDATORY_FIELDS.length) * 100);
+  }, [missingMandatoryFields]);
+
+  const createDisabledReason = useMemo(() => {
+    if (missingMandatoryFields.length > 0) {
+      const fieldKey = missingMandatoryFields[0];
+      return (
+        MANDATORY_ERROR_TEXT[fieldKey as keyof typeof MANDATORY_ERROR_TEXT] ||
+        "Please fill all required fields."
+      );
+    }
+    if (!header.docDueDate) {
+      return MANDATORY_ERROR_TEXT.docDueDate;
+    }
+    if (productsHook.productRows.length === 0) {
+      return "At least one product is required.";
+    }
+    if (selectedRows.length === 0) {
+      return "Select at least one product to return.";
+    }
+    return null;
+  }, [
+    missingMandatoryFields,
+    header.docDueDate,
+    productsHook.productRows.length,
+    selectedRows.length,
+  ]);
 
   const handleCreateOrder = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
@@ -663,8 +691,8 @@ export function useArCreditMemoCreate({
     }
 
     setSubmitAttempted(true);
-    if (missingMandatoryFields.length > 0) {
-      setCreateError(missingMandatoryFields[0] || "Please fill all required fields.");
+    if (createDisabledReason) {
+      setCreateError(createDisabledReason);
       return;
     }
 
@@ -833,7 +861,7 @@ export function useArCreditMemoCreate({
     createError,
     submitAttempted,
     submitDisabled,
-    createDisabledReason: missingMandatoryFields.length > 0 ? missingMandatoryFields[0] : null,
+    createDisabledReason,
     createArCreditMemoMutation,
     updateArCreditMemoMutation,
     isPending: createArCreditMemoMutation.isPending || updateArCreditMemoMutation.isPending,

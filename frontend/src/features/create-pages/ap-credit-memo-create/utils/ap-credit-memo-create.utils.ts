@@ -1,21 +1,15 @@
 import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 
-export const AP_CREDIT_MEMO_MANDATORY_FIELDS = [
-  "vendorName",
-  "vendorCode",
-  "returnReason",
-] as const;
+export const AP_CREDIT_MEMO_MANDATORY_FIELDS = ["vendorName", "vendorCode"] as const;
 
 export type APCreditMemoMandatoryField = (typeof AP_CREDIT_MEMO_MANDATORY_FIELDS)[number];
 
 export const AP_CREDIT_MEMO_FIELD_ERROR_TEXT: Record<APCreditMemoMandatoryField, string> = {
-  returnReason: "Return Reason is required.",
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",
 };
 
 export const AP_CREDIT_MEMO_FIELD_LABEL_TEXT: Record<APCreditMemoMandatoryField, string> = {
-  returnReason: "Return Reason",
   vendorCode: "Vendor Code",
   vendorName: "Vendor Name",
 };

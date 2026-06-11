@@ -89,7 +89,6 @@ type APCreditMemoFieldErrors = Record<APCreditMemoMandatoryField, string | undef
 const QUICK_PRODUCT_LIMIT = 10;
 
 const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
-  returnReason: undefined,
   vendorCode: undefined,
   vendorName: undefined,
 };
@@ -1278,9 +1277,6 @@ export function useAPCreditMemoCreate({
         if (field === "vendorCode") {
           return !vendorCodeInput.trim();
         }
-        if (field === "returnReason") {
-          return false;
-        }
         return false;
       });
 
@@ -1459,9 +1455,6 @@ export function useAPCreditMemoCreate({
       }
       if (field === "vendorCode") {
         return !vendorCodeInput.trim();
-      }
-      if (field === "returnReason") {
-        return false;
       }
       return false;
     });

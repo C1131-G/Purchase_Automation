@@ -2,7 +2,7 @@ import type { useARInvoiceCreate } from "@/features/create-pages/ar-invoice-crea
 import { REQUIRED_FIELD_LABEL_TEXT } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
 import { BaseProductSection } from "@/features/create-pages/create-shared/components/sections/base-product-section";
 import { CreateProductTable } from "@/features/create-pages/create-shared/components/tables/create-product-table";
-import { SALES_ORDER_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
+import { AR_INVOICE_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
 
 type ARInvoiceState = ReturnType<typeof useARInvoiceCreate>;
 
@@ -127,7 +127,7 @@ export function ARInvoiceProductSection({
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
-      mandatoryFieldsTotal={SALES_ORDER_MANDATORY_FIELDS.length}
+      mandatoryFieldsTotal={AR_INVOICE_MANDATORY_FIELDS.length}
       isEditMode={isUpdateAction}
       showSubmitButton={true}
       secondaryActions={secondaryActions}

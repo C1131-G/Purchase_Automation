@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 
 import type { useArCreditMemoCreate } from "@/features/create-pages/ar-credit-memo-create/hooks/use-ar-credit-memo-create";
-import { REQUIRED_FIELD_LABEL_TEXT } from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
+import {
+  AR_CREDIT_MEMO_MANDATORY_FIELDS,
+  REQUIRED_FIELD_LABEL_TEXT,
+} from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
 import { BaseProductSection } from "@/features/create-pages/create-shared/components/sections/base-product-section";
 import { CreateProductTable } from "@/features/create-pages/create-shared/components/tables/create-product-table";
-import { SALES_ORDER_MANDATORY_FIELDS } from "@/features/create-pages/create-shared/config/create-mandatory-fields";
 
 type ArCreditMemoState = ReturnType<typeof useArCreditMemoCreate>;
 
@@ -145,7 +147,7 @@ export function ArCreditMemoProductSection({
       disabledReason={createDisabledReason ?? null}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
-      mandatoryFieldsTotal={SALES_ORDER_MANDATORY_FIELDS.length}
+      mandatoryFieldsTotal={AR_CREDIT_MEMO_MANDATORY_FIELDS.length}
       isEditMode={isUpdateAction}
       showSubmitButton={true}
     >
