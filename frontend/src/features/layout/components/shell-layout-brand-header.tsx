@@ -17,7 +17,7 @@ export function ShellLayoutBrandHeader() {
             e.stopPropagation();
             setSidebarOpen(!isOpen);
           }}
-          className="size-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-[0_4px_10px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-colors cursor-pointer shrink-0 border-none outline-none"
+          className="size-9 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0 border-none bg-transparent outline-none"
         >
           {isOpen ? <Building2 className="size-5" /> : <Menu className="size-5" />}
         </button>
