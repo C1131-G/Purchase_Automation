@@ -7,15 +7,15 @@ import {
   useDashboardTopPartners,
   useDashboardExceptions,
 } from "../queries/queries";
-import { KpiRow } from "./KpiRow";
 import { ModuleTiles } from "./ModuleTiles";
+import { ModuleCards } from "./ModuleCards";
 import { TrendChart } from "./TrendChart";
 import { FunnelChart } from "./FunnelChart";
 import { PartnerTable } from "./PartnerTable";
 import { ExceptionsTable } from "./ExceptionsTable";
 import {
-  KpiRowSkeleton,
   ModuleTilesSkeleton,
+  ModuleCardsSkeleton,
   TrendChartSkeleton,
   FunnelChartSkeleton,
   TableSkeleton,
@@ -51,8 +51,8 @@ export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
   if (isFirstLoading) {
     return (
       <div className="flex flex-col gap-6 w-full">
-        <KpiRowSkeleton />
         <ModuleTilesSkeleton />
+        <ModuleCardsSkeleton />
         <TrendChartSkeleton />
         <FunnelChartSkeleton />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -89,15 +89,15 @@ export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
   }
 
   // Get common currency code from loaded datasets
-  const currency = kpiQuery.data?.currency || "$";
+  const currency = kpiQuery.data?.currency || modulesQuery.data?.currency || "$";
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* KPI row */}
-      <KpiRow metrics={kpiQuery.data?.data} currency={currency} color={color} />
+      {/* Module Tiles (displays the 9 summary metrics in a 4-column layout) */}
+      <ModuleTiles metrics={kpiQuery.data?.data} currency={currency} />
 
-      {/* Module Tiles */}
-      <ModuleTiles cards={modulesQuery.data?.data} currency={currency} color={color} />
+      {/* Module Cards (displays the 5 cards below the 9 metrics) */}
+      <ModuleCards modules={modulesQuery.data?.data} currency={currency} />
 
       {/* Trend Chart */}
       <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />

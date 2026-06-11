@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Check } from "lucide-react";
 
 import { SelectContext } from "@/components/context/select-context";
 import type { SelectContextType } from "@/components/context/select-context";
@@ -119,10 +120,10 @@ export function SelectTrigger({
       disabled={disabled}
       onClick={() => setOpen(!open)}
       className={cn(
-        "flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 py-2 text-sm text-zinc-900 select-none transition-all font-outfit ring-offset-1 cursor-pointer active:scale-[0.98]",
+        "flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 py-2 text-sm text-zinc-900 select-none transition-all font-outfit ring-offset-1 cursor-pointer",
         "hover:bg-white hover:border-zinc-300",
-        "focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent focus:bg-white",
-        open && "ring-2 ring-blue-600 border-transparent bg-white shadow-sm",
+        "focus:outline-none",
+        open && "border-zinc-300 bg-white",
         disabled && "opacity-50 cursor-not-allowed",
         className,
       )}
@@ -133,9 +134,13 @@ export function SelectTrigger({
   );
 }
 
-export function SelectValue({ placeholder, className }: SelectValueProps) {
+export function SelectValue({
+  placeholder,
+  className,
+  labelMap: customLabelMap,
+}: SelectValueProps) {
   const { value, labelMap } = useSelect();
-  const displayLabel = value ? labelMap[value] || value : null;
+  const displayLabel = value ? customLabelMap?.[value] || labelMap[value] || value : null;
 
   return (
     <span
@@ -150,13 +155,13 @@ export function SelectValue({ placeholder, className }: SelectValueProps) {
   );
 }
 
-export function SelectIcon({ children, className }: SelectIconProps) {
+export function SelectIcon({ children, className, rotate = 90 }: SelectIconProps) {
   const { open } = useSelect();
   return (
     <span
       className={cn(
         "flex shrink-0 items-center justify-center text-zinc-500 transition-transform duration-300",
-        open && "rotate-90",
+        open && (rotate === 180 ? "rotate-180" : "rotate-90"),
         className,
       )}
     >
@@ -240,15 +245,18 @@ export function SelectItem({ value, label, children, className, onMouseEnter }: 
         setValue(value);
       }}
       className={cn(
-        "relative flex w-full cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm transition-all duration-200",
+        "relative flex w-full cursor-pointer select-none items-center rounded-lg pl-7 pr-3 py-2 text-sm transition-all duration-200",
         "hover:bg-blue-50/50 hover:text-blue-600",
-        isSelected ? "bg-blue-50/80 text-blue-700 font-bold" : "text-zinc-700",
+        isSelected ? "bg-blue-50/50 text-blue-700 font-semibold" : "text-zinc-700",
         className,
       )}
     >
       <div className="flex-1 overflow-hidden">{children}</div>
       {isSelected && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-600 rounded-r-full animate-in slide-in-from-left-1 duration-300" />
+        <>
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-blue-600 rounded-full animate-in slide-in-from-left-1 duration-200" />
+          <Check className="size-3.5 text-blue-600 shrink-0 ml-2 animate-in fade-in duration-200" />
+        </>
       )}
     </div>
   );

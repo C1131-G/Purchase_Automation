@@ -18,11 +18,13 @@ export interface SelectRootProps {
 export interface SelectValueProps {
   placeholder?: string;
   className?: string;
+  labelMap?: Record<string, React.ReactNode>;
 }
 
 export interface SelectIconProps {
   children: React.ReactNode;
   className?: string;
+  rotate?: 90 | 180;
 }
 
 export interface SelectPositionerProps {

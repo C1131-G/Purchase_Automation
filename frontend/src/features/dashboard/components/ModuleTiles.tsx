@@ -1,29 +1,16 @@
-import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import type { Variants } from "motion/react";
-import type { DashboardModuleCard } from "../utils/types";
-import { formatCurrency, formatTrend, formatNumber } from "../utils/formatters";
+import type { DashboardMetric } from "../utils/types";
+import { formatPercent, formatNumber } from "../utils/formatters";
 import { dashboardVariants, springTransitions } from "../utils/motion";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 interface ModuleTilesProps {
-  cards: DashboardModuleCard[] | undefined;
+  metrics: DashboardMetric[] | undefined;
   currency: string;
-  color: "blue" | "indigo";
 }
 
-export function ModuleTiles({ cards, currency, color }: ModuleTilesProps) {
-  if (!cards || cards.length === 0) return null;
-
-  const accentRing = {
-    blue: "hover:border-blue-400 focus-within:ring-blue-100",
-    indigo: "hover:border-indigo-400 focus-within:ring-indigo-100",
-  };
-
-  const badgeColor = {
-    blue: "text-blue-600 bg-blue-50 border-blue-100/50",
-    indigo: "text-indigo-600 bg-indigo-50 border-indigo-100/50",
-  };
+export function ModuleTiles({ metrics, currency }: ModuleTilesProps) {
+  if (!metrics || metrics.length === 0) return null;
 
   return (
     <motion.div
@@ -32,74 +19,40 @@ export function ModuleTiles({ cards, currency, color }: ModuleTilesProps) {
       animate="animate"
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
     >
-      {cards.map((card) => {
-        const trend = formatTrend(card.trendPct);
-        const hasTrend = card.trendPct !== 0;
-
+      {metrics.map((metric) => {
         return (
           <motion.div
-            key={card.key}
+            key={metric.key}
             variants={dashboardVariants.fadeInScale as Variants}
             transition={springTransitions.gentle}
-            className={`bg-white border border-zinc-200/60 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[160px] group relative focus-within:ring-4 ${accentRing[color]}`}
+            className="bg-white border border-zinc-200/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-start min-h-[155px] group relative overflow-hidden"
           >
-            {/* Header: Title and Trend */}
-            <div className="flex justify-between items-start gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-sm font-bold text-zinc-900 group-hover:text-zinc-950 transition-colors">
-                  {card.label}
-                </span>
-                <span className="text-xs text-zinc-400 font-medium">
-                  {formatNumber(card.documentCount)}{" "}
-                  {card.documentCount === 1 ? "document" : "documents"}
-                </span>
-              </div>
+            {/* Hover blue tint gradients */}
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.14),transparent_48%)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-blue-500/0 via-blue-500/55 to-blue-500/0 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
-              {hasTrend && (
-                <div
-                  className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold border transition-colors ${
-                    trend.isPositive
-                      ? "text-emerald-700 bg-emerald-50 border-emerald-100"
-                      : "text-rose-700 bg-rose-50 border-rose-100"
-                  }`}
-                >
-                  {trend.isPositive ? (
-                    <ArrowUpRight className="size-3 stroke-[2.5]" />
-                  ) : (
-                    <ArrowDownRight className="size-3 stroke-[2.5]" />
-                  )}
-                  {trend.text}
-                </div>
-              )}
+            {/* Top section: Label */}
+            <div className="relative">
+              <span className="text-[13px] font-medium text-zinc-500 uppercase tracking-wider select-none block">
+                {metric.label}
+              </span>
             </div>
 
-            {/* Bottom section: Value metrics */}
-            <div className="mt-5 pt-4 border-t border-zinc-100 flex flex-col gap-1.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-xs text-zinc-400 font-medium">Total Value</span>
-                <span className="text-base font-bold text-zinc-900">
-                  {formatCurrency(card.totalValue, currency, true)}
+            {/* Value metrics - positioned directly below the label */}
+            <div className="mt-6 flex items-baseline select-none relative">
+              {metric.format === "currency" && (
+                <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mr-1.5 align-baseline transition-colors group-hover:text-blue-500">
+                  {currency}
                 </span>
-              </div>
-
-              {card.openCount > 0 && (
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-xs text-zinc-400 font-medium">Open Outstanding</span>
-                  <span
-                    className={`inline-flex items-center gap-1 text-[11px] font-bold rounded-md px-1.5 py-0.5 border ${badgeColor[color]}`}
-                  >
-                    {card.openCount} open ({formatCurrency(card.openValue, currency, true)})
-                  </span>
-                </div>
               )}
+              <span className="text-4xl font-semibold tracking-tight text-zinc-950 font-sans align-baseline">
+                {metric.format === "currency"
+                  ? formatNumber(metric.value)
+                  : metric.format === "percent"
+                    ? formatPercent(metric.value, 1)
+                    : formatNumber(metric.value)}
+              </span>
             </div>
-
-            {/* Native clickable Link overlay */}
-            <Link
-              to={card.href}
-              className="absolute inset-0 rounded-2xl focus:outline-none"
-              aria-label={`View details for ${card.label}`}
-            />
           </motion.div>
         );
       })}
