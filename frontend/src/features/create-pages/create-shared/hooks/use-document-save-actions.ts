@@ -35,6 +35,7 @@ export function useDocumentSaveActions({
       replace: true,
       search: {},
       to: defaultUrl,
+      viewTransition: true,
     });
   }, [resetForm, defaultUrl, router]);
 
@@ -70,7 +71,11 @@ export function useDocumentSaveActions({
           moduleType === "purchase"
             ? ("/dashboard/purchase" as const)
             : ("/dashboard/sales" as const);
-        void router.navigate({ to: dashboardUrl, search: { period: "week" } });
+        void router.navigate({
+          to: dashboardUrl,
+          search: { period: "week" },
+          viewTransition: true,
+        });
       } else if (action === "view") {
         setIsSaved(true);
         setSavedDocNum(createdDocNum ?? null);

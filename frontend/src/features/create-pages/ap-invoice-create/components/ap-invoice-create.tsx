@@ -54,6 +54,7 @@ export function APInvoiceCreate({
         replace: true,
         search: {},
         to: "/purchase/create-ap-invoice",
+        viewTransition: true,
       });
     },
     sourceDocNum,
@@ -397,6 +398,7 @@ export function APInvoiceCreate({
             replace: true,
             search: {},
             to: "/purchase/create-ap-invoice",
+            viewTransition: true,
           });
         }}
         submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}

@@ -52,6 +52,7 @@ export function GRPOCreate({
         replace: true,
         search: {},
         to: "/purchase/create-grpo",
+        viewTransition: true,
       });
     },
     sourceDocNum,
@@ -91,6 +92,7 @@ export function GRPOCreate({
       router.navigate({
         to: "/purchase/create-grpo",
         search: {},
+        viewTransition: true,
       });
       return;
     }
@@ -102,6 +104,7 @@ export function GRPOCreate({
         sourceDocNum: docNums,
         sourceDocType: docType as "PurchaseOrder" | "PurchaseQuotation",
       },
+      viewTransition: true,
     });
   };
 
@@ -383,6 +386,7 @@ export function GRPOCreate({
             replace: true,
             search: {},
             to: "/purchase/create-grpo",
+            viewTransition: true,
           });
         }}
         submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}

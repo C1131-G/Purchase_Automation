@@ -63,6 +63,7 @@ export function CreatePageWrapper({
           search={breadcrumbParent.search || { limit: 10, page: 1 }}
           className="cursor-pointer text-blue-600 hover:text-blue-700"
           onMouseEnter={breadcrumbParent.onMouseEnter}
+          viewTransition
         >
           {breadcrumbParent.label}
         </Link>

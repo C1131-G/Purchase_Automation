@@ -385,6 +385,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
               replace: true,
               search: {},
               to: "/sales/create-order",
+              viewTransition: true,
             });
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}

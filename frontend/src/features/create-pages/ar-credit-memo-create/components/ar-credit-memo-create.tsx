@@ -525,6 +525,7 @@ export function ArCreditMemoCreate({
               replace: true,
               search: {},
               to: "/sales/ar-credit-memo/create",
+              viewTransition: true,
             } as any);
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}

@@ -51,6 +51,7 @@ export function APCreditMemoCreate({
         replace: true,
         search: {},
         to: "/purchase/create-ap-credit-memo",
+        viewTransition: true,
       });
     },
     sourceDocNum,
@@ -332,6 +333,7 @@ export function APCreditMemoCreate({
             replace: true,
             search: {},
             to: "/purchase/create-ap-credit-memo",
+            viewTransition: true,
           });
         }}
         onDownload={(type) => {

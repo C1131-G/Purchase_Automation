@@ -452,6 +452,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
               replace: true,
               search: {},
               to: "/sales/create-ar-invoice",
+              viewTransition: true,
             });
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}

@@ -18,8 +18,10 @@ import {
   ModuleCardsSkeleton,
   TrendChartSkeleton,
   FunnelChartSkeleton,
-  TableSkeleton,
+  PartnerTableSkeleton,
+  ExceptionsTableSkeleton,
 } from "./DashboardSkeletons";
+import { DashboardSwitchBar } from "./DashboardSwitchBar";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface DashboardCanvasProps {
@@ -41,27 +43,11 @@ export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
   const queries = [kpiQuery, modulesQuery, trendQuery, funnelQuery, partnersQuery, exceptionsQuery];
 
   const hasError = queries.some((q) => q.isError);
-  const isFirstLoading = queries.some((q) => q.isLoading);
+  const isFetching = queries.some((q) => q.isFetching);
 
   const handleRetry = () => {
     queries.forEach((q) => q.refetch());
   };
-
-  // If loading for the first time (no cached/previous data available yet)
-  if (isFirstLoading) {
-    return (
-      <div className="flex flex-col gap-6 w-full">
-        <ModuleTilesSkeleton />
-        <ModuleCardsSkeleton />
-        <TrendChartSkeleton />
-        <FunnelChartSkeleton />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TableSkeleton />
-          <TableSkeleton />
-        </div>
-      </div>
-    );
-  }
 
   // If any query failed and we have no valid data to show
   if (hasError) {
@@ -92,29 +78,58 @@ export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
   const currency = kpiQuery.data?.currency || modulesQuery.data?.currency || "$";
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-6 w-full relative">
+      {/* Switch loading bar during background fetching (period changes) */}
+      <div className="fixed top-0 left-0 right-0 h-[5px] overflow-hidden z-[9999] pointer-events-none">
+        <DashboardSwitchBar isSwitchLoading={isFetching} area={area} />
+      </div>
+
       {/* Module Tiles (displays the summary metrics) */}
-      <ModuleTiles metrics={kpiQuery.data?.data} currency={currency} />
+      {kpiQuery.isLoading ? (
+        <ModuleTilesSkeleton area={area} />
+      ) : (
+        <ModuleTiles metrics={kpiQuery.data?.data} currency={currency} />
+      )}
 
       {/* Module Cards */}
-      <ModuleCards modules={modulesQuery.data?.data} currency={currency} />
+      {modulesQuery.isLoading ? (
+        <ModuleCardsSkeleton area={area} />
+      ) : (
+        <ModuleCards modules={modulesQuery.data?.data} currency={currency} />
+      )}
 
       {/* Trend Chart + Process Flow side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-6 items-stretch">
-        <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />
-        <FunnelChart
-          steps={funnelQuery.data?.data}
-          currency={currency}
-          color={color}
-          period={period}
-        />
+        {trendQuery.isLoading ? (
+          <TrendChartSkeleton area={area} period={period} />
+        ) : (
+          <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />
+        )}
+        {funnelQuery.isLoading ? (
+          <FunnelChartSkeleton area={area} period={period} />
+        ) : (
+          <FunnelChart
+            steps={funnelQuery.data?.data}
+            currency={currency}
+            color={color}
+            period={period}
+          />
+        )}
       </div>
 
       {/* Pareto top partners (Pareto Analytics Redesigned) */}
-      <PartnerTable groups={partnersQuery.data?.data} currency={currency} color={color} />
+      {partnersQuery.isLoading ? (
+        <PartnerTableSkeleton area={area} />
+      ) : (
+        <PartnerTable groups={partnersQuery.data?.data} currency={currency} color={color} />
+      )}
 
       {/* Actionable exceptions */}
-      <ExceptionsTable groups={exceptionsQuery.data?.data} currency={currency} color={color} />
+      {exceptionsQuery.isLoading ? (
+        <ExceptionsTableSkeleton area={area} />
+      ) : (
+        <ExceptionsTable groups={exceptionsQuery.data?.data} currency={currency} color={color} />
+      )}
     </div>
   );
 }

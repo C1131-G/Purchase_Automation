@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import type { DashboardPartnerGroup } from "../utils/types";
 import { formatCurrency, formatNumber } from "../utils/formatters";
 import { Users, Search, X, TrendingUp } from "lucide-react";
@@ -95,9 +94,9 @@ export function PartnerTable({ groups, currency, color }: PartnerTableProps) {
                   setActiveTab(idx);
                   setSearchQuery(""); // Clear search on tab switch
                 }}
-                className={`text-center rounded-lg px-3 py-1.5 text-[11px] font-semibold tracking-tight transition-all cursor-pointer whitespace-nowrap select-none ${
+                className={`text-center rounded-lg px-3 py-1.5 text-[11px] font-semibold tracking-tight border border-transparent transition-colors duration-150 cursor-pointer whitespace-nowrap select-none ${
                   isActive
-                    ? "bg-white text-zinc-950 shadow-[0_1.5px_4px_rgba(0,0,0,0.06)] border border-zinc-200/50"
+                    ? "bg-white text-zinc-950 shadow-[0_1.5px_4px_rgba(0,0,0,0.06)] border-zinc-200/50"
                     : "text-zinc-500 hover:text-zinc-800"
                 }`}
               >
@@ -196,7 +195,7 @@ export function PartnerTable({ groups, currency, color }: PartnerTableProps) {
         </div>
 
         {/* Right Side: Main Table */}
-        <div className="w-full overflow-hidden">
+        <div className="w-full overflow-hidden min-h-[385px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-zinc-100 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
@@ -208,115 +207,109 @@ export function PartnerTable({ groups, currency, color }: PartnerTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-150/40">
-              <AnimatePresence mode="wait">
-                {filteredEntries.length === 0 ? (
-                  <tr className="text-center text-zinc-400 text-xs">
-                    <td colSpan={5} className="py-16">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <span className="text-sm font-bold text-zinc-800">No Partners Found</span>
-                        <span className="text-xs text-zinc-400 font-medium">
-                          Try modifying your search query.
+              {filteredEntries.length === 0 ? (
+                <tr className="text-center text-zinc-400 text-xs">
+                  <td colSpan={5} className="py-16">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="text-sm font-bold text-zinc-800">No Partners Found</span>
+                      <span className="text-xs text-zinc-400 font-medium">
+                        Try modifying your search query.
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredEntries.map((entry, idx) => {
+                  const percentWidth = (entry.totalValue / maxVal) * 100;
+                  const avatarBg = getAvatarColor(entry.name);
+                  const avatarText = getAvatarTextColor(entry.name);
+
+                  return (
+                    <tr
+                      key={entry.code}
+                      className="hover:bg-zinc-50/45 transition-all text-xs group/row"
+                    >
+                      {/* Rank Badge */}
+                      <td className="py-4 px-3 text-center">
+                        <span
+                          className={`inline-flex items-center justify-center size-5.5 rounded-full text-[10px] font-bold shadow-2xs ${
+                            idx === 0
+                              ? "bg-amber-100 text-amber-800 border border-amber-200/50"
+                              : idx === 1
+                                ? "bg-zinc-200 text-zinc-700 border border-zinc-300/50"
+                                : idx === 2
+                                  ? "bg-orange-100 text-orange-800 border border-orange-200/50"
+                                  : "bg-zinc-100 text-zinc-500 border border-zinc-150"
+                          }`}
+                        >
+                          {idx + 1}
                         </span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredEntries.map((entry, idx) => {
-                    const percentWidth = (entry.totalValue / maxVal) * 100;
-                    const avatarBg = getAvatarColor(entry.name);
-                    const avatarText = getAvatarTextColor(entry.name);
+                      </td>
 
-                    return (
-                      <motion.tr
-                        key={entry.code}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.16, ease: "easeOut" }}
-                        className="hover:bg-zinc-50/45 transition-all text-xs group/row"
-                      >
-                        {/* Rank Badge */}
-                        <td className="py-4 px-3 text-center">
-                          <span
-                            className={`inline-flex items-center justify-center size-5.5 rounded-full text-[10px] font-bold shadow-2xs ${
-                              idx === 0
-                                ? "bg-amber-100 text-amber-800 border border-amber-200/50"
-                                : idx === 1
-                                  ? "bg-zinc-200 text-zinc-700 border border-zinc-300/50"
-                                  : idx === 2
-                                    ? "bg-orange-100 text-orange-800 border border-orange-200/50"
-                                    : "bg-zinc-100 text-zinc-500 border border-zinc-150"
-                            }`}
+                      {/* Partner Name, Code and Avatar */}
+                      <td className="py-4 px-3">
+                        <div className="flex items-center gap-3">
+                          {/* Avatar */}
+                          <div
+                            style={{ backgroundColor: avatarBg, color: avatarText }}
+                            className="size-8.5 rounded-xl flex items-center justify-center text-[10px] font-extrabold shadow-3xs border border-zinc-200/20 shrink-0 select-none"
                           >
-                            {idx + 1}
+                            {getInitials(entry.name)}
+                          </div>
+                          <div className="flex flex-col min-w-0 max-w-[180px] sm:max-w-[280px] md:max-w-[360px] lg:max-w-[400px]">
+                            <span className="font-bold text-zinc-950 truncate" title={entry.name}>
+                              {entry.name}
+                            </span>
+                            <span className="text-[9px] font-semibold text-zinc-400 mt-0.5 tracking-wider uppercase">
+                              {entry.code}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Document Count */}
+                      <td className="py-4 px-3 text-right font-semibold text-zinc-500">
+                        {formatNumber(entry.documentCount)} docs
+                      </td>
+
+                      {/* Cumulative Total Value & visual progress bar */}
+                      <td className="py-4 px-3 text-right">
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className="font-extrabold text-zinc-950">
+                            {formatCurrency(entry.totalValue, currency, false)}
                           </span>
-                        </td>
-
-                        {/* Partner Name, Code and Avatar */}
-                        <td className="py-4 px-3">
-                          <div className="flex items-center gap-3">
-                            {/* Avatar */}
+                          <div className="w-24 sm:w-32 h-1 bg-zinc-100 rounded-full overflow-hidden shrink-0">
                             <div
-                              style={{ backgroundColor: avatarBg, color: avatarText }}
-                              className="size-8.5 rounded-xl flex items-center justify-center text-[10px] font-extrabold shadow-3xs border border-zinc-200/20 shrink-0 select-none"
-                            >
-                              {getInitials(entry.name)}
-                            </div>
-                            <div className="flex flex-col min-w-0 max-w-[180px] sm:max-w-[280px] md:max-w-[360px] lg:max-w-[400px]">
-                              <span className="font-bold text-zinc-950 truncate" title={entry.name}>
-                                {entry.name}
-                              </span>
-                              <span className="text-[9px] font-semibold text-zinc-400 mt-0.5 tracking-wider uppercase">
-                                {entry.code}
-                              </span>
-                            </div>
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                color === "blue"
+                                  ? "bg-gradient-to-r from-blue-400 to-blue-600"
+                                  : "bg-gradient-to-r from-indigo-400 to-indigo-600"
+                              }`}
+                              style={{ width: `${percentWidth}%` }}
+                            />
                           </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        {/* Document Count */}
-                        <td className="py-4 px-3 text-right font-semibold text-zinc-500">
-                          {formatNumber(entry.documentCount)} docs
-                        </td>
-
-                        {/* Cumulative Total Value & visual progress bar */}
-                        <td className="py-4 px-3 text-right">
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className="font-extrabold text-zinc-950">
-                              {formatCurrency(entry.totalValue, currency, false)}
+                      {/* Open Exposure */}
+                      <td className="py-4 px-3 text-right">
+                        {entry.openValue > 0 ? (
+                          <span className="inline-flex flex-col items-end gap-0.5">
+                            <span className="font-extrabold text-rose-600">
+                              {formatCurrency(entry.openValue, currency, false)}
                             </span>
-                            <div className="w-24 sm:w-32 h-1 bg-zinc-100 rounded-full overflow-hidden shrink-0">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  color === "blue"
-                                    ? "bg-gradient-to-r from-blue-400 to-blue-600"
-                                    : "bg-gradient-to-r from-indigo-400 to-indigo-600"
-                                }`}
-                                style={{ width: `${percentWidth}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Open Exposure */}
-                        <td className="py-4 px-3 text-right">
-                          {entry.openValue > 0 ? (
-                            <span className="inline-flex flex-col items-end gap-0.5">
-                              <span className="font-extrabold text-rose-600">
-                                {formatCurrency(entry.openValue, currency, false)}
-                              </span>
-                              <span className="text-[8px] font-bold text-rose-500 uppercase tracking-tight bg-rose-50 border border-rose-100 px-1 rounded">
-                                Exposure
-                              </span>
+                            <span className="text-[8px] font-bold text-rose-500 uppercase tracking-tight bg-rose-50 border border-rose-100 px-1 rounded">
+                              Exposure
                             </span>
-                          ) : (
-                            <span className="text-zinc-300 font-semibold">—</span>
-                          )}
-                        </td>
-                      </motion.tr>
-                    );
-                  })
-                )}
-              </AnimatePresence>
+                          </span>
+                        ) : (
+                          <span className="text-zinc-300 font-semibold">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

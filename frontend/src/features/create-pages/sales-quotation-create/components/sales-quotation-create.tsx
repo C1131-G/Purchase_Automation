@@ -279,6 +279,7 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
               replace: true,
               search: {},
               to: "/sales/create-quotation",
+              viewTransition: true,
             });
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}

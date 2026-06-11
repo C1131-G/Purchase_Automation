@@ -65,6 +65,7 @@ export function PurchaseOrderCreate({
               replace: true,
               search: {},
               to: "/purchase/create-order",
+              viewTransition: true,
             });
           },
         },
@@ -81,6 +82,7 @@ export function PurchaseOrderCreate({
       router.navigate({
         to: "/purchase/create-order",
         search: {},
+        viewTransition: true,
       });
       return;
     }
@@ -89,6 +91,7 @@ export function PurchaseOrderCreate({
     router.navigate({
       to: "/purchase/create-order",
       search: { sourceDocNum: docNums, sourceDocType: docType as "PurchaseQuotation" },
+      viewTransition: true,
     });
   };
 
@@ -399,6 +402,7 @@ export function PurchaseOrderCreate({
             replace: true,
             search: {},
             to: "/purchase/create-order",
+            viewTransition: true,
           });
         }}
         isEditMode={state.isEditMode}

@@ -307,9 +307,8 @@ export function CreatePageRouteSkeleton() {
               </div>
             </div>
           </div>
-          {/* Action buttons: Back (left) + Save/Create (right) */}
           <div className="mt-3 flex items-center justify-between gap-2">
-            <Pulse className="h-11 w-36 rounded-xl" />
+            <Pulse className="h-11 w-56 rounded-xl" />
             <div className="flex items-center gap-2">
               <Pulse className="h-11 w-28 rounded-xl" />
             </div>

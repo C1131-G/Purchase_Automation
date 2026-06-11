@@ -11,11 +11,14 @@ import {
   FileText,
   Download,
   FileSpreadsheet,
+  LayoutDashboard,
+  Table,
 } from "lucide-react";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/button";
 import { Tooltip } from "@/components/tooltip";
+import { Popover } from "@/components/popover";
 import { SearchAndImportMenu } from "./search-and-import-menu";
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 
@@ -139,6 +142,7 @@ export function BaseProductSection({
   defaultWarehouseCode,
 }: BaseProductSectionProps) {
   const navigate = useNavigate();
+  const showBackPopover = true;
   const effectiveHideSearch = hideSearch || (isEditMode && !allowSearchInEditMode);
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
   const SubmitIcon = isUpdateAction ? RefreshCw : Save;
@@ -373,18 +377,82 @@ export function BaseProductSection({
           <p className="mt-2 text-right text-xs font-medium text-red-600">{createError}</p>
         ) : null}
         <div className="mt-3 flex items-center justify-between gap-2">
-          <Button
-            type="button"
-            size="md"
-            variant="outline"
-            onClick={() => navigate({ search: { limit: 10, page: 1 }, to: backToUrl })}
-            className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
-          >
-            <span className="inline-flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
-              {backToLabel}
-            </span>
-          </Button>
+          {showBackPopover ? (
+            <Popover.Root>
+              <Popover.Trigger asChild>
+                <Button
+                  type="button"
+                  size="md"
+                  variant="outline"
+                  className="group h-11 w-56 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+                  Go Back
+                </Button>
+              </Popover.Trigger>
+              <Popover.Content side="top" align="start" className="w-56 z-[1001]">
+                <div className="flex flex-col py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dashboardUrl = backToUrl.startsWith("/purchase")
+                        ? "/dashboard/purchase"
+                        : "/dashboard/sales";
+                      void navigate({
+                        to: dashboardUrl,
+                        search: { period: "week" },
+                        viewTransition: true,
+                      });
+                    }}
+                    className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
+                  >
+                    <LayoutDashboard className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
+                    <span className="flex flex-col">
+                      <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
+                        Back to Dashboard
+                      </span>
+                      <span className="text-[10px] text-zinc-400 mt-0.5">Go to main dashboard</span>
+                    </span>
+                  </button>
+                  <div className="border-t border-zinc-100" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigate({
+                        to: backToUrl,
+                        search: { limit: 10, page: 1 },
+                        viewTransition: true,
+                      });
+                    }}
+                    className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
+                  >
+                    <Table className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-650 transition-colors" />
+                    <span className="flex flex-col">
+                      <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
+                        Back to Table
+                      </span>
+                      <span className="text-[10px] text-zinc-400 mt-0.5">Go to document table</span>
+                    </span>
+                  </button>
+                </div>
+              </Popover.Content>
+            </Popover.Root>
+          ) : (
+            <Button
+              type="button"
+              size="md"
+              variant="outline"
+              onClick={() =>
+                navigate({ search: { limit: 10, page: 1 }, to: backToUrl, viewTransition: true })
+              }
+              className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
+            >
+              <span className="inline-flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+                {backToLabel}
+              </span>
+            </Button>
+          )}
           <div className="flex items-center gap-2">
             {disabledReason && !isSubmitting ? (
               showRequiredHints ? (

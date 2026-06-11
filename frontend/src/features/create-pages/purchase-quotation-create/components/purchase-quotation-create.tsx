@@ -47,6 +47,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
               replace: true,
               search: {},
               to: "/purchase/create-quotation",
+              viewTransition: true,
             });
           },
         },
@@ -339,6 +340,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
               replace: true,
               search: {},
               to: "/purchase/create-quotation",
+              viewTransition: true,
             });
           }}
           isEditMode={state.isEditMode}

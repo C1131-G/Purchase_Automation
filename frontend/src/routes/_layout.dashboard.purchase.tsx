@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { startTransition } from "react";
 import { z } from "zod";
 import { PurchaseDashboard } from "@/features/dashboard/components/PurchaseDashboard";
 import type { DashboardPeriod } from "@/features/dashboard/utils/types";
@@ -19,11 +20,13 @@ function PurchaseDashboardRouteComponent() {
   const navigate = Route.useNavigate();
 
   const handlePeriodChange = (newPeriod: DashboardPeriod) => {
-    navigate({
-      search: (old) => ({
-        ...old,
-        period: newPeriod,
-      }),
+    startTransition(() => {
+      navigate({
+        search: (old) => ({
+          ...old,
+          period: newPeriod,
+        }),
+      });
     });
   };
 

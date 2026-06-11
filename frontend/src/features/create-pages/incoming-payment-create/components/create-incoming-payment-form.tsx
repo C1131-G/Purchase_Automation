@@ -103,6 +103,7 @@ export function CreateIncomingPaymentForm() {
       navigate({
         search: { columnVisibility: {}, limit: 10, page: 1, sorting: [] },
         to: "/sales/incoming-payment",
+        viewTransition: true,
       });
     },
   });

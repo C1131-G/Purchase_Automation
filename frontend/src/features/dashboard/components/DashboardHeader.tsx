@@ -36,7 +36,7 @@ export function DashboardHeader({ area, period, onPeriodChange }: DashboardHeade
         <span className="text-sm font-medium text-zinc-500 select-none">Period</span>
         <div className="relative">
           <Select value={period} onValueChange={(val) => onPeriodChange(val as DashboardPeriod)}>
-            <Select.Trigger className="h-9 min-w-[130px] rounded-lg border-zinc-200 bg-white hover:bg-zinc-50/50 hover:border-zinc-300 focus:outline-none px-3.5 py-1.5">
+            <Select.Trigger className="h-9 w-[160px] rounded-lg border-zinc-200 bg-white hover:bg-zinc-50/50 hover:border-zinc-300 focus:outline-none px-3.5 py-1.5">
               <div className="flex items-center gap-2 overflow-hidden flex-1 select-none">
                 <div className="truncate text-left font-medium text-sm text-zinc-800">
                   <Select.Value
@@ -54,12 +54,12 @@ export function DashboardHeader({ area, period, onPeriodChange }: DashboardHeade
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Positioner className="w-[140px] right-0">
+              <Select.Positioner className="w-[160px] right-0">
                 <Select.Popup className="rounded-xl border border-zinc-200/80 bg-white shadow-lg p-1.5">
                   <Select.List className="p-0 space-y-0.5">
                     {periodOptions.map((opt) => (
                       <Select.Item key={opt.value} value={opt.value} label={opt.label}>
-                        <span className="font-medium text-[13px] text-zinc-800 block">
+                        <span className="font-medium text-[13px] text-zinc-800 block whitespace-nowrap">
                           {opt.label}
                         </span>
                       </Select.Item>
