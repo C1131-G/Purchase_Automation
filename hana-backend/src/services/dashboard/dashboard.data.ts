@@ -2,6 +2,7 @@ import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import { getCachedData } from "@/core/utils/cache";
 
 // Purchase schemas
+import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
@@ -31,6 +32,7 @@ import type {
 } from "./dashboard.types";
 
 const SCHEMA_MAP: Record<DocumentModule, any> = {
+  purchaseQuotation: PurchaseQuotationSchema,
   purchaseOrder: PurchaseOrderSchema,
   grpo: GRPOSchema,
   apInvoice: APInvoiceSchema,

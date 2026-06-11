@@ -93,17 +93,22 @@ export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      {/* Module Tiles (displays the 9 summary metrics in a 4-column layout) */}
+      {/* Module Tiles (displays the summary metrics) */}
       <ModuleTiles metrics={kpiQuery.data?.data} currency={currency} />
 
-      {/* Module Cards (displays the 5 cards below the 9 metrics) */}
+      {/* Module Cards */}
       <ModuleCards modules={modulesQuery.data?.data} currency={currency} />
 
-      {/* Trend Chart */}
-      <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />
-
-      {/* Process Funnel */}
-      <FunnelChart steps={funnelQuery.data?.data} currency={currency} color={color} />
+      {/* Trend Chart + Process Flow side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-6 items-stretch">
+        <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />
+        <FunnelChart
+          steps={funnelQuery.data?.data}
+          currency={currency}
+          color={color}
+          period={period}
+        />
+      </div>
 
       {/* Pareto top partners and Actionable exceptions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">

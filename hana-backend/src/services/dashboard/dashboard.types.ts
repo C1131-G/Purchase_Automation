@@ -1,4 +1,5 @@
 export type DocumentModule =
+  | "purchaseQuotation"
   | "purchaseOrder"
   | "grpo"
   | "apInvoice"

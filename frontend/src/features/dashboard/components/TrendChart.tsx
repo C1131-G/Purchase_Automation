@@ -6,7 +6,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import type { DashboardTrend } from "../utils/types";
 import { formatCurrency } from "../utils/formatters";
@@ -18,20 +17,22 @@ interface TrendChartProps {
 }
 
 const MODULE_LABELS: Record<string, string> = {
+  purchaseQuotation: "Purchase Quotation",
   purchaseOrder: "Purchase Order",
   grpo: "GRPO",
   apInvoice: "AP Invoice",
-  apCreditNote: "Credit Memo",
+  apCreditNote: "AP Credit Memo",
   outgoingPayment: "Outgoing Payment",
   salesQuotation: "Sales Quotation",
   salesOrder: "Sales Order",
   delivery: "Delivery",
   arInvoice: "AR Invoice",
-  arCreditNote: "Credit Memo",
+  arCreditNote: "AR Credit Memo",
   incomingPayment: "Incoming Payment",
 };
 
 const SERIES_COLORS: Record<string, string> = {
+  purchaseQuotation: "#f59e0b", // amber
   purchaseOrder: "#2563eb", // blue
   grpo: "#0ea5e9", // sky
   apInvoice: "#6366f1", // indigo
@@ -45,7 +46,31 @@ const SERIES_COLORS: Record<string, string> = {
   incomingPayment: "#10b981", // emerald
 };
 
-export function TrendChart({ trend, currency }: TrendChartProps) {
+const formatLabel = (key: string): string => {
+  const known = MODULE_LABELS[key];
+  if (known) return known.toUpperCase();
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .toUpperCase();
+};
+
+const formatFullCurrency = (value: number, currency: string): string => {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency.trim() || "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    const formatted = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 0,
+    }).format(value);
+    return currency.trim().length > 0 ? `${formatted} ${currency}` : formatted;
+  }
+};
+
+export function TrendChart({ trend, currency, color }: TrendChartProps) {
   if (!trend || !trend.points || trend.points.length === 0) return null;
 
   // Format data for Recharts
@@ -54,11 +79,34 @@ export function TrendChart({ trend, currency }: TrendChartProps) {
     ...pt.series,
   }));
 
-  // Get keys to display
-  const seriesKeys = Object.keys(trend.points[0]?.series || {});
+  // Get keys to display, ordered by flow sequence
+  const PURCHASE_ORDERED_KEYS = [
+    "purchaseQuotation",
+    "purchaseOrder",
+    "grpo",
+    "apInvoice",
+    "apCreditNote",
+    "outgoingPayment",
+  ];
+
+  const SALES_ORDERED_KEYS = [
+    "salesQuotation",
+    "salesOrder",
+    "arInvoice",
+    "arCreditNote",
+    "incomingPayment",
+  ];
+
+  const allKeys = new Set<string>();
+  trend.points.forEach((pt) => {
+    Object.keys(pt.series).forEach((k) => allKeys.add(k));
+  });
+
+  const orderedKeys = color === "blue" ? PURCHASE_ORDERED_KEYS : SALES_ORDERED_KEYS;
+  const seriesKeys = orderedKeys.filter((k) => allKeys.has(k));
 
   return (
-    <div className="bg-white border border-zinc-200/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4 h-[400px]">
+    <div className="bg-white border border-zinc-200/60 rounded-2xl p-6 shadow-sm flex flex-col gap-4 h-full min-h-[380px]">
       <div className="flex flex-col gap-1">
         <h3 className="text-base font-bold text-zinc-900">{trend.title}</h3>
         <p className="text-xs text-zinc-400 font-medium">
@@ -82,16 +130,7 @@ export function TrendChart({ trend, currency }: TrendChartProps) {
             </defs>
 
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-
-            <XAxis
-              dataKey="name"
-              stroke="#a1a1aa"
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              dy={10}
-            />
-
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={false} />
             <YAxis
               stroke="#a1a1aa"
               fontSize={11}
@@ -102,47 +141,28 @@ export function TrendChart({ trend, currency }: TrendChartProps) {
             />
 
             <Tooltip
-              content={({ active, payload, label }) => {
-                if (active && payload && payload.length) {
-                  return (
-                    <div className="bg-white/95 backdrop-blur-sm border border-zinc-200 rounded-xl p-3 shadow-md flex flex-col gap-2 min-w-[180px]">
-                      <p className="font-bold text-zinc-900 border-b border-zinc-100 pb-1.5 mb-0.5">
-                        {label}
-                      </p>
-                      {payload.map((p) => {
-                        const strokeColor = p.stroke || SERIES_COLORS[p.name || ""] || "#71717a";
-                        return (
-                          <div key={p.name} className="flex items-center justify-between gap-4">
-                            <span className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-semibold">
-                              <span
-                                className="size-2 rounded-full inline-block shrink-0"
-                                style={{ backgroundColor: strokeColor }}
-                              />
-                              {MODULE_LABELS[p.name || ""] || p.name}
-                            </span>
-                            <span className="font-bold text-zinc-900">
-                              {formatCurrency(Number(p.value), currency, false)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                }
-                return null;
+              contentStyle={{
+                borderRadius: "8px",
+                border: "1px solid #e4e4e7",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
               }}
-            />
-
-            <Legend
-              verticalAlign="top"
-              height={36}
-              iconType="circle"
-              iconSize={6}
-              formatter={(value) => (
-                <span className="text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors">
-                  {MODULE_LABELS[value] || value}
-                </span>
-              )}
+              itemStyle={{ fontSize: "13px", fontWeight: 500 }}
+              labelStyle={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#18181b",
+                marginBottom: "6px",
+              }}
+              labelFormatter={(label) => label}
+              itemSorter={(item) => {
+                const val = typeof item.value === "number" ? item.value : 0;
+                return -val;
+              }}
+              formatter={(value) =>
+                typeof value === "number"
+                  ? formatFullCurrency(value, currency)
+                  : String(value ?? "")
+              }
             />
 
             {seriesKeys.map((key) => {
@@ -156,6 +176,7 @@ export function TrendChart({ trend, currency }: TrendChartProps) {
                   strokeWidth={2}
                   fillOpacity={1}
                   fill={`url(#color-${key})`}
+                  name={formatLabel(key)}
                   activeDot={{ r: 5, strokeWidth: 1.5, stroke: "#ffffff" }}
                 />
               );

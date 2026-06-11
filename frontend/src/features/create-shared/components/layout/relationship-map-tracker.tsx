@@ -1,14 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  FileText,
-  ShoppingCart,
-  FileSpreadsheet,
-  Undo2,
-  Banknote,
-  Loader2,
-  Truck,
-} from "lucide-react";
+import { FileText, ShoppingCart, FileSpreadsheet, Undo2, Banknote, Truck } from "lucide-react";
 import React from "react";
 
 import { relationshipMapQueries } from "@/features/create-shared/api/relationship-map.queries";
@@ -111,7 +103,9 @@ const NodeIcon = ({
 
 const ConnectingLine = ({ active, compact }: { active: boolean; compact?: boolean }) => (
   <div
-    className={`h-[2px] flex-1 min-w-[32px] mx-1 ${compact ? "mt-3.5" : "mt-6"} ${active ? "bg-blue-500" : "bg-slate-200"} transition-colors`}
+    className={`h-[3px] flex-1 min-w-[32px] mx-1 rounded-full transition-colors duration-500 ${
+      active ? "bg-blue-500" : "bg-slate-200"
+    } ${compact ? "mt-3.5" : "mt-6"}`}
   />
 );
 
@@ -122,10 +116,73 @@ export function RelationshipMapTracker({
 }: RelationshipMapTrackerProps & { compact?: boolean }) {
   const { data, isLoading, isError } = useQuery(relationshipMapQueries.map(docType, docEntry));
 
+  const isAP = [
+    "purchase-quotation",
+    "purchase-order",
+    "ap-invoice",
+    "ap-credit-memo",
+    "grpo",
+    "outgoing-payment",
+  ].includes(docType);
+
   if (isLoading) {
+    const nodeCount = isAP ? 6 : 5;
     return (
-      <div className="flex items-center justify-center p-8 text-slate-400">
-        <Loader2 className="w-6 h-6 animate-spin" />
+      <div
+        className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${
+          compact ? "min-w-[400px] px-4 py-1.5" : "min-w-[600px] p-6"
+        }`}
+      >
+        <h3
+          className={`font-semibold text-slate-800 ${compact ? "text-[11px] mb-1.5" : "text-sm mb-6"}`}
+        >
+          Document Relationship Map
+        </h3>
+
+        <div className="flex items-start justify-between relative">
+          {Array.from({ length: nodeCount }).map((_, index) => (
+            <React.Fragment key={index}>
+              {index > 0 && <ConnectingLine active={false} compact={compact} />}
+              <div
+                className={`flex flex-col items-center ${
+                  compact ? "gap-0.5" : "gap-2"
+                } group relative z-10`}
+              >
+                <div
+                  className={`${
+                    compact ? "w-7 h-7" : "w-12 h-12"
+                  } rounded-full bg-zinc-200 animate-pulse`}
+                />
+                <div className="flex flex-col items-center">
+                  <div className="relative">
+                    <span
+                      className={`${compact ? "text-[10px]" : "text-xs"} font-medium whitespace-nowrap opacity-0 select-none`}
+                    >
+                      Document Type
+                    </span>
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 ${
+                        compact ? "h-2 w-12" : "h-2.5 w-16"
+                      } bg-zinc-200 animate-pulse rounded`}
+                    />
+                  </div>
+                  <div className="relative mt-0">
+                    <span
+                      className={`${compact ? "text-[9px]" : "text-[10px]"} font-bold opacity-0 select-none`}
+                    >
+                      #00000
+                    </span>
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 ${
+                        compact ? "h-2 w-8" : "h-2.5 w-12"
+                      } bg-zinc-200 animate-pulse rounded`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
     );
   }
@@ -135,15 +192,6 @@ export function RelationshipMapTracker({
       <div className="p-4 text-sm text-rose-500 text-center">Failed to load relationship map</div>
     );
   }
-
-  const isAP = [
-    "purchase-quotation",
-    "purchase-order",
-    "ap-invoice",
-    "ap-credit-memo",
-    "grpo",
-    "outgoing-payment",
-  ].includes(docType);
 
   const hasDoc1 = isAP ? !!data.purchaseQuotation?.length : !!data.salesQuotation?.length;
   const hasDoc2 = isAP ? !!data.purchaseOrder?.length : !!data.salesOrder?.length;

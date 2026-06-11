@@ -29,18 +29,22 @@ import {
 } from "./dashboard.view";
 
 const buildPurchaseSummary = (dataset: AreaDataset): DashboardMetric[] => {
+  const purchaseQuotation = getModuleDataset(dataset, "purchaseQuotation");
   const purchaseOrder = getModuleDataset(dataset, "purchaseOrder");
   const grpo = getModuleDataset(dataset, "grpo");
   const apInvoice = getModuleDataset(dataset, "apInvoice");
   const apCreditNote = getModuleDataset(dataset, "apCreditNote");
   const outgoingPayment = getModuleDataset(dataset, "outgoingPayment");
 
+  const pqTotal = sumTotals(purchaseQuotation.current);
   const poTotal = sumTotals(purchaseOrder.current);
   const grpoTotal = sumTotals(grpo.current);
   const apInvoiceTotal = sumTotals(apInvoice.current);
   const paymentTotal = sumTotals(outgoingPayment.current);
 
   return [
+    buildMetric("pq-total", "Total PQ Value", pqTotal, "currency"),
+    buildMetric("pq-open", "Open PQ Value", sumOpenTotals(purchaseQuotation.current), "currency"),
     buildMetric("po-total", "Total PO Value", poTotal, "currency"),
     buildMetric("po-open", "Open PO Value", sumOpenTotals(purchaseOrder.current), "currency"),
     buildMetric("grpo-total", "GRPO Value", grpoTotal, "currency"),
@@ -52,6 +56,12 @@ const buildPurchaseSummary = (dataset: AreaDataset): DashboardMetric[] => {
       "currency",
     ),
     buildMetric("payment-total", "Outgoing Payment Value", paymentTotal, "currency"),
+    buildMetric(
+      "pq-po-conversion",
+      "PQ to PO Conversion",
+      calculateRatio(poTotal, pqTotal),
+      "percent",
+    ),
     buildMetric(
       "po-grpo-conversion",
       "PO to GRPO Conversion",
@@ -74,7 +84,13 @@ const buildPurchaseSummary = (dataset: AreaDataset): DashboardMetric[] => {
 };
 
 const buildPurchaseFunnel = (dataset: AreaDataset): DashboardFunnelStep[] => {
-  const modules: DocumentModule[] = ["purchaseOrder", "grpo", "apInvoice", "outgoingPayment"];
+  const modules: DocumentModule[] = [
+    "purchaseQuotation",
+    "purchaseOrder",
+    "grpo",
+    "apInvoice",
+    "outgoingPayment",
+  ];
 
   return modules.map((moduleName, index) => {
     const module = getModuleDataset(dataset, moduleName);
@@ -97,15 +113,23 @@ const buildPurchaseFunnel = (dataset: AreaDataset): DashboardFunnelStep[] => {
 };
 
 const buildPurchaseExceptions = (dataset: AreaDataset): DashboardExceptionGroup[] => {
+  const purchaseQuotation = getModuleDataset(dataset, "purchaseQuotation");
   const purchaseOrder = getModuleDataset(dataset, "purchaseOrder");
   const grpo = getModuleDataset(dataset, "grpo");
   const apInvoice = getModuleDataset(dataset, "apInvoice");
   const apCreditNote = getModuleDataset(dataset, "apCreditNote");
+  const openQuotations = purchaseQuotation.current.filter((doc) => isOpenDocument(doc));
   const openPurchase = purchaseOrder.current.filter((doc) => isOpenDocument(doc));
   const openGrpo = grpo.current.filter((doc) => isOpenDocument(doc));
   const unpaidInvoices = apInvoice.current.filter((doc) => getOpenValue(doc) > 0);
 
   return [
+    buildExceptionGroup(
+      "open-purchase-quotations",
+      "Open Purchase Quotations",
+      "purchaseQuotation",
+      sortByOpenValue(openQuotations),
+    ),
     buildExceptionGroup(
       "open-purchase-orders",
       "Open Purchase Orders",
@@ -128,7 +152,7 @@ const buildPurchaseExceptions = (dataset: AreaDataset): DashboardExceptionGroup[
       "largest-open-value",
       "Largest Open-Value Documents",
       "purchaseOrder",
-      sortByOpenValue([...openPurchase, ...openGrpo, ...unpaidInvoices]),
+      sortByOpenValue([...openQuotations, ...openPurchase, ...openGrpo, ...unpaidInvoices]),
     ),
     buildExceptionGroup(
       "recent-credit-notes",
@@ -140,6 +164,7 @@ const buildPurchaseExceptions = (dataset: AreaDataset): DashboardExceptionGroup[
 };
 
 const buildPurchaseTopPartners = (dataset: AreaDataset): DashboardPartnerGroup[] => [
+  buildPartnerGroup(getModuleDataset(dataset, "purchaseQuotation"), "Top Vendors by PQ Value"),
   buildPartnerGroup(getModuleDataset(dataset, "purchaseOrder"), "Top Vendors by PO Value"),
   buildPartnerGroup(getModuleDataset(dataset, "apInvoice"), "Top Vendors by AP Invoice Value"),
   buildPartnerGroup(getModuleDataset(dataset, "outgoingPayment"), "Top Vendors by Payment Value"),

@@ -1,6 +1,7 @@
 import type { DashboardArea, DocumentModule } from "./dashboard.types";
 
 export const PURCHASE_MODULES: DocumentModule[] = [
+  "purchaseQuotation",
   "purchaseOrder",
   "grpo",
   "apInvoice",
@@ -17,6 +18,7 @@ export const SALES_MODULES: DocumentModule[] = [
 ];
 
 export const MODULE_LABELS: Record<DocumentModule, string> = {
+  purchaseQuotation: "Purchase Quotation",
   purchaseOrder: "Purchase Order",
   grpo: "GRPO",
   apInvoice: "AP Invoice",
@@ -30,6 +32,7 @@ export const MODULE_LABELS: Record<DocumentModule, string> = {
 };
 
 export const MODULE_HREFS: Record<DocumentModule, string> = {
+  purchaseQuotation: "/purchase/quotations",
   purchaseOrder: "/purchase/orders",
   grpo: "/purchase/grpo",
   apInvoice: "/purchase/ap-invoice",

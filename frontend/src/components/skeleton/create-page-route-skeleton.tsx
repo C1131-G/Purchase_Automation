@@ -129,6 +129,46 @@ export function CreatePageRouteSkeleton() {
         <Pulse className="h-3 w-32" />
       </div>
 
+      {/* Relationship Map Placeholder for Edit Pages */}
+      {isEdit && (
+        <div className="mb-4 mt-2 w-full overflow-hidden">
+          <div className="w-full min-w-[400px] rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+            <Pulse className="mb-3 h-3 w-40" />
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex flex-col items-center gap-1">
+                <Pulse className="size-7 rounded-full" />
+                <Pulse className="h-2 w-16" />
+              </div>
+              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="flex flex-col items-center gap-1">
+                <Pulse className="size-7 rounded-full" />
+                <Pulse className="h-2 w-16" />
+              </div>
+              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="flex flex-col items-center gap-1">
+                <Pulse className="size-7 rounded-full" />
+                <Pulse className="h-2 w-16" />
+              </div>
+              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="flex flex-col items-center gap-1">
+                <Pulse className="size-7 rounded-full" />
+                <Pulse className="h-2 w-16" />
+              </div>
+              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="flex flex-col items-center gap-1">
+                <Pulse className="size-7 rounded-full" />
+                <Pulse className="h-2 w-16" />
+              </div>
+              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="flex flex-col items-center gap-1">
+                <Pulse className="size-7 rounded-full" />
+                <Pulse className="h-2 w-16" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Row 1: VendorCustomer | Logistics | DocumentDates */}
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         {/* VendorCustomerGrid: 2 FieldBlocks (Name + Code) */}

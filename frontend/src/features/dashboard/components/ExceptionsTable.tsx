@@ -13,16 +13,17 @@ interface ExceptionsTableProps {
 }
 
 const MODULE_LABELS: Record<string, string> = {
+  purchaseQuotation: "Purchase Quotation",
   purchaseOrder: "Purchase Order",
   grpo: "GRPO",
   apInvoice: "AP Invoice",
-  apCreditNote: "Credit Memo",
+  apCreditNote: "AP Credit Memo",
   outgoingPayment: "Outgoing Payment",
   salesQuotation: "Sales Quotation",
   salesOrder: "Sales Order",
   delivery: "Delivery",
   arInvoice: "AR Invoice",
-  arCreditNote: "Credit Memo",
+  arCreditNote: "AR Credit Memo",
   incomingPayment: "Incoming Payment",
 };
 
