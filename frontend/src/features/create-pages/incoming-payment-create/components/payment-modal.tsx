@@ -1,7 +1,26 @@
 import { goeyToast } from "goey-toast";
 import { CheckCircle2, Delete, Plus, Trash2, Wallet } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useQuery } from "@tanstack/react-query";
 
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/calendar/calendar";
+import { LookupPopup } from "@/components/lookup/lookup-popup";
+import { FieldBlock } from "@/features/create-pages/create-shared/components/core/field-block";
+import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
+import {
+  parseISODate,
+  toDisplayDate,
+  toISODate,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+
+import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
+
+const TransferCalendar = Calendar as unknown as (
+  props: React.ComponentProps<typeof Calendar> & { minDate?: Date; maxDate?: Date },
+) => React.ReactElement;
 import amexImg from "@/assets/payment-icons/Amex.jpg";
 import qrpayImg from "@/assets/payment-icons/Card.jpg"; // Using Card.jpg as placeholder for QR Pay or generic
 import debitImg from "@/assets/payment-icons/Debit.jpg";
@@ -48,6 +67,11 @@ interface PaymentModalProps {
     PaymentCreditCards: PaymentCreditCard[];
     PaymentChecks?: PaymentCheck[];
     SurchargeTotal?: number;
+    CashSum?: number;
+    TransferSum?: number;
+    TransferDate?: string;
+    TransferAccount?: string;
+    TransferReference?: string;
   }) => void;
   isPaymentOnAccount?: boolean;
 }
@@ -59,7 +83,7 @@ export function PaymentModal({
   onPaymentSubmit,
   isPaymentOnAccount,
 }: PaymentModalProps) {
-  const [activeTab, setActiveTab] = useState<"Cash" | "Card" | "Cheque">("Cash");
+  const [activeTab, setActiveTab] = useState<"Cash" | "Card" | "Cheque" | "Bank Transfer">("Cash");
 
   const [cashAmount, setCashAmount] = useState<string>("0");
   const [cardAmount, setCardAmount] = useState<string>("0");
@@ -80,6 +104,99 @@ export function PaymentModal({
   const [chequeIssuedBy, setChequeIssuedBy] = useState("");
   const [chequeEndorse, setChequeEndorse] = useState(false);
 
+  const [transferAmount, setTransferAmount] = useState<string>("0");
+  const [transferDate, setTransferDate] = useState<string>(toISODate(new Date()) || "");
+  const [transferReference, setTransferReference] = useState("");
+  const [transferAccountInput, setTransferAccountInput] = useState("");
+  const [transferAccountFocused, setTransferAccountFocused] = useState(false);
+  const [isTransferAccountLookupOpen, setTransferAccountLookupOpen] = useState(false);
+  const [selectedTransferAccount, setSelectedTransferAccount] = useState<string | null>(null);
+  const [transferDatePickerOpen, setTransferDatePickerOpen] = useState(false);
+  const transferDateContainerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({
+    position: "fixed",
+    zIndex: 999999,
+  });
+
+  const { data: accountData, isLoading: isLoadingAccounts } = useQuery({
+    ...incomingPaymentQueries.accountSuggestions(transferAccountInput || undefined, 20),
+  });
+
+  const accountSuggestions: CreateLookupOption[] = (accountData?.data ?? []).map((acc) => ({
+    code: acc.GLAccount,
+    name: acc.Account,
+  }));
+
+  const selectTransferAccount = (item: CreateLookupOption) => {
+    setTransferAccountInput(item.code);
+    setSelectedTransferAccount(item.code);
+    setTransferAccountFocused(false);
+    setTransferAccountLookupOpen(false);
+  };
+
+  const handleTransferAccountChange = (value: string) => {
+    setTransferAccountInput(value);
+    if (value.trim() === "") {
+      setSelectedTransferAccount(null);
+      return;
+    }
+    const matched = accountSuggestions.find((a) => a.code.toLowerCase() === value.toLowerCase());
+    if (matched) {
+      selectTransferAccount(matched);
+      return;
+    }
+    setTransferAccountFocused(true);
+  };
+
+  const updatePopoverPosition = () => {
+    if (!transferDateContainerRef.current) return;
+    const rect = transferDateContainerRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const calendarHeight = 310;
+    const calendarWidth = 270;
+    const margin = 8;
+    const shouldFlip = spaceBelow < calendarHeight && rect.top > calendarHeight;
+    const top = shouldFlip ? rect.top - calendarHeight - margin : rect.bottom + margin;
+    const left = Math.min(rect.left, window.innerWidth - calendarWidth - 16);
+    setPopoverStyle({
+      position: "fixed",
+      zIndex: 999999,
+      top: `${top}px`,
+      left: `${left}px`,
+    });
+  };
+
+  useEffect(() => {
+    if (!transferDatePickerOpen) return;
+    updatePopoverPosition();
+    const handleScroll = () => updatePopoverPosition();
+    const handleResize = () => updatePopoverPosition();
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [transferDatePickerOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        transferDatePickerOpen &&
+        transferDateContainerRef.current &&
+        !transferDateContainerRef.current.contains(e.target as Node) &&
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node)
+      ) {
+        setTransferDatePickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [transferDatePickerOpen]);
+
   useEffect(() => {
     if (chequeIssuedBy.trim() !== "") {
       setChequeEndorse(true);
@@ -99,6 +216,11 @@ export function PaymentModal({
         setEftposBank("BSP");
         setCardType("VISA");
         setCardRef("");
+        setTransferAmount("0");
+        setTransferDate(toISODate(new Date()) || "");
+        setTransferReference("");
+        setTransferAccountInput("");
+        setSelectedTransferAccount(null);
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -128,6 +250,9 @@ export function PaymentModal({
     if (activeTab === "Card") {
       return cardAmount;
     }
+    if (activeTab === "Bank Transfer") {
+      return transferAmount;
+    }
     return chequeAmount;
   };
 
@@ -141,12 +266,16 @@ export function PaymentModal({
     if (activeTab === "Cheque") {
       setChequeAmount(val);
     }
+    if (activeTab === "Bank Transfer") {
+      setTransferAmount(val);
+    }
   };
 
   const handlePayFull = () => {
     const totalCurrentPayments =
       (Number(cashAmount) || 0) +
       (Number(chequeAmount) || 0) +
+      (Number(transferAmount) || 0) +
       addedCards.reduce((sum, c) => sum + c.amount, 0);
     const remaining = balanceDue - totalCurrentPayments;
 
@@ -160,6 +289,8 @@ export function PaymentModal({
       setCardAmount(remaining.toFixed(2));
     } else if (activeTab === "Cheque") {
       setChequeAmount(remaining.toFixed(2));
+    } else if (activeTab === "Bank Transfer") {
+      setTransferAmount(remaining.toFixed(2));
     }
   };
 
@@ -220,6 +351,7 @@ export function PaymentModal({
     const totalPaidSoFar =
       (Number(cashAmount) || 0) +
       (Number(chequeAmount) || 0) +
+      (Number(transferAmount) || 0) +
       addedCards.reduce((sum, c) => sum + c.amount, 0);
     if (!isPaymentOnAccount && totalPaidSoFar + amount > balanceDue + 0.01) {
       goeyToast.error("Total payment cannot exceed Balance Due");
@@ -260,6 +392,7 @@ export function PaymentModal({
   const handleSubmit = () => {
     let cash = Number(cashAmount) || 0;
     let cheque = Number(chequeAmount) || 0;
+    let transfer = Number(transferAmount) || 0;
     let cards = [...addedCards];
 
     // Auto-capture current tab if not added
@@ -310,6 +443,10 @@ export function PaymentModal({
       PaymentChecks?: PaymentCheck[];
       SurchargeTotal?: number;
       CashSum?: number;
+      TransferSum?: number;
+      TransferDate?: string;
+      TransferAccount?: string;
+      TransferReference?: string;
     } = {
       PaymentCreditCards: cards.map((c) => ({
         CardValidUntil: "2099-12-31",
@@ -322,6 +459,15 @@ export function PaymentModal({
       CashSum: cash,
     };
 
+    if (transfer > 0) {
+      paymentDetails.TransferSum = transfer;
+      paymentDetails.TransferDate = transferDate;
+      paymentDetails.TransferReference = transferReference;
+      if (selectedTransferAccount) {
+        paymentDetails.TransferAccount = selectedTransferAccount;
+      }
+    }
+
     if (paymentChecks.length > 0) {
       paymentDetails.PaymentChecks = paymentChecks;
     }
@@ -333,6 +479,7 @@ export function PaymentModal({
   const totalPaid =
     (Number(cashAmount) || 0) +
     (Number(chequeAmount) || 0) +
+    (Number(transferAmount) || 0) +
     addedCards.reduce((sum, c) => sum + c.amount, 0) +
     (activeTab === "Card" ? Number(cardAmount) || 0 : 0);
   const remainingBalance = balanceDue - totalPaid;
@@ -397,10 +544,10 @@ export function PaymentModal({
           </div>
 
           <div className="flex gap-2">
-            {["Cash", "Card", "Cheque"].map((tab) => (
+            {["Cash", "Card", "Cheque", "Bank Transfer"].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as "Cash" | "Card" | "Cheque")}
+                onClick={() => setActiveTab(tab as "Cash" | "Card" | "Cheque" | "Bank Transfer")}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                   activeTab === tab
                     ? "bg-teal-500 text-white shadow-sm"
@@ -414,7 +561,156 @@ export function PaymentModal({
         </div>
 
         <div className="px-5 pb-5 overflow-y-auto flex-1">
-          {activeTab !== "Cheque" ? (
+          {activeTab === "Bank Transfer" ? (
+            <div className="flex gap-6">
+              <div className="w-[260px] flex-shrink-0">
+                {balanceDue > 0 && remainingBalance > 0 && (
+                  <button
+                    onClick={handlePayFull}
+                    className="flex items-center gap-2 bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-3 shadow-sm hover:bg-indigo-600"
+                  >
+                    PAY FULL <CheckCircle2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={transferAmount}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (/^\d*\.?\d{0,2}$/.test(val)) {
+                        setTransferAmount(val);
+                      }
+                    }}
+                    className="flex-1 border border-slate-200 rounded px-3 py-1.5 text-base text-slate-700 outline-none bg-white focus:border-teal-500 shadow-inner"
+                  />
+                  <button
+                    onClick={handleReset}
+                    className="bg-rose-500 text-white px-3 py-1.5 rounded text-sm font-bold shadow-sm hover:bg-rose-600"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, ".", "back"].map((key) =>
+                    key === "back" ? (
+                      <button
+                        key="back"
+                        onClick={handleBackspace}
+                        className="bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center py-3 rounded"
+                      >
+                        <Delete className="w-5 h-5" />
+                      </button>
+                    ) : (
+                      <button
+                        key={key}
+                        onClick={() => handleKeypadPress(key.toString())}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-lg font-bold py-3 rounded"
+                      >
+                        {key}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col space-y-4 animate-in fade-in">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="transferDate"
+                      className="mb-1.5 block text-xs font-bold text-slate-600 uppercase tracking-wider"
+                    >
+                      Transfer Date
+                    </label>
+                    <div ref={transferDateContainerRef} className="relative">
+                      <button
+                        id="transferDate"
+                        type="button"
+                        onClick={() =>
+                          setTransferDatePickerOpen((prev) => (prev === true ? false : true))
+                        }
+                        className="relative flex h-10 w-full items-center justify-start rounded border border-slate-200 bg-white pl-3 pr-10 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                      >
+                        <span>{toDisplayDate(transferDate)}</span>
+                        <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-slate-100 bg-slate-50 text-slate-400 transition hover:bg-slate-100">
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                        </div>
+                      </button>
+                      {transferDatePickerOpen &&
+                        createPortal(
+                          <div
+                            ref={popoverRef}
+                            style={popoverStyle}
+                            className="bg-white rounded-xl border border-slate-200 shadow-xl p-1.5 animate-in fade-in zoom-in-95 duration-100"
+                          >
+                            <TransferCalendar
+                              mode="single"
+                              selected={parseISODate(transferDate)}
+                              maxDate={new Date()}
+                              onSelect={(value) => {
+                                if (!(value instanceof Date)) return;
+                                setTransferDate(toISODate(value));
+                                setTransferDatePickerOpen(false);
+                              }}
+                            />
+                          </div>,
+                          document.body,
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <FieldBlock
+                      label="GL Account"
+                      placeholder="Search account..."
+                      value={transferAccountInput}
+                      onChange={handleTransferAccountChange}
+                      onFocus={() => setTransferAccountFocused(true)}
+                      onBlur={() => {
+                        setTimeout(() => setTransferAccountFocused(false), 120);
+                      }}
+                      onOpenPopup={() => {
+                        setTransferAccountLookupOpen(true);
+                      }}
+                      loading={isLoadingAccounts}
+                    />
+                    {transferAccountFocused && (
+                      <SuggestionList
+                        items={accountSuggestions}
+                        onSelect={selectTransferAccount}
+                        floating
+                        showCode
+                        codeLabel="GLAccount"
+                        nameLabel="Account"
+                        emptyText="No accounts found"
+                        maxHeight="max-h-[200px]"
+                        query={transferAccountInput}
+                        scrollable={false}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="transferReference"
+                    className="mb-1.5 block text-xs font-bold text-slate-600 uppercase tracking-wider"
+                  >
+                    Reference
+                  </label>
+                  <input
+                    id="transferReference"
+                    type="text"
+                    value={transferReference}
+                    onChange={(e) => setTransferReference(e.target.value)}
+                    placeholder="Enter transfer reference"
+                    className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : activeTab !== "Cheque" ? (
             <div className="flex gap-6">
               <div className="w-[260px] flex-shrink-0">
                 {balanceDue > 0 && remainingBalance > 0 && (
@@ -739,6 +1035,7 @@ export function PaymentModal({
               const totalEntered =
                 (Number(cashAmount) || 0) +
                 (Number(chequeAmount) || 0) +
+                (Number(transferAmount) || 0) +
                 addedCards.reduce((sum, c) => sum + c.amount, 0);
               // Must have entered something
               if (totalEntered <= 0) {
@@ -746,6 +1043,13 @@ export function PaymentModal({
               }
               // Cannot overpay (pay more than what is owed)
               if (!isPaymentOnAccount && balanceDue > 0 && totalEntered > balanceDue + 0.01) {
+                return true;
+              }
+              // Validate Bank Transfer specifics
+              if (
+                Number(transferAmount) > 0 &&
+                (!selectedTransferAccount || !transferReference.trim())
+              ) {
                 return true;
               }
               return false;
@@ -756,6 +1060,21 @@ export function PaymentModal({
           </button>
         </div>
       </div>
+
+      <LookupPopup
+        open={isTransferAccountLookupOpen}
+        search={transferAccountInput}
+        results={accountSuggestions}
+        loading={isLoadingAccounts}
+        error={null}
+        codeLabel="GLAccount"
+        nameLabel="Account"
+        title="Select GL Account"
+        searchPlaceholder="Search account..."
+        onSearchChange={(v) => setTransferAccountInput(v)}
+        onClose={() => setTransferAccountLookupOpen(false)}
+        onSelect={(item) => selectTransferAccount({ code: item.code, name: item.name })}
+      />
     </div>
   );
 }

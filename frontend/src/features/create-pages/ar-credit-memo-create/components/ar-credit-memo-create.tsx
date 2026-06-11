@@ -290,7 +290,6 @@ export function ArCreditMemoCreate({
     createArCreditMemoMutation,
     missingMandatoryFields,
     requiredCompletionPercent,
-    handleCreateOrder,
     missingSearchMandatoryFields,
     searchRequiredCompletionPercent,
     searchMandatoryFields,
@@ -365,15 +364,13 @@ export function ArCreditMemoCreate({
         }
       >
         {state.trackerDocEntry > 0 && (
-          <div className="mb-4 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-            <div className="flex items-center justify-end gap-4 flex-1 xl:-mt-6">
-              <div className="relative z-10 overflow-x-auto max-w-full">
-                <RelationshipMapTracker
-                  docType={state.trackerDocType}
-                  docEntry={state.trackerDocEntry}
-                  compact={true}
-                />
-              </div>
+          <div className="mb-4 w-full">
+            <div className="w-full relative z-10 overflow-x-auto">
+              <RelationshipMapTracker
+                docType={state.trackerDocType}
+                docEntry={state.trackerDocEntry}
+                compact={true}
+              />
             </div>
           </div>
         )}
@@ -509,8 +506,8 @@ export function ArCreditMemoCreate({
           createArCreditMemoMutation={createArCreditMemoMutation}
           missingMandatoryFields={missingMandatoryFields}
           requiredCompletionPercent={requiredCompletionPercent}
-          handleCreateOrder={handleCreateOrder}
-          onSubmitMode={handleCreateOrder}
+          handleCreateOrder={state.handleCreateOrder}
+          onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
           onDownload={(type) => {
@@ -531,7 +528,7 @@ export function ArCreditMemoCreate({
             } as any);
           }}
           submitLabel={state.isEditMode ? "Update" : "Create"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
+          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
         />

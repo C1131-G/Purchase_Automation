@@ -2,7 +2,6 @@
 import { Lock, Pencil } from "lucide-react";
 
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
-import { AddressUploadPanel } from "./address-upload-panel";
 
 interface AddressGridProps {
   billToAddress: string;
@@ -122,9 +121,6 @@ export function AddressGrid({
               <p className="mt-1 text-xs text-red-600">{shipToAddressErrorText}</p>
             ) : null}
           </div>
-        </div>
-        <div className="w-full">
-          <AddressUploadPanel readOnly={readOnly} loading={loading} />
         </div>
       </div>
     </SectionCard>

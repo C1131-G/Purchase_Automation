@@ -21,6 +21,7 @@ import { purchaseOrderRoutes } from "@/routes/purchase-order.routes";
 import { purchaseQuotationRoutes } from "@/routes/purchase-quotation.routes";
 import { salesOrderRoutes } from "@/routes/sales-order.routes";
 import salesRelationshipRoutes from "@/routes/sales-relationship.routes";
+import { salesQuotationRoutes } from "@/routes/sales-quotation.routes";
 
 const router = express.Router();
 
@@ -42,8 +43,6 @@ router.use("/ap-credit-memos", apCreditMemoRoutes);
 router.use("/outgoing-payments", outgoingPaymentRoutes);
 
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
-import { salesQuotationRoutes } from "@/routes/sales-quotation.routes";
-
 router.use("/sales-quotations", salesQuotationRoutes);
 router.use("/sales-orders", salesOrderRoutes);
 router.use("/ar-invoices", arInvoiceRoutes);
@@ -59,5 +58,7 @@ router.use("/bank-details", bankDetailsRoutes);
 
 // Financial Period: Read-only active period lookup from OACP.
 router.use("/financial-period", financialPeriodRoutes);
+
+// Attachments removed
 
 export const apiRoutes = router;

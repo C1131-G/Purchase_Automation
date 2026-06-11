@@ -211,17 +211,24 @@ export function CreateIncomingPaymentForm() {
     }[];
     SurchargeTotal?: number;
     CashSum?: number;
+    TransferSum?: number;
+    TransferDate?: string;
+    TransferAccount?: string;
+    TransferReference?: string;
   }) => {
     console.log("!!! FRONTEND PAYMENT SUBMIT v2 !!!", paymentDetails);
-    // 1. Calculate total actually paid from modal (Cash + Checks + Cards)
+    // 1. Calculate total actually paid from modal (Cash + Checks + Cards + Transfer)
     const totalCash = paymentDetails.CashSum || 0;
     const totalChecks = paymentDetails.PaymentChecks?.reduce((sum, c) => sum + c.CheckSum, 0) || 0;
     const totalCards =
       paymentDetails.PaymentCreditCards?.reduce((sum, c) => sum + c.CreditSum, 0) || 0;
+    const totalTransfer = paymentDetails.TransferSum || 0;
     const surcharge = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));
 
     // The amount available to cover invoices is what was actually paid minus any surcharges
-    const totalPaid = Number((totalCash + totalChecks + totalCards - surcharge).toFixed(2));
+    const totalPaid = Number(
+      (totalCash + totalChecks + totalCards + totalTransfer - surcharge).toFixed(2),
+    );
 
     // 2. Group selected documents
     const selectedList = Object.entries(selectedDocs).map(([key, val]) => ({
@@ -281,7 +288,7 @@ export function CreateIncomingPaymentForm() {
 
     const cashSum = totalCash;
     const checkSum = totalChecks;
-    const trsfrSum = 0;
+    const trsfrSum = paymentDetails.TransferSum || 0;
     createPaymentMutation.mutate({
       CardCode: lookups.codeInput,
       CashSum: cashSum,
@@ -292,6 +299,13 @@ export function CreateIncomingPaymentForm() {
       Remarks: remarks,
       SurchargeTotal: surchargeTotal,
       TrsfrSum: trsfrSum,
+      ...(paymentDetails.TransferDate ? { TransferDate: paymentDetails.TransferDate } : {}),
+      ...(paymentDetails.TransferAccount
+        ? { TransferAccount: paymentDetails.TransferAccount }
+        : {}),
+      ...(paymentDetails.TransferReference
+        ? { TransferReference: paymentDetails.TransferReference }
+        : {}),
       ...(paymentDetails.PaymentChecks ? { PaymentChecks: paymentDetails.PaymentChecks } : {}),
     });
   };
