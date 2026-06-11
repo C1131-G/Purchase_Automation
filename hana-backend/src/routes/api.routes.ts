@@ -21,7 +21,6 @@ import { purchaseOrderRoutes } from "@/routes/purchase-order.routes";
 import { purchaseQuotationRoutes } from "@/routes/purchase-quotation.routes";
 import { salesOrderRoutes } from "@/routes/sales-order.routes";
 import salesRelationshipRoutes from "@/routes/sales-relationship.routes";
-import attachmentRoutes from "@/routes/attachment.routes";
 import { salesQuotationRoutes } from "@/routes/sales-quotation.routes";
 
 const router = express.Router();
@@ -60,7 +59,6 @@ router.use("/bank-details", bankDetailsRoutes);
 // Financial Period: Read-only active period lookup from OACP.
 router.use("/financial-period", financialPeriodRoutes);
 
-// Attachments: Upload files to SAP Service Layer
-router.use("/attachments", attachmentRoutes);
+// Attachments removed
 
 export const apiRoutes = router;
