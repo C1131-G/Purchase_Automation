@@ -66,66 +66,90 @@ export function ShellLayoutNavigation({
             >
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/purchase/quotations"
+                  to="/purchase/create-quotation"
                   onMouseEnter={() => onTableNavIntent("/purchase/quotations")}
                   onFocus={() => onTableNavIntent("/purchase/quotations")}
                   onTouchStart={() => onTableNavIntent("/purchase/quotations")}
-                  isActive={pathname === "/purchase/quotations"}
+                  isActive={
+                    pathname === "/purchase/create-quotation" ||
+                    pathname === "/purchase/quotations" ||
+                    pathname.startsWith("/purchase/quotations/")
+                  }
                 >
                   Purchase Quotations
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/purchase/orders"
+                  to="/purchase/create-order"
                   onMouseEnter={() => onTableNavIntent("/purchase/orders")}
                   onFocus={() => onTableNavIntent("/purchase/orders")}
                   onTouchStart={() => onTableNavIntent("/purchase/orders")}
-                  isActive={pathname === "/purchase/orders"}
+                  isActive={
+                    pathname === "/purchase/create-order" ||
+                    pathname === "/purchase/orders" ||
+                    pathname.startsWith("/purchase/orders/")
+                  }
                 >
                   Purchase Orders
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/purchase/grpo"
+                  to="/purchase/create-grpo"
                   onMouseEnter={() => onTableNavIntent("/purchase/grpo")}
                   onFocus={() => onTableNavIntent("/purchase/grpo")}
                   onTouchStart={() => onTableNavIntent("/purchase/grpo")}
-                  isActive={pathname === "/purchase/grpo"}
+                  isActive={
+                    pathname === "/purchase/create-grpo" ||
+                    pathname === "/purchase/grpo" ||
+                    pathname.startsWith("/purchase/grpo/")
+                  }
                 >
                   GRPO
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/purchase/ap-invoice"
+                  to="/purchase/create-ap-invoice"
                   onMouseEnter={() => onTableNavIntent("/purchase/ap-invoice")}
                   onFocus={() => onTableNavIntent("/purchase/ap-invoice")}
                   onTouchStart={() => onTableNavIntent("/purchase/ap-invoice")}
-                  isActive={pathname === "/purchase/ap-invoice"}
+                  isActive={
+                    pathname === "/purchase/create-ap-invoice" ||
+                    pathname === "/purchase/ap-invoice" ||
+                    pathname.startsWith("/purchase/ap-invoice/")
+                  }
                 >
                   A/P Invoice
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/purchase/ap-credit-memo"
+                  to="/purchase/create-ap-credit-memo"
                   onMouseEnter={() => onTableNavIntent("/purchase/ap-credit-memo")}
                   onFocus={() => onTableNavIntent("/purchase/ap-credit-memo")}
                   onTouchStart={() => onTableNavIntent("/purchase/ap-credit-memo")}
-                  isActive={pathname === "/purchase/ap-credit-memo"}
+                  isActive={
+                    pathname === "/purchase/create-ap-credit-memo" ||
+                    pathname === "/purchase/ap-credit-memo" ||
+                    pathname.startsWith("/purchase/ap-credit-memo/")
+                  }
                 >
                   A/P Credit Memo
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/purchase/outgoing-payment"
+                  to="/purchase/create-outgoing-payment"
                   onMouseEnter={() => onTableNavIntent("/purchase/outgoing-payment")}
                   onFocus={() => onTableNavIntent("/purchase/outgoing-payment")}
                   onTouchStart={() => onTableNavIntent("/purchase/outgoing-payment")}
-                  isActive={pathname === "/purchase/outgoing-payment"}
+                  isActive={
+                    pathname === "/purchase/create-outgoing-payment" ||
+                    pathname === "/purchase/outgoing-payment" ||
+                    pathname.startsWith("/purchase/outgoing-payment/")
+                  }
                 >
                   Outgoing Payment
                 </SidebarMenuSubButton>
@@ -141,55 +165,75 @@ export function ShellLayoutNavigation({
             >
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/quotations"
+                  to="/sales/create-quotation"
                   onMouseEnter={() => onTableNavIntent("/sales/quotations")}
                   onFocus={() => onTableNavIntent("/sales/quotations")}
                   onTouchStart={() => onTableNavIntent("/sales/quotations")}
-                  isActive={pathname === "/sales/quotations"}
+                  isActive={
+                    pathname === "/sales/create-quotation" ||
+                    pathname === "/sales/quotations" ||
+                    pathname.startsWith("/sales/quotations/")
+                  }
                 >
                   Sales Quotations
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/orders"
+                  to="/sales/create-order"
                   onMouseEnter={() => onTableNavIntent("/sales/orders")}
                   onFocus={() => onTableNavIntent("/sales/orders")}
                   onTouchStart={() => onTableNavIntent("/sales/orders")}
-                  isActive={pathname === "/sales/orders"}
+                  isActive={
+                    pathname === "/sales/create-order" ||
+                    pathname === "/sales/orders" ||
+                    pathname.startsWith("/sales/orders/")
+                  }
                 >
                   Sales Orders
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/ar-invoice"
+                  to="/sales/create-ar-invoice"
                   onMouseEnter={() => onTableNavIntent("/sales/ar-invoice")}
                   onFocus={() => onTableNavIntent("/sales/ar-invoice")}
                   onTouchStart={() => onTableNavIntent("/sales/ar-invoice")}
-                  isActive={pathname === "/sales/ar-invoice"}
+                  isActive={
+                    pathname === "/sales/create-ar-invoice" ||
+                    pathname === "/sales/ar-invoice" ||
+                    pathname.startsWith("/sales/ar-invoice/")
+                  }
                 >
                   A/R Invoice
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/ar-credit-memo"
+                  to="/sales/ar-credit-memo/create"
                   onMouseEnter={() => onTableNavIntent("/sales/ar-credit-memo")}
                   onFocus={() => onTableNavIntent("/sales/ar-credit-memo")}
                   onTouchStart={() => onTableNavIntent("/sales/ar-credit-memo")}
-                  isActive={pathname === "/sales/ar-credit-memo"}
+                  isActive={
+                    pathname === "/sales/ar-credit-memo/create" ||
+                    pathname === "/sales/ar-credit-memo" ||
+                    pathname.startsWith("/sales/ar-credit-memo/")
+                  }
                 >
                   A/R Credit Memo
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/incoming-payment"
+                  to="/sales/create-incoming-payment"
                   onMouseEnter={() => onTableNavIntent("/sales/incoming-payment")}
                   onFocus={() => onTableNavIntent("/sales/incoming-payment")}
                   onTouchStart={() => onTableNavIntent("/sales/incoming-payment")}
-                  isActive={pathname === "/sales/incoming-payment"}
+                  isActive={
+                    pathname === "/sales/create-incoming-payment" ||
+                    pathname === "/sales/incoming-payment" ||
+                    pathname.startsWith("/sales/incoming-payment/")
+                  }
                 >
                   Incoming Payment
                 </SidebarMenuSubButton>

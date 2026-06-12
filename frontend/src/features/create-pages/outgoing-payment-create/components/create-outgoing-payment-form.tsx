@@ -357,7 +357,8 @@ export function CreateOutgoingPaymentForm() {
   return (
     <div className="contents" onClickCapture={() => goeyToast.dismiss()}>
       <CreatePageWrapper
-        rootLabel="Purchase"
+        dashboardName="Purchase Dashboard"
+        dashboardUrl="/dashboard/purchase"
         breadcrumbParent={{
           label: "Outgoing Payments",
           to: "/purchase/outgoing-payment",

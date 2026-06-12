@@ -60,7 +60,8 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
   return (
     <div className="contents">
       <CreatePageWrapper
-        rootLabel="Purchase"
+        dashboardName="Purchase Dashboard"
+        dashboardUrl="/dashboard/purchase"
         breadcrumbParent={{
           label: "Outgoing Payments",
           to: "/purchase/outgoing-payment",

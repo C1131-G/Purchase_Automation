@@ -118,7 +118,8 @@ export function PurchaseOrderCreate({
 
   return (
     <CreatePageWrapper
-      rootLabel="Purchase"
+      dashboardName="Purchase Dashboard"
+      dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
         label: "Purchase Orders",
         onMouseEnter: () =>

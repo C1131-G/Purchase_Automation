@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ChangeEvent } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Plus,
   ChevronDown,
@@ -8,8 +8,9 @@ import {
   UploadCloud,
   ArrowLeft,
 } from "lucide-react";
-import { goeyToast } from "goey-toast";
 
+import { useExcelImport } from "@/features/create-pages/create-shared/hooks/use-excel-import";
+import { AnimatedModalShell } from "@/features/create-pages/create-shared/components/core/animated-modal-shell";
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 
 interface SearchAndImportMenuProps {
@@ -20,19 +21,22 @@ interface SearchAndImportMenuProps {
   defaultWarehouseCode?: string | undefined;
   vendorName?: string | undefined;
   vendorCode?: string | undefined;
+  transactionType?: "sales" | "purchase";
 }
 
 export function SearchAndImportMenu({
   onSearchProducts,
   onPrefetchProducts,
+  productRows,
   setProductRows,
   defaultWarehouseCode = "",
   vendorName = "",
   vendorCode = "",
+  transactionType = "purchase",
 }: SearchAndImportMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [menuView, setMenuView] = useState<"main" | "upload">("main");
-  const [isSimulatingUpload, setIsSimulatingUpload] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,118 +66,24 @@ export function SearchAndImportMenu({
     onSearchProducts();
   };
 
-  const handleDownloadTemplate = () => {
-    try {
-      const headers = [
-        "ItemCode",
-        "Quantity",
-        "UnitPrice",
-        "DiscountPercent",
-        "WarehouseCode",
-        "Comments",
-      ];
-      const rows = [
-        ["A00001", "12", "75.00", "5", defaultWarehouseCode || "W001", "First sample item"],
-        ["A00002", "25", "20.00", "0", defaultWarehouseCode || "W001", "Second sample item"],
-      ];
-
-      // Format as Excel-compatible tab-separated values (.xls)
-      const tsvContent = [headers.join("\t"), ...rows.map((r) => r.join("\t"))].join("\n");
-      const blob = new Blob([tsvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "purchase_quotation_template.xls");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      goeyToast.success("Excel template downloaded successfully!");
-      setIsOpen(false);
-    } catch (error) {
-      console.error(error);
-      goeyToast.error("Failed to download template.");
-    }
-  };
-
-  const handleUploadClick = () => {
-    // Check if vendor is selected
-    const hasVendor = vendorName.trim() && vendorCode.trim();
-    if (!hasVendor) {
-      onSearchProducts(); // Trigger native validation
-      goeyToast.error("Please select a Vendor first before uploading products.");
-      setIsOpen(false);
-      return;
-    }
-
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Check extension
-    const extension = file.name.split(".").pop()?.toLowerCase();
-    if (extension !== "xls" && extension !== "xlsx") {
-      goeyToast.error("Invalid file format. Please upload an Excel (.xls or .xlsx) file.");
-      e.target.value = "";
-      return;
-    }
-
-    setIsSimulatingUpload(true);
-    setIsOpen(false);
-
-    // Simulate upload delay
-    goeyToast(`Importing products from ${file.name}...`, { duration: 2000 });
-
-    setTimeout(() => {
-      // Create 2 mock rows based on the schema
-      const importedRows: ProductRow[] = [
-        {
-          id: `row-imported-1-${Date.now()}`,
-          productCode: "A00001",
-          productName: "Hard Drive 1TB (Excel Import)",
-          quantity: 12,
-          price: 75.0,
-          discountPercent: 5,
-          discountAmount: 45.0,
-          warehouseCode: defaultWarehouseCode || "W001",
-          comment: "Imported from template",
-          stock: 250,
-          taxRate: 18,
-          vatGroup: "GST18",
-          currency: "INR",
-          uomCode: "Pcs",
-          selected: false,
-        },
-        {
-          id: `row-imported-2-${Date.now()}`,
-          productCode: "A00002",
-          productName: "Wireless Mouse (Excel Import)",
-          quantity: 25,
-          price: 20.0,
-          discountPercent: 0,
-          discountAmount: 0,
-          warehouseCode: defaultWarehouseCode || "W001",
-          comment: "Imported from template",
-          stock: 500,
-          taxRate: 18,
-          vatGroup: "GST18",
-          currency: "INR",
-          uomCode: "Pcs",
-          selected: false,
-        },
-      ];
-
-      setProductRows((prev) => [...prev, ...importedRows]);
-      goeyToast.success(`Successfully imported 2 items from ${file.name}!`);
-      setIsSimulatingUpload(false);
-    }, 1500);
-
-    e.target.value = "";
-  };
+  const {
+    isSimulatingUpload,
+    validationErrors,
+    isErrorModalOpen,
+    setIsErrorModalOpen,
+    handleDownloadTemplate,
+    handleUploadClick,
+    handleFileChange,
+  } = useExcelImport({
+    productRows,
+    setProductRows,
+    defaultWarehouseCode,
+    vendorName,
+    vendorCode,
+    transactionType,
+    onSearchProducts,
+    closeMenu: () => setIsOpen(false),
+  });
 
   return (
     <div className="relative inline-block" ref={containerRef}>
@@ -187,7 +97,7 @@ export function SearchAndImportMenu({
       >
         <span className="flex items-center gap-2">
           <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-          <span>{isSimulatingUpload ? "Importing..." : "Search & Import"}</span>
+          <span>{isSimulatingUpload ? "Importing..." : "Add Product"}</span>
         </span>
         <ChevronDown
           className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
@@ -200,65 +110,57 @@ export function SearchAndImportMenu({
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".xlsx, .xls"
+        accept=".xlsx, .xls, .xml, .csv"
         className="hidden"
       />
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-top-2 overflow-hidden">
-          <div
-            className="transition-transform duration-300 flex"
-            style={{
-              transform: menuView === "upload" ? "translateX(-50%)" : "translateX(0%)",
-              width: "200%",
-            }}
-          >
-            {/* Main Menu View */}
-            <div className="w-1/2 flex flex-col gap-2 pr-1">
-              <div className="px-3 py-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+        <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-2xl border border-zinc-200/80 bg-white/95 p-1 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-top-2">
+          {menuView === "main" ? (
+            <div className="flex flex-col gap-1 animate-in fade-in duration-200">
+              <div className="px-2.5 py-1 text-[9px] font-bold text-zinc-400 uppercase tracking-wider mb-0.5">
                 Add Options
               </div>
               <button
                 type="button"
                 onClick={handleSearchClick}
-                className="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-zinc-50 group cursor-pointer"
+                className="flex w-full items-start gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-colors hover:bg-zinc-50 group cursor-pointer"
               >
-                <div className="mt-0.5 rounded-lg bg-blue-50 p-1.5 text-blue-600 group-hover:bg-blue-100/80 transition-colors">
-                  <Search className="h-4 w-4" />
+                <div className="mt-0.5 rounded-lg bg-blue-50 p-1 text-blue-600 group-hover:bg-blue-100/80 transition-colors">
+                  <Search className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-800 group-hover:text-blue-600 transition-colors">
+                  <p className="text-xs font-semibold text-zinc-800 group-hover:text-blue-600 transition-colors">
                     Search & Select
                   </p>
-                  <p className="text-[11px] text-zinc-500 font-medium">Search items from catalog</p>
+                  <p className="text-[10px] text-zinc-500 font-medium">Search items from catalog</p>
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setMenuView("upload")}
-                className="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-zinc-50 group cursor-pointer"
+                className="flex w-full items-start gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-colors hover:bg-zinc-50 group cursor-pointer"
               >
-                <div className="mt-0.5 rounded-lg bg-zinc-100 p-1.5 text-zinc-600 group-hover:bg-zinc-200/80 transition-colors">
-                  <FileSpreadsheet className="h-4 w-4" />
+                <div className="mt-0.5 rounded-lg bg-zinc-100 p-1 text-zinc-600 group-hover:bg-zinc-200/80 transition-colors">
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-800 group-hover:text-blue-600 transition-colors">
-                    Upload Document
+                  <p className="text-xs font-semibold text-zinc-800 group-hover:text-blue-600 transition-colors">
+                    Upload Excel
                   </p>
-                  <p className="text-[11px] text-zinc-500 font-medium">
+                  <p className="text-[10px] text-zinc-500 font-medium">
                     Import items from spreadsheet
                   </p>
                 </div>
               </button>
             </div>
-
-            {/* Submenu View */}
-            <div className="w-1/2 flex flex-col gap-2 pl-1">
+          ) : (
+            <div className="flex flex-col gap-1 animate-in fade-in duration-200">
               <button
                 type="button"
                 onClick={() => setMenuView("main")}
-                className="flex items-center gap-2 rounded-xl px-3 py-1 text-xs font-semibold text-zinc-400 hover:text-zinc-800 transition-colors cursor-pointer mb-1"
+                className="flex items-center gap-1 rounded-xl px-2.5 py-1 text-[9px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer mb-0.5 uppercase tracking-wider"
               >
                 <ArrowLeft className="h-3 w-3" />
                 Back to Options
@@ -267,39 +169,109 @@ export function SearchAndImportMenu({
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                className="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-zinc-50 group cursor-pointer"
+                className="flex w-full items-start gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-colors hover:bg-zinc-50 group cursor-pointer"
               >
-                <div className="mt-0.5 rounded-lg bg-emerald-50 p-1.5 text-emerald-600 group-hover:bg-emerald-100/80 transition-colors">
-                  <Download className="h-4 w-4" />
+                <div className="mt-0.5 rounded-lg bg-emerald-50 p-1 text-emerald-600 group-hover:bg-emerald-100/80 transition-colors">
+                  <Download className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-800 group-hover:text-emerald-600 transition-colors">
+                  <p className="text-xs font-semibold text-zinc-800 group-hover:text-emerald-600 transition-colors">
                     Download Template
                   </p>
-                  <p className="text-[11px] text-zinc-500 font-medium">
-                    Get empty Excel spreadsheet
+                  <p className="text-[10px] text-zinc-500 font-medium">
+                    Get empty CSV spreadsheet (.csv)
                   </p>
                 </div>
               </button>
 
+              <div className="border-t border-zinc-100 my-0.5" />
+
               <button
                 type="button"
-                onClick={handleUploadClick}
-                className="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-zinc-50 group cursor-pointer"
+                onClick={() => handleUploadClick(fileInputRef)}
+                className="flex w-full items-start gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-colors hover:bg-zinc-50 group cursor-pointer bg-amber-50/50"
               >
-                <div className="mt-0.5 rounded-lg bg-amber-50 p-1.5 text-amber-600 group-hover:bg-amber-100/80 transition-colors">
-                  <UploadCloud className="h-4 w-4" />
+                <div className="mt-0.5 rounded-lg bg-amber-50 p-1 text-amber-600 group-hover:bg-amber-100/80 transition-colors">
+                  <UploadCloud className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-800 group-hover:text-amber-600 transition-colors">
-                    Upload Template
+                  <p className="text-xs font-semibold text-zinc-800 group-hover:text-amber-600 transition-colors">
+                    Upload Spreadsheet
                   </p>
-                  <p className="text-[11px] text-zinc-500 font-medium">Import filled Excel file</p>
+                  <p className="text-[10px] text-zinc-500 font-medium">Import filled spreadsheet</p>
                 </div>
               </button>
             </div>
-          </div>
+          )}
         </div>
+      )}
+
+      {/* Validation Error Modal */}
+      {isErrorModalOpen && (
+        <AnimatedModalShell
+          open={isErrorModalOpen}
+          onClose={() => setIsErrorModalOpen(false)}
+          panelClassName="max-w-xl bg-white rounded-2xl shadow-xl border border-zinc-200 overflow-hidden"
+        >
+          <div className="flex items-center justify-between border-b border-zinc-150 px-5 py-4 bg-zinc-50">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </span>
+              <h3 className="text-base font-bold text-zinc-900">Import Validation Failed</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsErrorModalOpen(false)}
+              className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition cursor-pointer"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="p-5 overflow-y-auto max-h-[60vh] space-y-3">
+            <p className="text-sm text-zinc-650 font-medium">
+              We found the following issues in the spreadsheet. Please correct them and re-upload
+              the file:
+            </p>
+            <div className="rounded-xl border border-red-100 bg-red-50/50 p-4 font-mono text-xs text-red-700 leading-relaxed space-y-2">
+              {validationErrors.map((err, i) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <span className="text-red-400 select-none">•</span>
+                  <span>{err}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-zinc-100 px-5 py-3.5 bg-zinc-50">
+            <button
+              type="button"
+              onClick={() => setIsErrorModalOpen(false)}
+              className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </AnimatedModalShell>
       )}
     </div>
   );

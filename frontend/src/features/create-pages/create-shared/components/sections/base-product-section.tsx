@@ -147,6 +147,12 @@ export function BaseProductSection({
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
   const SubmitIcon = isUpdateAction ? RefreshCw : Save;
 
+  const isPurchase =
+    backToUrl.toLowerCase().includes("purchase") ||
+    backToUrl.toLowerCase().includes("grpo") ||
+    backToUrl.toLowerCase().includes("ap-");
+  const transactionType = isPurchase ? "purchase" : "sales";
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -311,6 +317,7 @@ export function BaseProductSection({
                   defaultWarehouseCode={defaultWarehouseCode}
                   vendorName={vendorName}
                   vendorCode={vendorCode}
+                  transactionType={transactionType}
                 />
               ) : (
                 <button
@@ -609,7 +616,7 @@ export function BaseProductSection({
                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
                       >
                         <Plus className="h-4 w-4 text-zinc-400" />
-                        Save New
+                        Save & New
                       </button>
                       <button
                         type="button"
@@ -620,7 +627,7 @@ export function BaseProductSection({
                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
                       >
                         <Eye className="h-4 w-4 text-zinc-400" />
-                        Save View
+                        Save & View
                       </button>
                       <button
                         type="button"
@@ -631,7 +638,7 @@ export function BaseProductSection({
                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
                       >
                         <CheckSquare className="h-4 w-4 text-zinc-400" />
-                        Save Close
+                        Save & Close
                       </button>
                       <button
                         type="button"
@@ -642,7 +649,7 @@ export function BaseProductSection({
                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
                       >
                         <FileText className="h-4 w-4 text-zinc-400" />
-                        Save Draft
+                        Save & Draft
                       </button>
                     </div>
                   )}

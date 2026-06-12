@@ -59,7 +59,8 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
       className="contents"
     >
       <CreatePageWrapper
-        rootLabel="Sales"
+        dashboardName="Sales Dashboard"
+        dashboardUrl="/dashboard/sales"
         breadcrumbParent={{
           label: "Sales Quotations Data Table",
           onMouseEnter: () =>

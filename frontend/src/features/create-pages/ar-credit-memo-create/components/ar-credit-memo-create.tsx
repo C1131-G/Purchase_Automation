@@ -343,7 +343,8 @@ export function ArCreditMemoCreate({
       className="contents"
     >
       <CreatePageWrapper
-        rootLabel="Sales"
+        dashboardName="Sales Dashboard"
+        dashboardUrl="/dashboard/sales"
         breadcrumbParent={{
           label: "AR Credit Memos Data Table",
           onMouseEnter: () =>

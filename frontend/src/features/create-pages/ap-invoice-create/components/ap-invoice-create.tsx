@@ -127,7 +127,8 @@ export function APInvoiceCreate({
 
   return (
     <CreatePageWrapper
-      rootLabel="Purchase"
+      dashboardName="Purchase Dashboard"
+      dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
         label: "A/P Invoice",
         to: "/purchase/ap-invoice",

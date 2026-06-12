@@ -122,7 +122,7 @@ export function CreatePageRouteSkeleton() {
 
       {/* Breadcrumb bar */}
       <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-        <Pulse className="h-3 w-16" />
+        <Pulse className="h-3 w-32" />
         <Pulse className="size-3 rounded-sm bg-zinc-200" />
         <Pulse className="h-3 w-44" />
         <Pulse className="size-3 rounded-sm bg-zinc-200" />

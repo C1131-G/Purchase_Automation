@@ -241,7 +241,8 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
       className="contents"
     >
       <CreatePageWrapper
-        rootLabel="Sales"
+        dashboardName="Sales Dashboard"
+        dashboardUrl="/dashboard/sales"
         breadcrumbParent={{
           label: "A/R Invoice Data Table",
           onMouseEnter: () =>

@@ -156,7 +156,8 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
       className="contents"
     >
       <CreatePageWrapper
-        rootLabel="Sales"
+        dashboardName="Sales Dashboard"
+        dashboardUrl="/dashboard/sales"
         breadcrumbParent={{
           label: "Sales Orders Data Table",
           onMouseEnter: () =>

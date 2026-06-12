@@ -314,7 +314,8 @@ export function CreateIncomingPaymentForm() {
   return (
     <div className="contents" onClickCapture={() => goeyToast.dismiss()}>
       <CreatePageWrapper
-        rootLabel="Sales"
+        dashboardName="Sales Dashboard"
+        dashboardUrl="/dashboard/sales"
         breadcrumbParent={{
           label: "Incoming Payments",
           to: "/sales/incoming-payment",

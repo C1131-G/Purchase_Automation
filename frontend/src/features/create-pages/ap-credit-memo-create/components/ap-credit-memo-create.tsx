@@ -87,7 +87,8 @@ export function APCreditMemoCreate({
 
   return (
     <CreatePageWrapper
-      rootLabel="Purchase"
+      dashboardName="Purchase Dashboard"
+      dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
         label: "A/P Credit Memo",
         to: "/purchase/ap-credit-memo",

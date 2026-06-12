@@ -2,8 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { useSetSidebarAction } from "@/store/sidebar/sidebar.store";
-
 interface BreadcrumbItem {
   label: string;
   to: string;
@@ -12,7 +10,8 @@ interface BreadcrumbItem {
 }
 
 interface CreatePageWrapperProps {
-  rootLabel: string; // e.g., "Purchase" or "Sales"
+  dashboardName: string; // e.g., "Purchase Dashboard" or "Sales Dashboard"
+  dashboardUrl: string; // e.g., "/dashboard/purchase" or "/dashboard/sales"
   breadcrumbParent: BreadcrumbItem;
   pageTitle: string;
   editError?: string | null;
@@ -25,15 +24,14 @@ interface CreatePageWrapperProps {
  * Handles consistent spacing, breadcrumbs, and error boundaries for edit hydration.
  */
 export function CreatePageWrapper({
-  rootLabel,
+  dashboardName,
+  dashboardUrl,
   breadcrumbParent,
   pageTitle,
   editError,
   topActions,
   children,
 }: CreatePageWrapperProps) {
-  const setSidebarOpen = useSetSidebarAction();
-
   if (editError) {
     return (
       <div className="w-full bg-zinc-50 p-3 pb-20">
@@ -50,13 +48,13 @@ export function CreatePageWrapper({
       {topActions && <div className="absolute right-3 top-3 z-10">{topActions}</div>}
 
       <div className="mb-3 inline-flex items-center gap-2 whitespace-nowrap rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-        <button
-          type="button"
+        <Link
+          to={dashboardUrl}
           className="cursor-pointer text-blue-600 hover:text-blue-700"
-          onClick={() => setSidebarOpen(true)}
+          viewTransition
         >
-          {rootLabel}
-        </button>
+          {dashboardName}
+        </Link>
         <ChevronRight className="size-3.5 text-zinc-300" />
         <Link
           to={breadcrumbParent.to}
