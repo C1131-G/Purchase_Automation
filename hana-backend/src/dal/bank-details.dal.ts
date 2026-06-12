@@ -16,9 +16,9 @@ export const getBankDetails = async (req: Request, res: Response, next: NextFunc
   >;
   try {
     const { dbName } = authReq.user;
-    const { search, limit } = authReq.query;
-    logger.info({ dbName, search, limit, msg: "Fetching bank details" });
-    const result = await bankDetailsService.getBankDetails(dbName, { search, limit });
+    const { search, limit, country } = authReq.query;
+    logger.info({ dbName, search, limit, country, msg: "Fetching bank details" });
+    const result = await bankDetailsService.getBankDetails(dbName, { search, limit, country });
     res.status(200).json({ data: result.data, success: true, total: result.total });
   } catch (error) {
     next(error);

@@ -123,6 +123,10 @@ export function PaymentModal({
     ...incomingPaymentQueries.accountSuggestions(transferAccountInput || undefined, 20),
   });
 
+  const { data: bankData, isLoading: isLoadingBanks } = useQuery({
+    ...incomingPaymentQueries.bankDetails(undefined, 100, "FJ"),
+  });
+
   const accountSuggestions: CreateLookupOption[] = (accountData?.data ?? []).map((acc) => ({
     code: acc.GLAccount,
     name: acc.Account,
@@ -950,7 +954,11 @@ export function PaymentModal({
                 {[
                   {
                     label: "Bank",
-                    options: ["", "ANZ", "BSP", "WESTPAC"],
+                    options: [
+                      { label: "Select Bank", value: "" },
+                      ...(bankData?.data?.map((b) => ({ label: b.BankName, value: b.BankCode })) ||
+                        []),
+                    ],
                     setter: setChequeBank,
                     type: "select",
                     value: chequeBank,
@@ -962,7 +970,7 @@ export function PaymentModal({
                     value: chequeBranch,
                   },
                   {
-                    label: "Check No.",
+                    label: "Check No./Voucher No.",
                     setter: setChequeNo,
                     type: "text",
                     value: chequeNo,
@@ -989,12 +997,17 @@ export function PaymentModal({
                         value={field.value}
                         onChange={(e) => field.setter(e.target.value)}
                         className="w-full border border-slate-200 rounded px-3 py-1.5 text-sm focus:border-teal-500 outline-none bg-white"
+                        disabled={field.label === "Bank" && isLoadingBanks}
                       >
-                        {field.options?.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt || "Select Bank"}
-                          </option>
-                        ))}
+                        {field.options?.map((opt) => {
+                          const val = typeof opt === "string" ? opt : opt.value;
+                          const lbl = typeof opt === "string" ? opt || "Select Bank" : opt.label;
+                          return (
+                            <option key={val} value={val}>
+                              {lbl}
+                            </option>
+                          );
+                        })}
                       </select>
                     ) : (
                       <input
