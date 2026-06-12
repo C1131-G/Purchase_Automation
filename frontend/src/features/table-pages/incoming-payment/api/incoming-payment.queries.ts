@@ -12,6 +12,14 @@ export const incomingPaymentKeys = {
     [...incomingPaymentKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   accountSuggestions: (search?: string, limit?: number) =>
     [...incomingPaymentKeys.all, "account-suggestions", search ?? "", limit ?? 20] as const,
+  bankDetails: (search?: string, limit?: number, country?: string) =>
+    [
+      ...incomingPaymentKeys.all,
+      "bank-details",
+      search ?? "",
+      limit ?? 50,
+      country ?? "FJ",
+    ] as const,
   list: (params: IncomingPaymentListParams) =>
     [...incomingPaymentKeys.all, "list", params] as const,
 };
@@ -46,6 +54,14 @@ export const incomingPaymentQueries = {
       placeholderData: keepPreviousData,
       queryFn: () => incomingPaymentAPI.getAccounts(search, limit),
       queryKey: incomingPaymentKeys.accountSuggestions(search, limit),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+    }),
+  bankDetails: (search?: string, limit?: number, country?: string) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      placeholderData: keepPreviousData,
+      queryFn: () => incomingPaymentAPI.getBankDetails(search, limit, country),
+      queryKey: incomingPaymentKeys.bankDetails(search, limit, country),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
 };

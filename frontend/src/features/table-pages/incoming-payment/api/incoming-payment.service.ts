@@ -138,8 +138,8 @@ export const incomingPaymentAPI = {
       : "/api/v1/incoming-payments/accounts";
     return apiClient<{ success: boolean; data: IncomingPaymentAccount[]; total: number }>(path);
   },
-  getBankDetails: async (search?: string, limit?: number) => {
-    const query = toQueryString({ search, limit });
+  getBankDetails: async (search?: string, limit?: number, country?: string) => {
+    const query = toQueryString({ search, limit, country });
     const path = query ? `/api/v1/bank-details?${query}` : "/api/v1/bank-details";
     const wire = await apiClient<{
       success: boolean;

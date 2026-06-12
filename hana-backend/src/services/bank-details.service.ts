@@ -18,7 +18,11 @@ export const getBankDetails = async (dbName: string, query: MasterDataQuery) => 
         { search: `%${query.search}%` },
       );
     }
-    qb.orderBy("b.BankName", "ASC").take(query.limit ?? 20);
+    if (query.country) {
+      qb.andWhere("b.Country = :country", { country: query.country });
+    }
+
+    qb.orderBy("b.BankName", "ASC").take(query.limit ?? 50);
 
     const rows = await qb.getRawMany<Record<string, unknown>>();
 
