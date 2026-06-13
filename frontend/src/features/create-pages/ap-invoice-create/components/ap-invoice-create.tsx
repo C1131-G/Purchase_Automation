@@ -125,6 +125,24 @@ export function APInvoiceCreate({
     window.location.href = `/purchase/create-ap-invoice?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`;
   };
 
+  const activeVendor = (state.vendors as any[]).find(
+    (v) => String(v.code) === String(state.vendorCodeInput),
+  );
+  const billToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+  const shipToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+
   return (
     <CreatePageWrapper
       dashboardName="Purchase Dashboard"
@@ -332,6 +350,8 @@ export function APInvoiceCreate({
               shipToAddress={state.shipToAddress}
               readOnly={state.isEditMode}
               uniformReadOnlyAppearance={state.isEditMode}
+              billToOptions={billToOptions}
+              shipToOptions={shipToOptions}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
             />

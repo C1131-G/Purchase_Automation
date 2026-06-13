@@ -5,6 +5,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { PurchaseQuotationFilters } from "@/dal/types/purchase-quotation.types";
+import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { PurchaseQuotationLineSchema } from "@/db/schemas/purchase-quotation-line.schema";
 import type { PurchaseQuotation } from "@/db/schemas/purchase-quotation.schema";
@@ -258,9 +259,24 @@ export const getPurchaseQuotationByDocNum = async (
 export const createPurchaseQuotation = async (
   sessionId: string,
   payload: Record<string, unknown>,
+  dbName?: string,
 ) => {
   try {
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+
+    let docCurrency = String(payload.DocCurrency || payload.DocCurr || "").trim();
+    if ((!docCurrency || docCurrency === "$") && dbName) {
+      const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
+      const settingsRows = await adminSettingsRepo.find({
+        select: ["MainCurncy"],
+        take: 1,
+      });
+      const adminSettings = settingsRows[0] ?? null;
+      const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
+      docCurrency = rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : "FJD";
+    } else if (!docCurrency || docCurrency === "$") {
+      docCurrency = "FJD";
+    }
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -269,6 +285,7 @@ export const createPurchaseQuotation = async (
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
+      DocCurrency: docCurrency,
       RequriedDate:
         (payload as Record<string, unknown>).RequriedDate ?? payload.DocDueDate ?? payload.DocDate,
       DocumentLines: lines.map((line) => {

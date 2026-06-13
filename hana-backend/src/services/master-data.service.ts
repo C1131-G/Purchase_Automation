@@ -132,7 +132,14 @@ const formatAddress = (row: BusinessPartnerAddress): string => {
 
 const fetchBusinessPartnerAddresses = async (dbName: string, partnerCodes: string[]) => {
   if (partnerCodes.length === 0) {
-    return new Map<string, { billToAddress?: string; shipToAddress?: string }>();
+    return new Map<
+      string,
+      {
+        billToAddress?: string;
+        shipToAddress?: string;
+        addresses: { addressName: string; addressType: "B" | "S"; addressText: string }[];
+      }
+    >();
   }
 
   const repository = await getTenantRepository(dbName, BusinessPartnerAddressSchema);
@@ -154,7 +161,14 @@ const fetchBusinessPartnerAddresses = async (dbName: string, partnerCodes: strin
       AdresType: In(["B", "S"]),
     } as Record<string, unknown>,
   });
-  const addressMap = new Map<string, { billToAddress?: string; shipToAddress?: string }>();
+  const addressMap = new Map<
+    string,
+    {
+      billToAddress?: string;
+      shipToAddress?: string;
+      addresses: { addressName: string; addressType: "B" | "S"; addressText: string }[];
+    }
+  >();
 
   for (const row of rows) {
     const cardCode = toTrimmed(row.CardCode);
@@ -168,12 +182,22 @@ const fetchBusinessPartnerAddresses = async (dbName: string, partnerCodes: strin
       continue;
     }
 
-    const current = addressMap.get(cardCode) ?? {};
+    const current = addressMap.get(cardCode) ?? { addresses: [] };
     if (addressType === "B" && !current.billToAddress) {
       current.billToAddress = formattedAddress;
     }
     if (addressType === "S" && !current.shipToAddress) {
       current.shipToAddress = formattedAddress;
+    }
+    const isDuplicate = current.addresses.some(
+      (addr) => addr.addressText.trim().toLowerCase() === formattedAddress.trim().toLowerCase(),
+    );
+    if (!isDuplicate) {
+      current.addresses.push({
+        addressName: toTrimmed(row.Address),
+        addressType: addressType as "B" | "S",
+        addressText: formattedAddress,
+      });
     }
     addressMap.set(cardCode, current);
   }
@@ -379,7 +403,10 @@ export const getProducts = async (
         }
       }
 
-      const defaultCurrency = toTrimmed(adminSettings?.MainCurncy);
+      let defaultCurrency = toTrimmed(adminSettings?.MainCurncy);
+      if (!defaultCurrency || defaultCurrency === "$") {
+        defaultCurrency = "FJD";
+      }
       const taxRateByCode = new Map<string, number>();
       for (const taxGroup of taxGroups) {
         const code = toTrimmed(taxGroup.Code);
@@ -513,6 +540,15 @@ export const getProductWarehouseStocks = async (dbName: string, itemCode: string
 // OCRD.CardType is the source of truth ('S' for vendors/suppliers, 'C' for customers).
 // OCRD.SlpCode refers to Sales Employee (for customers) or Buyer (for vendors), both joining to OSLP.
 export const getVendors = async (dbName: string) => {
+  const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
+  const settingsRows = await adminSettingsRepo.find({
+    select: ["MainCurncy"],
+    take: 1,
+  });
+  const adminSettings = settingsRows[0] ?? null;
+  const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
+  const defaultCurrency = rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : "FJD";
+
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
     select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,
@@ -539,13 +575,17 @@ export const getVendors = async (dbName: string) => {
       CardCode: normalizedCardCode,
       CardName: item.CardName,
       Address: item.Address,
-      Currency: item.Currency,
+      Currency:
+        item.Currency && toTrimmed(item.Currency) !== "$"
+          ? toTrimmed(item.Currency)
+          : defaultCurrency,
       SlpCode: item.SlpCode,
       // Aliases for frontend components expecting generic keys.
       code: normalizedCardCode,
       name: item.CardName,
       billToAddress: vendorAddressMap.get(normalizedCardCode)?.billToAddress ?? item.Address ?? "",
       shipToAddress: vendorAddressMap.get(normalizedCardCode)?.shipToAddress ?? item.Address ?? "",
+      addresses: vendorAddressMap.get(normalizedCardCode)?.addresses ?? [],
       salesEmployeeCode: slpCode,
       salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
     };
@@ -556,6 +596,15 @@ export const getVendors = async (dbName: string) => {
 // OCRD.CardType is the source of truth ('C' for customers, 'S' for vendors/suppliers).
 // OCRD.SlpCode refers to Sales Employee (for customers) or Buyer (for vendors), both joining to OSLP.
 export const getCustomers = async (dbName: string) => {
+  const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
+  const settingsRows = await adminSettingsRepo.find({
+    select: ["MainCurncy"],
+    take: 1,
+  });
+  const adminSettings = settingsRows[0] ?? null;
+  const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
+  const defaultCurrency = rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : "FJD";
+
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
     select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,
@@ -581,7 +630,10 @@ export const getCustomers = async (dbName: string) => {
       Address: item.Address,
       CardCode: normalizedCardCode,
       CardName: item.CardName,
-      Currency: item.Currency,
+      Currency:
+        item.Currency && toTrimmed(item.Currency) !== "$"
+          ? toTrimmed(item.Currency)
+          : defaultCurrency,
       SlpCode: item.SlpCode,
       billToAddress:
         customerAddressMap.get(normalizedCardCode)?.billToAddress ?? item.Address ?? "",
@@ -592,6 +644,7 @@ export const getCustomers = async (dbName: string) => {
       salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
       shipToAddress:
         customerAddressMap.get(normalizedCardCode)?.shipToAddress ?? item.Address ?? "",
+      addresses: customerAddressMap.get(normalizedCardCode)?.addresses ?? [],
     };
   });
 };

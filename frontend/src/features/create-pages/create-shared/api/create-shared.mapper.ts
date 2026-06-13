@@ -48,9 +48,24 @@ export const mapVendorLookup = (item: unknown): LookupItem => {
   ).trim();
   const shipTo = String(record.shipToAddress ?? record.ShipToAddress ?? "").trim();
 
+  const rawAddresses = asArray(record.addresses ?? record.Addresses);
+  const addresses = rawAddresses.map((addr) => {
+    const r = asRecord(addr) ?? {};
+    return {
+      addressName: String(r.addressName ?? r.AddressName ?? ""),
+      addressType: String(r.addressType ?? r.AddressType ?? "B") as "B" | "S",
+      addressText: String(r.addressText ?? r.AddressText ?? ""),
+    };
+  });
+
+  const rawCurrency = String(record.Currency ?? record.currency ?? "").trim();
+  const currency = rawCurrency && rawCurrency !== "$" ? rawCurrency : undefined;
+
   return {
+    addresses,
     billToAddress: billTo,
     code: String(record.CardCode ?? record.cardCode ?? record.code ?? record.Code ?? ""),
+    currency,
     name: String(record.CardName ?? record.cardName ?? record.name ?? record.Name ?? ""),
     salesEmployeeCode:
       (record.salesEmployeeCode as string | number | undefined) ??

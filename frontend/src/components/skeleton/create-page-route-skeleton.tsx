@@ -60,16 +60,6 @@ function InputSkeleton({ height = "h-11" }: { height?: string }) {
   );
 }
 
-/** Skeleton for a textarea: label + tall block */
-function TextareaSkeleton({ height = "h-24" }: { height?: string }) {
-  return (
-    <div className="space-y-2">
-      <Pulse className="h-2.5 w-28" />
-      <Pulse className={`${height} w-full rounded-xl`} />
-    </div>
-  );
-}
-
 /** Skeleton for the CopyFromDropdown trigger button in the page wrapper's topActions slot. */
 function CopyFromButtonSkeleton() {
   return (
@@ -199,12 +189,20 @@ export function CreatePageRouteSkeleton() {
 
       {/* Row 2: AddressGrid (span-2) | ReferenceGrid */}
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        {/* AddressGrid: 2-col layout, each with h-24 textarea */}
+        {/* AddressGrid: 2-col layout, each with h-8.5 trigger + h-24 textarea */}
         <SectionShell titleWidth="w-20" className="lg:col-span-2">
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <TextareaSkeleton />
-              <TextareaSkeleton />
+              <div className="space-y-2">
+                <Pulse className="h-2.5 w-24" />
+                <Pulse className="h-8.5 w-full rounded-lg" />
+                <Pulse className="h-24 w-full rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Pulse className="h-2.5 w-24" />
+                <Pulse className="h-8.5 w-full rounded-lg" />
+                <Pulse className="h-24 w-full rounded-xl" />
+              </div>
             </div>
             <div className="w-full space-y-2">
               <Pulse className="h-2.5 w-20" />

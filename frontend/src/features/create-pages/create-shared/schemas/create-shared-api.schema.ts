@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export const vendorAddressSchema = z.object({
+  addressName: z.string(),
+  addressType: z.enum(["B", "S"]),
+  addressText: z.string(),
+});
+
 export const lookupItemSchema = z.object({
   billToAddress: z.string().optional(),
   code: z.string(),
@@ -8,6 +14,8 @@ export const lookupItemSchema = z.object({
   salesEmployeeCode: z.union([z.string(), z.number()]).optional(),
   salesEmployeeName: z.string().optional(),
   shipToAddress: z.string().optional(),
+  addresses: z.array(vendorAddressSchema).optional(),
+  currency: z.string().optional(),
 });
 
 export const productLookupItemSchema = lookupItemSchema.extend({

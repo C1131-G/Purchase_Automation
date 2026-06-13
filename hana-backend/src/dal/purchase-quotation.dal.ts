@@ -113,7 +113,7 @@ export const getPurchaseQuotationByDocNum = async (
 export const createPurchaseQuotation = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
-    const { sessionId } = authReq.session;
+    const { sessionId, dbName } = authReq.session;
     const payload = req.body;
 
     const validatedPayload = CreatePurchaseQuotationInputSchema.parse(payload);
@@ -126,6 +126,7 @@ export const createPurchaseQuotation = async (req: Request, res: Response, next:
     const result = await purchaseQuotationService.createPurchaseQuotation(
       sessionId,
       validatedPayload,
+      dbName,
     );
 
     logger.info({ docNum: result.DocNum, msg: "Purchase Quotation Created" });

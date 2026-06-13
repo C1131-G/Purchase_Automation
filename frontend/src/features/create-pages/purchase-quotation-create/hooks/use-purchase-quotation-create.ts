@@ -791,6 +791,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       : {
           Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
+          DocCurrency:
+            summaryCurrencyLabel !== "$" && summaryCurrencyLabel !== "MULTI" && summaryCurrencyLabel
+              ? summaryCurrencyLabel
+              : lookups.vendors.find(
+                  (v) => String(v.code) === String(header.vendorCode || lookups.codeInput).trim(),
+                )?.currency || undefined,
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,

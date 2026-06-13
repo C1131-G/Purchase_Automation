@@ -336,6 +336,22 @@ export function ArCreditMemoCreate({
     warehousesQuery,
   };
 
+  const activeVendor = (state.vendors as any[]).find((v) => String(v.code) === String(codeInput));
+  const billToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+  const shipToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+
   return (
     <div
       onClickCapture={() => goeyToast.dismiss()}
@@ -466,6 +482,8 @@ export function ArCreditMemoCreate({
             billToAddress={header.billToAddress ?? ""}
             shipToAddress={header.shipToAddress ?? ""}
             readOnly={false}
+            billToOptions={billToOptions}
+            shipToOptions={shipToOptions}
             onBillToAddressChange={(value) => setHeader({ billToAddress: value })}
             onShipToAddressChange={(value) => setHeader({ shipToAddress: value })}
           />

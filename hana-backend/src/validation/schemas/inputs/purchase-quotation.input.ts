@@ -120,6 +120,7 @@ export const CreatePurchaseQuotationInputSchema = z.object({
   SalesPersonCode: z.coerce.number().int().optional(),
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
+  DocCurrency: z.string().optional(),
 });
 
 // UpdatePurchaseQuotationInputSchema: Edit flow blocks vendor updates (CardCode/CardName).
@@ -144,6 +145,7 @@ export const UpdatePurchaseQuotationInputSchema = z
     SalesPersonCode: z.coerce.number().int().optional(),
     Rounding: z.enum(["tYES", "tNO"]).optional(),
     RoundingDiffAmount: z.number().optional(),
+    DocCurrency: z.string().optional(),
   })
   .strict();
 

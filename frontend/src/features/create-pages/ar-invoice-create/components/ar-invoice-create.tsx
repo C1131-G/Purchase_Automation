@@ -234,6 +234,24 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
       }
     : undefined;
 
+  const activeVendor = (state.vendors as any[]).find(
+    (v) => String(v.code) === String(state.codeInput),
+  );
+  const billToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+  const shipToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+
   return (
     <div
       onClickCapture={() => goeyToast.dismiss()}
@@ -392,6 +410,8 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
             billToAddress={state.billToAddress}
             shipToAddress={state.shipToAddress}
             readOnly={state.isEditMode}
+            billToOptions={billToOptions}
+            shipToOptions={shipToOptions}
             onBillToAddressChange={state.setBillToAddress}
             onShipToAddressChange={state.setShipToAddress}
           />

@@ -85,20 +85,42 @@ export function APCreditMemoCreate({
     window.location.href = `/purchase/create-ap-credit-memo?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`;
   };
 
+  const activeVendor = (state.vendors as any[]).find(
+    (v) => String(v.code) === String(state.vendorCodeInput),
+  );
+  const billToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+  const shipToOptions = activeVendor?.addresses
+    ? activeVendor.addresses.map((addr: any) => ({
+        addressName: addr.addressName,
+        addressText: addr.addressText,
+        addressType: addr.addressType,
+      }))
+    : [];
+
+  const pageTitle = state.isEditMode
+    ? `Update A/P Credit Memo ${docNum || ""}`
+    : "Create A/P Credit Memo";
+
   return (
     <CreatePageWrapper
       dashboardName="Purchase Dashboard"
       dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
-        label: "A/P Credit Memo",
-        to: "/purchase/ap-credit-memo",
+        label: "A/P Credit Memos",
+        to: "/purchase/ap-credit-memos",
       }}
-      pageTitle={state.isEditMode ? `Update A/P Credit Memo ${docNum}` : "Create A/P Credit Memo"}
+      pageTitle={pageTitle}
       editError={
         state.isEditMode && state.editDetailQuery.isError
           ? state.editDetailQuery.error instanceof Error
             ? state.editDetailQuery.error.message
-            : "Unable to load A/P Credit Memo for editing."
+            : "Unable to load credit memo for editing."
           : null
       }
       topActions={
@@ -107,8 +129,8 @@ export function APCreditMemoCreate({
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
             sourceDocTypes={["APInvoice"]}
-            onSelectSource={(sourceType) => {
-              setCopyFromSourceType(sourceType as CopyFromSourceType);
+            onSelectSource={(type) => {
+              setCopyFromSourceType(type as CopyFromSourceType);
               setCopyFromDialogOpen(true);
             }}
             onReset={
@@ -124,7 +146,7 @@ export function APCreditMemoCreate({
                 : undefined
             }
           />
-        ) : null
+        ) : undefined
       }
     >
       {state.trackerDocType && state.trackerDocEntry && (
@@ -275,6 +297,8 @@ export function APCreditMemoCreate({
               shipToAddress={state.shipToAddress}
               readOnly={state.isEditMode}
               uniformReadOnlyAppearance={state.isEditMode}
+              billToOptions={billToOptions}
+              shipToOptions={shipToOptions}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
             />
