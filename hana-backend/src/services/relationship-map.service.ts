@@ -233,7 +233,7 @@ export const getAPRelationshipMap = async (
     if (docType === "purchase-quotation") {
       currentPQs = [docEntry];
       // Down to PO
-      const q = `SELECT DISTINCT "DocEntry" FROM "POR1" WHERE "BaseType" = 54 AND "BaseEntry" IN (${docEntry})`;
+      const q = `SELECT DISTINCT "DocEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "BaseEntry" IN (${docEntry})`;
       const rows = await manager.query(q);
       currentPOs = extractIds(rows, "DocEntry");
 
@@ -251,7 +251,7 @@ export const getAPRelationshipMap = async (
     } else if (docType === "purchase-order") {
       currentPOs = [docEntry];
       // Up to PQ
-      const qUp = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 54 AND "DocEntry" IN (${docEntry})`;
+      const qUp = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${docEntry})`;
       const pqs = await manager.query(qUp);
       currentPQs = extractIds(pqs, "BaseEntry");
 
@@ -272,7 +272,7 @@ export const getAPRelationshipMap = async (
       currentPOs = extractIds(pos, "BaseEntry");
 
       if (currentPOs.length > 0) {
-        const qUp2 = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 54 AND "DocEntry" IN (${currentPOs.join(",")})`;
+        const qUp2 = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${currentPOs.join(",")})`;
         const pqs = await manager.query(qUp2);
         currentPQs = extractIds(pqs, "BaseEntry");
       }
@@ -306,7 +306,7 @@ export const getAPRelationshipMap = async (
       }
 
       if (currentPOs.length > 0) {
-        const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 54 AND "DocEntry" IN (${currentPOs.join(",")})`;
+        const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${currentPOs.join(",")})`;
         const pqs = await manager.query(qUpPQ);
         currentPQs = extractIds(pqs, "BaseEntry");
       }
@@ -337,7 +337,7 @@ export const getAPRelationshipMap = async (
         }
 
         if (currentPOs.length > 0) {
-          const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 54 AND "DocEntry" IN (${currentPOs.join(",")})`;
+          const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${currentPOs.join(",")})`;
           const pqs = await manager.query(qUpPQ);
           currentPQs = extractIds(pqs, "BaseEntry");
         }
@@ -369,7 +369,7 @@ export const getAPRelationshipMap = async (
         }
 
         if (currentPOs.length > 0) {
-          const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 54 AND "DocEntry" IN (${currentPOs.join(",")})`;
+          const qUpPQ = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${currentPOs.join(",")})`;
           const pqs = await manager.query(qUpPQ);
           currentPQs = extractIds(pqs, "BaseEntry");
         }

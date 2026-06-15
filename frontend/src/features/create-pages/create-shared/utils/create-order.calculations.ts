@@ -87,13 +87,16 @@ export const calculateOrderTotals = (
     weightedTaxRateDenominator > 0 ? weightedTaxRateNumerator / weightedTaxRateDenominator : 0;
   const taxTotal = round2(netTotal * (avgTaxRate / 100));
 
-  let grandTotal = round2(netTotal + taxTotal);
+  const unroundedGrandTotal = round2(netTotal + taxTotal);
+  let grandTotal = unroundedGrandTotal;
   grandTotal = Math.round(grandTotal * 20) / 20;
+  const roundingDiffAmount = round2(grandTotal - unroundedGrandTotal);
 
   return {
     grandTotal,
     netTotal,
     taxTotal,
+    roundingDiffAmount,
   };
 };
 

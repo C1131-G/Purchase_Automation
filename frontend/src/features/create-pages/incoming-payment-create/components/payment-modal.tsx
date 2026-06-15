@@ -120,7 +120,7 @@ export function PaymentModal({
   });
 
   const { data: accountData, isLoading: isLoadingAccounts } = useQuery({
-    ...incomingPaymentQueries.accountSuggestions(transferAccountInput || undefined, 20),
+    ...incomingPaymentQueries.accountSuggestions(transferAccountInput || undefined, 500),
   });
 
   const { data: bankData, isLoading: isLoadingBanks } = useQuery({

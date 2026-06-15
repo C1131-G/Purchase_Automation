@@ -705,31 +705,14 @@ export const getAccounts = async (dbName: string, query: { search?: string; limi
   try {
     const repo = await getTenantRepository(dbName, ChartOfAccountSchema);
 
-    // DEBUG: Dump first 5 accounts
-    try {
-      const debugRows = await repo.query(
-        'SELECT TOP 5 "AcctCode", "AcctName", "Postable", "Finanse" FROM "OACT"',
-      );
-      logger.info({ msg: "DEBUG OACT", data: debugRows });
-    } catch (e) {
-      logger.error({ msg: "DEBUG OACT ERROR", error: e });
-    }
-
     let sql = `SELECT "AcctCode", "AcctName" FROM "OACT" WHERE "Postable" = 'Y'`;
     if (query.search) {
       const s = query.search.toLowerCase().replace(/'/g, "''");
       sql += ` AND (LOWER("AcctCode") LIKE '%${s}%' OR LOWER("AcctName") LIKE '%${s}%')`;
     }
-    sql += ` ORDER BY "AcctCode" ASC LIMIT ${query.limit ?? 20}`;
+    sql += ` ORDER BY "AcctCode" ASC LIMIT ${query.limit ?? 500}`;
 
     const rows = await repo.query(sql);
-
-    // Write debug info to file so agent can inspect it if needed
-    try {
-      const fs = await import("fs");
-      const path = await import("path");
-      fs.writeFileSync(path.join(process.cwd(), "hana-debug.json"), JSON.stringify({ sql, rows }));
-    } catch {}
 
     logger.info({
       dbName,

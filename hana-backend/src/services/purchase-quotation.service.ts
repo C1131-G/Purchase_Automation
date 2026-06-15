@@ -272,7 +272,7 @@ export const createPurchaseQuotation = async (
         take: 1,
       });
       const adminSettings = settingsRows[0] ?? null;
-      const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
+      const rawMainCurncy = String(adminSettings?.MainCurncy || "").trim();
       docCurrency = rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : "FJD";
     } else if (!docCurrency || docCurrency === "$") {
       docCurrency = "FJD";

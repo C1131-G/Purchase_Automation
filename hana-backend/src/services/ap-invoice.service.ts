@@ -225,7 +225,7 @@ export const getInvoice = async (sessionId: string, id: string, dbName?: string)
       DocTotal: result.DocTotal,
       DocumentLines: enrichedLines,
       NumAtCard: (() => {
-        const ref = result.NumAtCard;
+        const ref = result.NumAtCard as string;
         if (ref && /\s\(\d{6}\)$/.test(ref)) {
           return ref.replace(/\s\(\d{6}\)$/, "");
         }
@@ -436,6 +436,7 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;
     }
