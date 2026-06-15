@@ -255,7 +255,7 @@ export function useAPInvoiceCreate({
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase();
-    const match = lookup.match(/^\[(.*?)\]/);
+    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
     const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = warehouses.find(
       (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
@@ -342,11 +342,12 @@ export function useAPInvoiceCreate({
     const current = {
       remarks: (header.remarks || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
+      docDueDate: header.docDueDate,
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo]);
+  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo, header.docDueDate]);
 
-  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+  const submitDisabled = isEditMode ? !isDirty : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O"
       ? "Open"
@@ -393,6 +394,9 @@ export function useAPInvoiceCreate({
     const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0;
     if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) {
       return;
+    }
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = currentDocNum;
     }
 
     // Show loading toast when starting edit hydration
@@ -493,6 +497,7 @@ export function useAPInvoiceCreate({
       setFormSnapshot({
         remarks: (remarks || "").trim(),
         referenceNo: (referenceNo || "").trim(),
+        docDueDate: docDueDate,
       });
       setHydratedDocNum(currentDocNum);
       // Dismiss loading toast when edit hydration is complete
@@ -535,6 +540,9 @@ export function useAPInvoiceCreate({
     const hydrationKey = `${currentSourceDocType}-${currentSourceDocNum}`;
     if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) {
       return;
+    }
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = hydrationKey;
     }
 
     if (!loadingToastRef.current) {
@@ -1454,7 +1462,7 @@ export function useAPInvoiceCreate({
       }
       setSubmitAttempted(false);
 
-      if (!isEditMode) {
+      if (!isEditMode && action === "save-new") {
         onCreateSuccess?.();
       }
     } catch (error) {
@@ -1686,7 +1694,7 @@ export function useAPInvoiceCreate({
     setReferenceNo: (val: string) => setHeader({ referenceNo: val }),
     setRemarks: (val: string) => setHeader({ remarks: val }),
     setBillToAddress: (val: string) =>
-      isEditMode ? notifyRestricted("Bill To Address") : setBillToAddress(val),
+      isEditMode ? notifyRestricted("Pay To Address") : setBillToAddress(val),
     setShipToAddress: (val: string) =>
       isEditMode ? notifyRestricted("Ship To Address") : setShipToAddress(val),
     selectVendor: (val: LookupItem) =>

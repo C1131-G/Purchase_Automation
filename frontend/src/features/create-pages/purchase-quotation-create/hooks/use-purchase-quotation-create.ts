@@ -20,6 +20,7 @@ import type {
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import {
   getLookupInlineSearchByMode,
@@ -123,7 +124,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   }, []);
 
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
-  const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [productSearchFieldErrors, setProductSearchFieldErrors] = useState<ProductSearchFieldError>(
     EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
   );
@@ -182,36 +182,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
   });
 
-  const resetForm = useCallback(() => {
-    resetPQCreate();
-    setSubmitAttempted(false);
-    lookups.setNameInput("");
-    lookups.setCodeInput("");
-    lookups.resetWarehouse();
-    lookups.setSalesEmployeeInput("");
-    lookups.setBillToAddress("");
-    lookups.setShipToAddress("");
-    lookups.setNameFocused(false);
-    lookups.setCodeFocused(false);
-    lookups.setSalesEmployeeFocused(false);
-    setActiveDatePicker(null);
-    modals.setModalOpen(false);
-    modals.setModalMode("vendor-name");
-    modals.setModalSearch("");
-    productsHook.setProductRows([]);
-    productsHook.setProductRowDrafts({});
-    setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
-    modals.setProductSearch("");
-    productsHook.setDebouncedProductSearch("");
-    productsHook.setActiveProductRowId(null);
-    modals.setProductPopupOpen(false);
-    modals.setStockPreviewProduct(null);
-    setCreateError(null);
-    hydratedDocNumRef.current = null;
-    setHydratedDocNum(null);
-    setFormSnapshot(null);
-  }, [resetPQCreate, lookups, modals, productsHook]);
-
   useEffect(() => {
     if (!isEditMode) {
       resetPQCreate();
@@ -246,6 +216,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     if (!detail) {
       return;
     }
+    hydratedDocNumRef.current = currentDocNum;
 
     // Show loading toast when starting edit hydration
     if (!loadingToastRef.current) {
@@ -404,6 +375,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         setFormSnapshot({
           comments: comments.trim(),
           referenceNo: referenceNo.trim(),
+          docDate: docDate,
           docDueDate: docDueDate,
           salesEmployee: associatedSalesEmployeeName.trim(),
           warehouseCode: warehouseCode.trim(),
@@ -632,39 +604,73 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
   const hasValidRowsForCreate = validRows.length > 0;
 
-  const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
-      return false;
-    }
-    const current = {
-      comments: header.comments.trim(),
-      referenceNo: header.referenceNo.trim(),
-      docDueDate: header.docDueDate,
-      salesEmployee: lookups.salesEmployeeInput.trim(),
-      warehouseCode: lookups.effectiveWarehouseCode.trim(),
-      billToAddress: lookups.billToAddress.trim(),
-      shipToAddress: lookups.shipToAddress.trim(),
-      productRows: validRows.map((row) => ({
-        productCode: row.productCode,
-        quantity: row.quantity,
-        price: row.price,
-        discountPercent: row.discountPercent,
-        warehouseCode: row.warehouseCode,
-      })),
-    };
-    return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [
+  const {
+    isDirty,
+    setFormSnapshot,
+    submitDisabled: dirtySubmitDisabled,
+  } = useEditDirtyState({
     isEditMode,
-    formSnapshot,
-    header.comments,
-    header.referenceNo,
-    header.docDueDate,
-    lookups.salesEmployeeInput,
-    lookups.effectiveWarehouseCode,
-    lookups.billToAddress,
-    lookups.shipToAddress,
-    validRows,
-  ]);
+    currentFields: useMemo(
+      () => ({
+        comments: header.comments.trim(),
+        referenceNo: header.referenceNo.trim(),
+        docDate: header.docDate,
+        docDueDate: header.docDueDate,
+        salesEmployee: lookups.salesEmployeeInput.trim(),
+        warehouseCode: lookups.effectiveWarehouseCode.trim(),
+        billToAddress: lookups.billToAddress.trim(),
+        shipToAddress: lookups.shipToAddress.trim(),
+        productRows: validRows.map((row) => ({
+          productCode: row.productCode,
+          quantity: row.quantity,
+          price: row.price,
+          discountPercent: row.discountPercent,
+          warehouseCode: row.warehouseCode,
+        })),
+      }),
+      [
+        header.comments,
+        header.referenceNo,
+        header.docDate,
+        header.docDueDate,
+        lookups.salesEmployeeInput,
+        lookups.effectiveWarehouseCode,
+        lookups.billToAddress,
+        lookups.shipToAddress,
+        validRows,
+      ],
+    ),
+  });
+
+  const resetForm = useCallback(() => {
+    resetPQCreate();
+    setSubmitAttempted(false);
+    lookups.setNameInput("");
+    lookups.setCodeInput("");
+    lookups.resetWarehouse();
+    lookups.setSalesEmployeeInput("");
+    lookups.setBillToAddress("");
+    lookups.setShipToAddress("");
+    lookups.setNameFocused(false);
+    lookups.setCodeFocused(false);
+    lookups.setSalesEmployeeFocused(false);
+    setActiveDatePicker(null);
+    modals.setModalOpen(false);
+    modals.setModalMode("vendor-name");
+    modals.setModalSearch("");
+    productsHook.setProductRows([]);
+    productsHook.setProductRowDrafts({});
+    setProductSearchFieldErrors(EMPTY_PRODUCT_SEARCH_FIELD_ERRORS);
+    modals.setProductSearch("");
+    productsHook.setDebouncedProductSearch("");
+    productsHook.setActiveProductRowId(null);
+    modals.setProductPopupOpen(false);
+    modals.setStockPreviewProduct(null);
+    setCreateError(null);
+    hydratedDocNumRef.current = null;
+    setHydratedDocNum(null);
+    setFormSnapshot(null);
+  }, [resetPQCreate, lookups, modals, productsHook]);
 
   const createDisabledReason =
     missingMandatoryFields.length > 0
@@ -773,19 +779,29 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-          RequriedDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-          DocumentLines: validRows.map((row) => ({
-            LineNum: row.lineNum,
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-          })),
+          // When closed, SAP blocks line-level field updates (ShipDate/ReqDate → ODBC -1029).
+          // Only send DocumentLines for open documents.
+          ...(isClosed
+            ? {}
+            : {
+                RequriedDate: getEffectivePurchaseQuotationDueDate(
+                  header.docDueDate,
+                  header.docDate,
+                ),
+                DocumentLines: validRows.map((row) => ({
+                  LineNum: row.lineNum,
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+                  Quantity: row.quantity,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode:
+                    row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+                })),
+              }),
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
       : {
@@ -936,6 +952,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
     updatePurchaseQuotationMutation,
-    submitDisabled: isEditMode ? !isDirty || isClosed : false,
+    submitDisabled: dirtySubmitDisabled,
   };
 }

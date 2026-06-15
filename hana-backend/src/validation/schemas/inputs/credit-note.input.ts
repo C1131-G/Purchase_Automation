@@ -104,6 +104,8 @@ const CreditNoteLineItemSchema = z.object({
 
 // CreateCreditNoteInputSchema: Validates new credit note creation.
 export const CreateCreditNoteInputSchema = z.object({
+  Address: z.string().optional(),
+  Address2: z.string().optional(),
   CardCode: z.string().min(1),
   Comments: z.string().optional(),
   DocDate: z
@@ -121,6 +123,7 @@ export const CreateCreditNoteInputSchema = z.object({
 // UpdateCreditNoteInputSchema: Allows modification of credit note drafts.
 export const UpdateCreditNoteInputSchema = CreateCreditNoteInputSchema.partial().extend({
   Address: z.string().optional(),
+  Address2: z.string().optional(),
 });
 
 export type CreditNoteQuery = z.infer<typeof CreditNoteQuerySchema>;

@@ -271,7 +271,7 @@ export function useGRPOCreate({
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase();
-    const match = lookup.match(/^\[(.*?)\]/);
+    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
     const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = warehouses.find(
       (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
@@ -365,11 +365,22 @@ export function useGRPOCreate({
     const current = {
       remarks: (header.remarks || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
+      docDueDate: header.docDueDate,
+      billToAddress: billToAddress.trim(),
+      shipToAddress: shipToAddress.trim(),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo]);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.remarks,
+    header.referenceNo,
+    header.docDueDate,
+    billToAddress,
+    shipToAddress,
+  ]);
 
-  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+  const submitDisabled = isEditMode ? !isDirty : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O" ||
     editDetailQuery.data?.data?.DocStatus === "bost_Open"
@@ -575,6 +586,9 @@ export function useGRPOCreate({
         setFormSnapshot({
           remarks: (remarks || "").trim(),
           referenceNo: (referenceNo || "").trim(),
+          docDueDate: docDueDate,
+          billToAddress: billAddr,
+          shipToAddress: shipAddr,
         });
         setHydratedDocNum(currentDocNum);
       } finally {
@@ -623,6 +637,9 @@ export function useGRPOCreate({
     const hydrKey = `${currentSourceDocType}-${currentSourceDocNum}`;
     if (hydratedDocNumRef.current === hydrKey && isMetadataLoaded) {
       return;
+    }
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = hydrKey;
     }
 
     // Show loading toast when starting copy-from hydration
@@ -1755,11 +1772,8 @@ export function useGRPOCreate({
         queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 100)),
       ]);
 
-      // Scroll to top after successful save
-      window.scrollTo({ behavior: "smooth", top: 0 });
-
       // Notify parent to navigate away after successful create
-      if (!isEditMode) {
+      if (!isEditMode && action === "save-new") {
         onCreateSuccess?.();
       }
     } catch (error) {
@@ -1901,7 +1915,7 @@ export function useGRPOCreate({
     setReferenceNo: handleReferenceNoChange,
     setRemarks: handleRemarksChange,
     setBillToAddress: (val: string) =>
-      isEditMode ? notifyRestricted("Bill To Address") : handleBillToAddressChange(val),
+      isEditMode ? notifyRestricted("Pay To Address") : handleBillToAddressChange(val),
     setShipToAddress: (val: string) =>
       isEditMode ? notifyRestricted("Ship To Address") : handleShipToAddressChange(val),
     selectVendor: (val: LookupItem) =>

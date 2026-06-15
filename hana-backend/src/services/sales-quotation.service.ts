@@ -118,6 +118,8 @@ export const getSalesQuotations = async (dbName: string, filters: SalesQuotation
         DocNum: data.docNum,
         DocStatus: data.docStatus === "O" ? "Open" : "Closed",
         DocTotal: data.docTotal,
+        Address: data.address,
+        Address2: data.address2,
         id: data.docEntry,
       })),
     };
@@ -167,6 +169,7 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
+      Address2: result.Address2,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
       // normalizes SAP's internal string status.
@@ -225,6 +228,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
+      Address2: payload.Address2,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       NumAtCard: payload.NumAtCard,
@@ -329,6 +333,9 @@ export const updateSalesQuotation = async (
     }
     if (payload.Address !== undefined) {
       sapPayload.Address = payload.Address;
+    }
+    if (payload.Address2 !== undefined) {
+      sapPayload.Address2 = payload.Address2;
     }
     if (payload.DocDate !== undefined) {
       sapPayload.DocDate = payload.DocDate;

@@ -1,5 +1,4 @@
 import { Lock } from "lucide-react";
-import { useEffect, useRef } from "react";
 
 // ReferenceGrid: Capture and display document-level remarks and attachments.
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
@@ -27,10 +26,11 @@ function Pulse({ className }: { className: string }) {
   return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />;
 }
 
-function AutoResizeTextarea({
+function ReferenceTextarea({
   value,
   disabled,
   placeholder,
+  height = "5.75rem",
   onChange,
   onClick,
   onFocus,
@@ -41,6 +41,7 @@ function AutoResizeTextarea({
   value: string;
   disabled: boolean;
   placeholder: string;
+  height?: string;
   onChange: (value: string) => void;
   onClick?: () => void;
   onFocus?: () => void;
@@ -48,25 +49,8 @@ function AutoResizeTextarea({
   invalidStyles: string;
   disabledStyles: string;
 }) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-resize based on content
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
-
-    // Reset height to calculate scrollHeight
-    textarea.style.height = "auto";
-    // Set height to scrollHeight (content height)
-    const newHeight = Math.max(72, textarea.scrollHeight); // min 72px (4.5rem)
-    textarea.style.height = `${newHeight}px`;
-  }, [value]);
-
   return (
     <textarea
-      ref={textareaRef}
       value={value}
       readOnly={disabled}
       aria-disabled={disabled}
@@ -82,7 +66,7 @@ function AutoResizeTextarea({
       }}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      rows={1}
+      style={{ height, maxHeight: height, overflowY: "auto" }}
       className={`w-full resize-y rounded-xl border px-4 py-2 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
         invalid
           ? invalidStyles
@@ -109,6 +93,8 @@ export function ReferenceGrid({
   uniformReadOnlyAppearance = false,
   referenceLabel,
 }: ReferenceGridProps) {
+  // +0.25rem in edit mode for both fields
+  const fieldHeight = uniformReadOnlyAppearance ? "105px" : "5.75rem";
   return (
     <SectionCard title="REFERENCE" className="lg:col-span-1">
       <div>
@@ -124,12 +110,13 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <Pulse className="min-h-[4.5rem] w-full rounded-xl" />
+          <Pulse className="min-h-[5.75rem] w-full rounded-xl" />
         ) : (
-          <AutoResizeTextarea
+          <ReferenceTextarea
             value={referenceNo}
             disabled={referenceNoDisabled}
             placeholder="Reference"
+            height={fieldHeight}
             onChange={onReferenceNoChange}
             {...(onReferenceNoDisabledClick ? { onClick: onReferenceNoDisabledClick } : {})}
             {...(onReferenceNoDisabledClick ? { onFocus: onReferenceNoDisabledClick } : {})}
@@ -160,12 +147,13 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <Pulse className="min-h-[4.5rem] w-full rounded-xl" />
+          <Pulse className="min-h-[5.75rem] w-full rounded-xl" />
         ) : (
-          <AutoResizeTextarea
+          <ReferenceTextarea
             value={comments}
             disabled={commentsDisabled}
             placeholder="Transaction Remarks"
+            height={fieldHeight}
             onChange={onCommentsChange}
             {...(onCommentsDisabledClick ? { onClick: onCommentsDisabledClick } : {})}
             {...(onCommentsDisabledClick ? { onFocus: onCommentsDisabledClick } : {})}

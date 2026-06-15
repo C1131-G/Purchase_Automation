@@ -81,6 +81,7 @@ export interface SalesOrderDetail {
   CardCode?: string;
   CardName?: string;
   Address?: string;
+  Address2?: string;
   Comments?: string;
   NumAtCard?: string;
   DocCurr?: string;

@@ -4,7 +4,9 @@ import express from "express";
 
 import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
+import { createExportHandler } from "@/dal/export.dal";
 import { salesQuotationDal } from "@/dal/sales-quotation.dal";
+import { getSalesQuotationByDocNum } from "@/services/sales-quotation.service";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
 import {
   SalesQuotationDocNumLookupQuerySchema,
@@ -40,6 +42,12 @@ router.post("/", salesQuotationDal.createSalesQuotation);
 
 // PATCH /:id: Modifies an existing open sales quotation.
 router.patch("/:id", salesQuotationDal.updateSalesQuotation);
+
+// Export endpoints: Download saved document as PDF, Excel, or Word.
+router.get(
+  "/by-doc-num/:docNum/export/:format",
+  createExportHandler(getSalesQuotationByDocNum, "Sales Quotation"),
+);
 
 // POST /:id/cancel: Marks a sales quotation as canceled in the backend.
 router.post("/:id/cancel", salesQuotationDal.cancelSalesQuotation);

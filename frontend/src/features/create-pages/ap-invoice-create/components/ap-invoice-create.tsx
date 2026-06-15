@@ -3,6 +3,8 @@ import { goeyToast } from "goey-toast";
 import { useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
+import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
+
 import { APInvoiceModals } from "@/features/create-pages/ap-invoice-create/components/ap-invoice-modals";
 import { APInvoiceProductSection } from "@/features/create-pages/ap-invoice-create/components/ap-invoice-product-section";
 import { useAPInvoiceCreate } from "@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create";
@@ -354,6 +356,7 @@ export function APInvoiceCreate({
               shipToOptions={shipToOptions}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
+              billToLabel="Pay To Address"
             />
           </div>
         </div>
@@ -404,14 +407,11 @@ export function APInvoiceCreate({
         onSubmitMode={(mode) => state.handleCreateOrder(mode)}
         isSaved={state.isSaved}
         savedDocNum={state.savedDocNum}
-        onDownload={(type) => {
-          if (state.savedDocNum) {
-            const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
-            goeyToast.success(
-              `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
-            );
-          }
-        }}
+        onDownload={useDocumentDownload(
+          mode === "edit" ? docNum : state.savedDocNum,
+          "ap-invoices",
+          "AP_Invoice",
+        )}
         onReset={() => {
           state.resetForm();
           window.scrollTo({ behavior: "smooth", top: 0 });

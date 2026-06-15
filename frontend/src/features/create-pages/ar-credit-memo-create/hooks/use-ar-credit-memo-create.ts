@@ -247,10 +247,11 @@ export function useArCreditMemoCreate({
       setHeader({ warehouseCode: "" });
       return;
     }
+    const lookup = value.trim().toLowerCase();
+    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
+    const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = warehouses.find(
-      (w) =>
-        w.name.toLowerCase() === value.trim().toLowerCase() ||
-        w.code.toLowerCase() === value.trim().toLowerCase(),
+      (w) => w.name.toLowerCase() === codeOrName || w.code.toLowerCase() === codeOrName,
     );
     if (matched) {
       selectWarehouse(matched);
@@ -398,6 +399,7 @@ export function useArCreditMemoCreate({
     if (hydratedDocNumRef.current === cleanDocNum) {
       return;
     }
+    hydratedDocNumRef.current = cleanDocNum;
 
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("A/R Credit Memo", isEditMode ? "edit" : "create");
@@ -531,13 +533,22 @@ export function useArCreditMemoCreate({
             formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
           );
         }
+        const loadedDocDate =
+          isEditMode && detail.DocDate
+            ? String(detail.DocDate).slice(0, 10)
+            : new Date().toISOString().split("T")[0]!;
+        const docDueDate =
+          isEditMode && detail.DocDueDate
+            ? String(detail.DocDueDate).slice(0, 10)
+            : new Date().toISOString().split("T")[0]!;
+
         setHeader({
           billToAddress: String(billToAddress),
           comments: isEditMode
             ? String(comments)
             : `Based on AR Invoice ${cleanDocNum}. ${String(comments)}`,
-          docDate: new Date().toISOString().split("T")[0]!,
-          docDueDate: new Date().toISOString().split("T")[0]!,
+          docDate: loadedDocDate,
+          docDueDate: docDueDate,
           referenceNo: String(referenceNo),
           shipToAddress: String(shipToAddress),
           vendorCode: String(vendorCode),
@@ -548,6 +559,7 @@ export function useArCreditMemoCreate({
         setFormSnapshot({
           comments: String(comments).trim(),
           referenceNo: String(referenceNo).trim(),
+          docDueDate: docDueDate,
         });
         hydratedDocNumRef.current = cleanDocNum;
       } finally {
@@ -606,11 +618,6 @@ export function useArCreditMemoCreate({
   // Mutations
   const createArCreditMemoMutation = useCreateArCreditMemoMutation();
   const updateArCreditMemoMutation = useUpdateArCreditMemoMutation();
-
-  const isClosed =
-    (editDetailQuery.data?.data as any)?.DocStatus === "Closed" ||
-    (editDetailQuery.data?.data as any)?.DocStatus === "C";
-
   const isDirty = useMemo(() => {
     if (!isEditMode || !formSnapshot) {
       return false;
@@ -618,11 +625,12 @@ export function useArCreditMemoCreate({
     const current = {
       comments: (header.comments || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
+      docDueDate: header.docDueDate,
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.comments, header.referenceNo]);
+  }, [isEditMode, formSnapshot, header.comments, header.referenceNo, header.docDueDate]);
 
-  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+  const submitDisabled = isEditMode ? !isDirty : false;
 
   // Totals — only compute from selected (checked) rows
   const selectedRows = useMemo(
@@ -753,6 +761,8 @@ export function useArCreditMemoCreate({
     }
 
     const payload = {
+      Address: header.billToAddress || undefined,
+      Address2: header.shipToAddress || undefined,
       AttachmentEntry: attachmentEntry,
       CardCode: header.vendorCode,
       Comments: header.comments,

@@ -22,6 +22,8 @@ interface AddressGridProps {
   uniformReadOnlyAppearance?: boolean;
   billToOptions?: { addressName: string; addressText: string; addressType?: string }[];
   shipToOptions?: { addressName: string; addressText: string; addressType?: string }[];
+  billToLabel?: string;
+  shipToLabel?: string;
 }
 
 const normalizeAddress = (val: string) => {
@@ -44,7 +46,12 @@ export function AddressGrid({
   uniformReadOnlyAppearance = false,
   billToOptions = [],
   shipToOptions = [],
+  billToLabel,
+  shipToLabel,
 }: AddressGridProps) {
+  const displayBillToLabel = billToLabel || "Bill To Address";
+  const displayShipToLabel = shipToLabel || "Ship To Address";
+
   const normBillTo = normalizeAddress(billToAddress);
   const normShipTo = normalizeAddress(shipToAddress);
 
@@ -92,7 +99,7 @@ export function AddressGrid({
               className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
             >
               <span className="inline-flex items-center gap-1.5">
-                <span>BILL TO ADDRESS</span>
+                <span>{displayBillToLabel}</span>
                 {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
                 {!readOnly && editableHighlight ? (
                   <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
@@ -157,7 +164,7 @@ export function AddressGrid({
                 value={billToAddress}
                 readOnly={readOnly}
                 onChange={(event) => onBillToAddressChange(event.target.value)}
-                placeholder="Enter Billing Address"
+                placeholder={`Enter ${displayBillToLabel}`}
                 className={`h-24 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
                   billToAddressInvalid
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
@@ -183,7 +190,7 @@ export function AddressGrid({
               className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
             >
               <span className="inline-flex items-center gap-1.5">
-                <span>SHIP TO ADDRESS</span>
+                <span>{displayShipToLabel}</span>
                 {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
                 {!readOnly && editableHighlight ? (
                   <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
@@ -248,7 +255,7 @@ export function AddressGrid({
                 value={shipToAddress}
                 readOnly={readOnly}
                 onChange={(event) => onShipToAddressChange(event.target.value)}
-                placeholder="Enter Shipping Address"
+                placeholder={`Enter ${displayShipToLabel}`}
                 className={`h-24 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
                   shipToAddressInvalid
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"

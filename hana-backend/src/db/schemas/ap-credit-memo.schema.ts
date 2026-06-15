@@ -15,10 +15,24 @@ export interface APCreditMemo {
   docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
   paidToDate: number; // Total amount paid/credited against this memo.
+  address?: string;
+  address2?: string;
 }
 
 export const APCreditMemoSchema = new EntitySchema<APCreditMemo>({
   columns: {
+    address: {
+      length: 254,
+      name: "Address",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    address2: {
+      length: 254,
+      name: "Address2",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
     cardCode: {
       length: 15,
       name: "CardCode",

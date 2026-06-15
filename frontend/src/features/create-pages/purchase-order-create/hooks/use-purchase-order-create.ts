@@ -850,7 +850,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     editDetailQuery.data?.data?.DocStatus === "Closed" ||
     editDetailQuery.data?.data?.DocStatus === "C";
 
-  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+  const submitDisabled = isEditMode ? !isDirty : false;
 
   const hasValidRowsForCreate = validRows.length > 0;
 

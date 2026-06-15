@@ -67,6 +67,7 @@ export function useDocumentSaveActions({
         setIsSaved(false);
         setSavedDocNum(null);
         lastSavedStateRef.current = "";
+        window.scrollTo({ behavior: "smooth", top: 0 });
         const dashboardUrl =
           moduleType === "purchase"
             ? ("/dashboard/purchase" as const)

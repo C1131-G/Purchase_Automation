@@ -4,6 +4,8 @@ import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
+import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
+
 import { ARInvoiceProductSection } from "@/features/create-pages/ar-invoice-create/components/ar-invoice-product-section";
 import {
   CopyFromDialog,
@@ -168,6 +170,29 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
 
       const allSelectedDocNums = selected.map((s) => Number(s.docNum));
       await state.addProductsFromSOs(lines as any, allSelectedDocNums);
+
+      if (details.length > 0) {
+        const firstDetail = details[0]!;
+        const address = String(firstDetail.Address ?? "").trim();
+        const address2 = String((firstDetail as any).Address2 ?? "").trim();
+        const rawComments = String(firstDetail.Comments ?? "").trim();
+        const referenceNo = String((firstDetail as any).NumAtCard ?? "").trim();
+        const comments = rawComments || `Based on Sales Order ${firstDetail.DocNum}`;
+
+        if (address) {
+          state.setBillToAddress(address);
+        }
+        if (address2) {
+          state.setShipToAddress(address2);
+        }
+        state.setHeader({
+          comments,
+          referenceNo,
+          vendorCode: String(firstDetail.CardCode ?? "").trim(),
+          vendorName: String(firstDetail.CardName ?? "").trim(),
+        });
+      }
+
       loadingToast.dismiss();
       goeyToast.success("Products added successfully");
     } catch (err) {
@@ -209,6 +234,29 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
 
       const allSelectedDocNums = selected.map((s) => Number(s.docNum));
       await state.addProductsFromSQs(lines as any, allSelectedDocNums);
+
+      if (details.length > 0) {
+        const firstDetail = details[0]!;
+        const address = String(firstDetail.Address ?? "").trim();
+        const address2 = String((firstDetail as any).Address2 ?? "").trim();
+        const rawComments = String(firstDetail.Comments ?? "").trim();
+        const referenceNo = String((firstDetail as any).NumAtCard ?? "").trim();
+        const comments = rawComments || `Based on Sales Quotation ${firstDetail.DocNum}`;
+
+        if (address) {
+          state.setBillToAddress(address);
+        }
+        if (address2) {
+          state.setShipToAddress(address2);
+        }
+        state.setHeader({
+          comments,
+          referenceNo,
+          vendorCode: String(firstDetail.CardCode ?? "").trim(),
+          vendorName: String(firstDetail.CardName ?? "").trim(),
+        });
+      }
+
       loadingToast.dismiss();
       goeyToast.success("Products added successfully");
     } catch (err) {
@@ -409,6 +457,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
             loading={isFormHydrating}
             billToAddress={state.billToAddress}
             shipToAddress={state.shipToAddress}
+            billToLabel="Pay To Address"
             readOnly={state.isEditMode}
             billToOptions={billToOptions}
             shipToOptions={shipToOptions}
@@ -458,14 +507,11 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
           onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
-          onDownload={(type) => {
-            if (state.savedDocNum) {
-              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
-              goeyToast.success(
-                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
-              );
-            }
-          }}
+          onDownload={useDocumentDownload(
+            mode === "edit" ? docNum : state.savedDocNum,
+            "ar-invoices",
+            "AR_Invoice",
+          )}
           onReset={() => {
             state.resetForm();
             window.scrollTo({ behavior: "smooth", top: 0 });

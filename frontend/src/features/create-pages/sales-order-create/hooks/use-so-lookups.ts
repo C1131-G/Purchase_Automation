@@ -119,7 +119,7 @@ export function useSoLookups({
 
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase();
-    const match = lookup.match(/^\[(.*?)\]/);
+    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
     const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = (warehouses as ProductLookupItem[]).find(
       (item: ProductLookupItem) =>

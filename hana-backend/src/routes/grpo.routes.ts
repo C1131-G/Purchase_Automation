@@ -4,7 +4,9 @@ import express from "express";
 
 import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
+import { createExportHandler } from "@/dal/export.dal";
 import { grpoDal } from "@/dal/grpo.dal";
+import { getGRPOByDocNum } from "@/services/grpo.service";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
 import {
   AvailablePOsQuerySchema,
@@ -40,6 +42,9 @@ router.post("/", grpoDal.createGRPO);
 
 // PATCH /:id: Updates non-locked fields of an existing GRPO.
 router.patch("/:id", grpoDal.updateGRPO);
+
+// Export endpoints: Download saved document as PDF, Excel, or Word.
+router.get("/by-doc-num/:docNum/export/:format", createExportHandler(getGRPOByDocNum, "GRPO"));
 
 // POST /:id/cancel: Cancels a GRPO (Note: SAP behavior for cancellation after document creation is complex).
 router.post("/:id/cancel", grpoDal.cancelGRPO);

@@ -1,5 +1,6 @@
 // A/R Invoice Service: Logic for A/R Invoices (Sales), utilizing HANA for listings and SAP Service Layer for transaction management.
 
+import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { executeTenantQuery, getTenantRepository } from "@/dal/tenant-dal.helper";
@@ -137,6 +138,8 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
         DocCurr: data.docCurr,
         NumAtCard: data.numAtCard,
         DocStatus: data.docStatus,
+        Address: data.address,
+        Address2: data.address2,
         // Include paid amount for AR invoices to calculate outstanding balances on frontend.
         paidToDate: ((data as unknown as Record<string, unknown>).paidToDate as number) || 0,
       })),
@@ -216,6 +219,24 @@ export const getInvoice = async (sessionId: string, id: string) => {
     });
     throw caughtError;
   }
+};
+
+// Resolves a DocNum to DocEntry from HANA and fetches full details from Service Layer.
+export const getInvoiceByDocNum = async (sessionId: string, dbName: string, id: string) => {
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+  }
+
+  const repo = await getTenantRepository(dbName, ARInvoiceSchema);
+  const match = await repo
+    .createQueryBuilder("inv")
+    .select(["inv.docEntry"])
+    .where("CAST(inv.docNum AS NVARCHAR) = :id", { id: normalizedId })
+    .getOne();
+
+  const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
+  return getInvoice(sessionId, finalId);
 };
 
 // Helper: Resolves and appends greedy bin allocations to document lines if a warehouse has bin locations enabled.
@@ -306,6 +327,7 @@ export const createInvoice = async (
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
+      Address2: payload.Address2,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       DocDate: payload.DocDate,
@@ -519,6 +541,7 @@ export const arInvoiceService = {
   cancelInvoice,
   createInvoice,
   getInvoice,
+  getInvoiceByDocNum,
   getInvoiceDocNums,
   getInvoices,
   reopenInvoice,

@@ -117,6 +117,8 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
         DocNum: data.docNum,
         DocStatus: data.docStatus,
         DocTotal: data.docTotal,
+        Address: data.address,
+        Address2: data.address2,
         id: data.docEntry,
       })),
     };
@@ -222,6 +224,8 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
   try {
     // Construct the SAP Service Layer compatible payload.
     const sapPayload: Record<string, unknown> = {
+      Address: payload.Address,
+      Address2: payload.Address2,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       NumAtCard: payload.NumAtCard,
@@ -307,6 +311,12 @@ export const updateCreditNote = async (
     }
     if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;
+    }
+    if (payload.Address !== undefined) {
+      sapPayload.Address = payload.Address;
+    }
+    if (payload.Address2 !== undefined) {
+      sapPayload.Address2 = payload.Address2;
     }
     if (payload.DocDueDate) {
       sapPayload.DocDueDate = payload.DocDueDate;

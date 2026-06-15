@@ -1,7 +1,8 @@
 import { useRouter } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
 import { useState } from "react";
 import type { MouseEvent } from "react";
+
+import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 
 import { APCreditMemoModals } from "@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-modals";
 import { APCreditMemoProductSection } from "@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-product-section";
@@ -301,6 +302,7 @@ export function APCreditMemoCreate({
               shipToOptions={shipToOptions}
               onBillToAddressChange={state.setBillToAddress}
               onShipToAddressChange={state.setShipToAddress}
+              billToLabel="Pay To Address"
             />
           </div>
         </div>
@@ -361,14 +363,11 @@ export function APCreditMemoCreate({
             viewTransition: true,
           });
         }}
-        onDownload={(type) => {
-          if (state.savedDocNum) {
-            const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
-            goeyToast.success(
-              `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
-            );
-          }
-        }}
+        onDownload={useDocumentDownload(
+          mode === "edit" ? docNum : state.savedDocNum,
+          "ap-credit-memos",
+          "AP_Credit_Memo",
+        )}
         submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}

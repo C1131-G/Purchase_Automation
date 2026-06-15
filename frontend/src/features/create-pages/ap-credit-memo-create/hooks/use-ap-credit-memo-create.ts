@@ -280,7 +280,7 @@ export function useAPCreditMemoCreate({
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const effectiveWarehouseCode = useMemo(() => {
     const lookup = warehouseInput.trim().toLowerCase();
-    const match = lookup.match(/^\[(.*?)\]/);
+    const match = lookup.match(/\[([^\]]+)\]$/) || lookup.match(/^\[([^\]]+)\]/);
     const codeOrName = match ? match[1]!.trim() : lookup;
     const matched = warehouses.find(
       (item) => item.name.toLowerCase() === codeOrName || item.code.toLowerCase() === codeOrName,
@@ -376,11 +376,12 @@ export function useAPCreditMemoCreate({
     const current = {
       remarks: (header.remarks || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
+      docDueDate: header.docDueDate,
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo]);
+  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo, header.docDueDate]);
 
-  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+  const submitDisabled = isEditMode ? !isDirty : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O"
       ? "Open"
@@ -426,6 +427,9 @@ export function useAPCreditMemoCreate({
     const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0;
     if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) {
       return;
+    }
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = currentDocNum;
     }
 
     if (!loadingToastRef.current) {
@@ -534,6 +538,7 @@ export function useAPCreditMemoCreate({
       setFormSnapshot({
         remarks: (remarks || "").trim(),
         referenceNo: (referenceNo || "").trim(),
+        docDueDate: loadedDocDate,
       });
       setHydratedDocNum(currentDocNum);
       loadingToastRef.current?.dismiss();
@@ -574,6 +579,9 @@ export function useAPCreditMemoCreate({
     const hydrationKey = `${currentSourceDocType}-${currentSourceDocNum}`;
     if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) {
       return;
+    }
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = hydrationKey;
     }
 
     if (!loadingToastRef.current) {
@@ -1616,7 +1624,7 @@ export function useAPCreditMemoCreate({
       isEditMode ? notifyRestricted("Warehouse") : selectWarehouse(val),
     setActiveDatePicker,
     setBillToAddress: (val: string) =>
-      isEditMode ? notifyRestricted("Bill To Address") : setBillToAddress(val),
+      isEditMode ? notifyRestricted("Pay To Address") : setBillToAddress(val),
     setBuyerFocused,
     setBuyerInput: (val: string) =>
       isEditMode ? notifyRestricted("Buyer") : handleBuyerChange(val),

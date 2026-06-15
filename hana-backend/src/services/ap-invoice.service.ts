@@ -121,6 +121,8 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
         DocNum: data.docNum,
         DocStatus: data.docStatus,
         DocTotal: data.docTotal,
+        Address: data.address,
+        Address2: data.address2,
         id: data.docEntry,
       })),
     };

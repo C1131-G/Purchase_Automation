@@ -123,6 +123,8 @@ export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuo
         DocNum: data.docNum,
         DocStatus: data.docStatus === "O" ? "Open" : "Closed",
         DocTotal: data.docTotal,
+        Address: data.address,
+        Address2: data.address2,
         id: data.docEntry,
       })),
     };
@@ -280,6 +282,7 @@ export const createPurchaseQuotation = async (
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
+      Address2: payload.Address2,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       NumAtCard: payload.NumAtCard,
@@ -407,6 +410,9 @@ export const updatePurchaseQuotation = async (
     }
     if (payload.Address !== undefined) {
       sapPayload.Address = payload.Address;
+    }
+    if (payload.Address2 !== undefined) {
+      sapPayload.Address2 = payload.Address2;
     }
     if (payload.DocDate !== undefined) {
       sapPayload.DocDate = payload.DocDate;

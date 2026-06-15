@@ -105,6 +105,7 @@ const SalesOrderLineItemSchema = z.object({
 // CreateSalesOrderInputSchema: Validates a new sales order submission.
 export const CreateSalesOrderInputSchema = z.object({
   Address: z.string().optional(),
+  Address2: z.string().optional(),
   CardCode: z.string().min(1), // Customer identification.
   Comments: z.string().optional(),
   DocDate: z
@@ -126,6 +127,7 @@ export const CreateSalesOrderInputSchema = z.object({
 export const UpdateSalesOrderInputSchema = z
   .object({
     Address: z.string().optional(),
+    Address2: z.string().optional(),
     Comments: z.string().optional(),
     DocDate: z
       .string()

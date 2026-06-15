@@ -1,5 +1,6 @@
 // A/R Credit Memo Service: Logic for A/R Credit Memos (Sales Returns/Credits), combining HANA queries for listings and SAP Service Layer for document lifecycle.
 
+import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
@@ -121,6 +122,8 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
         DocNum: data.docNum,
         DocStatus: data.docStatus,
         DocTotal: data.docTotal,
+        Address: data.address,
+        Address2: data.address2,
         id: data.docEntry,
       })),
     };
@@ -211,6 +214,8 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
 
     const sapPayload: Record<string, unknown> = {
+      Address: payload.Address,
+      Address2: payload.Address2,
       CardCode: payload.CardCode,
       Comments: payload.Comments,
       DocDate: payload.DocDate,
@@ -364,10 +369,29 @@ export const cancelCreditNote = async (sessionId: string, id: string) => {
   }
 };
 
+// Resolves a DocNum to DocEntry from HANA and fetches full details from Service Layer.
+export const getCreditNoteByDocNum = async (sessionId: string, dbName: string, id: string) => {
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+  }
+
+  const repo = await getTenantRepository(dbName, ARCreditMemoSchema);
+  const match = await repo
+    .createQueryBuilder("cn")
+    .select(["cn.docEntry"])
+    .where("CAST(cn.docNum AS NVARCHAR) = :id", { id: normalizedId })
+    .getOne();
+
+  const finalId = match?.docEntry ? String(match.docEntry) : normalizedId;
+  return getCreditNote(sessionId, finalId);
+};
+
 export const arCreditMemoService = {
   cancelCreditNote,
   createCreditNote,
   getCreditNote,
+  getCreditNoteByDocNum,
   getCreditNoteDocNums,
   getCreditNotes,
   updateCreditNote,

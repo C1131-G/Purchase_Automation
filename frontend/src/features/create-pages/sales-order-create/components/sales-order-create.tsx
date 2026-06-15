@@ -3,6 +3,7 @@ import { useSearch, useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 
+import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
@@ -124,6 +125,29 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
 
       const allSelectedDocNums = selected.map((s) => Number(s.docNum));
       await state.addProductsFromSQs(lines as any, allSelectedDocNums);
+
+      if (details.length > 0) {
+        const firstDetail = details[0]!;
+        const address = String(firstDetail.Address ?? "").trim();
+        const address2 = String((firstDetail as any).Address2 ?? "").trim();
+        const rawComments = String(firstDetail.Comments ?? "").trim();
+        const referenceNo = String((firstDetail as any).NumAtCard ?? "").trim();
+        const comments = rawComments || `Based on Sales Quotation ${firstDetail.DocNum}`;
+
+        if (address) {
+          state.setBillToAddress(address);
+        }
+        if (address2) {
+          state.setShipToAddress(address2);
+        }
+        state.setHeader({
+          comments,
+          referenceNo,
+          vendorCode: String(firstDetail.CardCode ?? "").trim(),
+          vendorName: String(firstDetail.CardName ?? "").trim(),
+        });
+      }
+
       loadingToast.dismiss();
       goeyToast.success("Products added successfully");
     } catch (err) {
@@ -318,6 +342,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
             loading={isFormHydrating}
             billToAddress={state.billToAddress}
             shipToAddress={state.shipToAddress}
+            billToLabel="Pay To Address"
             billToOptions={billToOptions}
             shipToOptions={shipToOptions}
             onBillToAddressChange={(value) => {
@@ -392,14 +417,11 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
           isEditMode={state.isEditMode}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
-          onDownload={(type) => {
-            if (state.savedDocNum) {
-              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
-              goeyToast.success(
-                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
-              );
-            }
-          }}
+          onDownload={useDocumentDownload(
+            mode === "edit" ? docNum : state.savedDocNum,
+            "sales-orders",
+            "Sales_Order",
+          )}
           onReset={() => {
             state.resetForm();
             window.scrollTo({ behavior: "smooth", top: 0 });

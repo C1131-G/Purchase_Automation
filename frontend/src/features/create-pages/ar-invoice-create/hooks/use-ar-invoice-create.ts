@@ -197,6 +197,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     if (!detail) {
       return;
     }
+    hydratedDocNumRef.current = currentDocNum;
 
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("A/R Invoice", "edit");
@@ -232,6 +233,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(detail.Address ?? "").trim();
+    const address2 = String((detail as Record<string, unknown>).Address2 ?? "").trim();
 
     void (async () => {
       try {
@@ -348,13 +350,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
-        lookups.setShipToAddress(address);
+        lookups.setShipToAddress(address2);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
         setFormSnapshot({
           comments: comments.trim(),
           referenceNo: referenceNo.trim(),
+          docDueDate: docDueDate,
         });
 
         hydratedDocNumRef.current = currentDocNum;
@@ -396,6 +399,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     if (hydratedDocNumRef.current === `${currentSourceDocType}-${currentSourceDocNum}`) {
       return;
     }
+    hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`;
 
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("A/R Invoice", "create");
@@ -433,6 +437,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const comments = rawComments || `Based on ${currentSourceDocType} ${currentSourceDocNum}`;
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(detail.Address ?? "").trim();
+    const address2 = String((detail as Record<string, unknown>).Address2 ?? "").trim();
 
     void (async () => {
       try {
@@ -541,7 +546,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         lookups.setWarehouseInput(matchedWarehouse?.name ?? warehouseCode);
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
-        lookups.setShipToAddress(address);
+        lookups.setShipToAddress(address2);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
@@ -822,7 +827,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             SalesPersonCode: resolvedSalesEmployeeCode,
           }
         : {
-            Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+            Address: lookups.billToAddress.trim() || undefined,
+            Address2: lookups.shipToAddress.trim() || undefined,
             CardCode: (header.vendorCode || lookups.codeInput).trim(),
             Comments: header.comments.trim() || undefined,
             DocDate: header.docDate,
@@ -912,7 +918,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
       : {
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
           Comments: header.comments.trim() || undefined,
           DocDate: header.docDate,
@@ -997,11 +1004,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   };
 
   const submitARInvoiceMutation = isEditMode ? updateARInvoiceMutation : createARInvoiceMutation;
-
-  const isClosed =
-    editDetailQuery.data?.data?.DocStatus === "Closed" ||
-    editDetailQuery.data?.data?.DocStatus === "C";
-
   const isDirty = useMemo(() => {
     if (!isEditMode || !formSnapshot) {
       return false;
@@ -1009,11 +1011,12 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const current = {
       comments: (header.comments || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
+      docDueDate: header.docDueDate,
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.comments, header.referenceNo]);
+  }, [isEditMode, formSnapshot, header.comments, header.referenceNo, header.docDueDate]);
 
-  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+  const submitDisabled = isEditMode ? !isDirty : false;
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),

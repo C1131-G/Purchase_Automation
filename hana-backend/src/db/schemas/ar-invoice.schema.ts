@@ -17,10 +17,24 @@ export interface ARInvoice {
   canceled: string; // 'Y' = Yes, 'N' = No.
   paidToDate: number; // Total amount already settled against this invoice.
   numAtCard?: string; // Reference number from the customer's purchase order.
+  address?: string;
+  address2?: string;
 }
 
 export const ARInvoiceSchema = new EntitySchema<ARInvoice>({
   columns: {
+    address: {
+      length: 254,
+      name: "Address",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    address2: {
+      length: 254,
+      name: "Address2",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
     canceled: {
       length: 1,
       name: "CANCELED",

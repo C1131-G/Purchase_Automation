@@ -121,6 +121,8 @@ export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
         DocNum: data.docNum,
         DocStatus: data.docStatus === "O" ? "Open" : "Closed",
         DocTotal: data.docTotal,
+        Address: data.address,
+        Address2: data.address2,
         id: data.docEntry,
       })),
     };

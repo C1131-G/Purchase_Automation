@@ -102,6 +102,7 @@ const SalesQuotationLineItemSchema = z.object({
 // CreateSalesQuotationInputSchema: Validates a new sales quotation submission.
 export const CreateSalesQuotationInputSchema = z.object({
   Address: z.string().optional(),
+  Address2: z.string().optional(),
   CardCode: z.string().min(1), // Customer identification.
   Comments: z.string().optional(),
   DocDate: z
@@ -123,6 +124,7 @@ export const CreateSalesQuotationInputSchema = z.object({
 export const UpdateSalesQuotationInputSchema = z
   .object({
     Address: z.string().optional(),
+    Address2: z.string().optional(),
     Comments: z.string().optional(),
     DocDate: z
       .string()

@@ -56,24 +56,6 @@ export function ShellLayoutNavigation({
                   Sales
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/dashboard/inventory-adjustment"
-                  search={{ period: "week" } as any}
-                  isActive={pathname === "/dashboard/inventory-adjustment"}
-                >
-                  Inventory Adjustment
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/dashboard/inventory-transfer"
-                  search={{ period: "week" } as any}
-                  isActive={pathname === "/dashboard/inventory-transfer"}
-                >
-                  Inventory Transfer
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
             <SidebarMenuCollapsible
               title="Purchase"
@@ -265,9 +247,17 @@ export function ShellLayoutNavigation({
               onToggle={() => onToggleSection("inventory")}
               isActive={pathname.startsWith("/inventory")}
             >
-              <div className="text-[10px] font-bold text-zinc-400/80 tracking-wider uppercase pl-2 pt-2 pb-0.5 select-none first:pt-1">
-                Inventory Adjustment
-              </div>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/inventory/item-master"
+                  isActive={
+                    pathname === "/inventory/item-master" ||
+                    pathname.startsWith("/inventory/item-master/")
+                  }
+                >
+                  Item Master
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                   to="/inventory/goods-receipt"
@@ -290,10 +280,6 @@ export function ShellLayoutNavigation({
                   Goods Issue
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-
-              <div className="text-[10px] font-bold text-zinc-400/80 tracking-wider uppercase pl-2 pt-4 pb-0.5 select-none">
-                Inventory Transfer
-              </div>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                   to="/inventory/transfer-request"

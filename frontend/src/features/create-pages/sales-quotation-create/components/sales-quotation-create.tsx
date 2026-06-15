@@ -3,6 +3,7 @@ import { useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import type { MouseEvent } from "react";
 
+import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
@@ -212,6 +213,7 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
             loading={isFormHydrating}
             billToAddress={state.billToAddress}
             shipToAddress={state.shipToAddress}
+            billToLabel="Pay To Address"
             billToOptions={billToOptions}
             shipToOptions={shipToOptions}
             onBillToAddressChange={(value) => {
@@ -286,14 +288,11 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
           onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
-          onDownload={(type) => {
-            if (state.savedDocNum) {
-              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
-              goeyToast.success(
-                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
-              );
-            }
-          }}
+          onDownload={useDocumentDownload(
+            mode === "edit" ? docNum : state.savedDocNum,
+            "sales-quotations",
+            "Sales_Quotation",
+          )}
           onReset={() => {
             state.resetForm();
             window.scrollTo({ behavior: "smooth", top: 0 });

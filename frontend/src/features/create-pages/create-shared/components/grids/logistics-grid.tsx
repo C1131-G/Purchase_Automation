@@ -79,7 +79,7 @@ export function LogisticsGrid({
   warehouseLabel = "WAREHOUSE",
   warehousePlaceholder = "Select Warehouse",
   warehouseDisabled = false,
-  warehouseCode,
+  warehouseCode: _warehouseCode,
 }: LogisticsGridProps) {
   return (
     <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1 min-h-[220px]">
@@ -104,7 +104,6 @@ export function LogisticsGrid({
               errorText={warehouseErrorText}
               disabled={warehouseDisabled}
               uniformReadOnlyAppearance={uniformReadOnlyAppearance}
-              badge={warehouseCode}
             />
             {warehouseFocused ? (
               <SuggestionList

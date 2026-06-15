@@ -4,7 +4,9 @@ import express from "express";
 
 import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
+import { createExportHandler } from "@/dal/export.dal";
 import { salesOrderDal } from "@/dal/sales-order.dal";
+import { getSalesOrderByDocNum } from "@/services/sales-order.service";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
 import {
   SalesOrderDocNumLookupQuerySchema,
@@ -40,6 +42,12 @@ router.post("/", salesOrderDal.createSalesOrder);
 
 // PATCH /:id: Modifies an existing open sales order.
 router.patch("/:id", salesOrderDal.updateSalesOrder);
+
+// Export endpoints: Download saved document as PDF, Excel, or Word.
+router.get(
+  "/by-doc-num/:docNum/export/:format",
+  createExportHandler(getSalesOrderByDocNum, "Sales Order"),
+);
 
 // POST /:id/cancel: Marks a sales order as canceled in the backend.
 router.post("/:id/cancel", salesOrderDal.cancelSalesOrder);

@@ -13,10 +13,24 @@ export interface PurchaseOrder {
   docTotal: number;
   docCurr: string;
   docStatus: string; // 'O' = Open, 'C' = Closed.
+  address?: string;
+  address2?: string;
 }
 
 export const PurchaseOrderSchema = new EntitySchema<PurchaseOrder>({
   columns: {
+    address: {
+      length: 254,
+      name: "Address",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    address2: {
+      length: 254,
+      name: "Address2",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
     cardCode: {
       length: 15,
       name: "CardCode",

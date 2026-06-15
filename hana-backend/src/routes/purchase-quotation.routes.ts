@@ -4,7 +4,9 @@ import express from "express";
 
 import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
+import { createExportHandler } from "@/dal/export.dal";
 import { purchaseQuotationDal } from "@/dal/purchase-quotation.dal";
+import { getPurchaseQuotationByDocNum } from "@/services/purchase-quotation.service";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
 import {
   PurchaseQuotationDocNumLookupQuerySchema,
@@ -44,6 +46,12 @@ router.post("/", purchaseQuotationDal.createPurchaseQuotation);
 
 // PATCH /:id: Modifies an existing open purchase quotation.
 router.patch("/:id", purchaseQuotationDal.updatePurchaseQuotation);
+
+// Export endpoints: Download saved document as PDF, Excel, or Word.
+router.get(
+  "/by-doc-num/:docNum/export/:format",
+  createExportHandler(getPurchaseQuotationByDocNum, "Purchase Quotation"),
+);
 
 // POST /:id/cancel: Marks a purchase quotation as canceled in the backend.
 router.post("/:id/cancel", purchaseQuotationDal.cancelPurchaseQuotation);

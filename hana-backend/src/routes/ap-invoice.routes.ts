@@ -4,7 +4,9 @@ import express from "express";
 
 import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
+import { createExportHandler } from "@/dal/export.dal";
 import { apInvoiceDal } from "@/dal/ap-invoice.dal";
+import { getInvoiceByDocNum } from "@/services/ap-invoice.service";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
 import {
   InvoiceDocNumLookupQuerySchema,
@@ -36,6 +38,12 @@ router.patch("/:id", apInvoiceDal.updateInvoice);
 
 // POST /:id/cancel: Triggers a cancellation for the invoice in SAP.
 router.post("/:id/cancel", apInvoiceDal.cancelInvoice);
+
+// Export endpoints: Download saved document as PDF, Excel, or Word.
+router.get(
+  "/by-doc-num/:docNum/export/:format",
+  createExportHandler(getInvoiceByDocNum, "AP Invoice"),
+);
 
 // POST /:id/reopen: Triggers a reopen for the invoice in SAP.
 router.post("/:id/reopen", apInvoiceDal.reopenInvoice);

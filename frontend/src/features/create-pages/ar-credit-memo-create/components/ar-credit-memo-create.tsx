@@ -3,6 +3,8 @@ import { useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
+
 import { ArCreditMemoProductSection } from "@/features/create-pages/ar-credit-memo-create/components/ar-credit-memo-product-section";
 import { useArCreditMemoCreate } from "@/features/create-pages/ar-credit-memo-create/hooks/use-ar-credit-memo-create";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
@@ -481,6 +483,7 @@ export function ArCreditMemoCreate({
             loading={false}
             billToAddress={header.billToAddress ?? ""}
             shipToAddress={header.shipToAddress ?? ""}
+            billToLabel="Pay To Address"
             readOnly={false}
             billToOptions={billToOptions}
             shipToOptions={shipToOptions}
@@ -529,14 +532,11 @@ export function ArCreditMemoCreate({
           onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
-          onDownload={(type) => {
-            if (state.savedDocNum) {
-              const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
-              goeyToast.success(
-                `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
-              );
-            }
-          }}
+          onDownload={useDocumentDownload(
+            mode === "edit" ? docNum : state.savedDocNum,
+            "ar-credit-memos",
+            "AR_Credit_Memo",
+          )}
           onReset={() => {
             state.resetForm();
             window.scrollTo({ behavior: "smooth", top: 0 });

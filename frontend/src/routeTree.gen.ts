@@ -36,6 +36,7 @@ import { Route as LayoutPurchaseApInvoiceRouteImport } from './routes/_layout.pu
 import { Route as LayoutPurchaseApCreditMemoRouteImport } from './routes/_layout.purchase.ap-credit-memo'
 import { Route as LayoutInventoryTransferRequestRouteImport } from './routes/_layout.inventory.transfer-request'
 import { Route as LayoutInventoryTransferRouteImport } from './routes/_layout.inventory.transfer'
+import { Route as LayoutInventoryItemMasterRouteImport } from './routes/_layout.inventory.item-master'
 import { Route as LayoutInventoryGoodsReceiptRouteImport } from './routes/_layout.inventory.goods-receipt'
 import { Route as LayoutInventoryGoodsIssueRouteImport } from './routes/_layout.inventory.goods-issue'
 import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout.dashboard.sales'
@@ -204,6 +205,12 @@ const LayoutInventoryTransferRoute = LayoutInventoryTransferRouteImport.update({
   path: '/inventory/transfer',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutInventoryItemMasterRoute =
+  LayoutInventoryItemMasterRouteImport.update({
+    id: '/inventory/item-master',
+    path: '/inventory/item-master',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 const LayoutInventoryGoodsReceiptRoute =
   LayoutInventoryGoodsReceiptRouteImport.update({
     id: '/inventory/goods-receipt',
@@ -327,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/inventory/goods-issue': typeof LayoutInventoryGoodsIssueRoute
   '/inventory/goods-receipt': typeof LayoutInventoryGoodsReceiptRoute
+  '/inventory/item-master': typeof LayoutInventoryItemMasterRoute
   '/inventory/transfer': typeof LayoutInventoryTransferRoute
   '/inventory/transfer-request': typeof LayoutInventoryTransferRequestRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
@@ -374,6 +382,7 @@ export interface FileRoutesByTo {
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/inventory/goods-issue': typeof LayoutInventoryGoodsIssueRoute
   '/inventory/goods-receipt': typeof LayoutInventoryGoodsReceiptRoute
+  '/inventory/item-master': typeof LayoutInventoryItemMasterRoute
   '/inventory/transfer': typeof LayoutInventoryTransferRoute
   '/inventory/transfer-request': typeof LayoutInventoryTransferRequestRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
@@ -423,6 +432,7 @@ export interface FileRoutesById {
   '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/_layout/inventory/goods-issue': typeof LayoutInventoryGoodsIssueRoute
   '/_layout/inventory/goods-receipt': typeof LayoutInventoryGoodsReceiptRoute
+  '/_layout/inventory/item-master': typeof LayoutInventoryItemMasterRoute
   '/_layout/inventory/transfer': typeof LayoutInventoryTransferRoute
   '/_layout/inventory/transfer-request': typeof LayoutInventoryTransferRequestRoute
   '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteWithChildren
@@ -472,6 +482,7 @@ export interface FileRouteTypes {
     | '/dashboard/sales'
     | '/inventory/goods-issue'
     | '/inventory/goods-receipt'
+    | '/inventory/item-master'
     | '/inventory/transfer'
     | '/inventory/transfer-request'
     | '/purchase/ap-credit-memo'
@@ -519,6 +530,7 @@ export interface FileRouteTypes {
     | '/dashboard/sales'
     | '/inventory/goods-issue'
     | '/inventory/goods-receipt'
+    | '/inventory/item-master'
     | '/inventory/transfer'
     | '/inventory/transfer-request'
     | '/purchase/ap-credit-memo'
@@ -567,6 +579,7 @@ export interface FileRouteTypes {
     | '/_layout/dashboard/sales'
     | '/_layout/inventory/goods-issue'
     | '/_layout/inventory/goods-receipt'
+    | '/_layout/inventory/item-master'
     | '/_layout/inventory/transfer'
     | '/_layout/inventory/transfer-request'
     | '/_layout/purchase/ap-credit-memo'
@@ -800,6 +813,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory/transfer'
       fullPath: '/inventory/transfer'
       preLoaderRoute: typeof LayoutInventoryTransferRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/inventory/item-master': {
+      id: '/_layout/inventory/item-master'
+      path: '/inventory/item-master'
+      fullPath: '/inventory/item-master'
+      preLoaderRoute: typeof LayoutInventoryItemMasterRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/inventory/goods-receipt': {
@@ -1113,6 +1133,7 @@ interface LayoutRouteChildren {
   LayoutDashboardRoute: typeof LayoutDashboardRouteWithChildren
   LayoutInventoryGoodsIssueRoute: typeof LayoutInventoryGoodsIssueRoute
   LayoutInventoryGoodsReceiptRoute: typeof LayoutInventoryGoodsReceiptRoute
+  LayoutInventoryItemMasterRoute: typeof LayoutInventoryItemMasterRoute
   LayoutInventoryTransferRoute: typeof LayoutInventoryTransferRoute
   LayoutInventoryTransferRequestRoute: typeof LayoutInventoryTransferRequestRoute
   LayoutPurchaseApCreditMemoRoute: typeof LayoutPurchaseApCreditMemoRouteWithChildren
@@ -1142,6 +1163,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardRoute: LayoutDashboardRouteWithChildren,
   LayoutInventoryGoodsIssueRoute: LayoutInventoryGoodsIssueRoute,
   LayoutInventoryGoodsReceiptRoute: LayoutInventoryGoodsReceiptRoute,
+  LayoutInventoryItemMasterRoute: LayoutInventoryItemMasterRoute,
   LayoutInventoryTransferRoute: LayoutInventoryTransferRoute,
   LayoutInventoryTransferRequestRoute: LayoutInventoryTransferRequestRoute,
   LayoutPurchaseApCreditMemoRoute: LayoutPurchaseApCreditMemoRouteWithChildren,

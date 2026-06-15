@@ -4,7 +4,9 @@ import express from "express";
 
 import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
 import { validateSession } from "@/core/middleware/session.middleware";
+import { createExportHandler } from "@/dal/export.dal";
 import { apCreditMemoDal } from "@/dal/ap-credit-memo.dal";
+import { getCreditNoteByDocNum } from "@/services/ap-credit-memo.service";
 import { validateQuery } from "@/validation/middleware/validation.middleware";
 import {
   CreditNoteDocNumLookupQuerySchema,
@@ -33,6 +35,12 @@ router.post("/", apCreditMemoDal.createCreditNote);
 
 // PATCH /:id: Modifies an existing A/P credit memo.
 router.patch("/:id", apCreditMemoDal.updateCreditNote);
+
+// Export endpoints: Download saved document as PDF, Excel, or Word.
+router.get(
+  "/by-doc-num/:docNum/export/:format",
+  createExportHandler(getCreditNoteByDocNum, "AP Credit Memo"),
+);
 
 // POST /:id/cancel: Cancels a credit memo in SAP.
 router.post("/:id/cancel", apCreditMemoDal.cancelCreditNote);

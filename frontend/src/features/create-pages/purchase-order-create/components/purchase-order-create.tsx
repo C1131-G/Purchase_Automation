@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
 import { useState } from "react";
 import type { MouseEvent } from "react";
+
+import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
@@ -348,6 +349,7 @@ export function PurchaseOrderCreate({
                   shipToAddress: value.trim() ? undefined : prev.shipToAddress,
                 }));
               }}
+              billToLabel="Pay To Address"
             />
           </div>
         </div>
@@ -408,14 +410,11 @@ export function PurchaseOrderCreate({
         onSubmitMode={state.handleCreateOrder}
         isSaved={state.isSaved}
         savedDocNum={state.savedDocNum}
-        onDownload={(type) => {
-          if (state.savedDocNum) {
-            const label = type === "pdf" ? "PDF" : type === "excel" ? "Excel" : "Word";
-            goeyToast.success(
-              `Downloading ${label} for Document ${state.savedDocNum} (Feature coming soon!)`,
-            );
-          }
-        }}
+        onDownload={useDocumentDownload(
+          mode === "edit" ? docNum : state.savedDocNum,
+          "purchase-orders",
+          "Purchase_Order",
+        )}
         onReset={() => {
           state.resetForm();
           window.scrollTo({ behavior: "smooth", top: 0 });

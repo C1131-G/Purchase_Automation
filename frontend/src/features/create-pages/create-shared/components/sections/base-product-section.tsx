@@ -122,7 +122,7 @@ export function BaseProductSection({
   isSaved = false,
   savedDocNum = null,
   onDownload,
-  onReset,
+  onReset: _onReset,
   disabledReason,
   missingMandatoryFields = [],
   mandatoryCompletionPercent = 0,
@@ -384,84 +384,149 @@ export function BaseProductSection({
           <p className="mt-2 text-right text-xs font-medium text-red-600">{createError}</p>
         ) : null}
         <div className="mt-3 flex items-center justify-between gap-2">
-          {showBackPopover ? (
-            <Popover.Root>
-              <Popover.Trigger asChild>
+          <div className="flex items-center gap-2">
+            {showBackPopover ? (
+              <Popover.Root>
+                <Popover.Trigger asChild>
+                  <Button
+                    type="button"
+                    size="md"
+                    variant="outline"
+                    className="group h-11 w-56 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+                    Go Back
+                  </Button>
+                </Popover.Trigger>
+                <Popover.Content side="top" align="start" className="w-56 z-[1001]">
+                  <div className="flex flex-col py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dashboardUrl = backToUrl.startsWith("/purchase")
+                          ? "/dashboard/purchase"
+                          : "/dashboard/sales";
+                        void navigate({
+                          to: dashboardUrl,
+                          search: { period: "week" },
+                          viewTransition: true,
+                        });
+                      }}
+                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
+                    >
+                      <LayoutDashboard className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
+                      <span className="flex flex-col">
+                        <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
+                          Back to Dashboard
+                        </span>
+                        <span className="text-[10px] text-zinc-400 mt-0.5">
+                          Go to main dashboard
+                        </span>
+                      </span>
+                    </button>
+                    <div className="border-t border-zinc-100" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigate({
+                          to: backToUrl,
+                          search: { limit: 10, page: 1 },
+                          viewTransition: true,
+                        });
+                      }}
+                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
+                    >
+                      <Table className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-655 transition-colors" />
+                      <span className="flex flex-col">
+                        <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
+                          Back to Table
+                        </span>
+                        <span className="text-[10px] text-zinc-400 mt-0.5">
+                          Go to document table
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                </Popover.Content>
+              </Popover.Root>
+            ) : (
+              <Button
+                type="button"
+                size="md"
+                variant="outline"
+                onClick={() =>
+                  navigate({ search: { limit: 10, page: 1 }, to: backToUrl, viewTransition: true })
+                }
+                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+                  {backToLabel}
+                </span>
+              </Button>
+            )}
+
+            {isEditMode && onDownload && (
+              <div className="relative inline-block" ref={downloadDropdownRef}>
                 <Button
                   type="button"
                   size="md"
                   variant="outline"
-                  className="group h-11 w-56 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
+                  className="group h-11 w-40 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
                 >
-                  <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
-                  Go Back
+                  <span className="inline-flex items-center gap-2">
+                    <Download className="h-4 w-4 text-blue-600" />
+                    Download
+                  </span>
+                  <ChevronUp
+                    className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
+                    style={{ transform: downloadDropdownOpen ? "rotate(180deg)" : "none" }}
+                  />
                 </Button>
-              </Popover.Trigger>
-              <Popover.Content side="top" align="start" className="w-56 z-[1001]">
-                <div className="flex flex-col py-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const dashboardUrl = backToUrl.startsWith("/purchase")
-                        ? "/dashboard/purchase"
-                        : "/dashboard/sales";
-                      void navigate({
-                        to: dashboardUrl,
-                        search: { period: "week" },
-                        viewTransition: true,
-                      });
-                    }}
-                    className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
-                  >
-                    <LayoutDashboard className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
-                    <span className="flex flex-col">
-                      <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
-                        Back to Dashboard
-                      </span>
-                      <span className="text-[10px] text-zinc-400 mt-0.5">Go to main dashboard</span>
-                    </span>
-                  </button>
-                  <div className="border-t border-zinc-100" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void navigate({
-                        to: backToUrl,
-                        search: { limit: 10, page: 1 },
-                        viewTransition: true,
-                      });
-                    }}
-                    className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
-                  >
-                    <Table className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-650 transition-colors" />
-                    <span className="flex flex-col">
-                      <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
-                        Back to Table
-                      </span>
-                      <span className="text-[10px] text-zinc-400 mt-0.5">Go to document table</span>
-                    </span>
-                  </button>
-                </div>
-              </Popover.Content>
-            </Popover.Root>
-          ) : (
-            <Button
-              type="button"
-              size="md"
-              variant="outline"
-              onClick={() =>
-                navigate({ search: { limit: 10, page: 1 }, to: backToUrl, viewTransition: true })
-              }
-              className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
-            >
-              <span className="inline-flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
-                {backToLabel}
-              </span>
-            </Button>
-          )}
+
+                {downloadDropdownOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 z-50 w-40 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdownOpen(false);
+                        onDownload("pdf");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4 text-zinc-400" />
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdownOpen(false);
+                        onDownload("excel");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-zinc-400" />
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdownOpen(false);
+                        onDownload("word");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4 text-zinc-400" />
+                      Word
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
-            {disabledReason && !isSubmitting ? (
+            {!isSaved && disabledReason && !isSubmitting ? (
               showRequiredHints ? (
                 missingMandatoryFields.length > 0 && mandatoryFieldsTotal > 0 ? (
                   <Tooltip
@@ -490,80 +555,67 @@ export function BaseProductSection({
                 )
               ) : null
             ) : null}
-            {secondaryActions}
+            {!isSaved && secondaryActions}
             {isSaved && savedDocNum && onDownload && (
-              <div className="flex items-center gap-2">
-                {onReset && (
-                  <Button
-                    type="button"
-                    size="md"
-                    variant="outline"
-                    onClick={onReset}
-                    className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer flex items-center gap-2"
-                  >
-                    <RefreshCw className="h-4 w-4 text-blue-600 transition-transform duration-300 group-hover:rotate-180" />
-                    Reset to Default
-                  </Button>
-                )}
-                <div className="relative inline-block" ref={downloadDropdownRef}>
-                  <Button
-                    type="button"
-                    size="md"
-                    variant="outline"
-                    onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
-                    className="group h-11 w-40 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <Download className="h-4 w-4 text-blue-600" />
-                      Download
-                    </span>
-                    <ChevronUp
-                      className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
-                      style={{ transform: downloadDropdownOpen ? "rotate(180deg)" : "none" }}
-                    />
-                  </Button>
+              <div className="relative inline-block" ref={downloadDropdownRef}>
+                <Button
+                  type="button"
+                  size="md"
+                  variant="outline"
+                  onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
+                  className="group h-11 w-40 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Download className="h-4 w-4 text-blue-600" />
+                    Download
+                  </span>
+                  <ChevronUp
+                    className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
+                    style={{ transform: downloadDropdownOpen ? "rotate(180deg)" : "none" }}
+                  />
+                </Button>
 
-                  {downloadDropdownOpen && (
-                    <div className="absolute bottom-full left-0 mb-2 z-50 w-40 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDownloadDropdownOpen(false);
-                          onDownload("pdf");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                      >
-                        <FileText className="h-4 w-4 text-zinc-400" />
-                        PDF
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDownloadDropdownOpen(false);
-                          onDownload("excel");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                      >
-                        <FileSpreadsheet className="h-4 w-4 text-zinc-400" />
-                        Excel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDownloadDropdownOpen(false);
-                          onDownload("word");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                      >
-                        <FileText className="h-4 w-4 text-zinc-400" />
-                        Word
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {downloadDropdownOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 z-50 w-40 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdownOpen(false);
+                        onDownload("pdf");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4 text-zinc-400" />
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdownOpen(false);
+                        onDownload("excel");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-zinc-400" />
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadDropdownOpen(false);
+                        onDownload("word");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4 text-zinc-400" />
+                      Word
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-            {showSubmitButton &&
+            {!isSaved &&
+              showSubmitButton &&
               (isEditMode ? (
                 <Button
                   type="button"

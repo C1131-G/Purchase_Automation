@@ -195,6 +195,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     if (hydratedDocNumRef.current === `SQ-${currentSourceDocNum}`) {
       return;
     }
+    hydratedDocNumRef.current = `SQ-${currentSourceDocNum}`;
 
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("Sales Order", "create");
@@ -230,6 +231,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     const comments = rawComments || `Based on Sales Quotation ${currentSourceDocNum}`;
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(detail.Address ?? "").trim();
+    const address2 = String((detail as Record<string, unknown>).Address2 ?? "").trim();
 
     void (async () => {
       try {
@@ -324,7 +326,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         );
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
-        lookups.setShipToAddress(address);
+        lookups.setShipToAddress(address2);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
@@ -360,6 +362,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     if (!detail) {
       return;
     }
+    hydratedDocNumRef.current = currentDocNum;
 
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("Sales Order", "edit");
@@ -397,6 +400,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(detail.Address ?? "").trim();
+    const address2 = String((detail as Record<string, unknown>).Address2 ?? "").trim();
     void (async () => {
       try {
         const detailLines = detail.DocumentLines ?? [];
@@ -490,7 +494,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         );
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
-        lookups.setShipToAddress(address);
+        lookups.setShipToAddress(address2);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
@@ -501,7 +505,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           salesEmployee: associatedSalesEmployeeName.trim(),
           warehouseCode: warehouseCode.trim(),
           billToAddress: formatAddressForDisplay(address).trim(),
-          shipToAddress: formatAddressForDisplay(address).trim(),
+          shipToAddress: formatAddressForDisplay(address2).trim(),
           productRows: mappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
@@ -784,7 +788,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       );
       const payload = isEditMode
         ? {
-            Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+            Address: lookups.billToAddress.trim() || undefined,
+            Address2: lookups.shipToAddress.trim() || undefined,
             Comments: header.comments.trim() || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             DocDate: header.docDate,
@@ -813,7 +818,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             SalesPersonCode: resolvedSalesEmployeeCode,
           }
         : {
-            Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+            Address: lookups.billToAddress.trim() || undefined,
+            Address2: lookups.shipToAddress.trim() || undefined,
             CardCode: (header.vendorCode || lookups.codeInput).trim(),
             Comments: header.comments.trim() || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
@@ -893,7 +899,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
     const payload = isEditMode
       ? {
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
@@ -921,7 +928,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
       : {
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
@@ -1001,11 +1009,6 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   };
 
   const submitSalesOrderMutation = isEditMode ? updateSalesOrderMutation : createSalesOrderMutation;
-
-  const isClosed =
-    editDetailQuery.data?.data?.DocStatus === "Closed" ||
-    editDetailQuery.data?.data?.DocStatus === "C";
-
   const isDirty = useMemo(() => {
     if (!isEditMode || !formSnapshot) {
       return false;
@@ -1042,7 +1045,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     productsHook.productRows,
   ]);
 
-  const submitDisabled = isEditMode ? !isDirty || isClosed : false;
+  const submitDisabled = isEditMode ? !isDirty : false;
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),
