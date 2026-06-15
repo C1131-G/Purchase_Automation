@@ -306,6 +306,7 @@ export const updateCreditNote = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;
     }

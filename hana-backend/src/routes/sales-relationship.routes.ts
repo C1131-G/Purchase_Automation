@@ -25,7 +25,7 @@ router.get("/:docType/:docEntry", async (req: Request, res: Response) => {
       "ar-invoice",
       "ar-credit-memo",
       "incoming-payment",
-    ].includes(docType);
+    ].includes(docType as string);
     const isAP = [
       "purchase-quotation",
       "purchase-order",
@@ -33,7 +33,7 @@ router.get("/:docType/:docEntry", async (req: Request, res: Response) => {
       "ap-invoice",
       "ap-credit-memo",
       "outgoing-payment",
-    ].includes(docType);
+    ].includes(docType as string);
 
     if (!docType || (!isAR && !isAP)) {
       res.status(400).json({ success: false, message: "Invalid docType" });

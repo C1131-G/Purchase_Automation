@@ -95,7 +95,7 @@ export const adjustPayloadDates = async (
       sapPayload.DocDueDate = adjustedDate;
       docDueDateAdjusted = true;
       docDueDateOrig = original;
-      docDueDateNew = adjustedDate;
+      docDueDateNew = adjustedDate || "";
     }
   }
 

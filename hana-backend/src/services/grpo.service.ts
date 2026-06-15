@@ -507,6 +507,7 @@ export const updateGRPO = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
     if (Object.hasOwn(payload, "Comments")) {
       sapPayload.Comments = payload.Comments;
     }
