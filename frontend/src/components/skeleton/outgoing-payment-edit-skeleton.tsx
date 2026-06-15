@@ -26,12 +26,14 @@ export function OutgoingPaymentEditSkeleton() {
   return (
     <div className="w-full bg-zinc-50 p-3 pb-20">
       {/* Breadcrumb bar - matching CreatePageWrapper exactly */}
-      <div className="mb-3 inline-flex items-center gap-2 whitespace-nowrap rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-        <Pulse className="h-3 w-32" />
-        <Pulse className="size-3.5 rounded-sm bg-zinc-200" />
+      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
+        <Pulse className="h-3 w-16" />
+        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="h-3 w-20" />
+        <Pulse className="size-3 rounded-sm bg-zinc-200" />
         <Pulse className="h-3 w-36" />
-        <Pulse className="size-3.5 rounded-sm bg-zinc-200" />
-        <Pulse className="h-3 w-44" />
+        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="h-3 w-28" />
       </div>
 
       {/* Row 1: Vendor Info | Payment Details */}

@@ -116,13 +116,26 @@ export function TableToolbar<TData>({
         {/* Left Side: Breadcrumb */}
         <div className="flex items-center gap-2">
           {breadcrumb ? (
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-              <span>{breadcrumb.section}</span>
-              <ChevronRight className="size-3.5 text-zinc-300" />
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
+              <span className="text-zinc-500">{breadcrumb.section}</span>
+              <ChevronRight className="size-3 text-zinc-300" />
+              <Link
+                to={
+                  breadcrumb.section.toLowerCase() === "sales"
+                    ? "/dashboard/sales"
+                    : "/dashboard/purchase"
+                }
+                search={{ period: "week" }}
+                preload="intent"
+                className="text-zinc-400 transition-colors hover:text-blue-600"
+              >
+                {breadcrumb.section} Dashboard
+              </Link>
+              <ChevronRight className="size-3 text-zinc-300" />
               <Link
                 to={breadcrumb.href}
                 preload="intent"
-                className="text-blue-600 hover:text-blue-700"
+                className="font-semibold text-zinc-800 transition-colors hover:text-blue-600"
               >
                 {breadcrumb.page}
               </Link>

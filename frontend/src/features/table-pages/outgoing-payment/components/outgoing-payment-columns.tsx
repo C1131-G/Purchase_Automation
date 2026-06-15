@@ -9,6 +9,7 @@ import {
   matchesDateRange,
   matchesNumberComparison,
 } from "@/features/table-pages/table-shared/utils/table-filter-values";
+import { formatDocTotal } from "@/features/table-pages/table-shared/utils/currency-formatter";
 
 const columnHelper = createColumnHelper<OutgoingPaymentListItem>();
 
@@ -96,13 +97,8 @@ export const createOutgoingPaymentColumns = (options?: CreateOutgoingPaymentColu
   }),
   columnHelper.accessor("DocTotal", {
     cell: (info) => {
-      const amount = Number.parseFloat(String(info.getValue() ?? 0));
       const currency = info.row.original.DocCurr ?? "";
-      const formattedAmount = new Intl.NumberFormat("en-IN", {
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 2,
-      }).format(amount);
-      return `${currency} ${formattedAmount}`.trim();
+      return formatDocTotal(info.getValue(), currency);
     },
     enableColumnFilter: true,
     filterFn: (_row, _columnId, filterValue) =>

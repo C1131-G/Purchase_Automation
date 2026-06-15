@@ -111,12 +111,14 @@ export function CreatePageRouteSkeleton() {
       )}
 
       {/* Breadcrumb bar */}
-      <div className="mb-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-        <Pulse className="h-3 w-32" />
+      <div className="mb-3 inline-flex flex-wrap items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
+        <Pulse className="h-3 w-16" />
         <Pulse className="size-3 rounded-sm bg-zinc-200" />
-        <Pulse className="h-3 w-44" />
+        <Pulse className="h-3 w-20" />
         <Pulse className="size-3 rounded-sm bg-zinc-200" />
-        <Pulse className="h-3 w-32" />
+        <Pulse className="h-3 w-36" />
+        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="h-3 w-28" />
       </div>
 
       {/* Relationship Map Placeholder for Edit Pages */}

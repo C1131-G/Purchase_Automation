@@ -10,7 +10,8 @@ interface BreadcrumbItem {
 }
 
 interface CreatePageWrapperProps {
-  dashboardName: string; // e.g., "Purchase Dashboard" or "Sales Dashboard"
+  /** @deprecated section is derived from dashboardUrl automatically */
+  dashboardName?: string;
   dashboardUrl: string; // e.g., "/dashboard/purchase" or "/dashboard/sales"
   breadcrumbParent: BreadcrumbItem;
   pageTitle: string;
@@ -24,7 +25,6 @@ interface CreatePageWrapperProps {
  * Handles consistent spacing, breadcrumbs, and error boundaries for edit hydration.
  */
 export function CreatePageWrapper({
-  dashboardName,
   dashboardUrl,
   breadcrumbParent,
   pageTitle,
@@ -42,31 +42,35 @@ export function CreatePageWrapper({
     );
   }
 
+  const section = dashboardUrl.includes("sales") ? "Sales" : "Purchase";
+
   return (
     <div className="relative w-full bg-zinc-50 p-3 pb-20">
       {/* Top Actions - Positioned absolute top-right */}
       {topActions && <div className="absolute right-3 top-3 z-10">{topActions}</div>}
 
-      <div className="mb-3 inline-flex items-center gap-2 whitespace-nowrap rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 text-xs font-medium tracking-normal text-zinc-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
+        <span className="text-zinc-500">{section}</span>
+        <ChevronRight className="size-3 text-zinc-300" />
         <Link
           to={dashboardUrl}
-          className="cursor-pointer text-blue-600 hover:text-blue-700"
+          className="text-zinc-400 transition-colors hover:text-blue-600"
           viewTransition
         >
-          {dashboardName}
+          {section} Dashboard
         </Link>
-        <ChevronRight className="size-3.5 text-zinc-300" />
+        <ChevronRight className="size-3 text-zinc-300" />
         <Link
           to={breadcrumbParent.to}
           search={breadcrumbParent.search || { limit: 10, page: 1 }}
-          className="cursor-pointer text-blue-600 hover:text-blue-700"
+          className="text-zinc-400 transition-colors hover:text-blue-600"
           onMouseEnter={breadcrumbParent.onMouseEnter}
           viewTransition
         >
           {breadcrumbParent.label}
         </Link>
-        <ChevronRight className="size-3.5 text-zinc-300" />
-        <span className="text-zinc-700">{pageTitle}</span>
+        <ChevronRight className="size-3 text-zinc-300" />
+        <span className="font-semibold text-zinc-800">{pageTitle}</span>
       </div>
 
       {children}

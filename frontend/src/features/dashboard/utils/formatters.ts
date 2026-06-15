@@ -1,17 +1,34 @@
 export function formatCurrency(
   value: number | undefined | null,
-  currencyCode: string = "USD",
+  currencyCode: string = "FJD",
   isCompact = false,
 ): string {
   if (value === undefined || value === null || isNaN(value)) return "—";
 
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-    notation: isCompact ? "compact" : "standard",
-    maximumFractionDigits: isCompact ? 1 : 2,
-    minimumFractionDigits: isCompact ? 0 : 2,
-  }).format(value);
+  // Sanitize currencyCode if it's '$' or empty
+  let cleanCurrency = String(currencyCode || "").trim();
+  if (cleanCurrency === "$" || !cleanCurrency) {
+    cleanCurrency = "FJD";
+  }
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: cleanCurrency,
+      notation: isCompact ? "compact" : "standard",
+      maximumFractionDigits: isCompact ? 1 : 2,
+      minimumFractionDigits: isCompact ? 0 : 2,
+    }).format(value);
+  } catch {
+    // If it throws (e.g., invalid 3-letter code not recognized by Intl),
+    // fall back to standard decimal number formatting and prepend the raw currency symbol/code.
+    const formattedNum = new Intl.NumberFormat("en-US", {
+      notation: isCompact ? "compact" : "standard",
+      maximumFractionDigits: isCompact ? 1 : 2,
+      minimumFractionDigits: isCompact ? 0 : 2,
+    }).format(value);
+    return `${currencyCode} ${formattedNum}`.trim();
+  }
 }
 
 export function formatPercent(value: number | undefined | null, decimals = 1): string {

@@ -57,9 +57,11 @@ function ToolbarSkeleton() {
       <div className="flex items-center justify-between px-6 py-3">
         {/* Left: breadcrumb pill */}
         <div className="flex items-center gap-2">
-          {/* Breadcrumb pill: rounded-2xl border, "Section > Page" */}
-          <div className="inline-flex items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 py-2 shadow-sm">
+          {/* Breadcrumb pill: rounded-full border, "Section > Dashboard > Page" */}
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 shadow-xs">
             <div className="h-3 w-14 rounded bg-zinc-200 animate-pulse" />
+            <div className="size-3 rounded bg-zinc-100 animate-pulse" />
+            <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
             <div className="size-3 rounded bg-zinc-100 animate-pulse" />
             <div className="h-3 w-36 rounded bg-zinc-300 animate-pulse" />
           </div>
