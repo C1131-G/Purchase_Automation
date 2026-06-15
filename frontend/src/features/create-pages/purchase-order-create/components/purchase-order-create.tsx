@@ -139,7 +139,7 @@ export function PurchaseOrderCreate({
       dashboardName="Purchase Dashboard"
       dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
-        label: "Purchase Orders",
+        label: "Purchase Orders Data Table",
         onMouseEnter: () =>
           void queryClient.prefetchQuery(purchaseOrderQueries.list({ limit: 10, page: 1 })),
         to: "/purchase/orders",

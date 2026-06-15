@@ -131,7 +131,7 @@ export function GRPOCreate({
       dashboardName="Purchase Dashboard"
       dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
-        label: "GRPO",
+        label: "GRPO Data Table",
         to: "/purchase/grpo",
       }}
       pageTitle={state.isEditMode ? `Update GRPO ${docNum}` : "Create GRPO"}

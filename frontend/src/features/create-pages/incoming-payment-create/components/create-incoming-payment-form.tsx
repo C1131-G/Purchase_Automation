@@ -317,7 +317,7 @@ export function CreateIncomingPaymentForm() {
         dashboardName="Sales Dashboard"
         dashboardUrl="/dashboard/sales"
         breadcrumbParent={{
-          label: "Incoming Payments",
+          label: "Incoming Payments Data Table",
           to: "/sales/incoming-payment",
         }}
         pageTitle="Create Incoming Payment"

@@ -36,6 +36,7 @@ interface SalesOrderProductSectionProps {
   submitLoadingText?: string;
   secondaryActions?: ReactNode;
   onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  isEditMode?: boolean;
   isSaved?: boolean;
   savedDocNum?: string | number | null;
   onDownload?: (type: "pdf" | "excel" | "word") => void;
@@ -78,6 +79,7 @@ export function SalesOrderProductSection({
   submitLoadingText = "Creating...",
   secondaryActions,
   onSubmitMode,
+  isEditMode = false,
   isSaved = false,
   savedDocNum = null,
   onDownload,
@@ -121,6 +123,7 @@ export function SalesOrderProductSection({
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
       mandatoryFieldsTotal={SALES_ORDER_MANDATORY_FIELDS.length}
+      isEditMode={isEditMode}
     >
       <CreateProductTable
         productRows={productRows}

@@ -360,7 +360,7 @@ export function CreateOutgoingPaymentForm() {
         dashboardName="Purchase Dashboard"
         dashboardUrl="/dashboard/purchase"
         breadcrumbParent={{
-          label: "Outgoing Payments",
+          label: "Outgoing Payments Data Table",
           to: "/purchase/outgoing-payment",
         }}
         pageTitle="Create Outgoing Payment"

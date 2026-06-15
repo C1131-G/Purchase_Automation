@@ -282,6 +282,7 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
           missingMandatoryFields={state.missingMandatoryFields}
           requiredCompletionPercent={state.requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
+          isEditMode={state.isEditMode}
           onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}

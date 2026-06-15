@@ -148,7 +148,7 @@ export function APInvoiceCreate({
       dashboardName="Purchase Dashboard"
       dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
-        label: "A/P Invoice",
+        label: "A/P Invoice Data Table",
         to: "/purchase/ap-invoice",
       }}
       pageTitle={state.isEditMode ? `Update A/P Invoice ${docNum}` : "Create A/P Invoice"}

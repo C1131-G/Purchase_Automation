@@ -63,7 +63,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
         dashboardName="Purchase Dashboard"
         dashboardUrl="/dashboard/purchase"
         breadcrumbParent={{
-          label: "Outgoing Payments",
+          label: "Outgoing Payments Data Table",
           to: "/purchase/outgoing-payment",
         }}
         pageTitle={`Outgoing Payment ${docNum}`}

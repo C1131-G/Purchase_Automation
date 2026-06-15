@@ -389,6 +389,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
           requiredCompletionPercent={state.requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
           onSubmitMode={state.handleCreateOrder}
+          isEditMode={state.isEditMode}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
           onDownload={(type) => {

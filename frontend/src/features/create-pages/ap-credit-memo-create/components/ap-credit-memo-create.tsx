@@ -112,7 +112,7 @@ export function APCreditMemoCreate({
       dashboardName="Purchase Dashboard"
       dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
-        label: "A/P Credit Memos",
+        label: "A/P Credit Memos Data Table",
         to: "/purchase/ap-credit-memos",
       }}
       pageTitle={pageTitle}
