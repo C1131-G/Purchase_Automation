@@ -1,4 +1,4 @@
-import { BadgePercent, LayoutDashboard, ShoppingCart } from "lucide-react";
+import { BadgePercent, Boxes, LayoutDashboard, ShoppingCart } from "lucide-react";
 
 import {
   SidebarContent,
@@ -54,6 +54,24 @@ export function ShellLayoutNavigation({
                   isActive={pathname === "/dashboard/sales"}
                 >
                   Sales
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/dashboard/inventory-adjustment"
+                  search={{ period: "week" } as any}
+                  isActive={pathname === "/dashboard/inventory-adjustment"}
+                >
+                  Inventory Adjustment
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/dashboard/inventory-transfer"
+                  search={{ period: "week" } as any}
+                  isActive={pathname === "/dashboard/inventory-transfer"}
+                >
+                  Inventory Transfer
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
@@ -236,6 +254,66 @@ export function ShellLayoutNavigation({
                   }
                 >
                   Incoming Payment
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            </SidebarMenuCollapsible>
+
+            <SidebarMenuCollapsible
+              title="Inventory"
+              icon={Boxes}
+              isOpen={isSectionOpen("inventory")}
+              onToggle={() => onToggleSection("inventory")}
+              isActive={pathname.startsWith("/inventory")}
+            >
+              <div className="text-[10px] font-bold text-zinc-400/80 tracking-wider uppercase pl-2 pt-2 pb-0.5 select-none first:pt-1">
+                Inventory Adjustment
+              </div>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/inventory/goods-receipt"
+                  isActive={
+                    pathname === "/inventory/goods-receipt" ||
+                    pathname.startsWith("/inventory/goods-receipt/")
+                  }
+                >
+                  Goods Receipt
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/inventory/goods-issue"
+                  isActive={
+                    pathname === "/inventory/goods-issue" ||
+                    pathname.startsWith("/inventory/goods-issue/")
+                  }
+                >
+                  Goods Issue
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+
+              <div className="text-[10px] font-bold text-zinc-400/80 tracking-wider uppercase pl-2 pt-4 pb-0.5 select-none">
+                Inventory Transfer
+              </div>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/inventory/transfer-request"
+                  isActive={
+                    pathname === "/inventory/transfer-request" ||
+                    pathname.startsWith("/inventory/transfer-request/")
+                  }
+                >
+                  Inventory Transfer Request
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/inventory/transfer"
+                  isActive={
+                    pathname === "/inventory/transfer" ||
+                    pathname.startsWith("/inventory/transfer/")
+                  }
+                >
+                  Inventory Transfer
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
