@@ -108,8 +108,8 @@ function FilterContent<TData>({
     window.setTimeout(() => setOpen(false), CLOSE_SMOOTH_DELAY_MS);
   };
 
-  const handleFilterChange = (columnId: string) => {
-    const action = resolveFilterToggleAction(columnId, activeFilter, rawColumnFilters);
+  const handleFilterChange = (columnId: string, source: "name" | "checkmark") => {
+    const action = resolveFilterToggleAction(columnId, activeFilter, rawColumnFilters, source);
 
     if (action.type === "clear") {
       closeSmooth();
@@ -166,12 +166,12 @@ function FilterContent<TData>({
                 >
                   <button
                     type="button"
-                    onClick={() => handleFilterChange(columnId)}
+                    onClick={() => handleFilterChange(columnId, "name")}
                     aria-pressed={isChecked}
-                    aria-label={`Toggle filter ${columnName} `}
+                    aria-label={`Edit filter ${columnName} `}
                     className={cn(
                       "truncate transition-colors cursor-pointer text-left flex-1",
-                      hasValue
+                      isActive
                         ? "text-blue-500 font-medium"
                         : "text-zinc-700 font-medium hover:text-blue-600",
                     )}
@@ -181,7 +181,7 @@ function FilterContent<TData>({
 
                   <button
                     type="button"
-                    onClick={() => handleFilterChange(columnId)}
+                    onClick={() => handleFilterChange(columnId, "checkmark")}
                     aria-pressed={isChecked}
                     aria-label={`${isChecked ? "Disable" : "Enable"} filter ${columnName} `}
                     className={cn(

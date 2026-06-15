@@ -116,13 +116,22 @@ function resolveCreateFilterToggleAction(
   key: OutgoingPaymentCreateFilterKey,
   activeKey: OutgoingPaymentCreateFilterKey | null,
   state: OutgoingPaymentCreateFilterState,
+  source: "name" | "checkmark",
 ): CreateFilterToggleAction {
   const hasValue = filterFieldHasValue(key, state);
 
-  if (hasValue) {
-    const remainingKeys = FILTER_KEYS.filter((k) => k !== key && filterFieldHasValue(k, state));
-    const nextActiveKey = activeKey === key ? (remainingKeys[0] ?? null) : activeKey;
-    return { nextActiveKey, type: "clear" };
+  if (source === "checkmark") {
+    if (hasValue) {
+      const remainingKeys = FILTER_KEYS.filter((k) => k !== key && filterFieldHasValue(k, state));
+      const nextActiveKey = activeKey === key ? (remainingKeys[0] ?? null) : activeKey;
+      return { nextActiveKey, type: "clear" };
+    }
+
+    if (activeKey === key) {
+      return { type: "deactivate" };
+    }
+
+    return { type: "deactivate" };
   }
 
   if (activeKey === key) {
@@ -613,34 +622,40 @@ function OutgoingPaymentCreateFiltersContent({
   const filterSections = useMemo(
     () => [
       {
-        active: activeFilterKey === "docType" || value.docType !== "all",
         key: "docType" as const,
         label: "Doc Type",
+        isActive: activeFilterKey === "docType",
+        hasValue: value.docType !== "all",
       },
       {
-        active: activeFilterKey === "docNumber" || value.docNumber.trim().length > 0,
         key: "docNumber" as const,
         label: "Doc Number",
+        isActive: activeFilterKey === "docNumber",
+        hasValue: value.docNumber.trim().length > 0,
       },
       {
-        active: activeFilterKey === "docDate" || hasDateRangeValue(value.docDate),
         key: "docDate" as const,
         label: "Doc Date",
+        isActive: activeFilterKey === "docDate",
+        hasValue: hasDateRangeValue(value.docDate),
       },
       {
-        active: activeFilterKey === "docTotal" || value.docTotal.value.trim().length > 0,
         key: "docTotal" as const,
         label: "Doc Total",
+        isActive: activeFilterKey === "docTotal",
+        hasValue: value.docTotal.value.trim().length > 0,
       },
       {
-        active: activeFilterKey === "balanceDue" || value.balanceDue.value.trim().length > 0,
         key: "balanceDue" as const,
         label: "Balance Due",
+        isActive: activeFilterKey === "balanceDue",
+        hasValue: value.balanceDue.value.trim().length > 0,
       },
       {
-        active: activeFilterKey === "totalPayment" || value.totalPayment.value.trim().length > 0,
         key: "totalPayment" as const,
         label: "Total Payment",
+        isActive: activeFilterKey === "totalPayment",
+        hasValue: value.totalPayment.value.trim().length > 0,
       },
     ],
     [activeFilterKey, value],
@@ -656,48 +671,62 @@ function OutgoingPaymentCreateFiltersContent({
         <div className="px-1.5 py-1.5">
           <div className="flex flex-col gap-px">
             {filterSections.map((section) => (
-              <button
+              <div
                 key={section.key}
-                type="button"
-                onClick={() => {
-                  const action = resolveCreateFilterToggleAction(
-                    section.key,
-                    activeFilterKey,
-                    value,
-                  );
-                  if (action.type === "activate") {
-                    onActiveFilterChange(section.key);
-                  } else if (action.type === "deactivate") {
-                    onActiveFilterChange(null);
-                  } else if (action.type === "clear") {
-                    onChange(clearFilterField(value, section.key));
-                    onActiveFilterChange(action.nextActiveKey);
-                  }
-                  setOpen(false);
-                }}
                 className="group flex items-center justify-between rounded-md px-2 py-2 text-[12px] select-none border border-transparent transition-colors hover:bg-zinc-50 text-zinc-900"
               >
-                <span
+                <button
+                  type="button"
+                  onClick={() => {
+                    const action = resolveCreateFilterToggleAction(
+                      section.key,
+                      activeFilterKey,
+                      value,
+                      "name",
+                    );
+                    if (action.type === "activate") {
+                      onActiveFilterChange(section.key);
+                    } else if (action.type === "deactivate") {
+                      onActiveFilterChange(null);
+                    }
+                    setOpen(false);
+                  }}
                   className={cn(
                     "truncate transition-colors cursor-pointer text-left flex-1",
-                    section.active
+                    section.isActive
                       ? "text-blue-500 font-medium"
                       : "text-zinc-700 font-medium hover:text-blue-600",
                   )}
                 >
                   {section.label}
-                </span>
-                <span
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const action = resolveCreateFilterToggleAction(
+                      section.key,
+                      activeFilterKey,
+                      value,
+                      "checkmark",
+                    );
+                    if (action.type === "clear") {
+                      onChange(clearFilterField(value, section.key));
+                      onActiveFilterChange(action.nextActiveKey);
+                    } else if (action.type === "deactivate") {
+                      onActiveFilterChange(null);
+                    }
+                    setOpen(false);
+                  }}
                   className={cn(
                     "ml-2 flex items-center justify-center size-4 rounded border transition-all cursor-pointer shrink-0",
-                    section.active
+                    section.isActive || section.hasValue
                       ? "bg-blue-500 border-blue-500 text-white shadow-sm"
                       : "border-zinc-300 bg-white text-transparent hover:border-blue-400 hover:bg-blue-50/50",
                   )}
                 >
                   <Check className="size-2.5" strokeWidth={3} />
-                </span>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         </div>
