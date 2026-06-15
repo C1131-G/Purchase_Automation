@@ -176,6 +176,7 @@ export function CreateProductTableRow({
   const [lookupOpen, setLookupOpen] = React.useState(false);
   const blurTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const warehouseInputRef = React.useRef<HTMLInputElement>(null);
+  const isEditingRef = React.useRef(false);
   const [dropdownStyle, setDropdownStyle] = React.useState<React.CSSProperties | null>(null);
 
   const effectiveMaxQuantity = React.useMemo(() => {
@@ -235,6 +236,9 @@ export function CreateProductTableRow({
   }, [row.warehouseCode, warehouses]);
 
   React.useEffect(() => {
+    if (isEditingRef.current) {
+      return;
+    }
     // Keep inline display aligned with committed row value when selection changes externally.
     setWarehouseInput(committedWarehouseName);
   }, [committedWarehouseName]);
@@ -324,6 +328,7 @@ export function CreateProductTableRow({
 
   const handleWarehouseBlur = () => {
     blurTimerRef.current = setTimeout(() => {
+      isEditingRef.current = false;
       setWarehouseFocused(false);
       setDropdownStyle(null);
     }, 150);
@@ -338,12 +343,14 @@ export function CreateProductTableRow({
     warehouses.find((w) => w.code.toLowerCase() === value.trim().toLowerCase());
 
   const selectWarehouseInRow = (item: CreateLookupOption) => {
+    isEditingRef.current = false;
     setWarehouseInput(item.name);
     setWarehouseFocused(false);
     handleSelectWarehouse(item);
   };
 
   const handleWarehouseChange = (value: string) => {
+    isEditingRef.current = true;
     setWarehouseInput(value);
     if (value.trim() === "") {
       setWarehouseFocused(true);
@@ -542,7 +549,6 @@ export function CreateProductTableRow({
                   }}
                   containerClassName="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl"
                   showStock
-                  showCode
                   query={warehouseInput}
                 />
               </div>,
