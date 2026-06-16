@@ -1085,6 +1085,8 @@ export function useAPCreditMemoCreate({
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           SalesPersonCode: resolvedBuyerCode,
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
         };
         return JSON.stringify(updatePayload);
       }
@@ -1147,6 +1149,8 @@ export function useAPCreditMemoCreate({
         ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
         ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
         ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
+        Address: billToAddress.trim() || undefined,
+        Address2: shipToAddress.trim() || undefined,
         DocumentLines: buildDocumentLines(),
         SalesPersonCode: resolvedBuyerCode,
       };

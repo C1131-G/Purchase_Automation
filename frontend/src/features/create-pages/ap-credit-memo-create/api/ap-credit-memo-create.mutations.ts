@@ -9,6 +9,8 @@ export interface CreateAPCreditMemoInput {
   DocDate?: string;
   DocDueDate?: string;
   Comments?: string;
+  Address?: string | undefined;
+  Address2?: string | undefined;
   DocumentLines: {
     ItemCode: string;
     Quantity: number;
@@ -31,6 +33,8 @@ export interface UpdateAPCreditMemoInput {
   Comments?: string | undefined;
   NumAtCard?: string | undefined;
   SalesPersonCode?: number | undefined;
+  Address?: string | undefined;
+  Address2?: string | undefined;
 }
 
 export function useCreateAPCreditMemo() {

@@ -107,54 +107,52 @@ export function AddressGrid({
               </span>
             </label>
 
-            {billToOptions.length > 0 && (
-              <div className="mb-2">
-                <Select
-                  disabled={readOnly}
-                  value={billToSelectValue}
-                  onValueChange={(val) => {
-                    if (val === "custom") return;
-                    const opt = billToOptions.find((o) => o.addressName === val);
-                    if (opt) {
-                      onBillToAddressChange(opt.addressText);
-                    }
-                  }}
+            <div className="mb-2">
+              <Select
+                disabled={readOnly || billToOptions.length === 0}
+                value={billToSelectValue}
+                onValueChange={(val) => {
+                  if (val === "custom") return;
+                  const opt = billToOptions.find((o) => o.addressName === val);
+                  if (opt) {
+                    onBillToAddressChange(opt.addressText);
+                  }
+                }}
+              >
+                <Select.Trigger
+                  className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
+                    readOnly || billToOptions.length === 0
+                      ? "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
+                  }`}
                 >
-                  <Select.Trigger
-                    className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
-                      readOnly
-                        ? "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
-                    }`}
-                  >
-                    <Select.Value placeholder="Select Address" labelMap={billToLabelMap} />
-                    <Select.Icon>
-                      <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
-                    </Select.Icon>
-                  </Select.Trigger>
-                  <Select.Portal>
-                    <Select.Positioner className="z-50">
-                      <Select.Popup className="max-h-60 overflow-y-auto border border-zinc-200/80 bg-white shadow-lg p-1">
-                        <Select.List className="p-0 space-y-0.5">
-                          {billToOptions.map((opt) => (
-                            <Select.Item key={opt.addressName} value={opt.addressName}>
-                              <div className="text-left text-[11px] text-zinc-700 whitespace-pre-line py-0.5 leading-relaxed">
-                                {opt.addressText}
-                              </div>
-                            </Select.Item>
-                          ))}
-                          {billToAddress.trim() && !matchedBillToOpt && (
-                            <Select.Item value="custom">
-                              <span className="italic text-zinc-400 text-xs">Custom Address</span>
-                            </Select.Item>
-                          )}
-                        </Select.List>
-                      </Select.Popup>
-                    </Select.Positioner>
-                  </Select.Portal>
-                </Select>
-              </div>
-            )}
+                  <Select.Value placeholder="Change Address" labelMap={billToLabelMap} />
+                  <Select.Icon>
+                    <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                  </Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Positioner className="z-50">
+                    <Select.Popup className="max-h-60 overflow-y-auto border border-zinc-200/80 bg-white shadow-lg p-1">
+                      <Select.List className="p-0 space-y-0.5">
+                        {billToOptions.map((opt) => (
+                          <Select.Item key={opt.addressName} value={opt.addressName}>
+                            <div className="text-left text-[11px] text-zinc-700 whitespace-pre-line py-0.5 leading-relaxed">
+                              {opt.addressText}
+                            </div>
+                          </Select.Item>
+                        ))}
+                        {billToAddress.trim() && !matchedBillToOpt && (
+                          <Select.Item value="custom">
+                            <span className="italic text-zinc-400 text-xs">Custom Address</span>
+                          </Select.Item>
+                        )}
+                      </Select.List>
+                    </Select.Popup>
+                  </Select.Positioner>
+                </Select.Portal>
+              </Select>
+            </div>
 
             {loading ? (
               <div className="h-24 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
@@ -198,54 +196,52 @@ export function AddressGrid({
               </span>
             </label>
 
-            {shipToOptions.length > 0 && (
-              <div className="mb-2">
-                <Select
-                  disabled={readOnly}
-                  value={shipToSelectValue}
-                  onValueChange={(val) => {
-                    if (val === "custom") return;
-                    const opt = shipToOptions.find((o) => o.addressName === val);
-                    if (opt) {
-                      onShipToAddressChange(opt.addressText);
-                    }
-                  }}
+            <div className="mb-2">
+              <Select
+                disabled={readOnly || shipToOptions.length === 0}
+                value={shipToSelectValue}
+                onValueChange={(val) => {
+                  if (val === "custom") return;
+                  const opt = shipToOptions.find((o) => o.addressName === val);
+                  if (opt) {
+                    onShipToAddressChange(opt.addressText);
+                  }
+                }}
+              >
+                <Select.Trigger
+                  className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
+                    readOnly || shipToOptions.length === 0
+                      ? "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
+                  }`}
                 >
-                  <Select.Trigger
-                    className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
-                      readOnly
-                        ? "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
-                    }`}
-                  >
-                    <Select.Value placeholder="Select Address" labelMap={shipToLabelMap} />
-                    <Select.Icon>
-                      <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
-                    </Select.Icon>
-                  </Select.Trigger>
-                  <Select.Portal>
-                    <Select.Positioner className="z-50">
-                      <Select.Popup>
-                        <Select.List className="p-0 space-y-0.5 border border-zinc-200/80 bg-white shadow-lg p-1">
-                          {shipToOptions.map((opt) => (
-                            <Select.Item key={opt.addressName} value={opt.addressName}>
-                              <div className="text-left text-[11px] text-zinc-700 whitespace-pre-line py-0.5 leading-relaxed">
-                                {opt.addressText}
-                              </div>
-                            </Select.Item>
-                          ))}
-                          {shipToAddress.trim() && !matchedShipToOpt && (
-                            <Select.Item value="custom">
-                              <span className="italic text-zinc-400 text-xs">Custom Address</span>
-                            </Select.Item>
-                          )}
-                        </Select.List>
-                      </Select.Popup>
-                    </Select.Positioner>
-                  </Select.Portal>
-                </Select>
-              </div>
-            )}
+                  <Select.Value placeholder="Change Address" labelMap={shipToLabelMap} />
+                  <Select.Icon>
+                    <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                  </Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Positioner className="z-50">
+                    <Select.Popup>
+                      <Select.List className="p-0 space-y-0.5 border border-zinc-200/80 bg-white shadow-lg p-1">
+                        {shipToOptions.map((opt) => (
+                          <Select.Item key={opt.addressName} value={opt.addressName}>
+                            <div className="text-left text-[11px] text-zinc-700 whitespace-pre-line py-0.5 leading-relaxed">
+                              {opt.addressText}
+                            </div>
+                          </Select.Item>
+                        ))}
+                        {shipToAddress.trim() && !matchedShipToOpt && (
+                          <Select.Item value="custom">
+                            <span className="italic text-zinc-400 text-xs">Custom Address</span>
+                          </Select.Item>
+                        )}
+                      </Select.List>
+                    </Select.Popup>
+                  </Select.Positioner>
+                </Select.Portal>
+              </Select>
+            </div>
 
             {loading ? (
               <div className="h-24 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />

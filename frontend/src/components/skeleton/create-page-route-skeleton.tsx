@@ -50,8 +50,8 @@ function DatePickerSkeleton() {
   );
 }
 
-/** Skeleton for a plain text input (no icon): label + h-[5.75rem] textarea */
-function InputSkeleton({ height = "h-[5.75rem]" }: { height?: string }) {
+/** Skeleton for a plain text input (no icon): label + h-[115px] textarea */
+function InputSkeleton({ height = "h-[115px]" }: { height?: string }) {
   return (
     <div className="space-y-1.5">
       <Pulse className="h-2.5 w-28" />
@@ -213,7 +213,7 @@ export function CreatePageRouteSkeleton() {
           </div>
         </SectionShell>
 
-        {/* ReferenceGrid: Customer Ref No (h-[5.75rem]) + Remarks (h-[5.75rem]) */}
+        {/* ReferenceGrid: Customer Ref No (h-[115px]) + Remarks (h-[115px]) */}
         <SectionShell titleWidth="w-24">
           <InputSkeleton />
           <InputSkeleton />

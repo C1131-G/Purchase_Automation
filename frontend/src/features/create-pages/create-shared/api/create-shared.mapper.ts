@@ -4,7 +4,6 @@ import type {
   ProductLookupItem,
   ProductWarehouseStockItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
-import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -61,6 +60,8 @@ export const mapVendorLookup = (item: unknown): LookupItem => {
   const rawCurrency = String(record.Currency ?? record.currency ?? "").trim();
   const currency = rawCurrency && rawCurrency !== "$" ? rawCurrency : undefined;
 
+  const mappedShipTo = shipTo || billTo;
+
   return {
     addresses,
     billToAddress: billTo,
@@ -74,7 +75,7 @@ export const mapVendorLookup = (item: unknown): LookupItem => {
     salesEmployeeName: String(
       record.salesEmployeeName ?? record.SalesEmployeeName ?? record.SlpName ?? "",
     ),
-    shipToAddress: reconcileAddresses(billTo, shipTo),
+    shipToAddress: mappedShipTo,
   };
 };
 

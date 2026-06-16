@@ -22,6 +22,7 @@ import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/ut
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";
 import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
+import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -258,6 +259,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
         const effectiveDocDueDate = getEffectivePurchaseQuotationDueDate(docDueDate, docDate);
         const address = String(detail.Address ?? "").trim();
+        const address2 = String((detail as Record<string, unknown>).Address2 ?? "").trim();
+        const shipToAddress = address2 ? reconcileAddresses(address, address2) : address;
 
         const detailLines = detail.DocumentLines ?? [];
         const productsForWarehouse =
@@ -368,7 +371,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         );
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
-        lookups.setShipToAddress(address);
+        lookups.setShipToAddress(shipToAddress);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
@@ -380,7 +383,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           salesEmployee: associatedSalesEmployeeName.trim(),
           warehouseCode: warehouseCode.trim(),
           billToAddress: address.trim(),
-          shipToAddress: address.trim(),
+          shipToAddress: shipToAddress.trim(),
           productRows: mappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
@@ -705,7 +708,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     resetForm,
     getPayloadString: () => {
       const payload = {
-        Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+        Address: lookups.billToAddress.trim() || undefined,
+        Address2: lookups.shipToAddress.trim() || undefined,
         CardCode: (header.vendorCode || lookups.codeInput).trim(),
         Comments: header.comments.trim() || undefined,
         NumAtCard: header.referenceNo.trim() || undefined,
@@ -774,7 +778,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
     const payload = isEditMode
       ? {
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
@@ -805,7 +810,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           SalesPersonCode: resolvedSalesEmployeeCode,
         }
       : {
-          Address: lookups.billToAddress.trim() || lookups.shipToAddress.trim() || undefined,
+          Address: lookups.billToAddress.trim() || undefined,
+          Address2: lookups.shipToAddress.trim() || undefined,
           CardCode: (header.vendorCode || lookups.codeInput).trim(),
           DocCurrency:
             summaryCurrencyLabel !== "$" && summaryCurrencyLabel !== "MULTI" && summaryCurrencyLabel

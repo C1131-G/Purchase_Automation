@@ -108,6 +108,7 @@ export function Sidebar({
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!open) return;
+      if (window.innerWidth >= 768) return;
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
@@ -152,7 +153,7 @@ export function Sidebar({
             transitionDuration: `${MOTION_MS.sidebarBackdrop}ms`,
             transitionTimingFunction: MOTION_EASING.smoothOut,
           }}
-          className="fixed inset-0 z-[110] bg-zinc-950/8 backdrop-blur-sm transition-opacity block border-none outline-none cursor-pointer"
+          className="fixed inset-0 z-[110] bg-zinc-950/8 backdrop-blur-sm transition-opacity block md:hidden border-none outline-none cursor-pointer"
           onClick={() => setOpen(false)}
         />
       ) : null}
@@ -380,7 +381,9 @@ export function SidebarMenuSubButton({
 }: SidebarMenuSubButtonProps) {
   const setOpen = useSetSidebarAction();
   const handleSubMenuClick = () => {
-    setOpen(false);
+    if (window.innerWidth < 768) {
+      setOpen(false);
+    }
   };
 
   return (

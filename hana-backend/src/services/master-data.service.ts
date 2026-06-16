@@ -130,7 +130,11 @@ const formatAddress = (row: BusinessPartnerAddress): string => {
   return toTrimmed(row.Address);
 };
 
-const fetchBusinessPartnerAddresses = async (dbName: string, partnerCodes: string[]) => {
+const fetchBusinessPartnerAddresses = async (
+  dbName: string,
+  partnerCodes: string[],
+  defaultsMap?: Map<string, { billToDef?: string; shipToDef?: string }>,
+) => {
   if (partnerCodes.length === 0) {
     return new Map<
       string,
@@ -173,6 +177,7 @@ const fetchBusinessPartnerAddresses = async (dbName: string, partnerCodes: strin
   for (const row of rows) {
     const cardCode = toTrimmed(row.CardCode);
     const addressType = toTrimmed(row.AdresType).toUpperCase();
+    const addressName = toTrimmed(row.Address);
     if (!cardCode || (addressType !== "B" && addressType !== "S")) {
       continue;
     }
@@ -183,10 +188,18 @@ const fetchBusinessPartnerAddresses = async (dbName: string, partnerCodes: strin
     }
 
     const current = addressMap.get(cardCode) ?? { addresses: [] };
-    if (addressType === "B" && !current.billToAddress) {
+    const defaults = defaultsMap?.get(cardCode);
+    const isDefaultBillTo = defaults?.billToDef
+      ? addressName.toLowerCase() === defaults.billToDef.trim().toLowerCase()
+      : !current.billToAddress;
+    const isDefaultShipTo = defaults?.shipToDef
+      ? addressName.toLowerCase() === defaults.shipToDef.trim().toLowerCase()
+      : !current.shipToAddress;
+
+    if (addressType === "B" && (isDefaultBillTo || !current.billToAddress)) {
       current.billToAddress = formattedAddress;
     }
-    if (addressType === "S" && !current.shipToAddress) {
+    if (addressType === "S" && (isDefaultShipTo || !current.shipToAddress)) {
       current.shipToAddress = formattedAddress;
     }
     const isDuplicate = current.addresses.some(
@@ -551,7 +564,15 @@ export const getVendors = async (dbName: string) => {
 
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,
+    select: [
+      "CardCode",
+      "CardName",
+      "Address",
+      "Currency",
+      "SlpCode",
+      "BillToDef",
+      "ShipToDef",
+    ] as const,
     where: { CardType: "S", frozenFor: "N" } as Record<string, unknown>,
   });
   const vendorCodes = results.map((item) => item.CardCode).filter(Boolean);
@@ -562,8 +583,19 @@ export const getVendors = async (dbName: string) => {
         .filter((code): code is number => code !== undefined),
     ),
   ];
+
+  const defaultsMap = new Map<string, { billToDef?: string; shipToDef?: string }>();
+  for (const item of results) {
+    if (item.CardCode) {
+      defaultsMap.set(toTrimmed(item.CardCode), {
+        billToDef: item.BillToDef,
+        shipToDef: item.ShipToDef,
+      });
+    }
+  }
+
   const [vendorAddressMap, salesEmployeeMap] = await Promise.all([
-    fetchBusinessPartnerAddresses(dbName, vendorCodes),
+    fetchBusinessPartnerAddresses(dbName, vendorCodes, defaultsMap),
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 
@@ -584,7 +616,11 @@ export const getVendors = async (dbName: string) => {
       code: normalizedCardCode,
       name: item.CardName,
       billToAddress: vendorAddressMap.get(normalizedCardCode)?.billToAddress ?? item.Address ?? "",
-      shipToAddress: vendorAddressMap.get(normalizedCardCode)?.shipToAddress ?? item.Address ?? "",
+      shipToAddress:
+        vendorAddressMap.get(normalizedCardCode)?.shipToAddress ??
+        vendorAddressMap.get(normalizedCardCode)?.billToAddress ??
+        item.Address ??
+        "",
       addresses: vendorAddressMap.get(normalizedCardCode)?.addresses ?? [],
       salesEmployeeCode: slpCode,
       salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
@@ -607,7 +643,15 @@ export const getCustomers = async (dbName: string) => {
 
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["CardCode", "CardName", "Address", "Currency", "SlpCode"] as const,
+    select: [
+      "CardCode",
+      "CardName",
+      "Address",
+      "Currency",
+      "SlpCode",
+      "BillToDef",
+      "ShipToDef",
+    ] as const,
     where: { CardType: "C", frozenFor: "N" } as Record<string, unknown>,
   });
   const customerCodes = results.map((item) => item.CardCode).filter(Boolean);
@@ -618,8 +662,19 @@ export const getCustomers = async (dbName: string) => {
         .filter((code): code is number => code !== undefined),
     ),
   ];
+
+  const defaultsMap = new Map<string, { billToDef?: string; shipToDef?: string }>();
+  for (const item of results) {
+    if (item.CardCode) {
+      defaultsMap.set(toTrimmed(item.CardCode), {
+        billToDef: item.BillToDef,
+        shipToDef: item.ShipToDef,
+      });
+    }
+  }
+
   const [customerAddressMap, salesEmployeeMap] = await Promise.all([
-    fetchBusinessPartnerAddresses(dbName, customerCodes),
+    fetchBusinessPartnerAddresses(dbName, customerCodes, defaultsMap),
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 
@@ -643,7 +698,10 @@ export const getCustomers = async (dbName: string) => {
       salesEmployeeCode: slpCode,
       salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
       shipToAddress:
-        customerAddressMap.get(normalizedCardCode)?.shipToAddress ?? item.Address ?? "",
+        customerAddressMap.get(normalizedCardCode)?.shipToAddress ??
+        customerAddressMap.get(normalizedCardCode)?.billToAddress ??
+        item.Address ??
+        "",
       addresses: customerAddressMap.get(normalizedCardCode)?.addresses ?? [],
     };
   });

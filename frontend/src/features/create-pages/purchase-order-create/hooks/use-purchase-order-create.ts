@@ -575,15 +575,15 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
         );
         lookups.setSalesEmployeeInput(buyerName);
-        lookups.setBillToAddress(
-          String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
-        );
-        lookups.setShipToAddress(
+        const targetBillTo =
+          String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "";
+        const targetShipTo =
           String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim() ||
-            matchedVendor?.shipToAddress ||
-            matchedVendor?.billToAddress ||
-            "",
-        );
+          matchedVendor?.shipToAddress ||
+          matchedVendor?.billToAddress ||
+          "";
+        lookups.setBillToAddress(targetBillTo);
+        lookups.setShipToAddress(targetShipTo);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 

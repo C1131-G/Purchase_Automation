@@ -13,6 +13,8 @@ export interface BusinessPartner {
   SlpCode?: number; // Linked sales employee code.
   CardType: string; // 'C' = Customer, 'S' = Vendor.
   frozenFor?: string; // 'Y' if the account is deactivated in SAP.
+  BillToDef?: string; // Default Bill-To address name.
+  ShipToDef?: string; // Default Ship-To address name.
 }
 
 export const BusinessPartnerSchema = new EntitySchema<BusinessPartner>({
@@ -20,6 +22,12 @@ export const BusinessPartnerSchema = new EntitySchema<BusinessPartner>({
     Address: {
       length: 100,
       name: "Address",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    BillToDef: {
+      length: 50,
+      name: "BillToDef",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
     },
@@ -42,6 +50,12 @@ export const BusinessPartnerSchema = new EntitySchema<BusinessPartner>({
     Currency: {
       length: 3,
       name: "Currency",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    ShipToDef: {
+      length: 50,
+      name: "ShipToDef",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
     },

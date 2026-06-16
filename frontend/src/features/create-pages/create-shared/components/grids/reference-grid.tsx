@@ -93,8 +93,7 @@ export function ReferenceGrid({
   uniformReadOnlyAppearance = false,
   referenceLabel,
 }: ReferenceGridProps) {
-  // +0.25rem in edit mode for both fields
-  const fieldHeight = uniformReadOnlyAppearance ? "105px" : "5.75rem";
+  const fieldHeight = "115px";
   return (
     <SectionCard title="REFERENCE" className="lg:col-span-1">
       <div>
@@ -110,7 +109,7 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <Pulse className="min-h-[5.75rem] w-full rounded-xl" />
+          <Pulse className="min-h-[115px] w-full rounded-xl" />
         ) : (
           <ReferenceTextarea
             value={referenceNo}
@@ -147,7 +146,7 @@ export function ReferenceGrid({
           </span>
         </label>
         {loading ? (
-          <Pulse className="min-h-[5.75rem] w-full rounded-xl" />
+          <Pulse className="min-h-[115px] w-full rounded-xl" />
         ) : (
           <ReferenceTextarea
             value={comments}

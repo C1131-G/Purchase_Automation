@@ -101,6 +101,7 @@ const PurchaseQuotationLineItemSchema = z.object({
 // CreatePurchaseQuotationInputSchema: Validates a new purchase quotation submission.
 export const CreatePurchaseQuotationInputSchema = z.object({
   Address: z.string().optional(),
+  Address2: z.string().optional(),
   CardCode: z.string().min(1),
   Comments: z.string().optional(),
   NumAtCard: z.string().optional(),
@@ -127,6 +128,7 @@ export const CreatePurchaseQuotationInputSchema = z.object({
 export const UpdatePurchaseQuotationInputSchema = z
   .object({
     Address: z.string().optional(),
+    Address2: z.string().optional(),
     Comments: z.string().optional(),
     NumAtCard: z.string().optional(),
     DocDate: z
