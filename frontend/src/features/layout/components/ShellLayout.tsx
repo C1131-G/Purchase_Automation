@@ -142,7 +142,11 @@ export function ShellLayout() {
 
   return (
     <SidebarProvider>
-      <Sidebar className={cn("border-r border-zinc-100 bg-white")} collapsible="icon">
+      <Sidebar
+        style={{ viewTransitionName: "sidebar" } as React.CSSProperties}
+        className={cn("border-r border-zinc-100 bg-white")}
+        collapsible="icon"
+      >
         <ShellLayoutBrandHeader />
         <ShellLayoutNavigation
           pathname={location.pathname}

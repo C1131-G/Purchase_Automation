@@ -89,6 +89,7 @@ export function Sidebar({
   collapsible = "offcanvas",
   className,
   children,
+  style,
   ...props
 }: SidebarProps) {
   const open = useSidebarOpen();
@@ -108,7 +109,6 @@ export function Sidebar({
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!open) return;
-      if (window.innerWidth >= 768) return;
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
@@ -153,7 +153,7 @@ export function Sidebar({
             transitionDuration: `${MOTION_MS.sidebarBackdrop}ms`,
             transitionTimingFunction: MOTION_EASING.smoothOut,
           }}
-          className="fixed inset-0 z-[110] bg-zinc-950/8 backdrop-blur-sm transition-opacity block md:hidden border-none outline-none cursor-pointer"
+          className="fixed inset-0 z-[110] bg-zinc-950/8 backdrop-blur-sm transition-opacity block border-none outline-none cursor-pointer"
           onClick={() => setOpen(false)}
         />
       ) : null}
@@ -164,6 +164,7 @@ export function Sidebar({
             transitionDuration: `${MOTION_MS.sidebarOpenClose}ms`,
             transitionTimingFunction: MOTION_EASING.smoothOut,
             width: resolvedWidth,
+            ...style,
           } as React.CSSProperties
         }
         className={cn(
@@ -381,14 +382,13 @@ export function SidebarMenuSubButton({
 }: SidebarMenuSubButtonProps) {
   const setOpen = useSetSidebarAction();
   const handleSubMenuClick = () => {
-    if (window.innerWidth < 768) {
-      setOpen(false);
-    }
+    setOpen(false);
   };
 
   return (
     <Link
       preload="intent"
+      viewTransition
       className={cn(
         "relative flex w-full items-center text-[13px] py-1.5 text-zinc-400 hover:text-blue-600 transition-colors duration-150 text-left cursor-pointer bg-transparent",
         isActive && "text-blue-600 font-bold",

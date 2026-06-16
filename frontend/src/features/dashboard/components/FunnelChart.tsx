@@ -73,6 +73,7 @@ export function FunnelChart({ steps, currency, color, period }: FunnelChartProps
               {/* Step row */}
               <Link
                 to={step.href}
+                viewTransition
                 className="group flex items-center justify-between py-3 px-1 rounded-xl hover:bg-zinc-50 transition-colors"
                 aria-label={`View ${step.label}`}
               >

@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { memo, useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
@@ -132,7 +133,12 @@ export const ModuleCards = memo(function ModuleCards({ modules, currency }: Modu
               </div>
             </div>
 
-            <a href={mod.href} className="absolute inset-0" aria-label={mod.label} />
+            <Link
+              to={mod.href}
+              viewTransition
+              className="absolute inset-0"
+              aria-label={mod.label}
+            />
           </motion.div>
         );
       })}
