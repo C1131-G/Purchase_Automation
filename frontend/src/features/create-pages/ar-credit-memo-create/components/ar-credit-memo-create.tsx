@@ -369,7 +369,7 @@ export function ArCreditMemoCreate({
             void queryClient.prefetchQuery(arCreditMemoQueries.list({ limit: 10, page: 1 })),
           to: "/sales/ar-credit-memo",
         }}
-        pageTitle={state.isEditMode ? `A/R Credit Memo - ${docNum}` : "Create A/R Credit Memo"}
+        pageTitle={state.isEditMode ? `Update A/R Credit Memo ${docNum}` : "Create A/R Credit Memo"}
         topActions={
           !state.isEditMode ? (
             <CopyFromDropdown

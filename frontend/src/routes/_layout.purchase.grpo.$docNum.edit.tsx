@@ -18,6 +18,6 @@ export const Route = createFileRoute("/_layout/purchase/grpo/$docNum/edit")({
 
 function GRPOEditPage() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit GRPO #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update GRPO ${docNum} | ERP Portal`);
   return <GRPOCreate mode="edit" docNum={docNum} />;
 }

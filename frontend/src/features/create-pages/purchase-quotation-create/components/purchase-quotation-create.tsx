@@ -54,7 +54,9 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
         },
   );
 
-  const pageTitle = state.isEditMode ? "Update Purchase Quotation" : "Create Purchase Quotation";
+  const pageTitle = state.isEditMode
+    ? `Update Purchase Quotation ${docNum}`
+    : "Create Purchase Quotation";
   const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
       state.warehousesQuery.isLoading &&

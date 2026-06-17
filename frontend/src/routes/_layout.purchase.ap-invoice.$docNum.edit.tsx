@@ -20,6 +20,6 @@ export const Route = createFileRoute("/_layout/purchase/ap-invoice/$docNum/edit"
 
 function RouteComponent() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit AP Invoice #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update AP Invoice ${docNum} | ERP Portal`);
   return <APInvoiceCreate mode="edit" docNum={docNum} />;
 }

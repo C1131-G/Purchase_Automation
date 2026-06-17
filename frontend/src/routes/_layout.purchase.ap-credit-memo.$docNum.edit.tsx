@@ -19,6 +19,6 @@ export const Route = createFileRoute("/_layout/purchase/ap-credit-memo/$docNum/e
 
 function RouteComponent() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit AP Credit Memo #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update AP Credit Memo ${docNum} | ERP Portal`);
   return <APCreditMemoCreate mode="edit" docNum={docNum} />;
 }

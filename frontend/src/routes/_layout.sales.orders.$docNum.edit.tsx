@@ -18,6 +18,6 @@ export const Route = createFileRoute("/_layout/sales/orders/$docNum/edit")({
 
 function SalesOrderEditPage() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit Sales Order #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update Sales Order ${docNum} | ERP Portal`);
   return <SalesOrderCreate mode="edit" docNum={docNum} />;
 }

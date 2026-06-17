@@ -18,6 +18,6 @@ export const Route = createFileRoute("/_layout/sales/incoming-payment/$docNum/ed
 
 function IncomingPaymentEditPage() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit Incoming Payment #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update Incoming Payment ${docNum} | ERP Portal`);
   return <IncomingPaymentEdit docNum={docNum} />;
 }

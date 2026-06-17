@@ -266,7 +266,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
     }
   };
 
-  const pageTitle = state.isEditMode ? "Update A/R Invoice" : "Create A/R Invoice";
+  const pageTitle = state.isEditMode ? `Update A/R Invoice ${docNum}` : "Create A/R Invoice";
   const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
       state.warehousesQuery.isLoading &&
@@ -528,7 +528,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
           warehouses={state.warehouses}
           warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
           secondaryActions={
-            state.isEditMode && docNum ? (
+            state.isEditMode && !state.isClosed && docNum ? (
               <CopyToDropdown
                 docNum={docNum}
                 sourceDocType="ARInvoice"

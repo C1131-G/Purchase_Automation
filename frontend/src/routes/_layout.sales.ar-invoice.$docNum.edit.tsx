@@ -18,6 +18,6 @@ export const Route = createFileRoute("/_layout/sales/ar-invoice/$docNum/edit")({
 
 function ARInvoiceEditPage() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit AR Invoice #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update AR Invoice ${docNum} | ERP Portal`);
   return <ARInvoiceCreate mode="edit" docNum={docNum} />;
 }

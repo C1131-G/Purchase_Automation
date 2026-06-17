@@ -169,6 +169,10 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     enabled: isEditMode && Boolean(editDocNum),
   });
 
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === "Closed" ||
+    editDetailQuery.data?.data?.DocStatus === "C";
+
   const sourceDetailQuerySQ = useQuery({
     ...salesQuotationQueries.detailByDocNum(options?.sourceDocNum ?? ""),
     enabled:
@@ -1456,6 +1460,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         ? (sourceDetailQuerySO.data?.data?.DocEntry ?? sourceDetailQuerySO.data?.data?.id)
         : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
     updateARInvoiceMutation,
+    isClosed,
     updateProductRow: (id: string, patch: Partial<ProductRow>) =>
       isEditMode ? notifyRestricted("Products") : productsHook.updateProductRow(id, patch),
     vendorsQuery: {

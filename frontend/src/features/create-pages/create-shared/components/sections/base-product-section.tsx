@@ -1,11 +1,10 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Lock,
   Plus,
   RefreshCw,
-  Save,
-  ChevronUp,
+  ChevronDown,
   Eye,
   CheckSquare,
   FileText,
@@ -13,8 +12,10 @@ import {
   FileSpreadsheet,
   LayoutDashboard,
   Table,
+  Truck,
+  StickyNote,
 } from "lucide-react";
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode, isValidElement } from "react";
 
 import { Button } from "@/components/button";
 import { Tooltip } from "@/components/tooltip";
@@ -24,6 +25,418 @@ import type { ProductRow } from "@/features/create-pages/create-shared/utils/cre
 
 function Pulse({ className }: { className: string }) {
   return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />;
+}
+
+const getTargetLabel = (target: string) => {
+  switch (target) {
+    case "PO":
+      return "Purchase Order";
+    case "GRPO":
+      return "Goods Receipt PO";
+    case "AP Invoice":
+      return "A/P Invoice";
+    case "AP Credit Memo":
+      return "A/P Credit Memo";
+    case "Sales Order":
+      return "Sales Order";
+    case "A/R Invoice":
+      return "A/R Invoice";
+    case "A/R Credit Note":
+      return "A/R Credit Note";
+    default:
+      return target;
+  }
+};
+
+const getTargetRoute = (target: string) => {
+  switch (target) {
+    case "PO":
+      return "/purchase/create-order";
+    case "GRPO":
+      return "/purchase/create-grpo";
+    case "AP Invoice":
+      return "/purchase/create-ap-invoice";
+    case "AP Credit Memo":
+      return "/purchase/create-ap-credit-memo";
+    case "Sales Order":
+      return "/sales/create-order";
+    case "A/R Invoice":
+      return "/sales/create-ar-invoice";
+    default:
+      return "/sales/ar-credit-memo/create";
+  }
+};
+
+const getTargetIcon = (target: string) => {
+  switch (target) {
+    case "PO":
+    case "GRPO":
+    case "Sales Order":
+      return (
+        <Truck className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+      );
+    case "AP Invoice":
+    case "A/R Invoice":
+      return (
+        <StickyNote className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+      );
+    default:
+      return (
+        <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+      );
+  }
+};
+
+function ActionsPopoverContent({
+  onSubmit,
+  onDownload,
+  isSubmitting,
+  submitDisabled,
+  disabledReason,
+  copyToTargets,
+  copyToDocNum,
+  copyToSourceDocType,
+}: {
+  onSubmit: () => void;
+  onDownload?: ((type: "pdf" | "excel" | "word") => void) | undefined;
+  isSubmitting?: boolean | undefined;
+  submitDisabled?: boolean | undefined;
+  disabledReason?: string | null | undefined;
+  copyToTargets: string[];
+  copyToDocNum: string;
+  copyToSourceDocType: string;
+}) {
+  const { setOpen } = Popover.usePopoverContext();
+  const [menuView, setMenuView] = useState<"main" | "download" | "copy-to">("main");
+
+  // Reset menuView when popover closes/unmounts
+  useEffect(() => {
+    return () => setMenuView("main");
+  }, []);
+
+  if (menuView === "download") {
+    return (
+      <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-white">
+        <button
+          type="button"
+          onClick={() => setMenuView("main")}
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-600 transition-all cursor-pointer border-none"
+        >
+          ← Back to Actions
+        </button>
+        <div className="border-t border-zinc-100 my-1" />
+        {onDownload && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                onDownload("pdf");
+                setOpen(false);
+              }}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDownload("excel");
+                setOpen(false);
+              }}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              Download Excel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDownload("word");
+                setOpen(false);
+              }}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              Download Word
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (menuView === "copy-to") {
+    return (
+      <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-white">
+        <button
+          type="button"
+          onClick={() => setMenuView("main")}
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-600 transition-all cursor-pointer border-none"
+        >
+          ← Back to Actions
+        </button>
+        <div className="border-t border-zinc-100 my-1" />
+        {copyToTargets.map((target) => (
+          <Link
+            key={target}
+            to={getTargetRoute(target)}
+            search={{ sourceDocNum: copyToDocNum, sourceDocType: copyToSourceDocType }}
+            viewTransition
+            onClick={() => setOpen(false)}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none no-underline"
+          >
+            {getTargetIcon(target)}
+            {getTargetLabel(target)}
+          </Link>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-white">
+      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+        Document Actions
+      </div>
+      <div className="border-t border-zinc-100 my-1" />
+
+      {/* Option 1: Update */}
+      <button
+        type="button"
+        onClick={() => {
+          onSubmit();
+          setOpen(false);
+        }}
+        disabled={submitDisabled || Boolean(disabledReason) || isSubmitting}
+        className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border-none"
+      >
+        <span className="flex items-center gap-2.5">
+          <RefreshCw
+            className={`h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 ${isSubmitting ? "animate-spin text-blue-600" : ""}`}
+          />
+          <span>Update</span>
+        </span>
+      </button>
+
+      {/* Option 2: Download */}
+      {onDownload && (
+        <button
+          type="button"
+          onClick={() => setMenuView("download")}
+          className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+        >
+          <span className="flex items-center gap-2.5">
+            <Download className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <span>Download</span>
+          </span>
+          <span className="text-xs font-bold text-zinc-300 transition-all group-hover:text-blue-600">
+            ➔
+          </span>
+        </button>
+      )}
+
+      {/* Option 3: Copy To */}
+      {copyToTargets.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setMenuView("copy-to")}
+          className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+        >
+          <span className="flex items-center gap-2.5">
+            <Truck className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <span>Copy To</span>
+          </span>
+          <span className="text-xs font-bold text-zinc-300 transition-all group-hover:text-blue-600">
+            ➔
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AddPopoverContent({
+  onSubmitMode,
+  isSaved,
+  onDownload,
+  onReset,
+  isSubmitting,
+  onSelectAction,
+}: {
+  onSubmitMode?: ((mode: "save-new" | "view" | "close" | "draft") => void) | undefined;
+  isSaved: boolean;
+  onDownload?: ((type: "pdf" | "excel" | "word") => void) | undefined;
+  onReset?: (() => void) | undefined;
+  isSubmitting?: boolean | undefined;
+  onSelectAction?: ((action: "save-new" | "view" | "close" | "draft") => void) | undefined;
+}) {
+  const { setOpen } = Popover.usePopoverContext();
+  const [menuView, setMenuView] = useState<"main" | "download">("main");
+
+  // Reset menuView when popover closes/unmounts
+  useEffect(() => {
+    return () => setMenuView("main");
+  }, []);
+
+  if (menuView === "download") {
+    return (
+      <div className="flex flex-col gap-0.5 p-1.5 w-52 bg-white">
+        <button
+          type="button"
+          onClick={() => setMenuView("main")}
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-600 transition-all cursor-pointer border-none"
+        >
+          ← Back to Actions
+        </button>
+        <div className="border-t border-zinc-100 my-1" />
+        {onDownload && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                onDownload("pdf");
+                setOpen(false);
+              }}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDownload("excel");
+                setOpen(false);
+              }}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              Download Excel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDownload("word");
+                setOpen(false);
+              }}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              Download Word
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5 p-1.5 w-52 bg-white">
+      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+        Document Actions
+      </div>
+      <div className="border-t border-zinc-100 my-1" />
+
+      {!isSaved ? (
+        <>
+          {/* Option 1: Save & New */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectAction?.("save-new");
+              onSubmitMode?.("save-new");
+              setOpen(false);
+            }}
+            disabled={isSubmitting}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+          >
+            <Plus className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <span>Save & New</span>
+          </button>
+
+          {/* Option 2: Save & View */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectAction?.("view");
+              onSubmitMode?.("view");
+              setOpen(false);
+            }}
+            disabled={isSubmitting}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+          >
+            <Eye className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <span>Save & View</span>
+          </button>
+
+          {/* Option 3: Save & Close */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectAction?.("close");
+              onSubmitMode?.("close");
+              setOpen(false);
+            }}
+            disabled={isSubmitting}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+          >
+            <CheckSquare className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <span>Save & Close</span>
+          </button>
+
+          {/* Option 4: Save & Draft */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectAction?.("draft");
+              onSubmitMode?.("draft");
+              setOpen(false);
+            }}
+            disabled={isSubmitting}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+          >
+            <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <span>Save & Draft</span>
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Option 1: Download */}
+          {onDownload && (
+            <button
+              type="button"
+              onClick={() => setMenuView("download")}
+              className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <span className="flex items-center gap-2.5">
+                <Download className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+                <span>Download</span>
+              </span>
+              <span className="text-xs font-bold text-zinc-300 transition-all group-hover:text-blue-600">
+                ➔
+              </span>
+            </button>
+          )}
+
+          {/* Option 2: Reset / New Document */}
+          {onReset && (
+            <button
+              type="button"
+              onClick={() => {
+                onReset();
+                setOpen(false);
+              }}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            >
+              <RefreshCw className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <span>New Document</span>
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 interface BaseProductSectionProps {
@@ -114,15 +527,12 @@ export function BaseProductSection({
   createError,
   backToUrl,
   backToLabel = "Back to Table",
-  submitLabel,
-  submitLoadingText,
   isSubmitting,
   onSubmit,
   onSubmitMode,
   isSaved = false,
-  savedDocNum = null,
   onDownload,
-  onReset: _onReset,
+  onReset,
   disabledReason,
   missingMandatoryFields = [],
   mandatoryCompletionPercent = 0,
@@ -144,34 +554,53 @@ export function BaseProductSection({
   const navigate = useNavigate();
   const showBackPopover = true;
   const effectiveHideSearch = hideSearch || (isEditMode && !allowSearchInEditMode);
-  const isUpdateAction = submitLabel.toLowerCase().includes("update");
-  const SubmitIcon = isUpdateAction ? RefreshCw : Save;
+
+  const [activeAction, setActiveAction] = useState<"save-new" | "view" | "close" | "draft" | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      setActiveAction(null);
+    }
+  }, [isSubmitting]);
+
+  const getSubmitButtonLabel = () => {
+    if (isSubmitting || activeAction) {
+      switch (activeAction) {
+        case "save-new":
+          return "Saving & New...";
+        case "view":
+          return "Saving & Viewing...";
+        case "close":
+          return "Saving & Closing...";
+        case "draft":
+          return "Saving & Draft...";
+        default:
+          return "Saving...";
+      }
+    }
+    return "Add";
+  };
+
+  let copyToTargets: string[] = [];
+  let copyToSourceDocType = "";
+  let copyToDocNum = "";
+
+  if (isValidElement(secondaryActions)) {
+    const props = secondaryActions.props as Record<string, unknown>;
+    if (props) {
+      copyToTargets = (props.targets as string[]) || [];
+      copyToSourceDocType = (props.sourceDocType as string) || "";
+      copyToDocNum = (props.docNum as string) || "";
+    }
+  }
 
   const isPurchase =
     backToUrl.toLowerCase().includes("purchase") ||
     backToUrl.toLowerCase().includes("grpo") ||
     backToUrl.toLowerCase().includes("ap-");
   const transactionType = isPurchase ? "purchase" : "sales";
-
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const [downloadDropdownOpen, setDownloadDropdownOpen] = useState(false);
-  const downloadDropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
-        setDropdownOpen(false);
-      }
-      if (downloadDropdownRef.current && !downloadDropdownRef.current.contains(target)) {
-        setDownloadDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Show skeleton when loading (edit hydration)
   if (loading) {
@@ -263,9 +692,9 @@ export function BaseProductSection({
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-2">
-            <Pulse className="h-11 w-36 rounded-xl" />
+            <Pulse className="h-11 w-56 rounded-xl" />
             <div className="flex items-center gap-2">
-              <Pulse className="h-11 w-28 rounded-xl" />
+              <Pulse className={`h-11 rounded-xl ${isEditMode ? "w-[180px]" : "w-52"}`} />
             </div>
           </div>
         </div>
@@ -384,6 +813,7 @@ export function BaseProductSection({
           <p className="mt-2 text-right text-xs font-medium text-red-600">{createError}</p>
         ) : null}
         <div className="mt-3 flex items-center justify-between gap-2">
+          {/* Left Side: Go Back Button (Same for both) */}
           <div className="flex items-center gap-2">
             {showBackPopover ? (
               <Popover.Root>
@@ -465,248 +895,141 @@ export function BaseProductSection({
                 </span>
               </Button>
             )}
-
-            {isEditMode && onDownload && (
-              <div className="relative inline-block" ref={downloadDropdownRef}>
-                <Button
-                  type="button"
-                  size="md"
-                  variant="outline"
-                  onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
-                  className="group h-11 w-40 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Download className="h-4 w-4 text-blue-600" />
-                    Download
-                  </span>
-                  <ChevronUp
-                    className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
-                    style={{ transform: downloadDropdownOpen ? "rotate(180deg)" : "none" }}
-                  />
-                </Button>
-
-                {downloadDropdownOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 z-50 w-40 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDownloadDropdownOpen(false);
-                        onDownload("pdf");
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                    >
-                      <FileText className="h-4 w-4 text-zinc-400" />
-                      PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDownloadDropdownOpen(false);
-                        onDownload("excel");
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                    >
-                      <FileSpreadsheet className="h-4 w-4 text-zinc-400" />
-                      Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDownloadDropdownOpen(false);
-                        onDownload("word");
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                    >
-                      <FileText className="h-4 w-4 text-zinc-400" />
-                      Word
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
+
+          {/* Right Side: Different for Edit Mode vs. Create Mode */}
           <div className="flex items-center gap-2">
-            {!isSaved && disabledReason && !isSubmitting ? (
-              showRequiredHints ? (
-                missingMandatoryFields.length > 0 && mandatoryFieldsTotal > 0 ? (
-                  <Tooltip
-                    content={`Required fields: ${missingMandatoryFields.map((field) => requiredFieldLabels[field] ?? field).join(", ")}`}
-                    className="block w-auto max-w-none"
-                  >
-                    <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
-                      <span>Required fields</span>
-                      <span
-                        className="inline-block size-3 rounded-full border border-zinc-300"
-                        style={{
-                          background: `conic-gradient(#2563eb ${mandatoryCompletionPercent}%, #e4e4e7 ${mandatoryCompletionPercent}% 100%)`,
-                        }}
-                      />
-                      <span>
-                        {mandatoryFieldsTotal - missingMandatoryFields.length}/
-                        {mandatoryFieldsTotal}
-                      </span>
+            {isEditMode ? (
+              // EDIT MODE FOOTER
+              <>
+                {!isReadOnly && disabledReason && !isSubmitting && (
+                  <Tooltip content={disabledReason} className="block w-auto max-w-none">
+                    <span className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 shadow-xs">
+                      <span className="inline-block size-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Validation Warning</span>
                     </span>
                   </Tooltip>
-                ) : (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
-                    <span className="inline-block size-2 rounded-full bg-amber-500" />
-                    <span>Pick 1 product</span>
-                  </span>
-                )
-              ) : null
-            ) : null}
-            {!isSaved && secondaryActions}
-            {isSaved && savedDocNum && onDownload && (
-              <div className="relative inline-block" ref={downloadDropdownRef}>
-                <Button
-                  type="button"
-                  size="md"
-                  variant="outline"
-                  onClick={() => setDownloadDropdownOpen(!downloadDropdownOpen)}
-                  className="group h-11 w-40 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Download className="h-4 w-4 text-blue-600" />
-                    Download
-                  </span>
-                  <ChevronUp
-                    className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
-                    style={{ transform: downloadDropdownOpen ? "rotate(180deg)" : "none" }}
-                  />
-                </Button>
-
-                {downloadDropdownOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 z-50 w-40 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDownloadDropdownOpen(false);
-                        onDownload("pdf");
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                    >
-                      <FileText className="h-4 w-4 text-zinc-400" />
-                      PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDownloadDropdownOpen(false);
-                        onDownload("excel");
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                    >
-                      <FileSpreadsheet className="h-4 w-4 text-zinc-400" />
-                      Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDownloadDropdownOpen(false);
-                        onDownload("word");
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                    >
-                      <FileText className="h-4 w-4 text-zinc-400" />
-                      Word
-                    </button>
-                  </div>
                 )}
-              </div>
-            )}
-            {!isSaved &&
-              showSubmitButton &&
-              (isEditMode ? (
-                <Button
-                  type="button"
-                  size="md"
-                  variant="outline"
-                  isLoading={isSubmitting}
-                  loadingText={submitLoadingText}
-                  onClick={onSubmit}
-                  disabled={submitDisabled || Boolean(disabledReason)}
-                  className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <SubmitIcon
-                      className={
-                        isUpdateAction
-                          ? "h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600"
-                          : "h-4 w-4 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-blue-600"
-                      }
-                    />
-                    {submitLabel}
-                  </span>
-                </Button>
-              ) : (
-                <div className="relative inline-block" ref={dropdownRef}>
-                  <Button
-                    type="button"
-                    size="md"
-                    variant="outline"
-                    isLoading={isSubmitting}
-                    loadingText="Adding..."
-                    onClick={() => !isSubmitting && setDropdownOpen(!dropdownOpen)}
-                    disabled={Boolean(disabledReason)}
-                    className="group h-11 w-52 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-between cursor-pointer"
-                  >
-                    <span>Add</span>
-                    <ChevronUp
-                      className="h-4 w-4 text-zinc-400 group-hover:text-blue-600 transition-transform duration-200"
-                      style={{ transform: dropdownOpen ? "rotate(180deg)" : "none" }}
-                    />
-                  </Button>
 
-                  {dropdownOpen && (
-                    <div className="absolute bottom-full right-0 mb-2 z-50 w-52 rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.15)] backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          onSubmitMode?.("save-new");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                      >
-                        <Plus className="h-4 w-4 text-zinc-400" />
-                        Save & New
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          onSubmitMode?.("view");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                      >
-                        <Eye className="h-4 w-4 text-zinc-400" />
-                        Save & View
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          onSubmitMode?.("close");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                      >
-                        <CheckSquare className="h-4 w-4 text-zinc-400" />
-                        Save & Close
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          onSubmitMode?.("draft");
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-blue-600 cursor-pointer"
-                      >
-                        <FileText className="h-4 w-4 text-zinc-400" />
-                        Save & Draft
-                      </button>
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <Button
+                      type="button"
+                      size="md"
+                      variant="outline"
+                      className="group h-11 w-[180px] rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none flex items-center justify-between cursor-pointer normal-case tracking-normal"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-4 w-4 flex items-center justify-center text-zinc-400 group-hover:text-zinc-500 font-bold">
+                          ⚙
+                        </span>
+                        <span>Actions</span>
+                      </span>
+                      <ChevronDown className="ml-2 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200" />
+                    </Button>
+                  </Popover.Trigger>
+                  <Popover.Content
+                    side="top"
+                    align="end"
+                    unstyled
+                    className="w-[180px] z-[1001] -translate-x-3"
+                  >
+                    <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-50">
+                      <ActionsPopoverContent
+                        onSubmit={onSubmit}
+                        onDownload={onDownload}
+                        isSubmitting={isSubmitting}
+                        submitDisabled={submitDisabled}
+                        disabledReason={disabledReason}
+                        copyToTargets={copyToTargets}
+                        copyToDocNum={copyToDocNum}
+                        copyToSourceDocType={copyToSourceDocType}
+                      />
                     </div>
-                  )}
-                </div>
-              ))}
+                  </Popover.Content>
+                </Popover.Root>
+              </>
+            ) : (
+              // CREATE MODE FOOTER (Original)
+              <>
+                {!isSaved && disabledReason && !isSubmitting ? (
+                  showRequiredHints ? (
+                    missingMandatoryFields.length > 0 && mandatoryFieldsTotal > 0 ? (
+                      <Tooltip
+                        content={`Required fields: ${missingMandatoryFields.map((field) => requiredFieldLabels[field] ?? field).join(", ")}`}
+                        className="block w-auto max-w-none"
+                      >
+                        <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                          <span>Required fields</span>
+                          <span
+                            className="inline-block size-3 rounded-full border border-zinc-300"
+                            style={{
+                              background: `conic-gradient(#2563eb ${mandatoryCompletionPercent}%, #e4e4e7 ${mandatoryCompletionPercent}% 100%)`,
+                            }}
+                          />
+                          <span>
+                            {mandatoryFieldsTotal - missingMandatoryFields.length}/
+                            {mandatoryFieldsTotal}
+                          </span>
+                        </span>
+                      </Tooltip>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                        <span className="inline-block size-2 rounded-full bg-amber-500" />
+                        <span>Pick 1 product</span>
+                      </span>
+                    )
+                  ) : null
+                ) : null}
+                {!isSaved && secondaryActions}
+                {(isSaved || showSubmitButton) && (
+                  <Popover.Root>
+                    <Popover.Trigger asChild>
+                      <Button
+                        type="button"
+                        size="md"
+                        variant="outline"
+                        isLoading={!isSaved && isSubmitting}
+                        loadingText={getSubmitButtonLabel()}
+                        disabled={!isSaved && (Boolean(disabledReason) || isSubmitting)}
+                        className="group h-11 w-52 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none flex items-center justify-between cursor-pointer normal-case tracking-normal"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          {isSaved ? (
+                            <>
+                              <span className="h-4 w-4 flex items-center justify-center text-zinc-400 group-hover:text-zinc-500 font-bold">
+                                ⚙
+                              </span>
+                              <span>Actions</span>
+                            </>
+                          ) : (
+                            <span>{getSubmitButtonLabel()}</span>
+                          )}
+                        </span>
+                        <ChevronDown className="ml-2 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200" />
+                      </Button>
+                    </Popover.Trigger>
+                    <Popover.Content
+                      side="top"
+                      align="end"
+                      unstyled
+                      className="w-52 z-[1001] translate-x-0"
+                    >
+                      <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-50">
+                        <AddPopoverContent
+                          onSubmitMode={onSubmitMode}
+                          isSaved={isSaved}
+                          onDownload={onDownload}
+                          onReset={onReset}
+                          isSubmitting={isSubmitting}
+                          onSelectAction={setActiveAction}
+                        />
+                      </div>
+                    </Popover.Content>
+                  </Popover.Root>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

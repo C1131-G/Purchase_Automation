@@ -18,6 +18,6 @@ export const Route = createFileRoute("/_layout/sales/quotations/$docNum/edit")({
 
 function SalesQuotationEditPage() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit Sales Quotation #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update Sales Quotation ${docNum} | ERP Portal`);
   return <SalesQuotationCreate mode="edit" docNum={docNum} />;
 }

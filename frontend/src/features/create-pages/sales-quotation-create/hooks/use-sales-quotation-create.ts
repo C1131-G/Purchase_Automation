@@ -243,6 +243,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     enabled: isEditMode && Boolean(editDocNum),
   });
 
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === "Closed" ||
+    editDetailQuery.data?.data?.DocStatus === "C";
+
   useEffect(() => {
     if (!isEditMode) {
       return;
@@ -869,5 +873,6 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
     updateSalesQuotationMutation,
+    isClosed,
   };
 }

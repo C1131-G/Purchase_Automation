@@ -66,7 +66,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
           label: "Outgoing Payments Data Table",
           to: "/purchase/outgoing-payment",
         }}
-        pageTitle={`Outgoing Payment ${docNum}`}
+        pageTitle={`Update Outgoing Payment ${docNum}`}
       >
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">

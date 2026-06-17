@@ -157,7 +157,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
     }
   };
 
-  const pageTitle = state.isEditMode ? "Update Sales Order" : "Create Sales Order";
+  const pageTitle = state.isEditMode ? `Update Sales Order ${docNum}` : "Create Sales Order";
   const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
       state.warehousesQuery.isLoading &&
@@ -435,7 +435,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
           submitLabel={state.isEditMode ? "Update" : "Create"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
-            state.isEditMode && docNum ? (
+            state.isEditMode && !state.isClosed && docNum ? (
               <CopyToDropdown
                 docNum={docNum}
                 sourceDocType="SalesOrder"

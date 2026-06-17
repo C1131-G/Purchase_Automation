@@ -66,7 +66,7 @@ export function IncomingPaymentEdit({ docNum }: { docNum: string }) {
           label: "Incoming Payments Data Table",
           to: "/sales/incoming-payment",
         }}
-        pageTitle={`Incoming Payment #${docNum}`}
+        pageTitle={`Update Incoming Payment ${docNum}`}
       >
         <div className="grid gap-3 lg:grid-cols-2">
           {/* Read-only Customer Info */}

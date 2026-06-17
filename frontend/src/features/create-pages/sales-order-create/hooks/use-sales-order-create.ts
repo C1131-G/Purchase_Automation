@@ -852,6 +852,10 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     isEditMode,
   });
 
+  const isClosed =
+    editDetailQuery.data?.data?.DocStatus === "Closed" ||
+    editDetailQuery.data?.data?.DocStatus === "C";
+
   function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
     void handleCreateOrder(action);
   }
@@ -1228,6 +1232,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     header,
     isEditHydrated,
     isEditMode,
+    isClosed,
     isSaved: saveActions.isSaved,
     savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,

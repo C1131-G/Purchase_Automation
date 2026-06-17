@@ -18,6 +18,6 @@ export const Route = createFileRoute("/_layout/sales/ar-credit-memo/$docNum/edit
 
 function ArCreditMemoEditPage() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit AR Credit Memo #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update AR Credit Memo ${docNum} | ERP Portal`);
   return <ArCreditMemoCreate mode="edit" docNum={docNum} />;
 }

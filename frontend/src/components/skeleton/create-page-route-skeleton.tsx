@@ -19,16 +19,18 @@ function Pulse({ className }: { className: string }) {
 }
 
 /** Skeleton replica of a FieldBlock: label + h-10 input with search button icon placeholder */
-function FieldSkeleton() {
+function FieldSkeleton({ showSearch = true }: { showSearch?: boolean }) {
   return (
     <div className="space-y-1.5">
       <Pulse className="h-2.5 w-24" />
       <div className="relative">
         <Pulse className="h-10 w-full rounded-xl" />
         {/* Search icon pill placeholder */}
-        <div className="absolute right-2 top-1/2 -translate-y-1/2">
-          <Pulse className="size-7 rounded-full" />
-        </div>
+        {showSearch && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <Pulse className="size-7 rounded-full" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -165,19 +167,16 @@ export function CreatePageRouteSkeleton() {
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         {/* VendorCustomerGrid: 2 FieldBlocks (Name + Code) */}
         <SectionShell titleWidth="w-28">
-          <FieldSkeleton />
-          <FieldSkeleton />
+          <FieldSkeleton showSearch={!isEdit} />
+          <FieldSkeleton showSearch={!isEdit} />
         </SectionShell>
 
-        {/* LogisticsGrid: Doc Number display + Buyer FieldBlock */}
+        {/* LogisticsGrid: Warehouse + Buyer FieldBlock */}
         <SectionShell titleWidth="w-36">
-          {/* Doc Number — static blue badge, no icon */}
-          <div className="space-y-1.5">
-            <Pulse className="h-2.5 w-24" />
-            <Pulse className="h-10 w-full rounded-xl bg-blue-50" />
-          </div>
+          {/* Warehouse field */}
+          <FieldSkeleton showSearch={!isEdit} />
           {/* Buyer field */}
-          <FieldSkeleton />
+          <FieldSkeleton showSearch={!isEdit} />
         </SectionShell>
 
         {/* DocumentDatesGrid: Doc Date + Delivery Date pickers */}
@@ -310,7 +309,7 @@ export function CreatePageRouteSkeleton() {
           <div className="mt-3 flex items-center justify-between gap-2">
             <Pulse className="h-11 w-56 rounded-xl" />
             <div className="flex items-center gap-2">
-              <Pulse className="h-11 w-28 rounded-xl" />
+              <Pulse className={`h-11 rounded-xl ${isEdit ? "w-[180px]" : "w-52"}`} />
             </div>
           </div>
         </div>

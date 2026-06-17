@@ -37,7 +37,9 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
   const router = useRouter();
   const state = useSalesQuotationCreate(docNum ? { docNum, mode } : { mode });
 
-  const pageTitle = state.isEditMode ? "Update Sales Quotation" : "Create Sales Quotation";
+  const pageTitle = state.isEditMode
+    ? `Update Sales Quotation ${docNum}`
+    : "Create Sales Quotation";
   const isFormHydrating = !state.isEditMode
     ? state.vendorsQuery.isLoading &&
       state.warehousesQuery.isLoading &&
@@ -306,7 +308,7 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
           submitLabel={state.isEditMode ? "Update" : "Create"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
-            state.isEditMode && docNum ? (
+            state.isEditMode && !state.isClosed && docNum ? (
               <CopyToDropdown
                 docNum={docNum}
                 sourceDocType="SalesQuotation"

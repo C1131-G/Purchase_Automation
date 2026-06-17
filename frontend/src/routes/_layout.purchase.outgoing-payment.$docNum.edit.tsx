@@ -19,6 +19,6 @@ export const Route = createFileRoute("/_layout/purchase/outgoing-payment/$docNum
 
 function OutgoingPaymentEditPage() {
   const { docNum } = Route.useParams();
-  useDocumentTitle(`Edit Outgoing Payment #${docNum} | ERP Portal`);
+  useDocumentTitle(`Update Outgoing Payment ${docNum} | ERP Portal`);
   return <OutgoingPaymentEdit docNum={docNum} />;
 }
