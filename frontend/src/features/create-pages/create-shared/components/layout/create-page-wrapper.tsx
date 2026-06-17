@@ -42,7 +42,12 @@ export function CreatePageWrapper({
     );
   }
 
-  const section = dashboardUrl.includes("sales") ? "Sales" : "Purchase";
+  let section = "Purchase";
+  if (dashboardUrl.includes("sales")) {
+    section = "Sales";
+  } else if (dashboardUrl.includes("inventory")) {
+    section = "Inventory";
+  }
 
   return (
     <div className="relative w-full bg-zinc-50 p-3 pb-20">
