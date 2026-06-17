@@ -14,4 +14,3 @@ function RouteComponent() {
   useDocumentTitle("Goods Receipt | ERP Portal");
   return <GoodsReceiptCreate />;
 }
-

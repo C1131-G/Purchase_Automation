@@ -89,10 +89,7 @@ export function GoodsIssueCreate() {
         {activeTab === "contents" ? (
           <GoodsIssueTable rows={rows} onRowsChange={setRows} />
         ) : (
-          <GoodsIssueAttachments
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-          />
+          <GoodsIssueAttachments attachments={attachments} onAttachmentsChange={setAttachments} />
         )}
 
         {/* ── Footer (Remarks + Journal Remark) ── */}

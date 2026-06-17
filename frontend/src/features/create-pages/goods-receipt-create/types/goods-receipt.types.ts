@@ -15,5 +15,4 @@ export interface GoodsReceiptRow {
   itemCost: string;
   uomCode: string;
   uomName: string;
-
 }

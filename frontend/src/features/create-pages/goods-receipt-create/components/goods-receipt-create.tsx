@@ -4,7 +4,10 @@ import { GoodsReceiptHeader } from "@/features/create-pages/goods-receipt-create
 import { GoodsReceiptTable } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-table";
 import { GoodsReceiptFooter } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-footer";
 import { GoodsReceiptActions } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-actions";
-import { GoodsReceiptAttachments, type AttachmentItem } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-attachments";
+import {
+  GoodsReceiptAttachments,
+  type AttachmentItem,
+} from "@/features/create-pages/goods-receipt-create/components/goods-receipt-attachments";
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
 
 /**
@@ -86,10 +89,7 @@ export function GoodsReceiptCreate() {
         {activeTab === "contents" ? (
           <GoodsReceiptTable rows={rows} onRowsChange={setRows} />
         ) : (
-          <GoodsReceiptAttachments
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-          />
+          <GoodsReceiptAttachments attachments={attachments} onAttachmentsChange={setAttachments} />
         )}
 
         {/* ── Footer (Remarks + Journal Remark) ── */}

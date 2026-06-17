@@ -56,7 +56,7 @@ export function GoodsReceiptAttachments({
 
   const updateFreeText = (id: string, text: string) => {
     onAttachmentsChange(
-      attachments.map((item) => (item.id === id ? { ...item, freeText: text } : item))
+      attachments.map((item) => (item.id === id ? { ...item, freeText: text } : item)),
     );
   };
 
@@ -107,18 +107,12 @@ export function GoodsReceiptAttachments({
                         : "hover:bg-zinc-50/50"
                     }`}
                   >
-                    <td className="px-3 py-3 text-center font-medium text-zinc-400">
-                      {idx + 1}
-                    </td>
+                    <td className="px-3 py-3 text-center font-medium text-zinc-400">{idx + 1}</td>
                     <td className="px-3 py-3 font-mono text-zinc-500 break-all select-all">
                       {item.targetPath}
                     </td>
-                    <td className="px-3 py-3 font-semibold text-zinc-800">
-                      {item.fileName}
-                    </td>
-                    <td className="px-3 py-3 text-zinc-600">
-                      {item.attachmentDate}
-                    </td>
+                    <td className="px-3 py-3 font-semibold text-zinc-800">{item.fileName}</td>
+                    <td className="px-3 py-3 text-zinc-600">{item.attachmentDate}</td>
                     <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="text"

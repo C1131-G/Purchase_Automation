@@ -69,18 +69,14 @@ export function GoodsIssueTable({ rows, onRowsChange }: GoodsIssueTableProps) {
                 <td colSpan={COLUMNS.length + 2} className="px-3 py-10">
                   <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-center">
                     <div className="text-sm font-medium text-zinc-700">No items added yet</div>
-                    <div className="text-xs text-zinc-500">
-                      Click the button below to add rows.
-                    </div>
+                    <div className="text-xs text-zinc-500">Click the button below to add rows.</div>
                   </div>
                 </td>
               </tr>
             ) : (
               rows.map((row, idx) => (
                 <tr key={row.id} className="hover:bg-zinc-50/50 transition duration-150">
-                  <td className="px-2 py-2 text-center font-medium text-zinc-400">
-                    {idx + 1}
-                  </td>
+                  <td className="px-2 py-2 text-center font-medium text-zinc-400">{idx + 1}</td>
 
                   {/* Item No */}
                   <td className="px-2 py-2">
@@ -149,7 +145,9 @@ export function GoodsIssueTable({ rows, onRowsChange }: GoodsIssueTableProps) {
                       className="h-9 w-full rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 text-right"
                       value={row.quantity}
                       min={0}
-                      onChange={(e) => updateRowField(row.id, "quantity", parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateRowField(row.id, "quantity", parseFloat(e.target.value) || 0)
+                      }
                       placeholder="Qty"
                       aria-label={`Quantity row ${idx + 1}`}
                     />
@@ -161,7 +159,13 @@ export function GoodsIssueTable({ rows, onRowsChange }: GoodsIssueTableProps) {
                       type="number"
                       className="h-9 w-full rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 text-center"
                       value={row.binLocationAllocation || ""}
-                      onChange={(e) => updateRowField(row.id, "binLocationAllocation", parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateRowField(
+                          row.id,
+                          "binLocationAllocation",
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
                       placeholder="Bin"
                       aria-label={`Bin Location row ${idx + 1}`}
                     />
