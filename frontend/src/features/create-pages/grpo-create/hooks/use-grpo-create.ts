@@ -229,7 +229,6 @@ export function useGRPOCreate({
     setStockPreviewProduct(null);
     setFieldErrors(EMPTY_GRPO_FIELD_ERRORS);
     setCreateError(null);
-    hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
   }, [resetGRPOCreate, resetWarehouse]);
@@ -617,6 +616,8 @@ export function useGRPOCreate({
     const currentSourceDocNum = sourceDocNum;
     const currentSourceDocType = sourceDocType;
     if (!currentSourceDocNum || !currentSourceDocType) {
+      hydratedDocNumRef.current = null;
+      setSourceHydrationComplete(false);
       return;
     }
 
@@ -864,6 +865,7 @@ export function useGRPOCreate({
     setShipToAddress,
     setHeader,
     setLines,
+    setSourceHydrationComplete,
   ]);
 
   const { vendorNameSuggestions, vendorCodeSuggestions, warehouseSuggestions, buyerSuggestions } =

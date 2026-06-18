@@ -337,7 +337,6 @@ export function useArCreditMemoCreate({
     setStockPreviewProduct(null);
     setCreateError(null);
     setSubmitAttempted(false);
-    hydratedDocNumRef.current = null;
     setFormSnapshot(null);
     productsHook.setProductRows([]);
   }, [setHeader, productsHook]);
@@ -388,6 +387,7 @@ export function useArCreditMemoCreate({
     const isHydratingFromEdit = isEditMode && !!editDetailQuery.data;
 
     if (!isHydratingFromSource && !isHydratingFromEdit) {
+      hydratedDocNumRef.current = null;
       return;
     }
 

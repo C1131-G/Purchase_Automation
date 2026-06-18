@@ -877,6 +877,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       ]);
 
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
+
+      if (!isEditMode && action === "save-new") {
+        options?.onCreateSuccess?.();
+      }
     } catch (error) {
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,

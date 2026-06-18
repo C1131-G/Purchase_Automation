@@ -52,12 +52,7 @@ export function APInvoiceCreate({
     docNum: docNum || "",
     mode,
     onCreateSuccess: () => {
-      router.navigate({
-        replace: true,
-        search: {},
-        to: "/purchase/create-ap-invoice",
-        viewTransition: true,
-      });
+      setSourceCleared(false);
     },
     sourceDocNum,
     sourceDocType,

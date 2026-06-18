@@ -62,6 +62,12 @@ export function useDocumentSaveActions({
         setSavedDocNum(null);
         lastSavedStateRef.current = "";
         window.scrollTo({ behavior: "smooth", top: 0 });
+        void router.navigate({
+          replace: true,
+          search: {},
+          to: defaultUrl,
+          viewTransition: true,
+        });
       } else if (action === "close") {
         resetForm();
         setIsSaved(false);

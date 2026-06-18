@@ -185,6 +185,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     const currentSourceDocNum = options?.sourceDocNum ?? sourceDocNum;
     const currentSourceDocType = options?.sourceDocType ?? sourceDocType;
     if (!currentSourceDocNum || currentSourceDocType !== "SalesQuotation") {
+      hydratedDocNumRef.current = null;
       return;
     }
 
@@ -772,7 +773,6 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     modals.setStockPreviewProduct(null);
     setCreateError(null);
     setSubmitAttempted(false);
-    hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
   }, [resetSOCreate, lookups, modals, productsHook]);

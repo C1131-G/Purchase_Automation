@@ -62,12 +62,7 @@ export function PurchaseOrderCreate({
           sourceDocNum,
           sourceDocType,
           onCreateSuccess: () => {
-            router.navigate({
-              replace: true,
-              search: {},
-              to: "/purchase/create-order",
-              viewTransition: true,
-            });
+            setSourceCleared(false);
           },
         },
   );

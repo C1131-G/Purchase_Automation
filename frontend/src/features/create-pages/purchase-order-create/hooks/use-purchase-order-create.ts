@@ -218,7 +218,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     modals.setProductPopupOpen(false);
     modals.setStockPreviewProduct(null);
     setCreateError(null);
-    hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
   }, [
@@ -427,6 +426,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       return;
     }
     if (!sourceDocNum || !sourceDocType || sourceDocType !== "PurchaseQuotation") {
+      hydratedDocNumRef.current = null;
+      setSourceHydrationComplete(false);
       return;
     }
     const sourceDocNums = sourceDocNum
@@ -1180,6 +1181,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       }
 
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
+
+      if (!isEditMode && action === "save-new") {
+        options?.onCreateSuccess?.();
+      }
 
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? "").trim();

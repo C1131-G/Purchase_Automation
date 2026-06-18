@@ -389,6 +389,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     const currentSourceDocNum = options?.sourceDocNum;
     const currentSourceDocType = options?.sourceDocType;
     if (!currentSourceDocNum || !currentSourceDocType) {
+      hydratedDocNumRef.current = null;
       return;
     }
 
@@ -809,7 +810,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     modals.setProductPopupOpen(false);
     modals.setStockPreviewProduct(null);
     setCreateError(null);
-    hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
   }, [resetARInvoiceCreate, lookups, modals, productsHook]);

@@ -227,7 +227,6 @@ export function useAPCreditMemoCreate({
     setStockPreviewProduct(null);
     setFieldErrors(EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS);
     setCreateError(null);
-    hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
   }, [resetAPCreditMemoCreate, resetWarehouse, setBillToAddress, setShipToAddress]);
@@ -564,6 +563,7 @@ export function useAPCreditMemoCreate({
     const currentSourceDocNum = sourceDocNum;
     const currentSourceDocType = sourceDocType;
     if (!currentSourceDocNum || !currentSourceDocType) {
+      hydratedDocNumRef.current = null;
       return;
     }
 

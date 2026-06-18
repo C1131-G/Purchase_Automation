@@ -10,6 +10,7 @@ import { cn } from "@/shared/utils/cn";
 import { useAuthStore } from "@/store/auth/auth.store";
 import { useSetSidebarAction } from "@/store/sidebar/sidebar.store";
 
+import { useSidebarNavigation } from "../hooks/use-sidebar-navigation";
 import type { SectionKey } from "../utils/shell-layout.types";
 import { ShellLayoutBrandHeader } from "./shell-layout-brand-header";
 import { ShellLayoutLogout } from "./shell-layout-logout";
@@ -17,6 +18,8 @@ import { ShellLayoutNavigation } from "./shell-layout-navigation";
 
 // ShellLayout: Persistent Sidebar & Header Layout with Sapphire & White theme.
 export function ShellLayout() {
+  useSidebarNavigation();
+
   const location = useLocation();
   const navigate = useNavigate();
   const router = useRouter();
@@ -142,11 +145,7 @@ export function ShellLayout() {
 
   return (
     <SidebarProvider>
-      <Sidebar
-        style={{ viewTransitionName: "sidebar" } as React.CSSProperties}
-        className={cn("border-r border-zinc-100 bg-white")}
-        collapsible="icon"
-      >
+      <Sidebar className={cn("border-r border-zinc-100 bg-white")} collapsible="icon">
         <ShellLayoutBrandHeader />
         <ShellLayoutNavigation
           pathname={location.pathname}

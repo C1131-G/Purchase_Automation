@@ -109,7 +109,18 @@ export function Sidebar({
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!open) return;
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+      if (sidebarRef.current) {
+        const rect = sidebarRef.current.getBoundingClientRect();
+        if (
+          event.clientX !== undefined &&
+          event.clientY !== undefined &&
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom
+        ) {
+          return;
+        }
         setOpen(false);
       }
     };
@@ -380,11 +391,6 @@ export function SidebarMenuSubButton({
   children,
   ...props
 }: SidebarMenuSubButtonProps) {
-  const setOpen = useSetSidebarAction();
-  const handleSubMenuClick = () => {
-    setOpen(false);
-  };
-
   return (
     <Link
       preload="intent"
@@ -394,7 +400,6 @@ export function SidebarMenuSubButton({
         isActive && "text-blue-600 font-bold",
         className,
       )}
-      onClick={handleSubMenuClick}
       {...props}
     >
       {isActive && (

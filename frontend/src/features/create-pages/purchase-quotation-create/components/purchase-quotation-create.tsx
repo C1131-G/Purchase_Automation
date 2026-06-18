@@ -43,14 +43,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
         }
       : {
           mode,
-          onCreateSuccess: () => {
-            router.navigate({
-              replace: true,
-              search: {},
-              to: "/purchase/create-quotation",
-              viewTransition: true,
-            });
-          },
+          onCreateSuccess: () => {},
         },
   );
 

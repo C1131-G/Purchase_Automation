@@ -48,12 +48,7 @@ export function APCreditMemoCreate({
     docNum: docNum || "",
     mode,
     onCreateSuccess: () => {
-      router.navigate({
-        replace: true,
-        search: {},
-        to: "/purchase/create-ap-credit-memo",
-        viewTransition: true,
-      });
+      setSourceCleared(false);
     },
     sourceDocNum,
     sourceDocType,

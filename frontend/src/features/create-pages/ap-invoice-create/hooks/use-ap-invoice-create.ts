@@ -525,6 +525,7 @@ export function useAPInvoiceCreate({
     const currentSourceDocNum = sourceDocNum;
     const currentSourceDocType = sourceDocType;
     if (!currentSourceDocNum || !currentSourceDocType) {
+      hydratedDocNumRef.current = null;
       return;
     }
 
@@ -1141,7 +1142,6 @@ export function useAPInvoiceCreate({
     setStockPreviewProduct(null);
     setFieldErrors(EMPTY_AP_INVOICE_FIELD_ERRORS);
     setCreateError(null);
-    hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
   }, [resetAPInvoiceCreate, resetWarehouse, setBillToAddress, setShipToAddress]);

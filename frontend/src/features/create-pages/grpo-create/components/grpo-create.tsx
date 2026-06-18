@@ -49,12 +49,7 @@ export function GRPOCreate({
     docNum: docNum || "",
     mode,
     onCreateSuccess: () => {
-      router.navigate({
-        replace: true,
-        search: {},
-        to: "/purchase/create-grpo",
-        viewTransition: true,
-      });
+      setSourceCleared(false);
     },
     sourceDocNum,
     sourceDocType,
