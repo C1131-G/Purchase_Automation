@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 
-interface GoodsIssueHeaderProps {
+interface InventoryDocumentHeaderProps {
   number: string;
   series: string;
   priceList: string;
@@ -14,9 +14,10 @@ interface GoodsIssueHeaderProps {
   onPostingDateChange: (v: string) => void;
   onDocumentDateChange: (v: string) => void;
   onRef2Change: (v: string) => void;
+  idPrefix?: string;
 }
 
-export function GoodsIssueHeader({
+export function InventoryDocumentHeader({
   number,
   series,
   priceList,
@@ -29,7 +30,8 @@ export function GoodsIssueHeader({
   onPostingDateChange,
   onDocumentDateChange,
   onRef2Change,
-}: GoodsIssueHeaderProps) {
+  idPrefix = "inventory",
+}: InventoryDocumentHeaderProps) {
   return (
     <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
       {/* General Info */}
@@ -41,7 +43,8 @@ export function GoodsIssueHeader({
             </label>
             <input
               type="text"
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition outline-none pl-3 text-sm placeholder:text-zinc-400"
+              id={`${idPrefix}-number`}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
               value={number}
               onChange={(e) => onNumberChange(e.target.value)}
               placeholder="Number"
@@ -53,7 +56,8 @@ export function GoodsIssueHeader({
             </label>
             <input
               type="text"
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition outline-none pl-3 text-sm placeholder:text-zinc-400"
+              id={`${idPrefix}-series`}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
               value={series}
               onChange={(e) => onSeriesChange(e.target.value)}
               placeholder="Series"
@@ -68,12 +72,13 @@ export function GoodsIssueHeader({
           <div className="relative">
             <input
               type="text"
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition outline-none pl-3 pr-10 text-sm placeholder:text-zinc-400"
+              id={`${idPrefix}-price-list`}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 pr-10 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
               value={priceList}
               onChange={(e) => onPriceListChange(e.target.value)}
               placeholder="Select Price List"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-100 cursor-pointer">
+            <div className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-100">
               <Search className="h-3 w-3" />
             </div>
           </div>
@@ -88,7 +93,8 @@ export function GoodsIssueHeader({
           </label>
           <input
             type="text"
-            className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition outline-none pl-3 text-sm placeholder:text-zinc-400"
+            id={`${idPrefix}-posting-date`}
+            className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
             value={postingDate}
             onChange={(e) => onPostingDateChange(e.target.value)}
             placeholder="DD/MM/YY"
@@ -100,7 +106,8 @@ export function GoodsIssueHeader({
           </label>
           <input
             type="text"
-            className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition outline-none pl-3 text-sm placeholder:text-zinc-400"
+            id={`${idPrefix}-document-date`}
+            className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
             value={documentDate}
             onChange={(e) => onDocumentDateChange(e.target.value)}
             placeholder="DD/MM/YY"
@@ -116,7 +123,8 @@ export function GoodsIssueHeader({
           </label>
           <input
             type="text"
-            className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition outline-none pl-3 text-sm placeholder:text-zinc-400"
+            id={`${idPrefix}-ref2`}
+            className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
             value={ref2}
             onChange={(e) => onRef2Change(e.target.value)}
             placeholder="Reference 2"
