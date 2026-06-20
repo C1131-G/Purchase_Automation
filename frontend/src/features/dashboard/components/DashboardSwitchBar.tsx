@@ -9,6 +9,7 @@ interface DashboardSwitchBarProps {
 const BAR_COLOR = {
   purchase: "#2563eb", // blue-600
   sales: "#4f46e5", // indigo-600
+  inventory: "#2563eb", // blue-600
 };
 
 export function DashboardSwitchBar({ isSwitchLoading, area }: DashboardSwitchBarProps) {

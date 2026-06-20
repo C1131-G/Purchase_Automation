@@ -1,25 +1,42 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
+import { itemMasterSearchSchema } from "@/features/table-pages/item-master/schemas/item-master-search.schema";
+
+const ItemMasterTable = lazy(() =>
+  import("@/features/table-pages/item-master/components/item-master-table").then((module) => ({
+    default: module.ItemMasterTable,
+  })),
+);
 
 export const Route = createFileRoute("/_layout/inventory/item-master")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
+  validateSearch: (search) => itemMasterSearchSchema.parse(search),
   component: RouteComponent,
 });
 
 function RouteComponent() {
   useDocumentTitle("Item Master | ERP Portal");
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const isSubRoute =
+    pathname === "/inventory/item-master/create" ||
+    (pathname.startsWith("/inventory/item-master/") && pathname.endsWith("/edit"));
+
+  if (isSubRoute) {
+    return <Outlet />;
+  }
+
   return (
-    <div className="flex items-center justify-center h-full w-full p-6">
-      <div className="bg-white rounded-xl border border-zinc-100 p-8 max-w-md w-full shadow-xs text-center">
-        <h2 className="text-xl font-bold text-zinc-900 mb-2">Item Master</h2>
-        <p className="text-zinc-500 text-sm">
-          This section is a placeholder and will display the Item Master list and item details in
-          the future.
-        </p>
-      </div>
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <ItemMasterTable />
+      </Suspense>
     </div>
   );
 }

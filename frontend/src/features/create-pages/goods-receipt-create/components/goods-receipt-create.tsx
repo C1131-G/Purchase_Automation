@@ -9,6 +9,7 @@ export function GoodsReceiptCreate() {
     <InventoryDocumentCreate
       pageTitle="Create Goods Receipt"
       breadcrumbTo="/inventory/goods-receipt"
+      breadcrumbLabel="Goods Receipt Data Table"
       documentType="goods-receipt"
       journalRemarkPlaceholder="Goods Receipt"
       tableComponent={GoodsReceiptTable}

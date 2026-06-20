@@ -320,6 +320,114 @@ export const getSalesExceptions = async (req: Request, res: Response, next: Next
   }
 };
 
+// Inventory KPI Summary
+export const getInventoryKpiSummary = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getInventoryKpiSummary(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Inventory Module Cards
+export const getInventoryModuleCards = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getInventoryModuleCards(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Inventory Trend
+export const getInventoryTrend = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getInventoryTrend(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Inventory Funnel
+export const getInventoryFunnel = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getInventoryFunnel(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Inventory Top Partners
+export const getInventoryTopPartners = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getInventoryTopPartners(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Inventory Exceptions
+export const getInventoryExceptions = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest<
+    Record<string, never>,
+    unknown,
+    unknown,
+    { period: DashboardPeriod }
+  >;
+  try {
+    const { dbName } = authReq.user;
+    const { period } = authReq.query;
+    const result = await dashboardService.getInventoryExceptions(period, dbName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const dashboardDal = {
   getDashboardStats,
   getPurchaseSummary,
@@ -336,4 +444,10 @@ export const dashboardDal = {
   getSalesTopPartners,
   getPurchaseExceptions,
   getSalesExceptions,
+  getInventoryKpiSummary,
+  getInventoryModuleCards,
+  getInventoryTrend,
+  getInventoryFunnel,
+  getInventoryTopPartners,
+  getInventoryExceptions,
 };

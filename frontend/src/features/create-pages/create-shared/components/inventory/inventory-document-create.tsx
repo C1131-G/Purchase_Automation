@@ -12,6 +12,7 @@ type InventoryDocumentType = "goods-receipt" | "goods-issue";
 interface InventoryDocumentCreateProps<TRow> {
   pageTitle: string;
   breadcrumbTo: string;
+  breadcrumbLabel?: string;
   documentType: InventoryDocumentType;
   journalRemarkPlaceholder?: string;
   tableComponent: ComponentType<{ rows: TRow[]; onRowsChange: (rows: TRow[]) => void }>;
@@ -26,6 +27,7 @@ const ID_PREFIX: Record<InventoryDocumentType, string> = {
 export function InventoryDocumentCreate<TRow>({
   pageTitle,
   breadcrumbTo,
+  breadcrumbLabel,
   documentType,
   journalRemarkPlaceholder,
   tableComponent: TableComponent,
@@ -51,9 +53,9 @@ export function InventoryDocumentCreate<TRow>({
 
   return (
     <CreatePageWrapper
-      dashboardUrl="/dashboard/inventory-adjustment"
+      dashboardUrl="/dashboard/inventory"
       breadcrumbParent={{
-        label: "Inventory Documents",
+        label: breadcrumbLabel ?? "Inventory Documents",
         to: breadcrumbTo,
       }}
       pageTitle={pageTitle}

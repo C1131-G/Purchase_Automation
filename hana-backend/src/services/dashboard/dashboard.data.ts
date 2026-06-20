@@ -16,6 +16,13 @@ import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
 
+// Inventory schemas
+import { ItemSchema } from "@/db/schemas/item.schema";
+import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
+import { GoodsIssueSchema } from "@/db/schemas/goods-issue.schema";
+import { InventoryTransferRequestSchema } from "@/db/schemas/inventory-transfer-request.schema";
+import { InventoryTransferSchema } from "@/db/schemas/inventory-transfer.schema";
+
 // Settings schema (OADM)
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 
@@ -43,9 +50,15 @@ const SCHEMA_MAP: Record<DocumentModule, any> = {
   arInvoice: ARInvoiceSchema,
   arCreditNote: ARCreditMemoSchema,
   incomingPayment: IncomingPaymentSchema,
+  // Inventory — itemMaster is handled separately; these four are flow documents
+  itemMaster: ItemSchema,
+  goodsReceipt: GoodsReceiptSchema,
+  goodsIssue: GoodsIssueSchema,
+  transferRequest: InventoryTransferRequestSchema,
+  transfer: InventoryTransferSchema,
 };
 
-const fetchModuleDocuments = async (
+export const fetchModuleDocuments = async (
   module: DocumentModule,
   range: DateRange,
   dbName: string,

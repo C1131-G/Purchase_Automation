@@ -18,7 +18,7 @@ export function KpiRowSkeleton() {
 }
 
 export function ModuleTilesSkeleton({ area }: { area: DashboardArea }) {
-  const count = area === "purchase" ? 12 : 10;
+  const count = area === "purchase" ? 12 : area === "sales" ? 10 : 8;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {Array.from({ length: count }).map((_, i) => (

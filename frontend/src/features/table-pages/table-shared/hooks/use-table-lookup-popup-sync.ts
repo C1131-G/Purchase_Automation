@@ -8,6 +8,7 @@ interface UseTableLookupPopupSyncParams<TData> {
   tableId: string;
   onSetActiveFilter?: (tableId: string, columnId: string) => void;
   allowedColumnIds?: string[];
+  filterValueResolver?: (item: LookupItem, columnId: string) => string;
 }
 
 interface UseTableLookupPopupSyncResult {
@@ -30,6 +31,7 @@ export function useTableLookupPopupSync<TData>({
   tableId,
   onSetActiveFilter,
   allowedColumnIds = DEFAULT_LOOKUP_COLUMNS,
+  filterValueResolver,
 }: UseTableLookupPopupSyncParams<TData>): UseTableLookupPopupSyncResult {
   const [lookupPopupOpen, setLookupPopupOpen] = useState(false);
   const [lookupColumnId, setLookupColumnId] = useState("");
@@ -119,9 +121,11 @@ export function useTableLookupPopupSync<TData>({
         return;
       }
 
-      if (columnId === "DocNum") {
+      if (filterValueResolver) {
+        column.setFilterValue(filterValueResolver(item, columnId));
+      } else if (columnId === "DocNum") {
         column.setFilterValue(item.code);
-      } else if (columnId === "CardCode") {
+      } else if (columnId === "CardCode" || columnId === "Filler" || columnId === "ToWhsCode") {
         column.setFilterValue(item.code);
       } else if (columnId === "CardName") {
         column.setFilterValue(item.name);
@@ -135,7 +139,7 @@ export function useTableLookupPopupSync<TData>({
       setExternalSelection({ columnId, item });
       setLookupPopupOpen(false);
     },
-    [onSetActiveFilter, table, tableId],
+    [onSetActiveFilter, table, tableId, filterValueResolver],
   );
 
   return {

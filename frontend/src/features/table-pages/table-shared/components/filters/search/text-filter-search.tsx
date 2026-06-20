@@ -25,10 +25,30 @@ import {
   SuggestionsDropdown,
 } from "./text-filter-search.components";
 
-const CARD_CODE_COLUMNS = new Set(["CardCode"]);
-const CARD_NAME_COLUMNS = new Set(["CardName"]);
+const CARD_CODE_COLUMNS = new Set([
+  "CardCode",
+  "ItemCode",
+  "ItmsGrpCod",
+  "Filler",
+  "ToWhsCode",
+  "InvntryUom",
+  "CodeBars",
+]);
+const CARD_NAME_COLUMNS = new Set(["CardName", "ItemName"]);
 const DOC_NUM_COLUMNS = new Set(["DocNum"]);
-const LOOKUP_STYLE_COLUMNS = new Set(["DocNum", "CardCode", "CardName"]);
+const WAREHOUSE_COLUMNS = new Set(["Filler", "ToWhsCode"]);
+const LOOKUP_STYLE_COLUMNS = new Set([
+  "DocNum",
+  "CardCode",
+  "CardName",
+  "ItemCode",
+  "ItemName",
+  "ItmsGrpCod",
+  "Filler",
+  "ToWhsCode",
+  "InvntryUom",
+  "CodeBars",
+]);
 const TEXT_FILTER_DEBOUNCE_MS = 700;
 
 export function TextFilterSearch<TData>({
@@ -95,7 +115,8 @@ export function TextFilterSearch<TData>({
     isFocused &&
     (CARD_CODE_COLUMNS.has(activeColumnId) ||
       CARD_NAME_COLUMNS.has(activeColumnId) ||
-      DOC_NUM_COLUMNS.has(activeColumnId));
+      DOC_NUM_COLUMNS.has(activeColumnId) ||
+      WAREHOUSE_COLUMNS.has(activeColumnId));
 
   const filteredSuggestions = useMemo(() => {
     if (!showSuggestions) {
@@ -145,6 +166,9 @@ export function TextFilterSearch<TData>({
     if (CARD_NAME_COLUMNS.has(activeColumnId)) {
       return rankLookupSuggestions(suggestions, term, "name");
     }
+    if (WAREHOUSE_COLUMNS.has(activeColumnId)) {
+      return rankLookupSuggestions(suggestions, term, "both");
+    }
     return rankLookupSuggestions(suggestions, term, "both");
   }, [
     showSuggestions,
@@ -162,6 +186,7 @@ export function TextFilterSearch<TData>({
     !!onPopupOpen &&
     (CARD_CODE_COLUMNS.has(activeColumnId) ||
       CARD_NAME_COLUMNS.has(activeColumnId) ||
+      WAREHOUSE_COLUMNS.has(activeColumnId) ||
       (enableDocNumPopup && DOC_NUM_COLUMNS.has(activeColumnId)));
 
   const searchPlaceholder = isDocLookupStyleColumn ? "Type or select..." : "Search...";

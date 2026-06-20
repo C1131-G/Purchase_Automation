@@ -85,12 +85,12 @@ export interface DashboardQuickLink {
   description: string;
 }
 
-export type DashboardArea = "purchase" | "sales";
+export type DashboardArea = "purchase" | "sales" | "inventory";
 
 export interface DashboardAreaConfig {
   area: DashboardArea;
   title: string;
-  accentColor: "blue" | "indigo";
+  accentColor: "blue" | "indigo" | "emerald";
 }
 
 export function isDashboardPeriod(val: unknown): val is DashboardPeriod {
@@ -107,5 +107,10 @@ export const DASHBOARD_CONFIG: Record<DashboardArea, DashboardAreaConfig> = {
     area: "sales",
     title: "Sales Dashboard",
     accentColor: "indigo",
+  },
+  inventory: {
+    area: "inventory",
+    title: "Inventory Dashboard",
+    accentColor: "blue",
   },
 };

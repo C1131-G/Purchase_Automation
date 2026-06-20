@@ -14,7 +14,11 @@ interface DocNumCellProps {
     | "ap-invoice"
     | "ap-credit-memo"
     | "incoming-payment"
-    | "outgoing-payment";
+    | "outgoing-payment"
+    | "goods-receipt"
+    | "goods-issue"
+    | "transfer-request"
+    | "transfer";
   onHover?: ((docNum: string | number) => void) | undefined;
   onDoubleClick?: ((docNum: string | number) => void) | undefined;
 }

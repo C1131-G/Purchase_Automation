@@ -18,7 +18,11 @@ interface RelationshipMapTrackerProps {
     | "ap-credit-memo"
     | "grpo"
     | "incoming-payment"
-    | "outgoing-payment";
+    | "outgoing-payment"
+    | "goods-receipt"
+    | "goods-issue"
+    | "transfer-request"
+    | "transfer";
   docEntry: number;
 }
 
@@ -39,6 +43,7 @@ const NodeIcon = ({
 }) => {
   const hasItems = items && items.length > 0;
   const isSingle = hasItems && items.length === 1;
+  const isInventory = linkPrefix.startsWith("/inventory/");
 
   const content = (
     <div
@@ -75,7 +80,10 @@ const NodeIcon = ({
             {items.map((item) => (
               <Link
                 key={item.docEntry}
-                to={`${linkPrefix}/${item.docNum}/edit` as any}
+                to={
+                  isInventory ? (linkPrefix as any) : (`${linkPrefix}/${item.docNum}/edit` as any)
+                }
+                search={isInventory ? ({ DocNum: String(item.docNum) } as any) : undefined}
                 className="px-4 py-2 text-xs hover:bg-slate-50 text-slate-700 font-medium whitespace-nowrap text-center block"
               >
                 #{item.docNum}
@@ -90,7 +98,8 @@ const NodeIcon = ({
   if (isSingle && items) {
     return (
       <Link
-        to={`${linkPrefix}/${items[0]?.docNum}/edit` as any}
+        to={isInventory ? (linkPrefix as any) : (`${linkPrefix}/${items[0]?.docNum}/edit` as any)}
+        search={isInventory ? ({ DocNum: String(items[0]?.docNum) } as any) : undefined}
         className="block hover:opacity-90 transition-opacity"
       >
         {content}
@@ -125,8 +134,12 @@ export function RelationshipMapTracker({
     "outgoing-payment",
   ].includes(docType);
 
+  const isGoodsMovement = ["goods-receipt", "goods-issue"].includes(docType);
+  const isTransfer = ["transfer-request", "transfer"].includes(docType);
+  const isInventory = isGoodsMovement || isTransfer;
+
   if (isLoading) {
-    const nodeCount = isAP ? 6 : 5;
+    const nodeCount = isInventory ? 2 : isAP ? 6 : 5;
     return (
       <div
         className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${
@@ -200,88 +213,122 @@ export function RelationshipMapTracker({
   const hasDoc4 = isAP ? !!data.apCreditMemo?.length : !!data.arCreditMemo?.length;
   const hasDoc5 = isAP ? !!data.outgoingPayment?.length : !!data.incomingPayment?.length;
 
-  const nodes = isAP
+  const nodes = isGoodsMovement
     ? [
         {
           icon: FileText,
-          label: "Purchase Quotation",
-          active: hasDoc1,
-          items: data.purchaseQuotation,
-          linkPrefix: "/purchase/quotations",
-        },
-        {
-          icon: ShoppingCart,
-          label: "Purchase Order",
-          active: hasDoc2,
-          items: data.purchaseOrder,
-          linkPrefix: "/purchase/orders",
-        },
-        {
-          icon: Truck,
-          label: "GRPO",
-          active: hasDocGRPO,
-          items: data.grpo,
-          linkPrefix: "/purchase/grpo",
+          label: "Goods Receipt",
+          active: !!data.goodsReceipt?.length,
+          items: data.goodsReceipt,
+          linkPrefix: "/inventory/goods-receipt",
         },
         {
           icon: FileSpreadsheet,
-          label: "A/P Invoice",
-          active: hasDoc3,
-          items: data.apInvoice,
-          linkPrefix: "/purchase/ap-invoice",
-        },
-        {
-          icon: Undo2,
-          label: "A/P Credit Memo",
-          active: hasDoc4,
-          items: data.apCreditMemo,
-          linkPrefix: "/purchase/ap-credit-memo",
-        },
-        {
-          icon: Banknote,
-          label: "Outgoing Payment",
-          active: hasDoc5,
-          items: data.outgoingPayment,
-          linkPrefix: "/purchase/outgoing-payment",
+          label: "Goods Issue",
+          active: !!data.goodsIssue?.length,
+          items: data.goodsIssue,
+          linkPrefix: "/inventory/goods-issue",
         },
       ]
-    : [
-        {
-          icon: FileText,
-          label: "Sales Quotation",
-          active: hasDoc1,
-          items: data.salesQuotation,
-          linkPrefix: "/sales/quotations",
-        },
-        {
-          icon: ShoppingCart,
-          label: "Sales Order",
-          active: hasDoc2,
-          items: data.salesOrder,
-          linkPrefix: "/sales/orders",
-        },
-        {
-          icon: FileSpreadsheet,
-          label: "A/R Invoice",
-          active: hasDoc3,
-          items: data.arInvoice,
-          linkPrefix: "/sales/ar-invoice",
-        },
-        {
-          icon: Undo2,
-          label: "A/R Credit Memo",
-          active: hasDoc4,
-          items: data.arCreditMemo,
-          linkPrefix: "/sales/ar-credit-memo",
-        },
-        {
-          icon: Banknote,
-          label: "Incoming Payment",
-          active: hasDoc5,
-          items: data.incomingPayment,
-          linkPrefix: "/sales/incoming-payment",
-        },
-      ];
+    : isTransfer
+      ? [
+          {
+            icon: FileText,
+            label: "Transfer Request",
+            active: !!data.transferRequest?.length,
+            items: data.transferRequest,
+            linkPrefix: "/inventory/transfer-request",
+          },
+          {
+            icon: Truck,
+            label: "Inventory Transfer",
+            active: !!data.transfer?.length,
+            items: data.transfer,
+            linkPrefix: "/inventory/transfer",
+          },
+        ]
+      : isAP
+        ? [
+            {
+              icon: FileText,
+              label: "Purchase Quotation",
+              active: hasDoc1,
+              items: data.purchaseQuotation,
+              linkPrefix: "/purchase/quotations",
+            },
+            {
+              icon: ShoppingCart,
+              label: "Purchase Order",
+              active: hasDoc2,
+              items: data.purchaseOrder,
+              linkPrefix: "/purchase/orders",
+            },
+            {
+              icon: Truck,
+              label: "GRPO",
+              active: hasDocGRPO,
+              items: data.grpo,
+              linkPrefix: "/purchase/grpo",
+            },
+            {
+              icon: FileSpreadsheet,
+              label: "A/P Invoice",
+              active: hasDoc3,
+              items: data.apInvoice,
+              linkPrefix: "/purchase/ap-invoice",
+            },
+            {
+              icon: Undo2,
+              label: "A/P Credit Memo",
+              active: hasDoc4,
+              items: data.apCreditMemo,
+              linkPrefix: "/purchase/ap-credit-memo",
+            },
+            {
+              icon: Banknote,
+              label: "Outgoing Payment",
+              active: hasDoc5,
+              items: data.outgoingPayment,
+              linkPrefix: "/purchase/outgoing-payment",
+            },
+          ]
+        : [
+            {
+              icon: FileText,
+              label: "Sales Quotation",
+              active: hasDoc1,
+              items: data.salesQuotation,
+              linkPrefix: "/sales/quotations",
+            },
+            {
+              icon: ShoppingCart,
+              label: "Sales Order",
+              active: hasDoc2,
+              items: data.salesOrder,
+              linkPrefix: "/sales/orders",
+            },
+            {
+              icon: FileSpreadsheet,
+              label: "A/R Invoice",
+              active: hasDoc3,
+              items: data.arInvoice,
+              linkPrefix: "/sales/ar-invoice",
+            },
+            {
+              icon: Undo2,
+              label: "A/R Credit Memo",
+              active: hasDoc4,
+              items: data.arCreditMemo,
+              linkPrefix: "/sales/ar-credit-memo",
+            },
+            {
+              icon: Banknote,
+              label: "Incoming Payment",
+              active: hasDoc5,
+              items: data.incomingPayment,
+              linkPrefix: "/sales/incoming-payment",
+            },
+          ];
 
   return (
     <div

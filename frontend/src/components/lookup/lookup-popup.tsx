@@ -1,5 +1,5 @@
-import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useMemo, useRef } from "react";
 import type { ComponentProps } from "react";
 
 import { useLookupToast } from "@/components/lookup/hooks/use-lookup-toast";
@@ -65,6 +65,8 @@ interface LookupPopupProps {
   error: string | null;
   mode?: LookupPopupMode | undefined;
   showBothColumns?: boolean;
+  showCodeOnly?: boolean;
+  showNameOnly?: boolean;
   title?: string | undefined;
   searchPlaceholder?: string | undefined;
   codeLabel?: string;
@@ -107,6 +109,8 @@ export function LookupPopup({
   error,
   mode,
   showBothColumns = false,
+  showCodeOnly: customShowCodeOnly,
+  showNameOnly: customShowNameOnly,
   title: customTitle,
   searchPlaceholder: customPlaceholder,
   codeLabel = "Code",
@@ -116,18 +120,17 @@ export function LookupPopup({
   onSelect,
   onRetry,
 }: LookupPopupProps) {
-  const INITIAL_LIMIT = 10;
-  const STEP = 10;
-  const MAX_LIMIT = 100;
   const config = mode ? MODE_CONFIG[mode] : null;
-  const [visibleCount, setVisibleCount] = useState(INITIAL_LIMIT);
-  const [loadingMore, setLoadingMore] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const title = customTitle ?? config?.title ?? "Select";
   const placeholder = customPlaceholder ?? config?.placeholder ?? "Search code or name...";
-  const showCodeOnly = !showBothColumns && (mode === "vendor-code" || mode === "customer-code");
-  const showNameOnly = !showBothColumns && (mode === "vendor-name" || mode === "customer-name");
+  const showCodeOnly =
+    customShowCodeOnly ??
+    (!showBothColumns && (mode === "vendor-code" || mode === "customer-code"));
+  const showNameOnly =
+    customShowNameOnly ??
+    (!showBothColumns && (mode === "vendor-name" || mode === "customer-name"));
 
   const safeResults = useMemo(() => (Array.isArray(results) ? results : []), [results]);
 
@@ -197,50 +200,12 @@ export function LookupPopup({
     });
   }, [safeResults, search, mode]);
 
-  const prevSearchRef = useRef(search);
-  const prevModeRef = useRef(mode);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (prevSearchRef.current !== search || prevModeRef.current !== mode) {
-      setVisibleCount(INITIAL_LIMIT);
-      setLoadingMore(false);
-      prevSearchRef.current = search;
-      prevModeRef.current = mode;
-    }
-  }, [search, mode, safeResults.length]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  const isSearchMode = search.trim().length > 0;
-  const cappedResults = useMemo(
-    () => (isSearchMode ? filteredResults : filteredResults.slice(0, MAX_LIMIT)),
-    [filteredResults, isSearchMode],
-  );
-  const visibleResults = useMemo(
-    () => (isSearchMode ? cappedResults : cappedResults.slice(0, visibleCount)),
-    [cappedResults, isSearchMode, visibleCount],
-  );
-  const canLoadMore = !isSearchMode && visibleResults.length < cappedResults.length;
-
-  const handleTableScroll = () => {
-    if (!canLoadMore || loadingMore) {
-      return;
-    }
-    const node = listRef.current;
-    if (!node) {
-      return;
-    }
-    const threshold = 24;
-    const reachedEnd = node.scrollHeight - node.scrollTop - node.clientHeight <= threshold;
-    if (!reachedEnd) {
-      return;
-    }
-    setLoadingMore(true);
-    window.setTimeout(() => {
-      setVisibleCount((prev) => Math.min(prev + STEP, MAX_LIMIT));
-      setLoadingMore(false);
-    }, 120);
-  };
+  const rowVirtualizer = useVirtualizer({
+    count: filteredResults.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 36,
+    overscan: 5,
+  });
 
   useLookupToast({
     hasData: filteredResults.length > 0,
@@ -248,6 +213,8 @@ export function LookupPopup({
     message: search.trim() ? "Searching…" : "Loading…",
     open,
   });
+
+  const cellWidthClass = showNameOnly || showCodeOnly ? "w-full" : "w-1/2";
 
   return (
     <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-xl">
@@ -272,59 +239,88 @@ export function LookupPopup({
         />
 
         <div className="overflow-hidden rounded-xl border border-zinc-200">
-          <div ref={listRef} className="max-h-64 overflow-auto" onScroll={handleTableScroll}>
+          <div ref={listRef} className="max-h-64 overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-zinc-50 text-zinc-600">
-                <tr>
-                  {showNameOnly ? null : <th className="px-3 py-2">{codeLabel}</th>}
-                  {showCodeOnly ? null : <th className="px-3 py-2">{nameLabel}</th>}
+              <thead className="sticky top-0 bg-zinc-50 text-zinc-600 z-10 block">
+                <tr className="flex w-full">
+                  {showNameOnly ? null : (
+                    <th className={`px-3 py-2 text-left font-semibold ${cellWidthClass} block`}>
+                      {codeLabel}
+                    </th>
+                  )}
+                  {showCodeOnly ? null : (
+                    <th className={`px-3 py-2 text-left font-semibold ${cellWidthClass} block`}>
+                      {nameLabel}
+                    </th>
+                  )}
                 </tr>
               </thead>
-              <tbody>
-                {loading && visibleResults.length === 0 ? (
-                  LOOKUP_SKELETON_KEYS.map((slot) => (
-                    <tr key={`lookup-skeleton-${slot}`} className="border-t border-zinc-100">
-                      <td className="px-3 py-2" colSpan={2}>
-                        <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
-                      </td>
-                    </tr>
-                  ))
-                ) : error && visibleResults.length === 0 ? (
-                  <LookupErrorState
-                    colSpan={showCodeOnly || showNameOnly ? 1 : 2}
-                    message={error || "Unable to load data. Please try again."}
-                    {...(onRetry ? { onRetry } : {})}
-                  />
-                ) : visibleResults.length === 0 && !loading ? (
-                  <ModalEmptyRow
-                    colSpan={showCodeOnly || showNameOnly ? 1 : 2}
-                    message={
-                      search.trim() ? `No results for "${search.trim()}".` : "No data available."
-                    }
-                  />
-                ) : (
-                  visibleResults.map((item) => (
-                    <tr
-                      key={item.code}
-                      className="cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50"
-                      onClick={() => onSelect(item)}
-                    >
-                      {showNameOnly ? null : (
-                        <td className="px-3 py-2 font-medium text-zinc-800">{item.code}</td>
-                      )}
-                      {showCodeOnly ? null : (
-                        <td className="px-3 py-2 text-zinc-700">{item.name}</td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
+              {filteredResults.length === 0 ? (
+                <tbody>
+                  {loading ? (
+                    LOOKUP_SKELETON_KEYS.map((slot) => (
+                      <tr key={`lookup-skeleton-${slot}`} className="border-t border-zinc-100">
+                        <td className="px-3 py-2" colSpan={showCodeOnly || showNameOnly ? 1 : 2}>
+                          <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : error ? (
+                    <LookupErrorState
+                      colSpan={showCodeOnly || showNameOnly ? 1 : 2}
+                      message={error || "Unable to load data. Please try again."}
+                      {...(onRetry ? { onRetry } : {})}
+                    />
+                  ) : (
+                    <ModalEmptyRow
+                      colSpan={showCodeOnly || showNameOnly ? 1 : 2}
+                      message={
+                        search.trim() ? `No results for "${search.trim()}".` : "No data available."
+                      }
+                    />
+                  )}
+                </tbody>
+              ) : (
+                <tbody
+                  className="relative block w-full"
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                  }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const item = filteredResults[virtualRow.index];
+                    if (!item) return null;
+                    return (
+                      <tr
+                        key={virtualRow.key}
+                        data-index={virtualRow.index}
+                        className="absolute left-0 right-0 flex cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50 items-center"
+                        style={{
+                          transform: `translateY(${virtualRow.start}px)`,
+                          height: `${virtualRow.size}px`,
+                        }}
+                        onClick={() => onSelect(item)}
+                      >
+                        {showNameOnly ? null : (
+                          <td
+                            className={`px-3 py-2 font-medium text-zinc-800 ${cellWidthClass} truncate block`}
+                          >
+                            {item.code}
+                          </td>
+                        )}
+                        {showCodeOnly ? null : (
+                          <td
+                            className={`px-3 py-2 text-zinc-700 ${cellWidthClass} truncate block`}
+                          >
+                            {item.name}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              )}
             </table>
-            {loadingMore ? (
-              <div className="flex items-center justify-center px-3 py-2 text-zinc-400">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            ) : null}
           </div>
         </div>
       </div>

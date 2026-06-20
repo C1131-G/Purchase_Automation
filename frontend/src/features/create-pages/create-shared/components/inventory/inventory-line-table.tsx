@@ -1,30 +1,34 @@
 import { Plus, Trash2 } from "lucide-react";
-import type { InventoryBaseRow } from "@/features/create-pages/create-shared/components/inventory/types/inventory-document.types";
 
 type ColumnAlign = "left" | "right" | "center";
 
-interface BaseInventoryColumn<T extends InventoryBaseRow> {
+export interface TableRow {
+  id: string;
+  [key: string]: any;
+}
+
+interface BaseInventoryColumn<T extends TableRow> {
   key: keyof T;
   label: string;
   width: string;
   align?: ColumnAlign;
 }
 
-interface EditableInventoryColumn<T extends InventoryBaseRow> extends BaseInventoryColumn<T> {
+interface EditableInventoryColumn<T extends TableRow> extends BaseInventoryColumn<T> {
   type: "text" | "number";
   placeholder?: string;
 }
 
-interface ComputedInventoryColumn<T extends InventoryBaseRow> extends BaseInventoryColumn<T> {
+interface ComputedInventoryColumn<T extends TableRow> extends BaseInventoryColumn<T> {
   type: "computed";
   compute: (row: T) => string;
 }
 
-export type InventoryColumn<T extends InventoryBaseRow> =
+export type InventoryColumn<T extends TableRow> =
   | EditableInventoryColumn<T>
   | ComputedInventoryColumn<T>;
 
-interface InventoryLineTableProps<T extends InventoryBaseRow> {
+interface InventoryLineTableProps<T extends TableRow> {
   rows: T[];
   onRowsChange: (rows: T[]) => void;
   defaultRow: T;
@@ -34,7 +38,7 @@ interface InventoryLineTableProps<T extends InventoryBaseRow> {
   minWidth?: string;
 }
 
-export function InventoryLineTable<T extends InventoryBaseRow>({
+export function InventoryLineTable<T extends TableRow>({
   rows,
   onRowsChange,
   defaultRow,

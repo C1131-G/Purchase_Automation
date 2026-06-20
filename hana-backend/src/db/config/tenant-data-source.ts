@@ -35,6 +35,14 @@ import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
 import { UserSchema } from "@/db/schemas/user.schema";
 import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
+import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
+import { GoodsReceiptLineSchema } from "@/db/schemas/goods-receipt-line.schema";
+import { GoodsIssueSchema } from "@/db/schemas/goods-issue.schema";
+import { GoodsIssueLineSchema } from "@/db/schemas/goods-issue-line.schema";
+import { InventoryTransferRequestSchema } from "@/db/schemas/inventory-transfer-request.schema";
+import { InventoryTransferRequestLineSchema } from "@/db/schemas/inventory-transfer-request-line.schema";
+import { InventoryTransferSchema } from "@/db/schemas/inventory-transfer.schema";
+import { InventoryTransferLineSchema } from "@/db/schemas/inventory-transfer-line.schema";
 
 // Cache: Map of dbName to initialized tenant DataSource instances.
 const tenantDataSources = new Map<string, DataSource>();
@@ -107,6 +115,14 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       APInvoiceHeaderSchema,
       APCreditMemoHeaderSchema,
       FinancialPeriodSchema,
+      GoodsReceiptSchema,
+      GoodsReceiptLineSchema,
+      GoodsIssueSchema,
+      GoodsIssueLineSchema,
+      InventoryTransferRequestSchema,
+      InventoryTransferRequestLineSchema,
+      InventoryTransferSchema,
+      InventoryTransferLineSchema,
     ],
     subscribers: [],
     migrations: [],

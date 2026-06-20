@@ -1,5 +1,5 @@
 const DEFAULT_DOCNUM_LIMIT = 10;
-const MAX_DOCNUM_LIMIT = 100;
+const MAX_DOCNUM_LIMIT = 100000;
 
 export const getSafeDocNumLimit = (limit?: number) => {
   if (!Number.isFinite(limit)) {

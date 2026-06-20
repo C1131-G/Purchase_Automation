@@ -1,5 +1,6 @@
-import { Loader2, Search, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { Search, X } from "lucide-react";
+import { useRef } from "react";
 
 import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { cn } from "@/shared/utils/cn";
@@ -131,105 +132,83 @@ export function SuggestionsDropdown({
   isVisible,
   suggestions,
   activeColumnId,
-  query,
+  query: _query,
   onSelectSuggestion,
 }: SuggestionsDropdownProps) {
-  const INITIAL_LIMIT = 10;
-  const STEP = 10;
-  const MAX_LIMIT = 100;
-  const trimmedQuery = query.trim();
-  const isSearchMode = trimmedQuery.length > 0;
-  const [visibleCount, setVisibleCount] = useState(INITIAL_LIMIT);
-  const [loadingMore, setLoadingMore] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const prevQueryRef = useRef(trimmedQuery);
-  const prevActiveColumnRef = useRef(activeColumnId);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (prevQueryRef.current !== trimmedQuery || prevActiveColumnRef.current !== activeColumnId) {
-      setVisibleCount(INITIAL_LIMIT);
-      setLoadingMore(false);
-      prevQueryRef.current = trimmedQuery;
-      prevActiveColumnRef.current = activeColumnId;
-    }
-  }, [trimmedQuery, suggestions.length, activeColumnId, isVisible]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  const rowVirtualizer = useVirtualizer({
+    count: suggestions.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 36,
+    overscan: 5,
+  });
 
-  const cappedSuggestions = useMemo(() => {
-    if (isSearchMode) {
-      return suggestions;
-    }
-    return suggestions.slice(0, MAX_LIMIT);
-  }, [isSearchMode, suggestions]);
-
-  const visibleSuggestions = useMemo(() => {
-    if (isSearchMode) {
-      return cappedSuggestions;
-    }
-    return cappedSuggestions.slice(0, visibleCount);
-  }, [cappedSuggestions, isSearchMode, visibleCount]);
-
-  const canLoadMore = !isSearchMode && visibleSuggestions.length < cappedSuggestions.length;
-
-  const handleScroll = () => {
-    if (!canLoadMore || loadingMore) {
-      return;
-    }
-    const node = listRef.current;
-    if (!node) {
-      return;
-    }
-    const threshold = 24;
-    const reachedEnd = node.scrollHeight - node.scrollTop - node.clientHeight <= threshold;
-    if (!reachedEnd) {
-      return;
-    }
-    setLoadingMore(true);
-    window.setTimeout(() => {
-      setVisibleCount((prev) => Math.min(prev + STEP, MAX_LIMIT));
-      setLoadingMore(false);
-    }, 120);
-  };
-
-  if (!isVisible || visibleSuggestions.length === 0) {
+  if (!isVisible || suggestions.length === 0) {
     return null;
   }
 
   return (
     <div className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden py-1">
-      <div ref={listRef} className="max-h-64 overflow-auto" onScroll={handleScroll}>
-        {visibleSuggestions.map((item) => {
-          const isCardName = activeColumnId === "CardName";
+      <div ref={listRef} className="max-h-64 overflow-auto relative">
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const item = suggestions[virtualRow.index]!;
+            const isCardName = activeColumnId === "CardName" || activeColumnId === "ItemName";
 
-          return (
-            <button
-              key={item.code}
-              type="button"
-              className="group/item w-full cursor-pointer px-4 py-2 text-left transition last:border-b-0 hover:bg-zinc-50"
-              onMouseDown={(event) => {
-                event.preventDefault();
-              }}
-              onClick={() => onSelectSuggestion(item)}
-            >
-              <div className="flex items-baseline justify-between gap-3 overflow-hidden">
-                <span
-                  className={cn(
-                    "text-[13px] leading-5 transition-colors font-medium group-hover/item:text-blue-600 truncate",
-                    isCardName ? "text-zinc-800" : "text-zinc-600",
-                  )}
-                >
-                  {isCardName ? item.name : item.code}
-                </span>
-              </div>
-            </button>
-          );
-        })}
-        {loadingMore ? (
-          <div className="flex items-center justify-center px-3 py-2 text-zinc-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </div>
-        ) : null}
+            return (
+              <button
+                key={item.code}
+                type="button"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+                className="group/item w-full cursor-pointer px-4 py-2 text-left transition hover:bg-zinc-50 flex items-center"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
+                onClick={() => onSelectSuggestion(item)}
+              >
+                <div className="flex items-baseline justify-between gap-3 overflow-hidden w-full">
+                  <span
+                    className={cn(
+                      "text-[13px] leading-5 transition-colors font-medium group-hover/item:text-blue-600 truncate",
+                      isCardName ? "text-zinc-800" : "text-zinc-600",
+                    )}
+                  >
+                    {isCardName ? item.name : item.code}
+                  </span>
+                  {!isCardName &&
+                    ![
+                      "ItemCode",
+                      "ItmsGrpCod",
+                      "InvntryUom",
+                      "CodeBars",
+                      "DocNum",
+                      "CardCode",
+                    ].includes(activeColumnId) &&
+                    item.name &&
+                    item.name !== item.code && (
+                      <span className="text-[11px] text-zinc-400 group-hover/item:text-blue-400/80 truncate max-w-[60%] select-none">
+                        {item.name}
+                      </span>
+                    )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

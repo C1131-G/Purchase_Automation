@@ -121,11 +121,13 @@ export function TableToolbar<TData>({
               <ChevronRight className="size-3 text-zinc-300" />
               <Link
                 to={
-                  breadcrumb.section.toLowerCase() === "sales"
+                  (breadcrumb.section.toLowerCase() === "sales"
                     ? "/dashboard/sales"
-                    : "/dashboard/purchase"
+                    : breadcrumb.section.toLowerCase() === "inventory"
+                      ? "/dashboard/inventory"
+                      : "/dashboard/purchase") as any
                 }
-                search={{ period: "week" }}
+                search={{ period: "week" } as any}
                 preload="intent"
                 className="text-zinc-400 transition-colors hover:text-blue-600"
               >

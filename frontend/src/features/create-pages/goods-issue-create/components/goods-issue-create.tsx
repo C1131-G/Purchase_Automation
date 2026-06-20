@@ -9,6 +9,7 @@ export function GoodsIssueCreate() {
     <InventoryDocumentCreate
       pageTitle="Create Goods Issue"
       breadcrumbTo="/inventory/goods-issue"
+      breadcrumbLabel="Goods Issue Data Table"
       documentType="goods-issue"
       journalRemarkPlaceholder="Goods Issue"
       tableComponent={GoodsIssueTable}

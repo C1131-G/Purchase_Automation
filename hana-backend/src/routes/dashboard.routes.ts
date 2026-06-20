@@ -86,4 +86,36 @@ router.get(
   dashboardDal.getSalesExceptions,
 );
 
+// Inventory segment endpoints
+router.get(
+  "/inventory/kpi-summary",
+  validateQuery(DashboardPeriodQuerySchema),
+  dashboardDal.getInventoryKpiSummary,
+);
+router.get(
+  "/inventory/module-cards",
+  validateQuery(DashboardPeriodQuerySchema),
+  dashboardDal.getInventoryModuleCards,
+);
+router.get(
+  "/inventory/trend",
+  validateQuery(DashboardPeriodQuerySchema),
+  dashboardDal.getInventoryTrend,
+);
+router.get(
+  "/inventory/funnel",
+  validateQuery(DashboardPeriodQuerySchema),
+  dashboardDal.getInventoryFunnel,
+);
+router.get(
+  "/inventory/top-partners",
+  validateQuery(DashboardPeriodQuerySchema),
+  dashboardDal.getInventoryTopPartners,
+);
+router.get(
+  "/inventory/exceptions",
+  validateQuery(DashboardPeriodQuerySchema),
+  dashboardDal.getInventoryExceptions,
+);
+
 export const dashboardRoutes = router;

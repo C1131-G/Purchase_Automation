@@ -19,6 +19,10 @@ export interface RelationshipMapResult {
   apCreditMemo?: NodeResult[];
   outgoingPayment?: NodeResult[];
   delivery?: NodeResult[];
+  goodsReceipt?: NodeResult[];
+  goodsIssue?: NodeResult[];
+  transferRequest?: NodeResult[];
+  transfer?: NodeResult[];
 }
 
 export interface RelationshipMapResponse {

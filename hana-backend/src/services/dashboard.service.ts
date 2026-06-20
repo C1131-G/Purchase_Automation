@@ -8,8 +8,11 @@ import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 
 import { loadAreaDataset } from "./dashboard/dashboard.data";
+
 import { buildPurchaseMain } from "./dashboard/purchase-dashboard";
 import { buildSalesMain } from "./dashboard/sales-dashboard";
+import { loadInventoryDataset } from "./dashboard/inventory-dashboard-data";
+import { buildInventoryMain } from "./dashboard/inventory-dashboard";
 import type {
   DashboardPeriod,
   DashboardMetric,
@@ -284,6 +287,70 @@ export const getSalesExceptions = async (
   return { data: output.exceptions, currency: dataset.currency };
 };
 
+// ---------------------------------------------------------------------------
+// Inventory dashboard — all sections read from one shared cached dataset
+// ---------------------------------------------------------------------------
+
+// Inventory KPI summary
+export const getInventoryKpiSummary = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardMetric[]>> => {
+  const dataset = await loadInventoryDataset(period, dbName);
+  const output = buildInventoryMain(dataset);
+  return { data: output.summary, currency: dataset.currency };
+};
+
+// Inventory module cards
+export const getInventoryModuleCards = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardModuleCard[]>> => {
+  const dataset = await loadInventoryDataset(period, dbName);
+  const output = buildInventoryMain(dataset);
+  return { data: output.moduleCards, currency: dataset.currency };
+};
+
+// Inventory trend
+export const getInventoryTrend = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardTrend>> => {
+  const dataset = await loadInventoryDataset(period, dbName);
+  const output = buildInventoryMain(dataset);
+  return { data: output.trend, currency: dataset.currency };
+};
+
+// Inventory funnel
+export const getInventoryFunnel = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardFunnelStep[]>> => {
+  const dataset = await loadInventoryDataset(period, dbName);
+  const output = buildInventoryMain(dataset);
+  return { data: output.funnel, currency: dataset.currency };
+};
+
+// Inventory top partners (warehouse groups, pre-computed in dataset)
+export const getInventoryTopPartners = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardPartnerGroup[]>> => {
+  const dataset = await loadInventoryDataset(period, dbName);
+  const output = buildInventoryMain(dataset);
+  return { data: output.topPartners, currency: dataset.currency };
+};
+
+// Inventory exceptions
+export const getInventoryExceptions = async (
+  period: DashboardPeriod,
+  dbName: string,
+): Promise<DashboardSectionResponse<DashboardExceptionGroup[]>> => {
+  const dataset = await loadInventoryDataset(period, dbName);
+  const output = buildInventoryMain(dataset);
+  return { data: output.exceptions, currency: dataset.currency };
+};
+
 export const dashboardService = {
   getPurchaseSummary,
   getSalesSummary,
@@ -299,4 +366,10 @@ export const dashboardService = {
   getSalesTopPartners,
   getPurchaseExceptions,
   getSalesExceptions,
+  getInventoryKpiSummary,
+  getInventoryModuleCards,
+  getInventoryTrend,
+  getInventoryFunnel,
+  getInventoryTopPartners,
+  getInventoryExceptions,
 };

@@ -22,6 +22,11 @@ import { purchaseQuotationRoutes } from "@/routes/purchase-quotation.routes";
 import { salesOrderRoutes } from "@/routes/sales-order.routes";
 import salesRelationshipRoutes from "@/routes/sales-relationship.routes";
 import { salesQuotationRoutes } from "@/routes/sales-quotation.routes";
+import { itemMasterRoutes } from "@/routes/item-master.routes";
+import { goodsReceiptRoutes } from "@/routes/goods-receipt.routes";
+import { goodsIssueRoutes } from "@/routes/goods-issue.routes";
+import { transferRequestRoutes } from "@/routes/transfer-request.routes";
+import { transferRoutes } from "@/routes/transfer.routes";
 
 const router = express.Router();
 
@@ -49,6 +54,13 @@ router.use("/ar-invoices", arInvoiceRoutes);
 router.use("/ar-credit-memos", arCreditMemoRoutes);
 router.use("/incoming-payments", incomingPaymentRoutes);
 router.use("/relationship-map", salesRelationshipRoutes);
+
+// Inventory Modules
+router.use("/items", itemMasterRoutes);
+router.use("/goods-receipts", goodsReceiptRoutes);
+router.use("/goods-issues", goodsIssueRoutes);
+router.use("/inventory-transfer-requests", transferRequestRoutes);
+router.use("/inventory-transfers", transferRoutes);
 
 // Utility: Read-only master data lookups for dropdowns and UI auto-completion.
 router.use("/master-data", masterDataRoutes);

@@ -34,8 +34,11 @@ router.get("/:docType/:docEntry", async (req: Request, res: Response) => {
       "ap-credit-memo",
       "outgoing-payment",
     ].includes(docType as string);
+    const isInventory = ["goods-receipt", "goods-issue", "transfer-request", "transfer"].includes(
+      docType as string,
+    );
 
-    if (!docType || (!isAR && !isAP)) {
+    if (!docType || (!isAR && !isAP && !isInventory)) {
       res.status(400).json({ success: false, message: "Invalid docType" });
       return;
     }
@@ -44,9 +47,11 @@ router.get("/:docType/:docEntry", async (req: Request, res: Response) => {
       return;
     }
 
-    const data = isAP
-      ? await relationshipMapService.getAPRelationshipMap(dbName, docType as any, entryId)
-      : await relationshipMapService.getARRelationshipMap(dbName, docType as any, entryId);
+    const data = isInventory
+      ? await relationshipMapService.getInventoryRelationshipMap(dbName, docType as any, entryId)
+      : isAP
+        ? await relationshipMapService.getAPRelationshipMap(dbName, docType as any, entryId)
+        : await relationshipMapService.getARRelationshipMap(dbName, docType as any, entryId);
 
     res.status(200).json({
       success: true,

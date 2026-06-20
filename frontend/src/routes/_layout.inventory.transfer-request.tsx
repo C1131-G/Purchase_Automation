@@ -1,25 +1,44 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
+import { transferRequestSearchSchema } from "@/features/table-pages/transfer-request/schemas/transfer-request-search.schema";
+
+const TransferRequestTable = lazy(() =>
+  import("@/features/table-pages/transfer-request/components/transfer-request-table").then(
+    (module) => ({
+      default: module.TransferRequestTable,
+    }),
+  ),
+);
 
 export const Route = createFileRoute("/_layout/inventory/transfer-request")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
+  validateSearch: (search) => transferRequestSearchSchema.parse(search),
   component: RouteComponent,
 });
 
 function RouteComponent() {
   useDocumentTitle("Inventory Transfer Request | ERP Portal");
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const isSubRoute =
+    pathname === "/inventory/transfer-request/create" ||
+    (pathname.startsWith("/inventory/transfer-request/") && pathname.endsWith("/edit"));
+
+  if (isSubRoute) {
+    return <Outlet />;
+  }
+
   return (
-    <div className="flex items-center justify-center h-full w-full p-6">
-      <div className="bg-white rounded-xl border border-zinc-100 p-8 max-w-md w-full shadow-xs text-center">
-        <h2 className="text-xl font-bold text-zinc-900 mb-2">Inventory Transfer Request</h2>
-        <p className="text-zinc-500 text-sm">
-          This section is a placeholder and will display the Inventory Transfer Request document
-          entry or listing in the future.
-        </p>
-      </div>
+    <div className="h-full w-full">
+      <Suspense fallback={<TableSkeleton />}>
+        <TransferRequestTable />
+      </Suspense>
     </div>
   );
 }

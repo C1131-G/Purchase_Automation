@@ -39,7 +39,7 @@ export function InventoryDocumentHeader({
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-              Number
+              Doc Number
             </label>
             <input
               type="text"
@@ -47,7 +47,7 @@ export function InventoryDocumentHeader({
               className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
               value={number}
               onChange={(e) => onNumberChange(e.target.value)}
-              placeholder="Number"
+              placeholder="Doc Number"
             />
           </div>
           <div>
@@ -102,7 +102,7 @@ export function InventoryDocumentHeader({
         </div>
         <div>
           <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-            Document Date
+            Doc Date
           </label>
           <input
             type="text"
@@ -110,7 +110,7 @@ export function InventoryDocumentHeader({
             className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
             value={documentDate}
             onChange={(e) => onDocumentDateChange(e.target.value)}
-            placeholder="DD/MM/YY"
+            placeholder="Doc Date"
           />
         </div>
       </SectionCard>

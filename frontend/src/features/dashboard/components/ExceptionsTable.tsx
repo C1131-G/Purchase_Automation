@@ -24,6 +24,10 @@ const MODULE_LABELS: Record<string, string> = {
   arInvoice: "AR Invoice",
   arCreditNote: "AR Credit Memo",
   incomingPayment: "Incoming Payment",
+  goodsReceipt: "Goods Receipt",
+  goodsIssue: "Goods Issue",
+  transferRequest: "Transfer Request",
+  transfer: "Inventory Transfer",
 };
 
 const SHORT_TAB_LABELS: Record<string, string> = {
@@ -38,6 +42,10 @@ const SHORT_TAB_LABELS: Record<string, string> = {
   "ar-invoice-awaiting-collection": "Pending Payments",
   "largest-open-value": "Largest Value",
   "recent-credit-notes": "Recent Memos",
+  "open-transfer-requests": "Open Requests",
+  "recent-goods-receipts": "Recent Receipts",
+  "recent-goods-issues": "Recent Issues",
+  "recent-transfers": "Recent Transfers",
 };
 
 export function ExceptionsTable({ groups, currency, color }: ExceptionsTableProps) {
