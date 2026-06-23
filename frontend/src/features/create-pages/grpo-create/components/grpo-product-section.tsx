@@ -183,6 +183,7 @@ export function GRPOProductSection({
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
           warehouseErrors={warehouseErrors}
+          showUom={true}
         />
       </div>
     </BaseProductSection>

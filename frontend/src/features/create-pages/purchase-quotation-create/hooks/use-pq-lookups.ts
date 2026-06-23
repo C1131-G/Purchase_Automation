@@ -41,6 +41,7 @@ export function usePqLookups({
   const vendorsQuery = useQuery(purchaseQuotationCreateQueries.vendors());
   const warehousesQuery = useQuery(purchaseQuotationCreateQueries.warehouses());
   const salesEmployeesQuery = useQuery(purchaseQuotationCreateQueries.salesEmployees());
+  const uomsQuery = useQuery(purchaseQuotationCreateQueries.uoms());
 
   const [nameInput, setNameInput] = useState("");
   const [codeInput, setCodeInput] = useState("");
@@ -65,6 +66,7 @@ export function usePqLookups({
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
+  const uoms = useMemo(() => uomsQuery.data ?? [], [uomsQuery.data]);
   const rankLookupOptions = (items: ProductLookupItem[], rawSearch: string) => {
     const term = rawSearch.trim().toLowerCase();
     if (!term) {
@@ -368,5 +370,7 @@ export function usePqLookups({
     warehouses,
     warehousesQuery,
     resetWarehouse,
+    uoms,
+    uomsQuery,
   };
 }

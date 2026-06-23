@@ -69,6 +69,7 @@ export function ShellLayout() {
         replace: true,
         search: { reason: "session_ended" },
         to: "/login",
+        viewTransition: true,
       });
       return;
     }
@@ -78,11 +79,12 @@ export function ShellLayout() {
         replace: true,
         search: { reason: "logged_out" },
         to: "/login",
+        viewTransition: true,
       });
       return;
     }
 
-    void navigate({ replace: true, to: "/login" });
+    void navigate({ replace: true, to: "/login", viewTransition: true });
   }, [isAuthenticated, isAuthLoading, logoutReason, navigate]);
 
   // Accordion Logic: current section from URL.

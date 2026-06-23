@@ -6,6 +6,7 @@ import type { EntitySchema, FindManyOptions, ObjectLiteral } from "typeorm";
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { executeTenantQuery } from "@/dal/tenant-dal.helper";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
 import type { BusinessPartnerAddress } from "@/db/schemas/business-partner-address.schema";
@@ -264,13 +265,13 @@ export const getProducts = async (
       ? String(resolvedLimit)
       : "unlimited"
     : String(resolvedLimit ?? defaultListLimit);
-  const cacheKey = `master:${dbName}:Products:v10:${normalizedWarehouseCode || "default"}:${cacheSearchKey}:${cacheLimitToken}:${type || "default"}`;
+  const cacheKey = `master:${dbName}:Products:v11:${normalizedWarehouseCode || "default"}:${cacheSearchKey}:${cacheLimitToken}:${type || "default"}`;
 
   return getCachedData(
     cacheKey,
     async () => {
       // Step 1: Pre-fetch setup data with independent caches so product search misses don't re-fetch static lookups.
-      const [adminSettings, taxGroups, uoms] = await Promise.all([
+      const [adminSettings, taxGroups, uoms, ugpLines] = await Promise.all([
         getCachedData(
           `master:${dbName}:AdminSettings`,
           async () => {
@@ -304,6 +305,31 @@ export const getProducts = async (
           },
           1000 * 60 * 60,
         ),
+        // Fetch all UoM Group lines (UGP1 joined with OUOM) so each product
+        // can expose its full set of valid UoMs, matching what SAP B1 shows.
+        getCachedData(
+          `master:${dbName}:UgpLines`,
+          async () => {
+            try {
+              const rows = (await executeTenantQuery(
+                dbName,
+                `SELECT ugp."UgpEntry", ugp."UomEntry", ouom."UomCode", ouom."UomName"
+                 FROM UGP1 ugp
+                 INNER JOIN OUOM ouom ON ugp."UomEntry" = ouom."UomEntry"
+                 WHERE ugp."IsActive" = 'Y'`,
+              )) as Array<{
+                UgpEntry: unknown;
+                UomEntry: unknown;
+                UomCode: unknown;
+                UomName: unknown;
+              }>;
+              return rows;
+            } catch {
+              return [];
+            }
+          },
+          1000 * 60 * 60,
+        ),
       ]);
 
       // Step 2: Fetch Item headers based on search and limit.
@@ -320,6 +346,7 @@ export const getProducts = async (
           "item.VatGroupPu",
           "item.VatGroupSa",
           "item.DfltWH",
+          "item.UgpEntry",
         ])
         .where("item.frozenFor = :active", { active: "N" });
 
@@ -444,6 +471,26 @@ export const getProducts = async (
         }
       }
 
+      // Build a map from UgpEntry -> list of { code, name, entry } for fast lookup.
+      const ugpUomMap = new Map<number, { code: string; name: string; entry?: number }[]>();
+      for (const ugpLine of ugpLines) {
+        const ugpEntry = toNullableInt(ugpLine.UgpEntry);
+        if (ugpEntry === undefined || ugpEntry === -1) {
+          continue;
+        }
+        const uomCode = toTrimmed(ugpLine.UomCode);
+        const uomName = toTrimmed(ugpLine.UomName) || uomCode;
+        const uomEntry = toNullableInt(ugpLine.UomEntry);
+        if (!uomCode) {
+          continue;
+        }
+        const list = ugpUomMap.get(ugpEntry) ?? [];
+        if (!list.some((u) => u.code === uomCode)) {
+          list.push({ code: uomCode, name: uomName, entry: uomEntry });
+        }
+        ugpUomMap.set(ugpEntry, list);
+      }
+
       const mappedItems = items.map((item) => {
         const normalizedItemCode = toTrimmed(item.ItemCode);
         const resolvedStock = stockMap.get(normalizedItemCode) ?? 0;
@@ -467,6 +514,30 @@ export const getProducts = async (
         const resolvedPurchaseUomCode = resolvedPurchaseUom?.code || resolvedSalesUomCode;
         const resolvedPurchaseUomEntry = resolvedPurchaseUom?.entry ?? resolvedSalesUomEntry;
 
+        // Determine the valid UoM list for this item from its UoM Group.
+        const itemUgpEntry = toNullableInt((item as unknown as Record<string, unknown>).UgpEntry);
+        let uomList: { code: string; name: string; entry?: number }[] = [];
+        if (itemUgpEntry !== undefined && itemUgpEntry !== -1) {
+          uomList = ugpUomMap.get(itemUgpEntry) ?? [];
+        }
+        // Fallback: ensure at least the purchase and sales UoMs appear in the list.
+        if (uomList.length === 0) {
+          if (resolvedPurchaseUomCode) {
+            uomList.push({
+              code: resolvedPurchaseUomCode,
+              name: resolvedPurchaseUomCode,
+              entry: resolvedPurchaseUomEntry,
+            });
+          }
+          if (resolvedSalesUomCode && resolvedSalesUomCode !== resolvedPurchaseUomCode) {
+            uomList.push({
+              code: resolvedSalesUomCode,
+              name: resolvedSalesUomCode,
+              entry: resolvedSalesUomEntry,
+            });
+          }
+        }
+
         return {
           Currency: resolvedCurrency,
           ItemCode: normalizedItemCode,
@@ -481,6 +552,7 @@ export const getProducts = async (
           UoMCode: resolvedSalesUomCode,
           UoMEntry: resolvedSalesUomEntry,
           Uom: salesUomText,
+          UomList: uomList,
           Warehouse: normalizedWarehouseCode || item.DfltWH || "",
           id: normalizedItemCode,
           productCode: normalizedItemCode,
@@ -729,15 +801,17 @@ export const getTaxCodes = async (dbName: string) => {
 export const getUOMs = async (dbName: string) => {
   const results = await fetchLookup(dbName, UnitOfMeasurementSchema, "UOMs", {
     order: { UomCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["UomCode", "UomName"] as const,
+    select: ["UomCode", "UomName", "UomEntry"] as const,
   });
 
   return results.map((item) => ({
     Code: item.UomCode,
     Name: item.UomName,
+    UomEntry: item.UomEntry,
     code: item.UomCode,
     id: item.UomCode,
     name: item.UomName,
+    uomEntry: item.UomEntry,
   }));
 };
 

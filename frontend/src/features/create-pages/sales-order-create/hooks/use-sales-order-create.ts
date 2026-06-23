@@ -254,6 +254,22 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "sales"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+
         await Promise.all(
           uniqueItemCodes.map(async (itemCode) => {
             const warehouseStocks = (await queryClient
@@ -302,11 +318,37 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
               (line as Record<string, unknown>).VatPrcnt !== null
                 ? Number((line as Record<string, unknown>).VatPrcnt)
                 : Number(productMeta?.taxRate ?? 0),
-            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
-            uomEntry:
-              typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                ? line.UoMEntry
-                : productMeta?.uomEntry,
+            uomCode: (() => {
+              const rawLine = line as any;
+              const code = String(
+                rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(rawLine.UoMEntry ?? rawLine.uomEntry ?? rawLine.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const rawLine = line as any;
+              const entry = Number(rawLine.UoMEntry ?? rawLine.uomEntry ?? rawLine.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
             warehouseCode: lineWarehouse,
           };
@@ -422,6 +464,22 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "sales"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+
         await Promise.all(
           uniqueItemCodes.map(async (itemCode) => {
             const warehouseStocks = (await queryClient
@@ -465,11 +523,37 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
               (line as Record<string, unknown>).VatPrcnt !== null
                 ? Number((line as Record<string, unknown>).VatPrcnt)
                 : Number(productMeta?.taxRate ?? 0),
-            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
-            uomEntry:
-              typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                ? line.UoMEntry
-                : productMeta?.uomEntry,
+            uomCode: (() => {
+              const rawLine = line as any;
+              const code = String(
+                rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(rawLine.UoMEntry ?? rawLine.uomEntry ?? rawLine.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const rawLine = line as any;
+              const entry = Number(rawLine.UoMEntry ?? rawLine.uomEntry ?? rawLine.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             quantity,
             discountPercent,
             discountAmount,

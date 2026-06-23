@@ -439,6 +439,35 @@ export function useAPInvoiceCreate({
       setBillToAddress(String(detail.Address ?? "").trim());
       setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
       const detailLines = detail.DocumentLines ?? [];
+      const productsForWarehouse =
+        effectiveWarehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+              .catch((): ProductLookupItem[] => [])
+          : [];
+
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      );
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+      ].filter(Boolean);
+
+      // Recover missing product metadata
+      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+      if (missingItemCodes.length > 0) {
+        await Promise.all(
+          missingItemCodes.map(async (itemCode) => {
+            const res = await queryClient
+              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+              .catch((): ProductLookupItem[] => []);
+            const matched = res.find((p) => String(p.code).trim() === itemCode);
+            if (matched) {
+              productByCode.set(itemCode, matched);
+            }
+          }),
+        );
+      }
 
       const taxRateByItemCode = await resolveProductTaxRates(
         queryClient,
@@ -447,6 +476,7 @@ export function useAPInvoiceCreate({
       );
 
       const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
+        const lineData = line as Record<string, unknown>;
         const quantity = Math.max(0, Number(line.Quantity ?? 0));
         const price = Number(line.Price ?? line.UnitPrice ?? 0);
         const grossAmount = Math.max(0, price * quantity);
@@ -456,21 +486,51 @@ export function useAPInvoiceCreate({
           line: line as unknown as Record<string, unknown>,
         });
         const itemCode = String(line.ItemCode ?? "").trim();
+        const productMeta = productByCode.get(itemCode);
 
         return {
           id: `${currentDocNum}-${index}`,
-          productCode: String(line.ItemCode ?? "").trim(),
-          productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
+          productCode: itemCode,
+          productName: String(
+            line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+          ).trim(),
           stock: 0, // In edit mode, stock is less relevant for invoices
-          currency: String(detail.DocCurr ?? "").trim(),
+          currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
           vatGroup: String(line.TaxCode ?? "").trim(),
           // SAP line tax is authoritative; fall back to product master only when missing
           taxRate:
             (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
             taxRateByItemCode.get(itemCode) ||
             0,
-          uomCode: String(line.UoMCode ?? "").trim(),
-          uomEntry: typeof line.UoMEntry === "number" ? line.UoMEntry : undefined,
+          uomCode: (() => {
+            const code = String(
+              lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+            ).trim();
+            if (code) return code;
+            const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+            if (Number.isFinite(entry) && entry > 0) {
+              const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+              if (match?.code) return match.code;
+            }
+            return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+          })(),
+          uomEntry: (() => {
+            const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+            if (Number.isFinite(entry) && entry > 0) return entry;
+            const code = String(
+              lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+            ).trim();
+            if (code) {
+              const match = productMeta?.uomList?.find((u) => u.code === code);
+              if (match?.uomEntry !== undefined) return match.uomEntry;
+            }
+            return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+          })(),
+          purchaseUomCode: productMeta?.purchaseUomCode,
+          purchaseUomEntry: productMeta?.purchaseUomEntry,
+          salesUomCode: productMeta?.uomCode,
+          salesUomEntry: productMeta?.uomEntry,
+          uomList: productMeta?.uomList,
           baseQuantity: quantity,
           quantity,
           discountPercent,
@@ -610,6 +670,36 @@ export function useAPInvoiceCreate({
       const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
 
       const allDetailLines = details.flatMap((d) => d.DocumentLines ?? []);
+      const productsForWarehouse =
+        effectiveWarehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+              .catch((): ProductLookupItem[] => [])
+          : [];
+
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      );
+      const uniqueItemCodes = [
+        ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
+      ].filter(Boolean);
+
+      // Recover missing product metadata
+      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+      if (missingItemCodes.length > 0) {
+        await Promise.all(
+          missingItemCodes.map(async (itemCode) => {
+            const res = await queryClient
+              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+              .catch((): ProductLookupItem[] => []);
+            const matched = res.find((p) => String(p.code).trim() === itemCode);
+            if (matched) {
+              productByCode.set(itemCode, matched);
+            }
+          }),
+        );
+      }
+
       const baseType =
         currentSourceDocType === "GoodsReceiptPO"
           ? 20
@@ -655,21 +745,51 @@ export function useAPInvoiceCreate({
             line: line as unknown as Record<string, unknown>,
           });
           const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
 
           return {
             id: `row-copy-${detail.DocEntry ?? detail.id ?? "unknown"}-${idx}`,
             productCode: itemCode,
-            productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
+            productName: String(
+              line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+            ).trim(),
             stock: 0,
-            currency,
+            currency: currency || String(productMeta?.currency ?? "").trim(),
             vatGroup: String(line.TaxCode ?? "").trim(),
             // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
               0,
-            uomCode: String(line.UoMCode ?? "").trim(),
-            uomEntry: typeof line.UoMEntry === "number" ? line.UoMEntry : undefined,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             baseQuantity: quantity,
             quantity,
             discountPercent,

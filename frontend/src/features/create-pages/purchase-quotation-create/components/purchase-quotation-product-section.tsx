@@ -28,6 +28,7 @@ interface PurchaseQuotationProductSectionProps {
   createPurchaseQuotationMutation: PurchaseQuotationState["createPurchaseQuotationMutation"];
   warehouses: PurchaseQuotationState["warehouses"];
   warehousesLoading: PurchaseQuotationState["warehousesQuery"]["isLoading"];
+  uoms: PurchaseQuotationState["uoms"];
   missingMandatoryFields: PurchaseQuotationState["missingMandatoryFields"];
   requiredCompletionPercent: PurchaseQuotationState["requiredCompletionPercent"];
   handleCreateOrder: PurchaseQuotationState["handleCreateOrder"];
@@ -76,6 +77,7 @@ export function PurchaseQuotationProductSection({
   requiredCompletionPercent,
   warehouses,
   warehousesLoading,
+  uoms,
   handleCreateOrder,
   submitLabel = "Create",
   submitLoadingText = "Creating...",
@@ -153,6 +155,8 @@ export function PurchaseQuotationProductSection({
         showExplicitZeroDiscount={true}
         disableLineInputs={isClosed}
         warehouseErrors={warehouseErrors}
+        showUom={true}
+        uoms={uoms}
       />
     </BaseProductSection>
   );

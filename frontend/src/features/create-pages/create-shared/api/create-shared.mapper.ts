@@ -161,6 +161,23 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
         "",
     ).trim(),
     uomEntry: toNumberOrZero(record.UoMEntry ?? record.uomEntry ?? record.UomEntry) || undefined,
+    uomList: (() => {
+      const rawList = record.UomList ?? record.uomList ?? record.UoMList;
+      if (!Array.isArray(rawList)) return undefined;
+      const mapped: { code: string; name: string; uomEntry?: number }[] = [];
+      for (const u of rawList) {
+        const uRec = asRecord(u) ?? {};
+        const code = String(uRec.code ?? uRec.UomCode ?? uRec.uomCode ?? "").trim();
+        if (!code) continue;
+        const entry = toNumberOrZero(uRec.entry ?? uRec.uomEntry ?? uRec.UomEntry) || undefined;
+        mapped.push({
+          code,
+          name: String(uRec.name ?? uRec.UomName ?? uRec.uomName ?? code).trim() || code,
+          ...(entry !== undefined ? { uomEntry: entry } : {}),
+        });
+      }
+      return mapped.length > 0 ? mapped : undefined;
+    })(),
     vatGroup: String(
       record.VatGroupPu ||
         record.vatGroupPu ||

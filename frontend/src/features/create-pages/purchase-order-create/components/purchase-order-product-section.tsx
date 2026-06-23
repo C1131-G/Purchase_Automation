@@ -136,6 +136,7 @@ export function PurchaseOrderProductSection({
       <CreateProductTable
         productRows={productRows}
         productRowDrafts={productRowDrafts}
+        showUom={true}
         enforceStockLimit={false}
         linkedRow={(row) => !!row.baseEntry && !!row.baseLine}
         openProductPopup={openProductPopup}

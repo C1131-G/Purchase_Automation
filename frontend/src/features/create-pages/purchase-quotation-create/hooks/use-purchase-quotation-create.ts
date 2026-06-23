@@ -217,6 +217,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     if (!detail) {
       return;
     }
+
     hydratedDocNumRef.current = currentDocNum;
 
     // Show loading toast when starting edit hydration
@@ -281,6 +282,22 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+
         await Promise.all(
           uniqueItemCodes.map(async (itemCode) => {
             const warehouseStocks = await queryClient
@@ -339,11 +356,35 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
               (line as Record<string, unknown>).VatPrcnt !== null
                 ? Number((line as Record<string, unknown>).VatPrcnt)
                 : Number(productMeta?.taxRate ?? 0),
-            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? "").trim(),
-            uomEntry:
-              typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                ? line.UoMEntry
-                : productMeta?.uomEntry,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             quantity,
             discountPercent,
             discountAmount,
@@ -354,6 +395,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             selected: false,
           };
         });
+
 
         setHeader({
           comments,
@@ -392,6 +434,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
               price: row.price,
               discountPercent: row.discountPercent,
               warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
             })),
         });
 
@@ -629,6 +673,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           price: row.price,
           discountPercent: row.discountPercent,
           warehouseCode: row.warehouseCode,
+          uomCode: row.uomCode,
+          uomEntry: row.uomEntry,
         })),
       }),
       [
@@ -837,6 +883,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
+
 
     saveActions.actionToast.startLoading("Purchase Quotation", isEditMode ? "update" : action);
     try {

@@ -59,6 +59,18 @@ export const masterDataAPI = {
     apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       "/api/v1/master-data/TaxDeclarations",
     ),
+  getUoms: async (params?: MasterDataQuery) => {
+    const query = new URLSearchParams();
+    if (params?.search) {
+      query.set("search", params.search);
+    }
+    if (params?.limit) {
+      query.set("limit", String(params.limit));
+    }
+    return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
+      `/api/v1/master-data/uoms?${query.toString()}`,
+    );
+  },
   getVendors: async (params?: MasterDataQuery) => {
     const query = new URLSearchParams();
     if (params?.search) {

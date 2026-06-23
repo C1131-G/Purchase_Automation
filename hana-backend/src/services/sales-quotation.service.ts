@@ -247,10 +247,12 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
           docLine.UoMEntry = Math.trunc(uomEntry);
+          docLine.UseBaseUnit = "tNO";
         } else {
           const uomCode = line.UoMCode ?? line.UomCode;
           if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
             docLine.UoMCode = uomCode as string | number;
+            docLine.UseBaseUnit = "tNO";
           }
         }
 
@@ -370,10 +372,12 @@ export const updateSalesQuotation = async (
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
           docLine.UoMEntry = Math.trunc(uomEntry);
+          docLine.UseBaseUnit = "tNO";
         } else {
           const uomCode = line.UoMCode ?? line.UomCode;
           if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
             docLine.UoMCode = uomCode as string | number;
+            docLine.UseBaseUnit = "tNO";
           }
         }
 

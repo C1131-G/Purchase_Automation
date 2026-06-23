@@ -296,10 +296,12 @@ export const createInvoice = async (
       const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
       if (Number.isFinite(uomEntry) && uomEntry > 0) {
         docLine.UoMEntry = Math.trunc(uomEntry);
+        docLine.UseBaseUnit = "tNO";
       } else {
         const uomCode = item.UoMCode ?? item.UomCode;
         if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
           docLine.UoMCode = uomCode as string | number;
+          docLine.UseBaseUnit = "tNO";
         }
       }
 

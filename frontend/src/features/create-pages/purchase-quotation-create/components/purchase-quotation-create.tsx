@@ -328,6 +328,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
           defaultWarehouseCode={state.effectiveWarehouseCode}
           warehouses={state.warehouses}
           warehousesLoading={state.warehousesQuery.isLoading}
+          uoms={state.uoms}
           updateProductRow={state.updateProductRow}
           removeProductRow={state.removeProductRow}
           setProductRowDraft={state.setProductRowDraft}

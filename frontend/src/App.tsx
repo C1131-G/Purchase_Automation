@@ -1,5 +1,6 @@
 import "goey-toast/styles.css";
 import { dehydrate, hydrate, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { AnyRouter } from "@tanstack/react-router";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { GoeyToaster } from "goey-toast";
 import { useEffect, useRef } from "react";
@@ -57,6 +58,89 @@ const router = createRouter({
   defaultPendingMs: 0,
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Route level hierarchy for transition direction detection.
+// Level -1 = login, 0 = dashboards, 1 = tables, 2 = create/edit pages.
+// ─────────────────────────────────────────────────────────────────────────────
+function getRouteLevel(pathname: string): number {
+  if (pathname === "/login" || pathname.startsWith("/login")) return -1;
+  if (pathname === "/" || pathname.startsWith("/dashboard")) {
+    return 0;
+  }
+  // Create / Edit pages are the deepest level
+  if (
+    pathname.includes("/create") ||
+    pathname.includes("/edit") ||
+    /\/create-[a-z]/.test(pathname)
+  ) {
+    return 2;
+  }
+  // Everything else under /purchase, /sales, /inventory is a table (level 1)
+  return 1;
+}
+
+type TransitionType = "slide-left" | "slide-right" | "slide-up" | "slide-down";
+
+function getTransitionDirection(fromPathname: string, toPathname: string): TransitionType {
+  const fromLevel = getRouteLevel(fromPathname);
+  const toLevel = getRouteLevel(toPathname);
+
+  // Login → App  (level -1 → level 0+): slide-up (phone unlock feel)
+  if (fromLevel === -1 && toLevel >= 0) return "slide-up";
+
+  // App → Login (logging out / session expired): slide-down
+  if (toLevel === -1) return "slide-down";
+
+  // Dashboard switching (both level 0 but different paths): slide-up
+  if (fromLevel === 0 && toLevel === 0 && fromPathname !== toPathname) {
+    return "slide-up";
+  }
+
+  // Going deeper in the hierarchy → slide-left (forward)
+  if (toLevel > fromLevel) return "slide-left";
+
+  // Going up / backward → slide-right
+  if (toLevel < fromLevel) return "slide-right";
+
+  // Same level, different paths (e.g. Purchase table → Sales table) → slide-left
+  return "slide-left";
+}
+
+// Patch document.startViewTransition once so every viewTransition: true navigation
+// automatically gets the correct direction applied via CSS types + html class fallback.
+function patchViewTransition(routerInstance: AnyRouter): void {
+  if (typeof document === "undefined" || !document.startViewTransition) return;
+
+  const original = document.startViewTransition.bind(document);
+
+  document.startViewTransition = function (callbackOrOptions) {
+    const fromPathname = routerInstance.state.location.pathname;
+    const toPathname = (routerInstance.state as any).pendingLocation?.pathname ?? fromPathname;
+
+    // Same pathname = search/filter/pagination update — no slide animation.
+    if (fromPathname === toPathname) {
+      return original(callbackOrOptions);
+    }
+
+    const direction = getTransitionDirection(fromPathname, toPathname);
+    const htmlEl = document.documentElement;
+    const vtClass = `vt-${direction}`;
+    htmlEl.classList.add(vtClass);
+
+    // Build argument with types array for Level 2 View Transitions API
+    const arg =
+      typeof callbackOrOptions === "function"
+        ? { types: [direction], update: callbackOrOptions }
+        : { types: [direction], ...callbackOrOptions };
+
+    const transition = original(arg as Parameters<typeof original>[0]);
+    transition.finished.finally(() => {
+      htmlEl.classList.remove(vtClass);
+    });
+    return transition;
+  };
+}
+
 // 3. Register the router instance for type safety
 declare module "@tanstack/react-router" {
   interface Register {
@@ -66,6 +150,14 @@ declare module "@tanstack/react-router" {
 
 function App() {
   const persistTimerRef = useRef<number | null>(null);
+
+  // Patch startViewTransition once on mount so every navigation
+  // automatically gets the correct slide direction.
+  // The patch runs once intentionally — router is a stable singleton.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    patchViewTransition(router);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = queryClient.getQueryCache().subscribe(() => {

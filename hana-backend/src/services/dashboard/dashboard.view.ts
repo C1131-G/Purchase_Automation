@@ -41,17 +41,28 @@ export const buildModuleCard = (dataset: ModuleDataset): DashboardModuleCard => 
   trendPct: calculateTrend(sumTotals(dataset.current), sumTotals(dataset.previous)),
 });
 
-const toExceptionItem = (doc: RawDashboardDocument): DashboardExceptionItem => ({
-  module: doc.module,
-  docNum: doc.docNum,
-  cardCode: doc.cardCode || undefined,
-  cardName: doc.cardName || undefined,
-  docDate: doc.docDate,
-  docStatus: doc.docStatus || undefined,
-  docTotal: Number(doc.docTotal.toFixed(2)),
-  openValue: Number(getOpenValue(doc).toFixed(2)),
-  href: `${MODULE_HREFS[doc.module]}?docNum=${doc.docNum}`,
-});
+const isInventoryModule = (module: DocumentModule): boolean => {
+  return ["goodsReceipt", "goodsIssue", "transferRequest", "transfer"].includes(module);
+};
+
+const toExceptionItem = (doc: RawDashboardDocument): DashboardExceptionItem => {
+  const isInventory = isInventoryModule(doc.module);
+  const href = isInventory
+    ? `${MODULE_HREFS[doc.module]}?DocNum=${doc.docNum}`
+    : `${MODULE_HREFS[doc.module]}/${doc.docNum}/edit`;
+
+  return {
+    module: doc.module,
+    docNum: doc.docNum,
+    cardCode: doc.cardCode || undefined,
+    cardName: doc.cardName || undefined,
+    docDate: doc.docDate,
+    docStatus: doc.docStatus || undefined,
+    docTotal: Number(doc.docTotal.toFixed(2)),
+    openValue: Number(getOpenValue(doc).toFixed(2)),
+    href,
+  };
+};
 
 export const sortByOpenValue = (docs: RawDashboardDocument[]): RawDashboardDocument[] =>
   [...docs].sort((left, right) => getOpenValue(right) - getOpenValue(left));

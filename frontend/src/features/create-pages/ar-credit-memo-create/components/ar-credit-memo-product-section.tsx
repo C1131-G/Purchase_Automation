@@ -185,6 +185,8 @@ export function ArCreditMemoProductSection({
           showSelection={true}
           showReturnReason={true}
           nativeReturnReason={true}
+          showUom={true}
+          showExplicitZeroDiscount={true}
         />
       </div>
     </BaseProductSection>

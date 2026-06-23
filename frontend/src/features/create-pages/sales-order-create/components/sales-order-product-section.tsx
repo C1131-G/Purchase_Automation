@@ -141,6 +141,8 @@ export function SalesOrderProductSection({
         warehousesLoading={warehousesLoading}
         stockLimitReserve={1}
         minStockToSelectWarehouse={2}
+        showUom={true}
+        showExplicitZeroDiscount={true}
       />
     </BaseProductSection>
   );

@@ -6,6 +6,7 @@ import {
   useCreateArCreditMemoMutation,
   useUpdateArCreditMemoMutation,
 } from "@/features/create-pages/ar-credit-memo-create/api/ar-credit-memo-create.mutations";
+import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { useArCnProducts } from "@/features/create-pages/ar-credit-memo-create/hooks/use-ar-cm-products";
 import {
   AR_CREDIT_MEMO_MANDATORY_FIELDS,
@@ -15,6 +16,7 @@ import {
 import type { ProductSearchFieldError } from "@/features/create-pages/ar-credit-memo-create/utils/ar-credit-memo-create.utils";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import type {
@@ -57,7 +59,17 @@ export function useArCreditMemoCreate({
   });
 
   const setHeader = useCallback(
-    (patch: Partial<typeof header>) => setHeaderState((prev) => ({ ...prev, ...patch })),
+    (patch: Partial<typeof header>) =>
+      setHeaderState((prev) => {
+        const next = { ...prev, ...patch };
+        if (patch.billToAddress !== undefined) {
+          next.billToAddress = formatAddressForDisplay(patch.billToAddress);
+        }
+        if (patch.shipToAddress !== undefined) {
+          next.shipToAddress = formatAddressForDisplay(patch.shipToAddress);
+        }
+        return next;
+      }),
     [],
   );
 
@@ -445,7 +457,26 @@ export function useArCreditMemoCreate({
           ),
         ]);
 
-        const productByCode = new Map(productMetaResponse.map((p) => [p.code, p]));
+        const productByCode = new Map<string, ProductLookupItem>(
+          productMetaResponse.map((p) => [String(p.code).trim(), p]),
+        );
+
+        // Recover missing product metadata
+        const missingItemCodes = itemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "sales"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+
         const stocksByCode = new Map(itemCodes.map((code, i) => [code, stocksResponse[i]]));
 
         const mappedRows = detailLines.map((line: Record<string, unknown>, index: number) => {
@@ -504,8 +535,31 @@ export function useArCreditMemoCreate({
               line.VatPrcnt !== undefined
                 ? Number(line.VatPrcnt)
                 : Number(productMeta?.taxRate ?? 0),
-            uomCode: String(line.UoMCode ?? productMeta?.uomCode ?? ""),
-            uomEntry: Number(line.UoMEntry ?? productMeta?.uomEntry ?? 0) || undefined,
+            uomCode: (() => {
+              const code = String(line.UoMCode ?? line.uomCode ?? line.UomCode ?? "").trim();
+              if (code) return code;
+              const entry = Number(line.UoMEntry ?? line.uomEntry ?? line.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(line.UoMEntry ?? line.uomEntry ?? line.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(line.UoMCode ?? line.uomCode ?? line.UomCode ?? "").trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             vatGroup: String(line.VatGroup || line.TaxCode || productMeta?.vatGroup || ""),
             warehouseCode: lineWarehouse,
           };

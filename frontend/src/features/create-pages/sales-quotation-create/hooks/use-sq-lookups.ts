@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { createSharedQueries as salesQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
@@ -46,8 +47,15 @@ export function useSqLookups({
   const [warehouseInput, setWarehouseInput] = useState("");
   const [salesEmployeeInput, setSalesEmployeeInput] = useState("");
 
-  const [billToAddress, setBillToAddress] = useState("");
-  const [shipToAddress, setShipToAddress] = useState("");
+  const [billToAddress, setBillToAddressRaw] = useState("");
+  const [shipToAddress, setShipToAddressRaw] = useState("");
+
+  const setBillToAddress = useCallback((value: string) => {
+    setBillToAddressRaw(formatAddressForDisplay(value));
+  }, []);
+  const setShipToAddress = useCallback((value: string) => {
+    setShipToAddressRaw(formatAddressForDisplay(value));
+  }, []);
 
   const [nameFocused, setNameFocused] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);

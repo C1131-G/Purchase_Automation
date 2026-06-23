@@ -189,6 +189,7 @@ export function APInvoiceProductSection({
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
           warehouseErrors={warehouseErrors}
+          showUom={true}
         />
       </div>
     </BaseProductSection>

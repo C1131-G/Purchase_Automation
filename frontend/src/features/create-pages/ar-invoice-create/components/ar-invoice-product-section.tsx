@@ -161,6 +161,8 @@ export function ARInvoiceProductSection({
           totals={totals}
           summaryCurrencyLabel={summaryCurrencyLabel}
           createError={createError}
+          showUom={true}
+          showExplicitZeroDiscount={true}
         />
       </div>
     </BaseProductSection>

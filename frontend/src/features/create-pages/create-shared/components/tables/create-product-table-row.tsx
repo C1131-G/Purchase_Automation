@@ -7,6 +7,7 @@ import ReactDOM from "react-dom";
 import { Tooltip } from "@/components/tooltip";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
+import { ProductUomModal } from "@/features/create-pages/create-shared/components/modals/product-uom-modal";
 import { ProductWarehouseStockModal } from "@/features/create-pages/create-shared/components/modals/product-warehouse-stock-modal";
 import { calculateLineTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import type {
@@ -143,6 +144,8 @@ interface CreateProductTableRowProps {
   nativeReturnReason?: boolean;
   showTaxCode?: boolean;
   warehouseError?: string | undefined;
+  showUom?: boolean;
+  uoms?: CreateLookupOption[];
 }
 
 export function CreateProductTableRow({
@@ -169,15 +172,69 @@ export function CreateProductTableRow({
   maxQuantity,
   linkedRow = false,
   warehouseError,
+  showUom = false,
+  uoms = [],
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState("");
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState("");
   const [warehouseFocused, setWarehouseFocused] = React.useState(false);
+
+  const productUoms = React.useMemo(() => {
+    const getUomName = (code: string) => uoms.find((u) => u.code === code)?.name || code;
+
+    // If the row carries a full item-specific UoM list (from its SAP UoM Group),
+    // use that list directly so the dropdown shows all valid UoMs for the product.
+    if (row.uomList && row.uomList.length > 0) {
+      return row.uomList.map((u) => ({
+        code: u.code,
+        name: u.name || getUomName(u.code),
+        uomEntry: u.uomEntry,
+      })) as CreateLookupOption[];
+    }
+
+    // Legacy fallback: build from purchase/sales/current UoM fields (other modules).
+    const list: CreateLookupOption[] = [];
+    if (row.purchaseUomCode) {
+      list.push({
+        code: row.purchaseUomCode,
+        name: getUomName(row.purchaseUomCode),
+        uomEntry: row.purchaseUomEntry,
+      });
+    }
+    if (row.salesUomCode && row.salesUomCode !== row.purchaseUomCode) {
+      list.push({
+        code: row.salesUomCode,
+        name: getUomName(row.salesUomCode),
+        uomEntry: row.salesUomEntry,
+      });
+    }
+    if (row.uomCode && !list.some((u) => u.code === row.uomCode)) {
+      list.push({
+        code: row.uomCode,
+        name: getUomName(row.uomCode),
+        uomEntry: row.uomEntry,
+      });
+    }
+    return list;
+  }, [
+    row.uomList,
+    row.purchaseUomCode,
+    row.purchaseUomEntry,
+    row.salesUomCode,
+    row.salesUomEntry,
+    row.uomCode,
+    row.uomEntry,
+    uoms,
+  ]);
   const [lookupOpen, setLookupOpen] = React.useState(false);
   const blurTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const warehouseInputRef = React.useRef<HTMLInputElement>(null);
   const isEditingRef = React.useRef(false);
   const [dropdownStyle, setDropdownStyle] = React.useState<React.CSSProperties | null>(null);
+
+  const [uomInput, setUomInput] = React.useState("");
+  const [uomLookupOpen, setUomLookupOpen] = React.useState(false);
+  const [uomLookupInitialSearch, setUomLookupInitialSearch] = React.useState("");
 
   const effectiveMaxQuantity = React.useMemo(() => {
     if (typeof maxQuantity === "function") {
@@ -405,6 +462,18 @@ export function CreateProductTableRow({
       <span className="font-bold text-rose-500">Item is out of stock</span>
     );
 
+  React.useEffect(() => {
+    setUomInput(row.uomCode ?? "");
+  }, [row.uomCode]);
+
+  const selectUomInRow = (item: CreateLookupOption) => {
+    setUomInput(item.code);
+    updateProductRow(row.id, {
+      uomCode: item.code,
+      uomEntry: item.uomEntry,
+    });
+  };
+
   // Use centralized line math for consistency with SAP totals
   const lineTotals = calculateLineTotals(row);
   const { gross: grossAmount, discount: clampedDiscountAmount, lineNet, lineTotal } = lineTotals;
@@ -580,6 +649,62 @@ export function CreateProductTableRow({
           }}
         />
       </td>
+      {showUom && (
+        <td className="relative min-w-0 px-2 py-2">
+          <div className="relative w-[100px]">
+            <input
+              type="text"
+              value={uomInput}
+              readOnly={true}
+              onClick={() => {
+                if (effectiveDisableInputs) {
+                  onInputRestrictedClick?.();
+                  return;
+                }
+                setUomLookupInitialSearch("");
+                setUomLookupOpen(true);
+              }}
+              disabled={effectiveDisableInputs}
+              placeholder="UoM"
+              className={`h-9 w-full rounded-lg border pl-2.5 pr-8 text-xs text-zinc-800 outline-none cursor-pointer ${
+                row.uomCode ? "border-zinc-200 bg-zinc-50" : "border-red-300 bg-rose-50/50"
+              } focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-all duration-150 ${
+                disableInputs ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+              }`}
+            />
+            <button
+              type="button"
+              disabled={effectiveDisableInputs}
+              onClick={() => {
+                if (effectiveDisableInputs) {
+                  return;
+                }
+                setUomLookupInitialSearch("");
+                setUomLookupOpen(true);
+              }}
+              className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+                effectiveDisableInputs
+                  ? "cursor-not-allowed opacity-40"
+                  : "cursor-pointer hover:bg-zinc-100"
+              }`}
+            >
+              <Search className="h-3 w-3" />
+            </button>
+          </div>
+          <ProductUomModal
+            open={uomLookupOpen}
+            product={{ code: row.productCode, name: row.productName }}
+            uoms={productUoms}
+            onClose={() => setUomLookupOpen(false)}
+            initialSearch={uomLookupInitialSearch}
+            onSearchChange={setUomLookupInitialSearch}
+            onSelect={(item) => {
+              selectUomInRow(item);
+              setUomLookupOpen(false);
+            }}
+          />
+        </td>
+      )}
       <td className="min-w-0 px-2 py-2">
         {enforceStockLimit ? (
           <Tooltip content={quantityMessage} className="block w-auto max-w-none">

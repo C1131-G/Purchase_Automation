@@ -34,6 +34,8 @@ interface CreateProductTableProps {
   nativeReturnReason?: boolean;
   showTaxCode?: boolean;
   warehouseErrors?: Record<string, string> | undefined;
+  showUom?: boolean;
+  uoms?: CreateLookupOption[];
 }
 
 export function CreateProductTable({
@@ -60,6 +62,8 @@ export function CreateProductTable({
   showTaxCode = false,
   linkedRow = false,
   warehouseErrors,
+  showUom = false,
+  uoms = [],
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
@@ -67,8 +71,9 @@ export function CreateProductTable({
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
             {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
-            <th className="w-[20%] px-2 py-2">Product</th>
-            <th className="w-[26%] px-2 py-2">Warehouse</th>
+            <th className={`${showUom ? "w-[18%]" : "w-[20%]"} px-2 py-2`}>Product</th>
+            <th className={`${showUom ? "w-[18%]" : "w-[26%]"} px-2 py-2`}>Warehouse</th>
+            {showUom && <th className="w-[10%] px-2 py-2 text-left">UoM</th>}
             <th className="w-[8%] px-2 py-2 text-left">Quantity</th>
             <th className="w-[6%] px-2 py-2 text-left">Price</th>
             <th className="w-[8%] px-2 py-2 text-left">Disc %</th>
@@ -86,7 +91,11 @@ export function CreateProductTable({
               <td
                 className="px-3 py-8"
                 colSpan={
-                  9 + (showSelection ? 1 : 0) + (showReturnReason ? 1 : 0) + (showTaxCode ? 1 : 0)
+                  9 +
+                  (showSelection ? 1 : 0) +
+                  (showReturnReason ? 1 : 0) +
+                  (showTaxCode ? 1 : 0) +
+                  (showUom ? 1 : 0)
                 }
               >
                 <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
@@ -125,6 +134,8 @@ export function CreateProductTable({
               nativeReturnReason={nativeReturnReason}
               showTaxCode={showTaxCode}
               warehouseError={warehouseErrors?.[row.id]}
+              showUom={showUom}
+              uoms={uoms}
             />
           ))}
         </tbody>

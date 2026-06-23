@@ -187,6 +187,7 @@ export function APCreditMemoProductSection({
           showSelection={true}
           showReturnReason={true}
           warehouseErrors={warehouseErrors}
+          showUom={true}
         />
       </div>
     </BaseProductSection>

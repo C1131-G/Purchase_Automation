@@ -463,12 +463,40 @@ export function useAPCreditMemoCreate({
       });
       setBillToAddress(String(detail.Address ?? "").trim());
       setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
+      const detailLines = detail.DocumentLines ?? [];
+      const productsForWarehouse =
+        effectiveWarehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+              .catch((): ProductLookupItem[] => [])
+          : [];
+
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      );
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+      ].filter(Boolean);
+
+      // Recover missing product metadata
+      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+      if (missingItemCodes.length > 0) {
+        await Promise.all(
+          missingItemCodes.map(async (itemCode) => {
+            const res = await queryClient
+              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+              .catch((): ProductLookupItem[] => []);
+            const matched = res.find((p) => String(p.code).trim() === itemCode);
+            if (matched) {
+              productByCode.set(itemCode, matched);
+            }
+          }),
+        );
+      }
 
       const taxRateByItemCode = await resolveProductTaxRates(
         queryClient,
-        (detail.DocumentLines ?? []).map((line: { ItemCode?: string }) =>
-          String(line.ItemCode ?? "").trim(),
-        ),
+        detailLines.map((line) => String(line.ItemCode ?? "").trim()),
         "purchase",
       );
       const resolvedHeaderDiscountPercent = Number(
@@ -478,6 +506,7 @@ export function useAPCreditMemoCreate({
 
       const mappedLines = (detail.DocumentLines ?? []).map(
         (line: Record<string, unknown>, index: number) => {
+          const lineData = line as Record<string, unknown>;
           const quantity = Math.max(0, Number(line.Quantity ?? 0));
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
@@ -487,6 +516,7 @@ export function useAPCreditMemoCreate({
             line,
           });
           const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
 
           return {
             baseEntry: typeof line.BaseEntry === "number" ? line.BaseEntry : undefined,
@@ -494,13 +524,15 @@ export function useAPCreditMemoCreate({
             baseQuantity: quantity,
             baseType: typeof line.BaseType === "number" ? line.BaseType : undefined,
             comment: "",
-            currency: String(detail.DocCurr ?? "").trim(),
+            currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
             discountAmount,
             discountPercent,
             id: `${currentDocNum}-${index}`,
             price,
-            productCode: String(line.ItemCode ?? "").trim(),
-            productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
+            productCode: itemCode,
+            productName: String(
+              line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+            ).trim(),
             quantity,
             returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? "").trim(),
             selected: true,
@@ -509,8 +541,35 @@ export function useAPCreditMemoCreate({
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
               0,
-            uomCode: String(line.UoMCode ?? "").trim(),
-            uomEntry: typeof line.UoMEntry === "number" ? line.UoMEntry : undefined,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             vatGroup: String(line.TaxCode ?? "").trim(),
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
           };
@@ -554,6 +613,8 @@ export function useAPCreditMemoCreate({
     setBillToAddress,
     setShipToAddress,
     vendors,
+    effectiveWarehouseCode,
+    warehouses,
   ]);
 
   useEffect(() => {
@@ -653,9 +714,37 @@ export function useAPCreditMemoCreate({
       const allDetailLines = details.flatMap(
         (d) => (d.DocumentLines ?? []) as { ItemCode?: string }[],
       );
+      const productsForWarehouse =
+        effectiveWarehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+              .catch((): ProductLookupItem[] => [])
+          : [];
+
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      );
+      const uniqueItemCodes = [
+        ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
+      ].filter(Boolean);
+
+      // Recover missing product metadata
+      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+      if (missingItemCodes.length > 0) {
+        await Promise.all(
+          missingItemCodes.map(async (itemCode) => {
+            const res = await queryClient
+              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+              .catch((): ProductLookupItem[] => []);
+            const matched = res.find((p) => String(p.code).trim() === itemCode);
+            if (matched) {
+              productByCode.set(itemCode, matched);
+            }
+          }),
+        );
+      }
 
       const baseType = 18; // AP Invoice BaseType
-
       const currency = String(primaryDetail.DocCurr ?? "").trim();
 
       const taxRateByItemCode = await resolveProductTaxRates(
@@ -674,16 +763,16 @@ export function useAPCreditMemoCreate({
         return detailLines.map((line) => {
           const idx = lineIndex++;
           const lineData = line as Record<string, unknown>;
-          const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1);
-          const quantity = openQty;
+          const quantity = Math.max(0, Number(line.Quantity ?? 0));
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
             headerDiscountPercent: resolvedHeaderDiscountPercent,
-            line,
+            line: line as unknown as Record<string, unknown>,
           });
           const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
 
           return {
             baseEntry: detail.DocEntry ?? (detail as { id?: number }).id ?? undefined,
@@ -691,13 +780,15 @@ export function useAPCreditMemoCreate({
             baseQuantity: quantity,
             baseType,
             comment: "",
-            currency,
+            currency: currency || String(productMeta?.currency ?? "").trim(),
             discountAmount,
             discountPercent,
             id: `row-copy-${detail.DocEntry ?? detail.id ?? "unknown"}-${idx}`,
             price,
             productCode: itemCode,
-            productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
+            productName: String(
+              line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+            ).trim(),
             quantity,
             returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? "").trim(),
             selected: false,
@@ -706,8 +797,35 @@ export function useAPCreditMemoCreate({
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
               0,
-            uomCode: String(line.UoMCode ?? "").trim(),
-            uomEntry: typeof line.UoMEntry === "number" ? (line.UoMEntry as number) : undefined,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             vatGroup: String(line.TaxCode ?? "").trim(),
             warehouseCode: String(line.WarehouseCode ?? warehouseCode).trim(),
           };
@@ -1108,6 +1226,7 @@ export function useAPCreditMemoCreate({
             ItemCode: row.productCode,
             Quantity: row.quantity,
             UnitPrice: row.price,
+            ...(row.uomEntry !== undefined ? { UoMEntry: row.uomEntry } : {}),
             ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
             ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
             ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),
@@ -1352,6 +1471,7 @@ export function useAPCreditMemoCreate({
               ItemCode: row.productCode,
               Quantity: row.quantity,
               UnitPrice: row.price,
+              ...(row.uomEntry !== undefined ? { UoMEntry: row.uomEntry } : {}),
               ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
               ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
               ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),

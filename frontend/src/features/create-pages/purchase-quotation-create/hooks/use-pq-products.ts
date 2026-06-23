@@ -233,6 +233,11 @@ export function usePqProducts({
           taxRate: product.taxRate,
           uomCode: product.purchaseUomCode || product.uomCode,
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
+          uomList: product.uomList,
+          purchaseUomCode: product.purchaseUomCode,
+          purchaseUomEntry: product.purchaseUomEntry,
+          salesUomCode: product.uomCode,
+          salesUomEntry: product.uomEntry,
           vatGroup: product.vatGroup,
           warehouseCode: targetWhs,
         });
@@ -264,6 +269,11 @@ export function usePqProducts({
           taxRate: product.taxRate,
           uomCode: product.purchaseUomCode || product.uomCode,
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
+          uomList: product.uomList,
+          purchaseUomCode: product.purchaseUomCode,
+          purchaseUomEntry: product.purchaseUomEntry,
+          salesUomCode: product.uomCode,
+          salesUomEntry: product.uomEntry,
           vatGroup: product.vatGroup,
           warehouseCode: targetWhs,
         };

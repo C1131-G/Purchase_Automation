@@ -34,6 +34,7 @@ export const createSharedKeys = {
   products: () => [...createSharedKeys.all, "products-v2"] as const,
   salesEmployees: () => [...createSharedKeys.all, "sales-employees"] as const,
   taxCodes: () => [...createSharedKeys.all, "tax-codes"] as const,
+  uoms: () => [...createSharedKeys.all, "uoms"] as const,
   vendors: () => [...createSharedKeys.all, "vendors-v3"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
   financialPeriod: () => [...createSharedKeys.all, "financial-period-active"] as const,
@@ -129,6 +130,24 @@ export const createSharedQueries = {
       queryFn: async () =>
         normalizeLookups(unwrapMasterData(await masterDataAPI.getTaxCodes()).map(mapLookup)),
       queryKey: createSharedKeys.taxCodes(),
+      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
+    }),
+  uoms: () =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
+      queryFn: async () => {
+        const uomList = unwrapMasterData(await masterDataAPI.getUoms()).map((item) => {
+          const base = mapLookup(item);
+          const rawRecord =
+            item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+          return {
+            ...base,
+            uomEntry: typeof rawRecord.uomEntry === "number" ? rawRecord.uomEntry : undefined,
+          };
+        });
+        return normalizeLookups(uomList);
+      },
+      queryKey: createSharedKeys.uoms(),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
   vendors: () =>

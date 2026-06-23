@@ -129,6 +129,7 @@ export function TableToolbar<TData>({
                 }
                 search={{ period: "week" } as any}
                 preload="intent"
+                viewTransition
                 className="text-zinc-400 transition-colors hover:text-blue-600"
               >
                 {breadcrumb.section} Dashboard
@@ -137,6 +138,7 @@ export function TableToolbar<TData>({
               <Link
                 to={breadcrumb.href}
                 preload="intent"
+                viewTransition
                 className="font-semibold text-zinc-800 transition-colors hover:text-blue-600"
               >
                 {breadcrumb.page}

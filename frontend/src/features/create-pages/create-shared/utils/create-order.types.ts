@@ -10,7 +10,13 @@ export type ActiveDatePicker = "doc" | "delivery" | null;
 
 export type CreateLookupOption = Pick<
   LookupItem,
-  "code" | "name" | "billToAddress" | "shipToAddress" | "salesEmployeeCode" | "salesEmployeeName"
+  | "code"
+  | "name"
+  | "billToAddress"
+  | "shipToAddress"
+  | "salesEmployeeCode"
+  | "salesEmployeeName"
+  | "uomEntry"
 > & {
   stock?: number | undefined;
   disabled?: boolean;
@@ -32,8 +38,11 @@ export interface ProductGridRow {
   taxRate: number;
   uomCode?: string | undefined;
   uomEntry?: number | undefined;
+  uomList?: { code: string; name: string; uomEntry?: number | undefined }[] | undefined;
   purchaseUomCode?: string | undefined;
   purchaseUomEntry?: number | undefined;
+  salesUomCode?: string | undefined;
+  salesUomEntry?: number | undefined;
   quantity: number;
   openQty?: number | undefined;
   baseQuantity?: number | undefined;

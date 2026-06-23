@@ -165,6 +165,7 @@ export function ExceptionsTable({ groups, currency, color }: ExceptionsTableProp
                 {/* Clickable Overlay */}
                 <Link
                   to={item.href}
+                  preload="intent"
                   viewTransition
                   className="absolute inset-0 rounded-xl focus:outline-none"
                   aria-label={`Inspect document ${item.docNum}`}

@@ -85,10 +85,10 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
     VatPrcnt: Number(
       line.TaxPercentagePerRow ?? line.TaxPercentagePerRow ?? line.VatPrcnt ?? line.vatPrcnt ?? 0,
     ),
-    UoMCode: line.UoMCode ?? line.uomCode,
+    UoMCode: line.UoMCode ?? line.uomCode ?? line.UomCode,
     UoMEntry:
-      (line.UoMEntry ?? line.uomEntry !== undefined)
-        ? Number(line.UoMEntry ?? line.uomEntry)
+      line.UoMEntry !== undefined || line.uomEntry !== undefined || line.UomEntry !== undefined
+        ? Number(line.UoMEntry ?? line.uomEntry ?? line.UomEntry)
         : undefined,
     WarehouseCode: String(line.WarehouseCode ?? line.warehouseCode ?? ""),
     ReqDate: String(

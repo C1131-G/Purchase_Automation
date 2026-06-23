@@ -23,6 +23,7 @@ function SelectInvoicePage() {
         sourceDocType: "AR_INVOICE" as const,
       },
       to: "/sales/ar-credit-memo/create",
+      viewTransition: true,
     } as never);
   };
 
@@ -35,6 +36,7 @@ function SelectInvoicePage() {
               void navigate({
                 search: { limit: 10, page: 1 },
                 to: "/sales/ar-credit-memo",
+                viewTransition: true,
               } as never)
             }
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-all hover:bg-zinc-50 hover:text-zinc-800 active:scale-95"

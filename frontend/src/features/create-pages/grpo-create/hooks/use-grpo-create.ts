@@ -479,10 +479,36 @@ export function useGRPOCreate({
         setBillToAddress(billAddr);
         setShipToAddress(shipAddr);
         const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse =
+          effectiveWarehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+                .catch((): ProductLookupItem[] => [])
+            : [];
+
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
         const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
         const uniqueItemCodes = [
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
+
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
 
         await Promise.all(
           uniqueItemCodes.map(async (itemCode) => {
@@ -510,10 +536,12 @@ export function useGRPOCreate({
         setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
         const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
+          const lineData = line as Record<string, unknown>;
           const quantity = Math.max(0, Number(line.Quantity ?? 0));
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
           const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
           const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
           const warehouseStocks = stockByItemCode.get(itemCode) ?? [];
           const lineStock = lineWarehouseCode
@@ -537,11 +565,35 @@ export function useGRPOCreate({
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
               0,
-            uomCode: String(line.UoMCode ?? "").trim(),
-            uomEntry:
-              typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                ? line.UoMEntry
-                : undefined,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             baseQuantity: quantity,
             quantity,
             discountPercent,
@@ -717,11 +769,37 @@ export function useGRPOCreate({
 
       // Merge all lines from all source documents
       const allDetailLines = details.flatMap((detail) => detail.DocumentLines ?? []);
+      const productsForWarehouse =
+        effectiveWarehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+              .catch((): ProductLookupItem[] => [])
+          : [];
+
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      );
+      const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
       const uniqueItemCodes = [
         ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
       ].filter(Boolean);
 
-      const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
+      // Recover missing product metadata
+      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+      if (missingItemCodes.length > 0) {
+        await Promise.all(
+          missingItemCodes.map(async (itemCode) => {
+            const res = await queryClient
+              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+              .catch((): ProductLookupItem[] => []);
+            const matched = res.find((p) => String(p.code).trim() === itemCode);
+            if (matched) {
+              productByCode.set(itemCode, matched);
+            }
+          }),
+        );
+      }
+
       await Promise.all(
         uniqueItemCodes.map(async (itemCode) => {
           const warehouseStocks = (await queryClient
@@ -754,6 +832,7 @@ export function useGRPOCreate({
         return detailLines.map((line) => {
           const idx = lineIndex++;
           const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
           const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
           const warehouseStocks = stockByItemCode.get(itemCode) ?? [];
           const lineStock = lineWarehouseCode
@@ -794,11 +873,35 @@ export function useGRPOCreate({
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
               0,
-            uomCode: String(line.UoMCode ?? "").trim(),
-            uomEntry:
-              typeof line.UoMEntry === "number" && Number.isFinite(line.UoMEntry)
-                ? line.UoMEntry
-                : undefined,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
             baseQuantity: quantity,
             quantity,
             discountPercent,

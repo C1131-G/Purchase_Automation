@@ -16,6 +16,7 @@ export const lookupItemSchema = z.object({
   shipToAddress: z.string().optional(),
   addresses: z.array(vendorAddressSchema).optional(),
   currency: z.string().optional(),
+  uomEntry: z.number().optional(),
 });
 
 export const productLookupItemSchema = lookupItemSchema.extend({
@@ -28,6 +29,15 @@ export const productLookupItemSchema = lookupItemSchema.extend({
   taxRate: z.number(),
   uomCode: z.string().optional(),
   uomEntry: z.number().optional(),
+  uomList: z
+    .array(
+      z.object({
+        code: z.string(),
+        name: z.string(),
+        uomEntry: z.number().optional(),
+      }),
+    )
+    .optional(),
   vatGroup: z.string(),
 });
 

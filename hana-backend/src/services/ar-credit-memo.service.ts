@@ -232,10 +232,16 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
         };
 
         // Prefer UoMEntry over UoMCode for more reliable linking in SAP
-        if (item.UoMEntry !== undefined && item.UoMEntry !== null) {
-          line.UoMEntry = Number(item.UoMEntry);
-        } else if (item.UoMCode) {
-          line.UoMCode = String(item.UoMCode);
+        const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          line.UoMEntry = Math.trunc(uomEntry);
+          line.UseBaseUnit = "tNO";
+        } else {
+          const uomCode = item.UoMCode ?? item.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            line.UoMCode = uomCode as string | number;
+            line.UseBaseUnit = "tNO";
+          }
         }
 
         // Only map Base document fields if they represent a valid SAP linking type (e.g. 13 for AR Invoice)

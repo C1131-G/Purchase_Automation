@@ -31,6 +31,7 @@ export interface Item {
   SellItem?: string;
   InvntItem?: string;
   CodeBars?: string;
+  UgpEntry?: number;
 }
 
 export const ItemSchema = new EntitySchema<Item>({
@@ -187,6 +188,11 @@ export const ItemSchema = new EntitySchema<Item>({
       name: "CodeBars",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    UgpEntry: {
+      name: "UgpEntry",
+      nullable: true,
+      type: "integer" as HANAColumnType,
     },
   },
   name: "Item",
