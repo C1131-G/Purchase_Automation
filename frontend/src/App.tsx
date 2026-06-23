@@ -12,6 +12,7 @@ import {
   clearPersistedQueryCache,
   QUERY_CACHE_KEY,
 } from "@/shared/utils/query-cache-persistence";
+import { type BeforeInstallPromptEvent, usePwaActions } from "@/store/pwa/pwa.store";
 
 const QUERY_CACHE_MAX_AGE = 30 * 60 * 1000;
 
@@ -97,6 +98,45 @@ function App() {
     window.addEventListener(CLEAR_QUERY_CACHE_EVENT, handleClearQueryCache);
     return () => window.removeEventListener(CLEAR_QUERY_CACHE_EVENT, handleClearQueryCache);
   }, []);
+
+  const { setDeferredPrompt, setIsInstalled, setIsDesktop } = usePwaActions();
+
+  useEffect(() => {
+    const isDesktopSession = window.innerWidth >= 1024;
+    setIsDesktop(isDesktopSession);
+
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone;
+    if (isStandalone) {
+      setIsInstalled(true);
+    }
+
+    if (isDesktopSession) {
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault();
+        setDeferredPrompt(e as BeforeInstallPromptEvent);
+      };
+
+      const handleAppInstalled = () => {
+        setDeferredPrompt(null);
+        setIsInstalled(true);
+      };
+
+      window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.addEventListener("appinstalled", handleAppInstalled);
+
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch((err) => {
+          console.error("Service worker registration failed:", err);
+        });
+      }
+
+      return () => {
+        window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+        window.removeEventListener("appinstalled", handleAppInstalled);
+      };
+    }
+  }, [setDeferredPrompt, setIsInstalled, setIsDesktop]);
 
   return (
     // 4. Wrap the app with the QueryClientProvider

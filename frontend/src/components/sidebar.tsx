@@ -179,7 +179,7 @@ export function Sidebar({
           } as React.CSSProperties
         }
         className={cn(
-          "group fixed left-0 top-0 h-screen z-[120] overflow-hidden border-r border-zinc-100 bg-white transition-[width,border-color,box-shadow] will-change-[width]",
+          "group fixed left-0 top-0 h-dvh z-[120] overflow-hidden border-r border-zinc-100 bg-white transition-[width,border-color,box-shadow] will-change-[width]",
           open ? "block" : "hidden md:block",
           state === "collapsed" && collapsible === "offcanvas" && "border-r-0!",
           className,

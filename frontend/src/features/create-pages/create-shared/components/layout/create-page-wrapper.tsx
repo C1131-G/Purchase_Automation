@@ -50,7 +50,7 @@ export function CreatePageWrapper({
   }
 
   return (
-    <div className="relative w-full bg-zinc-50 p-3 pb-20">
+    <div className="relative h-full w-full bg-zinc-50 p-3 pb-20 overflow-y-auto">
       {/* Top Actions - Positioned absolute top-right */}
       {topActions && <div className="absolute right-3 top-3 z-10">{topActions}</div>}
 

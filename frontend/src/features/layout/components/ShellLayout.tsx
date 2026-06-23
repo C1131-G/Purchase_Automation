@@ -31,6 +31,34 @@ export function ShellLayout() {
   const setSidebarOpen = useSetSidebarAction();
   const logoutBusy = isLoggingOut || isAuthLoading;
 
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  const toggleFullscreen = React.useCallback(async () => {
+    if (!containerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error("Failed to toggle fullscreen:", error);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   React.useEffect(() => {
     if (isAuthenticated || isAuthLoading) {
       return;
@@ -144,34 +172,41 @@ export function ShellLayout() {
   );
 
   return (
-    <SidebarProvider>
-      <Sidebar className={cn("border-r border-zinc-100 bg-white")} collapsible="icon">
-        <ShellLayoutBrandHeader />
-        <ShellLayoutNavigation
-          pathname={location.pathname}
-          isSectionOpen={isSectionOpen}
-          onToggleSection={handleToggle}
-          onTableNavIntent={handleTableNavIntent}
-        />
-        <ShellLayoutLogout logoutBusy={logoutBusy} onLogout={() => logout()} />
-      </Sidebar>
+    <div ref={containerRef} className="h-dvh w-full bg-zinc-50 overflow-hidden flex flex-col">
+      <SidebarProvider className="h-full w-full overflow-hidden min-h-0!">
+        <Sidebar className={cn("border-r border-zinc-100 bg-white")} collapsible="icon">
+          <ShellLayoutBrandHeader />
+          <ShellLayoutNavigation
+            pathname={location.pathname}
+            isSectionOpen={isSectionOpen}
+            onToggleSection={handleToggle}
+            onTableNavIntent={handleTableNavIntent}
+          />
+          <ShellLayoutLogout
+            logoutBusy={logoutBusy}
+            onLogout={() => logout()}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={toggleFullscreen}
+          />
+        </Sidebar>
 
-      <SidebarInset
-        className={cn(
-          "bg-zinc-50 transition-[filter,opacity] duration-150",
-          "md:pl-[5.5rem]",
-          logoutBusy && "pointer-events-none opacity-80 blur-[2px]",
-        )}
-      >
-        <main className="flex-1 p-0 overflow-hidden">
-          <div
-            className="h-full w-full"
-            style={{ viewTransitionName: "tab-content" } as React.CSSProperties}
-          >
-            <Outlet />
-          </div>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+        <SidebarInset
+          className={cn(
+            "bg-zinc-50 transition-[filter,opacity] duration-150 h-full overflow-hidden min-h-0!",
+            "md:pl-[5.5rem]",
+            logoutBusy && "pointer-events-none opacity-80 blur-[2px]",
+          )}
+        >
+          <main className="flex-1 p-0 overflow-hidden flex flex-col min-h-0">
+            <div
+              className="flex-1 min-h-0 w-full"
+              style={{ viewTransitionName: "tab-content" } as React.CSSProperties}
+            >
+              <Outlet />
+            </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
   );
 }

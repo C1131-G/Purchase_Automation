@@ -1,4 +1,4 @@
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, Maximize2, Minimize2 } from "lucide-react";
 
 import { Button } from "@/components/button";
 import { SidebarFooter, SidebarMenu, SidebarMenuItem } from "@/components/sidebar";
@@ -8,9 +8,16 @@ import { useSidebarOpen } from "@/store/sidebar/sidebar.store";
 interface ShellLayoutLogoutProps {
   logoutBusy: boolean;
   onLogout: () => void;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
-export function ShellLayoutLogout({ logoutBusy, onLogout }: ShellLayoutLogoutProps) {
+export function ShellLayoutLogout({
+  logoutBusy,
+  onLogout,
+  isFullscreen,
+  onToggleFullscreen,
+}: ShellLayoutLogoutProps) {
   const isOpen = useSidebarOpen();
 
   return (
@@ -20,7 +27,46 @@ export function ShellLayoutLogout({ logoutBusy, onLogout }: ShellLayoutLogoutPro
         isOpen ? "p-4" : "p-2.5 flex items-center justify-center",
       )}
     >
-      <SidebarMenu>
+      <SidebarMenu className="gap-2">
+        <SidebarMenuItem className={cn(!isOpen && "flex justify-center w-full")}>
+          {isOpen ? (
+            <Button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFullscreen();
+              }}
+              variant="outline"
+              className={cn(
+                "h-11 w-full rounded-xl border border-zinc-200 bg-white text-zinc-700 normal-case tracking-normal hover:bg-zinc-50 focus:ring-zinc-100",
+                isFullscreen &&
+                  "border-blue-200 bg-blue-50/50 text-blue-600 hover:bg-blue-50 hover:border-blue-300",
+              )}
+            >
+              <span className="flex items-center gap-3 w-full justify-start font-semibold">
+                {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                {isFullscreen ? "Exit Full" : "Fullscreen"}
+              </span>
+            </Button>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFullscreen();
+              }}
+              className={cn(
+                "size-9 rounded-xl bg-zinc-50 text-zinc-600 hover:bg-zinc-100 flex items-center justify-center border border-zinc-200/50 cursor-pointer mx-auto transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-200/50",
+                isFullscreen &&
+                  "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200/50 focus:ring-blue-300/40",
+              )}
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </button>
+          )}
+        </SidebarMenuItem>
+
         <SidebarMenuItem className={cn(!isOpen && "flex justify-center w-full")}>
           {isOpen ? (
             <Button

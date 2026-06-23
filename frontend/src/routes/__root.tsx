@@ -18,8 +18,8 @@ export const Route = createRootRouteWithContext<{
 
 function RootComponent() {
   return (
-    <div className="min-h-screen bg-white text-zinc-900 font-outfit selection:bg-blue-500/10 selection:text-blue-900 relative overflow-hidden">
-      <main className="relative z-10">
+    <div className="min-h-dvh h-dvh bg-white text-zinc-900 font-outfit selection:bg-blue-500/10 selection:text-blue-900 relative overflow-hidden flex flex-col">
+      <main className="relative z-10 flex-1 flex flex-col min-h-0 h-full w-full">
         <Outlet />
       </main>
     </div>
