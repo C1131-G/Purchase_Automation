@@ -15,6 +15,8 @@ import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/pa
 import { salesOrderAPI } from "@/features/table-pages/sales-orders/api/sales-order.service";
 import { salesQuotationAPI } from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
 import { useARInvoiceCreate } from "@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create";
+import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
@@ -476,6 +478,19 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
             referenceNoErrorText={state.productSearchFieldErrors.referenceNo}
             commentsErrorText={state.productSearchFieldErrors.comments}
           />
+        </div>
+
+        {/* Attachments Section Card */}
+        <div className="mt-3">
+          <SectionCard title="ATTACHMENTS">
+            <UploadGrid
+              attachments={state.attachments}
+              onAttachmentsChange={state.setAttachments}
+              moduleName="ARInvoice"
+              readOnly={state.isClosed}
+              loading={isFormHydrating}
+            />
+          </SectionCard>
         </div>
 
         <ARInvoiceProductSection

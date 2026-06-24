@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -129,6 +130,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   );
   const [createError, setCreateError] = useState<string | null>(null);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
@@ -220,6 +222,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     setCreateError(null);
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [
     resetPOCreate,
     lookups,
@@ -423,6 +426,19 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
         setFormSnapshot({
           comments: comments.trim(),
           referenceNo: referenceNo.trim(),
@@ -431,6 +447,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           warehouseCode: warehouseCode.trim(),
           billToAddress: formatAddressForDisplay(billToAddress).trim(),
           shipToAddress: formatAddressForDisplay(shipToAddress).trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
           productRows: mappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
@@ -706,6 +726,19 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
+        const sourceAttachments = primaryDetail.attachments || [];
+        setAttachments(
+          sourceAttachments.map((item: any, idx: number) => ({
+            id: `copy-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
         if (isMetadataLoaded) {
           hydratedDocNumRef.current = hydrationKey;
         }
@@ -943,6 +976,10 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       warehouseCode: lookups.effectiveWarehouseCode.trim(),
       billToAddress: formatAddressForDisplay(lookups.billToAddress).trim(),
       shipToAddress: formatAddressForDisplay(lookups.shipToAddress).trim(),
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
       productRows: validRows.map((row) => ({
         productCode: row.productCode,
         quantity: row.quantity,
@@ -965,6 +1002,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     lookups.billToAddress,
     lookups.shipToAddress,
     validRows,
+    attachments,
   ]);
 
   const isClosed =
@@ -1183,6 +1221,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             BaseLine: typeof row.baseLine === "number" ? row.baseLine : undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         }
       : {
           Address: lookups.billToAddress.trim() || undefined,
@@ -1250,6 +1295,13 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             return lines;
           })(),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
 
     saveActions.actionToast.startLoading("Purchase Order", isEditMode ? "update" : action);
@@ -1417,5 +1469,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
     updatePurchaseOrderMutation,
+    attachments,
+    setAttachments,
   };
 }

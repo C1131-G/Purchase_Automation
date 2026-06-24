@@ -26,6 +26,7 @@ export interface CreateAPCreditMemoInput {
     U_ReturnReason?: string;
   }[];
   SalesPersonCode?: number | undefined;
+  attachments?: any[];
 }
 
 export interface UpdateAPCreditMemoInput {
@@ -35,6 +36,7 @@ export interface UpdateAPCreditMemoInput {
   SalesPersonCode?: number | undefined;
   Address?: string | undefined;
   Address2?: string | undefined;
+  attachments?: any[];
 }
 
 export function useCreateAPCreditMemo() {

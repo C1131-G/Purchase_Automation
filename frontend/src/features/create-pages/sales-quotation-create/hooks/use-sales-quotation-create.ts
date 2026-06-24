@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
@@ -94,6 +95,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const lastRestrictedToastAtRef = useRef(0);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
   const editDocNum = (options?.docNum ?? "").trim();
@@ -191,6 +193,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [resetSQCreate, lookups, modals, productsHook]);
 
   const saveActions = useDocumentSaveActions({
@@ -220,6 +223,13 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
         SalesPersonCode: resolvedSalesEmployeeCode,
+        attachments: attachments.map((att) => ({
+          sourcePath: att.sourcePath || "",
+          fileName: att.fileName,
+          fileExtension: att.fileExtension || "",
+          freeText: att.freeText || "",
+          attachmentDate: att.attachmentDate || "",
+        })),
       };
       return JSON.stringify(payload);
     },
@@ -436,6 +446,19 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
         setFormSnapshot({
           comments: comments.trim(),
           referenceNo: referenceNo.trim(),
@@ -444,6 +467,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           warehouseCode: warehouseCode.trim(),
           billToAddress: formatAddressForDisplay(address).trim(),
           shipToAddress: formatAddressForDisplay(address2).trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
           productRows: mappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
@@ -732,6 +759,13 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         }
       : {
           Address: lookups.billToAddress.trim() || undefined,
@@ -753,6 +787,13 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
 
     saveActions.actionToast.startLoading("Sales Quotation", isEditMode ? "update" : action);
@@ -827,6 +868,10 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       warehouseCode: lookups.effectiveWarehouseCode.trim(),
       billToAddress: formatAddressForDisplay(lookups.billToAddress).trim(),
       shipToAddress: formatAddressForDisplay(lookups.shipToAddress).trim(),
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
       productRows: productsHook.productRows
         .filter((row) => row.productCode.trim() && row.quantity > 0)
         .map((row) => ({
@@ -849,6 +894,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     lookups.billToAddress,
     lookups.shipToAddress,
     productsHook.productRows,
+    attachments,
   ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
@@ -916,5 +962,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       : null,
     updateSalesQuotationMutation,
     isClosed,
+    attachments,
+    setAttachments,
   };
 }

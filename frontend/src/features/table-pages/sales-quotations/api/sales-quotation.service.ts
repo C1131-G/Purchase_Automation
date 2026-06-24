@@ -62,6 +62,7 @@ export interface SalesQuotationDetail {
   DocCurr?: string;
   DocStatus?: string;
   DocumentLines?: SalesQuotationDetailLine[];
+  attachments?: any[];
 }
 export interface SalesQuotationDetailResponse {
   success: boolean;

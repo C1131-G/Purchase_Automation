@@ -17,6 +17,7 @@ import { adjustPayloadDates } from "./date-adjustment.util";
 
 import { resolveBaseLineQuantities } from "./base-qty-validation.util";
 import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
+import { attachmentsService } from "./attachments.service";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
@@ -309,6 +310,12 @@ export const getGRPO = async (sessionId: string, id: string) => {
       };
     });
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    const attachments = dbName
+      ? await attachmentsService.getLocalAttachments(dbName, "GRPO", result.DocEntry)
+      : [];
+
     return {
       Address: result.Address,
       Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
@@ -324,6 +331,7 @@ export const getGRPO = async (sessionId: string, id: string) => {
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
+      attachments,
       DocumentLines: enrichedLines,
       NumAtCard: result.NumAtCard,
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
@@ -402,6 +410,7 @@ export const createGRPO = async (
   dbName?: string,
 ) => {
   const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+  const attachments = payload.attachments as any[];
 
   try {
     const documentLines = lines;
@@ -477,6 +486,20 @@ export const createGRPO = async (
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:purchase:${session.companyDB}:`);
+      if (attachments && attachments.length > 0) {
+        const finalized = await attachmentsService.finalizeAttachments(
+          session.companyDB,
+          "GRPO",
+          result.DocNum,
+          attachments,
+        );
+        await attachmentsService.saveLocalAttachments(
+          session.companyDB,
+          "GRPO",
+          result.DocEntry,
+          finalized,
+        );
+      }
     }
 
     // Reconcile originating PO(s) after GRPO save.
@@ -525,6 +548,35 @@ export const updateGRPO = async (
     }
     if (Object.hasOwn(payload, "Address2")) {
       sapPayload.Address2 = payload.Address2;
+    }
+
+    if (payload.attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbName = session?.companyDB || "";
+      if (dbName) {
+        let docNum: string | number = id;
+        try {
+          const docData = await serviceLayerClient.request<any>(
+            sessionId,
+            "GET",
+            `/PurchaseDeliveryNotes(${id})?$select=DocNum`,
+          );
+          if (docData?.DocNum) {
+            docNum = docData.DocNum;
+          }
+        } catch (err: any) {
+          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        }
+
+        const attachments = payload.attachments as any[];
+        const finalized = await attachmentsService.finalizeAttachments(
+          dbName,
+          "GRPO",
+          docNum,
+          attachments || [],
+        );
+        await attachmentsService.saveLocalAttachments(dbName, "GRPO", id, finalized);
+      }
     }
 
     await serviceLayerClient.request(

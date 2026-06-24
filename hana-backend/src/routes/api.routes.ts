@@ -71,6 +71,8 @@ router.use("/bank-details", bankDetailsRoutes);
 // Financial Period: Read-only active period lookup from OACP.
 router.use("/financial-period", financialPeriodRoutes);
 
-// Attachments removed
+import { attachmentsRoutes } from "@/routes/attachments.routes";
+
+router.use("/attachments", attachmentsRoutes);
 
 export const apiRoutes = router;

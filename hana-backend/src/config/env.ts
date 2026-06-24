@@ -59,4 +59,7 @@ export const config = {
   session: {
     secret: validatedEnv.SESSION_SECRET,
   },
+  attachments: {
+    basePath: validatedEnv.ATTACHMENTS_BASE_PATH,
+  },
 };

@@ -15,6 +15,7 @@ import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 import { adjustPayloadDates } from "./date-adjustment.util";
+import { attachmentsService } from "./attachments.service";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 export const getSalesQuotations = async (dbName: string, filters: SalesQuotationFilters) => {
@@ -159,6 +160,12 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       `/Quotations(${id})`,
     )) as SAPDocumentResponse;
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    const attachments = dbName
+      ? await attachmentsService.getLocalAttachments(dbName, "SalesQuotation", result.DocEntry)
+      : [];
+
     return {
       id: result.DocEntry,
       DocEntry: result.DocEntry,
@@ -178,6 +185,7 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       Comments: result.Comments,
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard ?? "",
+      attachments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         return normalizeSAPLineData(lineData);
@@ -225,6 +233,7 @@ export const getSalesQuotationByDocNum = async (
 export const createSalesQuotation = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    const attachments = payload.attachments as any[];
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -300,6 +309,20 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:sales:${session.companyDB}:`);
+      if (attachments && attachments.length > 0) {
+        const finalized = await attachmentsService.finalizeAttachments(
+          session.companyDB,
+          "SalesQuotation",
+          result.DocNum,
+          attachments,
+        );
+        await attachmentsService.saveLocalAttachments(
+          session.companyDB,
+          "SalesQuotation",
+          result.DocEntry,
+          finalized,
+        );
+      }
     }
 
     return {
@@ -326,6 +349,35 @@ export const updateSalesQuotation = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
+    if (payload.attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbName = session?.companyDB || "";
+      if (dbName) {
+        let docNum: string | number = id;
+        try {
+          const docData = await serviceLayerClient.request<any>(
+            sessionId,
+            "GET",
+            `/Quotations(${id})?$select=DocNum`,
+          );
+          if (docData?.DocNum) {
+            docNum = docData.DocNum;
+          }
+        } catch (err: any) {
+          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        }
+
+        const attachments = payload.attachments as any[];
+        const finalized = await attachmentsService.finalizeAttachments(
+          dbName,
+          "SalesQuotation",
+          docNum,
+          attachments || [],
+        );
+        await attachmentsService.saveLocalAttachments(dbName, "SalesQuotation", id, finalized);
+      }
+    }
 
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;

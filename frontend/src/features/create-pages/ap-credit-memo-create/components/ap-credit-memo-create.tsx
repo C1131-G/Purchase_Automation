@@ -9,6 +9,8 @@ import { APCreditMemoProductSection } from "@/features/create-pages/ap-credit-me
 import { useAPCreditMemoCreate } from "@/features/create-pages/ap-credit-memo-create/hooks/use-ap-credit-memo-create";
 import { AP_CREDIT_MEMO_FIELD_LABEL_TEXT } from "@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
+import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
@@ -315,6 +317,19 @@ export function APCreditMemoCreate({
           onCommentsDisabledClick={() => state.setRemarks(state.remarks)}
           referenceLabel="VENDOR REF NO"
         />
+      </div>
+
+      {/* Attachments Section Card */}
+      <div className="mt-3">
+        <SectionCard title="ATTACHMENTS">
+          <UploadGrid
+            attachments={state.attachments}
+            onAttachmentsChange={state.setAttachments}
+            moduleName="APCreditMemo"
+            readOnly={state.isClosed}
+            loading={isFormHydrating}
+          />
+        </SectionCard>
       </div>
 
       <APCreditMemoProductSection

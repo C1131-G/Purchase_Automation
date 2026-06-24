@@ -14,6 +14,7 @@ import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 import { adjustPayloadDates } from "./date-adjustment.util";
+import { attachmentsService } from "./attachments.service";
 
 // Fetches a paginated list of A/R Invoices from HANA with dynamic filtering support.
 export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
@@ -185,6 +186,12 @@ export const getInvoice = async (sessionId: string, id: string) => {
       `/Invoices(${id})`,
     )) as SAPDocumentResponse;
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    const attachments = dbName
+      ? await attachmentsService.getLocalAttachments(dbName, "ARInvoice", result.DocEntry)
+      : [];
+
     // Normalize SAP internal status (bost_Open) to a single character code.
     return {
       id: result.DocEntry,
@@ -209,6 +216,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
       }),
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard || "",
       Address2: (result as unknown as Record<string, unknown>).Address2 || "",
+      attachments,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
@@ -324,6 +332,7 @@ export const createInvoice = async (
 ) => {
   try {
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    const attachments = payload.attachments as any[];
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -398,6 +407,20 @@ export const createInvoice = async (
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:sales:${session.companyDB}:`);
+      if (attachments && attachments.length > 0) {
+        const finalized = await attachmentsService.finalizeAttachments(
+          session.companyDB,
+          "ARInvoice",
+          result.DocNum,
+          attachments,
+        );
+        await attachmentsService.saveLocalAttachments(
+          session.companyDB,
+          "ARInvoice",
+          result.DocEntry,
+          finalized,
+        );
+      }
     }
 
     return {
@@ -424,6 +447,35 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
+    if (payload.attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbName = session?.companyDB || "";
+      if (dbName) {
+        let docNum: string | number = id;
+        try {
+          const docData = await serviceLayerClient.request<any>(
+            sessionId,
+            "GET",
+            `/Invoices(${id})?$select=DocNum`,
+          );
+          if (docData?.DocNum) {
+            docNum = docData.DocNum;
+          }
+        } catch (err: any) {
+          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        }
+
+        const attachments = payload.attachments as any[];
+        const finalized = await attachmentsService.finalizeAttachments(
+          dbName,
+          "ARInvoice",
+          docNum,
+          attachments || [],
+        );
+        await attachmentsService.saveLocalAttachments(dbName, "ARInvoice", id, finalized);
+      }
+    }
 
     if (Object.hasOwn(payload, "Comments")) {
       sapPayload.Comments = payload.Comments;

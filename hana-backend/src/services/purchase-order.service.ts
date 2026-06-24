@@ -15,6 +15,7 @@ import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
+import { attachmentsService } from "@/services/attachments.service";
 import { adjustPayloadDates } from "./date-adjustment.util";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -179,6 +180,13 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       `/PurchaseOrders(${id})`,
     )) as SAPDocumentResponse;
 
+    const attachmentEntry = (result as any).AttachmentEntry || null;
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    const attachments = dbName
+      ? await attachmentsService.getLocalAttachments(dbName, "PurchaseOrder", result.DocEntry)
+      : [];
+
     // Normalizes SAP status (bost_Open) to a single character (O/C) for the internal logic.
     return {
       Address: result.Address,
@@ -195,6 +203,8 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
+      AttachmentEntry: attachmentEntry,
+      attachments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         const normalized = normalizeSAPLineData(lineData);
@@ -324,6 +334,7 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
     }
 
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    const attachments = payload.attachments as any[];
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -391,9 +402,24 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
     )) as SAPDocumentResponse;
 
     // Invalidate the procurement dashboard metrics for this tenant.
-    const dbName = result.CompanyDB || result.DBName;
-    if (dbName) {
-      purgeCache(`dash:purchase:${dbName}:`);
+    const session = serviceLayerClient.getSession(sessionId);
+    const resolvedDbName = result.CompanyDB || result.DBName || session?.companyDB || "";
+    if (resolvedDbName) {
+      purgeCache(`dash:purchase:${resolvedDbName}:`);
+      if (attachments && attachments.length > 0) {
+        const finalized = await attachmentsService.finalizeAttachments(
+          resolvedDbName,
+          "PurchaseOrder",
+          result.DocNum,
+          attachments,
+        );
+        await attachmentsService.saveLocalAttachments(
+          resolvedDbName,
+          "PurchaseOrder",
+          result.DocEntry,
+          finalized,
+        );
+      }
     }
 
     return {
@@ -420,6 +446,36 @@ export const updatePurchaseOrder = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
+    if (payload.attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbName = session?.companyDB || "";
+      if (dbName) {
+        // Fetch DocNum from SAP for renaming files
+        let docNum: string | number = id;
+        try {
+          const docData = await serviceLayerClient.request<any>(
+            sessionId,
+            "GET",
+            `/PurchaseOrders(${id})?$select=DocNum`,
+          );
+          if (docData?.DocNum) {
+            docNum = docData.DocNum;
+          }
+        } catch (err: any) {
+          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        }
+
+        const attachments = payload.attachments as any[];
+        const finalized = await attachmentsService.finalizeAttachments(
+          dbName,
+          "PurchaseOrder",
+          docNum,
+          attachments || [],
+        );
+        await attachmentsService.saveLocalAttachments(dbName, "PurchaseOrder", id, finalized);
+      }
+    }
 
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;

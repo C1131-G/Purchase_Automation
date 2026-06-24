@@ -67,6 +67,7 @@ export interface PurchaseOrderDetail {
   DocTotal?: number;
   DocStatus?: "Open" | "Partial" | "Closed" | "O" | "C";
   DocumentLines?: PurchaseOrderDetailLine[];
+  attachments?: any[];
 }
 export interface PurchaseOrderDetailResponse {
   success: boolean;

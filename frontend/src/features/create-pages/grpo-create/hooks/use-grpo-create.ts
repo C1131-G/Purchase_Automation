@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
   createSharedKeys,
@@ -207,6 +208,7 @@ export function useGRPOCreate({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<GRPOFieldErrors>(EMPTY_GRPO_FIELD_ERRORS);
   const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   const resetForm = useCallback(() => {
     resetGRPOCreate();
@@ -231,6 +233,7 @@ export function useGRPOCreate({
     setCreateError(null);
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [resetGRPOCreate, resetWarehouse]);
 
   /* ---------- vendor-change confirmation (copy-from guard) ---------- */
@@ -367,6 +370,10 @@ export function useGRPOCreate({
       docDueDate: header.docDueDate,
       billToAddress: billToAddress.trim(),
       shipToAddress: shipToAddress.trim(),
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
@@ -377,6 +384,7 @@ export function useGRPOCreate({
     header.docDueDate,
     billToAddress,
     shipToAddress,
+    attachments,
   ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
@@ -631,6 +639,19 @@ export function useGRPOCreate({
         setBillToAddress(String(detail.Address ?? "").trim());
         setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
 
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
         if (isMetadataLoaded) {
           hydratedDocNumRef.current = currentDocNum;
         }
@@ -640,6 +661,10 @@ export function useGRPOCreate({
           docDueDate: docDueDate,
           billToAddress: billAddr,
           shipToAddress: shipAddr,
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
         });
         setHydratedDocNum(currentDocNum);
       } finally {
@@ -944,6 +969,20 @@ export function useGRPOCreate({
         remarks: remarksParts,
       });
       setLines(mappedLines);
+
+      const sourceAttachments = primaryDetail.attachments || [];
+      setAttachments(
+        sourceAttachments.map((item: any, idx: number) => ({
+          id: `copy-${idx}-${item.fileName}`,
+          fileName: item.fileName,
+          fileExtension: item.fileExtension,
+          sourcePath: item.sourcePath,
+          attachmentDate: item.attachmentDate,
+          freeText: item.freeText || "",
+          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+        })),
+      );
+
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = hydrKey;
       }
@@ -1684,6 +1723,13 @@ export function useGRPOCreate({
           Comments: header.remarks.trim() || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         }
       : {
           Address: billToAddress.trim() || undefined,
@@ -1750,6 +1796,13 @@ export function useGRPOCreate({
             return lines;
           })(),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
     return JSON.stringify(payload);
   }, [
@@ -1763,6 +1816,7 @@ export function useGRPOCreate({
     vendorCodeInput,
     filteredRows,
     resolvedSalesEmployeeCode,
+    attachments,
   ]);
 
   const saveActions = useDocumentSaveActions({
@@ -2044,5 +2098,7 @@ export function useGRPOCreate({
     trackerDocEntry: isEditMode
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
+    attachments,
+    setAttachments,
   };
 }

@@ -10,6 +10,8 @@ import { APInvoiceProductSection } from "@/features/create-pages/ap-invoice-crea
 import { useAPInvoiceCreate } from "@/features/create-pages/ap-invoice-create/hooks/use-ap-invoice-create";
 import { AP_INVOICE_FIELD_LABEL_TEXT } from "@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
+import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
@@ -369,6 +371,19 @@ export function APInvoiceCreate({
           onCommentsDisabledClick={() => state.setRemarks(state.remarks)}
           referenceLabel="VENDOR REF NO"
         />
+      </div>
+
+      {/* Attachments Section Card */}
+      <div className="mt-3">
+        <SectionCard title="ATTACHMENTS">
+          <UploadGrid
+            attachments={state.attachments}
+            onAttachmentsChange={state.setAttachments}
+            moduleName="APInvoice"
+            readOnly={state.isClosed}
+            loading={isFormHydrating}
+          />
+        </SectionCard>
       </div>
 
       <APInvoiceProductSection

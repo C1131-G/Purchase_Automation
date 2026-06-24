@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
   useCreateAPCreditMemo,
@@ -203,6 +204,7 @@ export function useAPCreditMemoCreate({
     EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS,
   );
   const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   const resetForm = useCallback(() => {
     resetAPCreditMemoCreate();
@@ -229,6 +231,7 @@ export function useAPCreditMemoCreate({
     setCreateError(null);
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [resetAPCreditMemoCreate, resetWarehouse, setBillToAddress, setShipToAddress]);
 
   const [pendingVendorChange, setPendingVendorChange] = useState<{
@@ -376,9 +379,20 @@ export function useAPCreditMemoCreate({
       remarks: (header.remarks || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
       docDueDate: header.docDueDate,
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo, header.docDueDate]);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.remarks,
+    header.referenceNo,
+    header.docDueDate,
+    attachments,
+  ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
   const docStatus =
@@ -578,6 +592,19 @@ export function useAPCreditMemoCreate({
       setLines(mappedLines);
       setProductRowDrafts({});
 
+      const rawAttachments = detail.attachments || [];
+      setAttachments(
+        rawAttachments.map((item: any, idx: number) => ({
+          id: `loaded-${idx}-${item.fileName}`,
+          fileName: item.fileName,
+          fileExtension: item.fileExtension,
+          sourcePath: item.sourcePath,
+          attachmentDate: item.attachmentDate,
+          freeText: item.freeText || "",
+          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+        })),
+      );
+
       // Populate header warehouseCode so the reactive useEffect resolves the display name.
       const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
       if (editWarehouseCode) {
@@ -597,6 +624,10 @@ export function useAPCreditMemoCreate({
         remarks: (remarks || "").trim(),
         referenceNo: (referenceNo || "").trim(),
         docDueDate: loadedDocDate,
+        attachments: rawAttachments.map((item: any) => ({
+          fileName: item.fileName,
+          freeText: item.freeText || item.remarks || "",
+        })),
       });
       setHydratedDocNum(currentDocNum);
       loadingToastRef.current?.dismiss();
@@ -662,6 +693,7 @@ export function useAPCreditMemoCreate({
         Address?: string;
         Address2?: string;
         DocumentLines?: Record<string, unknown>[];
+        attachments?: any[];
       }
 
       const details = await Promise.all(
@@ -854,6 +886,19 @@ export function useAPCreditMemoCreate({
       });
       setLines(mappedLines);
       setProductRowDrafts({});
+
+      const sourceAttachments = primaryDetail.attachments || [];
+      setAttachments(
+        sourceAttachments.map((item: any, idx: number) => ({
+          id: `copy-${idx}-${item.fileName}`,
+          fileName: item.fileName,
+          fileExtension: item.fileExtension,
+          sourcePath: item.sourcePath,
+          attachmentDate: item.attachmentDate,
+          freeText: item.freeText || "",
+          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+        })),
+      );
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = hydrationKey;
       }
@@ -1272,6 +1317,13 @@ export function useAPCreditMemoCreate({
         Address2: shipToAddress.trim() || undefined,
         DocumentLines: buildDocumentLines(),
         SalesPersonCode: resolvedBuyerCode,
+        attachments: attachments.map((att) => ({
+          sourcePath: att.sourcePath || "",
+          fileName: att.fileName,
+          fileExtension: att.fileExtension || "",
+          freeText: att.freeText || "",
+          attachmentDate: att.attachmentDate || "",
+        })),
       };
       return JSON.stringify(createPayload);
     },
@@ -1445,6 +1497,13 @@ export function useAPCreditMemoCreate({
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           SalesPersonCode: currentSalesPersonCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
 
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
@@ -1515,6 +1574,13 @@ export function useAPCreditMemoCreate({
           ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
           DocumentLines: buildDocumentLines(),
           SalesPersonCode: resolvedBuyerCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
 
         // Try to reopen the base A/P Invoice if it's closed, as requested.
@@ -1803,6 +1869,8 @@ export function useAPCreditMemoCreate({
     trackerDocEntry: isEditMode
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
+    attachments,
+    setAttachments,
     isSaved: saveActions.isSaved,
     savedDocNum: saveActions.savedDocNum,
     resetForm: saveActions.handleReset,

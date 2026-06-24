@@ -2,6 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
+
 import {
   useCreateArCreditMemoMutation,
   useUpdateArCreditMemoMutation,
@@ -74,6 +76,7 @@ export function useArCreditMemoCreate({
   );
 
   const [createError, setCreateError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [missingSearchMandatoryFields] = useState<ProductSearchFieldError>(
@@ -351,6 +354,7 @@ export function useArCreditMemoCreate({
     setSubmitAttempted(false);
     setFormSnapshot(null);
     productsHook.setProductRows([]);
+    setAttachments([]);
   }, [setHeader, productsHook]);
 
   const saveActions = useDocumentSaveActions({
@@ -366,6 +370,13 @@ export function useArCreditMemoCreate({
             DocDueDate: header.docDueDate || undefined,
             NumAtCard: header.referenceNo || undefined,
             SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           }
         : {
             CardCode: header.vendorCode,
@@ -388,6 +399,13 @@ export function useArCreditMemoCreate({
             })),
             NumAtCard: header.referenceNo,
             SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           };
       return JSON.stringify(payload);
     },
@@ -610,10 +628,16 @@ export function useArCreditMemoCreate({
           warehouseCode: String(warehouseCode),
         });
         productsHook.setProductRows(mappedRows);
+        const rawAttachments = (detail as any).attachments || [];
+        setAttachments(rawAttachments);
         setFormSnapshot({
           comments: String(comments).trim(),
           referenceNo: String(referenceNo).trim(),
           docDueDate: docDueDate,
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
         });
         hydratedDocNumRef.current = cleanDocNum;
       } finally {
@@ -651,6 +675,9 @@ export function useArCreditMemoCreate({
   const sourceInvoiceData = sourceInvoiceQuery.data?.data as Record<string, unknown> | undefined;
   const isSourceClosed = sourceInvoiceData?.DocStatus === "C";
 
+  const editDetailData = editDetailQuery.data?.data as Record<string, unknown> | undefined;
+  const isClosed = editDetailData?.DocStatus === "Closed" || editDetailData?.DocStatus === "C";
+
   const reopenInvoiceMutation = useMutation({
     mutationFn: async () => {
       const entry = Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id);
@@ -680,9 +707,20 @@ export function useArCreditMemoCreate({
       comments: (header.comments || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
       docDueDate: header.docDueDate,
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.comments, header.referenceNo, header.docDueDate]);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.comments,
+    header.referenceNo,
+    header.docDueDate,
+    attachments,
+  ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
 
@@ -860,6 +898,8 @@ export function useArCreditMemoCreate({
 
   return {
     isEditMode,
+    attachments,
+    setAttachments,
     docNum,
     // Header
     header,
@@ -939,6 +979,7 @@ export function useArCreditMemoCreate({
     warehousesLoading: warehousesQuery.isLoading,
     isLoading: vendorsQuery.isLoading || warehousesQuery.isLoading || salesEmployeesQuery.isLoading,
     isSourceClosed,
+    isClosed,
     reopenInvoiceMutation,
     trackerDocType: (isEditMode ? "ar-credit-memo" : "ar-invoice") as
       | "ar-credit-memo"

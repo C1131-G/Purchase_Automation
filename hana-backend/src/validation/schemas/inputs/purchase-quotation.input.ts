@@ -98,6 +98,14 @@ const PurchaseQuotationLineItemSchema = z.object({
   LineNum: z.number().int().optional(),
 });
 
+export const AttachmentInputSchema = z.object({
+  sourcePath: z.string(),
+  fileName: z.string(),
+  fileExtension: z.string(),
+  freeText: z.string().optional(),
+  attachmentDate: z.string().optional(),
+});
+
 // CreatePurchaseQuotationInputSchema: Validates a new purchase quotation submission.
 export const CreatePurchaseQuotationInputSchema = z.object({
   Address: z.string().optional(),
@@ -122,6 +130,7 @@ export const CreatePurchaseQuotationInputSchema = z.object({
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
   DocCurrency: z.string().optional(),
+  attachments: z.array(AttachmentInputSchema).optional(),
 });
 
 // UpdatePurchaseQuotationInputSchema: Edit flow blocks vendor updates (CardCode/CardName).
@@ -148,6 +157,7 @@ export const UpdatePurchaseQuotationInputSchema = z
     Rounding: z.enum(["tYES", "tNO"]).optional(),
     RoundingDiffAmount: z.number().optional(),
     DocCurrency: z.string().optional(),
+    attachments: z.array(AttachmentInputSchema).optional(),
   })
   .strict();
 

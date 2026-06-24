@@ -3,7 +3,6 @@ import { ChevronDown, Lock, Pencil } from "lucide-react";
 
 import { Select } from "@/components/select/select";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
-import { AddressUploadPanel } from "./address-upload-panel";
 
 interface AddressGridProps {
   billToAddress: string;
@@ -90,7 +89,7 @@ export function AddressGrid({
   );
 
   return (
-    <SectionCard title="ADDRESS" className={`${className} h-full min-h-55`}>
+    <SectionCard title="ADDRESS" className={`${className} h-full`}>
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="flex flex-col">
@@ -155,7 +154,7 @@ export function AddressGrid({
             </div>
 
             {loading ? (
-              <div className="h-24 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+              <div className="h-36 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
             ) : (
               <textarea
                 id="po-bill-to-address"
@@ -163,7 +162,7 @@ export function AddressGrid({
                 readOnly={readOnly}
                 onChange={(event) => onBillToAddressChange(event.target.value)}
                 placeholder={`Enter ${displayBillToLabel}`}
-                className={`h-24 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
+                className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
                   billToAddressInvalid
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
                     : editableHighlight
@@ -244,7 +243,7 @@ export function AddressGrid({
             </div>
 
             {loading ? (
-              <div className="h-24 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+              <div className="h-36 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
             ) : (
               <textarea
                 id="po-ship-to-address"
@@ -252,7 +251,7 @@ export function AddressGrid({
                 readOnly={readOnly}
                 onChange={(event) => onShipToAddressChange(event.target.value)}
                 placeholder={`Enter ${displayShipToLabel}`}
-                className={`h-24 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
+                className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
                   shipToAddressInvalid
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
                     : editableHighlight
@@ -271,9 +270,6 @@ export function AddressGrid({
               <p className="mt-1 text-xs text-red-600">{shipToAddressErrorText}</p>
             ) : null}
           </div>
-        </div>
-        <div className="w-full">
-          <AddressUploadPanel readOnly={readOnly} loading={loading} />
         </div>
       </div>
     </SectionCard>

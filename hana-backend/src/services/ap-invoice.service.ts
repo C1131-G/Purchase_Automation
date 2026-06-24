@@ -15,6 +15,7 @@ import { adjustPayloadDates } from "./date-adjustment.util";
 
 import { resolveBaseLineQuantities } from "./base-qty-validation.util";
 import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
+import { attachmentsService } from "./attachments.service";
 
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses TypeORM QueryBuilder for dynamic SQL generation based on provided filters.
@@ -210,6 +211,12 @@ export const getInvoice = async (sessionId: string, id: string, dbName?: string)
       };
     });
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbNameResolved = session?.companyDB || "";
+    const attachments = dbNameResolved
+      ? await attachmentsService.getLocalAttachments(dbNameResolved, "APInvoice", result.DocEntry)
+      : [];
+
     // Normalizing SAP's internal status representation (bost_Open -> 'O') for the frontend.
     return {
       Address: result.Address,
@@ -225,6 +232,7 @@ export const getInvoice = async (sessionId: string, id: string, dbName?: string)
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
+      attachments,
       DocumentLines: enrichedLines,
       NumAtCard: (() => {
         const ref = result.NumAtCard as string;
@@ -275,6 +283,7 @@ export const createInvoice = async (
   dbName?: string,
 ) => {
   const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+  const attachments = payload.attachments as any[];
 
   const sapPayload: Record<string, unknown> = {
     Address: payload.Address,
@@ -352,6 +361,20 @@ export const createInvoice = async (
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:purchase:${session.companyDB}:`);
+      if (attachments && attachments.length > 0) {
+        const finalized = await attachmentsService.finalizeAttachments(
+          session.companyDB,
+          "APInvoice",
+          result.DocNum,
+          attachments,
+        );
+        await attachmentsService.saveLocalAttachments(
+          session.companyDB,
+          "APInvoice",
+          result.DocEntry,
+          finalized,
+        );
+      }
     }
 
     // Reconcile originating PO(s) after A/P Invoice save.
@@ -440,6 +463,35 @@ export const updateInvoice = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
+    if (payload.attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbNameResolved = session?.companyDB || "";
+      if (dbNameResolved) {
+        let docNum: string | number = id;
+        try {
+          const docData = await serviceLayerClient.request<any>(
+            sessionId,
+            "GET",
+            `/PurchaseInvoices(${id})?$select=DocNum`,
+          );
+          if (docData?.DocNum) {
+            docNum = docData.DocNum;
+          }
+        } catch (err: any) {
+          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        }
+
+        const attachments = payload.attachments as any[];
+        const finalized = await attachmentsService.finalizeAttachments(
+          dbNameResolved,
+          "APInvoice",
+          docNum,
+          attachments || [],
+        );
+        await attachmentsService.saveLocalAttachments(dbNameResolved, "APInvoice", id, finalized);
+      }
+    }
 
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;

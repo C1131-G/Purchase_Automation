@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
   useCreateAPInvoice,
@@ -205,6 +206,7 @@ export function useAPInvoiceCreate({
     EMPTY_AP_INVOICE_FIELD_ERRORS,
   );
   const [headerDiscountPercent, setHeaderDiscountPercent] = useState(0);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   /* ---------- vendor-change confirmation (copy-from guard) ---------- */
   const [pendingVendorChange, setPendingVendorChange] = useState<{
@@ -343,9 +345,20 @@ export function useAPInvoiceCreate({
       remarks: (header.remarks || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
       docDueDate: header.docDueDate,
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.remarks, header.referenceNo, header.docDueDate]);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.remarks,
+    header.referenceNo,
+    header.docDueDate,
+    attachments,
+  ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
   const docStatus =
@@ -545,6 +558,20 @@ export function useAPInvoiceCreate({
         };
       });
       setLines(mappedLines);
+
+      const rawAttachments = detail.attachments || [];
+      setAttachments(
+        rawAttachments.map((item: any, idx: number) => ({
+          id: `loaded-${idx}-${item.fileName}`,
+          fileName: item.fileName,
+          fileExtension: item.fileExtension,
+          sourcePath: item.sourcePath,
+          attachmentDate: item.attachmentDate,
+          freeText: item.freeText || "",
+          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+        })),
+      );
+
       const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
       const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
       setWarehouseInput(
@@ -558,6 +585,10 @@ export function useAPInvoiceCreate({
         remarks: (remarks || "").trim(),
         referenceNo: (referenceNo || "").trim(),
         docDueDate: docDueDate,
+        attachments: rawAttachments.map((item: any) => ({
+          fileName: item.fileName,
+          freeText: item.freeText || item.remarks || "",
+        })),
       });
       setHydratedDocNum(currentDocNum);
       // Dismiss loading toast when edit hydration is complete
@@ -833,6 +864,19 @@ export function useAPInvoiceCreate({
       });
       setLines(mappedLines);
       setProductRowDrafts({});
+
+      const sourceAttachments = primaryDetail.attachments || [];
+      setAttachments(
+        sourceAttachments.map((item: any, idx: number) => ({
+          id: `copy-${idx}-${item.fileName}`,
+          fileName: item.fileName,
+          fileExtension: item.fileExtension,
+          sourcePath: item.sourcePath,
+          attachmentDate: item.attachmentDate,
+          freeText: item.freeText || "",
+          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+        })),
+      );
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = hydrationKey;
       }
@@ -1264,6 +1308,7 @@ export function useAPInvoiceCreate({
     setCreateError(null);
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [resetAPInvoiceCreate, resetWarehouse, setBillToAddress, setShipToAddress]);
 
   const saveActions = useDocumentSaveActions({
@@ -1337,6 +1382,13 @@ export function useAPInvoiceCreate({
             DocDueDate: header.docDueDate || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             SalesPersonCode: resolvedBuyerCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           }
         : {
             Address: billToAddress.trim() || undefined,
@@ -1348,6 +1400,13 @@ export function useAPInvoiceCreate({
             ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
             DocumentLines: buildDocumentLines(),
             SalesPersonCode: resolvedBuyerCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           };
       return JSON.stringify(payload);
     },
@@ -1450,6 +1509,13 @@ export function useAPInvoiceCreate({
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           SalesPersonCode: resolvedBuyerCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
         hydratedDocNumRef.current = null;
@@ -1530,6 +1596,13 @@ export function useAPInvoiceCreate({
           ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
           DocumentLines: buildDocumentLines(),
           SalesPersonCode: resolvedBuyerCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
         const result = await createMutation.mutateAsync({
           payload: createPayload,
@@ -1837,5 +1910,7 @@ export function useAPInvoiceCreate({
     trackerDocEntry: isEditMode
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : null,
+    attachments,
+    setAttachments,
   };
 }

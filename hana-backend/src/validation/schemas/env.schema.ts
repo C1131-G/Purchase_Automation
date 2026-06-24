@@ -19,6 +19,8 @@ export const EnvSchema = z.object({
   // SAP Service Layer: Remote API connection for transactional writes.
   SERVICE_LAYER_URL: z.string().url(),
 
+  ATTACHMENTS_BASE_PATH: z.string().min(1).trim(),
+
   // Registry: Location of the center-of-truth table for multi-tenancy.
   COMMON_DB: z.string().min(1).trim(),
   ORGANIZATION_TABLE: z.string().min(1).trim(),

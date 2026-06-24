@@ -52,8 +52,8 @@ function DatePickerSkeleton() {
   );
 }
 
-/** Skeleton for a plain text input (no icon): label + h-[115px] textarea */
-function InputSkeleton({ height = "h-[115px]" }: { height?: string }) {
+/** Skeleton for a plain text input (no icon): label + h-[74px] textarea */
+function InputSkeleton({ height = "h-[74px]" }: { height?: string }) {
   return (
     <div className="space-y-1.5">
       <Pulse className="h-2.5 w-28" />
@@ -190,32 +190,39 @@ export function CreatePageRouteSkeleton() {
 
       {/* Row 2: AddressGrid (span-2) | ReferenceGrid */}
       <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-        {/* AddressGrid: 2-col layout, each with h-8.5 trigger + h-24 textarea */}
+        {/* AddressGrid: 2-col layout, each with h-8.5 trigger + h-36 textarea */}
         <SectionShell titleWidth="w-20" className="lg:col-span-2">
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="space-y-2">
-                <Pulse className="h-2.5 w-24" />
-                <Pulse className="h-8.5 w-full rounded-lg" />
-                <Pulse className="h-24 w-full rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Pulse className="h-2.5 w-24" />
-                <Pulse className="h-8.5 w-full rounded-lg" />
-                <Pulse className="h-24 w-full rounded-xl" />
-              </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="space-y-2">
+              <Pulse className="h-2.5 w-24" />
+              <Pulse className="h-8.5 w-full rounded-lg" />
+              <Pulse className="h-36 w-full rounded-xl" />
             </div>
-            <div className="w-full space-y-2">
-              <Pulse className="h-2.5 w-20" />
-              <Pulse className="h-[92px] w-full rounded-xl" />
+            <div className="space-y-2">
+              <Pulse className="h-2.5 w-24" />
+              <Pulse className="h-8.5 w-full rounded-lg" />
+              <Pulse className="h-36 w-full rounded-xl" />
             </div>
           </div>
         </SectionShell>
 
-        {/* ReferenceGrid: Customer Ref No (h-[115px]) + Remarks (h-[115px]) */}
+        {/* ReferenceGrid: Customer Ref No (h-[74px]) + Remarks (h-[74px]) */}
         <SectionShell titleWidth="w-24">
           <InputSkeleton />
           <InputSkeleton />
+        </SectionShell>
+      </div>
+
+      {/* Row 3: Attachments Section (UploadGrid) */}
+      <div className="mt-3">
+        <SectionShell titleWidth="w-28">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:h-[108px] items-stretch w-full">
+            <Pulse className="md:col-span-4 h-[108px] rounded-xl" />
+            <div className="md:col-span-8 flex flex-col gap-2 h-full">
+              <Pulse className="h-[48px] rounded-xl" />
+              <Pulse className="h-[48px] rounded-xl" />
+            </div>
+          </div>
         </SectionShell>
       </div>
 

@@ -12,6 +12,7 @@ import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
+import { attachmentsService } from "./attachments.service";
 
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
@@ -158,6 +159,12 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string) => {
       `/PurchaseCreditNotes(${docEntry})`,
     )) as SAPDocumentResponse;
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    const attachments = dbName
+      ? await attachmentsService.getLocalAttachments(dbName, "APCreditMemo", result.DocEntry)
+      : [];
+
     return {
       Address: result.Address,
       Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
@@ -172,6 +179,7 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string) => {
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
+      attachments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
         return {
@@ -220,6 +228,7 @@ export const getCreditNote = async (sessionId: string, id: string) =>
 // Creates a formal A/P Credit Memo in SAP. Handles payload conversion.
 export const createCreditNote = async (sessionId: string, payload: Record<string, unknown>) => {
   const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+  const attachments = payload.attachments as any[];
 
   try {
     // Construct the SAP Service Layer compatible payload.
@@ -282,6 +291,20 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:purchase:${session.companyDB}:`);
+      if (attachments && attachments.length > 0) {
+        const finalized = await attachmentsService.finalizeAttachments(
+          session.companyDB,
+          "APCreditMemo",
+          result.DocNum,
+          attachments,
+        );
+        await attachmentsService.saveLocalAttachments(
+          session.companyDB,
+          "APCreditMemo",
+          result.DocEntry,
+          finalized,
+        );
+      }
     }
 
     return {
@@ -308,6 +331,35 @@ export const updateCreditNote = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
+    if (payload.attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbName = session?.companyDB || "";
+      if (dbName) {
+        let docNum: string | number = id;
+        try {
+          const docData = await serviceLayerClient.request<any>(
+            sessionId,
+            "GET",
+            `/PurchaseCreditNotes(${id})?$select=DocNum`,
+          );
+          if (docData?.DocNum) {
+            docNum = docData.DocNum;
+          }
+        } catch (err: any) {
+          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        }
+
+        const attachments = payload.attachments as any[];
+        const finalized = await attachmentsService.finalizeAttachments(
+          dbName,
+          "APCreditMemo",
+          docNum,
+          attachments || [],
+        );
+        await attachmentsService.saveLocalAttachments(dbName, "APCreditMemo", id, finalized);
+      }
+    }
 
     if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;

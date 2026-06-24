@@ -117,6 +117,7 @@ export interface GRPODetail {
   DocCurr?: string;
   DocStatus?: "Open" | "Partial" | "Closed" | "O" | "C" | "bost_Open" | "bost_Close";
   DocumentLines?: GRPODetailLine[];
+  attachments?: any[];
 }
 
 export interface GRPODetailResponse {

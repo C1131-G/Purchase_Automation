@@ -2,6 +2,7 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { AttachmentInputSchema } from "./purchase-quotation.input";
 
 extendZodWithOpenApi(z);
 
@@ -126,6 +127,7 @@ export const CreateInvoiceInputSchema = z.object({
   SalesPersonCode: z.coerce.number().int().optional(),
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(), // Sales Employee code (OINV.SlpCode).
+  attachments: z.array(AttachmentInputSchema).optional(),
 });
 
 // UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
@@ -137,6 +139,8 @@ export const UpdateInvoiceInputSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
     NumAtCard: z.string().optional(),
+    SalesPersonCode: z.coerce.number().int().optional(),
+    attachments: z.array(AttachmentInputSchema).optional(),
   })
   .strict();
 

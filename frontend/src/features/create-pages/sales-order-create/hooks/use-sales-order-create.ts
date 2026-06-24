@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
@@ -103,6 +104,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const lastRestrictedToastAtRef = useRef(0);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
   const editDocNum = (options?.docNum ?? "").trim();
@@ -373,6 +375,19 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
+        const sourceAttachments = detail.attachments || [];
+        setAttachments(
+          sourceAttachments.map((item: any, idx: number) => ({
+            id: `copy-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
         hydratedDocNumRef.current = `SQ-${currentSourceDocNum}`;
         setHydratedDocNum(`SQ-${currentSourceDocNum}`);
       } finally {
@@ -583,6 +598,19 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
         setFormSnapshot({
           comments: comments.trim(),
           referenceNo: referenceNo.trim(),
@@ -591,6 +619,10 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           warehouseCode: warehouseCode.trim(),
           billToAddress: formatAddressForDisplay(address).trim(),
           shipToAddress: formatAddressForDisplay(address2).trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
           productRows: mappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
@@ -859,6 +891,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     setSubmitAttempted(false);
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [resetSOCreate, lookups, modals, productsHook]);
 
   const saveActions = useDocumentSaveActions({
@@ -900,6 +933,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
                 : {}),
             })),
             SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           }
         : {
             Address: lookups.billToAddress.trim() || undefined,
@@ -930,6 +970,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
                 : {}),
             })),
             SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           };
       return JSON.stringify(payload);
     },
@@ -1014,6 +1061,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
               : {}),
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         }
       : {
           Address: lookups.billToAddress.trim() || undefined,
@@ -1043,6 +1097,13 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
               : {}),
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
 
     saveActions.actionToast.startLoading("Sales Order", isEditMode ? "update" : action);
@@ -1109,6 +1170,10 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       warehouseCode: lookups.effectiveWarehouseCode.trim(),
       billToAddress: formatAddressForDisplay(lookups.billToAddress).trim(),
       shipToAddress: formatAddressForDisplay(lookups.shipToAddress).trim(),
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
       productRows: productsHook.productRows
         .filter((row) => row.productCode.trim() && row.quantity > 0)
         .map((row) => ({
@@ -1131,6 +1196,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     lookups.billToAddress,
     lookups.shipToAddress,
     productsHook.productRows,
+    attachments,
   ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
@@ -1347,5 +1413,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
       : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
     updateSalesOrderMutation,
+    attachments,
+    setAttachments,
   };
 }

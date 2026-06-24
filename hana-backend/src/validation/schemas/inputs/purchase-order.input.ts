@@ -2,6 +2,7 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { AttachmentInputSchema } from "./purchase-quotation.input";
 
 extendZodWithOpenApi(z);
 
@@ -174,6 +175,7 @@ export const CreatePurchaseOrderInputSchema = z.object({
     .int()
     .optional()
     .openapi({ description: "Assigned buyer/sales employee code", example: 7 }),
+  attachments: z.array(AttachmentInputSchema).optional(),
 });
 
 // UpdatePurchaseOrderInputSchema: Edit flow blocks vendor updates (CardCode).
@@ -195,6 +197,7 @@ export const UpdatePurchaseOrderInputSchema = z
     SalesPersonCode: z.coerce.number().int().optional(),
     Rounding: z.enum(["tYES", "tNO"]).optional(),
     RoundingDiffAmount: z.number().optional(),
+    attachments: z.array(AttachmentInputSchema).optional(),
   })
   .strict();
 

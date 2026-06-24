@@ -2,6 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
+
 import {
   useCreateARInvoice,
   useUpdateARInvoice,
@@ -103,6 +105,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const [pullFromSQModalOpen, setPullFromSQModalOpen] = useState(false);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const lastRestrictedToastAtRef = useRef(0);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
   const editDocNum = (options?.docNum ?? "").trim();
@@ -399,11 +402,17 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         lookups.setShipToAddress(address2);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+        const rawAttachments = (detail as any).attachments || [];
+        setAttachments(rawAttachments);
 
         setFormSnapshot({
           comments: comments.trim(),
           referenceNo: referenceNo.trim(),
           docDueDate: docDueDate,
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
         });
 
         hydratedDocNumRef.current = currentDocNum;
@@ -638,6 +647,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         lookups.setShipToAddress(address2);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+        const sourceAttachments = (detail as any).attachments || [];
+        setAttachments(sourceAttachments);
 
         hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`;
       } finally {
@@ -896,6 +907,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     setCreateError(null);
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [resetARInvoiceCreate, lookups, modals, productsHook]);
 
   const saveActions = useDocumentSaveActions({
@@ -913,6 +925,13 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             DocDueDate: header.docDueDate || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           }
         : {
             Address: lookups.billToAddress.trim() || undefined,
@@ -949,6 +968,13 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             }),
             NumAtCard: header.referenceNo.trim() || undefined,
             SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
           };
       return JSON.stringify(payload);
     },
@@ -1100,9 +1126,20 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       comments: (header.comments || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
       docDueDate: header.docDueDate,
+      attachments: attachments.map((att) => ({
+        fileName: att.fileName,
+        freeText: att.freeText || "",
+      })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
-  }, [isEditMode, formSnapshot, header.comments, header.referenceNo, header.docDueDate]);
+  }, [
+    isEditMode,
+    formSnapshot,
+    header.comments,
+    header.referenceNo,
+    header.docDueDate,
+    attachments,
+  ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
 
@@ -1405,6 +1442,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   return {
     ...lookups,
     ...modals,
+    attachments,
+    setAttachments,
     ...productsHook,
     activeDatePicker,
     addProductsFromSOs,

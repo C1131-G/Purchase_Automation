@@ -5,6 +5,8 @@ import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
+import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
@@ -256,6 +258,19 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
             referenceNoErrorText={state.productSearchFieldErrors.referenceNo}
             commentsErrorText={state.productSearchFieldErrors.comments}
           />
+        </div>
+
+        {/* Attachments Section Card */}
+        <div className="mt-3">
+          <SectionCard title="ATTACHMENTS">
+            <UploadGrid
+              attachments={state.attachments}
+              onAttachmentsChange={state.setAttachments}
+              moduleName="SalesQuotation"
+              readOnly={state.isClosed}
+              loading={isFormHydrating}
+            />
+          </SectionCard>
         </div>
 
         <SalesQuotationProductSection

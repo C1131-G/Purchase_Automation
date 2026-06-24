@@ -7,6 +7,8 @@ import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks
 
 import { ArCreditMemoProductSection } from "@/features/create-pages/ar-credit-memo-create/components/ar-credit-memo-product-section";
 import { useArCreditMemoCreate } from "@/features/create-pages/ar-credit-memo-create/hooks/use-ar-credit-memo-create";
+import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
 import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
@@ -500,6 +502,19 @@ export function ArCreditMemoCreate({
             onReferenceNoChange={(value) => setHeader({ referenceNo: value })}
             onCommentsChange={(value) => setHeader({ comments: value })}
           />
+        </div>
+
+        {/* Attachments Section Card */}
+        <div className="mt-3">
+          <SectionCard title="ATTACHMENTS">
+            <UploadGrid
+              attachments={state.attachments}
+              onAttachmentsChange={state.setAttachments}
+              moduleName="ARCreditMemo"
+              readOnly={state.isClosed || state.isSaved}
+              loading={vendorsQuery.isLoading}
+            />
+          </SectionCard>
         </div>
 
         {/* Row 3: Product lines with checkboxes + return reason */}

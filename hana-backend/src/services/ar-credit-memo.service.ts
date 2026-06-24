@@ -13,6 +13,7 @@ import { normalizeSAPLineData } from "@/services/sap-line-utils";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
+import { attachmentsService } from "./attachments.service";
 
 // Fetches a paginated list of A/R Credit Memos from HANA with dynamic filtering support.
 export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters) => {
@@ -168,6 +169,12 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       `/CreditNotes(${id})`,
     )) as SAPDocumentResponse;
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    const attachments = dbName
+      ? await attachmentsService.getLocalAttachments(dbName, "ARCreditMemo", result.DocEntry)
+      : [];
+
     // Normalize SAP internal status (bost_Open) to a single character code.
     return {
       Address: result.Address,
@@ -193,6 +200,7 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       }),
       NumAtCard: result.NumAtCard,
       SalesPersonCode: result.SalesPersonCode,
+      attachments,
       id: result.DocEntry,
     };
   } catch (err: unknown) {
@@ -212,6 +220,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     // Map input payload to the canonical SAP Service Layer JSON structure for Credit Notes.
 
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    const attachments = payload.attachments as any[];
 
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
@@ -295,6 +304,20 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dash:sales:${session.companyDB}:`);
+      if (attachments && attachments.length > 0) {
+        const finalized = await attachmentsService.finalizeAttachments(
+          session.companyDB,
+          "ARCreditMemo",
+          result.DocNum,
+          attachments,
+        );
+        await attachmentsService.saveLocalAttachments(
+          session.companyDB,
+          "ARCreditMemo",
+          result.DocEntry,
+          finalized,
+        );
+      }
     }
 
     return {
@@ -321,6 +344,35 @@ export const updateCreditNote = async (
 ) => {
   try {
     const sapPayload: Record<string, unknown> = {};
+
+    if (payload.attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbName = session?.companyDB || "";
+      if (dbName) {
+        let docNum: string | number = id;
+        try {
+          const docData = await serviceLayerClient.request<any>(
+            sessionId,
+            "GET",
+            `/CreditNotes(${id})?$select=DocNum`,
+          );
+          if (docData?.DocNum) {
+            docNum = docData.DocNum;
+          }
+        } catch (err: any) {
+          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        }
+
+        const attachments = payload.attachments as any[];
+        const finalized = await attachmentsService.finalizeAttachments(
+          dbName,
+          "ARCreditMemo",
+          docNum,
+          attachments || [],
+        );
+        await attachmentsService.saveLocalAttachments(dbName, "ARCreditMemo", id, finalized);
+      }
+    }
 
     if (payload.Comments) {
       sapPayload.Comments = payload.Comments;

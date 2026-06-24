@@ -67,6 +67,7 @@ export interface PurchaseQuotationDetail {
   DocStatus?: string;
   DocTotal?: number | string;
   DocumentLines?: PurchaseQuotationDetailLine[];
+  attachments?: any[];
 }
 export interface PurchaseQuotationDetailResponse {
   success: boolean;

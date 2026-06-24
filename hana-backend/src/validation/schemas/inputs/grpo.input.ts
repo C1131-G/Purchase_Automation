@@ -2,6 +2,7 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { AttachmentInputSchema } from "./purchase-quotation.input";
 
 extendZodWithOpenApi(z);
 
@@ -143,6 +144,8 @@ export const CreateGRPOInputSchema = z.object({
     .optional(),
   DocumentLines: z.array(GRPOLineItemSchema).min(1),
   NumAtCard: z.string().optional(),
+  SalesPersonCode: z.coerce.number().int().optional(),
+  attachments: z.array(AttachmentInputSchema).optional(),
 });
 
 // UpdateGRPOInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
@@ -156,6 +159,8 @@ export const UpdateGRPOInputSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
     NumAtCard: z.string().optional(),
+    SalesPersonCode: z.coerce.number().int().optional(),
+    attachments: z.array(AttachmentInputSchema).optional(),
   })
   .strict();
 

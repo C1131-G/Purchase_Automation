@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
@@ -130,6 +131,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   );
   const [createError, setCreateError] = useState<string | null>(null);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
@@ -416,6 +418,19 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
 
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
         setFormSnapshot({
           comments: comments.trim(),
           referenceNo: referenceNo.trim(),
@@ -425,6 +440,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           warehouseCode: warehouseCode.trim(),
           billToAddress: address.trim(),
           shipToAddress: shipToAddress.trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
           productRows: mappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
@@ -666,6 +685,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         warehouseCode: lookups.effectiveWarehouseCode.trim(),
         billToAddress: lookups.billToAddress.trim(),
         shipToAddress: lookups.shipToAddress.trim(),
+        attachments: attachments.map((att) => ({
+          fileName: att.fileName,
+          freeText: att.freeText || "",
+        })),
         productRows: validRows.map((row) => ({
           productCode: row.productCode,
           quantity: row.quantity,
@@ -686,6 +709,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         lookups.billToAddress,
         lookups.shipToAddress,
         validRows,
+        attachments,
       ],
     ),
   });
@@ -718,6 +742,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
+    setAttachments([]);
   }, [resetPQCreate, lookups, modals, productsHook]);
 
   const createDisabledReason =
@@ -853,6 +878,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
                 })),
               }),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         }
       : {
           Address: lookups.billToAddress.trim() || undefined,
@@ -881,6 +913,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
         };
 
     saveActions.actionToast.startLoading("Purchase Quotation", isEditMode ? "update" : action);
@@ -1008,5 +1047,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       : null,
     updatePurchaseQuotationMutation,
     submitDisabled: dirtySubmitDisabled,
+    attachments,
+    setAttachments,
   };
 }

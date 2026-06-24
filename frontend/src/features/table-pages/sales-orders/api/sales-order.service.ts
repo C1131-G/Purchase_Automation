@@ -87,6 +87,7 @@ export interface SalesOrderDetail {
   DocCurr?: string;
   DocStatus?: string;
   DocumentLines?: SalesOrderDetailLine[];
+  attachments?: any[];
 }
 export interface SalesOrderDetailResponse {
   success: boolean;

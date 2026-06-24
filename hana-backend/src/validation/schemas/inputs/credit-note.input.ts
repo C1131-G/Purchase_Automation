@@ -2,6 +2,7 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { AttachmentInputSchema } from "./purchase-quotation.input";
 
 extendZodWithOpenApi(z);
 
@@ -118,6 +119,8 @@ export const CreateCreditNoteInputSchema = z.object({
     .optional(),
   DocumentLines: z.array(CreditNoteLineItemSchema).min(1),
   NumAtCard: z.string().optional(),
+  SalesPersonCode: z.coerce.number().int().optional(),
+  attachments: z.array(AttachmentInputSchema).optional(),
 });
 
 // UpdateCreditNoteInputSchema: Allows modification of credit note drafts.

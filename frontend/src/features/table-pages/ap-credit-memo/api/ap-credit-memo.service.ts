@@ -43,6 +43,7 @@ export interface APCreditMemoDetailResponse {
     Address?: string;
     Address2?: string;
     DocumentLines?: Record<string, unknown>[];
+    attachments?: any[];
   };
 }
 

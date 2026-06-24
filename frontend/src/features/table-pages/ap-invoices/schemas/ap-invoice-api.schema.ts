@@ -71,6 +71,7 @@ export const apInvoiceDetailSchema = z.object({
   ),
   NumAtCard: z.string().nullable().optional(),
   SalesPersonCode: z.number().nullable().optional(),
+  attachments: z.array(z.any()).optional(),
   id: z.number(),
 });
 
@@ -99,6 +100,7 @@ export const createAPInvoiceInputSchema = z.object({
   ),
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.number().optional(),
+  attachments: z.array(z.any()).optional(),
 });
 
 export const updateAPInvoiceInputSchema = z.object({
@@ -106,4 +108,5 @@ export const updateAPInvoiceInputSchema = z.object({
   DocDueDate: z.string().optional(),
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.number().optional(),
+  attachments: z.array(z.any()).optional(),
 });

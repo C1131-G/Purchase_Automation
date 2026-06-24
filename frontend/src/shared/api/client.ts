@@ -48,10 +48,14 @@ const verifySessionState = async (): Promise<"active" | "expired" | "unavailable
  */
 export async function apiClient<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const mergedHeaders = {
+  const mergedHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
+
+  if (options.body instanceof FormData) {
+    delete mergedHeaders["Content-Type"];
+  }
 
   const defaultOptions: RequestInit = {
     ...options,
