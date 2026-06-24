@@ -1,3 +1,4 @@
+import React from "react";
 import { BadgePercent, Boxes, LayoutDashboard, ShoppingCart } from "lucide-react";
 
 import {
@@ -10,6 +11,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/sidebar";
 import type { TableRoutePath } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
+import { markSidebarNavigation } from "@/shared/utils/route-transition";
 
 import type { SectionKey } from "../utils/shell-layout.types";
 
@@ -26,8 +28,15 @@ export function ShellLayoutNavigation({
   onToggleSection,
   onTableNavIntent,
 }: ShellLayoutNavigationProps) {
+  const handleSidebarClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("a")) {
+      markSidebarNavigation();
+    }
+  };
+
   return (
-    <SidebarContent className="pt-4">
+    <SidebarContent className="pt-4" onClick={handleSidebarClick}>
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>

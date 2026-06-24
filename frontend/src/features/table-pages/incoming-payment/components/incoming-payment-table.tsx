@@ -155,7 +155,7 @@ export function IncomingPaymentTable() {
   );
 
   const sorting = useMemo<SortingState>(
-    () => cloneSorting(searchParams.sorting ?? [{ desc: true, id: "DocNum" }]),
+    () => cloneSorting(searchParams.sorting ?? []),
     [searchParams.sorting],
   );
 
@@ -369,7 +369,7 @@ export function IncomingPaymentTable() {
   });
 
   const handleResetTable = useCallback(() => {
-    setSorting(TABLE_ID, [{ desc: true, id: "DocNum" }]);
+    setSorting(TABLE_ID, []);
     setVisibility(TABLE_ID, {});
     setOrder(TABLE_ID, [...DEFAULT_COLUMN_ORDER]);
     clearAllFilters(TABLE_ID);
@@ -386,7 +386,7 @@ export function IncomingPaymentTable() {
         columnVisibility: {},
         limit: 10,
         page: 1,
-        sorting: [{ id: "DocNum", desc: true }],
+        sorting: [],
       }),
     });
   }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate]);

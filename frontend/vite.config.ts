@@ -42,6 +42,8 @@ export default defineConfig({
     }),
     react(),
     babel({
+      include: /src\/.*\.[jt]sx?$/,
+      exclude: [/node_modules/, /routeTree\.gen\.ts$/],
       presets: [reactCompilerPreset({ target: "19" })],
     }),
     tailwindcss(),
@@ -50,5 +52,28 @@ export default defineConfig({
     alias: {
       "@": "/src",
     },
+  },
+  server: {
+    warmup: {
+      clientFiles: ["./src/main.tsx", "./src/App.tsx", "./src/routeTree.gen.ts"],
+    },
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react/jsx-runtime",
+      "react-dom",
+      "react-dom/client",
+      "@tanstack/react-query",
+      "@tanstack/react-router",
+      "zustand",
+      "lucide-react",
+      "recharts",
+      "motion",
+      "goey-toast",
+      "clsx",
+      "dayjs",
+      "tailwind-merge",
+    ],
   },
 });

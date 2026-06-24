@@ -1,5 +1,12 @@
 /* Vendor Portal Transitions: Defines global entry/exit animations for premium UI experience. */
 
+/* Suppress the browser's default root crossfade so it doesn't compete with
+   the Motion.js AnimatePresence page transitions in ShellLayout. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
 /* Container for the transitioning content */
 [view-transition-name="tab-content"] {
   height: 100%;

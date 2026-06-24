@@ -109,7 +109,7 @@ export function APCreditMemoCreate({
       dashboardUrl="/dashboard/purchase"
       breadcrumbParent={{
         label: "A/P Credit Memos Data Table",
-        to: "/purchase/ap-credit-memos",
+        to: "/purchase/ap-credit-memo",
       }}
       pageTitle={pageTitle}
       editError={

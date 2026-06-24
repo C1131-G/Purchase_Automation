@@ -43,10 +43,10 @@
     "@types/node": "^24.10.9",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^6.0.3",
     "babel-plugin-react-compiler": "^1.0.0",
     "typescript": "~5.9.3",
-    "vite": "^8.0.10"
+    "vite": "^8.1.0"
   },
-  "packageManager": "pnpm@11.0.0+sha512.5bd187500e49cc6c3d891d973b432c02b844a5eb7209172c90a517a3ef4f579ed5c23d409b699e6a9dc418ff7b2b1890e63f6d74f1d3fc49848f37779c89c84c"
+  "packageManager": "pnpm@11.8.0"
 }

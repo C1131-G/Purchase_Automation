@@ -250,7 +250,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       return;
     }
 
-
     const vendorCode = String(detail.CardCode ?? "").trim();
     const vendorName = String(detail.CardName ?? "").trim();
     const matchedVendor = lookups.vendors.find((vendor) => String(vendor.code) === vendorCode);
@@ -403,7 +402,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
           };
         });
-
 
         setHeader({
           comments,
@@ -1253,7 +1251,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           })(),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
-
 
     saveActions.actionToast.startLoading("Purchase Order", isEditMode ? "update" : action);
 

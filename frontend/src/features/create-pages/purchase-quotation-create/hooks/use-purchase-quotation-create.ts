@@ -396,7 +396,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           };
         });
 
-
         setHeader({
           comments,
           docDate: docDate || header.docDate,
@@ -883,7 +882,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
-
 
     saveActions.actionToast.startLoading("Purchase Quotation", isEditMode ? "update" : action);
     try {
