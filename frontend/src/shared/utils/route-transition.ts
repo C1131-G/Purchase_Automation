@@ -16,6 +16,7 @@ export function getRouteLevel(pathname: string): number {
   if (
     pathname.includes("/create") ||
     pathname.includes("/edit") ||
+    pathname.includes("/select-invoice") ||
     /\/create-[a-z]/.test(pathname)
   ) {
     return 2;
