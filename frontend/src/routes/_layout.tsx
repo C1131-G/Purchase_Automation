@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { authQueries } from "@/features/auth/api/auth.queries";
+import { authKeys } from "@/features/auth/api/auth.queries";
+import { authAPI } from "@/features/auth/api/auth.service";
 import { ShellLayout } from "@/features/layout/components/ShellLayout";
 import { ApiError } from "@/shared/api/client";
 import { useAuthStore } from "@/store/auth/auth.store";
@@ -17,7 +18,9 @@ export const Route = createFileRoute("/_layout")({
     }
 
     try {
-      const user = await context.queryClient.ensureQueryData(authQueries.user());
+      const response = await authAPI.getMe();
+      const user = response.data.user;
+      context.queryClient.setQueryData(authKeys.user(), user);
       useAuthStore.getState().login(user);
       return;
     } catch (error) {

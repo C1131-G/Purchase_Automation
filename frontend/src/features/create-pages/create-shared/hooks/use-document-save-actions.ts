@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "@tanstack/react-router";
+
+import { scrollToTop } from "@/shared/utils/scroll";
+
 import { useDocumentActionToast } from "./use-document-action-toast";
 
 interface UseDocumentSaveActionsOptions {
@@ -65,7 +68,7 @@ export function useDocumentSaveActions({
     setIsSaved(false);
     setSavedDocNum(null);
     lastSavedStateRef.current = "";
-    window.scrollTo({ behavior: "smooth", top: 0 });
+    scrollToTop();
     void router.navigate({
       replace: true,
       search: {},
@@ -82,12 +85,12 @@ export function useDocumentSaveActions({
       actionToast.showSuccess(documentName, action === "update" ? "update" : action, createdDocNum);
 
       if (isEditMode) {
-        window.scrollTo({ behavior: "smooth", top: 0 });
+        scrollToTop();
         return;
       }
 
       if (action === "draft") {
-        window.scrollTo({ behavior: "smooth", top: 0 });
+        scrollToTop();
         return;
       }
 
@@ -96,7 +99,7 @@ export function useDocumentSaveActions({
         setIsSaved(false);
         setSavedDocNum(null);
         lastSavedStateRef.current = "";
-        window.scrollTo({ behavior: "smooth", top: 0 });
+        scrollToTop();
         void router.navigate({
           replace: true,
           search: {},
@@ -108,7 +111,7 @@ export function useDocumentSaveActions({
         setIsSaved(false);
         setSavedDocNum(null);
         lastSavedStateRef.current = "";
-        window.scrollTo({ behavior: "smooth", top: 0 });
+        scrollToTop();
         const dashboardUrl =
           moduleType === "purchase"
             ? ("/dashboard/purchase" as const)

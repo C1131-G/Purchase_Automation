@@ -1,11 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Outlet, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import type { Transition } from "motion/react";
-import { AnimatePresence, motion } from "motion/react";
 import React from "react";
 
 import { getTransitionDirection } from "@/shared/utils/route-transition";
-import type { TransitionDir } from "@/shared/utils/route-transition";
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/sidebar";
 import { useLogout } from "@/features/auth/hooks/use-logout";
@@ -22,67 +19,35 @@ import { ShellLayoutLogout } from "./shell-layout-logout";
 import { ShellLayoutNavigation } from "./shell-layout-navigation";
 
 /**
- * Slide variants for all 4 directions.
- *
- * Entering page:  slides IN from the edge at 100% offset (full-screen slide, mobile-native)
- * Exiting page:   slides OUT to 30% offset + fades (gives a depth/layer feel like iOS)
- *
- * Both animate simultaneously (AnimatePresence default) with absolute positioning —
- * this is the exact pattern used by iOS and Android native navigation.
- */
-const slideVariants = {
-  initial: (dir: TransitionDir) => {
-    if (dir === "slide-left") return { x: "100%", y: 0, zIndex: 10 };
-    if (dir === "slide-right") return { x: "-30%", y: 0, opacity: 0.8, zIndex: 0 };
-    if (dir === "slide-up") return { x: 0, y: "100%", zIndex: 10 };
-    return { x: 0, y: "-30%", opacity: 0.8, zIndex: 0 }; // slide-down
-  },
-  animate: { x: 0, y: 0, opacity: 1, zIndex: 5 },
-  exit: (dir: TransitionDir) => {
-    if (dir === "slide-left") return { x: "-30%", y: 0, opacity: 0.2, zIndex: 0 };
-    if (dir === "slide-right") return { x: "100%", y: 0, zIndex: 10 };
-    if (dir === "slide-up") return { x: 0, y: "-30%", opacity: 0.2, zIndex: 0 };
-    return { x: 0, y: "100%", zIndex: 10 }; // slide-down
-  },
-};
-
-const SPRING = { duration: 0.24, ease: [0.16, 1, 0.3, 1] } satisfies Transition;
-
-/**
- * Wraps <Outlet /> with AnimatePresence so every pathname change produces a
- * directional slide transition. Search-param-only changes (filters, pagination)
- * are ignored because the key is keyed on pathname only.
+ * PageTransition manages the native View Transition CSS classes on the html element
+ * and provides the named view-transition container for page content.
  */
 function PageTransition() {
   const location = useLocation();
   const prevPathnameRef = React.useRef<string>(location.pathname);
-  const directionRef = React.useRef<TransitionDir>("slide-left");
 
-  // Compute direction synchronously during render so motion gets the correct
-  // variant on the very first frame — no useEffect timing lag.
+  // Synchronously compute direction and apply class on the html element.
   if (prevPathnameRef.current !== location.pathname) {
-    directionRef.current = getTransitionDirection(prevPathnameRef.current, location.pathname);
+    const dir = getTransitionDirection(prevPathnameRef.current, location.pathname);
     prevPathnameRef.current = location.pathname;
+
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.remove(
+        "vt-slide-left",
+        "vt-slide-right",
+        "vt-slide-up",
+        "vt-slide-down",
+      );
+      document.documentElement.classList.add(`vt-${dir}`);
+    }
   }
 
-  const dir = directionRef.current;
-
   return (
-    <div className="relative h-full w-full overflow-hidden bg-zinc-50">
-      <AnimatePresence initial={false} custom={dir}>
-        <motion.div
-          key={location.pathname}
-          custom={dir}
-          variants={slideVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          transition={SPRING}
-          className="absolute inset-0 h-full w-full overflow-hidden will-change-[transform,opacity]"
-        >
-          <Outlet />
-        </motion.div>
-      </AnimatePresence>
+    <div
+      className="h-full w-full overflow-hidden bg-zinc-50"
+      style={{ viewTransitionName: "tab-content" }}
+    >
+      <Outlet />
     </div>
   );
 }

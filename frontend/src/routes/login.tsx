@@ -7,7 +7,8 @@ import { useEffect } from "react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 import { GOEY_LOGIN_TOAST_DURATION } from "@/components/goey-toast.config";
-import { authKeys, authQueries } from "@/features/auth/api/auth.queries";
+import { authKeys } from "@/features/auth/api/auth.queries";
+import { authAPI } from "@/features/auth/api/auth.service";
 import type { User } from "@/features/auth/api/auth.service";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { useAuthStore } from "@/store/auth/auth.store";
@@ -29,8 +30,8 @@ export const Route = createFileRoute("/login")({
     // If authenticated, redirect to app
     if (isAuthenticated) {
       throw redirect({
-        search: { limit: 10, page: 1 },
-        to: "/purchase/quotations",
+        to: "/dashboard/purchase",
+        search: { period: "week" },
       });
     }
 
@@ -90,11 +91,8 @@ function LoginComponent() {
       useAuthStore.getState().login(cachedUser);
       navigate({
         replace: true,
-        search: {
-          limit: 10,
-          page: 1,
-        },
-        to: "/purchase/quotations",
+        to: "/dashboard/purchase",
+        search: { period: "week" },
       });
       return () => {
         isMounted = false;
@@ -109,21 +107,20 @@ function LoginComponent() {
 
     const probeSession = () => {
       window.sessionStorage.setItem("auth:me:check:last-attempt-at", String(Date.now()));
-      void queryClient
-        .fetchQuery(authQueries.user())
-        .then((user) => {
+      void authAPI
+        .getMe()
+        .then((response) => {
           if (!isMounted) {
             return;
           }
+          const user = response.data.user;
+          queryClient.setQueryData(authKeys.user(), user);
           window.sessionStorage.removeItem("auth:me:check:last-fail-at");
           useAuthStore.getState().login(user);
           navigate({
             replace: true,
-            search: {
-              limit: 10,
-              page: 1,
-            },
-            to: "/purchase/quotations",
+            to: "/dashboard/purchase",
+            search: { period: "week" },
           });
         })
         .catch(() => {

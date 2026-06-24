@@ -1,4 +1,4 @@
-import type { DashboardArea, DashboardPeriod } from "../utils/types";
+import { useEffect } from "react";
 import {
   useDashboardKpiSummary,
   useDashboardModuleCards,
@@ -25,6 +25,8 @@ import {
 import { DashboardSwitchBar } from "./DashboardSwitchBar";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
+import type { DashboardArea, DashboardPeriod } from "../utils/types";
+
 interface DashboardCanvasProps {
   area: DashboardArea;
   period: DashboardPeriod;
@@ -32,6 +34,17 @@ interface DashboardCanvasProps {
 
 export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
   const color = area === "purchase" || area === "inventory" ? "blue" : "indigo";
+
+  // One-shot: measure login-submit → dashboard-visible latency.
+  useEffect(() => {
+    const submitAt = (window as unknown as Record<string, unknown>).__loginSubmitAt;
+    if (typeof submitAt === "number") {
+      // eslint-disable-next-line no-console
+      console.debug(`[perf] login→dashboard visible: ${Date.now() - submitAt}ms`);
+      // Clear so re-renders / period changes don't re-log.
+      delete (window as unknown as Record<string, unknown>).__loginSubmitAt;
+    }
+  }, []);
 
   // Run all queries in parallel for streaming segments
   const kpiQuery = useDashboardKpiSummary(area, period);

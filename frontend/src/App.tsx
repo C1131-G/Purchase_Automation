@@ -1,5 +1,6 @@
 import "goey-toast/styles.css";
 import { dehydrate, hydrate, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { GoeyToaster } from "goey-toast";
 import { useEffect, useRef } from "react";
@@ -145,6 +146,7 @@ function App() {
         <RouterProvider router={router} />
       </GlobalErrorBoundary>
       <GoeyToaster {...GOEY_TOASTER_CONFIG} />
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }

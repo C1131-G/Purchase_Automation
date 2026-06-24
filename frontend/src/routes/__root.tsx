@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { NotFound } from "@/components/not-found";
 
@@ -22,6 +23,7 @@ function RootComponent() {
       <main className="relative z-10 flex-1 flex flex-col min-h-0 h-full w-full">
         <Outlet />
       </main>
+      <TanStackRouterDevtools position="bottom-right" />
     </div>
   );
 }

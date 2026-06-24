@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { authQueries } from "@/features/auth/api/auth.queries";
+import { authKeys } from "@/features/auth/api/auth.queries";
+import { authAPI } from "@/features/auth/api/auth.service";
 import { useAuthStore } from "@/store/auth/auth.store";
 
 /**
@@ -19,7 +20,9 @@ export const Route = createFileRoute("/")({
     }
 
     try {
-      const user = await context.queryClient.ensureQueryData(authQueries.user());
+      const response = await authAPI.getMe();
+      const user = response.data.user;
+      context.queryClient.setQueryData(authKeys.user(), user);
       useAuthStore.getState().login(user);
       throw redirect({
         to: "/dashboard/purchase",

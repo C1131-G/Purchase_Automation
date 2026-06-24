@@ -7,7 +7,10 @@ import { GOEY_LOGIN_TOAST_DURATION } from "@/components/goey-toast.config";
 import { authKeys } from "@/features/auth/api/auth.queries";
 import { authAPI } from "@/features/auth/api/auth.service";
 import type { LoginRequest } from "@/features/auth/api/auth.service";
-import { prefetchTableDataAfterLogin } from "@/features/auth/api/login-table-prefetch";
+import {
+  prefetchTableDataAfterLogin,
+  scheduleIdlePrefetch,
+} from "@/features/auth/api/login-table-prefetch";
 import { useClearAuthError, useLoginAction, useSetAuthError } from "@/store/auth/auth.store";
 import { useSetSidebarAction } from "@/store/sidebar/sidebar.store";
 
@@ -43,13 +46,19 @@ export function useLogin() {
         // Sync the Query Cache (Blueprint)
         queryClient.setQueryData(authKeys.user(), response.data.user);
 
-        // Kick off navigation immediately so UI transitions without waiting on warmups.
-        navigate({ to: "/" });
+        // Stamp submit→dashboard latency start point (read in DashboardCanvas on mount).
+        (window as unknown as Record<string, unknown>).__loginSubmitAt = Date.now();
 
-        // Warm table data in the background after navigation starts.
-        window.setTimeout(() => {
-          void prefetchTableDataAfterLogin(queryClient);
-        }, 0);
+        // Navigate directly to the purchase dashboard — no intermediate redirect hop.
+        void navigate({
+          to: "/dashboard/purchase",
+          search: { period: "week" },
+        });
+
+        // Warm caches in the background only after the page is already usable.
+        scheduleIdlePrefetch(async () => {
+          await prefetchTableDataAfterLogin(queryClient);
+        });
       } else {
         setError("Login successful, but user profile was missing.");
       }
