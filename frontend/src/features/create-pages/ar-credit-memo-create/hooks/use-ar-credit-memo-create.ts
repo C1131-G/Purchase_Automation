@@ -817,6 +817,7 @@ export function useArCreditMemoCreate({
         SalesPersonCode: currentSalesPersonCode,
       };
 
+      saveActions.startSaveTracking("update");
       saveActions.actionToast.startLoading("AR Credit Memo", "update");
       try {
         const docEntry = detail?.DocEntry ?? detail?.id;
@@ -824,9 +825,11 @@ export function useArCreditMemoCreate({
           id: docEntry as string | number,
           payload,
         });
+        saveActions.trackMutationSuccess();
         const createdDocNum = detail?.DocNum as string | number | undefined;
         hydratedDocNumRef.current = null;
         setFormSnapshot(null);
+        void queryClient.invalidateQueries(arCreditMemoQueries.detailByDocNum(docNum ?? ""));
         await saveActions.handleActionSuccess("update", createdDocNum);
       } catch (_error) {
         const errorMessage = (_error as Error).message || "Failed to update AR Credit Memo";
@@ -882,9 +885,11 @@ export function useArCreditMemoCreate({
       SalesPersonCode: resolvedSalesEmployeeCode,
     };
 
+    saveActions.startSaveTracking(action);
     saveActions.actionToast.startLoading("AR Credit Memo", action);
     try {
       const result = await createArCreditMemoMutation.mutateAsync(payload);
+      saveActions.trackMutationSuccess();
       // Invalidate AR Invoice cache so that remaining quantities are updated immediately
       void queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
       const createdDocNum = (result as { data?: { DocNum?: number | string } })?.data?.DocNum;

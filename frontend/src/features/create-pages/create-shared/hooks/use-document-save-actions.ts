@@ -25,6 +25,41 @@ export function useDocumentSaveActions({
   const lastSavedStateRef = useRef<string>("");
   const actionToast = useDocumentActionToast();
 
+  // ── Lightweight performance timing markers ────────────────────────────────
+  // Fire-and-forget console.info calls so devtools can confirm speedup.
+  // Nothing here blocks the UI or modifies query / form state.
+  const saveStartRef = useRef<number>(0);
+  const mutationEndRef = useRef<number>(0);
+
+  const startSaveTracking = useCallback(
+    (action: string) => {
+      saveStartRef.current = performance.now();
+      mutationEndRef.current = 0;
+      // eslint-disable-next-line no-console
+      console.info(`[Timing] ${documentName} save started — action="${action}"`);
+    },
+    [documentName],
+  );
+
+  const trackMutationSuccess = useCallback(() => {
+    mutationEndRef.current = performance.now();
+    const elapsed = (mutationEndRef.current - saveStartRef.current).toFixed(1);
+    // eslint-disable-next-line no-console
+    console.info(
+      `[Timing] ${documentName} SAP mutation confirmed in ${elapsed} ms — button now idle`,
+    );
+  }, [documentName]);
+
+  const trackPostSaveRefresh = useCallback(() => {
+    if (mutationEndRef.current === 0) return;
+    const elapsed = (performance.now() - mutationEndRef.current).toFixed(1);
+    // eslint-disable-next-line no-console
+    console.info(
+      `[Timing] ${documentName} background refresh completed ${elapsed} ms after mutation`,
+    );
+  }, [documentName]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const handleReset = useCallback(() => {
     resetForm();
     setIsSaved(false);
@@ -107,5 +142,8 @@ export function useDocumentSaveActions({
     handleReset,
     handleActionSuccess,
     actionToast,
+    startSaveTracking,
+    trackMutationSuccess,
+    trackPostSaveRefresh,
   };
 }

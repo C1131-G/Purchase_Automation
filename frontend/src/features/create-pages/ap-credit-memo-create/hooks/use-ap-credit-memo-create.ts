@@ -1479,6 +1479,8 @@ export function useAPCreditMemoCreate({
       return;
     }
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
+
     try {
       let createdDocNum: string | number | undefined;
       if (isEditMode) {
@@ -1622,8 +1624,14 @@ export function useAPCreditMemoCreate({
         }
       }
 
+      saveActions.trackMutationSuccess();
+
       if (isEditMode) {
         resetWarehouse();
+      }
+
+      if (isEditMode) {
+        void queryClient.invalidateQueries(apCreditMemoQueries.detailByDocNum(editDocNum));
       }
 
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);

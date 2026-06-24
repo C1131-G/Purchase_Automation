@@ -10,13 +10,14 @@ export function useCreateSalesOrder() {
   return useMutation({
     mutationFn: ({ payload }: { payload: Parameters<typeof salesOrderAPI.createSalesOrder>[0] }) =>
       salesOrderAPI.createSalesOrder(payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: salesOrderKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.customers(),
@@ -46,13 +47,14 @@ export function useUpdateSalesOrder() {
       id: string | number;
       payload: Parameters<typeof salesOrderAPI.updateSalesOrder>[1];
     }) => salesOrderAPI.updateSalesOrder(id, payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: salesOrderKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.customers(),

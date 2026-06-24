@@ -1304,6 +1304,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           })),
         };
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
     saveActions.actionToast.startLoading("Purchase Order", isEditMode ? "update" : action);
 
     try {
@@ -1330,6 +1331,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         });
         createdDocNum = result?.data?.DocNum;
       }
+
+      saveActions.trackMutationSuccess();
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all });
@@ -1361,7 +1364,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? "").trim();
         if (currentDocNum) {
-          void queryClient.prefetchQuery(purchaseOrderQueries.detailByDocNum(currentDocNum));
+          void queryClient.invalidateQueries(purchaseOrderQueries.detailByDocNum(currentDocNum));
         }
       }
     } catch (error) {

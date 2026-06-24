@@ -14,13 +14,14 @@ export function useCreateARInvoice() {
   return useMutation({
     mutationFn: ({ payload }: { payload: CreateARInvoicePayload }) =>
       arInvoiceAPI.createARInvoice(payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.customers(),
@@ -45,13 +46,14 @@ export function useUpdateARInvoice() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string | number; payload: UpdateARInvoicePayload }) =>
       arInvoiceAPI.updateARInvoice(id, payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.customers(),

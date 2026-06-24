@@ -796,6 +796,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           })),
         };
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
     saveActions.actionToast.startLoading("Sales Quotation", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
@@ -822,6 +823,8 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
 
+      saveActions.trackMutationSuccess();
+
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: salesQuotationKeys.all });
       void Promise.allSettled([
@@ -833,7 +836,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? "").trim();
         if (currentDocNum) {
-          void queryClient.prefetchQuery(salesQuotationQueries.detailByDocNum(currentDocNum));
+          void queryClient.invalidateQueries(salesQuotationQueries.detailByDocNum(currentDocNum));
         }
         lookups.resetWarehouse();
       }

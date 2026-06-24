@@ -52,14 +52,15 @@ export function useCreateAPCreditMemo() {
         body: JSON.stringify(payload),
         method: "POST",
       }),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: apCreditMemoKeys.all });
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: apCreditMemoKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),
@@ -85,14 +86,15 @@ export function useUpdateAPCreditMemo() {
         body: JSON.stringify(payload),
         method: "PATCH",
       }),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: apCreditMemoKeys.all });
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: apCreditMemoKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),

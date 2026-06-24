@@ -1861,6 +1861,7 @@ export function useGRPOCreate({
     setCreateError(null);
     const payload = JSON.parse(getPayloadString());
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
     saveActions.actionToast.startLoading("GRPO", isEditMode ? "update" : action);
     try {
       let createdDocNum: number | undefined;
@@ -1885,12 +1886,13 @@ export function useGRPOCreate({
         createdDocNum = result?.data?.DocNum;
       }
 
+      saveActions.trackMutationSuccess();
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
 
       if (isEditMode) {
         const currentDocNum = (docNum ?? "").trim();
         if (currentDocNum) {
-          void queryClient.prefetchQuery(grpoQueries.detailByDocNum(currentDocNum));
+          void queryClient.invalidateQueries(grpoQueries.detailByDocNum(currentDocNum));
         }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);

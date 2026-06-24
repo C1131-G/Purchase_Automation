@@ -10,14 +10,15 @@ export function useCreateGRPO() {
   return useMutation({
     mutationFn: ({ payload }: { payload: Parameters<typeof grpoAPI.createGRPO>[0] }) =>
       grpoAPI.createGRPO(payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: grpoKeys.all });
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: grpoKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),
@@ -39,14 +40,15 @@ export function useUpdateGRPO() {
       id: string | number;
       payload: Parameters<typeof grpoAPI.updateGRPO>[1];
     }) => grpoAPI.updateGRPO(id, payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: grpoKeys.all });
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: grpoKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),

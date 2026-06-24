@@ -13,13 +13,14 @@ export function useCreatePurchaseQuotation() {
     }: {
       payload: Parameters<typeof purchaseQuotationAPI.createPurchaseQuotation>[0];
     }) => purchaseQuotationAPI.createPurchaseQuotation(payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),
@@ -49,13 +50,14 @@ export function useUpdatePurchaseQuotation() {
       id: string | number;
       payload: Parameters<typeof purchaseQuotationAPI.updatePurchaseQuotation>[1];
     }) => purchaseQuotationAPI.updatePurchaseQuotation(id, payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),

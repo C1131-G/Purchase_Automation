@@ -922,6 +922,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           })),
         };
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
     saveActions.actionToast.startLoading("Purchase Quotation", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
@@ -951,6 +952,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
+      saveActions.trackMutationSuccess();
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
@@ -959,6 +961,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         queryClient.prefetchQuery(purchaseQuotationQueries.docNumSuggestions(undefined, 10)),
         queryClient.prefetchQuery(purchaseQuotationQueries.docNumSuggestions(undefined, 100)),
       ]);
+      if (isEditMode && createdDocNum !== undefined) {
+        void queryClient.invalidateQueries(
+          purchaseQuotationQueries.detailByDocNum(String(createdDocNum)),
+        );
+      }
 
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
 

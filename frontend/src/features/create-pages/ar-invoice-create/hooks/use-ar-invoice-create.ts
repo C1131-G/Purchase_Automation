@@ -1068,6 +1068,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           SalesPersonCode: resolvedSalesEmployeeCode,
         };
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
     saveActions.actionToast.startLoading("AR Invoice", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
@@ -1089,6 +1090,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
 
+      saveActions.trackMutationSuccess();
       void queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all });
       void Promise.allSettled([
         queryClient.prefetchQuery(arInvoiceQueries.list({ limit: 10, page: 1 })),
@@ -1099,7 +1101,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? "").trim();
         if (currentDocNum) {
-          void queryClient.prefetchQuery(arInvoiceQueries.detailByDocNum(currentDocNum));
+          void queryClient.invalidateQueries(arInvoiceQueries.detailByDocNum(currentDocNum));
         }
         lookups.resetWarehouse();
         await saveActions.handleActionSuccess("update", createdDocNum);

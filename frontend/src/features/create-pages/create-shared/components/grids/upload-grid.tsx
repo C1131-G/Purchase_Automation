@@ -149,6 +149,9 @@ export function UploadGrid({
   };
 
   const handlePreview = async (item: AttachmentItem) => {
+    // Open a blank tab synchronously during the user click event to bypass popup blocker
+    const previewTab = window.open("about:blank", "_blank");
+
     try {
       const url = `/api/v1/attachments/download?fileName=${encodeURIComponent(
         item.fileName,
@@ -188,12 +191,18 @@ export function UploadGrid({
         }
       };
 
-      const responseBlob = await response.blob();
+      const buffer = await response.arrayBuffer();
       const mimeType = getMimeType(item.fileExtension);
-      const blob = new Blob([responseBlob], { type: mimeType });
+      const blob = new Blob([buffer], { type: mimeType });
       const blobUrl = window.URL.createObjectURL(blob);
-      window.open(blobUrl, "_blank");
+
+      if (previewTab) {
+        previewTab.location.href = blobUrl;
+      }
     } catch (err: any) {
+      if (previewTab) {
+        previewTab.close();
+      }
       goeyToast.error(err.message || "Preview failed");
     }
   };

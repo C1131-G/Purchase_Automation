@@ -1106,6 +1106,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           })),
         };
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
     saveActions.actionToast.startLoading("Sales Order", isEditMode ? "update" : action);
     try {
       let createdDocNum: string | number | undefined;
@@ -1127,6 +1128,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
 
+      saveActions.trackMutationSuccess();
+
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: salesOrderKeys.all });
       void Promise.allSettled([
@@ -1138,7 +1141,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       if (isEditMode) {
         const currentDocNum = (options?.docNum ?? "").trim();
         if (currentDocNum) {
-          void queryClient.prefetchQuery(salesOrderQueries.detailByDocNum(currentDocNum));
+          void queryClient.invalidateQueries(salesOrderQueries.detailByDocNum(currentDocNum));
         }
       }
 

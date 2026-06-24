@@ -1491,6 +1491,7 @@ export function useAPInvoiceCreate({
       return;
     }
 
+    saveActions.startSaveTracking(isEditMode ? "update" : action);
     saveActions.actionToast.startLoading("AP Invoice", isEditMode ? "update" : action);
     try {
       let createdDocNum: number | undefined;
@@ -1610,6 +1611,8 @@ export function useAPInvoiceCreate({
         createdDocNum = result?.data?.DocNum;
       }
 
+      saveActions.trackMutationSuccess();
+
       // Proactive Cache Revalidation / Invalidation
       if (!isEditMode) {
         // Invalidate the specific source document detail queries used by copy-from hydration
@@ -1649,6 +1652,9 @@ export function useAPInvoiceCreate({
         }
       }
 
+      if (isEditMode) {
+        void queryClient.invalidateQueries(apInvoiceQueries.detailByDocNum(editDocNum));
+      }
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
       if (isEditMode) {
         resetWarehouse();

@@ -14,16 +14,14 @@ export function useCreatePurchaseOrder() {
     }: {
       payload: Parameters<typeof purchaseOrderAPI.createPurchaseOrder>[0];
     }) => purchaseOrderAPI.createPurchaseOrder(payload),
-    onSuccess: async () => {
-      // Purchase Order creation starts a new entry cycle on the same page.
-      // Drop dynamic product/stock caches so next open/search uses fresh data,
-      // and refresh active lookups in background without blocking UI.
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),
@@ -53,13 +51,14 @@ export function useUpdatePurchaseOrder() {
       id: string | number;
       payload: Parameters<typeof purchaseOrderAPI.updatePurchaseOrder>[1];
     }) => purchaseOrderAPI.updatePurchaseOrder(id, payload),
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: createSharedKeys.products() });
       queryClient.removeQueries({
         queryKey: createSharedKeys.productWarehouseStocks(),
       });
 
-      await Promise.all([
+      // Non-blocking: fire invalidations in background so isPending resolves immediately
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: purchaseOrderKeys.all }),
         queryClient.invalidateQueries({
           queryKey: createSharedKeys.vendors(),
