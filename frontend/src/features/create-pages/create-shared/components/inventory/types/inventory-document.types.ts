@@ -11,7 +11,6 @@ export interface InventoryBaseRow {
   quantity: number;
   binLocationAllocation: number;
   accountCode: string;
-  itemCost: string;
 }
 
 export interface AttachmentItem {

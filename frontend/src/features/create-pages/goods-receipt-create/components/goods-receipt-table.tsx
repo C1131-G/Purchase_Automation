@@ -1,54 +1,17 @@
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
-import {
-  InventoryLineTable,
-  type InventoryColumn,
-} from "@/features/create-pages/create-shared/components/inventory/inventory-line-table";
+import { GoodsReceiptProductTable } from "./goods-receipt-product-table";
+import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { Plus } from "lucide-react";
 
 interface GoodsReceiptTableProps {
   rows: GoodsReceiptRow[];
   onRowsChange: (rows: GoodsReceiptRow[]) => void;
+  openProductPopup: (rowId: string | null) => void;
+  prefetchProducts: () => void;
+  warehouses: CreateLookupOption[];
+  warehousesLoading: boolean;
+  uoms?: CreateLookupOption[];
 }
-
-const COLUMNS: InventoryColumn<GoodsReceiptRow>[] = [
-  { key: "itemNo", label: "Item No.", width: "10%", type: "text" },
-  { key: "itemDescription", label: "Item Description", width: "20%", type: "text" },
-  { key: "uomCode", label: "UoM Code", width: "8%", type: "text" },
-  { key: "uomName", label: "UoM Name", width: "8%", type: "text" },
-  { key: "whse", label: "Whse", width: "6%", type: "text" },
-  { key: "quantity", label: "Quantity", width: "7%", type: "number", align: "right" },
-  { key: "unitPrice", label: "Unit Price", width: "9%", type: "text", align: "right" },
-  {
-    key: "total",
-    label: "Total",
-    width: "9%",
-    type: "computed",
-    align: "right",
-    compute: (row) => getRowTotal(row),
-  },
-  {
-    key: "binLocationAllocation",
-    label: "Bin Location Allocation",
-    width: "11%",
-    type: "number",
-    align: "center",
-  },
-  { key: "accountCode", label: "Account Code", width: "8%", type: "text" },
-  { key: "itemCost", label: "Item Cost", width: "8%", type: "text", align: "right" },
-];
-
-const getRowTotal = (row: GoodsReceiptRow) => {
-  const qty = Number(row.quantity) || 0;
-  const priceStr = String(row.unitPrice).replace(/[^0-9.]/g, "");
-  const price = parseFloat(priceStr) || 0;
-  const computedTotal = qty * price;
-  return computedTotal > 0 ? `FJD ${computedTotal.toFixed(2)}` : "FJD 0.00";
-};
-
-const getGrandTotal = (rows: GoodsReceiptRow[]) =>
-  rows.reduce((sum, row) => {
-    const totalStr = getRowTotal(row).replace(/[^0-9.]/g, "");
-    return sum + (parseFloat(totalStr) || 0);
-  }, 0);
 
 const DEFAULT_ROW: GoodsReceiptRow = {
   id: "",
@@ -62,19 +25,55 @@ const DEFAULT_ROW: GoodsReceiptRow = {
   total: "",
   binLocationAllocation: 0,
   accountCode: "",
-  itemCost: "",
 };
 
-export function GoodsReceiptTable({ rows, onRowsChange }: GoodsReceiptTableProps) {
+export function GoodsReceiptTable({
+  rows,
+  onRowsChange,
+  openProductPopup,
+  prefetchProducts,
+  warehouses,
+  warehousesLoading,
+  uoms = [],
+}: GoodsReceiptTableProps) {
+  const handleAddRow = () => {
+    onRowsChange([...rows, { ...DEFAULT_ROW, id: Math.random().toString(36).substr(2, 9) }]);
+  };
+
+  const grandTotal = rows.reduce((acc, row) => {
+    const totalStr = String(row.total || "").replace(/[^0-9.]/g, "");
+    const val = parseFloat(totalStr) || 0;
+    return acc + val;
+  }, 0);
+
   return (
-    <InventoryLineTable
-      rows={rows}
-      onRowsChange={onRowsChange}
-      defaultRow={DEFAULT_ROW}
-      columns={COLUMNS}
-      showGrandTotal
-      getGrandTotal={getGrandTotal}
-      minWidth="1100px"
-    />
+    <div className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-3">
+      {/* overflow-x-auto for horizontal scroll, overflow-y-visible so dropdowns escape the clip */}
+      <div style={{ overflowX: "auto", overflowY: "visible" }}>
+        <GoodsReceiptProductTable
+          rows={rows}
+          onRowsChange={onRowsChange}
+          openProductPopup={openProductPopup}
+          prefetchProducts={prefetchProducts}
+          warehouses={warehouses}
+          warehousesLoading={warehousesLoading}
+          uoms={uoms}
+        />
+      </div>
+      <div className="flex items-center justify-between pt-2">
+        <button
+          type="button"
+          onClick={handleAddRow}
+          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add Row
+        </button>
+        <div className="pr-4 text-right">
+          <span className="mr-2 text-xs font-medium text-zinc-500">Grand Total:</span>
+          <span className="text-sm font-bold text-zinc-900">FJD {grandTotal.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
   );
 }

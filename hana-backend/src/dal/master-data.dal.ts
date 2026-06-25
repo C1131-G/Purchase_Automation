@@ -118,8 +118,22 @@ export const getWarehouses = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+// Retrieves the list of price lists from SAP HANA (OPLN table).
+export const getPriceLists = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    logger.info({ dbName, msg: "Fetching price lists" });
+    const data = await masterDataService.getPriceLists(dbName);
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const masterDataDal = {
   getCustomers,
+  getPriceLists,
   getProductWarehouseStocks,
   getProducts,
   getTaxCodes,

@@ -69,8 +69,25 @@ export const getGoodsReceiptDocNums = async (req: Request, res: Response, next: 
   }
 };
 
+export const createGoodsReceipt = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId, dbName } = authReq.user;
+    const payload = req.body as Record<string, unknown>;
+
+    logger.info({ dbName, msg: "Creating Goods Receipt" });
+
+    const result = await goodsReceiptService.createGoodsReceipt(sessionId, payload);
+
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const goodsReceiptDal = {
   getGoodsReceipts,
   getGoodsReceipt,
   getGoodsReceiptDocNums,
+  createGoodsReceipt,
 };

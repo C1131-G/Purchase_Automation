@@ -10,7 +10,12 @@ import { formatDocTotal } from "@/features/table-pages/table-shared/utils/curren
 
 const columnHelper = createColumnHelper<GoodsReceiptListItem>();
 
-export const createGoodsReceiptColumns = () => {
+interface CreateGoodsReceiptColumnsOptions {
+  onDocNumDoubleClick?: (docNum: string | number) => void;
+  onDocNumHover?: (docNum: string | number) => void;
+}
+
+export const createGoodsReceiptColumns = (options?: CreateGoodsReceiptColumnsOptions) => {
   return [
     columnHelper.accessor("DocNum", {
       cell: (info) => (
@@ -18,6 +23,8 @@ export const createGoodsReceiptColumns = () => {
           value={info.getValue()}
           docEntry={info.row.original.id as number}
           docType="goods-receipt"
+          onHover={options?.onDocNumHover}
+          onDoubleClick={options?.onDocNumDoubleClick}
         />
       ),
       enableSorting: true,
