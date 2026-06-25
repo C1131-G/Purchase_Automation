@@ -301,12 +301,13 @@ export function UploadGrid({
             }
           >
             {readOnly ? (
-              attachments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-200 bg-zinc-100 text-center p-4 h-full w-full">
-                  <Upload className="h-5 w-5 text-zinc-300 mb-1.5" />
-                  <span className="text-xs font-medium text-zinc-400 block">No files uploaded</span>
-                </div>
-              ) : null
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-4 text-center h-full w-full cursor-not-allowed opacity-75 select-none">
+                <Lock className="h-5 w-5 text-zinc-400 mb-1.5" />
+                <span className="text-xs font-semibold text-zinc-500 block">Upload Locked</span>
+                <span className="text-[9px] text-zinc-400 mt-0.5 block text-center">
+                  Document is closed
+                </span>
+              </div>
             ) : (
               <div
                 onClick={handleContainerClick}

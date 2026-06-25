@@ -133,7 +133,7 @@ export async function generatePdf(data: ExportDocumentData): Promise<Buffer> {
   doc.fontSize(9).font("Helvetica").fillColor("#334155");
   if (data.address) {
     const addrLines = data.address
-      .split(/\r?\n/)
+      .split(/\r?\n|\\n|\\r/)
       .map((l) => l.trim())
       .filter(Boolean);
     for (const line of addrLines) {
@@ -159,7 +159,7 @@ export async function generatePdf(data: ExportDocumentData): Promise<Buffer> {
   doc.fontSize(9).font("Helvetica").fillColor("#334155");
   if (data.address2) {
     const addrLines2 = data.address2
-      .split(/\r?\n/)
+      .split(/\r?\n|\\n|\\r/)
       .map((l) => l.trim())
       .filter(Boolean);
     for (const line of addrLines2) {
@@ -415,7 +415,77 @@ export async function generatePdf(data: ExportDocumentData): Promise<Buffer> {
     commentsY += commentsHeight;
   }
 
-  // 7. Dynamic Footer (Page Numbers)
+  // 7. Attachments Section (If present)
+  let attachmentsY = Math.max(totalsY, commentsY) + 20;
+  if (data.attachments && data.attachments.length > 0) {
+    if (attachmentsY + 40 > doc.page.height - 60) {
+      doc.addPage();
+      attachmentsY = 40;
+    }
+
+    doc
+      .fontSize(8)
+      .font("Helvetica-Bold")
+      .fillColor("#64748b")
+      .text("ATTACHMENTS", 40, attachmentsY);
+    attachmentsY += 12;
+
+    doc.rect(40, attachmentsY, pageWidth, 16).fill("#475569");
+    doc.fontSize(8).font("Helvetica-Bold").fillColor("#ffffff");
+
+    doc.text("File Name", 45, attachmentsY + 4, { width: 200, align: "left" });
+    doc.text("Remarks / Note", 250, attachmentsY + 4, { width: 215, align: "left" });
+    doc.text("Uploaded Date", 470, attachmentsY + 4, { width: 80, align: "right" });
+    attachmentsY += 16;
+
+    let isAlternateAtt = false;
+    for (const att of data.attachments) {
+      const displayName =
+        att.fileName.substring(att.fileName.lastIndexOf("_") + 1) +
+        (att.fileExtension ? `.${att.fileExtension}` : "");
+
+      const remarksText = att.freeText || "-";
+      const rawDate = att.attachmentDate || "-";
+      const dateText = rawDate.includes("T") ? rawDate.split("T")[0] : rawDate;
+
+      doc.fontSize(7).font("Helvetica");
+      const nameHeight = doc.heightOfString(displayName, { width: 195 });
+      const remarksHeight = doc.heightOfString(remarksText, { width: 210 });
+      const attRowHeight = Math.max(nameHeight, remarksHeight) + 8;
+
+      if (attachmentsY + attRowHeight > doc.page.height - 60) {
+        doc.addPage();
+        attachmentsY = 40;
+        doc.rect(40, attachmentsY, pageWidth, 16).fill("#475569");
+        doc.fontSize(8).font("Helvetica-Bold").fillColor("#ffffff");
+        doc.text("File Name", 45, attachmentsY + 4, { width: 200, align: "left" });
+        doc.text("Remarks / Note", 250, attachmentsY + 4, { width: 215, align: "left" });
+        doc.text("Uploaded Date", 470, attachmentsY + 4, { width: 80, align: "right" });
+        attachmentsY += 16;
+      }
+
+      if (isAlternateAtt) {
+        doc.rect(40, attachmentsY, pageWidth, attRowHeight).fill("#f8fafc");
+      }
+
+      doc.fontSize(8).font("Helvetica").fillColor("#1e293b");
+      doc.text(displayName, 45, attachmentsY + 4, { width: 195, align: "left" });
+      doc.text(remarksText, 250, attachmentsY + 4, { width: 210, align: "left" });
+      doc.text(dateText, 470, attachmentsY + 4, { width: 80, align: "right" });
+
+      doc
+        .moveTo(40, attachmentsY + attRowHeight)
+        .lineTo(555, attachmentsY + attRowHeight)
+        .strokeColor("#e2e8f0")
+        .lineWidth(0.5)
+        .stroke();
+
+      attachmentsY += attRowHeight;
+      isAlternateAtt = !isAlternateAtt;
+    }
+  }
+
+  // 8. Dynamic Footer (Page Numbers)
   const range = doc.bufferedPageRange();
   for (let i = range.start; i < range.start + range.count; i++) {
     doc.switchToPage(i);

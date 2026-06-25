@@ -408,6 +408,14 @@ export function useAPInvoiceCreate({
     if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) {
       return;
     }
+    if (isMetadataLoaded) {
+      hydratedDocNumRef.current = currentDocNum;
+    }
+
+    // Show loading toast when starting edit hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("A/P Invoice", "edit");
+    }
 
     void (async () => {
       setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -443,11 +451,44 @@ export function useAPInvoiceCreate({
       // Set addresses from document: Address = Bill To, Address2 = Ship To
       setBillToAddress(String(detail.Address ?? "").trim());
       setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
-
       const detailLines = detail.DocumentLines ?? [];
+      const productsForWarehouse =
+        effectiveWarehouseCode.trim().length > 0
+          ? await queryClient
+              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+              .catch((): ProductLookupItem[] => [])
+          : [];
 
-      // 1. Initial synchronous mapping from document lines (no network requests)
-      const initialMappedLines = detailLines.map((line, index) => {
+      const productByCode = new Map<string, ProductLookupItem>(
+        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+      );
+      const uniqueItemCodes = [
+        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+      ].filter(Boolean);
+
+      // Recover missing product metadata
+      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+      if (missingItemCodes.length > 0) {
+        await Promise.all(
+          missingItemCodes.map(async (itemCode) => {
+            const res = await queryClient
+              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+              .catch((): ProductLookupItem[] => []);
+            const matched = res.find((p) => String(p.code).trim() === itemCode);
+            if (matched) {
+              productByCode.set(itemCode, matched);
+            }
+          }),
+        );
+      }
+
+      const taxRateByItemCode = await resolveProductTaxRates(
+        queryClient,
+        detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+        "purchase",
+      );
+
+      const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
         const lineData = line as Record<string, unknown>;
         const quantity = Math.max(0, Number(line.Quantity ?? 0));
         const price = Number(line.Price ?? line.UnitPrice ?? 0);
@@ -458,17 +499,51 @@ export function useAPInvoiceCreate({
           line: line as unknown as Record<string, unknown>,
         });
         const itemCode = String(line.ItemCode ?? "").trim();
+        const productMeta = productByCode.get(itemCode);
 
         return {
           id: `${currentDocNum}-${index}`,
           productCode: itemCode,
-          productName: String(line.ItemDescription ?? itemCode).trim(),
-          stock: 0,
-          currency: String(detail.DocCurr ?? "").trim(),
+          productName: String(
+            line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+          ).trim(),
+          stock: 0, // In edit mode, stock is less relevant for invoices
+          currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
           vatGroup: String(line.TaxCode ?? "").trim(),
-          taxRate: typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0,
-          uomCode: String(lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "").trim(),
-          uomEntry: Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry),
+          // SAP line tax is authoritative; fall back to product master only when missing
+          taxRate:
+            (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+            taxRateByItemCode.get(itemCode) ||
+            0,
+          uomCode: (() => {
+            const code = String(
+              lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+            ).trim();
+            if (code) return code;
+            const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+            if (Number.isFinite(entry) && entry > 0) {
+              const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+              if (match?.code) return match.code;
+            }
+            return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+          })(),
+          uomEntry: (() => {
+            const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+            if (Number.isFinite(entry) && entry > 0) return entry;
+            const code = String(
+              lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+            ).trim();
+            if (code) {
+              const match = productMeta?.uomList?.find((u) => u.code === code);
+              if (match?.uomEntry !== undefined) return match.uomEntry;
+            }
+            return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+          })(),
+          purchaseUomCode: productMeta?.purchaseUomCode,
+          purchaseUomEntry: productMeta?.purchaseUomEntry,
+          salesUomCode: productMeta?.uomCode,
+          salesUomEntry: productMeta?.uomEntry,
+          uomList: productMeta?.uomList,
           baseQuantity: quantity,
           quantity,
           discountPercent,
@@ -482,8 +557,7 @@ export function useAPInvoiceCreate({
           selected: false,
         };
       });
-      setLines(initialMappedLines);
-      setProductRowDrafts({});
+      setLines(mappedLines);
 
       const rawAttachments = detail.attachments || [];
       setAttachments(
@@ -517,80 +591,9 @@ export function useAPInvoiceCreate({
         })),
       });
       setHydratedDocNum(currentDocNum);
-
-      // 2. Perform network fetches in the background (no await block blocking render!)
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
-
-      const fetchExtraData = async () => {
-        try {
-          const productsForWarehouse =
-            effectiveWarehouseCode.trim().length > 0
-              ? await queryClient
-                  .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-                  .catch((): ProductLookupItem[] => [])
-              : [];
-
-          const productByCode = new Map<string, ProductLookupItem>(
-            productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-          );
-
-          const missingItemCodes = uniqueItemCodes.filter(
-            (itemCode) => !productByCode.has(itemCode),
-          );
-          if (missingItemCodes.length > 0) {
-            await Promise.all(
-              missingItemCodes.map(async (itemCode) => {
-                const res = await queryClient
-                  .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                  .catch((): ProductLookupItem[] => []);
-                const matched = res.find((p) => String(p.code).trim() === itemCode);
-                if (matched) {
-                  productByCode.set(itemCode, matched);
-                }
-              }),
-            );
-          }
-
-          const taxRateByItemCode = await resolveProductTaxRates(
-            queryClient,
-            uniqueItemCodes,
-            "purchase",
-          );
-
-          // Merge details (UoM list, tax rates) in place
-          setLines((prev) =>
-            prev.map((row) => {
-              const productMeta = productByCode.get(row.productCode);
-              if (!productMeta) {
-                return row;
-              }
-              const taxRate =
-                row.taxRate > 0 ? row.taxRate : taxRateByItemCode.get(row.productCode) || 0;
-              return {
-                ...row,
-                currency: row.currency || String(productMeta.currency ?? "").trim(),
-                vatGroup: row.vatGroup || String(productMeta.vatGroup ?? "").trim(),
-                taxRate,
-                purchaseUomCode: productMeta.purchaseUomCode,
-                purchaseUomEntry: productMeta.purchaseUomEntry,
-                salesUomCode: productMeta.uomCode,
-                salesUomEntry: productMeta.uomEntry,
-                uomList: productMeta.uomList,
-                uomCode:
-                  row.uomCode ||
-                  String(productMeta.purchaseUomCode ?? productMeta.uomCode ?? "").trim(),
-                uomEntry: row.uomEntry || productMeta.purchaseUomEntry || productMeta.uomEntry,
-              };
-            }),
-          );
-        } catch {
-          // Silently ignore background prefetch errors
-        }
-      };
-
-      void fetchExtraData();
+      // Dismiss loading toast when edit hydration is complete
+      loadingToastRef.current?.dismiss();
+      loadingToastRef.current = null;
     })();
   }, [
     editDocNum,
@@ -603,8 +606,6 @@ export function useAPInvoiceCreate({
     setBillToAddress,
     setShipToAddress,
     vendors,
-    warehouses,
-    effectiveWarehouseCode,
   ]);
 
   // Copy-From Hydration (GRPO or PO) — supports multi-doc, single type
@@ -1518,7 +1519,38 @@ export function useAPInvoiceCreate({
           })),
         };
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
-        createdDocNum = editDetailQuery.data?.data?.DocNum;
+        // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
+        const updatedDetailRes = await queryClient.fetchQuery(
+          apInvoiceQueries.detailByDocNum(editDocNum),
+        );
+        const updatedDetail = updatedDetailRes?.data;
+        if (updatedDetail) {
+          const rawAttachments = updatedDetail.attachments || [];
+          setAttachments(
+            rawAttachments.map((item: any, idx: number) => ({
+              id: `loaded-${idx}-${item.fileName}`,
+              fileName: item.fileName,
+              fileExtension: item.fileExtension,
+              sourcePath: item.sourcePath,
+              attachmentDate: item.attachmentDate,
+              freeText: item.freeText || "",
+              targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+            })),
+          );
+
+          const { comments: remarks, referenceNo } = parseAPInvoiceHeaderNotes(updatedDetail);
+          const docDueDate = String(updatedDetail.DocDueDate ?? "").slice(0, 10);
+
+          setFormSnapshot({
+            remarks: (remarks || "").trim(),
+            referenceNo: (referenceNo || "").trim(),
+            docDueDate: docDueDate,
+            attachments: rawAttachments.map((item: any) => ({
+              fileName: item.fileName,
+              freeText: item.freeText || item.remarks || "",
+            })),
+          });
+        }
       } else {
         const buildDocumentLines = (): CreateAPInvoiceInput["DocumentLines"] => {
           const lines: CreateAPInvoiceInput["DocumentLines"] = [];
@@ -1649,14 +1681,8 @@ export function useAPInvoiceCreate({
         }
       }
 
-      if (isEditMode && createdDocNum !== undefined) {
-        // Await the query refetch to ensure we have the new server data before clearing hydratedDocNumRef
-        await queryClient.invalidateQueries({
-          queryKey: apInvoiceQueries.detailByDocNum(String(createdDocNum)).queryKey,
-        });
-        hydratedDocNumRef.current = null;
-        setHydratedDocNum(null);
-        setFormSnapshot(null);
+      if (isEditMode) {
+        void queryClient.invalidateQueries(apInvoiceQueries.detailByDocNum(editDocNum));
       }
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
       if (isEditMode) {

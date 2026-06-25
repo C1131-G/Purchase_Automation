@@ -17,6 +17,13 @@ export interface ExportDocumentLine {
   openQty: number;
 }
 
+export interface ExportAttachment {
+  fileName: string;
+  fileExtension: string;
+  freeText: string;
+  attachmentDate: string;
+}
+
 export interface ExportDocumentData {
   entityLabel: string;
   docNum: number | string;
@@ -35,6 +42,7 @@ export interface ExportDocumentData {
   discountAmount: number;
   discountPercent: number;
   lines: ExportDocumentLine[];
+  attachments?: ExportAttachment[];
 }
 
 export function normalizeToExport(raw: Record<string, unknown>, label: string): ExportDocumentData {
@@ -55,6 +63,13 @@ export function normalizeToExport(raw: Record<string, unknown>, label: string): 
     }),
   );
 
+  const attachments = ((raw.attachments as Record<string, unknown>[]) || []).map((item) => ({
+    fileName: String(item.fileName ?? ""),
+    fileExtension: String(item.fileExtension ?? ""),
+    freeText: String(item.freeText ?? item.remarks ?? ""),
+    attachmentDate: String(item.attachmentDate ?? ""),
+  }));
+
   return {
     entityLabel: label,
     docNum: raw.DocNum ?? raw.id ?? "",
@@ -73,5 +88,6 @@ export function normalizeToExport(raw: Record<string, unknown>, label: string): 
     discountAmount: Number(raw.DiscountAmount ?? 0),
     discountPercent: Number(raw.DiscountPercent ?? 0),
     lines,
+    attachments,
   };
 }

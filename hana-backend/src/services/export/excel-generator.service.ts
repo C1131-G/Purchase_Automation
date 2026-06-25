@@ -389,6 +389,93 @@ export async function generateExcel(data: ExportDocumentData): Promise<Buffer> {
     }
   }
 
+  // 5. Attachments Section (If present)
+  if (data.attachments && data.attachments.length > 0) {
+    let attachStartRow = totalsRowIdx + 3;
+
+    ws.getCell(attachStartRow, 1).value = "ATTACHMENTS";
+    ws.getCell(attachStartRow, 1).font = {
+      name: fontName,
+      size: 9,
+      bold: true,
+      color: { argb: "FF64748B" },
+    };
+    attachStartRow++;
+
+    // Table Header
+    ws.mergeCells(`A${attachStartRow}:D${attachStartRow}`);
+    const fnCell = ws.getCell(`A${attachStartRow}`);
+    fnCell.value = "File Name";
+
+    ws.mergeCells(`E${attachStartRow}:I${attachStartRow}`);
+    const remCell = ws.getCell(`E${attachStartRow}`);
+    remCell.value = "Remarks / Note";
+
+    ws.mergeCells(`J${attachStartRow}:K${attachStartRow}`);
+    const udCell = ws.getCell(`J${attachStartRow}`);
+    udCell.value = "Uploaded Date";
+
+    [`A${attachStartRow}`, `E${attachStartRow}`, `J${attachStartRow}`].forEach((cellRef, idx) => {
+      const cell = ws.getCell(cellRef);
+      cell.font = { name: fontName, size: 9, bold: true, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { vertical: "middle", horizontal: idx === 2 ? "center" : "left" };
+    });
+
+    for (let c = 1; c <= 11; c++) {
+      const cell = ws.getCell(attachStartRow, c);
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF475569" },
+      };
+    }
+    attachStartRow++;
+
+    let isAlternateAtt = false;
+    for (const att of data.attachments) {
+      const displayName =
+        att.fileName.substring(att.fileName.lastIndexOf("_") + 1) +
+        (att.fileExtension ? `.${att.fileExtension}` : "");
+      const remarksText = att.freeText || "-";
+      const rawDate = att.attachmentDate || "-";
+      const dateText = rawDate.includes("T") ? rawDate.split("T")[0] : rawDate;
+
+      ws.mergeCells(`A${attachStartRow}:D${attachStartRow}`);
+      ws.getCell(`A${attachStartRow}`).value = displayName;
+
+      ws.mergeCells(`E${attachStartRow}:I${attachStartRow}`);
+      ws.getCell(`E${attachStartRow}`).value = remarksText;
+
+      ws.mergeCells(`J${attachStartRow}:K${attachStartRow}`);
+      ws.getCell(`J${attachStartRow}`).value = dateText;
+
+      for (let c = 1; c <= 11; c++) {
+        const cell = ws.getCell(attachStartRow, c);
+        cell.font = { name: fontName, size: 9, color: { argb: "FF334155" } };
+        cell.alignment = {
+          vertical: "middle",
+          horizontal: c >= 10 ? "center" : "left",
+        };
+
+        if (isAlternateAtt) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFF8FAFC" },
+          };
+        }
+
+        cell.border = {
+          top: { style: "thin", color: { argb: borderLightColor } },
+          bottom: { style: "thin", color: { argb: borderLightColor } },
+        };
+      }
+
+      attachStartRow++;
+      isAlternateAtt = !isAlternateAtt;
+    }
+  }
+
   const buffer = await wb.xlsx.writeBuffer();
   return buffer instanceof Buffer ? buffer : Buffer.from(buffer);
 }
