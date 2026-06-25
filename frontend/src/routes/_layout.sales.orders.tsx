@@ -1,15 +1,7 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { SalesOrderTable } from "@/features/table-pages/sales-orders/components/sales-order-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { salesOrderSearchSchema } from "@/features/table-pages/sales-orders/schemas/sales-order-search.schema";
-
-const SalesOrderTable = lazy(() =>
-  import("@/features/table-pages/sales-orders/components/sales-order-table").then((module) => ({
-    default: module.SalesOrderTable,
-  })),
-);
 
 /**
  * SalesOrdersRoute: Main listing for sales document management.
@@ -22,10 +14,8 @@ export const Route = createFileRoute("/_layout/sales/orders")({
 
 function RouteComponent() {
   useDocumentTitle("Sales Orders | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isEditRoute = pathname.startsWith("/sales/orders/") && pathname.endsWith("/edit");
+  const matches = useMatches();
+  const isEditRoute = matches.some((m) => m.id.endsWith("/edit") || m.id.endsWith("/create"));
 
   if (isEditRoute) {
     return <Outlet />;
@@ -33,9 +23,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <SalesOrderTable />
-      </Suspense>
+      <SalesOrderTable />
     </div>
   );
 }

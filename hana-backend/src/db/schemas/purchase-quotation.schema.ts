@@ -15,6 +15,7 @@ export interface PurchaseQuotation {
   docStatus: string;
   address?: string;
   address2?: string;
+  atcEntry?: number | null;
 }
 
 export const PurchaseQuotationSchema = new EntitySchema<PurchaseQuotation>({
@@ -30,6 +31,11 @@ export const PurchaseQuotationSchema = new EntitySchema<PurchaseQuotation>({
       name: "Address2",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    atcEntry: {
+      name: "AtcEntry",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
     cardCode: {
       length: 15,

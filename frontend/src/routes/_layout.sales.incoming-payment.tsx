@@ -1,17 +1,7 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { IncomingPaymentTable } from "@/features/table-pages/incoming-payment/components/incoming-payment-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { incomingPaymentSearchSchema } from "@/features/table-pages/incoming-payment/schemas/incoming-payment-search.schema";
-
-const IncomingPaymentTable = lazy(() =>
-  import("@/features/table-pages/incoming-payment/components/incoming-payment-table").then(
-    (module) => ({
-      default: module.IncomingPaymentTable,
-    }),
-  ),
-);
 
 /**
  * IncomingPaymentRoute: Customer payment document listing.
@@ -24,10 +14,8 @@ export const Route = createFileRoute("/_layout/sales/incoming-payment")({
 
 function RouteComponent() {
   useDocumentTitle("Incoming Payments | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isEditRoute = pathname.startsWith("/sales/incoming-payment/") && pathname.endsWith("/edit");
+  const matches = useMatches();
+  const isEditRoute = matches.some((m) => m.id.endsWith("/edit") || m.id.endsWith("/create"));
 
   if (isEditRoute) {
     return <Outlet />;
@@ -35,9 +23,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <IncomingPaymentTable />
-      </Suspense>
+      <IncomingPaymentTable />
     </div>
   );
 }

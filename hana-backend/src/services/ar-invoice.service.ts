@@ -186,11 +186,20 @@ export const getInvoice = async (sessionId: string, id: string) => {
       `/Invoices(${id})`,
     )) as SAPDocumentResponse;
 
+    const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
-    const attachments = dbName
-      ? await attachmentsService.getLocalAttachments(dbName, "ARInvoice", result.DocEntry)
-      : [];
+    let attachments = [];
+    if (attachmentEntry) {
+      attachments = await attachmentsService.getSAPAttachment(sessionId, attachmentEntry, dbName);
+    }
+    if (attachments.length === 0 && dbName) {
+      attachments = await attachmentsService.getLocalAttachments(
+        dbName,
+        "ARInvoice",
+        result.DocEntry,
+      );
+    }
 
     // Normalize SAP internal status (bost_Open) to a single character code.
     return {
@@ -216,6 +225,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
       }),
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard || "",
       Address2: (result as unknown as Record<string, unknown>).Address2 || "",
+      AttachmentEntry: attachmentEntry,
       attachments,
     };
   } catch (err: unknown) {
@@ -334,6 +344,18 @@ export const createInvoice = async (
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const resolvedDbName = session?.companyDB || dbName || "";
+
+    let absoluteEntry: number | null = null;
+    if (attachments && attachments.length > 0 && resolvedDbName) {
+      absoluteEntry = await attachmentsService.createSAPAttachment(
+        sessionId,
+        resolvedDbName,
+        attachments,
+      );
+    }
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       Address2: payload.Address2,
@@ -341,6 +363,7 @@ export const createInvoice = async (
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
+      AttachmentEntry: absoluteEntry ?? undefined,
       DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
@@ -404,21 +427,16 @@ export const createInvoice = async (
     )) as SAPDocumentResponse;
 
     // Purge sales-related dashboard cache to ensure totals are recalculated.
-    const session = serviceLayerClient.getSession(sessionId);
-    if (session?.companyDB) {
-      purgeCache(`dash:sales:${session.companyDB}:`);
-      if (attachments && attachments.length > 0) {
-        const finalized = await attachmentsService.finalizeAttachments(
-          session.companyDB,
-          "ARInvoice",
-          result.DocNum,
-          attachments,
-        );
-        await attachmentsService.saveLocalAttachments(
-          session.companyDB,
+    if (resolvedDbName) {
+      purgeCache(`dash:sales:${resolvedDbName}:`);
+      if (result?.DocEntry && absoluteEntry !== null) {
+        await attachmentsService.finalizeAndLinkAttachments(
+          resolvedDbName,
           "ARInvoice",
           result.DocEntry,
-          finalized,
+          result.DocNum,
+          absoluteEntry,
+          attachments,
         );
       }
     }
@@ -452,28 +470,56 @@ export const updateInvoice = async (
       const session = serviceLayerClient.getSession(sessionId);
       const dbName = session?.companyDB || "";
       if (dbName) {
+        // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
+        let existingAttachmentEntry: number | null = null;
         try {
-          const docData = await serviceLayerClient.request<any>(
-            sessionId,
-            "GET",
-            `/Invoices(${id})?$select=DocNum`,
-          );
-          if (docData?.DocNum) {
-            docNum = docData.DocNum;
+          const invoiceRepo = await getTenantRepository(dbName, ARInvoiceSchema);
+          const invoiceDoc = await invoiceRepo.findOne({
+            where: { docEntry: Number(id) },
+            select: ["docNum", "atcEntry"],
+          });
+          if (invoiceDoc) {
+            docNum = invoiceDoc.docNum;
+            existingAttachmentEntry = invoiceDoc.atcEntry ?? null;
           }
-        } catch (err: any) {
-          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        } catch (dbErr: any) {
+          logger.warn(
+            { id, err: dbErr.message },
+            "Failed to query database for doc info, falling back to Service Layer GET",
+          );
+          // Fallback to Service Layer GET if database query fails
+          try {
+            const docData = await serviceLayerClient.request<any>(
+              sessionId,
+              "GET",
+              `/Invoices(${id})?$select=DocNum,AttachmentEntry`,
+            );
+            if (docData?.DocNum) {
+              docNum = docData.DocNum;
+            }
+            if (docData?.AttachmentEntry) {
+              existingAttachmentEntry = docData.AttachmentEntry;
+            }
+          } catch (err: any) {
+            logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+          }
         }
 
-        const attachments = payload.attachments as any[];
-        const finalized = await attachmentsService.finalizeAttachments(
-          dbName,
-          "ARInvoice",
-          docNum,
-          attachments || [],
-        );
-        await attachmentsService.saveLocalAttachments(dbName, "ARInvoice", id, finalized);
+        const { attachmentEntry, shouldUpdateDoc } =
+          await attachmentsService.syncAttachmentsOnUpdate(
+            sessionId,
+            dbName,
+            "ARInvoice",
+            id,
+            docNum,
+            payload.attachments as any[],
+            existingAttachmentEntry,
+          );
+
+        if (shouldUpdateDoc) {
+          sapPayload.AttachmentEntry = attachmentEntry;
+        }
       }
     }
 

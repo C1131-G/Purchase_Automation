@@ -43,6 +43,8 @@ import { InventoryTransferRequestSchema } from "@/db/schemas/inventory-transfer-
 import { InventoryTransferRequestLineSchema } from "@/db/schemas/inventory-transfer-request-line.schema";
 import { InventoryTransferSchema } from "@/db/schemas/inventory-transfer.schema";
 import { InventoryTransferLineSchema } from "@/db/schemas/inventory-transfer-line.schema";
+import { AttachmentHeaderSchema } from "@/db/schemas/attachment-header.schema";
+import { AttachmentLineSchema } from "@/db/schemas/attachment-line.schema";
 
 // Cache: Map of dbName to initialized tenant DataSource instances.
 const tenantDataSources = new Map<string, DataSource>();
@@ -123,6 +125,8 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
       InventoryTransferRequestLineSchema,
       InventoryTransferSchema,
       InventoryTransferLineSchema,
+      AttachmentHeaderSchema,
+      AttachmentLineSchema,
     ],
     subscribers: [],
     migrations: [],

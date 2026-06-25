@@ -22,7 +22,6 @@ import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
 import {
   getLookupInlineSearchByMode,
@@ -136,7 +135,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
   const editDocNum = (options?.docNum ?? "").trim();
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
@@ -207,6 +205,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     editDetailQuery.data?.data?.DocStatus === "bost_Close" ||
     editDetailQuery.data?.data?.DocStatus === "C";
 
+  // Edit Mode Hydration
   useEffect(() => {
     if (!isEditMode) {
       return;
@@ -218,13 +217,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     const detail = editDetailQuery.data?.data;
     if (!detail) {
       return;
-    }
-
-    hydratedDocNumRef.current = currentDocNum;
-
-    // Show loading toast when starting edit hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("Purchase Quotation", "edit");
     }
 
     void (async () => {
@@ -266,75 +258,18 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         const shipToAddress = address2 ? reconcileAddresses(address, address2) : address;
 
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          warehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(
-                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
-                )
-                .catch((): ProductLookupItem[] => [])
-            : [];
 
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, number>();
-
-        const uniqueItemCodes = [
-          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-        ].filter(Boolean);
-
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-
-            const resolvedStock = warehouseCode
-              ? Number(
-                  warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                    ?.stock ?? 0,
-                )
-              : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
-
-            stockByItemCode.set(itemCode, resolvedStock);
-          }),
-        );
-
-        const mappedRows = detailLines.map((line: PurchaseQuotationDetailLine, index) => {
+        // 1. Initial synchronous mapping from document lines (no network requests)
+        const initialMappedRows = detailLines.map((line: PurchaseQuotationDetailLine, index) => {
           const itemCode = String(line.ItemCode ?? "").trim();
-          const productMeta = productByCode.get(itemCode);
-          // Purchase Quotation stores the user-entered quantity in PQT1.PQTReqQty
-          // (Service Layer: RequiredQuantity). The backend surfaces this as
-          // line.Quantity on read, so prefer RequiredQuantity as a defensive
-          // fallback for older payloads.
           const lineData = line as Record<string, unknown>;
           const quantity = Number(
             lineData.RequiredQuantity ?? lineData.requiredQuantity ?? line.Quantity ?? 1,
           );
-          // OpenQty is the real remaining-fulfillable quantity. Surface it on the
-          // row so downstream CopyTo cascades (PO/GRPO/AP Invoice) and any
-          // partial-fulfillment UI can consume it.
           const openQty = Number(
             lineData.OpenQty ?? lineData.OpenQuantity ?? lineData.RemainingOpenQuantity ?? quantity,
           );
-          const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+          const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount: price * quantity,
             headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
@@ -343,50 +278,28 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           const requiredDate = String(line.ReqDate ?? line.RequiredDate ?? effectiveDocDueDate)
             .trim()
             .slice(0, 10);
+
           return {
             id: `row-${currentDocNum}-${index}`,
             lineNum: typeof line.LineNum === "number" ? line.LineNum : index,
             productCode: itemCode,
-            productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
-            stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
+            productName: String(line.ItemDescription ?? itemCode).trim(),
+            stock: 0,
             price,
-            currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
-            vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
-            // SAP line tax is authoritative; fall back to product master only when missing
+            currency: String(detail.DocCurr ?? ""),
+            vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
             taxRate:
               (line as Record<string, unknown>).VatPrcnt !== undefined &&
               (line as Record<string, unknown>).VatPrcnt !== null
                 ? Number((line as Record<string, unknown>).VatPrcnt)
-                : Number(productMeta?.taxRate ?? 0),
-            uomCode: (() => {
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) return code;
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) {
-                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
-                if (match?.code) return match.code;
-              }
-              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
-            })(),
-            uomEntry: (() => {
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) return entry;
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) {
-                const match = productMeta?.uomList?.find((u) => u.code === code);
-                if (match?.uomEntry !== undefined) return match.uomEntry;
-              }
-              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
-            })(),
-            purchaseUomCode: productMeta?.purchaseUomCode,
-            purchaseUomEntry: productMeta?.purchaseUomEntry,
-            salesUomCode: productMeta?.uomCode,
-            salesUomEntry: productMeta?.uomEntry,
-            uomList: productMeta?.uomList,
+                : 0,
+            uomCode: String(lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "").trim(),
+            uomEntry: Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry),
+            purchaseUomCode: undefined,
+            purchaseUomEntry: undefined,
+            salesUomCode: undefined,
+            salesUomEntry: undefined,
+            uomList: undefined,
             quantity,
             discountPercent,
             discountAmount,
@@ -415,7 +328,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(address);
         lookups.setShipToAddress(shipToAddress);
-        productsHook.setProductRows(mappedRows);
+        productsHook.setProductRows(initialMappedRows);
         productsHook.setProductRowDrafts({});
 
         const rawAttachments = detail.attachments || [];
@@ -444,7 +357,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             fileName: item.fileName,
             freeText: item.freeText || item.remarks || "",
           })),
-          productRows: mappedRows
+          productRows: initialMappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
               productCode: row.productCode,
@@ -459,10 +372,99 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
-      } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
+
+        // 2. Perform network fetches in the background (no await block blocking render!)
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        const fetchExtraData = async () => {
+          try {
+            const productsForWarehouse =
+              warehouseCode.trim().length > 0
+                ? await queryClient
+                    .fetchQuery(
+                      createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+                    )
+                    .catch((): ProductLookupItem[] => [])
+                : [];
+
+            const productByCode = new Map<string, ProductLookupItem>(
+              productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+            );
+
+            const missingItemCodes = uniqueItemCodes.filter(
+              (itemCode) => !productByCode.has(itemCode),
+            );
+            if (missingItemCodes.length > 0) {
+              await Promise.all(
+                missingItemCodes.map(async (itemCode) => {
+                  const res = await queryClient
+                    .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                    .catch((): ProductLookupItem[] => []);
+                  const matched = res.find((p) => String(p.code).trim() === itemCode);
+                  if (matched) {
+                    productByCode.set(itemCode, matched);
+                  }
+                }),
+              );
+            }
+
+            // Fetch stocks in parallel
+            const stockByItemCode = new Map<string, number>();
+            await Promise.all(
+              uniqueItemCodes.map(async (itemCode) => {
+                const warehouseStocks = await queryClient
+                  .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+                  .catch(() => []);
+
+                const resolvedStock = warehouseCode
+                  ? Number(
+                      warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
+                        ?.stock ?? 0,
+                    )
+                  : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
+
+                stockByItemCode.set(itemCode, resolvedStock);
+              }),
+            );
+
+            // Merge details in place
+            productsHook.setProductRows((prev) =>
+              prev.map((row) => {
+                const productMeta = productByCode.get(row.productCode);
+                if (!productMeta) {
+                  return row;
+                }
+                const stock = Number(
+                  stockByItemCode.get(row.productCode) ?? productMeta.stock ?? 0,
+                );
+                return {
+                  ...row,
+                  stock,
+                  currency: row.currency || String(productMeta.currency ?? "").trim(),
+                  vatGroup: row.vatGroup || String(productMeta.vatGroup ?? "").trim(),
+                  taxRate: row.taxRate > 0 ? row.taxRate : Number(productMeta.taxRate ?? 0),
+                  purchaseUomCode: productMeta.purchaseUomCode,
+                  purchaseUomEntry: productMeta.purchaseUomEntry,
+                  salesUomCode: productMeta.uomCode,
+                  salesUomEntry: productMeta.uomEntry,
+                  uomList: productMeta.uomList,
+                  uomCode:
+                    row.uomCode ||
+                    String(productMeta.purchaseUomCode ?? productMeta.uomCode ?? "").trim(),
+                  uomEntry: row.uomEntry || productMeta.purchaseUomEntry || productMeta.uomEntry,
+                };
+              }),
+            );
+          } catch {
+            // Silently ignore background prefetch errors
+          }
+        };
+
+        void fetchExtraData();
+      } catch {
+        // error handling
       }
     })();
   }, [
@@ -943,9 +945,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           payload,
         });
         createdDocNum = detail?.DocNum;
-        hydratedDocNumRef.current = null;
-        setHydratedDocNum(null);
-        setFormSnapshot(null);
       } else {
         const result = await createPurchaseQuotationMutation.mutateAsync({
           payload,
@@ -962,9 +961,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         queryClient.prefetchQuery(purchaseQuotationQueries.docNumSuggestions(undefined, 100)),
       ]);
       if (isEditMode && createdDocNum !== undefined) {
-        void queryClient.invalidateQueries(
-          purchaseQuotationQueries.detailByDocNum(String(createdDocNum)),
-        );
+        // Await the query refetch to ensure we have the new server data before clearing hydratedDocNumRef
+        await queryClient.invalidateQueries({
+          queryKey: purchaseQuotationKeys.detailByDocNum(String(createdDocNum)),
+        });
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
       }
 
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);

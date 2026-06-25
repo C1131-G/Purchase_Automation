@@ -1,17 +1,7 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { ArCreditMemoTable } from "@/features/table-pages/ar-credit-memo/components/ar-credit-memo-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { ArCreditMemoSearchSchema } from "@/features/table-pages/ar-credit-memo/schemas/ar-credit-memo-search.schema";
-
-const ArCreditMemoTable = lazy(() =>
-  import("@/features/table-pages/ar-credit-memo/components/ar-credit-memo-table").then(
-    (module) => ({
-      default: module.ArCreditMemoTable,
-    }),
-  ),
-);
 
 /**
  * ArCreditMemoRoute: Sales return document management.
@@ -24,13 +14,10 @@ export const Route = createFileRoute("/_layout/sales/ar-credit-memo")({
 
 function RouteComponent() {
   useDocumentTitle("AR Credit Memos | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isSubRoute =
-    pathname === "/sales/ar-credit-memo/select-invoice" ||
-    pathname === "/sales/ar-credit-memo/create" ||
-    (pathname.startsWith("/sales/ar-credit-memo/") && pathname.endsWith("/edit"));
+  const matches = useMatches();
+  const isSubRoute = matches.some(
+    (m) => m.id.endsWith("/edit") || m.id.endsWith("/create") || m.id.endsWith("/select-invoice"),
+  );
 
   if (isSubRoute) {
     return <Outlet />;
@@ -38,9 +25,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <ArCreditMemoTable />
-      </Suspense>
+      <ArCreditMemoTable />
     </div>
   );
 }

@@ -1,17 +1,7 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { APCreditMemoTable } from "@/features/table-pages/ap-credit-memo/components/ap-credit-memo-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { apCreditMemoSearchSchema } from "@/features/table-pages/ap-credit-memo/schemas/ap-credit-memo-search.schema";
-
-const APCreditMemoTable = lazy(() =>
-  import("@/features/table-pages/ap-credit-memo/components/ap-credit-memo-table").then(
-    (module) => ({
-      default: module.APCreditMemoTable,
-    }),
-  ),
-);
 
 /**
  * APCreditMemoRoute: Procurement return documents listing.
@@ -25,11 +15,8 @@ export const Route = createFileRoute("/_layout/purchase/ap-credit-memo")({
 
 function RouteComponent() {
   useDocumentTitle("AP Credit Memos | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isEditRoute =
-    pathname.startsWith("/purchase/ap-credit-memo/") && pathname.endsWith("/edit");
+  const matches = useMatches();
+  const isEditRoute = matches.some((m) => m.id.endsWith("/edit") || m.id.endsWith("/create"));
 
   if (isEditRoute) {
     return <Outlet />;
@@ -37,9 +24,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <APCreditMemoTable />
-      </Suspense>
+      <APCreditMemoTable />
     </div>
   );
 }

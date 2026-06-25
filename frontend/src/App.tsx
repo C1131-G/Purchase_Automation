@@ -55,7 +55,7 @@ const router = createRouter({
     queryClient,
   },
   routeTree,
-  defaultPendingMs: 0,
+  defaultPendingMs: 200,
 });
 
 // 3. Register the router instance for type safety

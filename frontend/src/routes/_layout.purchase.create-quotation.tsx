@@ -15,7 +15,6 @@ export const Route = createFileRoute("/_layout/purchase/create-quotation")({
   },
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
-  pendingMs: 0,
 });
 
 function RouteComponent() {

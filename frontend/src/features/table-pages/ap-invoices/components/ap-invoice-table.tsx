@@ -94,6 +94,12 @@ export function APInvoiceTable() {
       }
       docNumPrefetchRef.current.add(normalizedDocNum);
 
+      void Promise.allSettled([
+        queryClient.prefetchQuery(createSharedQueries.vendors()),
+        queryClient.prefetchQuery(createSharedQueries.warehouses()),
+        queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+      ]);
+
       void queryClient
         .fetchQuery(apInvoiceQueries.detailByDocNum(normalizedDocNum))
         .then((response) => {
@@ -101,11 +107,6 @@ export function APInvoiceTable() {
             params: { docNum: normalizedDocNum },
             to: "/purchase/ap-invoice/$docNum/edit",
           } as never);
-          void Promise.allSettled([
-            queryClient.prefetchQuery(createSharedQueries.vendors()),
-            queryClient.prefetchQuery(createSharedQueries.warehouses()),
-            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
-          ]);
 
           const detail = response?.data;
           if (!detail) {
@@ -448,7 +449,10 @@ export function APInvoiceTable() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  onMouseEnter={() => prefetchEditRouteData(String(row.getValue("DocNum")))}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

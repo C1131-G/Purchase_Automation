@@ -169,11 +169,20 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       `/CreditNotes(${id})`,
     )) as SAPDocumentResponse;
 
+    const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
-    const attachments = dbName
-      ? await attachmentsService.getLocalAttachments(dbName, "ARCreditMemo", result.DocEntry)
-      : [];
+    let attachments = [];
+    if (attachmentEntry) {
+      attachments = await attachmentsService.getSAPAttachment(sessionId, attachmentEntry, dbName);
+    }
+    if (attachments.length === 0 && dbName) {
+      attachments = await attachmentsService.getLocalAttachments(
+        dbName,
+        "ARCreditMemo",
+        result.DocEntry,
+      );
+    }
 
     // Normalize SAP internal status (bost_Open) to a single character code.
     return {
@@ -200,6 +209,7 @@ export const getCreditNote = async (sessionId: string, id: string) => {
       }),
       NumAtCard: result.NumAtCard,
       SalesPersonCode: result.SalesPersonCode,
+      AttachmentEntry: attachmentEntry,
       attachments,
       id: result.DocEntry,
     };
@@ -222,6 +232,18 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const resolvedDbName = session?.companyDB || "";
+
+    let absoluteEntry: number | null = null;
+    if (attachments && attachments.length > 0 && resolvedDbName) {
+      absoluteEntry = await attachmentsService.createSAPAttachment(
+        sessionId,
+        resolvedDbName,
+        attachments,
+      );
+    }
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       Address2: payload.Address2,
@@ -229,6 +251,7 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
+      AttachmentEntry: absoluteEntry ?? undefined,
       DocumentLines: lines.map((item) => {
         const line: Record<string, unknown> = {
           LineNum: item.LineNum !== undefined ? Number(item.LineNum) : undefined,
@@ -301,21 +324,16 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
     )) as SAPDocumentResponse;
 
     // Purge sales-related dashboard cache to ensure totals (including returns) are recalculated.
-    const session = serviceLayerClient.getSession(sessionId);
-    if (session?.companyDB) {
-      purgeCache(`dash:sales:${session.companyDB}:`);
-      if (attachments && attachments.length > 0) {
-        const finalized = await attachmentsService.finalizeAttachments(
-          session.companyDB,
-          "ARCreditMemo",
-          result.DocNum,
-          attachments,
-        );
-        await attachmentsService.saveLocalAttachments(
-          session.companyDB,
+    if (resolvedDbName) {
+      purgeCache(`dash:sales:${resolvedDbName}:`);
+      if (result?.DocEntry && absoluteEntry !== null) {
+        await attachmentsService.finalizeAndLinkAttachments(
+          resolvedDbName,
           "ARCreditMemo",
           result.DocEntry,
-          finalized,
+          result.DocNum,
+          absoluteEntry,
+          attachments,
         );
       }
     }
@@ -349,28 +367,56 @@ export const updateCreditNote = async (
       const session = serviceLayerClient.getSession(sessionId);
       const dbName = session?.companyDB || "";
       if (dbName) {
+        // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
+        let existingAttachmentEntry: number | null = null;
         try {
-          const docData = await serviceLayerClient.request<any>(
-            sessionId,
-            "GET",
-            `/CreditNotes(${id})?$select=DocNum`,
-          );
-          if (docData?.DocNum) {
-            docNum = docData.DocNum;
+          const memoRepo = await getTenantRepository(dbName, ARCreditMemoSchema);
+          const memoDoc = await memoRepo.findOne({
+            where: { docEntry: Number(id) },
+            select: ["docNum", "atcEntry"],
+          });
+          if (memoDoc) {
+            docNum = memoDoc.docNum;
+            existingAttachmentEntry = memoDoc.atcEntry ?? null;
           }
-        } catch (err: any) {
-          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        } catch (dbErr: any) {
+          logger.warn(
+            { id, err: dbErr.message },
+            "Failed to query database for doc info, falling back to Service Layer GET",
+          );
+          // Fallback to Service Layer GET if database query fails
+          try {
+            const docData = await serviceLayerClient.request<any>(
+              sessionId,
+              "GET",
+              `/CreditNotes(${id})?$select=DocNum,AttachmentEntry`,
+            );
+            if (docData?.DocNum) {
+              docNum = docData.DocNum;
+            }
+            if (docData?.AttachmentEntry) {
+              existingAttachmentEntry = docData.AttachmentEntry;
+            }
+          } catch (err: any) {
+            logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+          }
         }
 
-        const attachments = payload.attachments as any[];
-        const finalized = await attachmentsService.finalizeAttachments(
-          dbName,
-          "ARCreditMemo",
-          docNum,
-          attachments || [],
-        );
-        await attachmentsService.saveLocalAttachments(dbName, "ARCreditMemo", id, finalized);
+        const { attachmentEntry, shouldUpdateDoc } =
+          await attachmentsService.syncAttachmentsOnUpdate(
+            sessionId,
+            dbName,
+            "ARCreditMemo",
+            id,
+            docNum,
+            payload.attachments as any[],
+            existingAttachmentEntry,
+          );
+
+        if (shouldUpdateDoc) {
+          sapPayload.AttachmentEntry = attachmentEntry;
+        }
       }
     }
 

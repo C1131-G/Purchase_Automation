@@ -14,7 +14,6 @@ export const Route = createFileRoute("/_layout/purchase/outgoing-payment/$docNum
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(outgoingPaymentQueries.detail(params.docNum)),
   pendingComponent: OutgoingPaymentEditSkeleton,
-  pendingMs: 0,
 });
 
 function OutgoingPaymentEditPage() {

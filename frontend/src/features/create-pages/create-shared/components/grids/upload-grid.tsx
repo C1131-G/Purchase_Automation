@@ -370,7 +370,10 @@ export function UploadGrid({
                         )}
                         {item.attachmentDate && (
                           <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                            Uploaded: {item.attachmentDate}
+                            Uploaded:{" "}
+                            {item.attachmentDate.includes("T")
+                              ? item.attachmentDate.split("T")[0]
+                              : item.attachmentDate}
                           </span>
                         )}
                       </div>

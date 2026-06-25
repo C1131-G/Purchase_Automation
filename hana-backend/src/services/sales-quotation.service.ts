@@ -160,11 +160,20 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       `/Quotations(${id})`,
     )) as SAPDocumentResponse;
 
+    const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
-    const attachments = dbName
-      ? await attachmentsService.getLocalAttachments(dbName, "SalesQuotation", result.DocEntry)
-      : [];
+    let attachments = [];
+    if (attachmentEntry) {
+      attachments = await attachmentsService.getSAPAttachment(sessionId, attachmentEntry, dbName);
+    }
+    if (attachments.length === 0 && dbName) {
+      attachments = await attachmentsService.getLocalAttachments(
+        dbName,
+        "SalesQuotation",
+        result.DocEntry,
+      );
+    }
 
     return {
       id: result.DocEntry,
@@ -185,6 +194,7 @@ export const getSalesQuotation = async (sessionId: string, id: string) => {
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       Comments: result.Comments,
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard ?? "",
+      AttachmentEntry: attachmentEntry,
       attachments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
@@ -235,6 +245,18 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const resolvedDbName = session?.companyDB || "";
+
+    let absoluteEntry: number | null = null;
+    if (attachments && attachments.length > 0 && resolvedDbName) {
+      absoluteEntry = await attachmentsService.createSAPAttachment(
+        sessionId,
+        resolvedDbName,
+        attachments,
+      );
+    }
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       Address2: payload.Address2,
@@ -243,6 +265,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
       NumAtCard: payload.NumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
+      AttachmentEntry: absoluteEntry ?? undefined,
       DocumentLines: lines.map((line) => {
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
@@ -306,21 +329,16 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
     });
 
     // Invalidate the sales dashboard cache as revenue and quotation counts have changed.
-    const session = serviceLayerClient.getSession(sessionId);
-    if (session?.companyDB) {
-      purgeCache(`dash:sales:${session.companyDB}:`);
-      if (attachments && attachments.length > 0) {
-        const finalized = await attachmentsService.finalizeAttachments(
-          session.companyDB,
-          "SalesQuotation",
-          result.DocNum,
-          attachments,
-        );
-        await attachmentsService.saveLocalAttachments(
-          session.companyDB,
+    if (resolvedDbName) {
+      purgeCache(`dash:sales:${resolvedDbName}:`);
+      if (result?.DocEntry && absoluteEntry !== null) {
+        await attachmentsService.finalizeAndLinkAttachments(
+          resolvedDbName,
           "SalesQuotation",
           result.DocEntry,
-          finalized,
+          result.DocNum,
+          absoluteEntry,
+          attachments,
         );
       }
     }
@@ -354,28 +372,56 @@ export const updateSalesQuotation = async (
       const session = serviceLayerClient.getSession(sessionId);
       const dbName = session?.companyDB || "";
       if (dbName) {
+        // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
+        let existingAttachmentEntry: number | null = null;
         try {
-          const docData = await serviceLayerClient.request<any>(
-            sessionId,
-            "GET",
-            `/Quotations(${id})?$select=DocNum`,
-          );
-          if (docData?.DocNum) {
-            docNum = docData.DocNum;
+          const sqRepo = await getTenantRepository(dbName, SalesQuotationSchema);
+          const sqDoc = await sqRepo.findOne({
+            where: { docEntry: Number(id) },
+            select: ["docNum", "atcEntry"],
+          });
+          if (sqDoc) {
+            docNum = sqDoc.docNum;
+            existingAttachmentEntry = sqDoc.atcEntry ?? null;
           }
-        } catch (err: any) {
-          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        } catch (dbErr: any) {
+          logger.warn(
+            { id, err: dbErr.message },
+            "Failed to query database for doc info, falling back to Service Layer GET",
+          );
+          // Fallback to Service Layer GET if database query fails
+          try {
+            const docData = await serviceLayerClient.request<any>(
+              sessionId,
+              "GET",
+              `/Quotations(${id})?$select=DocNum,AttachmentEntry`,
+            );
+            if (docData?.DocNum) {
+              docNum = docData.DocNum;
+            }
+            if (docData?.AttachmentEntry) {
+              existingAttachmentEntry = docData.AttachmentEntry;
+            }
+          } catch (err: any) {
+            logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+          }
         }
 
-        const attachments = payload.attachments as any[];
-        const finalized = await attachmentsService.finalizeAttachments(
-          dbName,
-          "SalesQuotation",
-          docNum,
-          attachments || [],
-        );
-        await attachmentsService.saveLocalAttachments(dbName, "SalesQuotation", id, finalized);
+        const { attachmentEntry, shouldUpdateDoc } =
+          await attachmentsService.syncAttachmentsOnUpdate(
+            sessionId,
+            dbName,
+            "SalesQuotation",
+            id,
+            docNum,
+            payload.attachments as any[],
+            existingAttachmentEntry,
+          );
+
+        if (shouldUpdateDoc) {
+          sapPayload.AttachmentEntry = attachmentEntry;
+        }
       }
     }
 

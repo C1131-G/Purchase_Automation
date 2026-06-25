@@ -180,7 +180,6 @@ export function TableToolbar<TData>({
               onFocus={triggerCreatePrefetch}
               onTouchStart={triggerCreatePrefetch}
               onClick={() => {
-                onReset();
                 triggerCreatePrefetch();
               }}
               className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"

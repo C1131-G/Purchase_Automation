@@ -310,11 +310,16 @@ export const getGRPO = async (sessionId: string, id: string) => {
       };
     });
 
+    const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
-    const attachments = dbName
-      ? await attachmentsService.getLocalAttachments(dbName, "GRPO", result.DocEntry)
-      : [];
+    let attachments = [];
+    if (attachmentEntry) {
+      attachments = await attachmentsService.getSAPAttachment(sessionId, attachmentEntry, dbName);
+    }
+    if (attachments.length === 0 && dbName) {
+      attachments = await attachmentsService.getLocalAttachments(dbName, "GRPO", result.DocEntry);
+    }
 
     return {
       Address: result.Address,
@@ -331,6 +336,7 @@ export const getGRPO = async (sessionId: string, id: string) => {
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
+      AttachmentEntry: attachmentEntry,
       attachments,
       DocumentLines: enrichedLines,
       NumAtCard: result.NumAtCard,
@@ -418,6 +424,18 @@ export const createGRPO = async (
       await resolveBaseLineQuantities(sessionId, documentLines);
     }
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const resolvedDbName = session?.companyDB || dbName || "";
+
+    let absoluteEntry: number | null = null;
+    if (attachments && attachments.length > 0 && resolvedDbName) {
+      absoluteEntry = await attachmentsService.createSAPAttachment(
+        sessionId,
+        resolvedDbName,
+        attachments,
+      );
+    }
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       Address2: payload.Address2,
@@ -425,6 +443,7 @@ export const createGRPO = async (
       Comments: payload.Comments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
+      AttachmentEntry: absoluteEntry ?? undefined,
       DocumentLines: lines.map((item) => {
         const line: Record<string, unknown> = {
           ItemCode: item.ItemCode as string,
@@ -483,21 +502,16 @@ export const createGRPO = async (
     )) as SAPDocumentResponse;
 
     // Purge purchase dashboard cache as the PO statues and totals have likely changed.
-    const session = serviceLayerClient.getSession(sessionId);
-    if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
-      if (attachments && attachments.length > 0) {
-        const finalized = await attachmentsService.finalizeAttachments(
-          session.companyDB,
-          "GRPO",
-          result.DocNum,
-          attachments,
-        );
-        await attachmentsService.saveLocalAttachments(
-          session.companyDB,
+    if (resolvedDbName) {
+      purgeCache(`dash:purchase:${resolvedDbName}:`);
+      if (result?.DocEntry && absoluteEntry !== null) {
+        await attachmentsService.finalizeAndLinkAttachments(
+          resolvedDbName,
           "GRPO",
           result.DocEntry,
-          finalized,
+          result.DocNum,
+          absoluteEntry,
+          attachments,
         );
       }
     }
@@ -554,28 +568,56 @@ export const updateGRPO = async (
       const session = serviceLayerClient.getSession(sessionId);
       const dbName = session?.companyDB || "";
       if (dbName) {
+        // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
+        let existingAttachmentEntry: number | null = null;
         try {
-          const docData = await serviceLayerClient.request<any>(
-            sessionId,
-            "GET",
-            `/PurchaseDeliveryNotes(${id})?$select=DocNum`,
-          );
-          if (docData?.DocNum) {
-            docNum = docData.DocNum;
+          const grpoRepo = await getTenantRepository(dbName, GRPOSchema);
+          const grpoDoc = await grpoRepo.findOne({
+            where: { docEntry: Number(id) },
+            select: ["docNum", "atcEntry"],
+          });
+          if (grpoDoc) {
+            docNum = grpoDoc.docNum;
+            existingAttachmentEntry = grpoDoc.atcEntry ?? null;
           }
-        } catch (err: any) {
-          logger.warn({ id, err: err.message }, "Failed to fetch DocNum for renaming attachments");
+        } catch (dbErr: any) {
+          logger.warn(
+            { id, err: dbErr.message },
+            "Failed to query database for doc info, falling back to Service Layer GET",
+          );
+          // Fallback to Service Layer GET if database query fails
+          try {
+            const docData = await serviceLayerClient.request<any>(
+              sessionId,
+              "GET",
+              `/PurchaseDeliveryNotes(${id})?$select=DocNum,AttachmentEntry`,
+            );
+            if (docData?.DocNum) {
+              docNum = docData.DocNum;
+            }
+            if (docData?.AttachmentEntry) {
+              existingAttachmentEntry = docData.AttachmentEntry;
+            }
+          } catch (err: any) {
+            logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+          }
         }
 
-        const attachments = payload.attachments as any[];
-        const finalized = await attachmentsService.finalizeAttachments(
-          dbName,
-          "GRPO",
-          docNum,
-          attachments || [],
-        );
-        await attachmentsService.saveLocalAttachments(dbName, "GRPO", id, finalized);
+        const { attachmentEntry, shouldUpdateDoc } =
+          await attachmentsService.syncAttachmentsOnUpdate(
+            sessionId,
+            dbName,
+            "GRPO",
+            id,
+            docNum,
+            payload.attachments as any[],
+            existingAttachmentEntry,
+          );
+
+        if (shouldUpdateDoc) {
+          sapPayload.AttachmentEntry = attachmentEntry;
+        }
       }
     }
 

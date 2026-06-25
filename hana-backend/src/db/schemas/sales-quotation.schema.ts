@@ -15,6 +15,7 @@ export interface SalesQuotation {
   docStatus: string; // 'O' = Open, 'C' = Closed.
   address?: string;
   address2?: string;
+  atcEntry?: number | null;
 }
 
 export const SalesQuotationSchema = new EntitySchema<SalesQuotation>({
@@ -30,6 +31,11 @@ export const SalesQuotationSchema = new EntitySchema<SalesQuotation>({
       name: "Address2",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    atcEntry: {
+      name: "AtcEntry",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
     cardCode: {
       length: 15,

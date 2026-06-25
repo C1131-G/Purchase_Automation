@@ -19,6 +19,7 @@ export interface ARInvoice {
   numAtCard?: string; // Reference number from the customer's purchase order.
   address?: string;
   address2?: string;
+  atcEntry?: number | null;
 }
 
 export const ARInvoiceSchema = new EntitySchema<ARInvoice>({
@@ -34,6 +35,11 @@ export const ARInvoiceSchema = new EntitySchema<ARInvoice>({
       name: "Address2",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    atcEntry: {
+      name: "AtcEntry",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
     canceled: {
       length: 1,

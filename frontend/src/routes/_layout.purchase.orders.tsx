@@ -1,17 +1,7 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { PurchaseOrderTable } from "@/features/table-pages/purchase-orders/components/purchase-order-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { purchaseOrderSearchSchema } from "@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema";
-
-const PurchaseOrderTable = lazy(() =>
-  import("@/features/table-pages/purchase-orders/components/purchase-order-table").then(
-    (module) => ({
-      default: module.PurchaseOrderTable,
-    }),
-  ),
-);
 
 /**
  * PurchaseOrdersRoute: Main listing for procurement documents.
@@ -24,10 +14,8 @@ export const Route = createFileRoute("/_layout/purchase/orders")({
 
 function RouteComponent() {
   useDocumentTitle("Purchase Orders | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isEditRoute = pathname.startsWith("/purchase/orders/") && pathname.endsWith("/edit");
+  const matches = useMatches();
+  const isEditRoute = matches.some((m) => m.id.endsWith("/edit") || m.id.endsWith("/create"));
 
   if (isEditRoute) {
     return <Outlet />;
@@ -35,9 +23,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <PurchaseOrderTable />
-      </Suspense>
+      <PurchaseOrderTable />
     </div>
   );
 }

@@ -421,6 +421,7 @@ export function useGRPOCreate({
     }
   }, [header.warehouseCode, warehouses, warehouseInput]);
 
+  // Edit Mode Hydration
   useEffect(() => {
     if (!isEditMode) {
       return;
@@ -439,10 +440,6 @@ export function useGRPOCreate({
       return;
     }
 
-    // Show loading toast when starting edit hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("GRPO", "edit");
-    }
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -486,75 +483,21 @@ export function useGRPOCreate({
         const shipAddr = String((detail as Record<string, unknown>).Address2 ?? "").trim();
         setBillToAddress(billAddr);
         setShipToAddress(shipAddr);
+
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          effectiveWarehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
-        const uniqueItemCodes = [
-          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-        ].filter(Boolean);
-
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-            stockByItemCode.set(
-              itemCode,
-              warehouseStocks.map((stock) => ({
-                code: String(stock.code ?? "").trim(),
-                stock: Number(stock.stock ?? 0),
-              })),
-            );
-          }),
-        );
-
-        const taxRateByItemCode = await resolveProductTaxRates(
-          queryClient,
-          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
-          "purchase",
-        );
         const resolvedHeaderDiscountPercent = Number(
           (detail as Record<string, unknown>).DiscountPercent ?? 0,
         );
         setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
-        const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
+        // 1. Initial synchronous mapping from document lines (no network requests)
+        const initialMappedLines = detailLines.map((line, index) => {
           const lineData = line as Record<string, unknown>;
           const quantity = Math.max(0, Number(line.Quantity ?? 0));
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
           const itemCode = String(line.ItemCode ?? "").trim();
-          const productMeta = productByCode.get(itemCode);
           const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
-          const warehouseStocks = stockByItemCode.get(itemCode) ?? [];
-          const lineStock = lineWarehouseCode
-            ? Number(warehouseStocks.find((stock) => stock.code === lineWarehouseCode)?.stock ?? 0)
-            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
             headerDiscountPercent: resolvedHeaderDiscountPercent,
@@ -565,43 +508,12 @@ export function useGRPOCreate({
             id: `${currentDocNum}-${index}`,
             productCode: itemCode,
             productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
-            stock: lineStock,
+            stock: 0,
             currency: "",
             vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
-            // SAP line tax is authoritative; fall back to product master only when missing
-            taxRate:
-              (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
-              taxRateByItemCode.get(itemCode) ||
-              0,
-            uomCode: (() => {
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) return code;
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) {
-                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
-                if (match?.code) return match.code;
-              }
-              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
-            })(),
-            uomEntry: (() => {
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) return entry;
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) {
-                const match = productMeta?.uomList?.find((u) => u.code === code);
-                if (match?.uomEntry !== undefined) return match.uomEntry;
-              }
-              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
-            })(),
-            purchaseUomCode: productMeta?.purchaseUomCode,
-            purchaseUomEntry: productMeta?.purchaseUomEntry,
-            salesUomCode: productMeta?.uomCode,
-            salesUomEntry: productMeta?.uomEntry,
-            uomList: productMeta?.uomList,
+            taxRate: typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0,
+            uomCode: String(lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "").trim(),
+            uomEntry: Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry),
             baseQuantity: quantity,
             quantity,
             discountPercent,
@@ -624,7 +536,8 @@ export function useGRPOCreate({
             selected: false,
           };
         });
-        setLines(mappedLines);
+        setLines(initialMappedLines);
+
         const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
         const matchedWarehouseEdit = warehouses.find(
           (w) => String(w.code).trim() === editWarehouseCode,
@@ -635,7 +548,6 @@ export function useGRPOCreate({
             editWarehouseCode,
           ),
         );
-        // Set addresses from document: Address = Bill To, Address2 = Ship To
         setBillToAddress(String(detail.Address ?? "").trim());
         setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
 
@@ -667,10 +579,105 @@ export function useGRPOCreate({
           })),
         });
         setHydratedDocNum(currentDocNum);
-      } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
+
+        // 2. Perform network fetches in the background (no await block blocking render!)
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        const fetchExtraData = async () => {
+          try {
+            const productsForWarehouse =
+              effectiveWarehouseCode.trim().length > 0
+                ? await queryClient
+                    .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+                    .catch((): ProductLookupItem[] => [])
+                : [];
+
+            const productByCode = new Map<string, ProductLookupItem>(
+              productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+            );
+
+            const missingItemCodes = uniqueItemCodes.filter(
+              (itemCode) => !productByCode.has(itemCode),
+            );
+            if (missingItemCodes.length > 0) {
+              await Promise.all(
+                missingItemCodes.map(async (itemCode) => {
+                  const res = await queryClient
+                    .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                    .catch((): ProductLookupItem[] => []);
+                  const matched = res.find((p) => String(p.code).trim() === itemCode);
+                  if (matched) {
+                    productByCode.set(itemCode, matched);
+                  }
+                }),
+              );
+            }
+
+            const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
+            await Promise.all(
+              uniqueItemCodes.map(async (itemCode) => {
+                const warehouseStocks = await queryClient
+                  .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+                  .catch(() => []);
+                stockByItemCode.set(
+                  itemCode,
+                  warehouseStocks.map((stock) => ({
+                    code: String(stock.code ?? "").trim(),
+                    stock: Number(stock.stock ?? 0),
+                  })),
+                );
+              }),
+            );
+
+            const taxRateByItemCode = await resolveProductTaxRates(
+              queryClient,
+              uniqueItemCodes,
+              "purchase",
+            );
+
+            // Merge details back into active state in-place
+            setLines((prev) =>
+              prev.map((row) => {
+                const productMeta = productByCode.get(row.productCode);
+                if (!productMeta) {
+                  return row;
+                }
+                const warehouseStocks = stockByItemCode.get(row.productCode) ?? [];
+                const stock = row.warehouseCode
+                  ? Number(warehouseStocks.find((s) => s.code === row.warehouseCode)?.stock ?? 0)
+                  : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+
+                const taxRate =
+                  row.taxRate > 0 ? row.taxRate : taxRateByItemCode.get(row.productCode) || 0;
+
+                return {
+                  ...row,
+                  stock,
+                  currency: row.currency || String(productMeta.currency ?? "").trim(),
+                  vatGroup: row.vatGroup || String(productMeta.vatGroup ?? "").trim(),
+                  taxRate,
+                  purchaseUomCode: productMeta.purchaseUomCode,
+                  purchaseUomEntry: productMeta.purchaseUomEntry,
+                  salesUomCode: productMeta.uomCode,
+                  salesUomEntry: productMeta.uomEntry,
+                  uomList: productMeta.uomList,
+                  uomCode:
+                    row.uomCode ||
+                    String(productMeta.purchaseUomCode ?? productMeta.uomCode ?? "").trim(),
+                  uomEntry: row.uomEntry || productMeta.purchaseUomEntry || productMeta.uomEntry,
+                };
+              }),
+            );
+          } catch {
+            // Silently ignore background prefetch errors
+          }
+        };
+
+        void fetchExtraData();
+      } catch {
+        // error handling
       }
     })();
   }, [
@@ -684,6 +691,8 @@ export function useGRPOCreate({
     setBillToAddress,
     setShipToAddress,
     vendors,
+    effectiveWarehouseCode,
+    warehouses,
   ]);
 
   useEffect(() => {
@@ -1878,22 +1887,26 @@ export function useGRPOCreate({
           payload,
         });
         createdDocNum = detail?.DocNum;
-        hydratedDocNumRef.current = null;
-        setHydratedDocNum(null);
-        setFormSnapshot(null);
       } else {
         const result = await createMutation.mutateAsync({ payload });
         createdDocNum = result?.data?.DocNum;
       }
 
       saveActions.trackMutationSuccess();
+
+      if (isEditMode && createdDocNum !== undefined) {
+        // Await the query refetch to ensure we have the new server data before clearing hydratedDocNumRef
+        await queryClient.invalidateQueries({
+          queryKey: grpoQueries.detailByDocNum(String(createdDocNum)).queryKey,
+        });
+        hydratedDocNumRef.current = null;
+        setHydratedDocNum(null);
+        setFormSnapshot(null);
+      }
+
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
 
       if (isEditMode) {
-        const currentDocNum = (docNum ?? "").trim();
-        if (currentDocNum) {
-          void queryClient.invalidateQueries(grpoQueries.detailByDocNum(currentDocNum));
-        }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);
         resetWarehouse();

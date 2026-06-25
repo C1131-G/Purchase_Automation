@@ -13,7 +13,6 @@ export const Route = createFileRoute("/_layout/sales/create-ar-invoice")({
   },
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
-  pendingMs: 0,
   validateSearch: z.object({
     sourceDocNum: z.string().optional(),
     sourceDocType: z.enum(["SalesQuotation", "SalesOrder"]).optional(),

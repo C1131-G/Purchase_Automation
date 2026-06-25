@@ -1,15 +1,8 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { GoodsReceiptTable } from "@/features/table-pages/goods-receipt/components/goods-receipt-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 import { goodsReceiptSearchSchema } from "@/features/table-pages/goods-receipt/schemas/goods-receipt-search.schema";
-
-const GoodsReceiptTable = lazy(() =>
-  import("@/features/table-pages/goods-receipt/components/goods-receipt-table").then((module) => ({
-    default: module.GoodsReceiptTable,
-  })),
-);
 
 export const Route = createFileRoute("/_layout/inventory/goods-receipt")({
   beforeLoad: async () => {
@@ -21,12 +14,8 @@ export const Route = createFileRoute("/_layout/inventory/goods-receipt")({
 
 function RouteComponent() {
   useDocumentTitle("Goods Receipt | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isSubRoute =
-    pathname === "/inventory/goods-receipt/create" ||
-    (pathname.startsWith("/inventory/goods-receipt/") && pathname.endsWith("/edit"));
+  const matches = useMatches();
+  const isSubRoute = matches.some((m) => m.id.endsWith("/edit") || m.id.endsWith("/create"));
 
   if (isSubRoute) {
     return <Outlet />;
@@ -34,9 +23,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <GoodsReceiptTable />
-      </Suspense>
+      <GoodsReceiptTable />
     </div>
   );
 }

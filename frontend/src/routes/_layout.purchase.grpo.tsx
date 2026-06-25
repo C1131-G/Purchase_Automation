@@ -1,15 +1,7 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { GRPOTable } from "@/features/table-pages/grpo/components/grpo-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { grpoSearchSchema } from "@/features/table-pages/grpo/schemas/grpo-search.schema";
-
-const GRPOTable = lazy(() =>
-  import("@/features/table-pages/grpo/components/grpo-table").then((module) => ({
-    default: module.GRPOTable,
-  })),
-);
 
 /**
  * PurchaseGRPORoute: Goods Receipt PO listing and management.
@@ -22,10 +14,8 @@ export const Route = createFileRoute("/_layout/purchase/grpo")({
 
 function RouteComponent() {
   useDocumentTitle("GRPO | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isEditRoute = pathname.startsWith("/purchase/grpo/") && pathname.endsWith("/edit");
+  const matches = useMatches();
+  const isEditRoute = matches.some((m) => m.id.endsWith("/edit") || m.id.endsWith("/create"));
 
   if (isEditRoute) {
     return <Outlet />;
@@ -33,9 +23,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <GRPOTable />
-      </Suspense>
+      <GRPOTable />
     </div>
   );
 }

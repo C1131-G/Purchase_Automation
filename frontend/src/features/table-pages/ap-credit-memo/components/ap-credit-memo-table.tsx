@@ -96,6 +96,11 @@ export function APCreditMemoTable() {
       }
       docNumPrefetchRef.current.add(normalizedDocNum);
 
+      void Promise.allSettled([
+        queryClient.prefetchQuery(createSharedQueries.warehouses()),
+        queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
+      ]);
+
       void queryClient
         .fetchQuery(apCreditMemoQueries.detailByDocNum(normalizedDocNum))
         .then(() => {
@@ -103,10 +108,6 @@ export function APCreditMemoTable() {
             params: { docNum: normalizedDocNum },
             to: "/purchase/ap-credit-memo/$docNum/edit",
           } as never);
-          void Promise.allSettled([
-            queryClient.prefetchQuery(createSharedQueries.warehouses()),
-            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
-          ]);
         })
         .catch(() => {
           docNumPrefetchRef.current.delete(normalizedDocNum);
@@ -438,7 +439,10 @@ export function APCreditMemoTable() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  onMouseEnter={() => prefetchEditRouteData(String(row.getValue("DocNum")))}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -15,7 +15,6 @@ export const Route = createFileRoute("/_layout/sales/create-order")({
   },
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
-  pendingMs: 0,
 });
 
 function RouteComponent() {

@@ -285,81 +285,27 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     const billToAddress = String(detail.Address ?? "").trim();
     const shipToAddress = String((detail as Record<string, unknown>).Address2 ?? "").trim();
 
-    // Show loading toast when starting edit hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("Purchase Order", "edit");
-    }
-
     void (async () => {
       try {
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          warehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(warehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
 
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, number>();
-
-        const uniqueItemCodes = [
-          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-        ].filter(Boolean);
-
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-
-            const resolvedStock = warehouseCode
-              ? Number(
-                  warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                    ?.stock ?? 0,
-                )
-              : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
-
-            stockByItemCode.set(itemCode, resolvedStock);
-          }),
-        );
-
-        const mappedRows = detailLines.map((line: PurchaseOrderDetailLine, index) => {
+        // 1. Initial synchronous mapping from document lines (no network requests)
+        const initialMappedRows = detailLines.map((line: PurchaseOrderDetailLine, index) => {
           const lineData = line as Record<string, unknown>;
           const itemCode = String(line.ItemCode ?? "").trim();
-          const productMeta = productByCode.get(itemCode);
           const quantity = Number(line.Quantity ?? 1);
           const openQty = Number(line.OpenQty ?? quantity);
-          const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
+          const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount: Math.max(0, price * quantity),
             headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
             line: line as Record<string, unknown>,
           });
-          // SAP line VatPrcnt is authoritative; fall back to product master only when missing
           const sapVatPrcnt = Number(line.VatPrcnt ?? 0);
 
           return {
             comment: "",
-            currency: String(detail.DocCurr ?? productMeta?.currency ?? ""),
+            currency: String(detail.DocCurr ?? ""),
             discountAmount,
             discountPercent,
             id: `row-${currentDocNum}-${index}`,
@@ -367,45 +313,19 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             openQty,
             price,
             productCode: itemCode,
-            productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
+            productName: String(line.ItemDescription ?? itemCode).trim(),
             quantity,
             selected: false,
-            stock: Number(stockByItemCode.get(itemCode) ?? productMeta?.stock ?? 0),
-            taxRate: sapVatPrcnt > 0 ? sapVatPrcnt : Number(productMeta?.taxRate ?? 0),
-            uomCode: (() => {
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) return code;
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) {
-                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
-                if (match?.code) return match.code;
-              }
-              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
-            })(),
-            uomEntry: (() => {
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) return entry;
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) {
-                const match = productMeta?.uomList?.find((u) => u.code === code);
-                if (match?.uomEntry !== undefined) return match.uomEntry;
-              }
-              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
-            })(),
-            purchaseUomCode: productMeta?.purchaseUomCode,
-            purchaseUomEntry: productMeta?.purchaseUomEntry,
-            salesUomCode: productMeta?.uomCode,
-            salesUomEntry: productMeta?.uomEntry,
-            uomList: productMeta?.uomList,
-            vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
+            stock: 0,
+            taxRate: sapVatPrcnt,
+            uomCode: String(lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "").trim(),
+            uomEntry: Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry),
+            vatGroup: String(line.TaxCode ?? "").trim(),
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
           };
         });
 
+        // 2. Set form header & products immediately
         setHeader({
           comments,
           docDate: docDate || header.docDate,
@@ -423,7 +343,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         lookups.setSalesEmployeeInput(associatedSalesEmployeeName);
         lookups.setBillToAddress(billToAddress);
         lookups.setShipToAddress(shipToAddress);
-        productsHook.setProductRows(mappedRows);
+        productsHook.setProductRows(initialMappedRows);
         productsHook.setProductRowDrafts({});
 
         const rawAttachments = detail.attachments || [];
@@ -451,7 +371,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             fileName: item.fileName,
             freeText: item.freeText || item.remarks || "",
           })),
-          productRows: mappedRows
+          productRows: initialMappedRows
             .filter((row) => row.productCode.trim() && row.quantity > 0)
             .map((row) => ({
               productCode: row.productCode,
@@ -466,10 +386,95 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
-      } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
+
+        // 3. Perform network fetches in the background (no await block blocking render!)
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        const fetchExtraData = async () => {
+          try {
+            const productsForWarehouse =
+              warehouseCode.trim().length > 0
+                ? await queryClient
+                    .fetchQuery(createSharedQueries.products(warehouseCode))
+                    .catch((): ProductLookupItem[] => [])
+                : [];
+
+            const productByCode = new Map<string, ProductLookupItem>(
+              productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+            );
+            const stockByItemCode = new Map<string, number>();
+
+            const missingItemCodes = uniqueItemCodes.filter(
+              (itemCode) => !productByCode.has(itemCode),
+            );
+            if (missingItemCodes.length > 0) {
+              await Promise.all(
+                missingItemCodes.map(async (itemCode) => {
+                  const res = await queryClient
+                    .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                    .catch((): ProductLookupItem[] => []);
+                  const matched = res.find((p) => String(p.code).trim() === itemCode);
+                  if (matched) {
+                    productByCode.set(itemCode, matched);
+                  }
+                }),
+              );
+            }
+
+            await Promise.all(
+              uniqueItemCodes.map(async (itemCode) => {
+                const warehouseStocks = await queryClient
+                  .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+                  .catch(() => []);
+
+                const resolvedStock = warehouseCode
+                  ? Number(
+                      warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
+                        ?.stock ?? 0,
+                    )
+                  : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
+
+                stockByItemCode.set(itemCode, resolvedStock);
+              }),
+            );
+
+            // Merge details (stocks, uom list) in place so user edits are not lost
+            productsHook.setProductRows((prev) =>
+              prev.map((row) => {
+                const productMeta = productByCode.get(row.productCode);
+                if (!productMeta) {
+                  return row;
+                }
+                const stock = Number(
+                  stockByItemCode.get(row.productCode) ?? productMeta.stock ?? 0,
+                );
+                return {
+                  ...row,
+                  stock,
+                  purchaseUomCode: productMeta.purchaseUomCode,
+                  purchaseUomEntry: productMeta.purchaseUomEntry,
+                  salesUomCode: productMeta.uomCode,
+                  salesUomEntry: productMeta.uomEntry,
+                  uomList: productMeta.uomList,
+                  uomCode:
+                    row.uomCode ||
+                    String(productMeta.purchaseUomCode ?? productMeta.uomCode ?? "").trim(),
+                  uomEntry: row.uomEntry || productMeta.purchaseUomEntry || productMeta.uomEntry,
+                  taxRate: row.taxRate > 0 ? row.taxRate : Number(productMeta.taxRate ?? 0),
+                  vatGroup: row.vatGroup || String(productMeta.vatGroup ?? "").trim(),
+                };
+              }),
+            );
+          } catch {
+            // Silently ignore background prefetch errors to not disrupt user experience
+          }
+        };
+
+        void fetchExtraData();
+      } catch {
+        // error handling
       }
     })();
   }, [
@@ -1322,9 +1327,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           payload,
         });
         createdDocNum = detail?.DocNum;
-        hydratedDocNumRef.current = null;
-        setHydratedDocNum(null);
-        setFormSnapshot(null);
       } else {
         const result = await createPurchaseOrderMutation.mutateAsync({
           payload,
@@ -1355,17 +1357,23 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         void queryClient.invalidateQueries({ queryKey: purchaseQuotationKeys.all });
       }
 
+      if (isEditMode) {
+        const currentDocNum = (options?.docNum ?? "").trim();
+        if (currentDocNum) {
+          // Await the query refetch to ensure we have the new server data before clearing hydratedDocNumRef
+          await queryClient.invalidateQueries({
+            queryKey: purchaseOrderKeys.detailByDocNum(currentDocNum),
+          });
+          hydratedDocNumRef.current = null;
+          setHydratedDocNum(null);
+          setFormSnapshot(null);
+        }
+      }
+
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
 
       if (!isEditMode && action === "save-new") {
         options?.onCreateSuccess?.();
-      }
-
-      if (isEditMode) {
-        const currentDocNum = (options?.docNum ?? "").trim();
-        if (currentDocNum) {
-          void queryClient.invalidateQueries(purchaseOrderQueries.detailByDocNum(currentDocNum));
-        }
       }
     } catch (error) {
       const errorMessage = normalizeCreateOrderErrorMessage(

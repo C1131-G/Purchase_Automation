@@ -12,7 +12,6 @@ export const Route = createFileRoute("/_layout/sales/create-incoming-payment")({
   },
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
-  pendingMs: 0,
 });
 
 function RouteComponent() {

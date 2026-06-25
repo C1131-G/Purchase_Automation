@@ -17,6 +17,7 @@ export interface ArCreditMemo {
   paidToDate: number;
   address?: string;
   address2?: string;
+  atcEntry?: number | null;
 }
 
 export const ARCreditMemoSchema = new EntitySchema<ArCreditMemo>({
@@ -32,6 +33,11 @@ export const ARCreditMemoSchema = new EntitySchema<ArCreditMemo>({
       name: "Address2",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    atcEntry: {
+      name: "AtcEntry",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
     cardCode: {
       length: 15,

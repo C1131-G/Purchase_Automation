@@ -17,6 +17,7 @@ export interface APCreditMemo {
   paidToDate: number; // Total amount paid/credited against this memo.
   address?: string;
   address2?: string;
+  atcEntry?: number | null;
 }
 
 export const APCreditMemoSchema = new EntitySchema<APCreditMemo>({
@@ -32,6 +33,11 @@ export const APCreditMemoSchema = new EntitySchema<APCreditMemo>({
       name: "Address2",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    atcEntry: {
+      name: "AtcEntry",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
     cardCode: {
       length: 15,

@@ -17,6 +17,7 @@ export interface APInvoice {
   paidToDate: number; // Total amount paid against this invoice.
   address?: string;
   address2?: string;
+  atcEntry?: number | null;
 }
 
 export const APInvoiceSchema = new EntitySchema<APInvoice>({
@@ -32,6 +33,11 @@ export const APInvoiceSchema = new EntitySchema<APInvoice>({
       name: "Address2",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    atcEntry: {
+      name: "AtcEntry",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
     cardCode: {
       length: 15,

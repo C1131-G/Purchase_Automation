@@ -4,6 +4,9 @@ import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { config } from "@/config/env";
 import { serviceLayerClient } from "@/services/service-layer.service";
+import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { AttachmentHeaderSchema } from "@/db/schemas/attachment-header.schema";
+import { AttachmentLineSchema } from "@/db/schemas/attachment-line.schema";
 
 export interface FileMetadata {
   fileName: string;
@@ -188,42 +191,127 @@ export class AttachmentsService {
   /**
    * Creates an Attachments2 record in the SAP Service Layer.
    */
-  async createSAPAttachment(sessionId: string, attachments: FileMetadata[]): Promise<number> {
+  async createSAPAttachment(
+    sessionId: string,
+    dbName: string,
+    attachments: FileMetadata[],
+  ): Promise<number> {
+    // Pre-check: Verify that each file actually exists on the disk.
+    // If not, log a critical warning specifying the file name, extension, and full path.
+    for (const att of attachments) {
+      const filePath = path.join(att.sourcePath, `${att.fileName}.${att.fileExtension}`);
+      if (!fs.existsSync(filePath)) {
+        logger.error(
+          {
+            fileName: att.fileName,
+            fileExtension: att.fileExtension,
+            sourcePath: att.sourcePath,
+            expectedFullPath: filePath,
+          },
+          "CRITICAL: Attachment file does not exist on disk! SAP Attachments2 service will reject this request.",
+        );
+      } else {
+        logger.info(
+          { fileName: att.fileName, filePath },
+          "Verified attachment file exists on disk prior to SAP upload",
+        );
+      }
+    }
+
     try {
-      const lines = attachments.map((att) => ({
-        SourcePath: att.sourcePath,
-        FileName: att.fileName,
-        FileExtension: att.fileExtension,
-        FreeText: att.freeText || "",
-      }));
-
-      const response = await serviceLayerClient.request<{ AbsoluteEntry: number }>(
-        sessionId,
-        "POST",
-        "/Attachments2",
-        { Attachments2_Lines: lines },
+      logger.info(
+        { dbName, filesCount: attachments.length },
+        "Registering attachments in SAP database via TypeORM",
       );
+      const headerRepo = await getTenantRepository(dbName, AttachmentHeaderSchema);
+      const lineRepo = await getTenantRepository(dbName, AttachmentLineSchema);
 
-      if (!response || typeof response.AbsoluteEntry !== "number") {
-        throw new Error("Invalid response received from SAP Attachments2 service");
+      // 1. Get Next AbsEntry from OATC (Attachment Header)
+      const queryBuilder = headerRepo.createQueryBuilder("oatc");
+      const nextResult = await queryBuilder
+        .select("MAX(oatc.absEntry)", "NextAbsEntry")
+        .getRawOne<{ NextAbsEntry: number | null }>();
+
+      const nextAbsEntry = Number((nextResult?.NextAbsEntry ?? 0) + 1);
+
+      // 2. Insert Header into OATC
+      await headerRepo.insert({
+        absEntry: nextAbsEntry,
+      });
+
+      // 3. Insert File References into ATC1
+      let lineNum = 1;
+      for (const att of attachments) {
+        await lineRepo.insert({
+          absEntry: nextAbsEntry,
+          line: lineNum,
+          trgtPath: att.sourcePath,
+          fileName: att.fileName,
+          fileExt: att.fileExtension,
+          freeText: att.freeText || "",
+          date: new Date(),
+          copied: "Y",
+        });
+        lineNum++;
       }
 
-      return response.AbsoluteEntry;
-    } catch (err: any) {
-      logger.error({ error: err.message, attachments }, "Failed to register attachment in SAP");
-      throw new AppError(
-        `Failed to link attachments in SAP: ${err.message}`,
-        err.statusCode || 500,
-        "SAP_API_ERROR",
+      logger.info(
+        { absoluteEntry: nextAbsEntry },
+        "Successfully registered attachments in SAP database via TypeORM",
       );
+
+      return nextAbsEntry;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(
+        { error: errMsg, attachments },
+        "Failed to register attachment in SAP database via TypeORM",
+      );
+      throw new AppError(`Failed to link attachments in SAP: ${errMsg}`, 500, "SAP_DATABASE_ERROR");
     }
   }
 
   /**
    * Retrieves lines from an existing SAP Attachments2 record.
    */
-  async getSAPAttachment(sessionId: string, attachmentEntry: number): Promise<FileMetadata[]> {
+  async getSAPAttachment(
+    sessionId: string,
+    attachmentEntry: number,
+    dbName?: string,
+  ): Promise<FileMetadata[]> {
     try {
+      const tenantDb =
+        dbName || (sessionId ? serviceLayerClient.getSession(sessionId)?.companyDB : "");
+      if (tenantDb) {
+        logger.info(
+          { tenantDb, attachmentEntry },
+          "Fetching attachments from ATC1 database via TypeORM",
+        );
+        const lineRepo = await getTenantRepository(tenantDb, AttachmentLineSchema);
+        const lines = await lineRepo.find({
+          where: { absEntry: attachmentEntry },
+          order: { line: "ASC" },
+        });
+
+        if (lines && lines.length > 0) {
+          return lines.map((line) => ({
+            fileName: line.fileName,
+            fileExtension: line.fileExt,
+            sourcePath: line.trgtPath,
+            attachmentDate: line.date ? new Date(line.date).toISOString() : "",
+            freeText: line.freeText || "",
+          }));
+        }
+      }
+    } catch (dbErr: unknown) {
+      logger.warn(
+        { error: dbErr instanceof Error ? dbErr.message : String(dbErr), attachmentEntry, dbName },
+        "Failed to retrieve attachment from HANA database directly, falling back to Service Layer",
+      );
+    }
+
+    try {
+      logger.info({ attachmentEntry }, "Falling back to Service Layer GET /Attachments2");
       const response = await serviceLayerClient.request<{
         AbsoluteEntry: number;
         Attachments2_Lines: any[];
@@ -313,6 +401,187 @@ export class AttachmentsService {
       );
     }
     return [];
+  }
+
+  /**
+   * Helper to sync attachments on document creation.
+   * Finalizes file names, registers them in SAP Attachments2, and links the entry to the document.
+   */
+  async linkAttachmentsOnCreate(
+    sessionId: string,
+    dbName: string,
+    moduleName: string,
+    docEntry: number | string,
+    docNum: number | string,
+    attachments: FileMetadata[],
+    documentEndpoint: string,
+  ): Promise<number | null> {
+    if (!attachments || attachments.length === 0) {
+      return null;
+    }
+
+    try {
+      // 1. Rename files from TEMP_... to DocNum_...
+      const finalized = await this.finalizeAttachments(dbName, moduleName, docNum, attachments);
+
+      // 2. Save local metadata (backward compatibility)
+      await this.saveLocalAttachments(dbName, moduleName, docEntry, finalized);
+
+      // 3. Create SAP Attachment entry
+      const absoluteEntry = await this.createSAPAttachment(sessionId, dbName, finalized);
+
+      // 4. Update the created SAP document with the AttachmentEntry
+      await serviceLayerClient.request(
+        sessionId,
+        "PATCH",
+        `/${documentEndpoint}(${docEntry})`,
+        { AttachmentEntry: absoluteEntry },
+        true,
+      );
+
+      logger.info(
+        { docEntry, docNum, moduleName, absoluteEntry },
+        "Successfully created and linked SAP attachment on document creation",
+      );
+
+      return absoluteEntry;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(
+        { error: errMsg, docEntry, docNum, moduleName },
+        "Failed to link attachments on document creation",
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Helper to sync attachments on document update (edit).
+   * Compares changes, and if updated, creates a new SAP Attachments2 record.
+   * Returns the new AttachmentEntry, or null/existing if no change or cleared.
+   */
+  async syncAttachmentsOnUpdate(
+    sessionId: string,
+    dbName: string,
+    moduleName: string,
+    docEntry: number | string,
+    docNum: number | string,
+    attachmentsPayload: FileMetadata[],
+    existingAttachmentEntry: number | null,
+  ): Promise<{ attachmentEntry: number | null; shouldUpdateDoc: boolean }> {
+    try {
+      // 1. Rename any new TEMP_... files to DocNum_...
+      const finalized = await this.finalizeAttachments(
+        dbName,
+        moduleName,
+        docNum,
+        attachmentsPayload || [],
+      );
+
+      // 2. Save local metadata
+      await this.saveLocalAttachments(dbName, moduleName, docEntry, finalized);
+
+      // 3. If payload has no attachments
+      if (finalized.length === 0) {
+        if (existingAttachmentEntry) {
+          return { attachmentEntry: null, shouldUpdateDoc: true };
+        }
+        return { attachmentEntry: null, shouldUpdateDoc: false };
+      }
+
+      // 4. Check if we need to update
+      let shouldUpdate = true;
+      if (existingAttachmentEntry) {
+        const existingList = await this.getSAPAttachment(
+          sessionId,
+          existingAttachmentEntry,
+          dbName,
+        );
+        if (existingList.length === finalized.length) {
+          const isIdentical = existingList.every((ext, idx) => {
+            const fin = finalized[idx];
+            return (
+              fin &&
+              ext.fileName === fin.fileName &&
+              ext.fileExtension === fin.fileExtension &&
+              ext.sourcePath === fin.sourcePath &&
+              (ext.freeText || "") === (fin.freeText || "")
+            );
+          });
+          if (isIdentical) {
+            shouldUpdate = false;
+          }
+        }
+      }
+
+      if (shouldUpdate) {
+        const newEntry = await this.createSAPAttachment(sessionId, dbName, finalized);
+        logger.info(
+          { docEntry, docNum, moduleName, newEntry, existingAttachmentEntry },
+          "Created new SAP AttachmentEntry due to attachment changes",
+        );
+        return { attachmentEntry: newEntry, shouldUpdateDoc: true };
+      }
+
+      return { attachmentEntry: existingAttachmentEntry, shouldUpdateDoc: false };
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(
+        { error: errMsg, docEntry, docNum, moduleName },
+        "Failed to sync attachments on document update",
+      );
+      // Return existing so we don't clear or break on failure
+      return { attachmentEntry: existingAttachmentEntry, shouldUpdateDoc: false };
+    }
+  }
+
+  /**
+   * Finalizes file names on disk and updates direct database references in ATC1.
+   * This is used during the optimized POST flow to avoid extra Service Layer PATCH calls.
+   */
+  async finalizeAndLinkAttachments(
+    dbName: string,
+    moduleName: string,
+    docEntry: number | string,
+    docNum: number | string,
+    absoluteEntry: number,
+    attachments: FileMetadata[],
+  ): Promise<FileMetadata[]> {
+    const finalized = await this.finalizeAttachments(dbName, moduleName, docNum, attachments);
+
+    // Save local metadata (backward compatibility)
+    await this.saveLocalAttachments(dbName, moduleName, docEntry, finalized);
+
+    try {
+      logger.info(
+        { dbName, absoluteEntry, docNum },
+        "Updating attachment file names in SAP database via TypeORM",
+      );
+      const lineRepo = await getTenantRepository(dbName, AttachmentLineSchema);
+
+      // Update FileName in ATC1 for each finalized attachment line
+      let lineNum = 1;
+      for (const att of finalized) {
+        await lineRepo.update(
+          { absEntry: absoluteEntry, line: lineNum },
+          { fileName: att.fileName },
+        );
+        lineNum++;
+      }
+
+      logger.info(
+        { absoluteEntry, docNum },
+        "Successfully updated attachment file names in SAP database",
+      );
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(
+        { error: errMsg, absoluteEntry, docNum },
+        "Failed to update finalized attachment file names in SAP database",
+      );
+    }
+
+    return finalized;
   }
 }
 

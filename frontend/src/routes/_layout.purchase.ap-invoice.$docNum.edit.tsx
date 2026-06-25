@@ -15,7 +15,6 @@ export const Route = createFileRoute("/_layout/purchase/ap-invoice/$docNum/edit"
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(apInvoiceQueries.detailByDocNum(params.docNum)),
   pendingComponent: CreatePageRouteSkeleton,
-  pendingMs: 0,
 });
 
 function RouteComponent() {

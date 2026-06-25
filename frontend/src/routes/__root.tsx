@@ -23,7 +23,7 @@ function RootComponent() {
       <main className="relative z-10 flex-1 flex flex-col min-h-0 h-full w-full">
         <Outlet />
       </main>
-      <TanStackRouterDevtools position="bottom-right" />
+      <TanStackRouterDevtools position="bottom-left" />
     </div>
   );
 }

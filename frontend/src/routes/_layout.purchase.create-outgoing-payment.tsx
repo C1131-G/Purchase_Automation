@@ -12,7 +12,6 @@ export const Route = createFileRoute("/_layout/purchase/create-outgoing-payment"
   },
   component: RouteComponent,
   pendingComponent: CreateOutgoingPaymentSkeleton,
-  pendingMs: 0,
 });
 
 function RouteComponent() {

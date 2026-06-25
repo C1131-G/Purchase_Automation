@@ -1,15 +1,7 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
-
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
+import { APInvoiceTable } from "@/features/table-pages/ap-invoices/components/ap-invoice-table";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { apInvoiceSearchSchema } from "@/features/table-pages/ap-invoices/schemas/ap-invoice-search.schema";
-
-const APInvoiceTable = lazy(() =>
-  import("@/features/table-pages/ap-invoices/components/ap-invoice-table").then((module) => ({
-    default: module.APInvoiceTable,
-  })),
-);
 
 /**
  * APInvoiceRoute: Accounts Payable Invoice grid.
@@ -22,10 +14,8 @@ export const Route = createFileRoute("/_layout/purchase/ap-invoice")({
 
 function RouteComponent() {
   useDocumentTitle("AP Invoices | ERP Portal");
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isEditRoute = pathname.startsWith("/purchase/ap-invoice/") && pathname.endsWith("/edit");
+  const matches = useMatches();
+  const isEditRoute = matches.some((m) => m.id.endsWith("/edit") || m.id.endsWith("/create"));
 
   if (isEditRoute) {
     return <Outlet />;
@@ -33,9 +23,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <Suspense fallback={<TableSkeleton />}>
-        <APInvoiceTable />
-      </Suspense>
+      <APInvoiceTable />
     </div>
   );
 }
