@@ -551,6 +551,8 @@ export const getProducts = async (
           TaxRate: resolvedTaxRate,
           UoMCode: resolvedSalesUomCode,
           UoMEntry: resolvedSalesUomEntry,
+          UoMName:
+            uomList.find((u) => u.code === resolvedSalesUomCode)?.name ?? resolvedSalesUomCode,
           Uom: salesUomText,
           UomList: uomList,
           Warehouse: normalizedWarehouseCode || item.DfltWH || "",
@@ -815,6 +817,37 @@ export const getUOMs = async (dbName: string) => {
   }));
 };
 
+// Fetches the list of price lists from the OPLN table using direct SQL for reliability.
+export const getPriceLists = async (dbName: string) => {
+  const cacheKey = `master:${dbName}:PriceLists`;
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT "ListNum", "ListName" FROM OPLN ORDER BY "ListNum" ASC`,
+        )) as Array<{ ListNum: unknown; ListName: unknown }>;
+
+        return rows
+          .filter((row) => row.ListName && String(row.ListName).trim())
+          .map((row) => ({
+            Code: String(row.ListNum ?? ""),
+            Name: toTrimmed(row.ListName),
+            code: String(row.ListNum ?? ""),
+            id: String(row.ListNum ?? ""),
+            name: toTrimmed(row.ListName),
+            listNum: typeof row.ListNum === "number" ? row.ListNum : Number(row.ListNum),
+          }));
+      } catch (err) {
+        logger.warn({ db: dbName, err, msg: "Failed to fetch price lists from OPLN" });
+        return [];
+      }
+    },
+    1000 * 60 * 10,
+  );
+};
+
 // Lists active warehouses available for inventory storage and transactions.
 export const getWarehouses = async (dbName: string) => {
   const results = await fetchLookup(dbName, WarehouseSchema, "Warehouses", {
@@ -834,6 +867,7 @@ export const getWarehouses = async (dbName: string) => {
 
 export const masterDataService = {
   getCustomers,
+  getPriceLists,
   getProductWarehouseStocks,
   getProducts,
   getTaxCodes,

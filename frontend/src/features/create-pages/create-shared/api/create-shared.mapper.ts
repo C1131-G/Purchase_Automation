@@ -160,6 +160,18 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
         record.SalUnitMsr ??
         "",
     ).trim(),
+    uomName:
+      String(
+        record.UoMName ??
+          record.uomName ??
+          record.UomName ??
+          record.uomNameText ??
+          record.Uom ??
+          record.uom ??
+          record.UoMCode ??
+          record.uomCode ??
+          "",
+      ).trim() || undefined,
     uomEntry: toNumberOrZero(record.UoMEntry ?? record.uomEntry ?? record.UomEntry) || undefined,
     uomList: (() => {
       const rawList = record.UomList ?? record.uomList ?? record.UoMList;

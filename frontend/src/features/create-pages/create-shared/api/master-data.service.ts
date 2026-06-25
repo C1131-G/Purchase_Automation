@@ -95,4 +95,8 @@ export const masterDataAPI = {
       `/api/v1/master-data/warehouses?${query.toString()}`,
     );
   },
+  getPriceLists: async () =>
+    apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
+      "/api/v1/master-data/price-lists",
+    ),
 };

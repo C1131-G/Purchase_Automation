@@ -18,5 +18,6 @@ router.get(
   goodsReceiptDal.getGoodsReceiptDocNums,
 );
 router.get("/:id", goodsReceiptDal.getGoodsReceipt);
+router.post("/", goodsReceiptDal.createGoodsReceipt);
 
 export const goodsReceiptRoutes = router;

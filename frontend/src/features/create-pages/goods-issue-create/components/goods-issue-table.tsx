@@ -24,7 +24,6 @@ const COLUMNS: InventoryColumn<GoodsIssueRow>[] = [
     align: "center",
   },
   { key: "accountCode", label: "Account Code", width: "9%", type: "text" },
-  { key: "itemCost", label: "Item Cost", width: "10%", type: "text", align: "right" },
 ];
 
 const DEFAULT_ROW: GoodsIssueRow = {
@@ -37,7 +36,6 @@ const DEFAULT_ROW: GoodsIssueRow = {
   quantity: 1,
   binLocationAllocation: 0,
   accountCode: "",
-  itemCost: "",
 };
 
 export function GoodsIssueTable({ rows, onRowsChange }: GoodsIssueTableProps) {

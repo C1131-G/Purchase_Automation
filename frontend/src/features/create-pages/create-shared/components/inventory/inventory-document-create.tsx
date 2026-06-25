@@ -15,7 +15,9 @@ interface InventoryDocumentCreateProps<TRow> {
   breadcrumbLabel?: string;
   documentType: InventoryDocumentType;
   journalRemarkPlaceholder?: string;
-  tableComponent: ComponentType<{ rows: TRow[]; onRowsChange: (rows: TRow[]) => void }>;
+  /** Pass either tableComponent OR renderTable (renderTable takes priority) */
+  tableComponent?: ComponentType<{ rows: TRow[]; onRowsChange: (rows: TRow[]) => void }>;
+  renderTable?: (props: { rows: TRow[]; onRowsChange: (rows: TRow[]) => void }) => React.ReactNode;
   attachmentTargetPathPrefix?: string;
 }
 
@@ -31,6 +33,7 @@ export function InventoryDocumentCreate<TRow>({
   documentType,
   journalRemarkPlaceholder,
   tableComponent: TableComponent,
+  renderTable,
   attachmentTargetPathPrefix,
 }: InventoryDocumentCreateProps<TRow>) {
   const [activeTab, setActiveTab] = useState<"contents" | "attachments">("contents");
@@ -108,7 +111,11 @@ export function InventoryDocumentCreate<TRow>({
 
         {/* ── Table / Attachments panel ── */}
         {activeTab === "contents" ? (
-          <TableComponent rows={rows} onRowsChange={setRows} />
+          renderTable ? (
+            renderTable({ rows, onRowsChange: setRows })
+          ) : TableComponent ? (
+            <TableComponent rows={rows} onRowsChange={setRows} />
+          ) : null
         ) : (
           <InventoryDocumentAttachments
             attachments={attachments}

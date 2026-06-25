@@ -185,8 +185,55 @@ export const getGoodsReceiptDocNums = async (dbName: string, search?: string, li
     .filter((item) => item.code.length > 0);
 };
 
+export const createGoodsReceipt = async (sessionId: string, payload: Record<string, unknown>) => {
+  try {
+    const sapPayload: Record<string, unknown> = {
+      DocDate: payload.DocDate,
+      TaxDate: payload.TaxDate,
+      Comments: payload.Comments,
+      JrnlMemo: payload.JrnlMemo,
+      Ref2: payload.Ref2,
+      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map((line) => {
+        const l: Record<string, unknown> = {
+          ItemCode: line.ItemCode,
+          Quantity: Number(line.Quantity) || 1,
+          UnitPrice: Number(line.UnitPrice) || 0,
+        };
+        if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
+        if (line.UoMCode) l.UoMCode = line.UoMCode;
+        if (line.AccountCode) l.AccountCode = line.AccountCode;
+        return l;
+      }),
+    };
+
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+    const result = (await serviceLayerClient.request(
+      sessionId,
+      "POST",
+      "/InventoryGenEntries",
+      sapPayload,
+    )) as { DocEntry: number; DocNum: number };
+
+    const { purgeCache } = await import("@/core/utils/cache");
+    const session = serviceLayerClient.getSession(sessionId);
+    if (session?.companyDB) {
+      purgeCache(`dash:inventory:${session.companyDB}:`);
+    }
+
+    return {
+      DocEntry: result.DocEntry,
+      DocNum: result.DocNum,
+      message: "Goods Receipt created successfully",
+      success: true,
+    };
+  } catch (err: unknown) {
+    throw err instanceof Error ? err : new Error(String(err));
+  }
+};
+
 export const goodsReceiptService = {
   getGoodsReceipts,
   getGoodsReceiptByDocNum,
   getGoodsReceiptDocNums,
+  createGoodsReceipt,
 };

@@ -56,12 +56,43 @@ export function GoodsReceiptTable() {
   const queryClient = useQueryClient();
 
   const lastActionRef = useRef<TableFetchAction>("fetching");
+  const docNumPrefetchRef = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    window.scrollTo({ behavior: "smooth", top: 0 });
-  }, []);
+  const prefetchEditRouteData = useCallback(
+    (docNum: string) => {
+      const normalizedDocNum = docNum.trim();
+      if (!normalizedDocNum) return;
+      if (docNumPrefetchRef.current.has(normalizedDocNum)) return;
+      docNumPrefetchRef.current.add(normalizedDocNum);
 
-  const columns = useMemo(() => createGoodsReceiptColumns(), []);
+      void queryClient.fetchQuery(goodsReceiptQueries.detailById(normalizedDocNum)).catch(() => {
+        docNumPrefetchRef.current.delete(normalizedDocNum);
+      });
+    },
+    [queryClient],
+  );
+
+  const columns = useMemo(
+    () =>
+      createGoodsReceiptColumns({
+        onDocNumDoubleClick: (docNum) => {
+          const normalized = String(docNum).trim();
+          if (!normalized) return;
+          prefetchEditRouteData(normalized);
+          void navigate({
+            to: `/inventory/goods-receipt/${normalized}/edit` as any,
+            search: { limit: 10, page: 1 } as any,
+            viewTransition: true,
+          });
+        },
+        onDocNumHover: (docNum) => {
+          const normalized = String(docNum).trim();
+          if (!normalized) return;
+          prefetchEditRouteData(normalized);
+        },
+      }),
+    [navigate, prefetchEditRouteData],
+  );
   const columnIds = useMemo(
     () =>
       columns

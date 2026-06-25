@@ -37,4 +37,7 @@ router.get("/uoms", validateQuery(MasterDataQuerySchema), masterDataDal.getUOMs)
 // GET /warehouses: List of available storage locations for item selection.
 router.get("/warehouses", validateQuery(MasterDataQuerySchema), masterDataDal.getWarehouses);
 
+// GET /price-lists: List of price lists defined in SAP HANA (OPLN table).
+router.get("/price-lists", masterDataDal.getPriceLists);
+
 export const masterDataRoutes = router;

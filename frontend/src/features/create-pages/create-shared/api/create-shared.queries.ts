@@ -30,6 +30,7 @@ const fetchSalesEmployees = async () =>
 export const createSharedKeys = {
   all: ["create-shared"] as const,
   customers: () => [...createSharedKeys.all, "customers-v3"] as const,
+  priceLists: () => [...createSharedKeys.all, "price-lists"] as const,
   productWarehouseStocks: () => [...createSharedKeys.all, "product-warehouse-stocks"] as const,
   products: () => [...createSharedKeys.all, "products-v2"] as const,
   salesEmployees: () => [...createSharedKeys.all, "sales-employees"] as const,
@@ -60,6 +61,14 @@ export const createSharedQueries = {
         return response.data;
       },
       queryKey: createSharedKeys.financialPeriod(),
+      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
+    }),
+  priceLists: () =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
+      queryFn: async () =>
+        normalizeLookups(unwrapMasterData(await masterDataAPI.getPriceLists()).map(mapLookup)),
+      queryKey: createSharedKeys.priceLists(),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
   customers: () =>
