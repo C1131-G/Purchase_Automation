@@ -1,6 +1,6 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { goeyToast } from "goey-toast";
 import {
   ArrowLeft,
@@ -21,11 +21,13 @@ import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/c
 import { InventoryDocumentFooter } from "@/features/create-pages/create-shared/components/inventory/inventory-document-footer";
 import { InventoryDocumentAttachments } from "@/features/create-pages/create-shared/components/inventory/inventory-document-attachments";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/inventory/types/inventory-document.types";
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
 import { GoodsReceiptTable } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-table";
 import { ProductPopupModal } from "@/features/create-pages/create-shared/components/modals/product-popup-modal";
 import { apiClient } from "@/shared/api/client";
+import { goodsReceiptKeys } from "@/features/table-pages/goods-receipt/api/goods-receipt.queries";
 
 // ─── SAP mutation ────────────────────────────────────────────────────────────
 
@@ -48,7 +50,7 @@ interface CreateGoodsReceiptPayload {
 
 async function postGoodsReceipt(payload: CreateGoodsReceiptPayload) {
   return apiClient<{ success: boolean; DocNum: number; DocEntry: number }>(
-    "/api/v1/goods-receipt",
+    "/api/v1/goods-receipts",
     { method: "POST", body: JSON.stringify(payload) },
   );
 }
@@ -71,10 +73,12 @@ const getTodayISO = () => new Date().toISOString().slice(0, 10);
  */
 export function GoodsReceiptCreate() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"contents" | "attachments">("contents");
 
   const [priceList, setPriceList] = useState("");
-  const [series, setSeries] = useState("Primary");
+  const [docNumber, setDocNumber] = useState("");
+  const [series, setSeries] = useState("");
   const [postingDate, setPostingDate] = useState(getTodayISO());
   const [documentDate, setDocumentDate] = useState(getTodayISO());
   const [ref2, setRef2] = useState("");
@@ -133,19 +137,92 @@ export function GoodsReceiptCreate() {
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const uomsQuery = useQuery(createSharedQueries.uoms());
   const priceListsQuery = useQuery(createSharedQueries.priceLists());
-  const productsQuery = useQuery({
-    ...createSharedQueries.products(undefined, productSearch || undefined, 50),
-    enabled: productPopupOpen,
-  });
+  const seriesQuery = useQuery(createSharedQueries.series("59")); // 59 is typically Goods Receipt
 
   const warehouses = warehousesQuery.data ?? [];
-  const uoms = uomsQuery.data ?? [];
   const priceLists = priceListsQuery.data ?? [];
-  const products = productsQuery.data ?? [];
+  const seriesOptions = seriesQuery.data ?? [];
+
+  const resolvedSeries = series || (seriesOptions.length > 0 ? seriesOptions[0]!.code : "");
 
   // Set default price list once data is loaded
   const resolvedPriceList =
     priceList || (priceLists.length > 0 ? priceLists[0]!.name : "Last Purchase Price");
+
+  // Determine the price list CODE (numeric string) to pass to the products API
+  const resolvedPriceListCode = (() => {
+    const selected = priceLists.find((pl) => pl.name === resolvedPriceList);
+    return selected ? selected.code : undefined;
+  })();
+
+  const productsQuery = useQuery({
+    ...createSharedQueries.products(
+      undefined,
+      productSearch || undefined,
+      50,
+      undefined,
+      resolvedPriceListCode,
+    ),
+    enabled: productPopupOpen,
+  });
+
+  const products = productsQuery.data ?? [];
+
+  // Re-price all existing rows when the price list changes
+  const rowsRef = useRef(rows);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
+  useEffect(() => {
+    if (!resolvedPriceListCode) return;
+    const filledRows = rowsRef.current.filter((r) => r.itemNo.trim());
+    if (filledRows.length === 0) return;
+
+    const uniqueItemCodes = [...new Set(filledRows.map((r) => r.itemNo.trim()))];
+
+    Promise.all(
+      uniqueItemCodes.map((code) =>
+        masterDataAPI
+          .getProducts({ search: code, limit: 5, priceList: resolvedPriceListCode })
+          .then((res) => {
+            const raw = res as unknown as Record<string, unknown>;
+            const items: Record<string, unknown>[] = Array.isArray(raw)
+              ? (raw as Record<string, unknown>[])
+              : Array.isArray(raw.data)
+                ? (raw.data as Record<string, unknown>[])
+                : [];
+            const match = items.find(
+              (item) => String(item.ItemCode ?? item.itemCode ?? item.code ?? "").trim() === code,
+            );
+            return {
+              code,
+              price: match ? Number(match.Price ?? match.price ?? match.AvgPrice ?? 0) : null,
+            };
+          })
+          .catch(() => ({ code, price: null })),
+      ),
+    ).then((results) => {
+      const priceByCode = new Map(
+        results.filter((r) => r.price !== null).map((r) => [r.code, r.price as number]),
+      );
+      if (priceByCode.size === 0) return;
+      setRows((prev) =>
+        prev.map((r) => {
+          if (!r.itemNo.trim()) return r;
+          const newPrice = priceByCode.get(r.itemNo.trim());
+          if (newPrice === undefined) return r;
+          const qty = r.quantity || 1;
+          const total = qty * newPrice;
+          return {
+            ...r,
+            unitPrice: String(newPrice),
+            total: total > 0 ? `FJD ${total.toFixed(2)}` : "FJD 0.00",
+          };
+        }),
+      );
+    });
+  }, [resolvedPriceListCode]);
 
   const createMutation = useCreateGoodsReceipt();
 
@@ -189,7 +266,7 @@ export function GoodsReceiptCreate() {
     setProductPopupOpen(false);
   };
 
-  const handleAdd = () => {
+  const handleAdd = (mode: "save-new" | "view" | "close" | "draft" = "save-new") => {
     if (rows.length === 0) {
       goeyToast.error("Please add at least one line item.");
       return;
@@ -213,19 +290,47 @@ export function GoodsReceiptCreate() {
         ...(r.whse ? { WarehouseCode: r.whse } : {}),
         ...(r.uomCode ? { UoMCode: r.uomCode } : {}),
         ...(r.accountCode ? { AccountCode: r.accountCode } : {}),
-        ...(r.binLocationAllocation ? { BinLocationAllocation: r.binLocationAllocation } : {}),
+        ...(r.binLocationAllocation
+          ? {
+              DocumentLinesBinAllocations: [
+                {
+                  BinAbsEntry: r.binLocationAllocation,
+                  Quantity: Number(r.quantity) || 1,
+                },
+              ],
+            }
+          : {}),
       })),
     };
 
     createMutation.mutate(payload, {
       onSuccess: (data) => {
         goeyToast.success(`Goods Receipt ${data.DocNum} created successfully!`);
-        // Reset form
-        setRows([]);
-        setRemarks("");
-        setRef2("");
-        setPostingDate(getTodayISO());
-        setDocumentDate(getTodayISO());
+        queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.all });
+        // Handle modes
+        if (mode === "save-new") {
+          setRows([]);
+          setRemarks("");
+          setRef2("");
+          setPostingDate(getTodayISO());
+          setDocumentDate(getTodayISO());
+        } else if (mode === "view") {
+          void router.navigate({
+            to: "/inventory/goods-receipt/$docNum/edit",
+            params: { docNum: String(data.DocNum) },
+            search: { limit: 10, page: 1 } as any,
+          });
+        } else if (mode === "close") {
+          void router.navigate({
+            to: "/inventory/goods-receipt",
+            search: { limit: 10, page: 1 } as any,
+          });
+        } else if (mode === "draft") {
+          // Just stay on the same page, keep the data (or reset if preferred)
+          setRows([]);
+          setRemarks("");
+          setRef2("");
+        }
       },
       onError: (err) => {
         const msg = err instanceof Error ? err.message : "Failed to create Goods Receipt.";
@@ -243,15 +348,17 @@ export function GoodsReceiptCreate() {
       <div className="space-y-4">
         {/* Header */}
         <InventoryDocumentHeader
-          number=""
-          series={series}
+          series={resolvedSeries}
+          seriesOptions={seriesOptions}
+          seriesLoading={seriesQuery.isLoading}
           priceList={resolvedPriceList}
           priceLists={priceLists}
           priceListsLoading={priceListsQuery.isLoading}
           postingDate={postingDate}
           documentDate={documentDate}
           ref2={ref2}
-          onNumberChange={() => {}}
+          number={docNumber}
+          onNumberChange={setDocNumber}
           onSeriesChange={setSeries}
           onPriceListChange={setPriceList}
           onPostingDateChange={setPostingDate}
@@ -298,7 +405,8 @@ export function GoodsReceiptCreate() {
               prefetchProducts={prefetchProducts}
               warehouses={warehouses}
               warehousesLoading={warehousesQuery.isLoading}
-              uoms={uoms}
+              uoms={uomsQuery.data ?? []}
+              priceListCode={resolvedPriceListCode ?? undefined}
             />
             {/* Product selection popup — always multi-select capable */}
             {productPopupOpen && (
@@ -321,43 +429,55 @@ export function GoodsReceiptCreate() {
                   })
                 }
                 onSelectMultiple={(items) => {
-                  if (activeProductRowId) {
-                    // Replace the target row with first item, add remaining as new rows
-                    setRows((prev) => {
-                      const first = items[0];
-                      if (!first) return prev;
-                      const restRows = items.slice(1).map((item) => ({
-                        id: Math.random().toString(36).substr(2, 9),
-                        itemNo: item.code,
-                        itemDescription: item.name,
-                        uomCode: item.uomCode ?? "",
-                        uomName: item.uomName ?? "",
-                        whse: "",
-                        quantity: 1,
-                        unitPrice: String(item.price ?? 0),
-                        total: `FJD ${(1 * (item.price ?? 0)).toFixed(2)}`,
-                        binLocationAllocation: 0,
-                        accountCode: "",
-                      }));
-                      return prev
-                        .map((r) =>
-                          r.id === activeProductRowId
-                            ? {
-                                ...r,
-                                itemNo: first.code,
-                                itemDescription: first.name,
-                                uomCode: first.uomCode ?? "",
-                                uomName: first.uomName ?? "",
-                                unitPrice: String(first.price ?? 0),
-                                total: `FJD ${(1 * (first.price ?? 0)).toFixed(2)}`,
-                              }
-                            : r,
-                        )
-                        .concat(restRows);
-                    });
-                  } else {
-                    // No specific row — add all as new rows
-                    const newRows = items.map((item) => ({
+                  setRows((prev) => {
+                    const newRows = [...prev];
+                    const itemsToInsert = [...items];
+
+                    // 1. Replace the active row first, if any
+                    if (activeProductRowId) {
+                      const targetIdx = newRows.findIndex((r) => r.id === activeProductRowId);
+                      if (targetIdx !== -1 && itemsToInsert.length > 0) {
+                        const first = itemsToInsert.shift()!;
+                        newRows[targetIdx] = {
+                          ...newRows[targetIdx],
+                          id: newRows[targetIdx]!.id,
+                          whse: newRows[targetIdx]!.whse,
+                          quantity: newRows[targetIdx]!.quantity,
+                          binLocationAllocation: newRows[targetIdx]!.binLocationAllocation,
+                          accountCode: newRows[targetIdx]!.accountCode,
+                          itemNo: first.code,
+                          itemDescription: first.name,
+                          uomCode: first.uomCode ?? "",
+                          uomName: first.uomName ?? "",
+                          unitPrice: String(first.price ?? 0),
+                          total: `FJD ${(1 * (first.price ?? 0)).toFixed(2)}`,
+                        };
+                      }
+                    }
+
+                    for (let i = 0; i < newRows.length && itemsToInsert.length > 0; i++) {
+                      const currentRow = newRows[i]!;
+                      if (!currentRow.itemNo.trim()) {
+                        const next = itemsToInsert.shift()!;
+                        newRows[i] = {
+                          ...currentRow,
+                          id: currentRow.id,
+                          whse: currentRow.whse,
+                          quantity: currentRow.quantity,
+                          binLocationAllocation: currentRow.binLocationAllocation,
+                          accountCode: currentRow.accountCode,
+                          itemNo: next.code,
+                          itemDescription: next.name,
+                          uomCode: next.uomCode ?? "",
+                          uomName: next.uomName ?? "",
+                          unitPrice: String(next.price ?? 0),
+                          total: `FJD ${(1 * (next.price ?? 0)).toFixed(2)}`,
+                        };
+                      }
+                    }
+
+                    // 3. Append remaining items as new rows
+                    const restRows = itemsToInsert.map((item) => ({
                       id: Math.random().toString(36).substr(2, 9),
                       itemNo: item.code,
                       itemDescription: item.name,
@@ -366,12 +486,13 @@ export function GoodsReceiptCreate() {
                       whse: "",
                       quantity: 1,
                       unitPrice: String(item.price ?? 0),
-                      total: String((1 * (item.price ?? 0)).toFixed(2)),
+                      total: `FJD ${(1 * (item.price ?? 0)).toFixed(2)}`,
                       binLocationAllocation: 0,
                       accountCode: "",
                     }));
-                    setRows((prev) => [...prev, ...newRows]);
-                  }
+
+                    return newRows.concat(restRows);
+                  });
                   setProductPopupOpen(false);
                 }}
                 // Always use "__document_search__" so the modal is in multi-select mode
@@ -492,7 +613,7 @@ export function GoodsReceiptCreate() {
 
                     <button
                       type="button"
-                      onClick={handleAdd}
+                      onClick={() => handleAdd("save-new")}
                       disabled={createMutation.isPending}
                       className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
                     >
@@ -502,7 +623,7 @@ export function GoodsReceiptCreate() {
 
                     <button
                       type="button"
-                      onClick={handleAdd}
+                      onClick={() => handleAdd("view")}
                       disabled={createMutation.isPending}
                       className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
                     >
@@ -512,7 +633,7 @@ export function GoodsReceiptCreate() {
 
                     <button
                       type="button"
-                      onClick={handleAdd}
+                      onClick={() => handleAdd("close")}
                       disabled={createMutation.isPending}
                       className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
                     >
@@ -522,7 +643,7 @@ export function GoodsReceiptCreate() {
 
                     <button
                       type="button"
-                      onClick={handleAdd}
+                      onClick={() => handleAdd("draft")}
                       disabled={createMutation.isPending}
                       className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
                     >

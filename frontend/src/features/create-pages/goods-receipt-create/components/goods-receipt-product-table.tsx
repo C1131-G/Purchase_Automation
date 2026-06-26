@@ -11,6 +11,7 @@ interface GoodsReceiptProductTableProps {
   warehousesLoading: boolean;
   disableLineInputs?: boolean;
   uoms?: CreateLookupOption[];
+  priceListCode?: string | undefined;
 }
 
 export function GoodsReceiptProductTable({
@@ -22,6 +23,7 @@ export function GoodsReceiptProductTable({
   warehousesLoading,
   disableLineInputs = false,
   uoms = [],
+  priceListCode,
 }: GoodsReceiptProductTableProps) {
   const updateProductRow = (id: string, patch: Partial<GoodsReceiptRow>) => {
     onRowsChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -75,6 +77,7 @@ export function GoodsReceiptProductTable({
               warehousesLoading={warehousesLoading}
               disableInputs={disableLineInputs}
               uoms={uoms}
+              priceListCode={priceListCode}
             />
           ))}
         </tbody>

@@ -39,6 +39,9 @@ export const createSharedKeys = {
   vendors: () => [...createSharedKeys.all, "vendors-v3"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
   financialPeriod: () => [...createSharedKeys.all, "financial-period-active"] as const,
+  series: (documentType: string) => [...createSharedKeys.all, "series", documentType] as const,
+  warehouseBins: (warehouseCode: string) =>
+    [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
 };
 
 export const createSharedQueries = {
@@ -96,6 +99,7 @@ export const createSharedQueries = {
     search?: string,
     limit?: number,
     type?: "sales" | "purchase",
+    priceList?: string,
   ) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
@@ -106,11 +110,13 @@ export const createSharedQueries = {
           search?: string;
           limit?: number;
           type?: "sales" | "purchase";
+          priceList?: string;
         } = {};
         if (warehouseCode) params.warehouseCode = warehouseCode;
         if (search) params.search = search;
         if (typeof limit === "number") params.limit = limit;
         if (type) params.type = type;
+        if (priceList !== undefined && priceList !== "") params.priceList = priceList;
 
         return unwrapMasterData(await masterDataAPI.getProducts(params))
           .map(mapProductLookup)
@@ -122,6 +128,7 @@ export const createSharedQueries = {
         search ?? "",
         limit,
         type ?? "default",
+        priceList ?? "default",
       ],
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     }),
@@ -171,8 +178,39 @@ export const createSharedQueries = {
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
       queryFn: async () =>
-        normalizeLookups(unwrapMasterData(await masterDataAPI.getWarehouses()).map(mapLookup)),
+        normalizeLookups(
+          unwrapMasterData(await masterDataAPI.getWarehouses()).map((w: any) => ({
+            ...mapLookup(w),
+            enableBinLocations: w.enableBinLocations,
+          })),
+        ),
       queryKey: createSharedKeys.warehouses(),
+      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
+    }),
+  series: (documentType: string) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
+      queryFn: async () => {
+        const response = await masterDataAPI.getSeries(documentType);
+        return normalizeLookups(unwrapMasterData(response).map(mapLookup));
+      },
+      queryKey: createSharedKeys.series(documentType),
+      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
+    }),
+  warehouseBins: (warehouseCode: string) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
+      queryFn: async () => {
+        const response = await masterDataAPI.getWarehouseBins(warehouseCode);
+        const data = unwrapMasterData(response);
+        return normalizeLookups(
+          data.map((item: any) => ({
+            code: String(item.AbsEntry),
+            name: item.BinCode,
+          })),
+        );
+      },
+      queryKey: createSharedKeys.warehouseBins(warehouseCode),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
 };

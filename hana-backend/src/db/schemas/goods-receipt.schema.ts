@@ -13,6 +13,8 @@ export interface GoodsReceipt {
   docTotal: number;
   docStatus: string;
   docCurr?: string;
+  ref2?: string;
+  series?: number;
 }
 
 export const GoodsReceiptSchema = new EntitySchema<GoodsReceipt>({
@@ -62,6 +64,17 @@ export const GoodsReceiptSchema = new EntitySchema<GoodsReceipt>({
       name: "DocCur",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    ref2: {
+      length: 254,
+      name: "Ref2",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    series: {
+      name: "Series",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
   },
   indices: [

@@ -140,6 +140,8 @@ export const getGoodsReceiptByDocNum = async (dbName: string, docNum: number | s
     JrnlMemo: header.jrnlMemo,
     DocTotal: Number(header.docTotal || 0),
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
+    Ref2: header.ref2,
+    Series: header.series,
     DocumentLines: lines.map((l) => ({
       DocEntry: l.docEntry,
       LineNum: l.lineNum,
@@ -193,6 +195,9 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
       Comments: payload.Comments,
       JrnlMemo: payload.JrnlMemo,
       Ref2: payload.Ref2,
+      ...(payload.Series !== undefined && payload.Series !== null
+        ? { Series: Number(payload.Series) }
+        : {}),
       DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map((line) => {
         const l: Record<string, unknown> = {
           ItemCode: line.ItemCode,
@@ -202,6 +207,13 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
         if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
         if (line.UoMCode) l.UoMCode = line.UoMCode;
         if (line.AccountCode) l.AccountCode = line.AccountCode;
+        // Forward bin allocations if the warehouse has bins enabled
+        if (
+          Array.isArray(line.DocumentLinesBinAllocations) &&
+          (line.DocumentLinesBinAllocations as unknown[]).length > 0
+        ) {
+          l.DocumentLinesBinAllocations = line.DocumentLinesBinAllocations;
+        }
         return l;
       }),
     };

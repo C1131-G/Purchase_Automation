@@ -13,6 +13,7 @@ interface MasterDataQuery {
   warehouseCode?: string;
   itemCode?: string;
   type?: "sales" | "purchase";
+  priceList?: string; // price list code (e.g. "1", "-1", "-2")
 }
 
 export const masterDataAPI = {
@@ -50,6 +51,9 @@ export const masterDataAPI = {
     }
     if (params?.type) {
       query.set("type", params.type);
+    }
+    if (params?.priceList !== undefined && params.priceList !== "") {
+      query.set("priceList", params.priceList);
     }
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/products?${query.toString()}`,
@@ -99,4 +103,13 @@ export const masterDataAPI = {
     apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       "/api/v1/master-data/price-lists",
     ),
+  getSeries: async (documentType: string) =>
+    apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
+      `/api/v1/master-data/series?documentType=${documentType}`,
+    ),
+  getWarehouseBins: async (warehouseCode: string) =>
+    apiClient<
+      | MasterDataResponse<{ AbsEntry: number; BinCode: string }>
+      | { AbsEntry: number; BinCode: string }[]
+    >(`/api/v1/master-data/warehouses/${warehouseCode}/bins`),
 };

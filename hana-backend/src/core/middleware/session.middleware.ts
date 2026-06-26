@@ -6,7 +6,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { serviceLayerClient } from "@/services/service-layer.service";
 
 // validateSession: Intercepts requests to verify authentication state.
-export const validateSession: RequestHandler = (
+export const validateSession: RequestHandler = async (
   req: Request,
   res: Response,
   next: NextFunction,
@@ -30,22 +30,64 @@ export const validateSession: RequestHandler = (
   }
 
   // Double Check: Verifies if the SAP Service Layer session mapped to this Express session is still active in the backend memory.
-  // This is critical because SAP might have cleared the session due to a server restart or internal policy even if the client's cookie is valid.
+  // This handles backend restarts — the Express session (cookie) survives, but the in-memory SAP session map is wiped.
   if (!serviceLayerClient.isSessionValid(session.sessionId)) {
-    logger.warn({
-      event: "session_expired_in_sap",
-      reason: "sap_session_cleaned_up_or_expired",
-      username: session.user.userName,
-    });
+    // Attempt silent re-login using the credentials stored in the Express session.
+    const { slCompanyDB, slUsername, slPassword } = session;
 
-    // Cleanup local state to force the user to re-authenticate.
-    session.destroy(() => {});
-    res.clearCookie("vendorportal.sid");
+    if (slCompanyDB && slUsername && slPassword) {
+      try {
+        logger.info({
+          event: "sap_session_auto_reconnect",
+          reason: "in_memory_session_lost",
+          username: session.user.userName,
+        });
 
-    return res.status(401).json({
-      message: "Session has expired",
-      success: false,
-    });
+        const newSession = await serviceLayerClient.login(slCompanyDB, slUsername, slPassword);
+
+        // Update the Express session with the new SAP session ID
+        session.sessionId = newSession.sessionId;
+        await new Promise<void>((resolve, reject) =>
+          session.save((err) => (err ? reject(err) : resolve())),
+        );
+
+        logger.info({
+          event: "sap_session_reconnected",
+          username: session.user.userName,
+        });
+      } catch (reconnectErr: unknown) {
+        const errMsg = reconnectErr instanceof Error ? reconnectErr.message : String(reconnectErr);
+        logger.warn({
+          event: "sap_session_reconnect_failed",
+          error: errMsg,
+          username: session.user.userName,
+        });
+
+        // Re-login failed — destroy the session and force the user to login again.
+        session.destroy(() => {});
+        res.clearCookie("vendorportal.sid");
+
+        return res.status(401).json({
+          message: "Session has expired. Please login again.",
+          success: false,
+        });
+      }
+    } else {
+      // No stored credentials — can't reconnect. Force re-login.
+      logger.warn({
+        event: "session_expired_in_sap",
+        reason: "no_stored_sl_credentials",
+        username: session.user.userName,
+      });
+
+      session.destroy(() => {});
+      res.clearCookie("vendorportal.sid");
+
+      return res.status(401).json({
+        message: "Session has expired",
+        success: false,
+      });
+    }
   }
 
   // Hydrate the Request object with user metadata for downstream business logic (permission checks, tenant identification).
@@ -53,6 +95,7 @@ export const validateSession: RequestHandler = (
     ...session.user,
     dbName: session.dbName,
     dbServer: session.dbServer,
+    sessionId: session.sessionId,
   };
 
   next();

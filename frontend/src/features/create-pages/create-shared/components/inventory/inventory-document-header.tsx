@@ -7,6 +7,8 @@ interface InventoryDocumentHeaderProps {
   priceList: string;
   priceLists?: CreateLookupOption[];
   priceListsLoading?: boolean;
+  seriesOptions?: CreateLookupOption[];
+  seriesLoading?: boolean;
   postingDate: string;
   documentDate: string;
   ref2: string;
@@ -17,6 +19,7 @@ interface InventoryDocumentHeaderProps {
   onDocumentDateChange: (v: string) => void;
   onRef2Change: (v: string) => void;
   idPrefix?: string;
+  isEditMode?: boolean;
 }
 
 export function InventoryDocumentHeader({
@@ -25,16 +28,19 @@ export function InventoryDocumentHeader({
   priceList,
   priceLists = [],
   priceListsLoading = false,
+  seriesOptions = [],
+  seriesLoading = false,
   postingDate,
   documentDate,
   ref2,
-  onNumberChange: _onNumberChange,
+  onNumberChange,
   onSeriesChange,
   onPriceListChange,
   onPostingDateChange,
   onDocumentDateChange,
   onRef2Change,
   idPrefix = "inventory",
+  isEditMode = false,
 }: InventoryDocumentHeaderProps) {
   return (
     <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -48,11 +54,12 @@ export function InventoryDocumentHeader({
             <input
               type="text"
               id={`${idPrefix}-number`}
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-100 pl-3 text-sm text-zinc-500 outline-none cursor-not-allowed"
-              value={number || "Primary"}
-              readOnly
-              disabled
-              placeholder="Auto-generated"
+              className={`h-10 w-full rounded-xl border border-zinc-200 ${series === "Manual" && !isEditMode ? "bg-white" : "bg-zinc-100"} pl-3 text-sm text-zinc-500 outline-none ${series === "Manual" && !isEditMode ? "" : "cursor-not-allowed"}`}
+              value={series === "Manual" || isEditMode ? number : ""}
+              onChange={(e) => onNumberChange(e.target.value)}
+              readOnly={series !== "Manual" || isEditMode}
+              disabled={series !== "Manual" || isEditMode}
+              placeholder={series === "Manual" || isEditMode ? "" : "(Auto-Generated)"}
             />
           </div>
           <div>
@@ -61,12 +68,25 @@ export function InventoryDocumentHeader({
             </label>
             <select
               id={`${idPrefix}-series`}
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 pr-8 text-sm text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-12px)_center] bg-[length:10px_10px]"
-              value={series || "Primary"}
+              disabled={seriesLoading}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-3 pr-8 text-sm text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[position:calc(100%-12px)_center] bg-[length:10px_10px] disabled:opacity-60 disabled:cursor-not-allowed"
+              value={series}
               onChange={(e) => onSeriesChange(e.target.value)}
             >
-              <option value="Primary">Primary</option>
-              <option value="Manual">Manual</option>
+              {seriesLoading ? (
+                <option value="">Loading...</option>
+              ) : seriesOptions.length > 0 ? (
+                seriesOptions.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="Primary">Primary</option>
+                  <option value="Manual">Manual</option>
+                </>
+              )}
             </select>
           </div>
         </div>

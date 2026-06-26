@@ -4,6 +4,9 @@ import { ChevronDown, Search, Trash2 } from "lucide-react";
 import React from "react";
 import ReactDOM from "react-dom";
 
+import { LookupPopup } from "@/components/lookup/lookup-popup";
+import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
+
 import { Tooltip } from "@/components/tooltip";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
@@ -22,6 +25,32 @@ const RETURN_REASON_PRESETS = [
   "Dissatisfaction with quality",
   "Ordered wrong item",
 ] as const;
+
+interface FixedDropdownProps {
+  anchorRef: React.RefObject<HTMLElement | null>;
+  children: React.ReactNode;
+  visible: boolean;
+}
+
+function FixedDropdown({ anchorRef, children, visible }: FixedDropdownProps) {
+  const [style, setStyle] = React.useState<React.CSSProperties>({});
+
+  React.useLayoutEffect(() => {
+    if (!visible || !anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    setStyle({
+      position: "fixed",
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 260),
+      zIndex: 9999,
+    });
+  }, [visible, anchorRef]);
+
+  if (!visible) return null;
+
+  return ReactDOM.createPortal(<div style={style}>{children}</div>, document.body);
+}
 
 interface ReturnReasonDropdownProps {
   value: string;
@@ -146,6 +175,8 @@ interface CreateProductTableRowProps {
   warehouseError?: string | undefined;
   showUom?: boolean;
   uoms?: CreateLookupOption[];
+  showBinLocation?: boolean;
+  showGLAccount?: boolean;
 }
 
 export function CreateProductTableRow({
@@ -174,10 +205,24 @@ export function CreateProductTableRow({
   warehouseError,
   showUom = false,
   uoms = [],
+  showBinLocation = false,
+  showGLAccount = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState("");
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState("");
   const [warehouseFocused, setWarehouseFocused] = React.useState(false);
+
+  // G/L Account state
+  const [accountInput, setAccountInput] = React.useState("");
+  const [accountFocused, setAccountFocused] = React.useState(false);
+  const [accountLookupOpen, setAccountLookupOpen] = React.useState(false);
+  const accountInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Bin Location state
+  const [binInput, setBinInput] = React.useState("");
+  const [binFocused, setBinFocused] = React.useState(false);
+  const [binLookupOpen, setBinLookupOpen] = React.useState(false);
+  const binInputRef = React.useRef<HTMLInputElement>(null);
 
   const productUoms = React.useMemo(() => {
     const getUomName = (code: string) => uoms.find((u) => u.code === code)?.name || code;
@@ -466,6 +511,36 @@ export function CreateProductTableRow({
     setUomInput(row.uomCode ?? "");
   }, [row.uomCode]);
 
+  const selectedWarehouse = React.useMemo(() => {
+    return warehouses.find((w) => w.code === row.warehouseCode);
+  }, [warehouses, row.warehouseCode]);
+  const enableBinLocations = (selectedWarehouse as any)?.enableBinLocations === true;
+
+  const binsQuery = useQuery({
+    ...createSharedQueries.warehouseBins(row.warehouseCode || ""),
+    enabled: enableBinLocations && Boolean(row.warehouseCode) && (binFocused || binLookupOpen),
+  });
+  const binSuggestions = React.useMemo(() => binsQuery.data ?? [], [binsQuery.data]);
+
+  React.useEffect(() => {
+    setBinInput(row.binLocationAllocation ? String(row.binLocationAllocation) : "");
+  }, [row.binLocationAllocation]);
+
+  const accountQuery = useQuery({
+    ...incomingPaymentQueries.accountSuggestions(accountInput || undefined, 100),
+    enabled: accountFocused || accountLookupOpen,
+  });
+  const accountSuggestions = React.useMemo(() => {
+    return (accountQuery.data?.data ?? []).map((acc) => ({
+      code: acc.GLAccount,
+      name: acc.Account,
+    }));
+  }, [accountQuery.data]);
+
+  React.useEffect(() => {
+    setAccountInput(row.accountCode ?? "");
+  }, [row.accountCode]);
+
   const selectUomInRow = (item: CreateLookupOption) => {
     setUomInput(item.code);
     updateProductRow(row.id, {
@@ -649,6 +724,86 @@ export function CreateProductTableRow({
           }}
         />
       </td>
+      {showBinLocation && (
+        <td className="relative px-2 py-2 min-w-0">
+          {enableBinLocations ? (
+            <>
+              <div className="relative">
+                <input
+                  ref={binInputRef}
+                  type="text"
+                  value={binInput}
+                  disabled={effectiveDisableInputs}
+                  onChange={(e) => {
+                    setBinInput(e.target.value);
+                    setBinFocused(true);
+                  }}
+                  onFocus={() => setBinFocused(true)}
+                  onBlur={() => {
+                    blurTimerRef.current = setTimeout(() => setBinFocused(false), 150);
+                  }}
+                  placeholder="Select Bin"
+                  className="h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 pr-8 text-xs text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 cursor-pointer"
+                />
+                <button
+                  type="button"
+                  disabled={effectiveDisableInputs}
+                  onClick={() => setBinLookupOpen(true)}
+                  className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+                >
+                  <Search className="h-3 w-3" />
+                </button>
+                <FixedDropdown
+                  anchorRef={binInputRef}
+                  visible={binFocused && binSuggestions.length > 0}
+                >
+                  <SuggestionList
+                    items={binSuggestions.filter(
+                      (b) =>
+                        b.code.toLowerCase().includes(binInput.toLowerCase()) ||
+                        b.name.toLowerCase().includes(binInput.toLowerCase()),
+                    )}
+                    onSelect={(item) => {
+                      setBinInput(item.code);
+                      updateProductRow(row.id, { binLocationAllocation: Number(item.code) });
+                      setBinFocused(false);
+                    }}
+                    query={binInput}
+                  />
+                </FixedDropdown>
+              </div>
+              <LookupPopup
+                open={binLookupOpen}
+                mode="warehouse"
+                search={binInput}
+                results={binSuggestions}
+                loading={binsQuery.isLoading}
+                error={binsQuery.isError ? (binsQuery.error as Error).message : null}
+                title="Search Bin Locations"
+                searchPlaceholder="Search bin code or name..."
+                onSearchChange={(val) => {
+                  setBinInput(val);
+                  setBinFocused(true);
+                }}
+                onClose={() => setBinLookupOpen(false)}
+                onSelect={(item) => {
+                  setBinInput(item.code);
+                  updateProductRow(row.id, { binLocationAllocation: Number(item.code) });
+                  setBinLookupOpen(false);
+                }}
+              />
+            </>
+          ) : (
+            <input
+              type="text"
+              value=""
+              disabled={true}
+              className="h-9 w-full rounded-lg border border-transparent bg-zinc-100 px-2 text-xs text-zinc-400 outline-none cursor-not-allowed"
+              placeholder="N/A"
+            />
+          )}
+        </td>
+      )}
       {showUom && (
         <td className="relative min-w-0 px-2 py-2">
           <div className="relative w-[100px]">
@@ -980,6 +1135,75 @@ export function CreateProductTableRow({
       {showTaxCode && (
         <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
           {row.vatGroup || "-"}
+        </td>
+      )}
+      {showGLAccount && (
+        <td className="relative px-2 py-2 min-w-0">
+          <div className="relative">
+            <input
+              ref={accountInputRef}
+              type="text"
+              value={accountInput}
+              disabled={effectiveDisableInputs}
+              onChange={(e) => {
+                setAccountInput(e.target.value);
+                setAccountFocused(true);
+              }}
+              onFocus={() => setAccountFocused(true)}
+              onBlur={() => {
+                blurTimerRef.current = setTimeout(() => setAccountFocused(false), 150);
+              }}
+              placeholder="G/L Account"
+              className="h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 pr-8 text-xs text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+            />
+            <button
+              type="button"
+              disabled={effectiveDisableInputs}
+              onClick={() => setAccountLookupOpen(true)}
+              className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+            >
+              <Search className="h-3 w-3" />
+            </button>
+            <FixedDropdown
+              anchorRef={accountInputRef}
+              visible={accountFocused && accountSuggestions.length > 0}
+            >
+              <SuggestionList
+                items={accountSuggestions}
+                onSelect={(item) => {
+                  setAccountInput(item.code);
+                  updateProductRow(row.id, { accountCode: item.code });
+                  setAccountFocused(false);
+                }}
+                query={accountInput}
+                showCode
+                codeLabel="GLAccount"
+                nameLabel="Account"
+              />
+            </FixedDropdown>
+          </div>
+          <LookupPopup
+            open={accountLookupOpen}
+            mode="warehouse"
+            search={accountInput}
+            results={accountSuggestions}
+            loading={accountQuery.isLoading}
+            error={accountQuery.isError ? (accountQuery.error as Error).message : null}
+            title="Search G/L Accounts"
+            searchPlaceholder="Search account code or name..."
+            codeLabel="GLAccount"
+            nameLabel="Account"
+            onSearchChange={(val) => {
+              setAccountInput(val);
+              setAccountFocused(true);
+            }}
+            onClose={() => setAccountLookupOpen(false)}
+            onSelect={(item) => {
+              setAccountInput(item.code);
+              updateProductRow(row.id, { accountCode: item.code });
+              setAccountLookupOpen(false);
+            }}
+          />
         </td>
       )}
       {showReturnReason && (

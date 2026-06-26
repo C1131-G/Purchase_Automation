@@ -40,4 +40,10 @@ router.get("/warehouses", validateQuery(MasterDataQuerySchema), masterDataDal.ge
 // GET /price-lists: List of price lists defined in SAP HANA (OPLN table).
 router.get("/price-lists", masterDataDal.getPriceLists);
 
+// GET /series: List of document series from Service Layer
+router.get("/series", masterDataDal.getSeries);
+
+// GET /warehouses/:code/bins: List of bins for a warehouse from Service Layer
+router.get("/warehouses/:code/bins", masterDataDal.getWarehouseBins);
+
 export const masterDataRoutes = router;

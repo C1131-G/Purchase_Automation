@@ -13,6 +13,10 @@ declare module "express-session" {
     };
     userAgent?: string;
     lastActivity?: number;
+    // SAP SL credentials stored to allow silent re-login after server restart
+    slCompanyDB?: string;
+    slUsername?: string;
+    slPassword?: string;
   }
 
   interface Session {
@@ -27,5 +31,8 @@ declare module "express-session" {
     };
     userAgent?: string;
     lastActivity?: number;
+    slCompanyDB?: string;
+    slUsername?: string;
+    slPassword?: string;
   }
 }

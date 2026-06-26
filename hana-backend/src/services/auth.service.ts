@@ -92,6 +92,9 @@ export const login = async (
     return {
       sessionId: sessionInfo.sessionId,
       sessionTimeout: sessionInfo.sessionTimeout,
+      // Pass back the actual SL credentials used so the session can auto-reconnect on restart
+      slUsername: dbInfo.serviceLayerUsername || username,
+      slPassword: dbInfo.serviceLayerPassword || password,
       user: {
         dbName,
         dbServer: dbInfo.dbServer,

@@ -11,6 +11,7 @@ interface GoodsReceiptTableProps {
   warehouses: CreateLookupOption[];
   warehousesLoading: boolean;
   uoms?: CreateLookupOption[];
+  priceListCode?: string | undefined;
 }
 
 const DEFAULT_ROW: GoodsReceiptRow = {
@@ -35,6 +36,7 @@ export function GoodsReceiptTable({
   warehouses,
   warehousesLoading,
   uoms = [],
+  priceListCode,
 }: GoodsReceiptTableProps) {
   const handleAddRow = () => {
     onRowsChange([...rows, { ...DEFAULT_ROW, id: Math.random().toString(36).substr(2, 9) }]);
@@ -58,6 +60,7 @@ export function GoodsReceiptTable({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           uoms={uoms}
+          priceListCode={priceListCode}
         />
       </div>
       <div className="flex items-center justify-between pt-2">

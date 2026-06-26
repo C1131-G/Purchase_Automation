@@ -21,6 +21,7 @@ interface GoodsReceiptProductTableRowProps {
   warehousesLoading: boolean;
   disableInputs?: boolean;
   uoms?: CreateLookupOption[];
+  priceListCode?: string | undefined;
 }
 
 // ─── FixedDropdown: Renders a suggestion dropdown anchored to an input ref using fixed positioning ─
@@ -61,6 +62,7 @@ export function GoodsReceiptProductTableRow({
   warehousesLoading,
   disableInputs = false,
   uoms = [],
+  priceListCode,
 }: GoodsReceiptProductTableRowProps) {
   // Product Code state
   const [productInput, setProductInput] = React.useState(row.itemNo || "");
@@ -84,6 +86,14 @@ export function GoodsReceiptProductTableRow({
   const [accountLookupOpen, setAccountLookupOpen] = React.useState(false);
   const accountInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Bin Location state
+  const [binInput, setBinInput] = React.useState(
+    row.binLocationAllocation ? String(row.binLocationAllocation) : "",
+  );
+  const [binFocused, setBinFocused] = React.useState(false);
+  const [binLookupOpen, setBinLookupOpen] = React.useState(false);
+  const binInputRef = React.useRef<HTMLInputElement>(null);
+
   // UOM Code state
   const [uomInput, setUomInput] = React.useState(row.uomCode || "");
   const [uomLookupOpen, setUomLookupOpen] = React.useState(false);
@@ -101,20 +111,35 @@ export function GoodsReceiptProductTableRow({
   });
   const stocks = stocksQuery.data ?? [];
 
-  const { data: accountData } = useQuery({
+  const accountQuery = useQuery({
     ...incomingPaymentQueries.accountSuggestions(accountInput || undefined, 100),
     enabled: accountFocused || accountLookupOpen,
   });
-  const accountSuggestions = (accountData?.data ?? []).map((acc) => ({
-    code: acc.GLAccount,
-    name: acc.Account,
-  }));
+  const accountSuggestions = React.useMemo(() => {
+    return (accountQuery.data?.data ?? []).map((acc) => ({
+      code: acc.GLAccount,
+      name: acc.Account,
+    }));
+  }, [accountQuery.data]);
+
+  const selectedWarehouse = React.useMemo(() => {
+    return warehouses.find((w) => w.code === row.whse);
+  }, [warehouses, row.whse]);
+  const enableBinLocations = (selectedWarehouse as any)?.enableBinLocations === true;
+
+  const binsQuery = useQuery({
+    ...createSharedQueries.warehouseBins(row.whse || ""),
+    enabled: enableBinLocations && Boolean(row.whse) && (binFocused || binLookupOpen),
+  });
+  const binSuggestions = React.useMemo(() => binsQuery.data ?? [], [binsQuery.data]);
 
   const productsSuggestionsQuery = useQuery({
     ...createSharedQueries.products(
       undefined,
       productFocused ? productInput : descriptionFocused ? descriptionInput : undefined,
       50,
+      undefined,
+      priceListCode,
     ),
     enabled: productFocused || descriptionFocused,
   });
@@ -146,6 +171,7 @@ export function GoodsReceiptProductTableRow({
     setUomInput(row.uomCode || "");
     setUomNameInput(row.uomName || "");
     setAccountInput(row.accountCode || "");
+    setBinInput(row.binLocationAllocation ? String(row.binLocationAllocation) : "");
   }, [row]);
 
   const selectProduct = (item: {
@@ -382,16 +408,83 @@ export function GoodsReceiptProductTableRow({
       </td>
 
       {/* Bin Location */}
-      <td className="px-2 py-2">
-        <input
-          type="number"
-          value={row.binLocationAllocation || ""}
-          disabled={disableInputs}
-          onChange={(e) =>
-            updateProductRow(row.id, { binLocationAllocation: Number(e.target.value) })
-          }
-          className="h-9 w-full rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
-        />
+      <td className="relative px-2 py-2 min-w-0">
+        {enableBinLocations ? (
+          <>
+            <div className="relative">
+              <input
+                ref={binInputRef}
+                type="text"
+                value={binInput}
+                disabled={disableInputs}
+                onChange={(e) => {
+                  setBinInput(e.target.value);
+                  setBinFocused(true);
+                }}
+                onFocus={() => setBinFocused(true)}
+                onBlur={() => {
+                  blurTimerRef.current = setTimeout(() => setBinFocused(false), 150);
+                }}
+                placeholder="Select Bin"
+                className="h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 pr-8 text-xs text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 cursor-pointer"
+              />
+              <button
+                type="button"
+                disabled={disableInputs}
+                onClick={() => setBinLookupOpen(true)}
+                className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+              >
+                <Search className="h-3 w-3" />
+              </button>
+              <FixedDropdown
+                anchorRef={binInputRef as React.RefObject<HTMLElement>}
+                visible={binFocused && binSuggestions.length > 0}
+              >
+                <SuggestionList
+                  items={binSuggestions.filter(
+                    (b) =>
+                      b.code.toLowerCase().includes(binInput.toLowerCase()) ||
+                      b.name.toLowerCase().includes(binInput.toLowerCase()),
+                  )}
+                  onSelect={(item) => {
+                    setBinInput(item.code);
+                    updateProductRow(row.id, { binLocationAllocation: Number(item.code) });
+                    setBinFocused(false);
+                  }}
+                  query={binInput}
+                />
+              </FixedDropdown>
+            </div>
+            <LookupPopup
+              open={binLookupOpen}
+              mode="warehouse"
+              search={binInput}
+              results={binSuggestions}
+              loading={binsQuery.isLoading}
+              error={binsQuery.isError ? (binsQuery.error as Error).message : null}
+              title="Search Bin Locations"
+              searchPlaceholder="Search bin code or name..."
+              onSearchChange={(val) => {
+                setBinInput(val);
+                setBinFocused(true);
+              }}
+              onClose={() => setBinLookupOpen(false)}
+              onSelect={(item) => {
+                setBinInput(item.code);
+                updateProductRow(row.id, { binLocationAllocation: Number(item.code) });
+                setBinLookupOpen(false);
+              }}
+            />
+          </>
+        ) : (
+          <input
+            type="text"
+            value=""
+            disabled={true}
+            className="h-9 w-full rounded-lg border border-transparent bg-zinc-100 px-2 text-xs text-zinc-400 outline-none cursor-not-allowed"
+            placeholder="N/A"
+          />
+        )}
       </td>
 
       {/* UoM Code */}
@@ -506,8 +599,8 @@ export function GoodsReceiptProductTableRow({
           mode="warehouse"
           search={accountInput}
           results={accountSuggestions}
-          loading={false}
-          error={null}
+          loading={accountQuery.isLoading}
+          error={accountQuery.isError ? (accountQuery.error as Error).message : null}
           title="Search G/L Accounts"
           searchPlaceholder="Search account code or name..."
           codeLabel="GLAccount"
