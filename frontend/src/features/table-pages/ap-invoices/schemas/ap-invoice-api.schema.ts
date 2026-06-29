@@ -7,7 +7,7 @@ export const apInvoiceListItemSchema = z.object({
   DocCurr: z.string(),
   DocDate: z.string(),
   DocNum: z.number(),
-  DocStatus: z.enum(["Open", "Partial", "Closed"]),
+  DocStatus: z.enum(["Open", "Partial", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),
   id: z.number(),
 });
@@ -27,7 +27,7 @@ export const apInvoiceListParamsSchema = z.object({
   DocDateEnd: z.string().optional(),
   DocDateStart: z.string().optional(),
   DocNum: z.string().optional(),
-  DocStatus: z.enum(["Open", "Partial", "Closed"]).optional(),
+  DocStatus: z.enum(["Open", "Partial", "Closed", "Draft"]).optional(),
   DocTotal: z.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
   limit: z.number().optional(),
@@ -47,7 +47,7 @@ export const apInvoiceDetailSchema = z.object({
   DocDueDate: z.string(),
   DocEntry: z.number().optional(),
   DocNum: z.number(),
-  DocStatus: z.enum(["O", "C", "Open", "Partial", "Closed"]),
+  DocStatus: z.enum(["O", "C", "Open", "Partial", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),
   DocumentLines: z.array(
     z.object({

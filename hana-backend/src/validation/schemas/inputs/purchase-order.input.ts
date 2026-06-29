@@ -176,6 +176,8 @@ export const CreatePurchaseOrderInputSchema = z.object({
     .optional()
     .openapi({ description: "Assigned buyer/sales employee code", example: 7 }),
   attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 // UpdatePurchaseOrderInputSchema: Edit flow blocks vendor updates (CardCode).
@@ -198,6 +200,10 @@ export const UpdatePurchaseOrderInputSchema = z
     Rounding: z.enum(["tYES", "tNO"]).optional(),
     RoundingDiffAmount: z.number().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    CardCode: z.string().optional(),
+    CardName: z.string().optional(),
+    draftDocEntry: z.coerce.number().optional(),
   })
   .strict();
 

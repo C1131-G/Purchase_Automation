@@ -15,11 +15,11 @@ export const salesQuotationKeys = {
 };
 
 export const salesQuotationQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
-      queryFn: () => salesQuotationAPI.getSalesQuotationByDocNum(docNum),
-      queryKey: salesQuotationKeys.detailByDocNum(docNum),
+      queryFn: () => salesQuotationAPI.getSalesQuotationByDocNum(docNum, draftDocEntry),
+      queryKey: [...salesQuotationKeys.detailByDocNum(docNum), draftDocEntry ?? ""] as const,
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

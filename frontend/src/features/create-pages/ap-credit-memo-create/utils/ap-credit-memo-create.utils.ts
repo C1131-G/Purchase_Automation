@@ -4,6 +4,27 @@ export const AP_CREDIT_MEMO_MANDATORY_FIELDS = ["vendorName", "vendorCode"] as c
 
 export type APCreditMemoMandatoryField = (typeof AP_CREDIT_MEMO_MANDATORY_FIELDS)[number];
 
+/** Extended field errors that include Reference No and Remarks (matching PO pattern). */
+export interface APCreditMemoFieldErrors {
+  vendorCode: string | undefined;
+  vendorName: string | undefined;
+  warehouseCode?: string | undefined;
+  referenceNo?: string | undefined;
+  comments?: string | undefined;
+}
+
+export const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
+  vendorCode: undefined,
+  vendorName: undefined,
+  referenceNo: undefined,
+  comments: undefined,
+};
+
+export const AP_CREDIT_MEMO_REFERENCE_ERROR_TEXT: Record<"referenceNo" | "comments", string> = {
+  comments: "Remarks is required.",
+  referenceNo: "Reference No is required.",
+};
+
 export const AP_CREDIT_MEMO_FIELD_ERROR_TEXT: Record<APCreditMemoMandatoryField, string> = {
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",

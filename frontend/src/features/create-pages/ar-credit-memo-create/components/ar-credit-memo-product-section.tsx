@@ -13,6 +13,7 @@ type ArCreditMemoState = ReturnType<typeof useArCreditMemoCreate>;
 interface ArCreditMemoProductSectionProps {
   sectionId: string;
   submitDisabled?: boolean;
+  isDirty?: boolean;
   missingSearchMandatoryFields: ArCreditMemoState["missingSearchMandatoryFields"];
   searchRequiredCompletionPercent: ArCreditMemoState["searchRequiredCompletionPercent"];
   searchMandatoryFields: ArCreditMemoState["searchMandatoryFields"];
@@ -55,6 +56,7 @@ interface ArCreditMemoProductSectionProps {
 export function ArCreditMemoProductSection({
   sectionId,
   submitDisabled,
+  isDirty,
   missingSearchMandatoryFields,
   searchRequiredCompletionPercent,
   searchMandatoryFields,
@@ -109,6 +111,7 @@ export function ArCreditMemoProductSection({
   return (
     <BaseProductSection
       submitDisabled={submitDisabled}
+      isDirty={isDirty}
       sectionId={sectionId}
       onSearchProducts={() => {
         if (isUpdateAction) {

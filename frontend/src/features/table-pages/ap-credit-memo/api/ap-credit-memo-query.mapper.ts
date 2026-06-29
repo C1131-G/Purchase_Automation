@@ -83,7 +83,11 @@ export const mapSearchToAPCreditMemoListParams = (
 
   const docDate = getDateRangeFilter(filters, "DocDate");
   const docTotal = getDocTotalFilter(filters);
-  const docStatus = getEnumFilter<APCreditMemoStatus>(filters, "DocStatus", ["Open", "Closed"]);
+  const docStatus = getEnumFilter<APCreditMemoStatus>(filters, "DocStatus", [
+    "Open",
+    "Closed",
+    "Draft",
+  ]);
 
   const start = docDate?.from ?? docDate?.to;
   const end = docDate?.to ?? docDate?.from;

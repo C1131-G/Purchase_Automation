@@ -16,10 +16,13 @@ export const Route = createFileRoute("/_layout/sales/create-ar-invoice")({
   validateSearch: z.object({
     sourceDocNum: z.string().optional(),
     sourceDocType: z.enum(["SalesQuotation", "SalesOrder"]).optional(),
+    draftDocNum: z.string().or(z.number()).transform(String).optional(),
+    draftDocEntry: z.string().or(z.number()).transform(String).optional(),
   }),
 });
 
 function RouteComponent() {
   useDocumentTitle("Create AR Invoice | ERP Portal");
-  return <ARInvoiceCreate />;
+  const { draftDocNum, draftDocEntry } = Route.useSearch();
+  return <ARInvoiceCreate draftDocNum={draftDocNum} draftDocEntry={draftDocEntry} />;
 }

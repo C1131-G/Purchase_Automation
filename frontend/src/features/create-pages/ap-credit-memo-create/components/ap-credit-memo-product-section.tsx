@@ -16,6 +16,7 @@ interface APCreditMemoProductSectionProps {
     { quantity?: string; discountPercent?: string; discountAmount?: string }
   >;
   submitDisabled?: boolean;
+  isDirty?: boolean;
   createError: string | null;
   createDisabledReason: string | null;
   missingSearchMandatoryFields: string[];
@@ -66,6 +67,7 @@ export function APCreditMemoProductSection({
   rows,
   productRowDrafts,
   submitDisabled,
+  isDirty,
   createError,
   createDisabledReason,
   missingSearchMandatoryFields,
@@ -111,6 +113,7 @@ export function APCreditMemoProductSection({
   return (
     <BaseProductSection
       submitDisabled={submitDisabled}
+      isDirty={isDirty}
       sectionId="ap-credit-memo-product-section"
       onSearchProducts={() => {
         if (isReadOnlyMode) {
@@ -134,7 +137,7 @@ export function APCreditMemoProductSection({
       createError={createError}
       backToUrl="/purchase/ap-credit-memo"
       backToLabel="Back to Table"
-      submitLabel={isEditMode ? "Update" : "Create"}
+      submitLabel={isEditMode ? "Update" : "Add"}
       submitLoadingText={submitLoadingText || (isEditMode ? "Updating..." : "Adding...")}
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}

@@ -7,19 +7,23 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
 export const ArCreditMemoKeys = {
   all: ["ar-credit-memos"] as const,
-  detailByDocNum: (docNum: string) =>
-    [...ArCreditMemoKeys.all, "detail-by-doc-num", docNum] as const,
-  detailById: (id: string | number) => [...ArCreditMemoKeys.all, "detail", id] as const,
+  detailByDocNum: (docNum: string, draftDocEntry?: string | number) =>
+    [...ArCreditMemoKeys.all, "detail-by-doc-num", docNum, draftDocEntry ?? ""] as const,
+  detailById: (id: string | number, draftDocEntry?: string | number) =>
+    [...ArCreditMemoKeys.all, "detail", id, draftDocEntry ?? ""] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...ArCreditMemoKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   list: (params: ArCreditMemoListParams) => [...ArCreditMemoKeys.all, "list", params] as const,
 };
 
 export const arCreditMemoQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string | number) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
       queryFn: async () => {
+        if (draftDocEntry) {
+          return ArCreditMemoAPI.getArCreditMemoById(String(draftDocEntry), draftDocEntry);
+        }
         const list = await ArCreditMemoAPI.getArCreditMemos({
           page: 1,
           limit: 10,
@@ -35,14 +39,14 @@ export const arCreditMemoQueries = {
         }
         return ArCreditMemoAPI.getArCreditMemoById(target.id);
       },
-      queryKey: ArCreditMemoKeys.detailByDocNum(docNum),
+      queryKey: ArCreditMemoKeys.detailByDocNum(docNum, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
-  detailById: (id: string | number) =>
+  detailById: (id: string | number, draftDocEntry?: string | number) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
-      queryFn: () => ArCreditMemoAPI.getArCreditMemoById(id),
-      queryKey: ArCreditMemoKeys.detailById(id),
+      queryFn: () => ArCreditMemoAPI.getArCreditMemoById(id, draftDocEntry),
+      queryKey: ArCreditMemoKeys.detailById(id, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

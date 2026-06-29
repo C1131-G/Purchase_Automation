@@ -39,6 +39,8 @@ export interface ArCreditMemoCreateProps {
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: string | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 /**
@@ -53,6 +55,8 @@ export function ArCreditMemoCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum,
+  draftDocEntry,
 }: ArCreditMemoCreateProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -68,6 +72,8 @@ export function ArCreditMemoCreate({
     mode,
     sourceDocNum: !sourceCleared ? sourceDocNum : undefined,
     sourceDocType: !sourceCleared ? sourceDocType : undefined,
+    draftDocNum,
+    draftDocEntry,
   });
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
@@ -301,6 +307,13 @@ export function ArCreditMemoCreate({
     warehousesLoading,
   } = state;
 
+  const isDraftMode = Boolean(draftDocNum);
+  const isFormHydrating = !state.isEditMode
+    ? isDraftMode
+      ? !state.isEditHydrated
+      : vendorsQuery.isLoading
+    : !state.isEditHydrated;
+
   // Build the state shape SharedCreateModals expects
   const modalsState = {
     activeProductRowId: productsHook.activeProductRowId,
@@ -371,9 +384,15 @@ export function ArCreditMemoCreate({
             void queryClient.prefetchQuery(arCreditMemoQueries.list({ limit: 10, page: 1 })),
           to: "/sales/ar-credit-memo",
         }}
-        pageTitle={state.isEditMode ? `Update A/R Credit Memo ${docNum}` : "Create A/R Credit Memo"}
+        pageTitle={
+          state.isEditMode
+            ? `Update A/R Credit Memo ${docNum}`
+            : draftDocNum
+              ? `Create A/R Credit Memo (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+              : "Create A/R Credit Memo"
+        }
         topActions={
-          !state.isEditMode ? (
+          !state.isEditMode && !draftDocNum ? (
             <CopyFromDropdown
               vendorCode={codeInput}
               vendorName={nameInput}
@@ -384,7 +403,7 @@ export function ArCreditMemoCreate({
           ) : null
         }
       >
-        {state.trackerDocEntry > 0 && (
+        {state.trackerDocType && state.trackerDocEntry && !draftDocNum && (
           <div className="mb-4 w-full">
             <div className="w-full relative z-10 overflow-x-auto">
               <RelationshipMapTracker
@@ -399,7 +418,7 @@ export function ArCreditMemoCreate({
         {/* Row 1: Customer Info | Document Details (Logistics) | Document Dates — matches AR Invoice */}
         <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
           <VendorCustomerGrid
-            loading={vendorsQuery.isLoading}
+            loading={vendorsQuery.isLoading || isFormHydrating}
             error={
               vendorsQuery.isError
                 ? vendorsQuery.error instanceof Error
@@ -432,7 +451,7 @@ export function ArCreditMemoCreate({
           <LogisticsGrid
             salesEmployeeLabel="Sales Employee"
             salesEmployeeInput={salesEmployeeInput}
-            salesEmployeesLoading={salesEmployeesQuery.isLoading}
+            salesEmployeesLoading={salesEmployeesQuery.isLoading || isFormHydrating}
             error={
               salesEmployeesQuery.isError || warehousesQuery.isError
                 ? "Unable to load logistics details."
@@ -448,7 +467,7 @@ export function ArCreditMemoCreate({
             showWarehouseInsteadOfDocNum={true}
             warehouseLabel="Warehouse"
             warehouseInput={warehouseInput}
-            warehousesLoading={warehousesQuery.isLoading}
+            warehousesLoading={warehousesQuery.isLoading || isFormHydrating}
             warehouseFocused={warehouseFocused}
             warehouseSuggestions={warehouseSuggestions}
             onWarehouseChange={handleWarehouseChange}
@@ -462,7 +481,7 @@ export function ArCreditMemoCreate({
           />
 
           <DocumentDatesGrid
-            loading={false}
+            loading={isFormHydrating}
             docDate={header.docDate}
             docDueDate={header.docDueDate}
             today={new Date()}
@@ -482,7 +501,7 @@ export function ArCreditMemoCreate({
         {/* Row 2: Address | Reference — matches AR Invoice */}
         <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
           <AddressGrid
-            loading={false}
+            loading={isFormHydrating}
             billToAddress={header.billToAddress ?? ""}
             shipToAddress={header.shipToAddress ?? ""}
             billToLabel="Pay To Address"
@@ -494,7 +513,7 @@ export function ArCreditMemoCreate({
           />
 
           <ReferenceGrid
-            loading={false}
+            loading={isFormHydrating}
             referenceNo={header.referenceNo}
             comments={header.comments}
             referenceNoDisabled={false}
@@ -512,7 +531,7 @@ export function ArCreditMemoCreate({
               onAttachmentsChange={state.setAttachments}
               moduleName="ARCreditMemo"
               readOnly={state.isClosed || state.isSaved}
-              loading={vendorsQuery.isLoading}
+              loading={vendorsQuery.isLoading || isFormHydrating}
             />
           </SectionCard>
         </div>
@@ -521,6 +540,7 @@ export function ArCreditMemoCreate({
         <ArCreditMemoProductSection
           sectionId="ar-credit-memo-product-section"
           submitDisabled={state.submitDisabled}
+          isDirty={state.isDirty}
           missingSearchMandatoryFields={missingSearchMandatoryFields}
           searchRequiredCompletionPercent={searchRequiredCompletionPercent}
           searchMandatoryFields={searchMandatoryFields}
@@ -562,7 +582,7 @@ export function ArCreditMemoCreate({
               viewTransition: true,
             } as any);
           }}
-          submitLabel={state.isEditMode ? "Update" : "Create"}
+          submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
@@ -576,7 +596,7 @@ export function ArCreditMemoCreate({
           }}
         />
 
-        {!state.isEditMode && (
+        {!state.isEditMode && !draftDocNum && (
           <CopyFromDialog
             open={copyFromDialogOpen}
             onClose={() => setCopyFromDialogOpen(false)}

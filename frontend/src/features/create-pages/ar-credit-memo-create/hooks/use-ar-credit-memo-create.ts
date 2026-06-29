@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -38,6 +37,8 @@ interface UseArCreditMemoCreateProps {
   docNum?: string | undefined;
   sourceDocNum?: string | undefined;
   sourceDocType?: string | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 export function useArCreditMemoCreate({
@@ -45,8 +46,38 @@ export function useArCreditMemoCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum,
+  draftDocEntry,
 }: UseArCreditMemoCreateProps = {}) {
   const queryClient = useQueryClient();
+
+  const parseARCreditMemoHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
 
   const [header, setHeaderState] = useState({
     billToAddress: "",
@@ -116,7 +147,6 @@ export function useArCreditMemoCreate({
     };
   }, [resetWarehouse]);
 
-  const hydratedDocNumRef = useRef<string | null>(null);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
 
   // Lookup data queries
@@ -308,9 +338,22 @@ export function useArCreditMemoCreate({
       (sourceDocType === "AR_INVOICE" || sourceDocType === "ARInvoice"),
   });
 
+  const isDraftUpdate = !isEditMode && Boolean(draftDocNum);
+  const currentActionRef = useRef<string>("");
+  const hydrationKey = isEditMode
+    ? `${docNum}`
+    : draftDocEntry
+      ? `draft-${draftDocNum}-${draftDocEntry}`
+      : sourceDocNum
+        ? `copy-${sourceDocType}-${sourceDocNum}`
+        : "new";
+
   const editDetailQuery = useQuery({
-    ...arCreditMemoQueries.detailByDocNum(docNum || ""),
-    enabled: isEditMode && !!docNum,
+    ...arCreditMemoQueries.detailByDocNum(
+      isEditMode ? docNum || "" : draftDocNum || "",
+      isEditMode ? undefined : draftDocEntry,
+    ),
+    enabled: (isEditMode && !!docNum) || (isDraftUpdate && !!draftDocEntry),
   });
 
   const productsHook = useArCnProducts({
@@ -323,6 +366,9 @@ export function useArCreditMemoCreate({
     setProductSearch,
     stockPreviewProductCode: stockPreviewProduct?.code,
   });
+
+  const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const hydratedDocNumRef = useRef<string | null>(null);
 
   const resetForm = useCallback(() => {
     setHeader({
@@ -357,18 +403,27 @@ export function useArCreditMemoCreate({
     setAttachments([]);
   }, [setHeader, productsHook]);
 
+  useEffect(() => {
+    if (!isEditMode && !draftDocNum && !sourceDocNum) {
+      resetForm();
+      hydratedDocNumRef.current = null;
+      setHydratedDocNum(null);
+    }
+  }, [isEditMode, draftDocNum, sourceDocNum, resetForm]);
+
   const saveActions = useDocumentSaveActions({
     documentName: "AR Credit Memo",
     moduleType: "sales",
     defaultUrl: "/sales/ar-credit-memo/create",
+    tableUrl: "/sales/ar-credit-memo",
     resetForm,
     getPayloadString: () => {
       const selectedRows = productsHook.productRows.filter((r) => r.selected);
       const payload = isEditMode
         ? {
-            Comments: header.comments || undefined,
+            Comments: header.comments.trim() || undefined,
             DocDueDate: header.docDueDate || undefined,
-            NumAtCard: header.referenceNo || undefined,
+            NumAtCard: header.referenceNo.trim() || undefined,
             SalesPersonCode: resolvedSalesEmployeeCode,
             attachments: attachments.map((att) => ({
               sourcePath: att.sourcePath || "",
@@ -408,43 +463,49 @@ export function useArCreditMemoCreate({
               freeText: att.freeText || "",
               attachmentDate: att.attachmentDate || "",
             })),
+            ...(currentActionRef.current === "draft" ? { isDraft: true } : {}),
+            ...(draftDocEntry ? { draftDocEntry: Number(draftDocEntry) } : {}),
           };
       return JSON.stringify(payload);
     },
-    isEditMode,
+    isEditMode: isEditMode,
   });
 
   useEffect(() => {
-    const isHydratingFromSource = !isEditMode && !!sourceInvoiceQuery.data;
-    const isHydratingFromEdit = isEditMode && !!editDetailQuery.data;
+    const isHydratingFromSource = !isEditMode && !draftDocNum && !!sourceInvoiceQuery.data;
+    const isHydratingFromEdit =
+      (isEditMode && !!editDetailQuery.data) || (isDraftUpdate && !!editDetailQuery.data);
 
     if (!isHydratingFromSource && !isHydratingFromEdit) {
-      hydratedDocNumRef.current = null;
       return;
     }
 
-    const rawDocNum = String(isEditMode ? docNum : sourceDocNum);
+    const rawDocNum = String(isEditMode ? docNum : draftDocNum || sourceDocNum);
     const rawDocType = String(sourceDocType ?? "");
     const cleanDocNum = rawDocNum.replaceAll(/["']/g, "").trim();
     const cleanDocType = rawDocType.replaceAll(/["']/g, "").trim();
 
-    if (hydratedDocNumRef.current === cleanDocNum) {
+    if (hydratedDocNumRef.current === hydrationKey) {
       return;
     }
-    hydratedDocNumRef.current = cleanDocNum;
 
     if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/R Credit Memo", isEditMode ? "edit" : "create");
+      loadingToastRef.current = pageLoadingToast(
+        "A/R Credit Memo",
+        isEditMode || isDraftUpdate ? "edit" : "create",
+      );
     }
 
     void (async () => {
       try {
-        const rawDetail = isEditMode ? editDetailQuery.data : sourceInvoiceQuery.data;
+        const rawDetail =
+          isEditMode || isDraftUpdate ? editDetailQuery.data : sourceInvoiceQuery.data;
         const detail = (rawDetail?.data as unknown as Record<string, unknown>) ?? rawDetail;
         const vendorCode = (detail as Record<string, unknown>).CardCode || "";
         const vendorName = (detail as Record<string, unknown>).CardName || "";
-        const comments = (detail as Record<string, unknown>).Comments || "";
-        const referenceNo = (detail as Record<string, unknown>).NumAtCard || "";
+        const { comments, referenceNo } = parseARCreditMemoHeaderNotes(
+          detail as { Comments?: unknown; NumAtCard?: unknown },
+        );
         const billToAddress =
           (detail as Record<string, unknown>).Address ||
           (detail as Record<string, unknown>).address ||
@@ -543,19 +604,20 @@ export function useArCreditMemoCreate({
             price: Number(line.Price || line.UnitPrice || productMeta?.price || 0),
             productCode: itemCode,
             productName: String(line.ItemDescription || productMeta?.name || ""),
-            quantity: isEditMode
-              ? Number(line.Quantity ?? 0)
-              : line.LineStatus === "C" || line.LineStatus === "bost_Close"
-                ? 0
-                : Number(
-                    line.RemainingOpenQuantity ??
-                      line.OpenQuantity ??
-                      line.OpenQty ??
-                      line.Quantity ??
-                      1,
-                  ),
+            quantity:
+              isEditMode || isDraftUpdate
+                ? Number(line.Quantity ?? 0)
+                : line.LineStatus === "C" || line.LineStatus === "bost_Close"
+                  ? 0
+                  : Number(
+                      line.RemainingOpenQuantity ??
+                        line.OpenQuantity ??
+                        line.OpenQty ??
+                        line.Quantity ??
+                        1,
+                    ),
             returnReason: String((line as Record<string, unknown>).U_ReturnReason || ""),
-            selected: isEditMode,
+            selected: isEditMode || isDraftUpdate,
             stock: lineStock,
             taxRate:
               line.VatPrcnt !== undefined
@@ -605,8 +667,6 @@ export function useArCreditMemoCreate({
           setSalesEmployeeInput(salesEmployeeName);
         }
         // Resolve warehouse display name eagerly so the header field is populated on arrival.
-        // The reactive useEffect (header.warehouseCode + warehouses) also updates it once the
-        // warehouses list is available, providing a belt-and-suspenders approach.
         if (warehouseCode) {
           const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
           setWarehouseInput(
@@ -614,19 +674,20 @@ export function useArCreditMemoCreate({
           );
         }
         const loadedDocDate =
-          isEditMode && detail.DocDate
+          (isEditMode || isDraftUpdate) && detail.DocDate
             ? String(detail.DocDate).slice(0, 10)
             : new Date().toISOString().split("T")[0]!;
         const docDueDate =
-          isEditMode && detail.DocDueDate
+          (isEditMode || isDraftUpdate) && detail.DocDueDate
             ? String(detail.DocDueDate).slice(0, 10)
             : new Date().toISOString().split("T")[0]!;
 
         setHeader({
           billToAddress: String(billToAddress),
-          comments: isEditMode
-            ? String(comments)
-            : `Based on AR Invoice ${cleanDocNum}. ${String(comments)}`,
+          comments:
+            isEditMode || isDraftUpdate
+              ? String(comments)
+              : `Based on AR Invoice ${cleanDocNum}. ${String(comments)}`,
           docDate: loadedDocDate,
           docDueDate: docDueDate,
           referenceNo: String(referenceNo),
@@ -638,16 +699,55 @@ export function useArCreditMemoCreate({
         productsHook.setProductRows(mappedRows);
         const rawAttachments = (detail as any).attachments || [];
         setAttachments(rawAttachments);
-        setFormSnapshot({
-          comments: String(comments).trim(),
-          referenceNo: String(referenceNo).trim(),
-          docDueDate: docDueDate,
-          attachments: rawAttachments.map((item: any) => ({
-            fileName: item.fileName,
-            freeText: item.freeText || item.remarks || "",
-          })),
-        });
-        hydratedDocNumRef.current = cleanDocNum;
+        setFormSnapshot(
+          isDraftUpdate
+            ? {
+                comments: String(comments).trim(),
+                referenceNo: String(referenceNo).trim(),
+                docDueDate: docDueDate,
+                billToAddress: String(billToAddress).trim(),
+                shipToAddress: String(shipToAddress).trim(),
+                attachments: rawAttachments.map((item: any) => ({
+                  fileName: item.fileName,
+                  freeText: item.freeText || item.remarks || "",
+                })),
+                lines: mappedRows.map((row: any) => ({
+                  productCode: row.productCode,
+                  quantity: row.quantity,
+                  price: row.price,
+                  discountPercent: row.discountPercent,
+                  warehouseCode: row.warehouseCode,
+                  vatGroup: row.vatGroup,
+                  uomCode: row.uomCode,
+                  uomEntry: row.uomEntry,
+                })),
+              }
+            : {
+                comments: String(comments).trim(),
+                referenceNo: String(referenceNo).trim(),
+                docDueDate: docDueDate,
+                billToAddress: formatAddressForDisplay(String(billToAddress)).trim(),
+                shipToAddress: formatAddressForDisplay(String(shipToAddress)).trim(),
+                attachments: rawAttachments.map((item: any) => ({
+                  fileName: item.fileName,
+                  freeText: item.freeText || item.remarks || "",
+                })),
+                lines: mappedRows
+                  .filter((row) => row.productCode.trim() && row.quantity > 0)
+                  .map((row) => ({
+                    productCode: row.productCode,
+                    quantity: row.quantity,
+                    price: row.price,
+                    discountPercent: row.discountPercent,
+                    warehouseCode: row.warehouseCode,
+                    vatGroup: row.vatGroup,
+                    uomCode: row.uomCode,
+                    uomEntry: row.uomEntry,
+                  })),
+              },
+        );
+        hydratedDocNumRef.current = hydrationKey;
+        setHydratedDocNum(hydrationKey);
       } finally {
         loadingToastRef.current?.dismiss();
         loadingToastRef.current = null;
@@ -659,6 +759,11 @@ export function useArCreditMemoCreate({
     sourceDocNum,
     docNum,
     isEditMode,
+    isDraftUpdate,
+    draftDocNum,
+    draftDocEntry,
+    hydrationKey,
+    hydratedDocNum,
     queryClient,
     sourceDocType,
     productsHook,
@@ -708,26 +813,65 @@ export function useArCreditMemoCreate({
   const createArCreditMemoMutation = useCreateArCreditMemoMutation();
   const updateArCreditMemoMutation = useUpdateArCreditMemoMutation();
   const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
+    if ((!isEditMode && !draftDocNum) || !formSnapshot) {
       return false;
     }
-    const current = {
-      comments: (header.comments || "").trim(),
-      referenceNo: (header.referenceNo || "").trim(),
-      docDueDate: header.docDueDate,
-      attachments: attachments.map((att) => ({
-        fileName: att.fileName,
-        freeText: att.freeText || "",
-      })),
-    };
+    const current = isDraftUpdate
+      ? {
+          comments: (header.comments || "").trim(),
+          referenceNo: (header.referenceNo || "").trim(),
+          docDueDate: header.docDueDate,
+          billToAddress: (header.billToAddress || "").trim(),
+          shipToAddress: (header.shipToAddress || "").trim(),
+          attachments: attachments.map((att) => ({
+            fileName: att.fileName,
+            freeText: att.freeText || "",
+          })),
+          lines: productsHook.productRows.map((row) => ({
+            productCode: row.productCode,
+            quantity: row.quantity,
+            price: row.price,
+            discountPercent: row.discountPercent,
+            warehouseCode: row.warehouseCode,
+            vatGroup: row.vatGroup,
+            uomCode: row.uomCode,
+            uomEntry: row.uomEntry,
+          })),
+        }
+      : {
+          comments: (header.comments || "").trim(),
+          referenceNo: (header.referenceNo || "").trim(),
+          docDueDate: header.docDueDate,
+          billToAddress: (header.billToAddress || "").trim(),
+          shipToAddress: (header.shipToAddress || "").trim(),
+          attachments: attachments.map((att) => ({
+            fileName: att.fileName,
+            freeText: att.freeText || "",
+          })),
+          lines: productsHook.productRows.map((row) => ({
+            productCode: row.productCode,
+            quantity: row.quantity,
+            price: row.price,
+            discountPercent: row.discountPercent,
+            warehouseCode: row.warehouseCode,
+            vatGroup: row.vatGroup,
+            uomCode: row.uomCode,
+            uomEntry: row.uomEntry,
+          })),
+        };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
     isEditMode,
+    draftDocNum,
+    isDraftUpdate,
     formSnapshot,
     header.comments,
     header.referenceNo,
     header.docDueDate,
+    header.billToAddress,
+    header.shipToAddress,
     attachments,
+    productsHook.productRows,
   ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
@@ -790,13 +934,11 @@ export function useArCreditMemoCreate({
 
   const handleCreateOrder = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
-    attachmentEntry?: number,
   ) => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      setSubmitAttempted(false);
-      return;
-    }
+    currentActionRef.current = action;
+    const isSaveAsDraft = action === "draft";
+    const isDraftUpdateAction = isSaveAsDraft && Boolean(draftDocNum);
+    const isUpdating = isEditMode || isDraftUpdateAction;
 
     setSubmitAttempted(true);
     if (createDisabledReason) {
@@ -804,41 +946,89 @@ export function useArCreditMemoCreate({
       return;
     }
 
-    if (isEditMode) {
-      if (!isDirty) {
-        const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);
-        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-        return;
-      }
+    if (isEditMode && !isDirty) {
+      const noChangeMessage = "Change at least one field before update.";
+      setCreateError(noChangeMessage);
+      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+      return;
+    }
 
-      const detail = ((editDetailQuery.data as Record<string, unknown>)?.data ??
-        editDetailQuery.data) as Record<string, unknown>;
-      const currentComments = String(header.comments ?? "").trim();
-      const currentReferenceNo = String(header.referenceNo ?? "").trim();
-      const currentSalesPersonCode = resolvedSalesEmployeeCode;
+    setCreateError(null);
 
-      const payload = {
-        Comments: currentComments || undefined,
-        DocDueDate: header.docDueDate || undefined,
-        NumAtCard: currentReferenceNo || undefined,
-        SalesPersonCode: currentSalesPersonCode,
-      };
+    const detail = ((editDetailQuery.data as Record<string, unknown>)?.data ??
+      editDetailQuery.data) as Record<string, unknown>;
+    const currentComments = String(header.comments ?? "").trim();
+    const currentReferenceNo = String(header.referenceNo ?? "").trim();
+    const currentSalesPersonCode = resolvedSalesEmployeeCode;
 
-      saveActions.startSaveTracking("update");
-      saveActions.actionToast.startLoading("AR Credit Memo", "update");
-      try {
-        const docEntry = detail?.DocEntry ?? detail?.id;
+    const payload = isUpdating
+      ? {
+          Comments: currentComments || undefined,
+          DocDueDate: header.docDueDate || undefined,
+          NumAtCard: currentReferenceNo || undefined,
+          SalesPersonCode: currentSalesPersonCode,
+        }
+      : {
+          Address: header.billToAddress || undefined,
+          Address2: header.shipToAddress || undefined,
+          CardCode: header.vendorCode,
+          Comments: header.comments,
+          DocDate: header.docDate,
+          DocDueDate: header.docDueDate,
+          DocumentLines: selectedRows.map((row) => ({
+            BaseEntry: row.baseEntry,
+            BaseLine: row.baseLine,
+            BaseType: row.baseType,
+            DiscountPercent: row.discountPercent,
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            U_ReturnReason: row.returnReason || "",
+            UnitPrice: row.price,
+            UoMCode: row.uomCode,
+            UoMEntry: row.uomEntry,
+            VatGroup: row.vatGroup,
+            WarehouseCode: row.warehouseCode || header.warehouseCode.trim() || undefined,
+          })),
+          NumAtCard: header.referenceNo,
+          SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
+          ...(isSaveAsDraft ? { isDraft: true } : {}),
+          ...(draftDocEntry ? { draftDocEntry: Number(draftDocEntry) } : {}),
+        };
+
+    const trackingAction = isSaveAsDraft
+      ? isDraftUpdateAction
+        ? "draft-update"
+        : "draft"
+      : isEditMode
+        ? "update"
+        : action;
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("AR Credit Memo", trackingAction);
+    try {
+      let createdDocNum: string | number | undefined;
+      if (isUpdating) {
+        const docEntry = isEditMode ? (detail?.DocEntry ?? detail?.id) : Number(draftDocEntry);
         await updateArCreditMemoMutation.mutateAsync({
           id: docEntry as string | number,
           payload,
         });
         saveActions.trackMutationSuccess();
-        const createdDocNum = detail?.DocNum as string | number | undefined;
+        createdDocNum = detail?.DocNum as string | number | undefined;
 
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
         const updatedDetailRes = await queryClient.fetchQuery(
-          arCreditMemoQueries.detailByDocNum(docNum ?? ""),
+          arCreditMemoQueries.detailByDocNum(
+            isEditMode ? (docNum ?? "") : (draftDocNum ?? ""),
+            isEditMode ? undefined : draftDocEntry,
+          ),
         );
         const updatedDetail = (updatedDetailRes?.data ?? updatedDetailRes) as Record<
           string,
@@ -848,93 +1038,116 @@ export function useArCreditMemoCreate({
           const rawAttachments = (updatedDetail.attachments || []) as any[];
           setAttachments(rawAttachments);
 
-          const comments = (updatedDetail.Comments || "") as string;
-          const referenceNo = (updatedDetail.NumAtCard || "") as string;
+          const { comments, referenceNo } = parseARCreditMemoHeaderNotes(
+            updatedDetail as { Comments?: unknown; NumAtCard?: unknown },
+          );
           const docDueDate = String(updatedDetail.DocDueDate ?? "").slice(0, 10);
+          const address = String(updatedDetail.Address ?? "").trim();
+          const address2 = String(updatedDetail.Address2 ?? "").trim();
+          const detailLines = (updatedDetail.DocumentLines || []) as any[];
 
-          setFormSnapshot({
-            comments: comments.trim(),
-            referenceNo: referenceNo.trim(),
-            docDueDate: docDueDate,
-            attachments: rawAttachments.map((item: any) => ({
-              fileName: item.fileName,
-              freeText: item.freeText || item.remarks || "",
-            })),
-          });
+          setFormSnapshot(
+            isDraftUpdate
+              ? {
+                  comments: comments.trim(),
+                  referenceNo: referenceNo.trim(),
+                  docDueDate: docDueDate,
+                  billToAddress: address.trim(),
+                  shipToAddress: address2.trim(),
+                  attachments: rawAttachments.map((item: any) => ({
+                    fileName: item.fileName,
+                    freeText: item.freeText || item.remarks || "",
+                  })),
+                  lines: detailLines.map((row: any) => ({
+                    productCode: row.ItemCode,
+                    quantity: row.Quantity,
+                    price: row.Price ?? row.UnitPrice,
+                    discountPercent: row.DiscountPercent,
+                    warehouseCode: row.WarehouseCode,
+                    vatGroup: row.VatGroup,
+                    uomCode: row.UoMCode,
+                    uomEntry: row.UoMEntry,
+                  })),
+                }
+              : {
+                  comments: comments.trim(),
+                  referenceNo: referenceNo.trim(),
+                  docDueDate: docDueDate,
+                  billToAddress: formatAddressForDisplay(address).trim(),
+                  shipToAddress: formatAddressForDisplay(address2).trim(),
+                  attachments: rawAttachments.map((item: any) => ({
+                    fileName: item.fileName,
+                    freeText: item.freeText || item.remarks || "",
+                  })),
+                  lines: detailLines.map((row: any) => ({
+                    productCode: row.ItemCode,
+                    quantity: row.Quantity,
+                    price: row.Price ?? row.UnitPrice,
+                    discountPercent: row.DiscountPercent,
+                    warehouseCode: row.WarehouseCode,
+                    vatGroup: row.VatGroup,
+                    uomCode: row.UoMCode,
+                    uomEntry: row.UoMEntry,
+                  })),
+                },
+          );
         }
-        await saveActions.handleActionSuccess("update", createdDocNum);
-      } catch (_error) {
-        const errorMessage = (_error as Error).message || "Failed to update AR Credit Memo";
-        saveActions.actionToast.showError("AR Credit Memo", "update", errorMessage);
-        setCreateError(errorMessage);
-      }
-      return;
-    }
 
-    // Try to reopen the invoice if it's closed, as requested.
-    // We catch and swallow the error if SAP doesn't support reopening this specific invoice,
-    // so we can still attempt to create the linked Credit Memo!
-    if (isSourceClosed) {
-      try {
-        const entry = Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id);
-        if (entry) {
-          await arInvoiceAPI.reopenARInvoice(entry);
+        if (isEditMode) {
+          await saveActions.handleActionSuccess("update", createdDocNum);
+          return;
         }
-      } catch (err) {
-        console.warn(
-          `SAP Reopen failed (continuing to Credit Memo creation): ${(err as Error).message}`,
-        );
+
+        if (action === "draft") {
+          if (draftDocNum) {
+            void queryClient.invalidateQueries(
+              arCreditMemoQueries.detailByDocNum(draftDocNum, draftDocEntry),
+            );
+          }
+          await saveActions.handleActionSuccess("draft", createdDocNum);
+          return;
+        }
+        await saveActions.handleActionSuccess(action, createdDocNum);
+      } else {
+        // Try to reopen the invoice if it's closed, as requested.
+        // We catch and swallow the error if SAP doesn't support reopening this specific invoice,
+        // so we can still attempt to create the linked Credit Memo!
+        if (isSourceClosed) {
+          try {
+            const entry = Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id);
+            if (entry) {
+              await arInvoiceAPI.reopenARInvoice(entry);
+            }
+          } catch (err) {
+            console.warn(
+              `SAP Reopen failed (continuing to Credit Memo creation): ${(err as Error).message}`,
+            );
+          }
+        }
+
+        const result = await createArCreditMemoMutation.mutateAsync(payload);
+        saveActions.trackMutationSuccess();
+        // Invalidate AR Invoice cache so that remaining quantities are updated immediately
+        void queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
+        createdDocNum = (result as { data?: { DocNum?: number | string } })?.data?.DocNum;
+        await saveActions.handleActionSuccess(action, createdDocNum);
       }
-    }
-
-    const payload = {
-      Address: header.billToAddress || undefined,
-      Address2: header.shipToAddress || undefined,
-      AttachmentEntry: attachmentEntry,
-      CardCode: header.vendorCode,
-      Comments: header.comments,
-      DocDate: header.docDate,
-      DocDueDate: header.docDueDate,
-      DocumentLines: selectedRows.map((row) => {
-        const line: Record<string, unknown> = {
-          BaseEntry: row.baseEntry,
-          BaseLine: row.baseLine,
-          BaseType: row.baseType,
-          DiscountPercent: row.discountPercent,
-          ItemCode: row.productCode,
-          Quantity: row.quantity,
-          U_ReturnReason: row.returnReason || "",
-          UnitPrice: row.price,
-          UoMCode: row.uomCode,
-          UoMEntry: row.uomEntry,
-          VatGroup: row.vatGroup,
-          WarehouseCode: row.warehouseCode || header.warehouseCode.trim() || undefined,
-        };
-
-        return line;
-      }),
-      NumAtCard: header.referenceNo,
-      SalesPersonCode: resolvedSalesEmployeeCode,
-    };
-
-    saveActions.startSaveTracking(action);
-    saveActions.actionToast.startLoading("AR Credit Memo", action);
-    try {
-      const result = await createArCreditMemoMutation.mutateAsync(payload);
-      saveActions.trackMutationSuccess();
-      // Invalidate AR Invoice cache so that remaining quantities are updated immediately
-      void queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
-      const createdDocNum = (result as { data?: { DocNum?: number | string } })?.data?.DocNum;
-      await saveActions.handleActionSuccess(action, createdDocNum);
     } catch (_error) {
-      const errorMessage = (_error as Error).message || "Failed to create AR Credit Memo";
-      saveActions.actionToast.showError("AR Credit Memo", action, errorMessage);
+      const errorMessage = (_error as Error).message || "Failed to update AR Credit Memo";
+      saveActions.actionToast.showError(
+        "AR Credit Memo",
+        isUpdating ? "update" : action,
+        errorMessage,
+      );
       setCreateError(errorMessage);
     }
   };
 
+  const isEditHydrated = (!isEditMode && !draftDocNum) || hydratedDocNum === hydrationKey;
+
   return {
     isEditMode,
+    isEditHydrated,
     attachments,
     setAttachments,
     docNum,
@@ -1017,16 +1230,26 @@ export function useArCreditMemoCreate({
     isLoading: vendorsQuery.isLoading || warehousesQuery.isLoading || salesEmployeesQuery.isLoading,
     isSourceClosed,
     isClosed,
+    isDirty,
     reopenInvoiceMutation,
-    trackerDocType: (isEditMode ? "ar-credit-memo" : "ar-invoice") as
-      | "ar-credit-memo"
-      | "ar-invoice",
-    trackerDocEntry: isEditMode
-      ? Number(
-          ((editDetailQuery.data as Record<string, unknown>)?.data as Record<string, unknown>)
-            ?.id ?? (editDetailQuery.data as Record<string, unknown>)?.id,
-        )
-      : Number(sourceInvoiceData?.DocEntry ?? sourceInvoiceData?.id),
+    trackerDocType: (isEditMode || isDraftUpdate
+      ? editDetailData?.DocStatus === "Draft"
+        ? null
+        : "ar-credit-memo"
+      : sourceInvoiceData
+        ? "ar-invoice"
+        : null) as any,
+    trackerDocEntry:
+      isEditMode || isDraftUpdate
+        ? editDetailData?.DocStatus === "Draft"
+          ? null
+          : Number(
+              ((editDetailQuery.data as Record<string, unknown>)?.data as Record<string, unknown>)
+                ?.id ?? (editDetailQuery.data as Record<string, unknown>)?.id,
+            )
+        : sourceInvoiceData
+          ? Number(sourceInvoiceData.DocEntry ?? sourceInvoiceData.id)
+          : null,
     isSaved: saveActions.isSaved,
     savedDocNum: saveActions.savedDocNum,
     resetForm: saveActions.handleReset,

@@ -102,8 +102,12 @@ export const salesOrderAPI = {
     }),
   getOpenSalesOrderLines: async (cardCode: string) =>
     apiClient<OpenSalesOrderLinesResponse>(`/api/v1/sales-orders/open-lines?cardCode=${cardCode}`),
-  getSalesOrderByDocNum: async (docNum: string | number) =>
-    apiClient<SalesOrderDetailResponse>(`/api/v1/sales-orders/by-doc-num/${docNum}`),
+  getSalesOrderByDocNum: async (docNum: string | number, draftDocEntry?: string) => {
+    const url = draftDocEntry
+      ? `/api/v1/sales-orders/by-doc-num/${docNum}?draftDocEntry=${draftDocEntry}`
+      : `/api/v1/sales-orders/by-doc-num/${docNum}`;
+    return apiClient<SalesOrderDetailResponse>(url);
+  },
   getSalesOrderDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query ? `/api/v1/sales-orders/docnums?${query}` : "/api/v1/sales-orders/docnums";

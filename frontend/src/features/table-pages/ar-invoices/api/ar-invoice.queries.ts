@@ -7,18 +7,23 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
 export const arInvoiceKeys = {
   all: ["ar-invoices"] as const,
-  detailByDocNum: (docNum: string) => [...arInvoiceKeys.all, "detail-by-doc-num", docNum] as const,
-  detailById: (id: string | number) => [...arInvoiceKeys.all, "detail", id] as const,
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
+    [...arInvoiceKeys.all, "detail-by-doc-num", docNum, draftDocEntry ?? ""] as const,
+  detailById: (id: string | number, draftDocEntry?: string) =>
+    [...arInvoiceKeys.all, "detail", id, draftDocEntry ?? ""] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...arInvoiceKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   list: (params: ARInvoiceListParams) => [...arInvoiceKeys.all, "list", params] as const,
 };
 
 export const arInvoiceQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
       queryFn: async () => {
+        if (draftDocEntry) {
+          return arInvoiceAPI.getARInvoiceById(draftDocEntry, draftDocEntry);
+        }
         const cleanDocNum = String(docNum).replace(/["']/g, "").trim();
         const list = await arInvoiceAPI.getARInvoices({
           page: 1,
@@ -33,14 +38,14 @@ export const arInvoiceQueries = {
         }
         return arInvoiceAPI.getARInvoiceById(target.id);
       },
-      queryKey: arInvoiceKeys.detailByDocNum(docNum),
+      queryKey: arInvoiceKeys.detailByDocNum(docNum, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
-  detailById: (id: string | number) =>
+  detailById: (id: string | number, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
-      queryFn: () => arInvoiceAPI.getARInvoiceById(id),
-      queryKey: arInvoiceKeys.detailById(id),
+      queryFn: () => arInvoiceAPI.getARInvoiceById(id, draftDocEntry),
+      queryKey: arInvoiceKeys.detailById(id, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

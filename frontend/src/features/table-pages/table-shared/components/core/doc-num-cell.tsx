@@ -2,7 +2,7 @@ import { RelationshipMapHover } from "@/features/create-shared/components/layout
 
 interface DocNumCellProps {
   value: string | number;
-  docEntry?: number;
+  docEntry?: number | undefined;
   docType?:
     | "sales-quotation"
     | "sales-order"
@@ -18,7 +18,8 @@ interface DocNumCellProps {
     | "goods-receipt"
     | "goods-issue"
     | "transfer-request"
-    | "transfer";
+    | "transfer"
+    | undefined;
   onHover?: ((docNum: string | number) => void) | undefined;
   onDoubleClick?: ((docNum: string | number) => void) | undefined;
 }

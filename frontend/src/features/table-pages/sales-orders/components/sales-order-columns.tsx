@@ -21,25 +21,38 @@ const mapDocStatusLabel = (value: string) => {
   if (normalized === "C") {
     return "Closed";
   }
+  if (normalized === "Draft") {
+    return "Draft";
+  }
   return normalized;
 };
 
 interface CreateSalesOrderColumnsOptions {
-  onDocNumDoubleClick?: (docNum: string | number) => void;
-  onDocNumHover?: (docNum: string | number) => void;
+  onDocNumDoubleClick?: (docNum: string | number, draftDocEntry?: string | number) => void;
+  onDocNumHover?: (docNum: string | number, draftDocEntry?: string | number) => void;
 }
 
 export const createSalesOrderColumns = (options?: CreateSalesOrderColumnsOptions) => [
   columnHelper.accessor("DocNum", {
-    cell: (info) => (
-      <DocNumCell
-        value={info.getValue()}
-        docEntry={info.row.original.id as number}
-        docType="sales-order"
-        onHover={options?.onDocNumHover}
-        onDoubleClick={options?.onDocNumDoubleClick}
-      />
-    ),
+    cell: (info) => {
+      const isDraft = info.row.original.DocStatus === "Draft";
+      return (
+        <DocNumCell
+          value={isDraft ? `${info.getValue()} (Draft #${info.row.original.id})` : info.getValue()}
+          docEntry={isDraft ? undefined : (info.row.original.id as number)}
+          docType={isDraft ? undefined : "sales-order"}
+          onHover={() =>
+            options?.onDocNumHover?.(info.getValue(), isDraft ? info.row.original.id : undefined)
+          }
+          onDoubleClick={() =>
+            options?.onDocNumDoubleClick?.(
+              info.getValue(),
+              isDraft ? info.row.original.id : undefined,
+            )
+          }
+        />
+      );
+    },
     enableSorting: true,
     filterFn: "includesString",
     header: ({ column, table }) => (
@@ -133,6 +146,7 @@ export const createSalesOrderColumns = (options?: CreateSalesOrderColumnsOptions
       filterOptions: [
         { label: "Open", value: "Open" },
         { label: "Closed", value: "Closed" },
+        { label: "Draft", value: "Draft" },
       ],
       filterType: "select",
     },

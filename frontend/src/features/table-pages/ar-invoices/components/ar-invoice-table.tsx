@@ -153,12 +153,23 @@ export function ARInvoiceTable({
   const columns = useMemo(
     () =>
       createARInvoiceColumns({
-        onDocNumDoubleClick: (docNum) => {
+        onDocNumDoubleClick: (docNum, draftDocEntry) => {
           if (onRowClick) {
             return;
           } // Disable double-click edit in selection mode
           const normalized = String(docNum).trim();
           if (!normalized) {
+            return;
+          }
+          if (draftDocEntry) {
+            void navigate({
+              search: {
+                draftDocNum: normalized,
+                draftDocEntry: String(draftDocEntry),
+              },
+              to: "/sales/create-ar-invoice",
+              viewTransition: true,
+            } as never);
             return;
           }
           prefetchEditRouteData(normalized);
@@ -168,7 +179,10 @@ export function ARInvoiceTable({
             viewTransition: true,
           } as never);
         },
-        onDocNumHover: (docNum) => {
+        onDocNumHover: (docNum, draftDocEntry) => {
+          if (draftDocEntry) {
+            return;
+          }
           const normalized = String(docNum).trim();
           if (!normalized) {
             return;

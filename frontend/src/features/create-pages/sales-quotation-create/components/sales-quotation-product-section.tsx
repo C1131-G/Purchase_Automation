@@ -11,6 +11,7 @@ type SalesQuotationState = ReturnType<typeof useSalesQuotationCreate>;
 interface SalesQuotationProductSectionProps {
   sectionId: string;
   submitDisabled?: boolean;
+  isDirty?: boolean;
   missingSearchMandatoryFields: SalesQuotationState["missingSearchMandatoryFields"];
   searchRequiredCompletionPercent: SalesQuotationState["searchRequiredCompletionPercent"];
   searchMandatoryFields: SalesQuotationState["searchMandatoryFields"];
@@ -54,6 +55,7 @@ interface SalesQuotationProductSectionProps {
 export function SalesQuotationProductSection({
   sectionId,
   submitDisabled,
+  isDirty,
   missingSearchMandatoryFields,
   searchRequiredCompletionPercent,
   searchMandatoryFields,
@@ -92,6 +94,7 @@ export function SalesQuotationProductSection({
   return (
     <BaseProductSection
       submitDisabled={submitDisabled}
+      isDirty={isDirty}
       sectionId={sectionId}
       onSearchProducts={() => openProductPopup(null)}
       onPrefetchProducts={prefetchProducts}

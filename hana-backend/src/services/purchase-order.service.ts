@@ -4,129 +4,151 @@
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getTenantRepository, executeTenantQuery } from "@/dal/tenant-dal.helper";
 import type { PurchaseOrderFilters } from "@/dal/types/purchase-order.types";
 // Data Access & Schemas
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { GRPOHeaderSchema } from "@/db/schemas/grpoheader.schema";
-import type { PurchaseOrder } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
-import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/services/attachments.service";
-import { adjustPayloadDates } from "./date-adjustment.util";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, PurchaseOrderSchema);
-    const queryBuilder = repo.createQueryBuilder("po");
+    const buildSubQuery = (table: string, isDraft: boolean) => {
+      const whereClauses = ["1=1"];
+      const params: unknown[] = [];
 
-    queryBuilder.where("1=1");
-
-    // Dynamic Filter: PO Document Number search.
-    if (filters.DocNum) {
-      queryBuilder.andWhere("CAST(po.docNum AS NVARCHAR) LIKE :docNum", {
-        docNum: `%${filters.DocNum}%`,
-      });
-    }
-
-    // Dynamic Filter: Vendor Code search (Standard: CardCode).
-    if (filters.CardCode) {
-      queryBuilder.andWhere("po.cardCode LIKE :cardCode", {
-        cardCode: `%${filters.CardCode}%`,
-      });
-    }
-
-    // Dynamic Filter: Vendor Name search (Standard: CardName).
-    if (filters.CardName) {
-      queryBuilder.andWhere("LOWER(po.cardName) LIKE LOWER(:cardName)", {
-        cardName: `%${filters.CardName}%`,
-      });
-    }
-
-    // Dynamic Filter: Execution Date Start (Standard: DocDate).
-    if (filters.DocDateStart) {
-      queryBuilder.andWhere("po.docDate >= :startDate", {
-        startDate: filters.DocDateStart,
-      });
-    }
-
-    // Dynamic Filter: Execution Date End (Standard: DocDate).
-    if (filters.DocDateEnd) {
-      queryBuilder.andWhere("po.docDate <= :endDate", {
-        endDate: filters.DocDateEnd,
-      });
-    }
-
-    // Dynamic Filter: Status (Standard: DocStatus).
-    if (filters.DocStatus) {
-      queryBuilder.andWhere("po.docStatus = :status", {
-        status: filters.DocStatus,
-      });
-    }
-
-    // Dynamic Filter: Total amount comparison.
-    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
-      if (filters.DocTotalOperator === "eq") {
-        queryBuilder.andWhere("po.docTotal = :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+      if (isDraft) {
+        whereClauses.push(`"ObjType" = '22'`);
       }
-      if (filters.DocTotalOperator === "lt") {
-        queryBuilder.andWhere("po.docTotal < :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.DocNum) {
+        whereClauses.push(`CAST("DocNum" AS NVARCHAR) LIKE ?`);
+        params.push(`%${filters.DocNum}%`);
       }
-      if (filters.DocTotalOperator === "gt") {
-        queryBuilder.andWhere("po.docTotal > :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.CardCode) {
+        whereClauses.push(`"CardCode" LIKE ?`);
+        params.push(`%${filters.CardCode}%`);
       }
-    }
+
+      if (filters.CardName) {
+        whereClauses.push(`LOWER("CardName") LIKE LOWER(?)`);
+        params.push(`%${filters.CardName}%`);
+      }
+
+      if (filters.DocDateStart) {
+        whereClauses.push(`"DocDate" >= ?`);
+        params.push(filters.DocDateStart);
+      }
+
+      if (filters.DocDateEnd) {
+        whereClauses.push(`"DocDate" <= ?`);
+        params.push(filters.DocDateEnd);
+      }
+
+      if (filters.DocStatus) {
+        const statusVal = filters.DocStatus;
+        if (isDraft) {
+          if (statusVal !== "D" && statusVal !== "Draft") {
+            whereClauses.push("1=0");
+          }
+        } else {
+          if (statusVal === "D" || statusVal === "Draft") {
+            whereClauses.push("1=0");
+          } else {
+            whereClauses.push(`"DocStatus" = ?`);
+            params.push(statusVal);
+          }
+        }
+      }
+
+      if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+        const opMap = { eq: "=", lt: "<", gt: ">" };
+        const op = opMap[filters.DocTotalOperator as keyof typeof opMap];
+        if (op) {
+          whereClauses.push(`"DocTotal" ${op} ?`);
+          params.push(filters.DocTotal);
+        }
+      }
+
+      const selectColumns = isDraft
+        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus", "Address", "Address2"`
+        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus", "Address", "Address2"`;
+
+      const sql = `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
+      return { sql, params };
+    };
+
+    const subPO = buildSubQuery("OPOR", false);
+    const subDraft = buildSubQuery("ODRF", true);
+
+    const combinedSql = `
+      SELECT * FROM (
+        ${subPO.sql}
+        UNION ALL
+        ${subDraft.sql}
+      ) AS "Combined"
+    `;
+    const combinedParams = [...subPO.params, ...subDraft.params];
+
+    const countSql = `SELECT COUNT(*) AS "total" FROM (${combinedSql}) AS "Counted"`;
 
     const sortFieldMap: Record<string, string> = {
-      CardCode: "po.cardCode",
-      CardName: "po.cardName",
-      DocDate: "po.docDate",
-      DocNum: "po.docNum",
-      DocStatus: "po.docStatus",
-      DocTotal: "po.docTotal",
+      CardCode: `"CardCode"`,
+      CardName: `"CardName"`,
+      DocDate: `"DocDate"`,
+      DocNum: `"DocNum"`,
+      DocStatus: `"DocStatus"`,
+      DocTotal: `"DocTotal"`,
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
-    const sort = requestedSortField
-      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
-      : ({ "po.docDate": "DESC", "po.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
+    const orderBy = requestedSortField
+      ? `ORDER BY ${requestedSortField} ${requestedSortOrder}`
+      : `ORDER BY "DocDate" DESC, "DocNum" DESC`;
 
-    // Executes the query with centralized pagination and sorting.
-    const result = await PageService.getPagedData<PurchaseOrder>({
-      dbName,
-      entityName: "PurchaseOrders",
-      limit: Number(filters.limit) || 10,
-      page: Number(filters.page) || 1,
-      query: queryBuilder,
-      sort,
-    });
+    const limit = Number(filters.limit) || 10;
+    const page = Number(filters.page) || 1;
+    const offset = (page - 1) * limit;
 
-    // Maps internal TypeORM entities to a standardized API response format.
+    const dataSql = `
+      ${combinedSql}
+      ${orderBy}
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...combinedParams, limit, offset];
+
+    const [countRows, dataRows] = await Promise.all([
+      executeTenantQuery(dbName, countSql, combinedParams) as Promise<any[]>,
+      executeTenantQuery(dbName, dataSql, dataParams) as Promise<any[]>,
+    ]);
+
+    const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
+    const totalPages = Math.ceil(total / limit);
+
     return {
-      ...result,
-      data: result.data.map((data) => ({
-        CardCode: data.cardCode,
-        CardName: data.cardName,
-        DocCurr: data.docCurr,
-        DocDate: data.docDate,
-        DocNum: data.docNum,
-        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
-        DocTotal: data.docTotal,
-        Address: data.address,
-        Address2: data.address2,
-        id: data.docEntry,
+      data: dataRows.map((row: any) => ({
+        CardCode: row.CardCode,
+        CardName: row.CardName,
+        DocCurr: row.DocCurr,
+        DocDate: row.DocDate,
+        DocNum: row.DocNum,
+        DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",
+        DocTotal: row.DocTotal,
+        Address: row.Address,
+        Address2: row.Address2,
+        id: row.DocEntry,
       })),
+      limit,
+      page,
+      total,
+      totalPages,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
@@ -172,12 +194,13 @@ export const getPurchaseOrderDocNums = async (dbName: string, search?: string, l
 };
 
 // Requests a specific PO document from the Service Layer, including item lines.
-export const getPurchaseOrder = async (sessionId: string, id: string) => {
+export const getPurchaseOrder = async (sessionId: string, id: string, isDraft = false) => {
   try {
+    const endpoint = isDraft ? `/Drafts(${id})` : `/PurchaseOrders(${id})`;
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
-      `/PurchaseOrders(${id})`,
+      endpoint,
     )) as SAPDocumentResponse;
 
     const attachmentEntry = (result as any).AttachmentEntry || null;
@@ -207,7 +230,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
@@ -252,10 +275,33 @@ export const getPurchaseOrder = async (sessionId: string, id: string) => {
 };
 
 // Resolves a PO by DocNum from tenant DB and fetches full details from Service Layer.
-export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string, id: string) => {
+export const getPurchaseOrderByDocNum = async (
+  sessionId: string,
+  dbName: string,
+  id: string,
+  draftDocEntry?: string,
+) => {
   const normalizedId = id.trim();
   if (!normalizedId) {
     throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+  }
+
+  if (draftDocEntry) {
+    const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '22' AND "DocEntry" = ?`;
+    const draftMatch = (await executeTenantQuery(dbName, draftQuery, [
+      Number(draftDocEntry),
+    ])) as any[];
+
+    if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+      const poDetail = await getPurchaseOrder(sessionId, String(draftMatch[0].DocEntry), true);
+      return {
+        ...poDetail,
+        DocumentLines: (poDetail.DocumentLines || []).map((line) => ({
+          ...line,
+          OpenQty: line.Quantity,
+        })),
+      };
+    }
   }
 
   // Resolves DocNum to DocEntry from HANA if necessary, ensuring Service Layer compatibility.
@@ -267,10 +313,36 @@ export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string
     .getOne();
 
   // If a match is found in HANA, we use the resolved DocEntry.
-  // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
-  const poDocEntry = match?.docEntry ? String(match.docEntry) : normalizedId;
-  const poDetail = await getPurchaseOrder(sessionId, poDocEntry);
+  // Otherwise, check ODRF to see if it is a draft.
+  let poDocEntry = match?.docEntry ? String(match.docEntry) : null;
+  let isDraft = false;
+
+  if (!poDocEntry) {
+    const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '22' AND CAST("DocNum" AS NVARCHAR) = ?`;
+    const draftMatch = (await executeTenantQuery(dbName, draftQuery, [normalizedId])) as any[];
+
+    if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+      poDocEntry = String(draftMatch[0].DocEntry);
+      isDraft = true;
+    }
+  }
+
+  if (!poDocEntry) {
+    throw new AppError("Purchase Order not found", 404, "NOT_FOUND");
+  }
+
+  const poDetail = await getPurchaseOrder(sessionId, poDocEntry, isDraft);
   // Tax rates are already populated in getPurchaseOrder() from TaxPercentagePerRow.
+
+  if (isDraft) {
+    return {
+      ...poDetail,
+      DocumentLines: (poDetail.DocumentLines || []).map((line) => ({
+        ...line,
+        OpenQty: line.Quantity,
+      })),
+    };
+  }
 
   // Calculate remaining open quantity per line by querying delivered quantities from PDN1 (GRPO lines).
   const pdn1Repo = await getTenantRepository(dbName, GRPOHeaderSchema);
@@ -316,36 +388,63 @@ export const getPurchaseOrderByDocNum = async (sessionId: string, dbName: string
 };
 
 // Submits a new Purchase Order to SAP B1.
-export const createPurchaseOrder = async (sessionId: string, payload: Record<string, unknown>) => {
+export const createPurchaseOrder = async (
+  sessionId: string,
+  payload: Record<string, unknown>,
+  dbName?: string,
+) => {
   try {
-    // Validate UoM before sending to SAP
-    const inputLines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-    const linesMissingUom = inputLines
-      .map((line) => ({
-        itemCode: String(line.ItemCode ?? "").trim(),
-        uomCode: String(line.UoMCode ?? line.UomCode ?? "").trim(),
-        uomEntry: Number(line.UoMEntry ?? line.UomEntry),
-      }))
-      .filter((line) => !line.uomCode && !Number.isFinite(line.uomEntry));
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = Number(payload.draftDocEntry || 0);
 
-    if (linesMissingUom.length > 0) {
-      const missingItems = linesMissingUom.map((line) => line.itemCode || "<unknown>");
-      logger.warn({
-        missingItems,
-        msg: "Purchase order payload has lines without UoMCode/UoMEntry",
-      });
-      throw new AppError(
-        `Missing UoM for item(s): ${missingItems.join(", ")}`,
-        400,
-        "VALIDATION_ERROR",
-      );
+    // Defensive fallback: when converting a draft to a real document, re-read the draft from SAP
+    // before deleting it so we can carry forward Comments/NumAtCard if the payload doesn't include them.
+    let draftComments: string | undefined;
+    let draftNumAtCard: string | undefined;
+    if (!isDraft && draftDocEntry > 0) {
+      try {
+        const draftData = (await serviceLayerClient.request(
+          sessionId,
+          "GET",
+          `/Drafts(${draftDocEntry})?$select=Comments,NumAtCard`,
+        )) as { Comments?: string; NumAtCard?: string };
+        draftComments = draftData?.Comments;
+        draftNumAtCard = draftData?.NumAtCard;
+      } catch {
+        // Non-fatal: if we can't read the draft, proceed with the provided payload values.
+      }
+    }
+
+    if (!isDraft) {
+      // Validate UoM before sending to SAP
+      const inputLines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+      const linesMissingUom = inputLines
+        .map((line) => ({
+          itemCode: String(line.ItemCode ?? "").trim(),
+          uomCode: String(line.UoMCode ?? line.UomCode ?? "").trim(),
+          uomEntry: Number(line.UoMEntry ?? line.UomEntry),
+        }))
+        .filter((line) => !line.uomCode && !Number.isFinite(line.uomEntry));
+
+      if (linesMissingUom.length > 0) {
+        const missingItems = linesMissingUom.map((line) => line.itemCode || "<unknown>");
+        logger.warn({
+          missingItems,
+          msg: "Purchase order payload has lines without UoMCode/UoMEntry",
+        });
+        throw new AppError(
+          `Missing UoM for item(s): ${missingItems.join(", ")}`,
+          400,
+          "VALIDATION_ERROR",
+        );
+      }
     }
 
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
     const session = serviceLayerClient.getSession(sessionId);
-    const resolvedDbName = session?.companyDB || "";
+    const resolvedDbName = session?.companyDB || dbName || "";
 
     let absoluteEntry: number | null = null;
     if (attachments && attachments.length > 0 && resolvedDbName) {
@@ -360,8 +459,8 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments,
-      NumAtCard: payload.NumAtCard,
+      Comments: payload.Comments ?? draftComments,
+      NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
       AttachmentEntry: absoluteEntry ?? undefined,
@@ -401,12 +500,15 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       RoundingDiffAmount: payload.RoundingDiffAmount,
     };
 
+    if (isDraft) {
+      sapPayload.DocObjectCode = "22";
+    }
+
     // Formats DocDate into SAP-compliant YYYY-MM-DD.
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
-    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -418,12 +520,13 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
-      "/PurchaseOrders",
+      isDraft ? "/Drafts" : "/PurchaseOrders",
       sapPayload,
     )) as SAPDocumentResponse;
 
     // Invalidate the procurement dashboard metrics for this tenant.
-    const resolvedDbNameFromRes = result.CompanyDB || result.DBName || session?.companyDB || "";
+    const resolvedDbNameFromRes =
+      result.CompanyDB || result.DBName || session?.companyDB || resolvedDbName;
     if (resolvedDbNameFromRes) {
       purgeCache(`dash:purchase:${resolvedDbNameFromRes}:`);
       if (result?.DocEntry && absoluteEntry !== null) {
@@ -438,10 +541,28 @@ export const createPurchaseOrder = async (sessionId: string, payload: Record<str
       }
     }
 
+    if (!isDraft && Number.isFinite(draftDocEntry) && draftDocEntry > 0) {
+      try {
+        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
+        logger.info({
+          draftDocEntry,
+          msg: "Deleted converted purchase order draft",
+        });
+      } catch (delErr: any) {
+        logger.error({
+          draftDocEntry,
+          error: delErr.message,
+          msg: "Failed to delete draft after conversion",
+        });
+      }
+    }
+
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      message: "Purchase Order created successfully",
+      message: isDraft
+        ? "Purchase Order Draft saved successfully"
+        : "Purchase Order created successfully",
       success: true,
     };
   } catch (err: unknown) {
@@ -461,6 +582,7 @@ export const updatePurchaseOrder = async (
   payload: Record<string, unknown>,
 ) => {
   try {
+    const isDraft = payload.isDraft === true;
     const sapPayload: Record<string, unknown> = {};
 
     if (payload.attachments !== undefined) {
@@ -470,6 +592,7 @@ export const updatePurchaseOrder = async (
         // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
         let existingAttachmentEntry: number | null = null;
+        let successDb = false;
         try {
           const poRepo = await getTenantRepository(dbName, PurchaseOrderSchema);
           const poDoc = await poRepo.findOne({
@@ -479,18 +602,24 @@ export const updatePurchaseOrder = async (
           if (poDoc) {
             docNum = poDoc.docNum;
             existingAttachmentEntry = poDoc.atcEntry ?? null;
+            successDb = true;
           }
         } catch (dbErr: any) {
           logger.warn(
             { id, err: dbErr.message },
             "Failed to query database for doc info, falling back to Service Layer GET",
           );
-          // Fallback to Service Layer GET if database query fails
+        }
+
+        if (!successDb) {
+          // Fallback to Service Layer GET if database query fails or document not found (e.g. for drafts)
           try {
             const docData = await serviceLayerClient.request<any>(
               sessionId,
               "GET",
-              `/PurchaseOrders(${id})?$select=DocNum,AttachmentEntry`,
+              isDraft
+                ? `/Drafts(${id})?$select=DocNum,AttachmentEntry`
+                : `/PurchaseOrders(${id})?$select=DocNum,AttachmentEntry`,
             );
             if (docData?.DocNum) {
               docNum = docData.DocNum;
@@ -537,8 +666,8 @@ export const updatePurchaseOrder = async (
     }
     if (payload.DocDueDate !== undefined) {
       sapPayload.DocDueDate = payload.DocDueDate;
-      await adjustPayloadDates(sessionId, sapPayload, true, `/PurchaseOrders(${id})`);
     }
+
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
@@ -578,7 +707,14 @@ export const updatePurchaseOrder = async (
       });
     }
 
-    await serviceLayerClient.request(sessionId, "PATCH", `/PurchaseOrders(${id})`, sapPayload);
+    await serviceLayerClient.request(
+      sessionId,
+      "PATCH",
+      isDraft ? `/Drafts(${id})` : `/PurchaseOrders(${id})`,
+      sapPayload,
+      true,
+      { "B1S-ReplaceCollectionsOnPatch": "true" },
+    );
 
     // Dashboard metrics must be refreshed to reflect potential total spend changes.
     const session = serviceLayerClient.getSession(sessionId);
@@ -587,7 +723,9 @@ export const updatePurchaseOrder = async (
     }
 
     return {
-      message: "Purchase Order updated successfully",
+      message: isDraft
+        ? "Purchase Order Draft saved successfully"
+        : "Purchase Order updated successfully",
       success: true,
     };
   } catch (err: unknown) {

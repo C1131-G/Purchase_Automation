@@ -56,6 +56,7 @@ export interface ARInvoiceDetail {
   CardCode?: string;
   CardName?: string;
   Address?: string;
+  Address2?: string;
   NumAtCard?: string;
   Comments?: string;
   DocCurr?: string;
@@ -73,8 +74,12 @@ export const arInvoiceAPI = {
       body: JSON.stringify(payload),
       method: "POST",
     }),
-  getARInvoiceById: async (id: string | number) =>
-    apiClient<ARInvoiceDetailResponse>(`/api/v1/ar-invoices/${id}`),
+  getARInvoiceById: async (id: string | number, draftDocEntry?: string) => {
+    const url = draftDocEntry
+      ? `/api/v1/ar-invoices/${id}?draftDocEntry=${draftDocEntry}`
+      : `/api/v1/ar-invoices/${id}`;
+    return apiClient<ARInvoiceDetailResponse>(url);
+  },
   getARInvoiceDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query ? `/api/v1/ar-invoices/docnums?${query}` : "/api/v1/ar-invoices/docnums";

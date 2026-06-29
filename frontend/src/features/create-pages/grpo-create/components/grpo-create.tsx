@@ -35,6 +35,8 @@ interface GRPOCreateProps {
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "PurchaseOrder" | "PurchaseQuotation" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 /**
@@ -45,6 +47,8 @@ export function GRPOCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum,
+  draftDocEntry,
 }: GRPOCreateProps) {
   const router = useRouter();
   const state = useGRPOCreate({
@@ -55,6 +59,8 @@ export function GRPOCreate({
     },
     sourceDocNum,
     sourceDocType,
+    draftDocNum,
+    draftDocEntry,
   });
 
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
@@ -132,7 +138,13 @@ export function GRPOCreate({
         label: "GRPO Data Table",
         to: "/purchase/grpo",
       }}
-      pageTitle={state.isEditMode ? `Update GRPO ${docNum}` : "Create GRPO"}
+      pageTitle={
+        state.isEditMode
+          ? `Update GRPO ${docNum}`
+          : draftDocNum
+            ? `Create GRPO (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+            : "Create GRPO"
+      }
       editError={
         state.isEditMode && state.editDetailQuery.isError
           ? state.editDetailQuery.error instanceof Error
@@ -141,7 +153,7 @@ export function GRPOCreate({
           : null
       }
       topActions={
-        !state.isEditMode ? (
+        !state.isEditMode && !state.draftDocNum ? (
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
@@ -377,9 +389,7 @@ export function GRPOCreate({
         requiredFieldLabelText={GRPO_FIELD_LABEL_TEXT}
         openProductPopup={state.openProductPopup}
         prefetchProducts={state.prefetchProducts}
-        isSubmitting={
-          state.isEditMode ? state.updateMutation.isPending : state.createMutation.isPending
-        }
+        isSubmitting={state.createMutation.isPending || state.updateMutation.isPending}
         isEditMode={state.isEditMode}
         loading={isFormHydrating}
         onUpdateProductRow={state.updateProductRow}
@@ -403,6 +413,7 @@ export function GRPOCreate({
         warehouseErrors={state.warehouseErrors}
         onSubmitMode={state.handleCreateOrder}
         isSaved={state.isSaved}
+        isDirty={state.isDirty}
         savedDocNum={state.savedDocNum}
         onDownload={useDocumentDownload(
           mode === "edit" ? docNum : state.savedDocNum,

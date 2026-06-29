@@ -59,14 +59,15 @@ export const SalesQuotationQuerySchema = z
     // Normalize Aliases to Standard Keys
     const normalized = { ...data };
 
-    // Smart Status Mapping: Convert "Open"/"Closed" to "O"/"C" (Case-Insensitive)
+    // Smart Status Mapping: Convert "Open"/"Closed"/"Draft" to canonical values (Case-Insensitive)
     if (normalized.DocStatus) {
       const statusUpper = normalized.DocStatus.toUpperCase();
       if (statusUpper === "OPEN") {
         normalized.DocStatus = "O";
-      }
-      if (statusUpper === "CLOSED") {
+      } else if (statusUpper === "CLOSED") {
         normalized.DocStatus = "C";
+      } else if (statusUpper === "DRAFT") {
+        normalized.DocStatus = "D";
       }
     }
 
@@ -120,6 +121,8 @@ export const CreateSalesQuotationInputSchema = z.object({
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 // UpdateSalesQuotationInputSchema: Edit flow blocks customer updates (CardCode/CardName).
@@ -127,6 +130,7 @@ export const UpdateSalesQuotationInputSchema = z
   .object({
     Address: z.string().optional(),
     Address2: z.string().optional(),
+    CardCode: z.string().optional(),
     Comments: z.string().optional(),
     DocDate: z
       .string()
@@ -142,6 +146,8 @@ export const UpdateSalesQuotationInputSchema = z
     Rounding: z.enum(["tYES", "tNO"]).optional(),
     RoundingDiffAmount: z.number().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    draftDocEntry: z.coerce.number().optional(),
   })
   .strict();
 

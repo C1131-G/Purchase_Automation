@@ -6,7 +6,7 @@ export const salesOrderListItemSchema = z.object({
   DocCurr: z.string(),
   DocDate: z.string(),
   DocNum: z.number(),
-  DocStatus: z.enum(["Open", "Closed"]),
+  DocStatus: z.enum(["Open", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),
   id: z.number(),
 });
@@ -26,7 +26,7 @@ export const salesOrderListParamsSchema = z.object({
   DocDateEnd: z.string().optional(),
   DocDateStart: z.string().optional(),
   DocNum: z.string().optional(),
-  DocStatus: z.enum(["Open", "Closed"]).optional(),
+  DocStatus: z.enum(["Open", "Closed", "Draft"]).optional(),
   DocTotal: z.number().optional(),
   DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
   limit: z.number().optional(),

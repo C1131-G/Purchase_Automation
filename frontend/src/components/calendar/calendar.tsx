@@ -44,12 +44,24 @@ function Calendar({
       createCalendarInitialState(selectedValue, todayValue),
   );
 
+  const selectedTime = useMemo(() => {
+    if (selected instanceof Date) {
+      return selected.getTime();
+    }
+    if (selected && typeof selected === "object" && "from" in selected) {
+      return `${selected.from?.getTime() || 0}-${selected.to?.getTime() || 0}`;
+    }
+    return 0;
+  }, [selected]);
+
+  const todayTime = today.getTime();
+
   useEffect(() => {
     if (selected === undefined) {
       return;
     }
     dispatch({ payload: { selected, today }, type: "SYNC_SELECTED" });
-  }, [selected, today]);
+  }, [selectedTime, todayTime]);
 
   const effectiveSingle = selected instanceof Date ? selected : state.internalSingle;
   const effectiveRange = isCalendarDateRange(selected) ? selected : state.internalRange;
@@ -60,12 +72,12 @@ function Calendar({
   const daySlots = useMemo(() => createDaySlots(year, month), [year, month]);
 
   const canGoPrevMonth = minBoundary
-    ? normalizeDate(new Date(year, month - 1, 1)) >=
-      new Date(minBoundary.getFullYear(), minBoundary.getMonth(), 1)
+    ? normalizeDate(new Date(year, month - 1, 1)).getTime() >=
+      new Date(minBoundary.getFullYear(), minBoundary.getMonth(), 1).getTime()
     : true;
   const canGoNextMonth = maxBoundary
-    ? normalizeDate(new Date(year, month + 1, 1)) <=
-      new Date(maxBoundary.getFullYear(), maxBoundary.getMonth(), 1)
+    ? normalizeDate(new Date(year, month + 1, 1)).getTime() <=
+      new Date(maxBoundary.getFullYear(), maxBoundary.getMonth(), 1).getTime()
     : true;
   const handleSelectDate = (day: number) => {
     const clicked = normalizeDate(new Date(year, month, day));

@@ -12,10 +12,11 @@ import {
   AP_INVOICE_FIELD_ERROR_TEXT,
   AP_INVOICE_FIELD_LABEL_TEXT,
   AP_INVOICE_MANDATORY_FIELDS,
+  EMPTY_AP_INVOICE_FIELD_ERRORS,
   filterAndRankLookups,
   getTodayISO,
 } from "@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils";
-import type { APInvoiceMandatoryField } from "@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils";
+import type { APInvoiceFieldErrors } from "@/features/create-pages/ap-invoice-create/utils/ap-invoice-create.utils";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type {
   LookupItem,
@@ -86,21 +87,15 @@ export interface APInvoiceCreateLine {
   baseEntry?: number | undefined;
   baseType?: number | undefined;
 }
-type APInvoiceFieldErrors = Record<APInvoiceMandatoryField, string | undefined> & {
-  warehouseCode?: string | undefined;
-};
 const QUICK_PRODUCT_LIMIT = 10;
-
-const EMPTY_AP_INVOICE_FIELD_ERRORS: APInvoiceFieldErrors = {
-  vendorCode: undefined,
-  vendorName: undefined,
-};
 
 interface UseAPInvoiceCreateOptions {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
   onCreateSuccess?: () => void;
 }
 
@@ -118,6 +113,8 @@ export function useAPInvoiceCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum,
+  draftDocEntry,
   onCreateSuccess,
 }: UseAPInvoiceCreateOptions) {
   const parseAPInvoiceHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
@@ -251,7 +248,6 @@ export function useAPInvoiceCreate({
   const vendorsQuery = useQuery(createSharedQueries.vendors());
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const salesEmployeesQuery = useQuery(createSharedQueries.salesEmployees());
-  const financialPeriodQuery = useQuery(createSharedQueries.financialPeriod());
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
@@ -328,9 +324,12 @@ export function useAPInvoiceCreate({
     enabled: Boolean(stockPreviewProduct?.code),
   });
 
+  const isDraftUpdate = !isEditMode && Boolean(draftDocNum);
+  const fetchDocNum = isEditMode ? editDocNum : (draftDocNum ?? "");
+
   const editDetailQuery = useQuery({
-    ...apInvoiceQueries.detailByDocNum(editDocNum),
-    enabled: isEditMode && Boolean(editDocNum),
+    ...apInvoiceQueries.detailByDocNum(fetchDocNum, isEditMode ? undefined : draftDocEntry),
+    enabled: (isEditMode && Boolean(editDocNum)) || (isDraftUpdate && Boolean(draftDocEntry)),
   });
 
   const isClosed =
@@ -338,29 +337,46 @@ export function useAPInvoiceCreate({
     editDetailQuery.data?.data?.DocStatus === "C";
 
   const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
+    if ((!isEditMode && !draftDocNum) || !formSnapshot) {
       return false;
     }
     const current = {
       remarks: (header.remarks || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
       docDueDate: header.docDueDate,
+      billToAddress: formatAddressForDisplay(billToAddress).trim(),
+      shipToAddress: formatAddressForDisplay(shipToAddress).trim(),
       attachments: attachments.map((att) => ({
         fileName: att.fileName,
         freeText: att.freeText || "",
       })),
+      productRows: rows
+        .filter((row) => row.productCode.trim() && row.quantity > 0)
+        .map((row) => ({
+          productCode: row.productCode,
+          quantity: row.quantity,
+          price: row.price,
+          discountPercent: row.discountPercent,
+          warehouseCode: row.warehouseCode,
+          uomCode: row.uomCode,
+          uomEntry: row.uomEntry,
+        })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
     isEditMode,
+    draftDocNum,
     formSnapshot,
     header.remarks,
     header.referenceNo,
     header.docDueDate,
+    billToAddress,
+    shipToAddress,
     attachments,
+    rows,
   ]);
 
-  const submitDisabled = isEditMode ? !isDirty : false;
+  const submitDisabled = isEditMode || Boolean(draftDocNum) ? !isDirty : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O"
       ? "Open"
@@ -404,12 +420,8 @@ export function useAPInvoiceCreate({
       return;
     }
 
-    const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0;
-    if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) {
+    if (hydratedDocNumRef.current === currentDocNum) {
       return;
-    }
-    if (isMetadataLoaded) {
-      hydratedDocNumRef.current = currentDocNum;
     }
 
     // Show loading toast when starting edit hydration
@@ -418,187 +430,449 @@ export function useAPInvoiceCreate({
     }
 
     void (async () => {
-      setVendorCodeInput(String(detail.CardCode ?? "").trim());
-      setVendorNameInput(String(detail.CardName ?? "").trim());
-      const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
-      const { comments: remarks, referenceNo } = parseAPInvoiceHeaderNotes(detail);
+      try {
+        setVendorCodeInput(String(detail.CardCode ?? "").trim());
+        setVendorNameInput(String(detail.CardName ?? "").trim());
+        const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
+        const { comments: remarks, referenceNo } = parseAPInvoiceHeaderNotes(detail);
 
-      const matchedVendor = vendors.find(
-        (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
-      );
-      const buyerFromDocCode =
-        detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(detail.SalesPersonCode),
-            )?.name
-          : "";
-
-      setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "");
-      const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
-      const resolvedHeaderDiscountPercent = Number(
-        (detail as Record<string, unknown>).DiscountPercent ?? 0,
-      );
-      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
-
-      setHeader({
-        docDate: loadedDocDate,
-        docDueDate,
-        referenceNo,
-        remarks,
-      });
-      // Set addresses from document: Address = Bill To, Address2 = Ship To
-      setBillToAddress(String(detail.Address ?? "").trim());
-      setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
-      const detailLines = detail.DocumentLines ?? [];
-      const productsForWarehouse =
-        effectiveWarehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-              .catch((): ProductLookupItem[] => [])
-          : [];
-
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
-
-      // Recover missing product metadata
-      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-      if (missingItemCodes.length > 0) {
-        await Promise.all(
-          missingItemCodes.map(async (itemCode) => {
-            const res = await queryClient
-              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-              .catch((): ProductLookupItem[] => []);
-            const matched = res.find((p) => String(p.code).trim() === itemCode);
-            if (matched) {
-              productByCode.set(itemCode, matched);
-            }
-          }),
+        const matchedVendor = vendors.find(
+          (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
         );
-      }
+        const buyerFromDocCode =
+          detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(detail.SalesPersonCode),
+              )?.name
+            : "";
 
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        detailLines.map((line) => String(line.ItemCode ?? "").trim()),
-        "purchase",
-      );
+        setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "");
+        const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
+        const resolvedHeaderDiscountPercent = Number(
+          (detail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
+        setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
-      const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
-        const lineData = line as Record<string, unknown>;
-        const quantity = Math.max(0, Number(line.Quantity ?? 0));
-        const price = Number(line.Price ?? line.UnitPrice ?? 0);
-        const grossAmount = Math.max(0, price * quantity);
-        const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
-          grossAmount,
-          headerDiscountPercent: resolvedHeaderDiscountPercent,
-          line: line as unknown as Record<string, unknown>,
+        setHeader({
+          docDate: loadedDocDate,
+          docDueDate,
+          referenceNo,
+          remarks,
         });
-        const itemCode = String(line.ItemCode ?? "").trim();
-        const productMeta = productByCode.get(itemCode);
+        // Set addresses from document: Address = Bill To, Address2 = Ship To
+        setBillToAddress(String(detail.Address ?? "").trim());
+        setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
+        const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse =
+          effectiveWarehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+                .catch((): ProductLookupItem[] => [])
+            : [];
 
-        return {
-          id: `${currentDocNum}-${index}`,
-          productCode: itemCode,
-          productName: String(
-            line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
-          ).trim(),
-          stock: 0, // In edit mode, stock is less relevant for invoices
-          currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
-          vatGroup: String(line.TaxCode ?? "").trim(),
-          // SAP line tax is authoritative; fall back to product master only when missing
-          taxRate:
-            (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
-            taxRateByItemCode.get(itemCode) ||
-            0,
-          uomCode: (() => {
-            const code = String(
-              lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-            ).trim();
-            if (code) return code;
-            const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-            if (Number.isFinite(entry) && entry > 0) {
-              const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
-              if (match?.code) return match.code;
-            }
-            return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
-          })(),
-          uomEntry: (() => {
-            const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-            if (Number.isFinite(entry) && entry > 0) return entry;
-            const code = String(
-              lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-            ).trim();
-            if (code) {
-              const match = productMeta?.uomList?.find((u) => u.code === code);
-              if (match?.uomEntry !== undefined) return match.uomEntry;
-            }
-            return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
-          })(),
-          purchaseUomCode: productMeta?.purchaseUomCode,
-          purchaseUomEntry: productMeta?.purchaseUomEntry,
-          salesUomCode: productMeta?.uomCode,
-          salesUomEntry: productMeta?.uomEntry,
-          uomList: productMeta?.uomList,
-          baseQuantity: quantity,
-          quantity,
-          discountPercent,
-          discountAmount,
-          comment: "",
-          price,
-          warehouseCode: String(line.WarehouseCode ?? "").trim(),
-          baseEntry: typeof line.BaseEntry === "number" ? line.BaseEntry : undefined,
-          baseLine: typeof line.BaseLine === "number" ? line.BaseLine : undefined,
-          baseType: typeof line.BaseType === "number" ? line.BaseType : undefined,
-          selected: false,
-        };
-      });
-      setLines(mappedLines);
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
 
-      const rawAttachments = detail.attachments || [];
-      setAttachments(
-        rawAttachments.map((item: any, idx: number) => ({
-          id: `loaded-${idx}-${item.fileName}`,
-          fileName: item.fileName,
-          fileExtension: item.fileExtension,
-          sourcePath: item.sourcePath,
-          attachmentDate: item.attachmentDate,
-          freeText: item.freeText || "",
-          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
-        })),
-      );
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
 
-      const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-      const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
-      setWarehouseInput(
-        formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
-      );
+        const taxRateByItemCode = await resolveProductTaxRates(
+          queryClient,
+          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          "purchase",
+        );
 
-      if (isMetadataLoaded) {
+        const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
+          const lineData = line as Record<string, unknown>;
+          const quantity = Math.max(0, Number(line.Quantity ?? 0));
+          const price = Number(line.Price ?? line.UnitPrice ?? 0);
+          const grossAmount = Math.max(0, price * quantity);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
+            line: line as unknown as Record<string, unknown>,
+          });
+          const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
+
+          return {
+            id: `${currentDocNum}-${index}`,
+            productCode: itemCode,
+            productName: String(
+              line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+            ).trim(),
+            stock: 0, // In edit mode, stock is less relevant for invoices
+            currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
+            vatGroup: String(line.TaxCode ?? "").trim(),
+            // SAP line tax is authoritative; fall back to product master only when missing
+            taxRate:
+              (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+              taxRateByItemCode.get(itemCode) ||
+              0,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
+            baseQuantity: quantity,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: "",
+            price,
+            warehouseCode: String(line.WarehouseCode ?? "").trim(),
+            baseEntry: typeof line.BaseEntry === "number" ? line.BaseEntry : undefined,
+            baseLine: typeof line.BaseLine === "number" ? line.BaseLine : undefined,
+            baseType: typeof line.BaseType === "number" ? line.BaseType : undefined,
+            selected: false,
+          };
+        });
+        setLines(mappedLines);
+
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
+        const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const matchedWarehouse = warehouses.find((w) => String(w.code).trim() === warehouseCode);
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
+
         hydratedDocNumRef.current = currentDocNum;
+        setFormSnapshot({
+          remarks: (remarks || "").trim(),
+          referenceNo: (referenceNo || "").trim(),
+          docDueDate: docDueDate,
+          billToAddress: formatAddressForDisplay(String(detail.Address ?? "")).trim(),
+          shipToAddress: formatAddressForDisplay(
+            String((detail as Record<string, unknown>).Address2 ?? ""),
+          ).trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
+          productRows: mappedLines
+            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
+            })),
+        });
+        setHydratedDocNum(currentDocNum);
+      } finally {
+        // Dismiss loading toast when edit hydration is complete (success or error)
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
       }
-      setFormSnapshot({
-        remarks: (remarks || "").trim(),
-        referenceNo: (referenceNo || "").trim(),
-        docDueDate: docDueDate,
-        attachments: rawAttachments.map((item: any) => ({
-          fileName: item.fileName,
-          freeText: item.freeText || item.remarks || "",
-        })),
-      });
-      setHydratedDocNum(currentDocNum);
-      // Dismiss loading toast when edit hydration is complete
-      loadingToastRef.current?.dismiss();
-      loadingToastRef.current = null;
     })();
   }, [
     editDocNum,
     editDetailQuery.data,
     isEditMode,
+    queryClient,
+    salesEmployees,
+    setHeader,
+    setLines,
+    setBillToAddress,
+    setShipToAddress,
+    vendors,
+  ]);
+
+  // Draft Hydration — loads existing draft data into form when draftDocNum is present
+  useEffect(() => {
+    if (isEditMode || !draftDocNum) {
+      return;
+    }
+    const currentDocNum = fetchDocNum;
+    if (!currentDocNum) {
+      return;
+    }
+    const detail = editDetailQuery.data?.data;
+    if (!detail) {
+      return;
+    }
+
+    const hydrationKey = `${draftDocNum}_${draftDocEntry ?? ""}`;
+    if (hydratedDocNumRef.current === hydrationKey) {
+      return;
+    }
+
+    // Show loading toast when starting draft hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("A/P Invoice", "edit");
+    }
+
+    void (async () => {
+      try {
+        setVendorCodeInput(String(detail.CardCode ?? "").trim());
+        setVendorNameInput(String(detail.CardName ?? "").trim());
+        const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
+        const { comments: remarks, referenceNo } = parseAPInvoiceHeaderNotes(detail);
+
+        const matchedVendor = vendors.find(
+          (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
+        );
+        const buyerFromDocCode =
+          detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(detail.SalesPersonCode),
+              )?.name
+            : "";
+        const buyerFromVendorCode =
+          matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
+              )?.name
+            : "";
+
+        setBuyerInput(
+          buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || "",
+        );
+        const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
+
+        setHeader({
+          docDate: loadedDocDate,
+          docDueDate,
+          referenceNo,
+          remarks,
+        });
+
+        const billAddr = String(detail.Address ?? "").trim() || matchedVendor?.billToAddress || "";
+        const shipAddr =
+          String(detail.Address2 ?? "").trim() ||
+          matchedVendor?.shipToAddress ||
+          matchedVendor?.billToAddress ||
+          "";
+        setBillToAddress(billAddr);
+        setShipToAddress(shipAddr);
+
+        const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse = effectiveWarehouseCode
+          ? await queryClient
+              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+              .catch((): ProductLookupItem[] => [])
+          : [];
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const productCodes = (detail.DocumentLines ?? [])
+          .map((line) => String(line.ItemCode ?? "").trim())
+          .filter(Boolean);
+        const missingCodes = productCodes.filter((code) => !productByCode.has(code));
+        if (missingCodes.length > 0) {
+          await Promise.all(
+            missingCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+        const taxRateByItemCode = await resolveProductTaxRates(
+          queryClient,
+          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          "purchase",
+        );
+
+        let lineIndex = 0;
+        const mappedLines = (detail.DocumentLines ?? []).map((line) => {
+          const idx = lineIndex++;
+          const lineData = line as Record<string, unknown>;
+          const openQty = Number(lineData.OpenQty ?? lineData.OpenQuantity ?? line.Quantity ?? 1);
+          const quantity = openQty;
+          const price = Number(line.Price ?? line.UnitPrice ?? 0);
+          const grossAmount = Math.max(0, price * quantity);
+          const resolvedHeaderDiscountPercent = Number(
+            (detail as Record<string, unknown>).DiscountPercent ?? 0,
+          );
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
+            line: line as unknown as Record<string, unknown>,
+          });
+          const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
+
+          return {
+            id: `row-draft-${idx}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? productMeta?.name ?? itemCode).trim(),
+            stock: 0,
+            currency: String(productMeta?.currency ?? "").trim(),
+            vatGroup: String(line.TaxCode ?? "").trim(),
+            taxRate:
+              (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+              taxRateByItemCode.get(itemCode) ||
+              0,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
+            baseQuantity: quantity,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: "",
+            price,
+            warehouseCode: String(line.WarehouseCode ?? "").trim(),
+            baseEntry: typeof line.BaseEntry === "number" ? line.BaseEntry : undefined,
+            baseLine: typeof line.BaseLine === "number" ? line.BaseLine : undefined,
+            baseType: typeof line.BaseType === "number" ? line.BaseType : undefined,
+            selected: false,
+          };
+        });
+        setLines(mappedLines);
+
+        const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const matchedWarehouseEdit = warehouses.find(
+          (w) => String(w.code).trim() === editWarehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(
+            matchedWarehouseEdit?.name ?? editWarehouseCode,
+            editWarehouseCode,
+          ),
+        );
+
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
+        setFormSnapshot({
+          remarks: (remarks || "").trim(),
+          referenceNo: (referenceNo || "").trim(),
+          docDueDate: docDueDate,
+          billToAddress: formatAddressForDisplay(billAddr).trim(),
+          shipToAddress: formatAddressForDisplay(shipAddr).trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || "",
+          })),
+          productRows: mappedLines
+            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
+            })),
+        });
+
+        hydratedDocNumRef.current = hydrationKey;
+        setHydratedDocNum(hydrationKey);
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
+      }
+    })();
+  }, [
+    draftDocNum,
+    draftDocEntry,
+    isEditMode,
+    editDetailQuery.data,
     queryClient,
     salesEmployees,
     setHeader,
@@ -1315,6 +1589,7 @@ export function useAPInvoiceCreate({
     documentName: "AP Invoice",
     moduleType: "purchase",
     defaultUrl: "/purchase/create-ap-invoice",
+    tableUrl: "/purchase/ap-invoice",
     resetForm,
     getPayloadString: () => {
       const buildDocumentLines = () => {
@@ -1457,44 +1732,54 @@ export function useAPInvoiceCreate({
   const handleCreateAPInvoice = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
   ) => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      setSubmitAttempted(false);
-      return;
-    }
+    const isDraftAction = action === "draft";
+    const isUpdating = isEditMode || (isDraftAction && isDraftUpdate);
+    const trackingAction =
+      isDraftAction && isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
 
     setSubmitAttempted(true);
-    if (!isEditMode) {
-      const missing = AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
-        if (field === "vendorName") {
-          return !vendorNameInput.trim();
-        }
-        if (field === "vendorCode") {
-          return !vendorCodeInput.trim();
-        }
-        return false;
-      });
 
-      if (missing.length > 0) {
+    if (isDraftAction) {
+      if (!vendorCodeInput.trim() || !vendorNameInput.trim()) {
         const nextErrors = { ...EMPTY_AP_INVOICE_FIELD_ERRORS };
-        missing.forEach((field) => {
-          nextErrors[field] = AP_INVOICE_FIELD_ERROR_TEXT[field];
-        });
+        if (!vendorCodeInput.trim()) {
+          nextErrors.vendorCode = AP_INVOICE_FIELD_ERROR_TEXT.vendorCode;
+        }
+        if (!vendorNameInput.trim()) {
+          nextErrors.vendorName = AP_INVOICE_FIELD_ERROR_TEXT.vendorName;
+        }
         setFieldErrors(nextErrors);
-        setCreateError("Fill required fields before creating A/P Invoice.");
+        setCreateError("Vendor is required to save as draft.");
         return;
       }
-    }
+    } else {
+      if (!isEditMode) {
+        const missing = AP_INVOICE_MANDATORY_FIELDS.filter((field) => {
+          if (field === "vendorName") {
+            return !vendorNameInput.trim();
+          }
+          if (field === "vendorCode") {
+            return !vendorCodeInput.trim();
+          }
+          return false;
+        });
 
-    if (filteredRows.length === 0) {
-      setCreateError("Set at least one line quantity greater than 0.");
-      return;
-    }
+        if (missing.length > 0) {
+          const nextErrors = { ...EMPTY_AP_INVOICE_FIELD_ERRORS };
+          missing.forEach((field) => {
+            nextErrors[field] = AP_INVOICE_FIELD_ERROR_TEXT[field];
+          });
+          setFieldErrors(nextErrors);
+          setCreateError("Fill required fields before creating A/P Invoice.");
+          return;
+        }
+      }
 
-    saveActions.startSaveTracking(isEditMode ? "update" : action);
-    saveActions.actionToast.startLoading("AP Invoice", isEditMode ? "update" : action);
-    try {
-      let createdDocNum: number | undefined;
+      if (filteredRows.length === 0) {
+        setCreateError("Set at least one line quantity greater than 0.");
+        return;
+      }
+
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
@@ -1502,26 +1787,140 @@ export function useAPInvoiceCreate({
         saveActions.actionToast.showError("AP Invoice", "update", noChangeMessage);
         return;
       }
+    }
 
-      if (isEditMode) {
-        const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry;
-        const updatePayload = {
-          Comments: header.remarks.trim() || undefined,
-          DocDueDate: header.docDueDate || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          SalesPersonCode: resolvedBuyerCode,
-          attachments: attachments.map((att) => ({
-            sourcePath: att.sourcePath || "",
-            fileName: att.fileName,
-            fileExtension: att.fileExtension || "",
-            freeText: att.freeText || "",
-            attachmentDate: att.attachmentDate || "",
-          })),
-        };
-        await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
+    const buildDocumentLines = (): CreateAPInvoiceInput["DocumentLines"] => {
+      const lines: CreateAPInvoiceInput["DocumentLines"] = [];
+      for (const row of filteredRows) {
+        // Guard: never send zero-quantity lines
+        if (row.quantity <= 0) {
+          continue;
+        }
+
+        const hasCompleteBaseLink =
+          Number.isFinite(row.baseEntry) &&
+          Number.isFinite(row.baseLine) &&
+          Number.isFinite(row.baseType);
+
+        // Manual rows (no base link): send single line with actual quantity
+        if (!hasCompleteBaseLink) {
+          lines.push({
+            DiscountPercent: row.discountPercent,
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            UnitPrice: row.price,
+            UoMCode: row.uomCode || undefined,
+            VatGroup: row.vatGroup || undefined,
+            WarehouseCode: row.warehouseCode || undefined,
+          });
+          continue;
+        }
+
+        // Base-linked rows: split into base qty and excess portions
+        const baseQty = row.baseQuantity ?? 0;
+        const linkedQty = Math.min(row.quantity, baseQty);
+
+        // Only push base-linked portion if quantity is positive
+        if (linkedQty > 0) {
+          lines.push({
+            BaseEntry: row.baseEntry,
+            BaseLine: row.baseLine,
+            BaseType: row.baseType,
+            DiscountPercent: row.discountPercent,
+            ItemCode: row.productCode,
+            Quantity: linkedQty,
+            UnitPrice: row.price,
+            UoMCode: row.uomCode || undefined,
+            VatGroup: row.vatGroup || undefined,
+            WarehouseCode: row.warehouseCode || undefined,
+          });
+        }
+
+        // Excess portion: manual line without base linkage
+        const excessQty = row.quantity - baseQty;
+        if (excessQty > 0) {
+          lines.push({
+            DiscountPercent: row.discountPercent,
+            ItemCode: row.productCode,
+            Quantity: excessQty,
+            UnitPrice: row.price,
+            UoMCode: row.uomCode || undefined,
+            VatGroup: row.vatGroup || undefined,
+            WarehouseCode: row.warehouseCode || undefined,
+          });
+        }
+      }
+      return lines;
+    };
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("AP Invoice", trackingAction);
+    try {
+      let createdDocNum: number | undefined;
+      const loadedDraftDocEntry = isDraftUpdate ? draftDocEntry : undefined;
+
+      if (isUpdating) {
+        const id =
+          editDetailQuery.data?.data?.id ??
+          editDetailQuery.data?.data?.DocEntry ??
+          (loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined);
+        if (id === undefined || id === null) {
+          setCreateError("Unable to update A/P Invoice. Document id is missing.");
+          saveActions.actionToast.showError(
+            "AP Invoice",
+            trackingAction,
+            "Document ID is missing.",
+          );
+          return;
+        }
+
+        const updatePayload =
+          isDraftAction && isDraftUpdate
+            ? {
+                Address: billToAddress.trim() || undefined,
+                Address2: shipToAddress.trim() || undefined,
+                CardCode: vendorCodeInput.trim(),
+                Comments: header.remarks.trim() || undefined,
+                DocDate: header.docDate,
+                DocDueDate: header.docDueDate || header.docDate,
+                NumAtCard: header.referenceNo.trim() || undefined,
+                DocumentLines: buildDocumentLines(),
+                SalesPersonCode: resolvedBuyerCode,
+                attachments: attachments.map((att) => ({
+                  sourcePath: att.sourcePath || "",
+                  fileName: att.fileName,
+                  fileExtension: att.fileExtension || "",
+                  freeText: att.freeText || "",
+                  attachmentDate: att.attachmentDate || "",
+                })),
+                isDraft: true,
+                draftDocEntry: Number(loadedDraftDocEntry),
+              }
+            : {
+                Comments: header.remarks.trim() || undefined,
+                DocDueDate: header.docDueDate || undefined,
+                NumAtCard: header.referenceNo.trim() || undefined,
+                SalesPersonCode: resolvedBuyerCode,
+                attachments: attachments.map((att) => ({
+                  sourcePath: att.sourcePath || "",
+                  fileName: att.fileName,
+                  fileExtension: att.fileExtension || "",
+                  freeText: att.freeText || "",
+                  attachmentDate: att.attachmentDate || "",
+                })),
+              };
+
+        await updateMutation.mutateAsync({ id, payload: updatePayload });
+        createdDocNum = isEditMode
+          ? editDetailQuery.data?.data?.DocNum
+          : (editDetailQuery.data?.data?.DocNum ?? Number(draftDocNum));
+
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
         const updatedDetailRes = await queryClient.fetchQuery(
-          apInvoiceQueries.detailByDocNum(editDocNum),
+          apInvoiceQueries.detailByDocNum(
+            String(createdDocNum),
+            isEditMode ? undefined : String(loadedDraftDocEntry),
+          ),
         );
         const updatedDetail = updatedDetailRes?.data;
         if (updatedDetail) {
@@ -1540,83 +1939,32 @@ export function useAPInvoiceCreate({
 
           const { comments: remarks, referenceNo } = parseAPInvoiceHeaderNotes(updatedDetail);
           const docDueDate = String(updatedDetail.DocDueDate ?? "").slice(0, 10);
+          const billAddr = String(updatedDetail.Address ?? "").trim();
+          const shipAddr = String((updatedDetail as Record<string, unknown>).Address2 ?? "").trim();
 
           setFormSnapshot({
             remarks: (remarks || "").trim(),
             referenceNo: (referenceNo || "").trim(),
             docDueDate: docDueDate,
+            billToAddress: formatAddressForDisplay(billAddr).trim(),
+            shipToAddress: formatAddressForDisplay(shipAddr).trim(),
             attachments: rawAttachments.map((item: any) => ({
               fileName: item.fileName,
               freeText: item.freeText || item.remarks || "",
             })),
+            productRows: filteredRows.map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
+            })),
           });
         }
       } else {
-        const buildDocumentLines = (): CreateAPInvoiceInput["DocumentLines"] => {
-          const lines: CreateAPInvoiceInput["DocumentLines"] = [];
-          for (const row of filteredRows) {
-            // Guard: never send zero-quantity lines
-            if (row.quantity <= 0) {
-              continue;
-            }
-
-            const hasCompleteBaseLink =
-              Number.isFinite(row.baseEntry) &&
-              Number.isFinite(row.baseLine) &&
-              Number.isFinite(row.baseType);
-
-            // Manual rows (no base link): send single line with actual quantity
-            if (!hasCompleteBaseLink) {
-              lines.push({
-                DiscountPercent: row.discountPercent,
-                ItemCode: row.productCode,
-                Quantity: row.quantity,
-                UnitPrice: row.price,
-                UoMCode: row.uomCode || undefined,
-                VatGroup: row.vatGroup || undefined,
-                WarehouseCode: row.warehouseCode || undefined,
-              });
-              continue;
-            }
-
-            // Base-linked rows: split into base qty and excess portions
-            const baseQty = row.baseQuantity ?? 0;
-            const linkedQty = Math.min(row.quantity, baseQty);
-
-            // Only push base-linked portion if quantity is positive
-            if (linkedQty > 0) {
-              lines.push({
-                BaseEntry: row.baseEntry,
-                BaseLine: row.baseLine,
-                BaseType: row.baseType,
-                DiscountPercent: row.discountPercent,
-                ItemCode: row.productCode,
-                Quantity: linkedQty,
-                UnitPrice: row.price,
-                UoMCode: row.uomCode || undefined,
-                VatGroup: row.vatGroup || undefined,
-                WarehouseCode: row.warehouseCode || undefined,
-              });
-            }
-
-            // Excess portion: manual line without base linkage
-            const excessQty = row.quantity - baseQty;
-            if (excessQty > 0) {
-              lines.push({
-                DiscountPercent: row.discountPercent,
-                ItemCode: row.productCode,
-                Quantity: excessQty,
-                UnitPrice: row.price,
-                UoMCode: row.uomCode || undefined,
-                VatGroup: row.vatGroup || undefined,
-                WarehouseCode: row.warehouseCode || undefined,
-              });
-            }
-          }
-          return lines;
-        };
-
-        const createPayload: CreateAPInvoiceInput = {
+        const createPayload: CreateAPInvoiceInput & { draftDocEntry?: number } = {
           Address: billToAddress.trim() || undefined,
           Address2: shipToAddress.trim() || undefined,
           CardCode: vendorCodeInput.trim(),
@@ -1633,6 +1981,8 @@ export function useAPInvoiceCreate({
             freeText: att.freeText || "",
             attachmentDate: att.attachmentDate || "",
           })),
+          ...(isDraftAction ? { isDraft: true } : {}),
+          ...(loadedDraftDocEntry ? { draftDocEntry: Number(loadedDraftDocEntry) } : {}),
         };
         const result = await createMutation.mutateAsync({
           payload: createPayload,
@@ -1681,10 +2031,18 @@ export function useAPInvoiceCreate({
         }
       }
 
-      if (isEditMode) {
-        void queryClient.invalidateQueries(apInvoiceQueries.detailByDocNum(editDocNum));
+      if (isEditMode || isDraftUpdate) {
+        const currentDocNum = isEditMode ? editDocNum : draftDocNum;
+        if (currentDocNum) {
+          void queryClient.invalidateQueries(
+            apInvoiceQueries.detailByDocNum(
+              currentDocNum,
+              isEditMode ? undefined : String(loadedDraftDocEntry),
+            ),
+          );
+        }
       }
-      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
+      await saveActions.handleActionSuccess(isEditMode ? "update" : trackingAction, createdDocNum);
       if (isEditMode) {
         resetWarehouse();
       }
@@ -1698,7 +2056,11 @@ export function useAPInvoiceCreate({
         error,
         "Failed to process A/P Invoice.",
       );
-      saveActions.actionToast.showError("AP Invoice", isEditMode ? "update" : action, errorMessage);
+      saveActions.actionToast.showError(
+        "AP Invoice",
+        isEditMode ? "update" : trackingAction,
+        errorMessage,
+      );
       setCreateError(errorMessage);
     }
   };
@@ -1728,6 +2090,7 @@ export function useAPInvoiceCreate({
 
   return {
     isEditMode,
+    isDirty,
     isEditHydrated: !isEditMode || hydratedDocNum === editDocNum,
     isSourceHydrating: mode === "create" && Boolean(sourceDocNum) && !hydratedDocNumRef.current,
     today,
@@ -1742,7 +2105,6 @@ export function useAPInvoiceCreate({
     vendorsQuery,
     warehousesQuery,
     salesEmployeesQuery,
-    financialPeriodQuery,
     productsQuery,
     productWarehouseStocksQuery,
     editDetailQuery,
@@ -1919,8 +2281,14 @@ export function useAPInvoiceCreate({
       isEditMode ? notifyRestricted("Buyer") : handleBuyerChange(val),
     setWarehouseInput: (val: string) =>
       isEditMode ? notifyRestricted("Warehouse") : handleWarehouseInputChange(val),
-    setReferenceNo: (val: string) => setHeader({ referenceNo: val }),
-    setRemarks: (val: string) => setHeader({ remarks: val }),
+    setReferenceNo: (val: string) => {
+      setHeader({ referenceNo: val });
+      setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
+    },
+    setRemarks: (val: string) => {
+      setHeader({ remarks: val });
+      setFieldErrors((prev) => ({ ...prev, comments: undefined }));
+    },
     setBillToAddress: (val: string) =>
       isEditMode ? notifyRestricted("Pay To Address") : setBillToAddress(val),
     setShipToAddress: (val: string) =>

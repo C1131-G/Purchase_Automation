@@ -23,10 +23,11 @@ import {
   AP_CREDIT_MEMO_FIELD_ERROR_TEXT,
   AP_CREDIT_MEMO_FIELD_LABEL_TEXT,
   AP_CREDIT_MEMO_MANDATORY_FIELDS,
+  EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS,
   filterAndRankLookups,
   getTodayISO,
 } from "@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils";
-import type { APCreditMemoMandatoryField } from "@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils";
+import type { APCreditMemoFieldErrors } from "@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type {
   LookupItem,
@@ -84,21 +85,15 @@ export interface APCreditMemoCreateLine {
   baseType?: number | undefined;
   selected?: boolean | undefined;
 }
-type APCreditMemoFieldErrors = Record<APCreditMemoMandatoryField, string | undefined> & {
-  warehouseCode?: string | undefined;
-};
 const QUICK_PRODUCT_LIMIT = 10;
-
-const EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS: APCreditMemoFieldErrors = {
-  vendorCode: undefined,
-  vendorName: undefined,
-};
 
 interface UseAPCreditMemoCreateOptions {
   mode?: "create" | "edit";
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "APInvoice" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
   onCreateSuccess?: () => void;
 }
 
@@ -116,6 +111,8 @@ export function useAPCreditMemoCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum = "",
+  draftDocEntry = "",
   onCreateSuccess,
 }: UseAPCreditMemoCreateOptions) {
   const parseAPCreditMemoHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
@@ -353,9 +350,10 @@ export function useAPCreditMemoCreate({
     enabled: Boolean(stockPreviewProduct?.code),
   });
 
+  const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
   const editDetailQuery = useQuery({
-    ...apCreditMemoQueries.detailByDocNum(editDocNum),
-    enabled: isEditMode && Boolean(editDocNum),
+    ...apCreditMemoQueries.detailByDocNum(fetchDocNum, isEditMode ? undefined : draftDocEntry),
+    enabled: (isEditMode && Boolean(editDocNum)) || Boolean(draftDocNum),
   });
 
   const sourceInvoiceQuery = useQuery({
@@ -372,29 +370,44 @@ export function useAPCreditMemoCreate({
     editDetailQuery.data?.data?.DocStatus === "C";
 
   const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
+    if ((!isEditMode && !draftDocNum) || !formSnapshot) {
       return false;
     }
     const current = {
       remarks: (header.remarks || "").trim(),
       referenceNo: (header.referenceNo || "").trim(),
       docDueDate: header.docDueDate,
+      billToAddress: formatAddressForDisplay(billToAddress).trim(),
+      shipToAddress: formatAddressForDisplay(shipToAddress).trim(),
       attachments: attachments.map((att) => ({
         fileName: att.fileName,
         freeText: att.freeText || "",
+      })),
+      productRows: filteredRows.map((row) => ({
+        productCode: row.productCode,
+        quantity: row.quantity,
+        price: row.price,
+        discountPercent: row.discountPercent,
+        warehouseCode: row.warehouseCode,
+        uomCode: row.uomCode,
+        uomEntry: row.uomEntry,
       })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
     isEditMode,
+    draftDocNum,
     formSnapshot,
     header.remarks,
     header.referenceNo,
     header.docDueDate,
+    billToAddress,
+    shipToAddress,
     attachments,
+    filteredRows,
   ]);
 
-  const submitDisabled = isEditMode ? !isDirty : false;
+  const submitDisabled = isEditMode || Boolean(draftDocNum) ? !isDirty : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O"
       ? "Open"
@@ -437,12 +450,8 @@ export function useAPCreditMemoCreate({
       return;
     }
 
-    const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0;
-    if (hydratedDocNumRef.current === currentDocNum && isMetadataLoaded) {
+    if (hydratedDocNumRef.current === currentDocNum) {
       return;
-    }
-    if (isMetadataLoaded) {
-      hydratedDocNumRef.current = currentDocNum;
     }
 
     if (!loadingToastRef.current) {
@@ -450,107 +459,336 @@ export function useAPCreditMemoCreate({
     }
 
     void (async () => {
-      setVendorCodeInput(String(detail.CardCode ?? "").trim());
-      setVendorNameInput(String(detail.CardName ?? "").trim());
-      const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
-      const { comments: remarks, referenceNo } = parseAPCreditMemoHeaderNotes(detail);
+      try {
+        setVendorCodeInput(String(detail.CardCode ?? "").trim());
+        setVendorNameInput(String(detail.CardName ?? "").trim());
+        const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
+        const { comments: remarks, referenceNo } = parseAPCreditMemoHeaderNotes(detail);
 
-      const matchedVendor = vendors.find(
-        (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
-      );
-      const buyerFromDocCode =
-        detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(detail.SalesPersonCode),
-            )?.name
-          : "";
+        const matchedVendor = vendors.find(
+          (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
+        );
+        const buyerFromDocCode =
+          detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(detail.SalesPersonCode),
+              )?.name
+            : "";
 
-      setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "");
+        setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "");
+        const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
 
-      setHeader({
-        docDate: loadedDocDate,
-        docDueDate: loadedDocDate,
-        referenceNo,
-        remarks,
-      });
-      setBillToAddress(String(detail.Address ?? "").trim());
-      setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
-      const detailLines = detail.DocumentLines ?? [];
-      const productsForWarehouse =
-        effectiveWarehouseCode.trim().length > 0
+        setHeader({
+          docDate: loadedDocDate,
+          docDueDate,
+          referenceNo,
+          remarks,
+        });
+        setBillToAddress(String(detail.Address ?? "").trim());
+        setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
+        const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse =
+          effectiveWarehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+                .catch((): ProductLookupItem[] => [])
+            : [];
+
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+
+        const taxRateByItemCode = await resolveProductTaxRates(
+          queryClient,
+          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          "purchase",
+        );
+        const resolvedHeaderDiscountPercent = Number(
+          (detail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
+        setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
+
+        const mappedLines = (detail.DocumentLines ?? []).map(
+          (line: Record<string, unknown>, index: number) => {
+            const lineData = line as Record<string, unknown>;
+            const quantity = Math.max(0, Number(line.Quantity ?? 0));
+            const price = Number(line.Price ?? line.UnitPrice ?? 0);
+            const grossAmount = Math.max(0, price * quantity);
+            const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+              grossAmount,
+              headerDiscountPercent: resolvedHeaderDiscountPercent,
+              line,
+            });
+            const itemCode = String(line.ItemCode ?? "").trim();
+            const productMeta = productByCode.get(itemCode);
+
+            return {
+              baseEntry: typeof line.BaseEntry === "number" ? line.BaseEntry : undefined,
+              baseLine: typeof line.BaseLine === "number" ? line.BaseLine : undefined,
+              baseQuantity: quantity,
+              baseType: typeof line.BaseType === "number" ? line.BaseType : undefined,
+              comment: "",
+              currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
+              discountAmount,
+              discountPercent,
+              id: `${currentDocNum}-${index}`,
+              price,
+              productCode: itemCode,
+              productName: String(
+                line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+              ).trim(),
+              quantity,
+              returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? "").trim(),
+              selected: true,
+              stock: 0,
+              taxRate:
+                (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+                taxRateByItemCode.get(itemCode) ||
+                0,
+              uomCode: (() => {
+                const code = String(
+                  lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+                ).trim();
+                if (code) return code;
+                const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+                if (Number.isFinite(entry) && entry > 0) {
+                  const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                  if (match?.code) return match.code;
+                }
+                return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+              })(),
+              uomEntry: (() => {
+                const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+                if (Number.isFinite(entry) && entry > 0) return entry;
+                const code = String(
+                  lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+                ).trim();
+                if (code) {
+                  const match = productMeta?.uomList?.find((u) => u.code === code);
+                  if (match?.uomEntry !== undefined) return match.uomEntry;
+                }
+                return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+              })(),
+              purchaseUomCode: productMeta?.purchaseUomCode,
+              purchaseUomEntry: productMeta?.purchaseUomEntry,
+              salesUomCode: productMeta?.uomCode,
+              salesUomEntry: productMeta?.uomEntry,
+              uomList: productMeta?.uomList,
+              vatGroup: String(line.TaxCode ?? "").trim(),
+              warehouseCode: String(line.WarehouseCode ?? "").trim(),
+            };
+          },
+        );
+        setLines(mappedLines);
+        setProductRowDrafts({});
+
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
+        // Populate header warehouseCode so the reactive useEffect resolves the display name.
+        const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        if (editWarehouseCode) {
+          setHeader({ warehouseCode: editWarehouseCode });
+          const matchedWarehouse = warehouses.find(
+            (w) => String(w.code).trim() === editWarehouseCode,
+          );
+          setWarehouseInput(
+            formatWarehouseDisplay(matchedWarehouse?.name ?? editWarehouseCode, editWarehouseCode),
+          );
+        }
+
+        hydratedDocNumRef.current = currentDocNum;
+        setFormSnapshot({
+          remarks: (remarks || "").trim(),
+          referenceNo: (referenceNo || "").trim(),
+          docDueDate: docDueDate,
+          billToAddress: formatAddressForDisplay(String(detail.Address ?? "")).trim(),
+          shipToAddress: formatAddressForDisplay(
+            String((detail as Record<string, unknown>).Address2 ?? ""),
+          ).trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
+          productRows: mappedLines
+            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
+            })),
+        });
+        setHydratedDocNum(currentDocNum);
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
+      }
+    })();
+  }, [
+    editDocNum,
+    editDetailQuery.data,
+    isEditMode,
+    queryClient,
+    salesEmployees,
+    setHeader,
+    setLines,
+    setBillToAddress,
+    setShipToAddress,
+    vendors,
+    effectiveWarehouseCode,
+    warehouses,
+  ]);
+  // Draft Hydration — loads existing draft data into form when draftDocNum is present
+  useEffect(() => {
+    if (!draftDocNum) {
+      return;
+    }
+    if (isEditMode) {
+      return;
+    }
+    const detail = editDetailQuery.data?.data;
+    if (!detail) {
+      return;
+    }
+
+    const hydrationKey = `${draftDocNum}_${draftDocEntry}`;
+    if (hydratedDocNumRef.current === hydrationKey) {
+      return;
+    }
+
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("A/P Credit Memo", "create");
+    }
+
+    void (async () => {
+      try {
+        setVendorCodeInput(String(detail.CardCode ?? "").trim());
+        setVendorNameInput(String(detail.CardName ?? "").trim());
+        const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
+        const { comments: remarks, referenceNo } = parseAPCreditMemoHeaderNotes(detail);
+
+        const matchedVendor = vendors.find(
+          (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
+        );
+        const buyerFromDocCode =
+          detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(detail.SalesPersonCode),
+              )?.name
+            : "";
+
+        setBuyerInput(buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "");
+        const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
+
+        setBillToAddress(String(detail.Address ?? "").trim() || matchedVendor?.billToAddress || "");
+        setShipToAddress(
+          String(detail.Address2 ?? "").trim() || matchedVendor?.shipToAddress || "",
+        );
+        setHeader({
+          docDate: loadedDocDate,
+          docDueDate,
+          referenceNo,
+          remarks,
+        });
+
+        const productsForWarehouse = effectiveWarehouseCode
           ? await queryClient
               .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
               .catch((): ProductLookupItem[] => [])
           : [];
-
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
-      const uniqueItemCodes = [
-        ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
-
-      // Recover missing product metadata
-      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-      if (missingItemCodes.length > 0) {
-        await Promise.all(
-          missingItemCodes.map(async (itemCode) => {
-            const res = await queryClient
-              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-              .catch((): ProductLookupItem[] => []);
-            const matched = res.find((p) => String(p.code).trim() === itemCode);
-            if (matched) {
-              productByCode.set(itemCode, matched);
-            }
-          }),
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
         );
-      }
+        const productCodes = (detail.DocumentLines ?? [])
+          .map((line) => String(line.ItemCode ?? "").trim())
+          .filter(Boolean);
+        const missingCodes = productCodes.filter((code) => !productByCode.has(code));
+        if (missingCodes.length > 0) {
+          await Promise.all(
+            missingCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+        const taxRateByItemCode = new Map(
+          productsForWarehouse.map((p) => [p.code, Number(p.taxRate ?? 0)]),
+        );
 
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        detailLines.map((line) => String(line.ItemCode ?? "").trim()),
-        "purchase",
-      );
-      const resolvedHeaderDiscountPercent = Number(
-        (detail as Record<string, unknown>).DiscountPercent ?? 0,
-      );
-      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
+        const warehousesRes = await queryClient.fetchQuery(createSharedQueries.warehouses());
+        const warehousesData = Array.isArray(warehousesRes) ? warehousesRes : [];
+        const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const matchedWarehouse = warehousesData.find(
+          (w: any) => String(w.code).trim() === warehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouse?.name ?? warehouseCode, warehouseCode),
+        );
 
-      const mappedLines = (detail.DocumentLines ?? []).map(
-        (line: Record<string, unknown>, index: number) => {
+        let lineIndex = 0;
+        const mappedLines = (detail.DocumentLines ?? []).map((line) => {
+          const idx = lineIndex++;
           const lineData = line as Record<string, unknown>;
           const quantity = Math.max(0, Number(line.Quantity ?? 0));
           const price = Number(line.Price ?? line.UnitPrice ?? 0);
           const grossAmount = Math.max(0, price * quantity);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount,
-            headerDiscountPercent: resolvedHeaderDiscountPercent,
-            line,
+            headerDiscountPercent: 0,
+            line: line as unknown as Record<string, unknown>,
           });
           const itemCode = String(line.ItemCode ?? "").trim();
           const productMeta = productByCode.get(itemCode);
 
           return {
-            baseEntry: typeof line.BaseEntry === "number" ? line.BaseEntry : undefined,
-            baseLine: typeof line.BaseLine === "number" ? line.BaseLine : undefined,
-            baseQuantity: quantity,
-            baseType: typeof line.BaseType === "number" ? line.BaseType : undefined,
-            comment: "",
-            currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
-            discountAmount,
-            discountPercent,
-            id: `${currentDocNum}-${index}`,
-            price,
+            id: `row-draft-${idx}`,
             productCode: itemCode,
-            productName: String(
-              line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
-            ).trim(),
-            quantity,
-            returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? "").trim(),
-            selected: true,
+            productName: String(line.ItemDescription ?? productMeta?.name ?? itemCode).trim(),
             stock: 0,
+            currency: String(productMeta?.currency ?? "").trim(),
+            vatGroup: String(line.TaxCode ?? "").trim(),
             taxRate:
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
@@ -584,58 +822,71 @@ export function useAPCreditMemoCreate({
             salesUomCode: productMeta?.uomCode,
             salesUomEntry: productMeta?.uomEntry,
             uomList: productMeta?.uomList,
-            vatGroup: String(line.TaxCode ?? "").trim(),
+            baseQuantity: undefined,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: "",
+            price,
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
+            baseEntry: undefined,
+            baseLine: undefined,
+            baseType: undefined,
+            selected: true,
+            returnReason: String(line.U_ReturnReason ?? "").trim(),
           };
-        },
-      );
-      setLines(mappedLines);
-      setProductRowDrafts({});
+        });
+        setLines(mappedLines);
 
-      const rawAttachments = detail.attachments || [];
-      setAttachments(
-        rawAttachments.map((item: any, idx: number) => ({
-          id: `loaded-${idx}-${item.fileName}`,
-          fileName: item.fileName,
-          fileExtension: item.fileExtension,
-          sourcePath: item.sourcePath,
-          attachmentDate: item.attachmentDate,
-          freeText: item.freeText || "",
-          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
-        })),
-      );
-
-      // Populate header warehouseCode so the reactive useEffect resolves the display name.
-      const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-      if (editWarehouseCode) {
-        setHeader({ warehouseCode: editWarehouseCode });
-        const matchedWarehouse = warehouses.find(
-          (w) => String(w.code).trim() === editWarehouseCode,
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `draft-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
         );
-        setWarehouseInput(
-          formatWarehouseDisplay(matchedWarehouse?.name ?? editWarehouseCode, editWarehouseCode),
-        );
-      }
 
-      if (isMetadataLoaded) {
-        hydratedDocNumRef.current = currentDocNum;
+        hydratedDocNumRef.current = hydrationKey;
+        setHydratedDocNum(hydrationKey);
+        setFormSnapshot({
+          remarks: (remarks || "").trim(),
+          referenceNo: (referenceNo || "").trim(),
+          docDueDate: docDueDate,
+          billToAddress: formatAddressForDisplay(
+            String(detail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
+          ).trim(),
+          shipToAddress: formatAddressForDisplay(
+            String(detail.Address2 ?? "").trim() || matchedVendor?.shipToAddress || "",
+          ).trim(),
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
+          productRows: mappedLines
+            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
+            })),
+        });
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
       }
-      setFormSnapshot({
-        remarks: (remarks || "").trim(),
-        referenceNo: (referenceNo || "").trim(),
-        docDueDate: loadedDocDate,
-        attachments: rawAttachments.map((item: any) => ({
-          fileName: item.fileName,
-          freeText: item.freeText || item.remarks || "",
-        })),
-      });
-      setHydratedDocNum(currentDocNum);
-      loadingToastRef.current?.dismiss();
-      loadingToastRef.current = null;
     })();
   }, [
-    editDocNum,
-    editDetailQuery.data,
+    draftDocNum,
+    draftDocEntry,
     isEditMode,
     queryClient,
     salesEmployees,
@@ -644,12 +895,11 @@ export function useAPCreditMemoCreate({
     setBillToAddress,
     setShipToAddress,
     vendors,
+    editDetailQuery.data,
     effectiveWarehouseCode,
-    warehouses,
   ]);
-
   useEffect(() => {
-    if (mode !== "create") {
+    if (isEditMode || draftDocNum) {
       return;
     }
     const currentSourceDocNum = sourceDocNum;
@@ -681,234 +931,245 @@ export function useAPCreditMemoCreate({
     }
 
     const fetchAllSources = async () => {
-      interface APInvoiceDetailType {
-        CardCode?: string;
-        CardName?: string;
-        Comments?: string;
-        DocCurr?: string;
-        DocDueDate?: string;
-        DocEntry?: number;
-        id?: number;
-        SalesPersonCode?: number;
-        Address?: string;
-        Address2?: string;
-        DocumentLines?: Record<string, unknown>[];
-        attachments?: any[];
-      }
+      try {
+        interface APInvoiceDetailType {
+          CardCode?: string;
+          CardName?: string;
+          Comments?: string;
+          DocCurr?: string;
+          DocDueDate?: string;
+          DocEntry?: number;
+          id?: number;
+          SalesPersonCode?: number;
+          Address?: string;
+          Address2?: string;
+          DocumentLines?: Record<string, unknown>[];
+          attachments?: any[];
+        }
 
-      const details = await Promise.all(
-        sourceDocNums.map(async (num) => {
-          const res = await queryClient.fetchQuery(apInvoiceQueries.detailByDocNum(num));
-          return res.data as APInvoiceDetailType;
-        }),
-      );
-
-      const primaryDetail = details[0]!;
-      const vendorCode = String(primaryDetail.CardCode ?? "").trim();
-      const vendorName = String(primaryDetail.CardName ?? "").trim();
-      const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode);
-
-      const buyerFromDocCode =
-        primaryDetail.SalesPersonCode !== undefined && primaryDetail.SalesPersonCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(primaryDetail.SalesPersonCode),
-            )?.name
-          : "";
-      const buyerName = buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "";
-
-      const warehouseCode = String(primaryDetail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-      const sourceComments = String(primaryDetail.Comments ?? "").trim();
-
-      const refs = sourceDocNums.map((num) =>
-        generateSingleSourceReference(currentSourceDocType, num),
-      );
-      const autoReference = refs.length === 1 ? refs[0]! : refs.join("\n");
-
-      const commentLines = sourceComments
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean);
-      const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line));
-
-      const userRemarks = commentLines
-        .filter((line) => !/^based on /i.test(line))
-        .join("\n")
-        .trim();
-      const remarksParts = [refLinesFromComments.join("\n"), autoReference, userRemarks]
-        .filter(Boolean)
-        .join("\n")
-        .trim();
-
-      const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
-
-      const allDetailLines = details.flatMap(
-        (d) => (d.DocumentLines ?? []) as { ItemCode?: string }[],
-      );
-      const productsForWarehouse =
-        effectiveWarehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-              .catch((): ProductLookupItem[] => [])
-          : [];
-
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
-      const uniqueItemCodes = [
-        ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
-
-      // Recover missing product metadata
-      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-      if (missingItemCodes.length > 0) {
-        await Promise.all(
-          missingItemCodes.map(async (itemCode) => {
-            const res = await queryClient
-              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-              .catch((): ProductLookupItem[] => []);
-            const matched = res.find((p) => String(p.code).trim() === itemCode);
-            if (matched) {
-              productByCode.set(itemCode, matched);
-            }
+        const details = await Promise.all(
+          sourceDocNums.map(async (num) => {
+            const res = await queryClient.fetchQuery(apInvoiceQueries.detailByDocNum(num));
+            return res.data as APInvoiceDetailType;
           }),
         );
-      }
 
-      const baseType = 18; // AP Invoice BaseType
-      const currency = String(primaryDetail.DocCurr ?? "").trim();
+        const primaryDetail = details[0]!;
+        const vendorCode = String(primaryDetail.CardCode ?? "").trim();
+        const vendorName = String(primaryDetail.CardName ?? "").trim();
+        const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode);
 
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
-        "purchase",
-      );
-      const resolvedHeaderDiscountPercent = Number(
-        (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
-      );
-      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
+        const buyerFromDocCode =
+          primaryDetail.SalesPersonCode !== undefined && primaryDetail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(primaryDetail.SalesPersonCode),
+              )?.name
+            : "";
+        const buyerName = buyerFromDocCode || matchedVendor?.salesEmployeeName?.trim() || "";
 
-      let lineIndex = 0;
-      const mappedLines = details.flatMap((detail) => {
-        const detailLines = (detail.DocumentLines ?? []) as Record<string, unknown>[];
-        return detailLines.map((line) => {
-          const idx = lineIndex++;
-          const lineData = line as Record<string, unknown>;
-          const quantity = Math.max(0, Number(line.Quantity ?? 0));
-          const price = Number(line.Price ?? line.UnitPrice ?? 0);
-          const grossAmount = Math.max(0, price * quantity);
-          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
-            grossAmount,
-            headerDiscountPercent: resolvedHeaderDiscountPercent,
-            line: line as unknown as Record<string, unknown>,
-          });
-          const itemCode = String(line.ItemCode ?? "").trim();
-          const productMeta = productByCode.get(itemCode);
+        const warehouseCode = String(primaryDetail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const sourceComments = String(primaryDetail.Comments ?? "").trim();
 
-          return {
-            baseEntry: detail.DocEntry ?? (detail as { id?: number }).id ?? undefined,
-            baseLine: (line.LineNum as number | undefined) ?? idx,
-            baseQuantity: quantity,
-            baseType,
-            comment: "",
-            currency: currency || String(productMeta?.currency ?? "").trim(),
-            discountAmount,
-            discountPercent,
-            id: `row-copy-${detail.DocEntry ?? detail.id ?? "unknown"}-${idx}`,
-            price,
-            productCode: itemCode,
-            productName: String(
-              line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
-            ).trim(),
-            quantity,
-            returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? "").trim(),
-            selected: false,
-            stock: 0,
-            taxRate:
-              (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
-              taxRateByItemCode.get(itemCode) ||
+        const refs = sourceDocNums.map((num) =>
+          generateSingleSourceReference(currentSourceDocType, num),
+        );
+        const autoReference = refs.length === 1 ? refs[0]! : refs.join("\n");
+
+        const commentLines = sourceComments
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+        const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line));
+
+        const userRemarks = commentLines
+          .filter((line) => !/^based on /i.test(line))
+          .join("\n")
+          .trim();
+        const remarksParts = [refLinesFromComments.join("\n"), autoReference, userRemarks]
+          .filter(Boolean)
+          .join("\n")
+          .trim();
+
+        const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
+
+        const allDetailLines = details.flatMap(
+          (d) => (d.DocumentLines ?? []) as { ItemCode?: string }[],
+        );
+        const productsForWarehouse =
+          effectiveWarehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+                .catch((): ProductLookupItem[] => [])
+            : [];
+
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const uniqueItemCodes = [
+          ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+
+        const baseType = 18; // AP Invoice BaseType
+        const currency = String(primaryDetail.DocCurr ?? "").trim();
+
+        const taxRateByItemCode = await resolveProductTaxRates(
+          queryClient,
+          allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          "purchase",
+        );
+        const resolvedHeaderDiscountPercent = Number(
+          (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
+        setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
+
+        let lineIndex = 0;
+        const mappedLines = details.flatMap((detail) => {
+          const detailLines = (detail.DocumentLines ?? []) as Record<string, unknown>[];
+          return detailLines.map((line) => {
+            const idx = lineIndex++;
+            const lineData = line as Record<string, unknown>;
+            const quantity = Math.max(
               0,
-            uomCode: (() => {
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) return code;
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) {
-                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
-                if (match?.code) return match.code;
-              }
-              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
-            })(),
-            uomEntry: (() => {
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) return entry;
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) {
-                const match = productMeta?.uomList?.find((u) => u.code === code);
-                if (match?.uomEntry !== undefined) return match.uomEntry;
-              }
-              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
-            })(),
-            purchaseUomCode: productMeta?.purchaseUomCode,
-            purchaseUomEntry: productMeta?.purchaseUomEntry,
-            salesUomCode: productMeta?.uomCode,
-            salesUomEntry: productMeta?.uomEntry,
-            uomList: productMeta?.uomList,
-            vatGroup: String(line.TaxCode ?? "").trim(),
-            warehouseCode: String(line.WarehouseCode ?? warehouseCode).trim(),
-          };
+              Number(line.OpenQty ?? line.OpenQuantity ?? line.Quantity ?? 0),
+            );
+            const price = Number(line.Price ?? line.UnitPrice ?? 0);
+            const grossAmount = Math.max(0, price * quantity);
+            const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+              grossAmount,
+              headerDiscountPercent: resolvedHeaderDiscountPercent,
+              line: line as unknown as Record<string, unknown>,
+            });
+            const itemCode = String(line.ItemCode ?? "").trim();
+            const productMeta = productByCode.get(itemCode);
+
+            return {
+              baseEntry: detail.DocEntry ?? (detail as { id?: number }).id ?? undefined,
+              baseLine: (line.LineNum as number | undefined) ?? idx,
+              baseQuantity: quantity,
+              baseType,
+              comment: "",
+              currency: currency || String(productMeta?.currency ?? "").trim(),
+              discountAmount,
+              discountPercent,
+              id: `row-copy-${detail.DocEntry ?? detail.id ?? "unknown"}-${idx}`,
+              price,
+              productCode: itemCode,
+              productName: String(
+                line.ItemDescription ?? productMeta?.name ?? line.ItemCode ?? "",
+              ).trim(),
+              quantity,
+              returnReason: String((line as Record<string, unknown>).U_ReturnReason ?? "").trim(),
+              selected: false,
+              stock: 0,
+              taxRate:
+                (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+                taxRateByItemCode.get(itemCode) ||
+                0,
+              uomCode: (() => {
+                const code = String(
+                  lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+                ).trim();
+                if (code) return code;
+                const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+                if (Number.isFinite(entry) && entry > 0) {
+                  const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                  if (match?.code) return match.code;
+                }
+                return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+              })(),
+              uomEntry: (() => {
+                const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+                if (Number.isFinite(entry) && entry > 0) return entry;
+                const code = String(
+                  lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+                ).trim();
+                if (code) {
+                  const match = productMeta?.uomList?.find((u) => u.code === code);
+                  if (match?.uomEntry !== undefined) return match.uomEntry;
+                }
+                return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+              })(),
+              purchaseUomCode: productMeta?.purchaseUomCode,
+              purchaseUomEntry: productMeta?.purchaseUomEntry,
+              salesUomCode: productMeta?.uomCode,
+              salesUomEntry: productMeta?.uomEntry,
+              uomList: productMeta?.uomList,
+              vatGroup: String(line.TaxCode ?? "").trim(),
+              warehouseCode: String(line.WarehouseCode ?? warehouseCode).trim(),
+            };
+          });
         });
-      });
 
-      const sourceNumAtCard = String(
-        (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
-      ).trim();
-      setVendorCodeInput(vendorCode);
-      setVendorNameInput(vendorName);
-      setBuyerInput(buyerName);
-      const matchedWarehouseCopy = warehouses.find((w) => String(w.code).trim() === warehouseCode);
-      setWarehouseInput(
-        formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
-      );
-      setBillToAddress(String(primaryDetail.Address ?? "").trim());
-      setShipToAddress(String(primaryDetail.Address2 ?? "").trim());
-      setHeader({
-        docDate: getTodayISO(),
-        docDueDate,
-        referenceAutoFilled: true,
-        referenceNo: sourceNumAtCard,
-        remarks: remarksParts,
-        warehouseCode, // ← required so the reactive useEffect can resolve the display name
-      });
-      setLines(mappedLines);
-      setProductRowDrafts({});
+        const sourceNumAtCard = String(
+          (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
+        ).trim();
+        setVendorCodeInput(vendorCode);
+        setVendorNameInput(vendorName);
+        setBuyerInput(buyerName);
+        const matchedWarehouseCopy = warehouses.find(
+          (w) => String(w.code).trim() === warehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
+        );
+        setBillToAddress(String(primaryDetail.Address ?? "").trim());
+        setShipToAddress(String(primaryDetail.Address2 ?? "").trim());
+        setHeader({
+          docDate: getTodayISO(),
+          docDueDate,
+          referenceAutoFilled: true,
+          referenceNo: sourceNumAtCard,
+          remarks: remarksParts,
+          warehouseCode, // ← required so the reactive useEffect can resolve the display name
+        });
+        setLines(mappedLines);
+        setProductRowDrafts({});
 
-      const sourceAttachments = primaryDetail.attachments || [];
-      setAttachments(
-        sourceAttachments.map((item: any, idx: number) => ({
-          id: `copy-${idx}-${item.fileName}`,
-          fileName: item.fileName,
-          fileExtension: item.fileExtension,
-          sourcePath: item.sourcePath,
-          attachmentDate: item.attachmentDate,
-          freeText: item.freeText || "",
-          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
-        })),
-      );
-      if (isMetadataLoaded) {
-        hydratedDocNumRef.current = hydrationKey;
+        const sourceAttachments = primaryDetail.attachments || [];
+        setAttachments(
+          sourceAttachments.map((item: any, idx: number) => ({
+            id: `copy-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+        if (isMetadataLoaded) {
+          hydratedDocNumRef.current = hydrationKey;
+        }
+      } catch {
+        // Error resilience – ensure toast is dismissed even on failure
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
       }
-      loadingToastRef.current?.dismiss();
-      loadingToastRef.current = null;
     };
 
     void fetchAllSources();
   }, [
-    mode,
+    isEditMode,
+    draftDocNum,
     sourceDocNum,
     sourceDocType,
     queryClient,
@@ -1240,20 +1501,9 @@ export function useAPCreditMemoCreate({
     documentName: "AP Credit Memo",
     moduleType: "purchase",
     defaultUrl: "/purchase/create-ap-credit-memo",
+    tableUrl: "/purchase/ap-credit-memo",
     resetForm,
     getPayloadString: () => {
-      if (isEditMode) {
-        const updatePayload: UpdateAPCreditMemoInput = {
-          Comments: header.remarks.trim() || undefined,
-          DocDueDate: header.docDueDate || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          SalesPersonCode: resolvedBuyerCode,
-          Address: billToAddress.trim() || undefined,
-          Address2: shipToAddress.trim() || undefined,
-        };
-        return JSON.stringify(updatePayload);
-      }
-
       const buildDocumentLines = (): CreateAPCreditMemoInput["DocumentLines"] => {
         const lines: CreateAPCreditMemoInput["DocumentLines"] = [];
         for (const row of filteredRows) {
@@ -1306,6 +1556,23 @@ export function useAPCreditMemoCreate({
         }
         return lines;
       };
+
+      if (isEditMode || draftDocNum) {
+        const updatePayload: UpdateAPCreditMemoInput = {
+          Comments: header.remarks.trim() || undefined,
+          DocDueDate: header.docDueDate || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
+          SalesPersonCode: resolvedBuyerCode,
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
+          ...(draftDocNum
+            ? {
+                DocumentLines: buildDocumentLines(),
+              }
+            : {}),
+        };
+        return JSON.stringify(updatePayload);
+      }
 
       const createPayload: CreateAPCreditMemoInput = {
         CardCode: vendorCodeInput.trim(),
@@ -1444,15 +1711,26 @@ export function useAPCreditMemoCreate({
   const handleCreateAPCreditMemo = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
   ) => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      setSubmitAttempted(false);
-      return;
+    const draftCardCode = String(header.vendorCode || vendorCodeInput || "").trim();
+    const isDraftAction = action === "draft";
+    const isDraftUpdate = isDraftAction && Boolean(draftDocNum);
+    const isUpdating = isEditMode || isDraftUpdate;
+
+    if (isDraftAction) {
+      if (!draftCardCode) {
+        setSubmitAttempted(true);
+        const nextErrors = { ...EMPTY_AP_CREDIT_MEMO_FIELD_ERRORS };
+        nextErrors.vendorCode = AP_CREDIT_MEMO_FIELD_ERROR_TEXT.vendorCode;
+        nextErrors.vendorName = AP_CREDIT_MEMO_FIELD_ERROR_TEXT.vendorName;
+        setFieldErrors(nextErrors);
+        setCreateError("Vendor is required to save as draft.");
+        return;
+      }
     }
 
     setSubmitAttempted(true);
 
-    if (!isEditMode) {
+    if (!isDraftAction && !isEditMode) {
       const missing = AP_CREDIT_MEMO_MANDATORY_FIELDS.filter((field) => {
         if (field === "vendorName") {
           return !vendorNameInput.trim();
@@ -1479,11 +1757,73 @@ export function useAPCreditMemoCreate({
       return;
     }
 
-    saveActions.startSaveTracking(isEditMode ? "update" : action);
+    const buildDocumentLines = (): CreateAPCreditMemoInput["DocumentLines"] => {
+      const lines: CreateAPCreditMemoInput["DocumentLines"] = [];
+      for (const row of filteredRows) {
+        if (row.quantity <= 0) {
+          continue;
+        }
+
+        const hasCompleteBaseLink =
+          Number.isFinite(row.baseEntry) &&
+          Number.isFinite(row.baseLine) &&
+          Number.isFinite(row.baseType);
+
+        const baseLine: CreateAPCreditMemoInput["DocumentLines"][0] = {
+          DiscountPercent: row.discountPercent,
+          ItemCode: row.productCode,
+          Quantity: row.quantity,
+          UnitPrice: row.price,
+          ...(row.uomEntry !== undefined ? { UoMEntry: row.uomEntry } : {}),
+          ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
+          ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
+          ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),
+          ...(row.returnReason ? { U_ReturnReason: row.returnReason } : {}),
+        };
+
+        if (!hasCompleteBaseLink) {
+          lines.push(baseLine);
+          continue;
+        }
+
+        const baseQty = row.baseQuantity ?? 0;
+        const linkedQty = Math.min(row.quantity, baseQty);
+
+        if (linkedQty > 0) {
+          lines.push({
+            ...baseLine,
+            Quantity: linkedQty,
+            ...(row.baseType !== undefined ? { BaseType: row.baseType } : {}),
+            ...(row.baseEntry !== undefined ? { BaseEntry: row.baseEntry } : {}),
+            ...(row.baseLine !== undefined ? { BaseLine: row.baseLine } : {}),
+          });
+        }
+
+        const excessQty = row.quantity - baseQty;
+        if (excessQty > 0) {
+          lines.push({
+            ...baseLine,
+            Quantity: excessQty,
+          });
+        }
+      }
+      return lines;
+    };
+
+    const trackingAction = isDraftAction
+      ? isDraftUpdate
+        ? "draft-update"
+        : "draft"
+      : isEditMode
+        ? "update"
+        : action;
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("AP Credit Memo", trackingAction);
 
     try {
       let createdDocNum: string | number | undefined;
-      if (isEditMode) {
+      if (isUpdating) {
         const currentSalesPersonCode = resolvedBuyerCode;
 
         if (isEditMode && !isDirty) {
@@ -1493,12 +1833,21 @@ export function useAPCreditMemoCreate({
           return;
         }
 
-        const id = editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry;
+        const id =
+          editDetailQuery.data?.data?.id ?? editDetailQuery.data?.data?.DocEntry ?? draftDocEntry;
         const updatePayload: UpdateAPCreditMemoInput = {
           Comments: header.remarks.trim() || undefined,
+          DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           SalesPersonCode: currentSalesPersonCode,
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
+          ...(draftDocNum || isDraftUpdate
+            ? {
+                DocumentLines: buildDocumentLines(),
+              }
+            : {}),
           attachments: attachments.map((att) => ({
             sourcePath: att.sourcePath || "",
             fileName: att.fileName,
@@ -1508,13 +1857,21 @@ export function useAPCreditMemoCreate({
           })),
         };
 
+        if (isDraftUpdate) {
+          updatePayload.isDraft = true;
+          if (draftDocEntry) {
+            updatePayload.draftDocEntry = Number(draftDocEntry);
+          }
+        }
+
         await updateMutation.mutateAsync({ id: id!, payload: updatePayload });
 
-        createdDocNum = editDetailQuery.data?.data?.DocNum;
+        createdDocNum = editDetailQuery.data?.data?.DocNum ?? draftDocNum;
 
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
+        const fetchNum = isEditMode ? editDocNum : draftDocNum;
         const updatedDetailRes = await queryClient.fetchQuery(
-          apCreditMemoQueries.detailByDocNum(editDocNum),
+          apCreditMemoQueries.detailByDocNum(fetchNum, isEditMode ? undefined : draftDocEntry),
         );
         const updatedDetail = updatedDetailRes?.data;
         if (updatedDetail) {
@@ -1532,78 +1889,45 @@ export function useAPCreditMemoCreate({
           );
 
           const { comments: remarks, referenceNo } = parseAPCreditMemoHeaderNotes(updatedDetail);
-          const docDueDate = String(updatedDetail.DocDate ?? "").slice(0, 10);
+          const docDueDate = String(updatedDetail.DocDueDate ?? updatedDetail.DocDate ?? "").slice(
+            0,
+            10,
+          );
 
           setFormSnapshot({
             remarks: (remarks || "").trim(),
             referenceNo: (referenceNo || "").trim(),
             docDueDate: docDueDate,
+            billToAddress: formatAddressForDisplay(
+              String(updatedDetail.Address ?? "").trim() || billToAddress || "",
+            ).trim(),
+            shipToAddress: formatAddressForDisplay(
+              String(updatedDetail.Address2 ?? "").trim() || shipToAddress || "",
+            ).trim(),
             attachments: rawAttachments.map((item: any) => ({
               fileName: item.fileName,
               freeText: item.freeText || item.remarks || "",
             })),
+            productRows: filteredRows.map((row) => ({
+              productCode: row.productCode,
+              quantity: row.quantity,
+              price: row.price,
+              discountPercent: row.discountPercent,
+              warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
+            })),
           });
         }
       } else {
-        const buildDocumentLines = (): CreateAPCreditMemoInput["DocumentLines"] => {
-          const lines: CreateAPCreditMemoInput["DocumentLines"] = [];
-          for (const row of filteredRows) {
-            if (row.quantity <= 0) {
-              continue;
-            }
-
-            const hasCompleteBaseLink =
-              Number.isFinite(row.baseEntry) &&
-              Number.isFinite(row.baseLine) &&
-              Number.isFinite(row.baseType);
-
-            const baseLine: CreateAPCreditMemoInput["DocumentLines"][0] = {
-              DiscountPercent: row.discountPercent,
-              ItemCode: row.productCode,
-              Quantity: row.quantity,
-              UnitPrice: row.price,
-              ...(row.uomEntry !== undefined ? { UoMEntry: row.uomEntry } : {}),
-              ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
-              ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
-              ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),
-              ...(row.returnReason ? { U_ReturnReason: row.returnReason } : {}),
-            };
-
-            if (!hasCompleteBaseLink) {
-              lines.push(baseLine);
-              continue;
-            }
-
-            const baseQty = row.baseQuantity ?? 0;
-            const linkedQty = Math.min(row.quantity, baseQty);
-
-            if (linkedQty > 0) {
-              lines.push({
-                ...baseLine,
-                Quantity: linkedQty,
-                ...(row.baseType !== undefined ? { BaseType: row.baseType } : {}),
-                ...(row.baseEntry !== undefined ? { BaseEntry: row.baseEntry } : {}),
-                ...(row.baseLine !== undefined ? { BaseLine: row.baseLine } : {}),
-              });
-            }
-
-            const excessQty = row.quantity - baseQty;
-            if (excessQty > 0) {
-              lines.push({
-                ...baseLine,
-                Quantity: excessQty,
-              });
-            }
-          }
-          return lines;
-        };
-
         const createPayload: CreateAPCreditMemoInput = {
           CardCode: vendorCodeInput.trim(),
           ...(header.docDate ? { DocDate: header.docDate } : {}),
           ...(header.docDueDate ? { DocDueDate: header.docDueDate } : {}),
           ...(header.remarks.trim() ? { Comments: header.remarks.trim() } : {}),
           ...(header.referenceNo.trim() ? { NumAtCard: header.referenceNo.trim() } : {}),
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
           DocumentLines: buildDocumentLines(),
           SalesPersonCode: resolvedBuyerCode,
           attachments: attachments.map((att) => ({
@@ -1614,6 +1938,15 @@ export function useAPCreditMemoCreate({
             attachmentDate: att.attachmentDate || "",
           })),
         };
+
+        if (isDraftAction) {
+          createPayload.isDraft = true;
+          if (draftDocEntry) {
+            createPayload.draftDocEntry = Number(draftDocEntry);
+          }
+        } else if (draftDocNum && draftDocEntry) {
+          createPayload.draftDocEntry = Number(draftDocEntry);
+        }
 
         // Try to reopen the base A/P Invoice if it's closed, as requested.
         // We catch and swallow the error if SAP doesn't support reopening this specific invoice,
@@ -1674,10 +2007,10 @@ export function useAPCreditMemoCreate({
     } catch (error) {
       const errorMsg = normalizeCreateOrderErrorMessage(
         error,
-        "Failed to process A/P Credit Memo.",
+        `Failed to ${trackingAction} A/P Credit Memo.`,
       );
       setCreateError(errorMsg);
-      saveActions.actionToast.showError("AP Credit Memo", isEditMode ? "update" : action, errorMsg);
+      saveActions.actionToast.showError("AP Credit Memo", trackingAction, errorMsg);
     }
   };
 
@@ -1757,13 +2090,15 @@ export function useAPCreditMemoCreate({
     isClosed,
     isEditHydrated: !isEditMode || hydratedDocNum === editDocNum,
     isEditMode,
+    isDirty,
     isLookupLoading: modalMode.includes("vendor")
       ? vendorsQuery.isLoading
       : modalMode === "warehouse"
         ? warehousesQuery.isLoading
         : salesEmployeesQuery.isLoading,
     isProductsLoading: productsQuery.isLoading,
-    isSourceHydrating: mode === "create" && Boolean(sourceDocNum) && !hydratedDocNumRef.current,
+    isSourceHydrating:
+      mode === "create" && !draftDocNum && Boolean(sourceDocNum) && !hydratedDocNumRef.current,
     loadMoreProducts: () => {
       if (!productPopupOpen) {
         return;
@@ -1867,8 +2202,14 @@ export function useAPCreditMemoCreate({
         [id]: { ...prev[id], [field]: value },
       })),
     setProductSearch,
-    setReferenceNo: (val: string) => setHeader({ referenceNo: val }),
-    setRemarks: (val: string) => setHeader({ remarks: val }),
+    setReferenceNo: (val: string) => {
+      setHeader({ referenceNo: val });
+      setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
+    },
+    setRemarks: (val: string) => {
+      setHeader({ remarks: val });
+      setFieldErrors((prev) => ({ ...prev, comments: undefined }));
+    },
     setShipToAddress: (val: string) =>
       isEditMode ? notifyRestricted("Ship To Address") : setShipToAddress(val),
     setStockPreviewProduct,

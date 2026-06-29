@@ -81,7 +81,11 @@ export const mapSearchToARInvoiceListParams = (search: ARInvoiceSearch): ARInvoi
   const filters = normalizeColumnFilters(search.columnFilters);
 
   const docDate = getDateRangeFilter(filters, "DocDate");
-  const docStatus = getEnumFilter<ARInvoiceStatus>(filters, "DocStatus", ["Open", "Closed"]);
+  const docStatus = getEnumFilter<ARInvoiceStatus>(filters, "DocStatus", [
+    "Open",
+    "Closed",
+    "Draft",
+  ]);
   const docTotal = getDocTotalFilter(filters);
   const numAtCard = getStringFilter(filters, "NumAtCard");
 

@@ -104,8 +104,12 @@ export const salesQuotationAPI = {
     apiClient<OpenSalesQuotationLinesResponse>(
       `/api/v1/sales-quotations/open-lines?cardCode=${cardCode}`,
     ),
-  getSalesQuotationByDocNum: async (docNum: string | number) =>
-    apiClient<SalesQuotationDetailResponse>(`/api/v1/sales-quotations/by-doc-num/${docNum}`),
+  getSalesQuotationByDocNum: async (docNum: string | number, draftDocEntry?: string) => {
+    const url = draftDocEntry
+      ? `/api/v1/sales-quotations/by-doc-num/${docNum}?draftDocEntry=${draftDocEntry}`
+      : `/api/v1/sales-quotations/by-doc-num/${docNum}`;
+    return apiClient<SalesQuotationDetailResponse>(url);
+  },
   getSalesQuotationDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query

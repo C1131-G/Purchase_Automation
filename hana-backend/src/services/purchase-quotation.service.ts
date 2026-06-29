@@ -3,19 +3,16 @@
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getTenantRepository, executeTenantQuery } from "@/dal/tenant-dal.helper";
 import type { PurchaseQuotationFilters } from "@/dal/types/purchase-quotation.types";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { PurchaseQuotationLineSchema } from "@/db/schemas/purchase-quotation-line.schema";
-import type { PurchaseQuotation } from "@/db/schemas/purchase-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
-import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/services/attachments.service";
-import { adjustPayloadDates } from "./date-adjustment.util";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
 const normalizeSapDateValue = (value: unknown) => {
@@ -32,102 +29,134 @@ const normalizeSapDateValue = (value: unknown) => {
 // Fetches a filtered and paginated list of Purchase Quotations from the tenant-specific HANA database.
 export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuotationFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, PurchaseQuotationSchema);
+    const buildSubQuery = (table: string, isDraft: boolean) => {
+      const whereClauses = ["1=1"];
+      const params: unknown[] = [];
 
-    const queryBuilder = repo.createQueryBuilder("pq");
-    queryBuilder.where("1=1");
-
-    if (filters.DocNum) {
-      queryBuilder.andWhere("CAST(pq.docNum AS NVARCHAR) LIKE :docNum", {
-        docNum: `%${filters.DocNum}%`,
-      });
-    }
-
-    if (filters.CardCode) {
-      queryBuilder.andWhere("pq.cardCode LIKE :cardCode", {
-        cardCode: `%${filters.CardCode}%`,
-      });
-    }
-
-    if (filters.CardName) {
-      queryBuilder.andWhere("LOWER(pq.cardName) LIKE LOWER(:cardName)", {
-        cardName: `%${filters.CardName}%`,
-      });
-    }
-
-    if (filters.DocDateStart) {
-      queryBuilder.andWhere("pq.docDate >= :startDate", {
-        startDate: filters.DocDateStart,
-      });
-    }
-
-    if (filters.DocDateEnd) {
-      queryBuilder.andWhere("pq.docDate <= :endDate", {
-        endDate: filters.DocDateEnd,
-      });
-    }
-
-    if (filters.DocStatus) {
-      queryBuilder.andWhere("pq.docStatus = :status", {
-        status: filters.DocStatus,
-      });
-    }
-
-    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
-      if (filters.DocTotalOperator === "eq") {
-        queryBuilder.andWhere("pq.docTotal = :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+      if (isDraft) {
+        whereClauses.push(`"ObjType" = '540000006'`);
       }
-      if (filters.DocTotalOperator === "lt") {
-        queryBuilder.andWhere("pq.docTotal < :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.DocNum) {
+        whereClauses.push(`CAST("DocNum" AS NVARCHAR) LIKE ?`);
+        params.push(`%${filters.DocNum}%`);
       }
-      if (filters.DocTotalOperator === "gt") {
-        queryBuilder.andWhere("pq.docTotal > :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.CardCode) {
+        whereClauses.push(`"CardCode" LIKE ?`);
+        params.push(`%${filters.CardCode}%`);
       }
-    }
+
+      if (filters.CardName) {
+        whereClauses.push(`LOWER("CardName") LIKE LOWER(?)`);
+        params.push(`%${filters.CardName}%`);
+      }
+
+      if (filters.DocDateStart) {
+        whereClauses.push(`"DocDate" >= ?`);
+        params.push(filters.DocDateStart);
+      }
+
+      if (filters.DocDateEnd) {
+        whereClauses.push(`"DocDate" <= ?`);
+        params.push(filters.DocDateEnd);
+      }
+
+      if (filters.DocStatus) {
+        const statusVal = filters.DocStatus;
+        if (isDraft) {
+          if (statusVal !== "D" && statusVal !== "Draft") {
+            whereClauses.push("1=0");
+          }
+        } else {
+          if (statusVal === "D" || statusVal === "Draft") {
+            whereClauses.push("1=0");
+          } else {
+            whereClauses.push(`"DocStatus" = ?`);
+            params.push(statusVal);
+          }
+        }
+      }
+
+      if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+        const opMap = { eq: "=", lt: "<", gt: ">" };
+        const op = opMap[filters.DocTotalOperator as keyof typeof opMap];
+        if (op) {
+          whereClauses.push(`"DocTotal" ${op} ?`);
+          params.push(filters.DocTotal);
+        }
+      }
+
+      const selectColumns = isDraft
+        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus"`
+        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus"`;
+
+      const sql = `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
+      return { sql, params };
+    };
+
+    const subPQ = buildSubQuery("OPQT", false);
+    const subDraft = buildSubQuery("ODRF", true);
+
+    const combinedSql = `
+      SELECT * FROM (
+        ${subPQ.sql}
+        UNION ALL
+        ${subDraft.sql}
+      ) AS "Combined"
+    `;
+    const combinedParams = [...subPQ.params, ...subDraft.params];
+
+    const countSql = `SELECT COUNT(*) AS "total" FROM (${combinedSql}) AS "Counted"`;
 
     const sortFieldMap: Record<string, string> = {
-      CardCode: "pq.cardCode",
-      CardName: "pq.cardName",
-      DocDate: "pq.docDate",
-      DocNum: "pq.docNum",
-      DocStatus: "pq.docStatus",
-      DocTotal: "pq.docTotal",
+      CardCode: `"CardCode"`,
+      CardName: `"CardName"`,
+      DocDate: `"DocDate"`,
+      DocNum: `"DocNum"`,
+      DocStatus: `"DocStatus"`,
+      DocTotal: `"DocTotal"`,
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
-    const sort = requestedSortField
-      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
-      : ({ "pq.docDate": "DESC", "pq.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
+    const orderBy = requestedSortField
+      ? `ORDER BY ${requestedSortField} ${requestedSortOrder}`
+      : `ORDER BY "DocDate" DESC, "DocNum" DESC`;
 
-    const result = await PageService.getPagedData<PurchaseQuotation>({
-      dbName,
-      entityName: "PurchaseQuotations",
-      limit: Number(filters.limit) || 10,
-      page: Number(filters.page) || 1,
-      query: queryBuilder,
-      sort,
-    });
+    const limit = Number(filters.limit) || 10;
+    const page = Number(filters.page) || 1;
+    const offset = (page - 1) * limit;
+
+    const dataSql = `
+      ${combinedSql}
+      ${orderBy}
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...combinedParams, limit, offset];
+
+    const [countRows, dataRows] = await Promise.all([
+      executeTenantQuery(dbName, countSql, combinedParams) as Promise<any[]>,
+      executeTenantQuery(dbName, dataSql, dataParams) as Promise<any[]>,
+    ]);
+
+    const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
+    const totalPages = Math.ceil(total / limit);
 
     return {
-      ...result,
-      data: result.data.map((data) => ({
-        CardCode: data.cardCode,
-        CardName: data.cardName,
-        DocCurr: data.docCurr,
-        DocDate: data.docDate,
-        DocNum: data.docNum,
-        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
-        DocTotal: data.docTotal,
-        Address: data.address,
-        Address2: data.address2,
-        id: data.docEntry,
+      data: dataRows.map((row: any) => ({
+        CardCode: row.CardCode,
+        CardName: row.CardName,
+        DocCurr: row.DocCurr,
+        DocDate: row.DocDate,
+        DocNum: row.DocNum,
+        DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",
+        DocTotal: row.DocTotal,
+        id: row.DocEntry,
       })),
+      limit,
+      page,
+      total,
+      totalPages,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
@@ -175,12 +204,13 @@ export const getPurchaseQuotationDocNums = async (
 };
 
 // Obtains the full Purchase Quotation document structure from SAP, used for detail views.
-export const getPurchaseQuotation = async (sessionId: string, id: string) => {
+export const getPurchaseQuotation = async (sessionId: string, id: string, isDraft = false) => {
   try {
+    const endpoint = isDraft ? `/Drafts(${id})` : `/PurchaseQuotations(${id})`;
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
-      `/PurchaseQuotations(${id})`,
+      endpoint,
     )) as SAPDocumentResponse;
 
     const attachmentEntry = (result as any).AttachmentEntry || null;
@@ -211,7 +241,7 @@ export const getPurchaseQuotation = async (sessionId: string, id: string) => {
       Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       DocTotal: result.DocTotal,
       DocCurr: result.DocCurrency,
-      DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       Comments: result.Comments,
@@ -253,12 +283,25 @@ export const getPurchaseQuotationByDocNum = async (
   sessionId: string,
   dbName: string,
   docNum: string,
+  draftDocEntry?: string,
 ) => {
   const normalizedDocNum = docNum.trim();
   if (!normalizedDocNum) {
     throw new AppError("DocNum is required", 400, "VALIDATION_ERROR");
   }
 
+  if (draftDocEntry) {
+    const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '540000006' AND "DocEntry" = ?`;
+    const draftMatch = (await executeTenantQuery(dbName, draftQuery, [
+      Number(draftDocEntry),
+    ])) as any[];
+
+    if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+      return getPurchaseQuotation(sessionId, String(draftMatch[0].DocEntry), true);
+    }
+  }
+
+  // 1. Check OPQT (real document)
   const repo = await getTenantRepository(dbName, PurchaseQuotationSchema);
   const match = await repo
     .createQueryBuilder("pq")
@@ -268,11 +311,19 @@ export const getPurchaseQuotationByDocNum = async (
     })
     .getOne();
 
-  if (!match?.docEntry) {
-    throw new AppError("Purchase Quotation not found", 404, "NOT_FOUND");
+  if (match?.docEntry) {
+    return getPurchaseQuotation(sessionId, String(match.docEntry), false);
   }
 
-  return getPurchaseQuotation(sessionId, String(match.docEntry));
+  // 2. Check ODRF (draft document)
+  const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '540000006' AND CAST("DocNum" AS NVARCHAR) = ?`;
+  const draftMatch = (await executeTenantQuery(dbName, draftQuery, [normalizedDocNum])) as any[];
+
+  if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+    return getPurchaseQuotation(sessionId, String(draftMatch[0].DocEntry), true);
+  }
+
+  throw new AppError("Purchase Quotation not found", 404, "NOT_FOUND");
 };
 
 // Posts a new Purchase Quotation to the Service Layer using the /PurchaseQuotations endpoint.
@@ -282,6 +333,9 @@ export const createPurchaseQuotation = async (
   dbName?: string,
 ) => {
   try {
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = Number(payload.draftDocEntry || 0);
+
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
@@ -373,11 +427,14 @@ export const createPurchaseQuotation = async (
       RoundingDiffAmount: payload.RoundingDiffAmount,
     };
 
+    if (isDraft) {
+      sapPayload.DocObjectCode = "540000006";
+    }
+
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
-    await adjustPayloadDates(sessionId, sapPayload, false, undefined, "Valid until date");
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -396,15 +453,33 @@ export const createPurchaseQuotation = async (
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
-      "/PurchaseQuotations",
+      isDraft ? "/Drafts" : "/PurchaseQuotations",
       sapPayload,
     )) as SAPDocumentResponse;
 
     logger.info({
       docEntry: result.DocEntry,
       docNum: result.DocNum,
-      msg: "Purchase quotation created in SAP",
+      msg: isDraft
+        ? "Purchase quotation draft created in SAP"
+        : "Purchase quotation created in SAP",
     });
+
+    if (!isDraft && Number.isFinite(draftDocEntry) && draftDocEntry > 0) {
+      try {
+        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
+        logger.info({
+          draftDocEntry,
+          msg: "Deleted converted purchase quotation draft",
+        });
+      } catch (delErr: any) {
+        logger.error({
+          draftDocEntry,
+          error: delErr.message,
+          msg: "Failed to delete draft after conversion",
+        });
+      }
+    }
 
     if (resolvedDbName) {
       purgeCache(`dash:purchase:${resolvedDbName}:`);
@@ -423,7 +498,9 @@ export const createPurchaseQuotation = async (
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      message: "Purchase Quotation created successfully",
+      message: isDraft
+        ? "Purchase Quotation Draft saved successfully"
+        : "Purchase Quotation created successfully",
       success: true,
     };
   } catch (err: unknown) {
@@ -443,6 +520,7 @@ export const updatePurchaseQuotation = async (
   payload: Record<string, unknown>,
 ) => {
   try {
+    const isDraft = payload.isDraft === true;
     const sapPayload: Record<string, unknown> = {};
 
     if (payload.attachments !== undefined) {
@@ -452,6 +530,7 @@ export const updatePurchaseQuotation = async (
         // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
         let existingAttachmentEntry: number | null = null;
+        let successDb = false;
         try {
           const pqRepo = await getTenantRepository(dbName, PurchaseQuotationSchema);
           const pqDoc = await pqRepo.findOne({
@@ -461,18 +540,24 @@ export const updatePurchaseQuotation = async (
           if (pqDoc) {
             docNum = pqDoc.docNum;
             existingAttachmentEntry = pqDoc.atcEntry ?? null;
+            successDb = true;
           }
         } catch (dbErr: any) {
           logger.warn(
             { id, err: dbErr.message },
             "Failed to query database for doc info, falling back to Service Layer GET",
           );
-          // Fallback to Service Layer GET if database query fails
+        }
+
+        if (!successDb) {
+          // Fallback to Service Layer GET if database query fails or document not found (e.g. for drafts)
           try {
             const docData = await serviceLayerClient.request<any>(
               sessionId,
               "GET",
-              `/PurchaseQuotations(${id})?$select=DocNum,AttachmentEntry`,
+              isDraft
+                ? `/Drafts(${id})?$select=DocNum,AttachmentEntry`
+                : `/PurchaseQuotations(${id})?$select=DocNum,AttachmentEntry`,
             );
             if (docData?.DocNum) {
               docNum = docData.DocNum;
@@ -523,13 +608,6 @@ export const updatePurchaseQuotation = async (
     if ((payload as Record<string, unknown>).RequriedDate !== undefined) {
       sapPayload.RequriedDate = (payload as Record<string, unknown>).RequriedDate;
     }
-    await adjustPayloadDates(
-      sessionId,
-      sapPayload,
-      true,
-      `/PurchaseQuotations(${id})`,
-      "Valid until date",
-    );
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;
     }
@@ -592,7 +670,7 @@ export const updatePurchaseQuotation = async (
     await serviceLayerClient.request(
       sessionId,
       "PATCH",
-      `/PurchaseQuotations(${id})`,
+      isDraft ? `/Drafts(${id})` : `/PurchaseQuotations(${id})`,
       sapPayload,
       true,
       {
@@ -606,7 +684,9 @@ export const updatePurchaseQuotation = async (
     }
 
     return {
-      message: "Purchase Quotation updated successfully",
+      message: isDraft
+        ? "Purchase Quotation Draft updated successfully"
+        : "Purchase Quotation updated successfully",
       success: true,
     };
   } catch (err: unknown) {

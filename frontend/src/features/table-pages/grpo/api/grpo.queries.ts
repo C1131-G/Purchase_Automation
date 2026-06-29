@@ -8,7 +8,8 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 export const grpoKeys = {
   all: ["grpos"] as const,
   availablePOs: (vendorCode: string) => [...grpoKeys.all, "available-pos", vendorCode] as const,
-  detailByDocNum: (docNum: string) => [...grpoKeys.all, "detail-by-doc-num", docNum] as const,
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
+    [...grpoKeys.all, "detail-by-doc-num", docNum, draftDocEntry ?? ""] as const,
   detailById: (id: string | number) => [...grpoKeys.all, "detail", id] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...grpoKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
@@ -25,11 +26,11 @@ export const grpoQueries = {
       queryKey: grpoKeys.availablePOs(vendorCode),
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     }),
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.detail.gcTime,
-      queryFn: () => grpoAPI.getGRPOById(docNum),
-      queryKey: grpoKeys.detailByDocNum(docNum),
+      queryFn: () => grpoAPI.getGRPOById(docNum, draftDocEntry),
+      queryKey: grpoKeys.detailByDocNum(docNum, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.detail.staleTime,
     }),
   detailById: (id: string | number) =>

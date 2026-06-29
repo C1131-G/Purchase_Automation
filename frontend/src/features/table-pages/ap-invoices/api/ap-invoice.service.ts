@@ -47,8 +47,10 @@ export const apInvoiceAPI = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  getAPInvoice: async (docNum: string) =>
-    apiClient<APInvoiceDetailResponse>(`/api/v1/ap-invoices/${docNum}`),
+  getAPInvoice: async (docNum: string, draftDocEntry?: string) => {
+    const query = draftDocEntry ? `?draftDocEntry=${draftDocEntry}` : "";
+    return apiClient<APInvoiceDetailResponse>(`/api/v1/ap-invoices/${docNum}${query}`);
+  },
   getAPInvoiceDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query ? `/api/v1/ap-invoices/docnums?${query}` : "/api/v1/ap-invoices/docnums";

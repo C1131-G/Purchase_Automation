@@ -48,8 +48,10 @@ export interface APCreditMemoDetailResponse {
 }
 
 export const apCreditMemoAPI = {
-  getAPCreditMemo: async (docNum: string) =>
-    apiClient<APCreditMemoDetailResponse>(`/api/v1/ap-credit-memos/${docNum}`),
+  getAPCreditMemo: async (docNum: string, draftDocEntry?: string) => {
+    const query = draftDocEntry ? `?draftDocEntry=${draftDocEntry}` : "";
+    return apiClient<APCreditMemoDetailResponse>(`/api/v1/ap-credit-memos/${docNum}${query}`);
+  },
   getAPCreditMemoDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query

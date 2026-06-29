@@ -144,8 +144,21 @@ export function SalesQuotationTable() {
   const columns = useMemo(
     () =>
       createSalesQuotationColumns({
-        onDocNumDoubleClick: (docNum) => {
-          const normalized = String(docNum).trim();
+        onDocNumDoubleClick: (row) => {
+          const isDraft = row.DocStatus === "Draft";
+          if (isDraft) {
+            void navigate({
+              search: (prev) => ({
+                ...prev,
+                draftDocNum: String(row.DocNum),
+                draftDocEntry: String(row.id),
+              }),
+              to: "/sales/create-quotation",
+              viewTransition: true,
+            });
+            return;
+          }
+          const normalized = String(row.DocNum).trim();
           if (!normalized) {
             return;
           }
@@ -156,7 +169,10 @@ export function SalesQuotationTable() {
             viewTransition: true,
           } as never);
         },
-        onDocNumHover: (docNum) => {
+        onDocNumHover: (docNum, draftDocEntry) => {
+          if (draftDocEntry) {
+            return;
+          }
           const normalized = String(docNum).trim();
           if (!normalized) {
             return;

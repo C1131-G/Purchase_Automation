@@ -1,6 +1,5 @@
 import { logger } from "@/core/logger/pino-logger";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
-import { FinancialPeriodSchema } from "@/db/schemas/financial-period.schema";
+import { executeTenantQuery } from "@/dal/tenant-dal.helper";
 
 export type PaymentType = "Cash" | "Check" | "CreditCard" | "Surcharge";
 
@@ -15,33 +14,37 @@ export const resolveGLAccount = async (
   _creditCardId?: number,
 ): Promise<string> => {
   try {
-    const periodRepo = await getTenantRepository(dbName, FinancialPeriodSchema);
-
-    // Fetch the active financial period using TypeORM QueryBuilder with property names
-    const activePeriod = await periodRepo
-      .createQueryBuilder("p")
-      .select(["p.linkAct2", "p.linkAct12", "p.bnkChgAct", "p.absEntry"])
-      .where("CURRENT_DATE BETWEEN p.fRefDate AND p.tRefDate")
-      .getOne();
+    const activePeriods = (await executeTenantQuery(
+      dbName,
+      'SELECT "LinkAct_2", "LinkAct_12", "BnkChgAct", "AbsEntry" FROM "OACP" WHERE CURRENT_DATE BETWEEN "F_RefDate" AND "T_RefDate"',
+    )) as any[];
+    const activePeriod = activePeriods?.[0];
 
     if (activePeriod) {
+      const bnkChgAct =
+        activePeriod.BnkChgAct || activePeriod.bnkChgAct || (activePeriod as any).BNKCHGACT;
+      const linkAct2 =
+        activePeriod.LinkAct_2 || activePeriod.linkAct2 || (activePeriod as any).LINKACT_2;
+      const absEntry =
+        activePeriod.AbsEntry || activePeriod.absEntry || (activePeriod as any).ABSENTRY;
+
       if (paymentType === "Surcharge") {
-        if (activePeriod.bnkChgAct) {
+        if (bnkChgAct) {
           logger.info({
-            msg: `Resolved G/L account for ${paymentType} via TypeORM (OACP.BnkChgAct)`,
-            account: activePeriod.bnkChgAct,
-            period: activePeriod.absEntry,
+            msg: `Resolved G/L account for ${paymentType} via raw query (OACP.BnkChgAct)`,
+            account: bnkChgAct,
+            period: absEntry,
           });
-          return activePeriod.bnkChgAct;
+          return bnkChgAct;
         }
       }
-      if (activePeriod.linkAct2) {
-        const accountCode = activePeriod.linkAct2;
+      if (linkAct2) {
+        const accountCode = linkAct2;
 
         logger.info({
-          msg: `Resolved G/L account for ${paymentType} via TypeORM (OACP.LinkAct_2)`,
+          msg: `Resolved G/L account for ${paymentType} via raw query (OACP.LinkAct_2)`,
           account: accountCode,
-          period: activePeriod.absEntry,
+          period: absEntry,
         });
 
         return accountCode;

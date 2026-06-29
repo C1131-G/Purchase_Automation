@@ -48,6 +48,9 @@ export function SelectFilterSearch<TData>({
                     if (labelText === "Closed") {
                       icon = <div className="size-2 rounded-full bg-zinc-400" />;
                     }
+                    if (labelText === "Draft") {
+                      icon = <div className="size-2 rounded-full bg-amber-500" />;
+                    }
                     if (labelText === "Yes (Canceled)") {
                       icon = (
                         <svg

@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -16,6 +15,7 @@ import {
 } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/ar-invoice-create/utils/ar-invoice-create.utils";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import type {
   LookupItem,
   ProductLookupItem,
@@ -68,6 +68,8 @@ interface UseARInvoiceCreateOptions {
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "SalesQuotation" | "SalesOrder" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
@@ -80,9 +82,40 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
+  const parseARInvoiceHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
+
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";
   const sourceDocType = options?.sourceDocType;
+  const draftDocNum = options?.draftDocNum;
+  const draftDocEntry = options?.draftDocEntry;
+
   const queryClient = useQueryClient();
   const header = useARInvoiceHeader();
   const resetARInvoiceCreate = useResetARInvoiceCreateAction();
@@ -156,20 +189,26 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
   });
 
+  const cacheKey = isEditMode ? editDocNum : `${draftDocNum}_${draftDocEntry ?? ""}`;
+
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       resetARInvoiceCreate();
       hydratedDocNumRef.current = null;
+      setHydratedDocNum(null);
     }
     return () => {
       resetARInvoiceCreate();
       lookups.resetWarehouse();
     };
-  }, [isEditMode, resetARInvoiceCreate, lookups.resetWarehouse]);
+  }, [isEditMode, draftDocNum, resetARInvoiceCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
-    ...arInvoiceQueries.detailByDocNum(editDocNum),
-    enabled: isEditMode && Boolean(editDocNum),
+    ...arInvoiceQueries.detailByDocNum(
+      isEditMode ? editDocNum : (draftDocNum ?? ""),
+      isEditMode ? undefined : draftDocEntry,
+    ),
+    enabled: (isEditMode && Boolean(editDocNum)) || (!isEditMode && Boolean(draftDocNum)),
   });
 
   const isClosed =
@@ -193,10 +232,10 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   });
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       return;
     }
-    const currentDocNum = editDocNum;
+    const currentDocNum = cacheKey;
     if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) {
       return;
     }
@@ -204,8 +243,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     if (!detail) {
       return;
     }
-    hydratedDocNumRef.current = currentDocNum;
-
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("A/R Invoice", "edit");
     }
@@ -234,9 +271,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       "";
     const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
     const matchedWarehouse = lookups.warehouses.find((item) => String(item.code) === warehouseCode);
-    const rawComments = String(detail.Comments ?? "").trim();
-    const referenceNo = String(detail.NumAtCard ?? "").trim();
-    const comments = rawComments;
+    const { comments, referenceNo } = parseARInvoiceHeaderNotes(detail);
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
     const address = String(
@@ -411,15 +446,53 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         const rawAttachments = (detail as any).attachments || [];
         setAttachments(rawAttachments);
 
-        setFormSnapshot({
-          comments: comments.trim(),
-          referenceNo: referenceNo.trim(),
-          docDueDate: docDueDate,
-          attachments: rawAttachments.map((item: any) => ({
-            fileName: item.fileName,
-            freeText: item.freeText || item.remarks || "",
-          })),
-        });
+        setFormSnapshot(
+          draftDocNum
+            ? {
+                comments: comments.trim(),
+                referenceNo: referenceNo.trim(),
+                docDueDate: docDueDate,
+                billToAddress: address.trim(),
+                shipToAddress: address2.trim(),
+                attachments: rawAttachments.map((item: any) => ({
+                  fileName: item.fileName,
+                  freeText: item.freeText || item.remarks || "",
+                })),
+                lines: mappedRows.map((row) => ({
+                  productCode: row.productCode,
+                  quantity: row.quantity,
+                  price: row.price,
+                  discountPercent: row.discountPercent,
+                  warehouseCode: row.warehouseCode,
+                  vatGroup: row.vatGroup,
+                  uomCode: row.uomCode,
+                  uomEntry: row.uomEntry,
+                })),
+              }
+            : {
+                comments: comments.trim(),
+                referenceNo: referenceNo.trim(),
+                docDueDate: docDueDate,
+                billToAddress: formatAddressForDisplay(address).trim(),
+                shipToAddress: formatAddressForDisplay(address2).trim(),
+                attachments: rawAttachments.map((item: any) => ({
+                  fileName: item.fileName,
+                  freeText: item.freeText || item.remarks || "",
+                })),
+                lines: mappedRows
+                  .filter((row) => row.productCode.trim() && row.quantity > 0)
+                  .map((row) => ({
+                    productCode: row.productCode,
+                    quantity: row.quantity,
+                    price: row.price,
+                    discountPercent: row.discountPercent,
+                    warehouseCode: row.warehouseCode,
+                    vatGroup: row.vatGroup,
+                    uomCode: row.uomCode,
+                    uomEntry: row.uomEntry,
+                  })),
+              },
+        );
 
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
@@ -432,14 +505,19 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     editDetailQuery.data,
     header.docDate,
     isEditMode,
+    draftDocNum,
+    draftDocEntry,
+    cacheKey,
     lookups,
-    editDocNum,
     productsHook,
     queryClient,
     setHeader,
   ]);
 
   useEffect(() => {
+    if (isEditMode || draftDocNum) {
+      return;
+    }
     if (mode !== "create") {
       return;
     }
@@ -665,7 +743,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   }, [
     sourceDetailQuerySQ.data,
     sourceDetailQuerySO.data,
-    mode,
+    isEditMode,
+    draftDocNum,
     options?.sourceDocNum,
     options?.sourceDocType,
     lookups,
@@ -916,10 +995,14 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     setAttachments([]);
   }, [resetARInvoiceCreate, lookups, modals, productsHook]);
 
+  const isDraftUpdate = !isEditMode && Boolean(draftDocNum);
+  const currentActionRef = useRef<string>("");
+
   const saveActions = useDocumentSaveActions({
     documentName: "AR Invoice",
     moduleType: "sales",
     defaultUrl: "/sales/create-ar-invoice",
+    tableUrl: "/sales/ar-invoice",
     resetForm,
     getPayloadString: () => {
       const validRows = productsHook.productRows.filter(
@@ -928,6 +1011,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const payload = isEditMode
         ? {
             Comments: header.comments.trim() || undefined,
+            DocDate: header.docDate || undefined,
             DocDueDate: header.docDueDate || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             SalesPersonCode: resolvedSalesEmployeeCode,
@@ -981,23 +1065,25 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
               freeText: att.freeText || "",
               attachmentDate: att.attachmentDate || "",
             })),
+            ...(currentActionRef.current === "draft" ? { isDraft: true } : {}),
+            ...(draftDocEntry ? { draftDocEntry: Number(draftDocEntry) } : {}),
           };
       return JSON.stringify(payload);
     },
-    isEditMode,
+    isEditMode: isEditMode,
   });
 
   function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
+    currentActionRef.current = action;
     void handleCreateOrder(action);
   }
 
   const handleCreateOrder = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
   ) => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      return;
-    }
+    const isSaveAsDraft = action === "draft";
+    const isDraftUpdateAction = isSaveAsDraft && Boolean(draftDocNum);
+    const isUpdating = isEditMode || isDraftUpdateAction;
 
     const nextErrors: ProductSearchFieldError = {
       ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
@@ -1030,9 +1116,10 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     setCreateError(null);
 
-    const payload = isEditMode
+    const payload = isUpdating
       ? {
           Comments: header.comments.trim() || undefined,
+          DocDate: header.docDate || undefined,
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           SalesPersonCode: resolvedSalesEmployeeCode,
@@ -1072,15 +1159,32 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           }),
           NumAtCard: header.referenceNo.trim() || undefined,
           SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
+          ...(isSaveAsDraft ? { isDraft: true } : {}),
+          ...(draftDocEntry ? { draftDocEntry: Number(draftDocEntry) } : {}),
         };
 
-    saveActions.startSaveTracking(isEditMode ? "update" : action);
-    saveActions.actionToast.startLoading("AR Invoice", isEditMode ? "update" : action);
+    const trackingAction = isSaveAsDraft
+      ? isDraftUpdateAction
+        ? "draft-update"
+        : "draft"
+      : isEditMode
+        ? "update"
+        : action;
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("AR Invoice", trackingAction);
     try {
       let createdDocNum: string | number | undefined;
-      if (isEditMode) {
+      if (isUpdating) {
         const detail = editDetailQuery.data?.data;
-        const docEntry = detail?.DocEntry ?? detail?.id;
+        const docEntry = isEditMode ? (detail?.DocEntry ?? detail?.id) : Number(draftDocEntry);
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update AR invoice. Document id is missing.");
           saveActions.actionToast.showError("AR Invoice", "update", "Document ID is missing.");
@@ -1091,7 +1195,10 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
         const updatedDetailRes = await queryClient.fetchQuery(
-          arInvoiceQueries.detailByDocNum(editDocNum),
+          arInvoiceQueries.detailByDocNum(
+            isEditMode ? editDocNum : (draftDocNum ?? ""),
+            isEditMode ? undefined : draftDocEntry,
+          ),
         );
         const updatedDetail = updatedDetailRes?.data;
         if (updatedDetail) {
@@ -1108,20 +1215,57 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
             })),
           );
 
-          const rawComments = String(updatedDetail.Comments ?? "").trim();
-          const referenceNo = String(updatedDetail.NumAtCard ?? "").trim();
-          const comments = rawComments;
+          const { comments, referenceNo } = parseARInvoiceHeaderNotes(updatedDetail);
           const docDueDate = String(updatedDetail.DocDueDate ?? "").slice(0, 10);
+          const address = String(updatedDetail.Address ?? "").trim();
+          const address2 = String(updatedDetail.Address2 ?? "").trim();
+          const detailLines = updatedDetail.DocumentLines ?? [];
 
-          setFormSnapshot({
-            comments: comments.trim(),
-            referenceNo: referenceNo.trim(),
-            docDueDate: docDueDate,
-            attachments: rawAttachments.map((item: any) => ({
-              fileName: item.fileName,
-              freeText: item.freeText || item.remarks || "",
-            })),
-          });
+          setFormSnapshot(
+            isDraftUpdate
+              ? {
+                  comments: comments.trim(),
+                  referenceNo: referenceNo.trim(),
+                  docDueDate: docDueDate,
+                  billToAddress: address.trim(),
+                  shipToAddress: address2.trim(),
+                  attachments: rawAttachments.map((item: any) => ({
+                    fileName: item.fileName,
+                    freeText: item.freeText || item.remarks || "",
+                  })),
+                  lines: detailLines.map((row: any) => ({
+                    productCode: row.ItemCode,
+                    quantity: row.Quantity,
+                    price: row.Price ?? row.UnitPrice,
+                    discountPercent: row.DiscountPercent,
+                    warehouseCode: row.WarehouseCode,
+                    vatGroup: row.VatGroup,
+                    uomCode: row.UoMCode,
+                    uomEntry: row.UoMEntry,
+                  })),
+                }
+              : {
+                  comments: comments.trim(),
+                  referenceNo: referenceNo.trim(),
+                  docDueDate: docDueDate,
+                  billToAddress: formatAddressForDisplay(address).trim(),
+                  shipToAddress: formatAddressForDisplay(address2).trim(),
+                  attachments: rawAttachments.map((item: any) => ({
+                    fileName: item.fileName,
+                    freeText: item.freeText || item.remarks || "",
+                  })),
+                  lines: detailLines.map((row: any) => ({
+                    productCode: row.ItemCode,
+                    quantity: row.Quantity,
+                    price: row.Price ?? row.UnitPrice,
+                    discountPercent: row.DiscountPercent,
+                    warehouseCode: row.WarehouseCode,
+                    vatGroup: row.VatGroup,
+                    uomCode: row.UoMCode,
+                    uomEntry: row.UoMEntry,
+                  })),
+                },
+          );
         }
       } else {
         const result = await createARInvoiceMutation.mutateAsync({ payload });
@@ -1146,39 +1290,91 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         return;
       }
 
+      if (action === "draft") {
+        if (draftDocNum) {
+          void queryClient.invalidateQueries(
+            arInvoiceQueries.detailByDocNum(draftDocNum, draftDocEntry),
+          );
+        }
+        await saveActions.handleActionSuccess("draft", createdDocNum);
+        return;
+      }
+
       await saveActions.handleActionSuccess(action, createdDocNum);
     } catch (error) {
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        `Failed to ${isEditMode ? "update" : "create"} AR Invoice. Try again.`,
+        `Failed to ${isUpdating ? "update" : "create"} AR Invoice. Try again.`,
       );
-      saveActions.actionToast.showError("AR Invoice", isEditMode ? "update" : action, errorMessage);
+      saveActions.actionToast.showError("AR Invoice", isUpdating ? "update" : action, errorMessage);
       setCreateError(errorMessage);
     }
   };
 
-  const submitARInvoiceMutation = isEditMode ? updateARInvoiceMutation : createARInvoiceMutation;
+  const submitARInvoiceMutation = {
+    ...createARInvoiceMutation,
+    isPending: createARInvoiceMutation.isPending || updateARInvoiceMutation.isPending,
+  };
   const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
+    if ((!isEditMode && !draftDocNum) || !formSnapshot) {
       return false;
     }
-    const current = {
-      comments: (header.comments || "").trim(),
-      referenceNo: (header.referenceNo || "").trim(),
-      docDueDate: header.docDueDate,
-      attachments: attachments.map((att) => ({
-        fileName: att.fileName,
-        freeText: att.freeText || "",
-      })),
-    };
+    const current = isDraftUpdate
+      ? {
+          comments: (header.comments || "").trim(),
+          referenceNo: (header.referenceNo || "").trim(),
+          docDueDate: header.docDueDate,
+          billToAddress: (lookups.billToAddress || "").trim(),
+          shipToAddress: (lookups.shipToAddress || "").trim(),
+          attachments: attachments.map((att) => ({
+            fileName: att.fileName,
+            freeText: att.freeText || "",
+          })),
+          lines: productsHook.productRows.map((row) => ({
+            productCode: row.productCode,
+            quantity: row.quantity,
+            price: row.price,
+            discountPercent: row.discountPercent,
+            warehouseCode: row.warehouseCode,
+            vatGroup: row.vatGroup,
+            uomCode: row.uomCode,
+            uomEntry: row.uomEntry,
+          })),
+        }
+      : {
+          comments: (header.comments || "").trim(),
+          referenceNo: (header.referenceNo || "").trim(),
+          docDueDate: header.docDueDate,
+          billToAddress: (lookups.billToAddress || "").trim(),
+          shipToAddress: (lookups.shipToAddress || "").trim(),
+          attachments: attachments.map((att) => ({
+            fileName: att.fileName,
+            freeText: att.freeText || "",
+          })),
+          lines: productsHook.productRows.map((row) => ({
+            productCode: row.productCode,
+            quantity: row.quantity,
+            price: row.price,
+            discountPercent: row.discountPercent,
+            warehouseCode: row.warehouseCode,
+            vatGroup: row.vatGroup,
+            uomCode: row.uomCode,
+            uomEntry: row.uomEntry,
+          })),
+        };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
     isEditMode,
+    draftDocNum,
+    isDraftUpdate,
     formSnapshot,
     header.comments,
     header.referenceNo,
     header.docDueDate,
+    lookups.billToAddress,
+    lookups.shipToAddress,
     attachments,
+    productsHook.productRows,
   ]);
 
   const submitDisabled = isEditMode ? !isDirty : false;
@@ -1192,7 +1388,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     [productsHook.productRows],
   );
   const summaryCurrencyLabel = summaryCurrency === "MULTI" ? "MULTI" : summaryCurrency;
-  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum;
+  const isEditHydrated = (!isEditMode && !draftDocNum) || hydratedDocNum === cacheKey;
 
   const addProductsFromSOs = async (
     selectedLines: {
@@ -1624,6 +1820,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
     updateARInvoiceMutation,
     isClosed,
+    isDirty,
     updateProductRow: (id: string, patch: Partial<ProductRow>) =>
       isEditMode ? notifyRestricted("Products") : productsHook.updateProductRow(id, patch),
     vendorsQuery: {

@@ -125,41 +125,45 @@ export const CreatePurchaseQuotationInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
-  DocumentLines: z.array(PurchaseQuotationLineItemSchema).min(1),
+  DocumentLines: z.array(PurchaseQuotationLineItemSchema).optional(),
   SalesPersonCode: z.coerce.number().int().optional(),
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
   DocCurrency: z.string().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 // UpdatePurchaseQuotationInputSchema: Edit flow blocks vendor updates (CardCode/CardName).
-export const UpdatePurchaseQuotationInputSchema = z
-  .object({
-    Address: z.string().optional(),
-    Address2: z.string().optional(),
-    Comments: z.string().optional(),
-    NumAtCard: z.string().optional(),
-    DocDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-      .optional(),
-    DocDueDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-      .optional(),
-    RequriedDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
-      .optional(),
-    DocumentLines: z.array(PurchaseQuotationLineItemSchema).min(1).optional(),
-    SalesPersonCode: z.coerce.number().int().optional(),
-    Rounding: z.enum(["tYES", "tNO"]).optional(),
-    RoundingDiffAmount: z.number().optional(),
-    DocCurrency: z.string().optional(),
-    attachments: z.array(AttachmentInputSchema).optional(),
-  })
-  .strict();
+export const UpdatePurchaseQuotationInputSchema = z.object({
+  Address: z.string().optional(),
+  Address2: z.string().optional(),
+  Comments: z.string().optional(),
+  NumAtCard: z.string().optional(),
+  DocDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
+  DocDueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
+  RequriedDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
+  DocumentLines: z.array(PurchaseQuotationLineItemSchema).optional(),
+  SalesPersonCode: z.coerce.number().int().optional(),
+  Rounding: z.enum(["tYES", "tNO"]).optional(),
+  RoundingDiffAmount: z.number().optional(),
+  DocCurrency: z.string().optional(),
+  attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  CardCode: z.string().optional(),
+  CardName: z.string().optional(),
+  draftDocEntry: z.coerce.number().optional(),
+});
 
 export type PurchaseQuotationQuery = z.infer<typeof PurchaseQuotationQuerySchema>;
 export type PurchaseQuotationDocNumLookupQuery = z.infer<

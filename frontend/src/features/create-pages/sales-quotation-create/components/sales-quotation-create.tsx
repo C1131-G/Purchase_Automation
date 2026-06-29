@@ -27,6 +27,8 @@ import { salesQuotationQueries } from "@/features/table-pages/sales-quotations/a
 interface SalesQuotationCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 /**
@@ -34,19 +36,36 @@ interface SalesQuotationCreateProps {
  * State is centralized in useSalesQuotationCreate to keep the UI declarative and clean.
  * Leverages CreatePageWrapper for consistent entity layout.
  */
-export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotationCreateProps) {
+export function SalesQuotationCreate({
+  mode = "create",
+  docNum,
+  draftDocNum,
+  draftDocEntry,
+}: SalesQuotationCreateProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const state = useSalesQuotationCreate(docNum ? { docNum, mode } : { mode });
+  const state = useSalesQuotationCreate(
+    docNum
+      ? { docNum, mode }
+      : {
+          mode,
+          draftDocNum: draftDocNum || "",
+          draftDocEntry: draftDocEntry || "",
+        },
+  );
 
   const pageTitle = state.isEditMode
     ? `Update Sales Quotation ${docNum}`
-    : "Create Sales Quotation";
+    : draftDocNum
+      ? `Create Sales Quotation (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+      : "Create Sales Quotation";
   const isFormHydrating = !state.isEditMode
-    ? state.vendorsQuery.isLoading &&
-      state.warehousesQuery.isLoading &&
-      state.salesEmployeesQuery.isLoading &&
-      !state.vendorsQuery.data
+    ? draftDocNum
+      ? !state.isEditHydrated
+      : state.vendorsQuery.isLoading &&
+        state.warehousesQuery.isLoading &&
+        state.salesEmployeesQuery.isLoading &&
+        !state.vendorsQuery.data
     : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleVendorRestrictedClick = state.isEditMode
@@ -99,7 +118,7 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
             : null
         }
       >
-        {state.trackerDocType && state.trackerDocEntry && (
+        {state.trackerDocType && state.trackerDocEntry && !draftDocNum && (
           <div className="mb-4 mt-2 w-full">
             <div className="relative z-10 overflow-x-auto w-full">
               <RelationshipMapTracker
@@ -276,6 +295,7 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
         <SalesQuotationProductSection
           sectionId="sales-quotation-product-section"
           submitDisabled={state.submitDisabled}
+          isDirty={state.isDirty}
           missingSearchMandatoryFields={state.missingSearchMandatoryFields}
           searchRequiredCompletionPercent={state.searchRequiredCompletionPercent}
           searchMandatoryFields={state.searchMandatoryFields}
@@ -320,7 +340,7 @@ export function SalesQuotationCreate({ mode = "create", docNum }: SalesQuotation
               viewTransition: true,
             });
           }}
-          submitLabel={state.isEditMode ? "Update" : "Create"}
+          submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
             state.isEditMode && !state.isClosed && docNum ? (

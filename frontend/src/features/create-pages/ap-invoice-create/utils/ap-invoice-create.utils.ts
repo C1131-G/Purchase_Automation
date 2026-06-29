@@ -4,6 +4,27 @@ export const AP_INVOICE_MANDATORY_FIELDS = ["vendorName", "vendorCode"] as const
 
 export type APInvoiceMandatoryField = (typeof AP_INVOICE_MANDATORY_FIELDS)[number];
 
+/** Extended field errors that include Reference No and Remarks (matching PO pattern). */
+export interface APInvoiceFieldErrors {
+  vendorCode: string | undefined;
+  vendorName: string | undefined;
+  warehouseCode?: string | undefined;
+  referenceNo?: string | undefined;
+  comments?: string | undefined;
+}
+
+export const EMPTY_AP_INVOICE_FIELD_ERRORS: APInvoiceFieldErrors = {
+  vendorCode: undefined,
+  vendorName: undefined,
+  referenceNo: undefined,
+  comments: undefined,
+};
+
+export const AP_INVOICE_REFERENCE_ERROR_TEXT: Record<"referenceNo" | "comments", string> = {
+  comments: "Remarks is required.",
+  referenceNo: "Reference No is required.",
+};
+
 export const AP_INVOICE_FIELD_ERROR_TEXT: Record<APInvoiceMandatoryField, string> = {
   vendorCode: "Vendor Code is required.",
   vendorName: "Vendor Name is required.",

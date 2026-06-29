@@ -80,7 +80,11 @@ export const mapSearchToSalesOrderListParams = (search: SalesOrderSearch): Sales
   const filters = normalizeColumnFilters(search.columnFilters);
 
   const docDate = getDateRangeFilter(filters, "DocDate");
-  const docStatus = getEnumFilter<SalesOrderStatus>(filters, "DocStatus", ["Open", "Closed"]);
+  const docStatus = getEnumFilter<SalesOrderStatus>(filters, "DocStatus", [
+    "Open",
+    "Closed",
+    "Draft",
+  ]);
   const docTotal = getDocTotalFilter(filters);
 
   const start = docDate?.from ?? docDate?.to;

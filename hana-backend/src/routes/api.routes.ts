@@ -11,7 +11,6 @@ import { arInvoiceRoutes } from "@/routes/ar-invoice.routes";
 import { authRoutes } from "@/routes/auth.routes";
 import { bankDetailsRoutes } from "@/routes/bank-details.routes";
 import { dashboardRoutes } from "@/routes/dashboard.routes";
-import { financialPeriodRoutes } from "@/routes/financial-period.routes";
 import { grpoRoutes } from "@/routes/grpo.routes";
 import { incomingPaymentRoutes } from "@/routes/incoming-payment.routes";
 import { masterDataRoutes } from "@/routes/master-data.routes";
@@ -67,9 +66,6 @@ router.use("/master-data", masterDataRoutes);
 
 // Bank Details: Read-only bank master data from ODSC.
 router.use("/bank-details", bankDetailsRoutes);
-
-// Financial Period: Read-only active period lookup from OACP.
-router.use("/financial-period", financialPeriodRoutes);
 
 import { attachmentsRoutes } from "@/routes/attachments.routes";
 

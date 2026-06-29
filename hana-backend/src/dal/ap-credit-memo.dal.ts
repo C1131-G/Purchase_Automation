@@ -65,10 +65,16 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { id } = authReq.params;
+    const { draftDocEntry } = authReq.query;
 
-    logger.info({ id, msg: "Fetching A/P Credit Memo detail" });
+    logger.info({ id, draftDocEntry, msg: "Fetching A/P Credit Memo detail" });
 
-    const data = await apCreditMemoService.getCreditNoteByDocNum(sessionId, dbName, id as string);
+    const data = await apCreditMemoService.getCreditNoteByDocNum(
+      sessionId,
+      dbName,
+      id as string,
+      draftDocEntry as string,
+    );
     if (!data) {
       return res.status(404).json({ message: "A/P Credit Memo not found", success: false });
     }
@@ -80,19 +86,22 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
 
 // Handles the creation of a new A/P Credit Memo in SAP B1.
 export const createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
   try {
-    const { sessionId } = req.session;
+    const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const payload = req.body;
 
     // Zod Body Validation ensures the payload strictly follows the SAP creation requirements.
     const validatedPayload = CreateCreditNoteInputSchema.parse(payload);
 
     logger.info({
+      dbName,
       msg: "Creating AP Credit Memo",
       vendor: validatedPayload.CardCode,
     });
 
-    const result = await apCreditMemoService.createCreditNote(sessionId, validatedPayload);
+    const result = await apCreditMemoService.createCreditNote(sessionId, validatedPayload, dbName);
 
     logger.info({ docNum: result.DocNum, msg: "A/P Credit Memo Created" });
 
@@ -107,17 +116,32 @@ export const updateCreditNote = async (req: Request, res: Response, next: NextFu
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.session;
+    const { dbName } = authReq.user;
     const { id } = authReq.params;
     const payload = req.body;
 
     // Zod validation ensures no unexpected fields are sent to SAP during update.
     const validatedPayload = UpdateCreditNoteInputSchema.parse(payload);
 
-    logger.info({ id, msg: "Updating A/P Credit Memo" });
+    logger.info({ dbName, id: id as string, msg: "Updating A/P Credit Memo" });
+
+    const isDraft = validatedPayload.isDraft === true || Boolean(validatedPayload.draftDocEntry);
+    let targetDocEntry: string;
+
+    if (isDraft) {
+      targetDocEntry = String(validatedPayload.draftDocEntry || id);
+    } else {
+      const detail = await apCreditMemoService.getCreditNoteByDocNum(
+        sessionId,
+        dbName,
+        id as string,
+      );
+      targetDocEntry = String(detail.id);
+    }
 
     const result = await apCreditMemoService.updateCreditNote(
       sessionId,
-      id as string,
+      targetDocEntry,
       validatedPayload,
     );
 

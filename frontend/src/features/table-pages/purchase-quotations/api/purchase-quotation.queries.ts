@@ -7,8 +7,8 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
 export const purchaseQuotationKeys = {
   all: ["purchase-quotations"] as const,
-  detailByDocNum: (docNum: string) =>
-    [...purchaseQuotationKeys.all, "detail-by-doc-num", docNum] as const,
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
+    [...purchaseQuotationKeys.all, "detail-by-doc-num", docNum, draftDocEntry ?? ""] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...purchaseQuotationKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   list: (params: PurchaseQuotationListParams) =>
@@ -16,11 +16,11 @@ export const purchaseQuotationKeys = {
 };
 
 export const purchaseQuotationQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
-      queryFn: () => purchaseQuotationAPI.getPurchaseQuotationByDocNum(docNum),
-      queryKey: purchaseQuotationKeys.detailByDocNum(docNum),
+      queryFn: () => purchaseQuotationAPI.getPurchaseQuotationByDocNum(docNum, draftDocEntry),
+      queryKey: purchaseQuotationKeys.detailByDocNum(docNum, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

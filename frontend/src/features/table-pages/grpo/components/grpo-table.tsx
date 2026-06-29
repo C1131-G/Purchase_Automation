@@ -141,17 +141,28 @@ export function GRPOTable() {
   const columns = useMemo(
     () =>
       createGRPOColumns({
-        onDocNumDoubleClick: (docNum) => {
+        onDocNumDoubleClick: (docNum, isDraft, docEntry) => {
           const normalized = String(docNum).trim();
           if (!normalized) {
             return;
           }
-          prefetchEditRouteData(normalized);
-          void navigate({
-            params: { docNum: normalized },
-            to: "/purchase/grpo/$docNum/edit",
-            viewTransition: true,
-          } as never);
+          if (isDraft) {
+            void navigate({
+              search: {
+                draftDocNum: normalized,
+                draftDocEntry: docEntry ? String(docEntry) : undefined,
+              },
+              to: "/purchase/create-grpo",
+              viewTransition: true,
+            } as never);
+          } else {
+            prefetchEditRouteData(normalized);
+            void navigate({
+              params: { docNum: normalized },
+              to: "/purchase/grpo/$docNum/edit",
+              viewTransition: true,
+            } as never);
+          }
         },
         onDocNumHover: (docNum) => {
           const normalized = String(docNum).trim();

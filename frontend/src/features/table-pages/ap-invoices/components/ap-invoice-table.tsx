@@ -142,9 +142,17 @@ export function APInvoiceTable() {
   const columns = useMemo(
     () =>
       createAPInvoiceColumns({
-        onDocNumDoubleClick: (docNum) => {
+        onDocNumDoubleClick: (docNum, isDraft, id) => {
           const normalized = String(docNum).trim();
           if (!normalized) {
+            return;
+          }
+          if (isDraft) {
+            void navigate({
+              to: "/purchase/create-ap-invoice",
+              search: { draftDocNum: normalized, draftDocEntry: String(id) },
+              viewTransition: true,
+            } as never);
             return;
           }
           prefetchEditRouteData(normalized);

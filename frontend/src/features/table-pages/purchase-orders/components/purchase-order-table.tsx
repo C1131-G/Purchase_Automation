@@ -145,17 +145,28 @@ export function PurchaseOrderTable() {
   const columns = useMemo(
     () =>
       createPurchaseOrderColumns({
-        onDocNumDoubleClick: (docNum) => {
+        onDocNumDoubleClick: (docNum, isDraft, docEntry) => {
           const normalized = String(docNum).trim();
           if (!normalized) {
             return;
           }
-          prefetchEditRouteData(normalized);
-          void navigate({
-            params: { docNum: normalized },
-            to: "/purchase/orders/$docNum/edit",
-            viewTransition: true,
-          } as never);
+          if (isDraft) {
+            void navigate({
+              search: {
+                draftDocNum: normalized,
+                draftDocEntry: docEntry ? String(docEntry) : undefined,
+              },
+              to: "/purchase/create-order",
+              viewTransition: true,
+            } as never);
+          } else {
+            prefetchEditRouteData(normalized);
+            void navigate({
+              params: { docNum: normalized },
+              to: "/purchase/orders/$docNum/edit",
+              viewTransition: true,
+            } as never);
+          }
         },
         onDocNumHover: (docNum) => {
           const normalized = String(docNum).trim();

@@ -68,10 +68,11 @@ export const getGRPO = async (req: Request, res: Response, next: NextFunction) =
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { id } = authReq.params;
+    const draftDocEntry = req.query.draftDocEntry as string | undefined;
 
-    logger.info({ dbName, id, msg: "Fetching GRPO detail" });
+    logger.info({ dbName, id, draftDocEntry, msg: "Fetching GRPO detail" });
 
-    const data = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
+    const data = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string, draftDocEntry);
 
     if (!data) {
       return res.status(404).json({
@@ -189,8 +190,17 @@ export const updateGRPO = async (req: Request, res: Response, next: NextFunction
 
     logger.info({ dbName, id, msg: "Updating GRPO" });
 
-    const detail = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
-    const result = await grpoService.updateGRPO(sessionId, String(detail.id), validatedPayload);
+    const isDraft = validatedPayload.isDraft === true || Boolean(validatedPayload.draftDocEntry);
+    let targetDocEntry: string;
+
+    if (isDraft) {
+      targetDocEntry = String(validatedPayload.draftDocEntry || id);
+    } else {
+      const detail = await grpoService.getGRPOByDocNum(sessionId, dbName, id as string);
+      targetDocEntry = String(detail.id);
+    }
+
+    const result = await grpoService.updateGRPO(sessionId, targetDocEntry, validatedPayload);
 
     res.status(200).json({
       message: result.message,

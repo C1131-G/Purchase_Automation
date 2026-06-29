@@ -115,7 +115,7 @@ export interface GRPODetail {
   NumAtCard?: string;
   DocTotal?: number;
   DocCurr?: string;
-  DocStatus?: "Open" | "Partial" | "Closed" | "O" | "C" | "bost_Open" | "bost_Close";
+  DocStatus?: "Open" | "Partial" | "Closed" | "O" | "C" | "Draft" | "bost_Open" | "bost_Close";
   DocumentLines?: GRPODetailLine[];
   attachments?: any[];
 }
@@ -136,7 +136,10 @@ export const grpoAPI = {
     const path = `/api/v1/grpos/available-pos?${query}`;
     return apiClient<AvailablePOResponse>(path);
   },
-  getGRPOById: async (id: string | number) => apiClient<GRPODetailResponse>(`/api/v1/grpos/${id}`),
+  getGRPOById: async (id: string | number, draftDocEntry?: string) => {
+    const query = draftDocEntry ? `?draftDocEntry=${draftDocEntry}` : "";
+    return apiClient<GRPODetailResponse>(`/api/v1/grpos/${id}${query}`);
+  },
   getGRPODocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query ? `/api/v1/grpos/docnums?${query}` : "/api/v1/grpos/docnums";

@@ -21,25 +21,51 @@ const mapDocStatusLabel = (value: string) => {
   if (normalized === "C") {
     return "Closed";
   }
+  if (normalized === "Draft") {
+    return "Draft";
+  }
   return normalized;
 };
 
 interface CreateAPCreditMemoColumnsOptions {
-  onDocNumDoubleClick?: (docNum: string | number) => void;
+  onDocNumDoubleClick?: (
+    docNum: string | number,
+    isDraft: boolean,
+    docEntry?: number | string,
+  ) => void;
   onDocNumHover?: (docNum: string | number) => void;
 }
 
 export const createAPCreditMemoColumns = (options?: CreateAPCreditMemoColumnsOptions) => [
   columnHelper.accessor("DocNum", {
-    cell: (info) => (
-      <DocNumCell
-        value={info.getValue()}
-        docEntry={info.row.original.id as number}
-        docType="ap-credit-memo"
-        onHover={options?.onDocNumHover}
-        onDoubleClick={options?.onDocNumDoubleClick}
-      />
-    ),
+    cell: (info) => {
+      const isDraft = info.row.original.DocStatus === "Draft";
+      const displayVal = isDraft
+        ? `${info.getValue()} (Draft #${info.row.original.id})`
+        : info.getValue();
+      return (
+        <DocNumCell
+          value={displayVal}
+          docEntry={isDraft ? undefined : (info.row.original.id as number)}
+          docType={isDraft ? undefined : "ap-credit-memo"}
+          onHover={
+            options?.onDocNumHover
+              ? () => options.onDocNumHover?.(String(info.row.original.DocNum))
+              : undefined
+          }
+          onDoubleClick={
+            options?.onDocNumDoubleClick
+              ? () =>
+                  options.onDocNumDoubleClick?.(
+                    info.row.original.DocNum,
+                    isDraft,
+                    info.row.original.id,
+                  )
+              : undefined
+          }
+        />
+      );
+    },
     enableSorting: true,
     filterFn: "includesString",
     header: ({ column, table }) => (
@@ -133,6 +159,7 @@ export const createAPCreditMemoColumns = (options?: CreateAPCreditMemoColumnsOpt
       filterOptions: [
         { label: "Open", value: "Open" },
         { label: "Closed", value: "Closed" },
+        { label: "Draft", value: "Draft" },
       ],
       filterType: "select",
     },

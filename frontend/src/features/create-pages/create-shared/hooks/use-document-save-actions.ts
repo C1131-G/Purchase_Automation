@@ -9,6 +9,7 @@ interface UseDocumentSaveActionsOptions {
   documentName: string;
   moduleType: "purchase" | "sales";
   defaultUrl: string;
+  tableUrl?: string;
   resetForm: () => void;
   getPayloadString: () => string;
   isEditMode: boolean;
@@ -18,6 +19,7 @@ export function useDocumentSaveActions({
   documentName,
   moduleType,
   defaultUrl,
+  tableUrl,
   resetForm,
   getPayloadString,
   isEditMode,
@@ -79,22 +81,34 @@ export function useDocumentSaveActions({
 
   const handleActionSuccess = useCallback(
     async (
-      action: "save-new" | "view" | "close" | "draft" | "update",
+      action: "save-new" | "view" | "close" | "draft" | "update" | "draft-update",
       createdDocNum?: string | number,
     ) => {
       actionToast.showSuccess(documentName, action === "update" ? "update" : action, createdDocNum);
+
+      if (action === "draft" || action === "draft-update") {
+        resetForm();
+        setIsSaved(false);
+        setSavedDocNum(null);
+        lastSavedStateRef.current = "";
+        scrollToTop();
+        void router.navigate({
+          replace: true,
+          search: {},
+          to: tableUrl || defaultUrl,
+          viewTransition: true,
+        });
+        return;
+      }
 
       if (isEditMode) {
         scrollToTop();
         return;
       }
 
-      if (action === "draft") {
-        scrollToTop();
-        return;
-      }
+      const isDraftConversion = Boolean((router.state.location.search as any)?.draftDocNum);
 
-      if (action === "save-new") {
+      if (action === "save-new" || (isDraftConversion && action === "view")) {
         resetForm();
         setIsSaved(false);
         setSavedDocNum(null);
@@ -127,7 +141,17 @@ export function useDocumentSaveActions({
         lastSavedStateRef.current = getPayloadString();
       }
     },
-    [documentName, isEditMode, resetForm, moduleType, router, actionToast, getPayloadString],
+    [
+      documentName,
+      isEditMode,
+      resetForm,
+      moduleType,
+      router,
+      actionToast,
+      getPayloadString,
+      defaultUrl,
+      tableUrl,
+    ],
   );
 
   const isFormModifiedSinceSave = useMemo(() => {

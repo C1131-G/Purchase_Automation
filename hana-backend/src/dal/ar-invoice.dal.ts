@@ -64,10 +64,15 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
+    const { draftDocEntry } = authReq.query;
 
-    logger.info({ id, msg: "Fetching A/R Invoice detail" });
+    logger.info({ id, draftDocEntry, msg: "Fetching A/R Invoice detail" });
 
-    const data = await arInvoiceService.getInvoice(sessionId, id as string);
+    const data = await arInvoiceService.getInvoice(
+      sessionId,
+      id as string,
+      draftDocEntry ? true : false,
+    );
     if (!data) {
       return res.status(404).json({ message: "A/R Invoice not found", success: false });
     }

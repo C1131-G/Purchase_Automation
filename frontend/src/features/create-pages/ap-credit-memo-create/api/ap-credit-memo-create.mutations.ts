@@ -9,6 +9,7 @@ export interface CreateAPCreditMemoInput {
   DocDate?: string;
   DocDueDate?: string;
   Comments?: string;
+  NumAtCard?: string;
   Address?: string | undefined;
   Address2?: string | undefined;
   DocumentLines: {
@@ -27,16 +28,35 @@ export interface CreateAPCreditMemoInput {
   }[];
   SalesPersonCode?: number | undefined;
   attachments?: any[];
+  isDraft?: boolean;
+  draftDocEntry?: number;
 }
 
 export interface UpdateAPCreditMemoInput {
+  DocDate?: string | undefined;
   DocDueDate?: string | undefined;
   Comments?: string | undefined;
   NumAtCard?: string | undefined;
   SalesPersonCode?: number | undefined;
   Address?: string | undefined;
   Address2?: string | undefined;
+  DocumentLines?: {
+    ItemCode: string;
+    Quantity: number;
+    UnitPrice: number;
+    DiscountPercent?: number;
+    UoMCode?: string | number;
+    UoMEntry?: number;
+    VatGroup?: string;
+    WarehouseCode?: string;
+    BaseEntry?: number;
+    BaseLine?: number;
+    BaseType?: number;
+    U_ReturnReason?: string;
+  }[];
   attachments?: any[];
+  isDraft?: boolean;
+  draftDocEntry?: number;
 }
 
 export function useCreateAPCreditMemo() {

@@ -34,7 +34,21 @@ export const CreateGRPOInputSchema = z.object({
 });
 
 export const UpdateGRPOInputSchema = z.object({
+  cardCode: z.string().optional(),
   comments: z.string().optional(),
+  docDate: z.string().optional(),
+  lines: z
+    .array(
+      z.object({
+        itemCode: z.string(),
+        quantity: z.number().positive(),
+        warehouse: z.string().optional(),
+      }),
+    )
+    .optional(),
+  poDocEntry: z.number().optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 export type GRPOQuery = z.infer<typeof GRPOQuerySchema>;

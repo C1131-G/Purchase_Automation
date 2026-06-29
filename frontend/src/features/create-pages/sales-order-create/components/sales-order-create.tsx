@@ -34,6 +34,8 @@ import { salesOrderQueries } from "@/features/table-pages/sales-orders/api/sales
 interface SalesOrderCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 /**
@@ -41,7 +43,12 @@ interface SalesOrderCreateProps {
  * State is centralized in useSalesOrderCreate to keep the UI declarative and clean.
  * Leverages CreatePageWrapper for consistent entity layout.
  */
-export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreateProps) {
+export function SalesOrderCreate({
+  mode = "create",
+  docNum,
+  draftDocNum,
+  draftDocEntry,
+}: SalesOrderCreateProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const search = useSearch({ strict: false });
@@ -61,8 +68,10 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
       ? { docNum, mode }
       : {
           mode,
-          sourceDocNum: !sourceCleared ? sourceDocNum : undefined,
-          sourceDocType: !sourceCleared ? sourceDocType : undefined,
+          sourceDocNum: !sourceCleared && !draftDocNum ? sourceDocNum : undefined,
+          sourceDocType: !sourceCleared && !draftDocNum ? sourceDocType : undefined,
+          draftDocNum,
+          draftDocEntry,
         },
   );
 
@@ -159,12 +168,18 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
     }
   };
 
-  const pageTitle = state.isEditMode ? `Update Sales Order ${docNum}` : "Create Sales Order";
+  const pageTitle = state.isEditMode
+    ? `Update Sales Order ${docNum}`
+    : draftDocNum
+      ? `Create Sales Order (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+      : "Create Sales Order";
   const isFormHydrating = !state.isEditMode
-    ? state.vendorsQuery.isLoading &&
-      state.warehousesQuery.isLoading &&
-      state.salesEmployeesQuery.isLoading &&
-      !state.vendorsQuery.data
+    ? draftDocNum
+      ? !state.isEditHydrated
+      : state.vendorsQuery.isLoading &&
+        state.warehousesQuery.isLoading &&
+        state.salesEmployeesQuery.isLoading &&
+        !state.vendorsQuery.data
     : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleVendorRestrictedClick = state.isEditMode
@@ -217,7 +232,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
             : null
         }
         topActions={
-          !state.isEditMode ? (
+          !state.isEditMode && !draftDocNum ? (
             <CopyFromDropdown
               vendorCode={state.codeInput}
               vendorName={state.nameInput}
@@ -228,7 +243,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
           ) : null
         }
       >
-        {state.trackerDocType && state.trackerDocEntry && (
+        {state.trackerDocType && state.trackerDocEntry && !draftDocNum && (
           <div className="mb-4 mt-2 w-full">
             <div className="relative z-10 overflow-x-auto w-full">
               <RelationshipMapTracker
@@ -403,6 +418,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
         <SalesOrderProductSection
           sectionId="sales-order-product-section"
           submitDisabled={state.submitDisabled}
+          isDirty={state.isDirty}
           missingSearchMandatoryFields={state.missingSearchMandatoryFields}
           searchRequiredCompletionPercent={state.searchRequiredCompletionPercent}
           searchMandatoryFields={state.searchMandatoryFields}
@@ -447,7 +463,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
               viewTransition: true,
             });
           }}
-          submitLabel={state.isEditMode ? "Update" : "Create"}
+          submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
             state.isEditMode && !state.isClosed && docNum ? (
@@ -461,7 +477,7 @@ export function SalesOrderCreate({ mode = "create", docNum }: SalesOrderCreatePr
         />
         <SalesOrderModals state={state} />
 
-        {!state.isEditMode && (
+        {!state.isEditMode && !draftDocNum && (
           <CopyFromDialog
             open={state.pullFromSQModalOpen}
             onClose={() => state.setPullFromSQModalOpen(false)}

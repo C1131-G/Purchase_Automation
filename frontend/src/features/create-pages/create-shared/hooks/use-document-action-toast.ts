@@ -1,11 +1,10 @@
 import { useRef } from "react";
 import { goeyToast } from "goey-toast";
 
-export type ToastActionType = "save-new" | "view" | "close" | "draft" | "update";
+export type ToastActionType = "save-new" | "view" | "close" | "draft" | "update" | "draft-update";
 
 /**
- * useDocumentActionToast: Generic hook to handle ERP document notifications (loading, success, error)
- * dynamically formatted based on the current action type.
+ * useDocumentActionToast: Generic ERP document notification hook.
  */
 export function useDocumentActionToast() {
   const loadingToastIdRef = useRef<string | number | null>(null);
@@ -16,6 +15,8 @@ export function useDocumentActionToast() {
       actionVerb = "Updating";
     } else if (action === "draft") {
       actionVerb = "Drafting";
+    } else if (action === "draft-update") {
+      actionVerb = "Updating draft";
     }
 
     if (loadingToastIdRef.current) {
@@ -23,7 +24,7 @@ export function useDocumentActionToast() {
     }
 
     loadingToastIdRef.current = goeyToast.info(`${actionVerb} ${documentType}…`, {
-      duration: 24 * 60 * 60 * 1000, // Keep active until dismissed
+      duration: 24 * 60 * 60 * 1000,
     });
   };
 
@@ -49,6 +50,9 @@ export function useDocumentActionToast() {
       case "draft":
         successMessage = `${documentType} draft saved successfully.`;
         break;
+      case "draft-update":
+        successMessage = `${documentType} draft updated successfully.`;
+        break;
       case "update":
         successMessage = `${documentType}${docSuffix} updated successfully.`;
         break;
@@ -72,6 +76,8 @@ export function useDocumentActionToast() {
       actionWord = "update";
     } else if (action === "draft") {
       actionWord = "draft";
+    } else if (action === "draft-update") {
+      actionWord = "update draft";
     }
 
     const baseMessage = `Failed to ${actionWord} ${documentType}.`;

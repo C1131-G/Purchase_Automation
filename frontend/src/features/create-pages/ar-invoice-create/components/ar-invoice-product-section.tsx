@@ -34,7 +34,7 @@ interface ARInvoiceProductSectionProps {
   warehouses: ARInvoiceState["warehouses"];
   warehousesLoading: boolean;
   secondaryActions?: React.ReactNode;
-  onSubmitMode?: (mode: "save-new" | "view" | "close" | "draft") => void;
+  onSubmitMode?: ((mode: "save-new" | "view" | "close" | "draft") => void) | undefined;
   isSaved?: boolean;
   savedDocNum?: string | number | null;
   onDownload?: (type: "pdf" | "excel" | "word") => void;
@@ -43,6 +43,7 @@ interface ARInvoiceProductSectionProps {
   vendorName: ARInvoiceState["nameInput"];
   vendorCode: ARInvoiceState["codeInput"];
   defaultWarehouseCode: ARInvoiceState["effectiveWarehouseCode"];
+  isDirty?: boolean;
 }
 
 /**
@@ -86,12 +87,14 @@ export function ARInvoiceProductSection({
   vendorName,
   vendorCode,
   defaultWarehouseCode,
+  isDirty,
 }: ARInvoiceProductSectionProps) {
   const isUpdateAction = submitLabel.toLowerCase().includes("update");
 
   return (
     <BaseProductSection
       submitDisabled={submitDisabled}
+      isDirty={isDirty}
       sectionId={sectionId}
       onSearchProducts={() => {
         if (isUpdateAction) {

@@ -7,19 +7,19 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
 export const purchaseOrderKeys = {
   all: ["purchase-orders"] as const,
-  detailByDocNum: (docNum: string) =>
-    [...purchaseOrderKeys.all, "detail-by-doc-num", docNum] as const,
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
+    [...purchaseOrderKeys.all, "detail-by-doc-num", docNum, draftDocEntry ?? ""] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...purchaseOrderKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   list: (params: PurchaseOrderListParams) => [...purchaseOrderKeys.all, "list", params] as const,
 };
 
 export const purchaseOrderQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
-      queryFn: () => purchaseOrderAPI.getPurchaseOrderByDocNum(docNum),
-      queryKey: purchaseOrderKeys.detailByDocNum(docNum),
+      queryFn: () => purchaseOrderAPI.getPurchaseOrderByDocNum(docNum, draftDocEntry),
+      queryKey: purchaseOrderKeys.detailByDocNum(docNum, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

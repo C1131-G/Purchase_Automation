@@ -4,7 +4,7 @@ export const SalesQuotationQuerySchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(20),
   page: z.coerce.number().min(1).default(1),
   search: z.string().optional(),
-  status: z.enum(["O", "C"]).optional(),
+  status: z.enum(["O", "C", "Draft"]).optional(),
 });
 
 export const SalesQuotationDocNumLookupQuerySchema = z.object({
@@ -25,10 +25,15 @@ export const CreateSalesQuotationInputSchema = z.object({
       }),
     )
     .min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 export const UpdateSalesQuotationInputSchema = z.object({
   comments: z.string().optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
+  cardCode: z.string().optional(),
 });
 
 export type SalesQuotationQuery = z.infer<typeof SalesQuotationQuerySchema>;

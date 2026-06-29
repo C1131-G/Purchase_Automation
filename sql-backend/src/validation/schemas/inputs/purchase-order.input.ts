@@ -26,10 +26,16 @@ export const CreatePurchaseOrderInputSchema = z.object({
       }),
     )
     .min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 export const UpdatePurchaseOrderInputSchema = z.object({
   comments: z.string().optional(),
+  isDraft: z.boolean().optional(),
+  cardCode: z.string().optional(),
+  cardName: z.string().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 export type PurchaseOrderQuery = z.infer<typeof PurchaseOrderQuerySchema>;

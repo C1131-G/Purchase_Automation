@@ -14,11 +14,11 @@ export const apCreditMemoKeys = {
 };
 
 export const apCreditMemoQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.detail.gcTime,
-      queryFn: () => apCreditMemoAPI.getAPCreditMemo(docNum),
-      queryKey: apCreditMemoKeys.detail(docNum),
+      queryFn: () => apCreditMemoAPI.getAPCreditMemo(docNum, draftDocEntry),
+      queryKey: [...apCreditMemoKeys.detail(docNum), draftDocEntry || ""],
       staleTime: QUERY_CACHE_POLICY.detail.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

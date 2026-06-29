@@ -67,10 +67,15 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
+    const { draftDocEntry } = authReq.query;
 
-    logger.info({ id, msg: "Fetching A/R Credit Memo detail" });
+    logger.info({ id, draftDocEntry, msg: "Fetching A/R Credit Memo detail" });
 
-    const data = await arCreditMemoService.getCreditNote(sessionId, id as string);
+    const data = await arCreditMemoService.getCreditNote(
+      sessionId,
+      id as string,
+      draftDocEntry ? true : false,
+    );
     if (!data) {
       return res.status(404).json({ message: "A/R Credit Memo not found", success: false });
     }
