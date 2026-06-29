@@ -35,4 +35,13 @@ export const goodsReceiptAPI = {
       : "/api/v1/goods-receipts/docnums";
     return apiClient<GoodsReceiptDocNumLookupResponse>(path);
   },
+  updateGoodsReceipt: async (
+    id: string | number,
+    payload: { Comments?: string; JrnlMemo?: string; Ref2?: string; Attachments?: any[] },
+  ) => {
+    return apiClient<{ success: boolean; message: string }>(`/api/v1/goods-receipts/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
 };

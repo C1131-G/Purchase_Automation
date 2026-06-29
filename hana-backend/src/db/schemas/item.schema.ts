@@ -15,6 +15,7 @@ export interface Item {
   IsCommited?: number;
   OnOrder?: number;
   AvgPrice?: number;
+  LstEvlPric?: number;
   LastPurPrc?: number;
   LastPurDat?: Date | null;
   ManBtchNum?: string;
@@ -38,6 +39,13 @@ export const ItemSchema = new EntitySchema<Item>({
   columns: {
     AvgPrice: {
       name: "AvgPrice",
+      nullable: true,
+      precision: 19,
+      scale: 6,
+      type: "decimal" as HANAColumnType,
+    },
+    LstEvlPric: {
+      name: "LstEvlPric",
       nullable: true,
       precision: 19,
       scale: 6,

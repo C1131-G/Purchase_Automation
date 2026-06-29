@@ -344,6 +344,7 @@ export const getProducts = async (
           "item.SalUnitMsr",
           "item.BuyUnitMsr",
           "item.AvgPrice",
+          "item.LstEvlPric",
           "item.LastPurPrc",
           "item.LastPurCur",
           "item.VatGroupPu",
@@ -457,11 +458,16 @@ export const getProducts = async (
           }
         }
       } else if (priceList === -2) {
-        // Last Evaluated Price: use OITM.AvgPrice for each item
+        // Last Evaluated Price: use OITM.LstEvlPric with a fallback to AvgPrice
         for (const item of items) {
           const itemCode = toTrimmed(item.ItemCode);
           if (itemCode) {
-            priceMap.set(itemCode, toNumberOrZero(item.AvgPrice));
+            const evalPrice = toNumberOrZero(
+              (item as unknown as Record<string, unknown>).LstEvlPric,
+            );
+            const avgPrice = toNumberOrZero(item.AvgPrice);
+            const finalPrice = evalPrice > 0 ? evalPrice : avgPrice;
+            priceMap.set(itemCode, finalPrice);
           }
         }
       } else {

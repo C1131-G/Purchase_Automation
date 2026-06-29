@@ -31,12 +31,12 @@ export const getGoodsReceipts = async (req: Request, res: Response, next: NextFu
 export const getGoodsReceipt = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
-    const { dbName } = authReq.user;
+    const { dbName, sessionId } = authReq.user;
     const { id } = authReq.params;
 
     logger.info({ dbName, id, msg: "Fetching Goods Receipt detail" });
 
-    const data = await goodsReceiptService.getGoodsReceiptByDocNum(dbName, id as string);
+    const data = await goodsReceiptService.getGoodsReceiptByDocNum(sessionId, dbName, id as string);
 
     if (!data) {
       return res.status(404).json({ message: "Goods Receipt not found", success: false });
@@ -85,9 +85,27 @@ export const createGoodsReceipt = async (req: Request, res: Response, next: Next
   }
 };
 
+export const updateGoodsReceipt = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId, dbName } = authReq.user;
+    const { id } = authReq.params;
+    const payload = req.body as Record<string, unknown>;
+
+    logger.info({ dbName, id, msg: "Updating Goods Receipt" });
+
+    const result = await goodsReceiptService.updateGoodsReceipt(sessionId, id as string, payload);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const goodsReceiptDal = {
   getGoodsReceipts,
   getGoodsReceipt,
   getGoodsReceiptDocNums,
   createGoodsReceipt,
+  updateGoodsReceipt,
 };

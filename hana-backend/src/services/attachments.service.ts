@@ -5,7 +5,6 @@ import { logger } from "@/core/logger/pino-logger";
 import { config } from "@/config/env";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
-import { AttachmentHeaderSchema } from "@/db/schemas/attachment-header.schema";
 import { AttachmentLineSchema } from "@/db/schemas/attachment-line.schema";
 
 export interface FileMetadata {
@@ -197,7 +196,6 @@ export class AttachmentsService {
     attachments: FileMetadata[],
   ): Promise<number> {
     // Pre-check: Verify that each file actually exists on the disk.
-    // If not, log a critical warning specifying the file name, extension, and full path.
     for (const att of attachments) {
       const filePath = path.join(att.sourcePath, `${att.fileName}.${att.fileExtension}`);
       if (!fs.existsSync(filePath)) {
@@ -210,62 +208,43 @@ export class AttachmentsService {
           },
           "CRITICAL: Attachment file does not exist on disk! SAP Attachments2 service will reject this request.",
         );
-      } else {
-        logger.info(
-          { fileName: att.fileName, filePath },
-          "Verified attachment file exists on disk prior to SAP upload",
-        );
       }
     }
 
     try {
       logger.info(
         { dbName, filesCount: attachments.length },
-        "Registering attachments in SAP database via TypeORM",
+        "Registering attachments in SAP database via Service Layer",
       );
-      const headerRepo = await getTenantRepository(dbName, AttachmentHeaderSchema);
-      const lineRepo = await getTenantRepository(dbName, AttachmentLineSchema);
 
-      // 1. Get Next AbsEntry from OATC (Attachment Header)
-      const queryBuilder = headerRepo.createQueryBuilder("oatc");
-      const nextResult = await queryBuilder
-        .select("MAX(oatc.absEntry)", "NextAbsEntry")
-        .getRawOne<{ NextAbsEntry: number | null }>();
+      const payload = {
+        Attachments2_Lines: attachments.map((att) => ({
+          SourcePath: att.sourcePath,
+          FileName: att.fileName,
+          FileExtension: att.fileExtension,
+          FreeText: att.freeText || "",
+          Override: "tYES",
+        })),
+      };
 
-      const nextAbsEntry = Number((nextResult?.NextAbsEntry ?? 0) + 1);
-
-      // 2. Insert Header into OATC
-      await headerRepo.insert({
-        absEntry: nextAbsEntry,
-      });
-
-      // 3. Insert File References into ATC1
-      let lineNum = 1;
-      for (const att of attachments) {
-        await lineRepo.insert({
-          absEntry: nextAbsEntry,
-          line: lineNum,
-          trgtPath: att.sourcePath,
-          fileName: att.fileName,
-          fileExt: att.fileExtension,
-          freeText: att.freeText || "",
-          date: new Date(),
-          copied: "Y",
-        });
-        lineNum++;
-      }
+      const response = await serviceLayerClient.request<{ AbsoluteEntry: number }>(
+        sessionId,
+        "POST",
+        "/Attachments2",
+        payload,
+      );
 
       logger.info(
-        { absoluteEntry: nextAbsEntry },
-        "Successfully registered attachments in SAP database via TypeORM",
+        { absoluteEntry: response.AbsoluteEntry },
+        "Successfully registered attachments in SAP database via Service Layer",
       );
 
-      return nextAbsEntry;
+      return response.AbsoluteEntry;
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       logger.error(
         { error: errMsg, attachments },
-        "Failed to register attachment in SAP database via TypeORM",
+        "Failed to register attachment in SAP database via Service Layer",
       );
       throw new AppError(`Failed to link attachments in SAP: ${errMsg}`, 500, "SAP_DATABASE_ERROR");
     }

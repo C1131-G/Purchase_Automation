@@ -14,7 +14,12 @@ import { InventoryDocumentFooter } from "@/features/create-pages/create-shared/c
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
 import { GoodsReceiptTable } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-table";
-import { goodsReceiptQueries } from "@/features/table-pages/goods-receipt/api/goods-receipt.queries";
+import {
+  goodsReceiptQueries,
+  useUpdateGoodsReceipt,
+} from "@/features/table-pages/goods-receipt/api/goods-receipt.queries";
+import { InventoryDocumentAttachments } from "@/features/create-pages/create-shared/components/inventory/inventory-document-attachments";
+import type { AttachmentItem } from "@/features/create-pages/create-shared/components/inventory/types/inventory-document.types";
 
 interface GoodsReceiptUpdateProps {
   docNum: string;
@@ -26,7 +31,10 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
   const [journalRemark, setJournalRemark] = useState("");
   const [ref2, setRef2] = useState("");
   const [rows, setRows] = useState<GoodsReceiptRow[]>([]);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"contents" | "attachments">("contents");
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+
+  const updateMutation = useUpdateGoodsReceipt();
 
   // Load GR detail data
   const {
@@ -67,6 +75,9 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
         };
       });
       setRows(mappedRows);
+      if (grData.Attachments) {
+        setAttachments(grData.Attachments);
+      }
     }
   }, [grData]);
 
@@ -122,18 +133,55 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
           />
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-zinc-200">
+          <button
+            type="button"
+            id="gr-update-tab-contents"
+            className={`cursor-pointer border-b-2 px-4 py-2.5 text-sm font-semibold outline-none transition ${
+              activeTab === "contents"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-zinc-500 hover:text-zinc-700"
+            }`}
+            onClick={() => setActiveTab("contents")}
+          >
+            Contents
+          </button>
+          <button
+            type="button"
+            id="gr-update-tab-attachments"
+            className={`cursor-pointer border-b-2 px-4 py-2.5 text-sm font-semibold outline-none transition ${
+              activeTab === "attachments"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-zinc-500 hover:text-zinc-700"
+            }`}
+            onClick={() => setActiveTab("attachments")}
+          >
+            Attachments
+          </button>
+        </div>
+
         {/* Contents Section */}
         <div>
-          <GoodsReceiptTable
-            rows={rows}
-            onRowsChange={setRows}
-            openProductPopup={() => {}}
-            prefetchProducts={() => {}}
-            warehouses={warehousesQuery.data ?? []}
-            warehousesLoading={warehousesQuery.isLoading}
-            uoms={uomsQuery.data ?? []}
-            priceListCode={undefined}
-          />
+          {activeTab === "contents" ? (
+            <GoodsReceiptTable
+              rows={rows}
+              onRowsChange={setRows}
+              openProductPopup={() => {}}
+              prefetchProducts={() => {}}
+              warehouses={warehousesQuery.data ?? []}
+              warehousesLoading={warehousesQuery.isLoading}
+              uoms={uomsQuery.data ?? []}
+              priceListCode={undefined}
+            />
+          ) : (
+            <InventoryDocumentAttachments
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              idPrefix="gr-view"
+              targetPathPrefix="C:\\SAP_Attachments\\"
+            />
+          )}
         </div>
 
         {/* Footer - Editable */}
@@ -235,16 +283,33 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                 <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-50">
                   <ActionsPopoverContent
                     onSubmit={() => {
-                      setIsUpdating(true);
-                      setTimeout(() => {
-                        goeyToast.success("Goods Receipt updated successfully.");
-                        setIsUpdating(false);
-                      }, 600);
+                      if (!grData) return;
+                      updateMutation.mutate(
+                        {
+                          id: grData.DocEntry,
+                          payload: {
+                            Comments: remarks,
+                            JrnlMemo: journalRemark,
+                            Ref2: ref2,
+                            ...(attachments.length > 0 ? { Attachments: attachments } : {}),
+                          },
+                        },
+                        {
+                          onSuccess: () => {
+                            goeyToast.success("Goods Receipt updated successfully.");
+                          },
+                          onError: (err: any) => {
+                            goeyToast.error(
+                              err?.response?.data?.message || "Failed to update Goods Receipt.",
+                            );
+                          },
+                        },
+                      );
                     }}
                     onDownload={(type) => {
                       goeyToast.info(`Downloading Goods Receipt as ${type.toUpperCase()}...`);
                     }}
-                    isSubmitting={isUpdating}
+                    isSubmitting={updateMutation.isPending}
                     submitDisabled={false}
                   />
                 </div>
