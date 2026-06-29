@@ -420,16 +420,7 @@ export function GRPOCreate({
           "grpos",
           "GRPO",
         )}
-        onReset={() => {
-          state.resetForm();
-          window.scrollTo({ behavior: "smooth", top: 0 });
-          void router.navigate({
-            replace: true,
-            search: {},
-            to: "/purchase/create-grpo",
-            viewTransition: true,
-          });
-        }}
+        onReset={state.resetForm}
         submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
       />
 

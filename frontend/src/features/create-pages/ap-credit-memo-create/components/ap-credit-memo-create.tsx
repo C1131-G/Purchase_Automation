@@ -86,7 +86,14 @@ export function APCreditMemoCreate({
     }
     const docNums = selected.map((s) => s.docNum).join(",");
     const docType = selected[0]!.docType as "APInvoice";
-    window.location.href = `/purchase/create-ap-credit-memo?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`;
+    void router.navigate({
+      to: "/purchase/create-ap-credit-memo",
+      search: {
+        sourceDocNum: docNums,
+        sourceDocType: docType,
+      },
+      viewTransition: true,
+    });
   };
 
   const activeVendor = (state.vendors as any[]).find(
@@ -370,16 +377,7 @@ export function APCreditMemoCreate({
         onSubmitMode={state.handleCreateOrder}
         isSaved={state.isSaved}
         savedDocNum={state.savedDocNum}
-        onReset={() => {
-          state.resetForm();
-          window.scrollTo({ behavior: "smooth", top: 0 });
-          void router.navigate({
-            replace: true,
-            search: {},
-            to: "/purchase/create-ap-credit-memo",
-            viewTransition: true,
-          });
-        }}
+        onReset={state.resetForm}
         onDownload={useDocumentDownload(
           mode === "edit" ? docNum : state.savedDocNum,
           "ap-credit-memos",

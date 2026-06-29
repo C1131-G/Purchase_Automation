@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { getRouteApi, useRouter } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import type { MouseEvent } from "react";
 
@@ -38,7 +38,6 @@ interface PurchaseQuotationCreateProps {
  */
 export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuotationCreateProps) {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   let draftDocNum: string | undefined;
   let draftDocEntry: string | undefined;
@@ -389,16 +388,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
             "purchase-quotations",
             "Purchase_Quotation",
           )}
-          onReset={() => {
-            state.resetForm();
-            window.scrollTo({ behavior: "smooth", top: 0 });
-            void router.navigate({
-              replace: true,
-              search: {},
-              to: "/purchase/create-quotation",
-              viewTransition: true,
-            });
-          }}
+          onReset={state.resetForm}
           isEditMode={state.isEditMode}
           isClosed={state.isClosed}
           allowSearchInEditMode={state.isEditMode}

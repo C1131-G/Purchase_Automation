@@ -30,6 +30,7 @@ interface ArCreditMemoProductSectionProps {
   createError: ArCreditMemoState["createError"];
   createDisabledReason: ArCreditMemoState["createDisabledReason"];
   createArCreditMemoMutation: ArCreditMemoState["createArCreditMemoMutation"];
+  isSubmittingState: boolean;
   missingMandatoryFields: ArCreditMemoState["missingMandatoryFields"];
   requiredCompletionPercent: ArCreditMemoState["requiredCompletionPercent"];
   handleCreateOrder: ArCreditMemoState["handleCreateOrder"];
@@ -72,7 +73,8 @@ export function ArCreditMemoProductSection({
   summaryCurrencyLabel,
   createError,
   createDisabledReason,
-  createArCreditMemoMutation,
+  createArCreditMemoMutation: _createArCreditMemoMutation,
+  isSubmittingState,
   missingMandatoryFields,
   requiredCompletionPercent,
   handleCreateOrder,
@@ -140,7 +142,7 @@ export function ArCreditMemoProductSection({
       backToLabel="Back to Table"
       submitLabel={submitLabel}
       submitLoadingText={submitLoadingText}
-      isSubmitting={createArCreditMemoMutation.isPending}
+      isSubmitting={isSubmittingState}
       onSubmit={handleCreateOrder}
       onSubmitMode={onSubmitMode}
       isSaved={isSaved}

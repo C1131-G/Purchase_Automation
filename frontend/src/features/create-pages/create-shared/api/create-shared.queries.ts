@@ -39,7 +39,8 @@ export const createSharedKeys = {
   vendors: () => [...createSharedKeys.all, "vendors-v3"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
   series: (documentType: string) => [...createSharedKeys.all, "series", documentType] as const,
-  warehouseBins: (warehouseCode: string) => [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
+  warehouseBins: (warehouseCode: string) =>
+    [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
 };
 
 export const createSharedQueries = {

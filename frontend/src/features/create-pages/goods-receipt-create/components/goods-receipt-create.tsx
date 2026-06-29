@@ -322,11 +322,13 @@ export function GoodsReceiptCreate() {
             to: "/inventory/goods-receipt/$docNum/edit",
             params: { docNum: String(data.DocNum) },
             search: { limit: 10, page: 1 } as any,
+            viewTransition: true,
           });
         } else if (mode === "close") {
           void router.navigate({
             to: "/inventory/goods-receipt",
             search: { limit: 10, page: 1 } as any,
+            viewTransition: true,
           });
         } else if (mode === "draft") {
           // Just stay on the same page, keep the data (or reset if preferred)

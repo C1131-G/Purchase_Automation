@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
@@ -53,7 +53,6 @@ export function ARInvoiceCreate({
   draftDocEntry,
 }: ARInvoiceCreateProps) {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const search = useSearch({ strict: false });
   const sourceDocNum = mode === "create" ? search.sourceDocNum : undefined;
   const rawSourceDocType = mode === "create" ? search.sourceDocType : undefined;
@@ -543,16 +542,7 @@ export function ARInvoiceCreate({
             "ar-invoices",
             "AR_Invoice",
           )}
-          onReset={() => {
-            state.resetForm();
-            window.scrollTo({ behavior: "smooth", top: 0 });
-            void router.navigate({
-              replace: true,
-              search: {},
-              to: "/sales/create-ar-invoice",
-              viewTransition: true,
-            });
-          }}
+          onReset={state.resetForm}
           submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           onEditRestrictedClick={state.showEditRestrictedToast}

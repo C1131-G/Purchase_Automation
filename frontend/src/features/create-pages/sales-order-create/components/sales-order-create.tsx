@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearch, useRouter } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 
@@ -50,7 +50,6 @@ export function SalesOrderCreate({
   draftDocEntry,
 }: SalesOrderCreateProps) {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const search = useSearch({ strict: false });
   const sourceDocNum =
     mode === "create" ? (search as Record<string, string | undefined>).sourceDocNum : undefined;
@@ -453,16 +452,7 @@ export function SalesOrderCreate({
             "sales-orders",
             "Sales_Order",
           )}
-          onReset={() => {
-            state.resetForm();
-            window.scrollTo({ behavior: "smooth", top: 0 });
-            void router.navigate({
-              replace: true,
-              search: {},
-              to: "/sales/create-order",
-              viewTransition: true,
-            });
-          }}
+          onReset={state.resetForm}
           submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
