@@ -36,6 +36,8 @@ interface CreateProductTableProps {
   warehouseErrors?: Record<string, string> | undefined;
   showUom?: boolean;
   uoms?: CreateLookupOption[];
+  showBinLocation?: boolean;
+  showGLAccount?: boolean;
 }
 
 export function CreateProductTable({
@@ -64,25 +66,29 @@ export function CreateProductTable({
   warehouseErrors,
   showUom = false,
   uoms = [],
+  showBinLocation = false,
+  showGLAccount = false,
 }: CreateProductTableProps) {
   return (
     <div className="overflow-x-auto px-2 py-2">
-      <table className="w-full table-fixed text-left text-sm text-zinc-700">
+      <table className="w-full table-fixed text-left text-sm text-zinc-700 min-w-[1400px]">
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
             {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
-            <th className={`${showUom ? "w-[18%]" : "w-[20%]"} px-2 py-2`}>Product</th>
-            <th className={`${showUom ? "w-[18%]" : "w-[26%]"} px-2 py-2`}>Warehouse</th>
-            {showUom && <th className="w-[10%] px-2 py-2 text-left">UoM</th>}
-            <th className="w-[8%] px-2 py-2 text-left">Quantity</th>
-            <th className="w-[6%] px-2 py-2 text-left">Price</th>
-            <th className="w-[8%] px-2 py-2 text-left">Disc %</th>
-            <th className="w-[8%] px-2 py-2 text-left text-wrap">Disc Amt</th>
-            <th className="w-[8%] px-2 py-2 text-left text-wrap">Net Price</th>
-            <th className="w-[8%] px-2 py-2 text-left">Total</th>
-            {showTaxCode && <th className="w-[10%] px-2 py-2 text-left">Tax Code</th>}
-            {showReturnReason && <th className="w-[12%] px-2 py-2 text-left">Return Reason</th>}
-            <th className="w-[8%] px-2 py-2 text-right">Actions</th>
+            <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Product</th>
+            <th className={`${showUom ? "w-[12%]" : "w-[15%]"} px-2 py-2`}>Warehouse</th>
+            {showBinLocation && <th className="w-[10%] px-2 py-2 text-left">Bin Location</th>}
+            {showUom && <th className="w-[8%] px-2 py-2 text-left">UoM</th>}
+            <th className="w-[7%] px-2 py-2 text-left">Quantity</th>
+            <th className="w-[7%] px-2 py-2 text-left">Price</th>
+            <th className="w-[7%] px-2 py-2 text-left">Disc %</th>
+            <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
+            <th className="w-[7%] px-2 py-2 text-left text-wrap">Net Price</th>
+            <th className="w-[7%] px-2 py-2 text-left">Total</th>
+            {showTaxCode && <th className="w-[8%] px-2 py-2 text-left">Tax Code</th>}
+            {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
+            {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
+            <th className="w-[7%] px-2 py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -95,7 +101,9 @@ export function CreateProductTable({
                   (showSelection ? 1 : 0) +
                   (showReturnReason ? 1 : 0) +
                   (showTaxCode ? 1 : 0) +
-                  (showUom ? 1 : 0)
+                  (showUom ? 1 : 0) +
+                  (showBinLocation ? 1 : 0) +
+                  (showGLAccount ? 1 : 0)
                 }
               >
                 <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
@@ -136,6 +144,8 @@ export function CreateProductTable({
               warehouseError={warehouseErrors?.[row.id]}
               showUom={showUom}
               uoms={uoms}
+              showBinLocation={showBinLocation}
+              showGLAccount={showGLAccount}
             />
           ))}
         </tbody>

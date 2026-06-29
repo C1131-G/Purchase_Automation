@@ -36,6 +36,10 @@ export const login: RequestHandler = async (req, res, next) => {
       session.dbName = companyDB;
       session.user = { ...result.user, companyName };
       session.userAgent = req.headers["user-agent"];
+      // Store SAP SL credentials encrypted in session so middleware can auto-reconnect after restart.
+      session.slCompanyDB = companyDB;
+      session.slUsername = result.slUsername ?? "";
+      session.slPassword = result.slPassword ?? "";
 
       logger.info({ msg: "Login successful", username });
 

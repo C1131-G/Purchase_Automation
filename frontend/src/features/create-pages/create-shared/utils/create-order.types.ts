@@ -57,6 +57,8 @@ export interface ProductGridRow {
   baseType?: number | undefined;
   selected?: boolean | undefined;
   returnReason?: string | undefined;
+  binLocationAllocation?: number | undefined;
+  accountCode?: string | undefined;
 }
 
 export interface ProductGridRowDraft {

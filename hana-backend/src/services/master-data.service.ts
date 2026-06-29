@@ -249,6 +249,7 @@ export const getProducts = async (
   search?: string,
   limit?: number,
   type?: "sales" | "purchase",
+  priceList?: number,
 ) => {
   const normalizedWarehouseCode = toTrimmed(warehouseCode);
   const normalizedSearch = toTrimmed(search);
@@ -265,7 +266,8 @@ export const getProducts = async (
       ? String(resolvedLimit)
       : "unlimited"
     : String(resolvedLimit ?? defaultListLimit);
-  const cacheKey = `master:${dbName}:Products:v11:${normalizedWarehouseCode || "default"}:${cacheSearchKey}:${cacheLimitToken}:${type || "default"}`;
+  const priceListToken = priceList !== undefined ? String(priceList) : "default";
+  const cacheKey = `master:${dbName}:Products:v11:${normalizedWarehouseCode || "default"}:${cacheSearchKey}:${cacheLimitToken}:${type || "default"}:pl${priceListToken}`;
 
   return getCachedData(
     cacheKey,
@@ -342,6 +344,7 @@ export const getProducts = async (
           "item.SalUnitMsr",
           "item.BuyUnitMsr",
           "item.AvgPrice",
+          "item.LastPurPrc",
           "item.LastPurCur",
           "item.VatGroupPu",
           "item.VatGroupSa",
@@ -414,10 +417,21 @@ export const getProducts = async (
           }>();
         })(),
         (async () => {
+          // Special SAP price lists: -1 = Last Purchase Price, -2 = Last Evaluated (AvgPrice).
+          // These are not in ITM1 — they come from OITM fields.
+          // For any regular price list, filter ITM1 by that PriceList number.
+          if (priceList === -1 || priceList === -2) {
+            // Will be resolved from item.LastPurPrc or item.AvgPrice directly — no ITM1 query needed.
+            return [];
+          }
           const priceRepository = await getTenantRepository(dbName, ItemPriceSchema);
+          const priceWhere: Record<string, unknown> = { ItemCode: In(itemCodes) };
+          if (priceList !== undefined && priceList >= 0) {
+            priceWhere.PriceList = priceList;
+          }
           return priceRepository.find({
-            select: ["ItemCode", "Price"] as const,
-            where: { ItemCode: In(itemCodes) } as Record<string, unknown>,
+            select: ["ItemCode", "PriceList", "Price"] as const,
+            where: priceWhere,
           });
         })(),
       ]);
@@ -431,15 +445,41 @@ export const getProducts = async (
       }
 
       const priceMap = new Map<string, number>();
-      for (const priceRow of itemPrices) {
-        const itemCode = toTrimmed(priceRow.ItemCode);
-        if (!itemCode) {
-          continue;
+      if (priceList === -1) {
+        // Last Purchase Price: use OITM.LastPurPrc for each item, fallback to AvgPrice if 0
+        for (const item of items) {
+          const itemCode = toTrimmed(item.ItemCode);
+          if (itemCode) {
+            const lastPurPrc = toNumberOrZero(
+              (item as unknown as Record<string, unknown>).LastPurPrc,
+            );
+            priceMap.set(itemCode, lastPurPrc > 0 ? lastPurPrc : toNumberOrZero(item.AvgPrice));
+          }
         }
-        const candidatePrice = toNumberOrZero(priceRow.Price);
-        const currentPrice = priceMap.get(itemCode) ?? 0;
-        if (candidatePrice > currentPrice) {
-          priceMap.set(itemCode, candidatePrice);
+      } else if (priceList === -2) {
+        // Last Evaluated Price: use OITM.AvgPrice for each item
+        for (const item of items) {
+          const itemCode = toTrimmed(item.ItemCode);
+          if (itemCode) {
+            priceMap.set(itemCode, toNumberOrZero(item.AvgPrice));
+          }
+        }
+      } else {
+        // Regular price list or no filter: pick from ITM1 (highest price as fallback if multiple rows)
+        for (const priceRow of itemPrices) {
+          const itemCode = toTrimmed(priceRow.ItemCode);
+          if (!itemCode) continue;
+          const candidatePrice = toNumberOrZero(priceRow.Price);
+          if (priceList !== undefined) {
+            // Specific price list selected: use it directly
+            priceMap.set(itemCode, candidatePrice);
+          } else {
+            // No price list selected: fallback to highest across all lists
+            const currentPrice = priceMap.get(itemCode) ?? 0;
+            if (candidatePrice > currentPrice) {
+              priceMap.set(itemCode, candidatePrice);
+            }
+          }
         }
       }
 
@@ -494,6 +534,7 @@ export const getProducts = async (
       const mappedItems = items.map((item) => {
         const normalizedItemCode = toTrimmed(item.ItemCode);
         const resolvedStock = stockMap.get(normalizedItemCode) ?? 0;
+        // If no price in the map, fall back to AvgPrice on the item (moving average)
         const resolvedPrice = priceMap.get(normalizedItemCode) ?? toNumberOrZero(item.AvgPrice);
         const resolvedCurrency = defaultCurrency || "";
 
@@ -829,7 +870,7 @@ export const getPriceLists = async (dbName: string) => {
           `SELECT "ListNum", "ListName" FROM OPLN ORDER BY "ListNum" ASC`,
         )) as Array<{ ListNum: unknown; ListName: unknown }>;
 
-        return rows
+        const fromDb = rows
           .filter((row) => row.ListName && String(row.ListName).trim())
           .map((row) => ({
             Code: String(row.ListNum ?? ""),
@@ -839,8 +880,65 @@ export const getPriceLists = async (dbName: string) => {
             name: toTrimmed(row.ListName),
             listNum: typeof row.ListNum === "number" ? row.ListNum : Number(row.ListNum),
           }));
+
+        // SAP special built-in price lists (not stored in OPLN)
+        const specialPriceLists = [
+          {
+            Code: "-2",
+            Name: "Last Evaluated Price",
+            code: "-2",
+            id: "-2",
+            name: "Last Evaluated Price",
+            listNum: -2,
+          },
+          {
+            Code: "-1",
+            Name: "Last Purchase Price",
+            code: "-1",
+            id: "-1",
+            name: "Last Purchase Price",
+            listNum: -1,
+          },
+        ];
+
+        return [...specialPriceLists, ...fromDb];
       } catch (err) {
         logger.warn({ db: dbName, err, msg: "Failed to fetch price lists from OPLN" });
+        return [];
+      }
+    },
+    1000 * 60 * 10,
+  );
+};
+
+// Fetches document numbering series from the NNM1 table filtered by object type.
+// Uses direct HANA query — no SAP Service Layer session required.
+export const getSeries = async (dbName: string, documentType: string) => {
+  const cacheKey = `master:${dbName}:Series:${documentType}`;
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT "Series", "SeriesName", "ObjectCode", "Locked"
+           FROM NNM1
+           WHERE "ObjectCode" = '${documentType}'
+             AND "Locked" = 'N'
+           ORDER BY "Series" ASC`,
+        )) as Array<{ Series: unknown; SeriesName: unknown; ObjectCode: unknown; Locked: unknown }>;
+
+        return rows
+          .filter((row) => row.SeriesName && String(row.SeriesName).trim())
+          .map((row) => ({
+            Series: Number(row.Series),
+            Name: toTrimmed(row.SeriesName),
+            code: String(row.Series ?? ""),
+            id: String(row.Series ?? ""),
+            name: toTrimmed(row.SeriesName),
+          }));
+      } catch (err) {
+        logger.warn({ db: dbName, documentType, err, msg: "Failed to fetch series from NNM1" });
         return [];
       }
     },
@@ -852,7 +950,7 @@ export const getPriceLists = async (dbName: string) => {
 export const getWarehouses = async (dbName: string) => {
   const results = await fetchLookup(dbName, WarehouseSchema, "Warehouses", {
     order: { WhsCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["WhsCode", "WhsName"] as const,
+    select: ["WhsCode", "WhsName", "BinActivat"] as const,
     where: { Inactive: "N" } as Record<string, unknown>,
   });
 
@@ -862,7 +960,40 @@ export const getWarehouses = async (dbName: string) => {
     code: item.WhsCode,
     id: item.WhsCode,
     name: item.WhsName,
+    enableBinLocations: item.BinActivat === "Y",
   }));
+};
+
+// Fetches bin locations for a warehouse directly from OBIN via HANA.
+// Uses executeTenantQuery — no SAP Service Layer session required.
+export const getWarehouseBins = async (dbName: string, warehouseCode: string) => {
+  const cacheKey = `master:${dbName}:Bins:${warehouseCode}`;
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT "AbsEntry", "BinCode", "WhsCode", "Descr"
+           FROM OBIN
+           WHERE "WhsCode" = '${warehouseCode}'
+             AND "Disabled" = 'N'
+           ORDER BY "BinCode" ASC`,
+        )) as Array<{ AbsEntry: unknown; BinCode: unknown; WhsCode: unknown; Descr: unknown }>;
+
+        return rows.map((row) => ({
+          AbsEntry: Number(row.AbsEntry),
+          BinCode: String(row.BinCode ?? ""),
+          WhsCode: String(row.WhsCode ?? ""),
+          Description: toTrimmed(row.Descr),
+        }));
+      } catch (err) {
+        logger.warn({ db: dbName, err, msg: "Failed to fetch bins from OBIN", warehouseCode });
+        return [];
+      }
+    },
+    1000 * 60 * 5, // 5 min cache
+  );
 };
 
 export const masterDataService = {
@@ -870,8 +1001,10 @@ export const masterDataService = {
   getPriceLists,
   getProductWarehouseStocks,
   getProducts,
+  getSeries,
   getTaxCodes,
   getUOMs,
   getVendors,
   getWarehouses,
+  getWarehouseBins,
 };

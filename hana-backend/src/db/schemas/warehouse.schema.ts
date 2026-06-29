@@ -9,6 +9,7 @@ export interface Warehouse {
   WhsCode: string; // The primary warehouse code.
   WhsName: string; // Name of the warehouse.
   Inactive?: string; // Status flag.
+  BinActivat?: string; // Whether bins are enabled (Y/N)
 }
 
 export const WarehouseSchema = new EntitySchema<Warehouse>({
@@ -17,6 +18,12 @@ export const WarehouseSchema = new EntitySchema<Warehouse>({
       default: "N",
       length: 1,
       name: "Inactive",
+      type: "nvarchar" as HANAColumnType,
+    },
+    BinActivat: {
+      default: "N",
+      length: 1,
+      name: "BinActivat",
       type: "nvarchar" as HANAColumnType,
     },
     WhsCode: {

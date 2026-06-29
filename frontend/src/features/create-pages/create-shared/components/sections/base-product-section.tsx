@@ -87,7 +87,7 @@ const getTargetIcon = (target: string) => {
   }
 };
 
-function ActionsPopoverContent({
+export function ActionsPopoverContent({
   onSubmit,
   onDownload,
   isSubmitting,
@@ -102,12 +102,16 @@ function ActionsPopoverContent({
   isSubmitting?: boolean | undefined;
   submitDisabled?: boolean | undefined;
   disabledReason?: string | null | undefined;
-  copyToTargets: string[];
-  copyToDocNum: string;
-  copyToSourceDocType: string;
+  copyToTargets?: string[];
+  copyToDocNum?: string;
+  copyToSourceDocType?: string;
 }) {
   const { setOpen } = Popover.usePopoverContext();
   const [menuView, setMenuView] = useState<"main" | "download" | "copy-to">("main");
+
+  const effectiveTargets = copyToTargets || [];
+  const effectiveDocNum = copyToDocNum || "";
+  const effectiveSourceDocType = copyToSourceDocType || "";
 
   // Reset menuView when popover closes/unmounts
   useEffect(() => {
@@ -177,7 +181,7 @@ function ActionsPopoverContent({
           ← Back to Actions
         </button>
         <div className="border-t border-zinc-100 my-1" />
-        {copyToTargets.map((target) => (
+        {effectiveTargets.map((target) => (
           <Link
             key={target}
             to={getTargetRoute(target)}
@@ -237,7 +241,7 @@ function ActionsPopoverContent({
       )}
 
       {/* Option 3: Copy To */}
-      {copyToTargets.length > 0 && (
+      {effectiveTargets.length > 0 && (
         <button
           type="button"
           onClick={() => setMenuView("copy-to")}

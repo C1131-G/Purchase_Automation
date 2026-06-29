@@ -21,15 +21,27 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
         ? Number(req.query.limit)
         : undefined;
     const type = req.query.type as "sales" | "purchase" | undefined;
+    const priceList =
+      typeof req.query.priceList === "string" && req.query.priceList.trim() !== ""
+        ? Number(req.query.priceList)
+        : undefined;
     logger.info({
       dbName,
       limit,
       msg: "Fetching products",
+      priceList,
       search,
       type,
       warehouseCode,
     });
-    const data = await masterDataService.getProducts(dbName, warehouseCode, search, limit, type);
+    const data = await masterDataService.getProducts(
+      dbName,
+      warehouseCode,
+      search,
+      limit,
+      type,
+      priceList,
+    );
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);
@@ -131,6 +143,32 @@ export const getPriceLists = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+export const getSeries = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const documentType = typeof req.query.documentType === "string" ? req.query.documentType : "59";
+    logger.info({ dbName, documentType, msg: "Fetching series from NNM1" });
+    const data = await masterDataService.getSeries(dbName, documentType);
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWarehouseBins = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const warehouseCode = req.params.code;
+    logger.info({ dbName, msg: "Fetching warehouse bins from OBIN", warehouseCode });
+    const data = await masterDataService.getWarehouseBins(dbName, warehouseCode);
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const masterDataDal = {
   getCustomers,
   getPriceLists,
@@ -140,4 +178,6 @@ export const masterDataDal = {
   getUOMs,
   getVendors,
   getWarehouses,
+  getSeries,
+  getWarehouseBins,
 };
