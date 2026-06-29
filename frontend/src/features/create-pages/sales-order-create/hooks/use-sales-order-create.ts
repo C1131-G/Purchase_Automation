@@ -63,6 +63,8 @@ interface UseSalesOrderCreateOptions {
   docNum?: string | undefined;
   sourceDocNum?: string | undefined;
   sourceDocType?: string | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
@@ -75,8 +77,38 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
+  const parseSalesOrderHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
+
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";
+  const draftDocNum = options?.draftDocNum ?? "";
+  const draftDocEntry = options?.draftDocEntry ?? "";
   const header = useSOHeader();
   const resetSOCreate = useResetSOCreateAction();
   const setHeader = useSetSOHeaderAction();
@@ -156,19 +188,23 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   });
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       resetSOCreate();
       hydratedDocNumRef.current = null;
+      setHydratedDocNum(null);
     }
     return () => {
       resetSOCreate();
       lookups.resetWarehouse();
     };
-  }, [isEditMode, resetSOCreate, lookups.resetWarehouse]);
+  }, [isEditMode, draftDocNum, resetSOCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
-    ...salesOrderQueries.detailByDocNum(editDocNum),
-    enabled: isEditMode && Boolean(editDocNum),
+    ...salesOrderQueries.detailByDocNum(
+      isEditMode ? editDocNum : draftDocNum,
+      isEditMode ? undefined : draftDocEntry,
+    ),
+    enabled: (isEditMode && Boolean(editDocNum)) || (!isEditMode && Boolean(draftDocNum)),
   });
   const sourceDetailQuerySQ = useQuery({
     ...salesQuotationQueries.detailByDocNum(
@@ -176,12 +212,16 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     ),
     enabled:
       mode === "create" &&
+      !draftDocNum &&
       (options?.sourceDocType ?? sourceDocType) === "SalesQuotation" &&
       Boolean(options?.sourceDocNum ?? sourceDocNum),
   });
 
   useEffect(() => {
     if (mode !== "create") {
+      return;
+    }
+    if (draftDocNum) {
       return;
     }
     const currentSourceDocNum = options?.sourceDocNum ?? sourceDocNum;
@@ -408,20 +448,23 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     setHeader,
   ]);
 
+  const isDraftMode = Boolean(draftDocNum);
+  const isUpdating = isEditMode || isDraftMode;
+
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isUpdating) {
       return;
     }
-    const currentDocNum = editDocNum;
-    if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) {
+    const currentDocNum = isEditMode ? editDocNum : draftDocNum;
+    const currentDocEntry = isEditMode ? undefined : draftDocEntry;
+    const cacheKey = `${currentDocNum}_${currentDocEntry ?? ""}`;
+    if (!currentDocNum || hydratedDocNumRef.current === cacheKey) {
       return;
     }
     const detail = editDetailQuery.data?.data;
     if (!detail) {
       return;
     }
-    hydratedDocNumRef.current = currentDocNum;
-
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("Sales Order", "edit");
     }
@@ -451,9 +494,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       matchedVendor?.salesEmployeeName?.trim() ||
       "";
 
-    const rawComments = String(detail.Comments ?? "").trim();
-    const referenceNo = String(detail.NumAtCard ?? "").trim();
-    const comments = rawComments;
+    const { comments, referenceNo } = parseSalesOrderHeaderNotes(detail);
 
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
@@ -640,8 +681,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             })),
         });
 
-        hydratedDocNumRef.current = currentDocNum;
-        setHydratedDocNum(currentDocNum);
+        hydratedDocNumRef.current = cacheKey;
+        setHydratedDocNum(cacheKey);
       } finally {
         loadingToastRef.current?.dismiss();
         loadingToastRef.current = null;
@@ -652,6 +693,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     editDetailQuery.data,
     header.docDate,
     isEditMode,
+    isUpdating,
+    draftDocNum,
+    draftDocEntry,
     lookups,
     editDocNum,
     productsHook,
@@ -904,6 +948,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     documentName: "Sales Order",
     moduleType: "sales",
     defaultUrl: "/sales/create-order",
+    tableUrl: "/sales/orders",
     resetForm,
     getPayloadString: () => {
       const validRows = productsHook.productRows.filter(
@@ -1000,31 +1045,44 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const handleCreateOrder = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
   ) => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      setSubmitAttempted(false);
-      return;
+    const isDraftAction = action === "draft";
+    const isDraftUpdate = isDraftAction && Boolean(draftDocNum);
+    const isUpdating = isEditMode || isDraftUpdate;
+
+    if (isDraftAction && !isDraftUpdate) {
+      const draftCardCode = String(header.vendorCode || lookups.codeInput || "").trim();
+      if (!draftCardCode) {
+        setSubmitAttempted(true);
+        const nextErrors = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS };
+        nextErrors.vendorCode = MANDATORY_ERROR_TEXT.vendorCode;
+        nextErrors.vendorName = MANDATORY_ERROR_TEXT.vendorName;
+        setProductSearchFieldErrors(nextErrors as any);
+        setCreateError("Customer is required to save as draft.");
+        return;
+      }
     }
 
-    setSubmitAttempted(true);
-    const nextErrors: ProductSearchFieldError = {
-      ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
-    };
-    missingMandatoryFields.forEach((field) => {
-      const mandatoryKey = field as keyof typeof MANDATORY_ERROR_TEXT;
-      nextErrors[field as keyof ProductSearchFieldError] = MANDATORY_ERROR_TEXT[mandatoryKey];
-    });
+    if (!isDraftAction) {
+      setSubmitAttempted(true);
+      const nextErrors: ProductSearchFieldError = {
+        ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
+      };
+      missingMandatoryFields.forEach((field) => {
+        const mandatoryKey = field as keyof typeof MANDATORY_ERROR_TEXT;
+        nextErrors[field as keyof ProductSearchFieldError] = MANDATORY_ERROR_TEXT[mandatoryKey];
+      });
 
-    if (Object.values(nextErrors).some(Boolean)) {
-      setProductSearchFieldErrors(nextErrors);
-      setCreateError(requiredFieldsErrorText);
-      return;
+      if (Object.values(nextErrors).some(Boolean)) {
+        setProductSearchFieldErrors(nextErrors);
+        setCreateError(requiredFieldsErrorText);
+        return;
+      }
     }
 
     const validRows = productsHook.productRows.filter(
       (row) => row.productCode.trim() && row.quantity > 0,
     );
-    if (validRows.length === 0) {
+    if (!isDraftAction && validRows.length === 0) {
       setCreateError(rowsErrorText);
       return;
     }
@@ -1038,7 +1096,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
     setCreateError(null);
 
-    const payload = isEditMode
+    const payload = isUpdating
       ? {
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
@@ -1046,26 +1104,31 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
           DocDueDate: header.docDueDate || header.docDate,
-          DocumentLines: validRows.map((row) => ({
-            LineNum: row.lineNum,
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-            ...(row.baseType !== undefined &&
-            row.baseEntry !== undefined &&
-            row.baseLine !== undefined
-              ? {
-                  BaseType: row.baseType,
-                  BaseEntry: row.baseEntry,
-                  BaseLine: row.baseLine,
-                }
-              : {}),
-          })),
+          ...(draftDocNum || isDraftUpdate
+            ? {
+                DocumentLines: validRows.map((row) => ({
+                  LineNum: row.lineNum,
+                  DiscountPercent: row.discountPercent,
+                  ItemCode: row.productCode,
+                  Quantity: row.quantity,
+                  UnitPrice: row.price,
+                  UoMCode: row.uomCode || undefined,
+                  UoMEntry: row.uomEntry ?? undefined,
+                  VatGroup: row.vatGroup || undefined,
+                  WarehouseCode:
+                    row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+                  ...(row.baseType !== undefined &&
+                  row.baseEntry !== undefined &&
+                  row.baseLine !== undefined
+                    ? {
+                        BaseType: row.baseType,
+                        BaseEntry: row.baseEntry,
+                        BaseLine: row.baseLine,
+                      }
+                    : {}),
+                })),
+              }
+            : {}),
           SalesPersonCode: resolvedSalesEmployeeCode,
           attachments: attachments.map((att) => ({
             sourcePath: att.sourcePath || "",
@@ -1112,24 +1175,54 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           })),
         };
 
-    saveActions.startSaveTracking(isEditMode ? "update" : action);
-    saveActions.actionToast.startLoading("Sales Order", isEditMode ? "update" : action);
+    const trackingAction = isDraftAction
+      ? isDraftUpdate
+        ? "draft-update"
+        : "draft"
+      : isEditMode
+        ? "update"
+        : action;
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("Sales Order", trackingAction);
     try {
       let createdDocNum: string | number | undefined;
-      if (isEditMode) {
-        const detail = editDetailQuery.data?.data;
-        const docEntry = detail?.DocEntry ?? detail?.id;
+      if (isUpdating) {
+        const docEntry = isEditMode
+          ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+          : Number(draftDocEntry);
+
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update sales order. Document id is missing.");
-          saveActions.actionToast.showError("Sales Order", "update", "Document ID is missing.");
+          saveActions.actionToast.showError(
+            "Sales Order",
+            trackingAction,
+            "Document ID is missing.",
+          );
           return;
         }
-        await updateSalesOrderMutation.mutateAsync({ id: docEntry, payload });
-        createdDocNum = detail?.DocNum;
+
+        const updatePayload = {
+          ...payload,
+        };
+
+        if (isDraftUpdate) {
+          (updatePayload as any).isDraft = true;
+          if (draftDocEntry) {
+            (updatePayload as any).draftDocEntry = Number(draftDocEntry);
+          }
+        }
+
+        await updateSalesOrderMutation.mutateAsync({ id: docEntry, payload: updatePayload });
+        createdDocNum = isEditMode ? editDetailQuery.data?.data?.DocNum : draftDocNum;
 
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
+        const fetchNum = isEditMode ? editDocNum : draftDocNum;
         const updatedDetailRes = await queryClient.fetchQuery(
-          salesOrderQueries.detailByDocNum(String(createdDocNum)),
+          salesOrderQueries.detailByDocNum(
+            String(fetchNum),
+            isEditMode ? undefined : String(draftDocEntry),
+          ),
         );
         const updatedDetail = updatedDetailRes?.data;
         if (updatedDetail) {
@@ -1173,9 +1266,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
             matchedVendor?.salesEmployeeName?.trim() ||
             "";
 
-          const rawComments = String(updatedDetail.Comments ?? "").trim();
-          const referenceNo = String(updatedDetail.NumAtCard ?? "").trim();
-          const comments = rawComments;
+          const { comments, referenceNo } = parseSalesOrderHeaderNotes(updatedDetail);
           const docDueDate = String(updatedDetail.DocDueDate ?? "").slice(0, 10);
           const address = String(
             updatedDetail.Address ?? (updatedDetail as Record<string, unknown>).address ?? "",
@@ -1229,11 +1320,24 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           });
         }
       } else {
-        const result = await createSalesOrderMutation.mutateAsync({ payload });
+        const createPayload = {
+          ...payload,
+        };
+
+        if (isDraftAction) {
+          (createPayload as any).isDraft = true;
+          if (draftDocEntry) {
+            (createPayload as any).draftDocEntry = Number(draftDocEntry);
+          }
+        } else if (draftDocNum && draftDocEntry) {
+          (createPayload as any).draftDocEntry = Number(draftDocEntry);
+        }
+
+        const result = await createSalesOrderMutation.mutateAsync({ payload: createPayload });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
 
-      saveActions.trackMutationSuccess();
+      await saveActions.handleActionSuccess(trackingAction, createdDocNum);
 
       // Proactive Cache Revalidation
       void queryClient.invalidateQueries({ queryKey: salesOrderKeys.all });
@@ -1243,31 +1347,31 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         queryClient.prefetchQuery(salesOrderQueries.docNumSuggestions(undefined, 100)),
       ]);
 
-      if (isEditMode) {
-        const currentDocNum = (options?.docNum ?? "").trim();
-        if (currentDocNum) {
-          void queryClient.invalidateQueries(salesOrderQueries.detailByDocNum(currentDocNum));
-        }
+      const detailDocNum = isEditMode ? options?.docNum : draftDocNum;
+      if (detailDocNum) {
+        void queryClient.invalidateQueries(
+          salesOrderQueries.detailByDocNum(
+            String(detailDocNum),
+            isEditMode ? undefined : String(draftDocEntry),
+          ),
+        );
       }
-
-      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
     } catch (error) {
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        `Failed to ${isEditMode ? "update" : "create"} sales order. Try again.`,
+        `Failed to ${isUpdating ? "update" : "create"} sales order. Try again.`,
       );
-      saveActions.actionToast.showError(
-        "Sales Order",
-        isEditMode ? "update" : action,
-        errorMessage,
-      );
+      saveActions.actionToast.showError("Sales Order", trackingAction, errorMessage);
       setCreateError(errorMessage);
     }
   };
 
-  const submitSalesOrderMutation = isEditMode ? updateSalesOrderMutation : createSalesOrderMutation;
+  const submitSalesOrderMutation = {
+    ...createSalesOrderMutation,
+    isPending: createSalesOrderMutation.isPending || updateSalesOrderMutation.isPending,
+  };
   const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
+    if (!isUpdating || !formSnapshot) {
       return false;
     }
     const current = {
@@ -1294,7 +1398,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
-    isEditMode,
+    isUpdating,
     formSnapshot,
     header.comments,
     header.referenceNo,
@@ -1307,7 +1411,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     attachments,
   ]);
 
-  const submitDisabled = isEditMode ? !isDirty : false;
+  const submitDisabled = isUpdating ? !isDirty : false;
 
   const totals = useMemo(
     () => calculateOrderTotals(productsHook.productRows),
@@ -1318,7 +1422,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     [productsHook.productRows],
   );
   const summaryCurrencyLabel = summaryCurrency === "MULTI" ? "MULTI" : summaryCurrency;
-  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum;
+  const isEditHydrated =
+    (!isEditMode && !draftDocNum) ||
+    hydratedDocNum === (isEditMode ? editDocNum : `${draftDocNum}_${draftDocEntry ?? ""}`);
 
   const addProductsFromSQs = async (
     selectedLines: {
@@ -1490,6 +1596,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     header,
     isEditHydrated,
     isEditMode,
+    isDirty,
     isClosed,
     isSaved: saveActions.isSaved,
     savedDocNum: saveActions.savedDocNum,
@@ -1512,14 +1619,18 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     summaryCurrencyLabel,
     today,
     totals,
-    trackerDocType: isEditMode
-      ? "sales-order"
-      : sourceDocType === "SalesQuotation"
-        ? "sales-quotation"
-        : null,
-    trackerDocEntry: isEditMode
-      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
-      : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
+    trackerDocType: draftDocNum
+      ? null
+      : isEditMode
+        ? "sales-order"
+        : sourceDocType === "SalesQuotation"
+          ? "sales-quotation"
+          : null,
+    trackerDocEntry: draftDocNum
+      ? null
+      : isEditMode
+        ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+        : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
     updateSalesOrderMutation,
     attachments,
     setAttachments,

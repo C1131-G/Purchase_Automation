@@ -91,13 +91,15 @@ export const getSalesQuotationByDocNum = async (
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { docNum } = authReq.params;
+    const { draftDocEntry } = authReq.query;
 
-    logger.info({ docNum, msg: "Fetching Sales Quotation detail by DocNum" });
+    logger.info({ docNum, draftDocEntry, msg: "Fetching Sales Quotation detail by DocNum" });
 
     const data = await salesQuotationService.getSalesQuotationByDocNum(
       sessionId,
       dbName,
       docNum as string,
+      draftDocEntry ? String(draftDocEntry) : undefined,
     );
     if (!data) {
       return res.status(404).json({ message: "Sales Quotation not found", success: false });
@@ -148,7 +150,9 @@ export const updateSalesQuotation = async (req: Request, res: Response, next: Ne
 
     const result = await salesQuotationService.updateSalesQuotation(
       sessionId,
-      id as string,
+      validatedPayload.draftDocEntry !== undefined
+        ? String(validatedPayload.draftDocEntry)
+        : (id as string),
       validatedPayload,
     );
 

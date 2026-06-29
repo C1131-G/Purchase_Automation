@@ -18,17 +18,21 @@ export const Route = createFileRoute("/_layout/purchase/create-ap-credit-memo")(
       .object({
         sourceDocNum: z.string().or(z.number()).transform(String).optional(),
         sourceDocType: z.enum(["APInvoice"]).optional(),
+        draftDocNum: z.string().or(z.number()).transform(String).optional(),
+        draftDocEntry: z.string().or(z.number()).transform(String).optional(),
       })
       .parse(search),
 });
 
 function RouteComponent() {
   useDocumentTitle("Create AP Credit Memo | ERP Portal");
-  const { sourceDocNum, sourceDocType } = Route.useSearch();
+  const { sourceDocNum, sourceDocType, draftDocNum, draftDocEntry } = Route.useSearch();
   return (
     <APCreditMemoCreate
       sourceDocNum={sourceDocNum}
       sourceDocType={sourceDocType as "APInvoice" | undefined}
+      draftDocNum={draftDocNum}
+      draftDocEntry={draftDocEntry}
     />
   );
 }

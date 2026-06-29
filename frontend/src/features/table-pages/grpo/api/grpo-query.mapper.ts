@@ -78,7 +78,12 @@ export const mapSearchToGRPOListParams = (search: GRPOSearch): GRPOListParams =>
 
   const docDate = getDateRangeFilter(filters, "DocDate");
   const docTotal = getDocTotalFilter(filters);
-  const docStatus = getEnumFilter<GRPOStatus>(filters, "DocStatus", ["Open", "Partial", "Closed"]);
+  const docStatus = getEnumFilter<GRPOStatus>(filters, "DocStatus", [
+    "Open",
+    "Partial",
+    "Closed",
+    "Draft",
+  ]);
 
   const start = docDate?.from ?? docDate?.to;
   const end = docDate?.to ?? docDate?.from;

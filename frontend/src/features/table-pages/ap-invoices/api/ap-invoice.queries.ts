@@ -7,18 +7,19 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
 export const apInvoiceKeys = {
   all: ["ap-invoices"] as const,
-  detail: (id: string | number) => [...apInvoiceKeys.all, "detail", id] as const,
+  detail: (id: string | number, draftDocEntry?: string) =>
+    [...apInvoiceKeys.all, "detail", id, draftDocEntry ?? ""] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...apInvoiceKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   list: (params: APInvoiceListParams) => [...apInvoiceKeys.all, "list", params] as const,
 };
 
 export const apInvoiceQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.detail.gcTime,
-      queryFn: () => apInvoiceAPI.getAPInvoice(docNum),
-      queryKey: apInvoiceKeys.detail(docNum),
+      queryFn: () => apInvoiceAPI.getAPInvoice(docNum, draftDocEntry),
+      queryKey: apInvoiceKeys.detail(docNum, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.detail.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

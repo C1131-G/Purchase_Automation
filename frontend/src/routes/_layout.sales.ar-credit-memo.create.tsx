@@ -13,12 +13,21 @@ export const Route = createFileRoute("/_layout/sales/ar-credit-memo/create")({
         sourceDocType: z
           .enum(["SalesQuotation", "SalesOrder", "ARInvoice", "ARCreditNote", "AR_INVOICE"])
           .optional(),
+        draftDocNum: z.string().or(z.number()).transform(String).optional(),
+        draftDocEntry: z.string().or(z.number()).transform(String).optional(),
       })
       .parse(search),
 });
 
 function ArCreditMemoCreatePage() {
-  const { sourceDocNum, sourceDocType } = Route.useSearch();
+  const { sourceDocNum, sourceDocType, draftDocNum, draftDocEntry } = Route.useSearch();
   useDocumentTitle("Create AR Credit Memo | ERP Portal");
-  return <ArCreditMemoCreate sourceDocNum={sourceDocNum} sourceDocType={sourceDocType} />;
+  return (
+    <ArCreditMemoCreate
+      sourceDocNum={sourceDocNum}
+      sourceDocType={sourceDocType}
+      draftDocNum={draftDocNum}
+      draftDocEntry={draftDocEntry}
+    />
+  );
 }

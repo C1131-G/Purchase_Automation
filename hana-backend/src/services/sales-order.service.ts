@@ -3,126 +3,158 @@
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData, purgeCache } from "@/core/utils/cache";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { executeTenantQuery, getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { SalesOrderFilters } from "@/dal/types/sales-order.types";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
 import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
-import type { SalesOrder } from "@/db/schemas/sales-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
-import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
-import { adjustPayloadDates } from "./date-adjustment.util";
 import { attachmentsService } from "./attachments.service";
 
 // Fetches a filtered and paginated list of Sales Orders from the tenant-specific HANA database.
+// Uses a UNION ALL pattern to combine final documents (ORDR) with drafts (ODRF, ObjType='17').
 export const getSalesOrders = async (dbName: string, filters: SalesOrderFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, SalesOrderSchema);
+    const buildSubQuery = (table: string, isDraft: boolean) => {
+      const whereClauses = ["1=1"];
+      const params: unknown[] = [];
 
-    const queryBuilder = repo.createQueryBuilder("so");
-    queryBuilder.where("1=1");
-
-    // Dynamic Filter: Search by document number (Standard: DocNum).
-    if (filters.DocNum) {
-      queryBuilder.andWhere("CAST(so.docNum AS NVARCHAR) LIKE :docNum", {
-        docNum: `%${filters.DocNum}%`,
-      });
-    }
-
-    // Dynamic Filter: Search by customer code (Standard: CardCode).
-    if (filters.CardCode) {
-      queryBuilder.andWhere("so.cardCode LIKE :cardCode", {
-        cardCode: `%${filters.CardCode}%`,
-      });
-    }
-
-    // Dynamic Filter: Search by customer name (Standard: CardName).
-    if (filters.CardName) {
-      queryBuilder.andWhere("LOWER(so.cardName) LIKE LOWER(:cardName)", {
-        cardName: `%${filters.CardName}%`,
-      });
-    }
-
-    // Dynamic Filter: Order creation date Start (Standard: DocDate).
-    if (filters.DocDateStart) {
-      queryBuilder.andWhere("so.docDate >= :startDate", {
-        startDate: filters.DocDateStart,
-      });
-    }
-
-    // Dynamic Filter: Order creation date End (Standard: DocDate).
-    if (filters.DocDateEnd) {
-      queryBuilder.andWhere("so.docDate <= :endDate", {
-        endDate: filters.DocDateEnd,
-      });
-    }
-
-    // Dynamic Filter: Status (Standard: DocStatus).
-    if (filters.DocStatus) {
-      queryBuilder.andWhere("so.docStatus = :status", {
-        status: filters.DocStatus,
-      });
-    }
-    // Dynamic Filter: Total amount comparison.
-    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
-      if (filters.DocTotalOperator === "eq") {
-        queryBuilder.andWhere("so.docTotal = :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+      if (isDraft) {
+        whereClauses.push(`"ObjType" = '17'`);
       }
-      if (filters.DocTotalOperator === "lt") {
-        queryBuilder.andWhere("so.docTotal < :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.DocNum) {
+        whereClauses.push(`CAST("DocNum" AS NVARCHAR) LIKE ?`);
+        params.push(`%${filters.DocNum}%`);
       }
-      if (filters.DocTotalOperator === "gt") {
-        queryBuilder.andWhere("so.docTotal > :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.CardCode) {
+        whereClauses.push(`"CardCode" LIKE ?`);
+        params.push(`%${filters.CardCode}%`);
       }
-    }
+
+      if (filters.CardName) {
+        whereClauses.push(`LOWER("CardName") LIKE LOWER(?)`);
+        params.push(`%${filters.CardName}%`);
+      }
+
+      if (filters.DocDateStart) {
+        whereClauses.push(`"DocDate" >= ?`);
+        params.push(filters.DocDateStart);
+      }
+
+      if (filters.DocDateEnd) {
+        whereClauses.push(`"DocDate" <= ?`);
+        params.push(filters.DocDateEnd);
+      }
+
+      if (filters.DocStatus) {
+        const statusVal = filters.DocStatus;
+        if (isDraft) {
+          if (statusVal !== "D" && statusVal !== "Draft") {
+            whereClauses.push("1=0");
+          }
+        } else {
+          if (statusVal === "D" || statusVal === "Draft") {
+            whereClauses.push("1=0");
+          } else {
+            whereClauses.push(`"DocStatus" = ?`);
+            params.push(statusVal);
+          }
+        }
+      }
+
+      if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+        const opMap = { eq: "=", lt: "<", gt: ">" };
+        const op = opMap[filters.DocTotalOperator as keyof typeof opMap];
+        if (op) {
+          whereClauses.push(`"DocTotal" ${op} ?`);
+          params.push(filters.DocTotal);
+        }
+      }
+
+      const selectColumns = isDraft
+        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus", "Address", "Address2"`
+        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus", "Address", "Address2"`;
+
+      const sql = `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
+      return { sql, params };
+    };
+
+    const subSO = buildSubQuery("ORDR", false);
+    const subDraft = buildSubQuery("ODRF", true);
+
+    const combinedSql = `
+      SELECT * FROM (
+        ${subSO.sql}
+        UNION ALL
+        ${subDraft.sql}
+      ) AS "Combined"
+    `;
+    const combinedParams = [...subSO.params, ...subDraft.params];
+
+    const countSql = `SELECT COUNT(*) AS "total" FROM (${combinedSql}) AS "Counted"`;
 
     const sortFieldMap: Record<string, string> = {
-      CardCode: "so.cardCode",
-      CardName: "so.cardName",
-      DocDate: "so.docDate",
-      DocNum: "so.docNum",
-      DocStatus: "so.docStatus",
-      DocTotal: "so.docTotal",
+      CardCode: `"CardCode"`,
+      CardName: `"CardName"`,
+      DocDate: `"DocDate"`,
+      DocNum: `"DocNum"`,
+      DocStatus: `"DocStatus"`,
+      DocTotal: `"DocTotal"`,
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
-    const sort = requestedSortField
-      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
-      : ({ "so.docDate": "DESC", "so.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
+    const orderBy = requestedSortField
+      ? `ORDER BY ${requestedSortField} ${requestedSortOrder}`
+      : `ORDER BY "DocDate" DESC, "DocNum" DESC`;
 
-    // Executes the query with centralized pagination and sorting defaults.
-    const result = await PageService.getPagedData<SalesOrder>({
-      dbName,
-      entityName: "SalesOrders",
-      limit: Number(filters.limit) || 10,
-      page: Number(filters.page) || 1,
-      query: queryBuilder,
-      sort,
-    });
+    const limit = Number(filters.limit) || 10;
+    const page = Number(filters.page) || 1;
+    const offset = (page - 1) * limit;
+
+    const dataSql = `
+      ${combinedSql}
+      ${orderBy}
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...combinedParams, limit, offset];
+
+    const [countRows, dataRows] = await Promise.all([
+      executeTenantQuery(dbName, countSql, combinedParams) as Promise<any[]>,
+      executeTenantQuery(dbName, dataSql, dataParams) as Promise<any[]>,
+    ]);
+
+    const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
+    const totalPages = Math.ceil(total / limit);
 
     return {
-      ...result,
-      data: result.data.map((data) => ({
-        CardCode: data.cardCode,
-        CardName: data.cardName,
-        DocCurr: data.docCurr,
-        DocDate: data.docDate,
-        DocNum: data.docNum,
-        DocStatus: data.docStatus,
-        DocTotal: data.docTotal,
-        Address: data.address,
-        Address2: data.address2,
-        id: data.docEntry,
+      data: dataRows.map((row: any) => ({
+        CardCode: row.CardCode,
+        CardName: row.CardName,
+        DocCurr: row.DocCurr,
+        DocDate: row.DocDate,
+        DocNum: row.DocNum,
+        DocStatus:
+          row.DocStatus === "O"
+            ? "Open"
+            : row.DocStatus === "C"
+              ? "Closed"
+              : row.DocStatus === "D"
+                ? "Draft"
+                : row.DocStatus,
+        DocTotal: row.DocTotal,
+        Address: row.Address,
+        Address2: row.Address2,
+        id: row.DocEntry,
       })),
+      limit,
+      page,
+      total,
+      totalPages,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
@@ -152,12 +184,13 @@ export const getSalesOrderDocNums = async (dbName: string, search?: string, limi
 };
 
 // Obtains the full Sales Order document structure from SAP, used for detail views.
-export const getSalesOrder = async (sessionId: string, id: string) => {
+export const getSalesOrder = async (sessionId: string, id: string, isDraft = false) => {
   try {
+    const endpoint = isDraft ? `/Drafts(${id})` : `/Orders(${id})`;
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
-      `/Orders(${id})`,
+      endpoint,
     )) as SAPDocumentResponse;
 
     const attachmentEntry = (result as any).AttachmentEntry || null;
@@ -191,7 +224,7 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
       DiscountPercent: result.DiscountPercent,
       DiscountAmount: result.TotalDiscount ?? 0,
       // normalizes SAP's internal string status.
-      DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
       NumAtCard: (result as unknown as Record<string, unknown>).NumAtCard ?? "",
       AttachmentEntry: attachmentEntry,
@@ -213,10 +246,26 @@ export const getSalesOrder = async (sessionId: string, id: string) => {
 };
 
 // Resolves a Sales Order by DocNum from tenant DB and fetches full details from Service Layer.
-export const getSalesOrderByDocNum = async (sessionId: string, dbName: string, docNum: string) => {
+export const getSalesOrderByDocNum = async (
+  sessionId: string,
+  dbName: string,
+  docNum: string,
+  draftDocEntry?: string,
+) => {
   const normalizedDocNum = docNum.trim();
   if (!normalizedDocNum) {
     throw new AppError("DocNum is required", 400, "VALIDATION_ERROR");
+  }
+
+  if (draftDocEntry) {
+    const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '17' AND "DocEntry" = ?`;
+    const draftMatch = (await executeTenantQuery(dbName, draftQuery, [
+      Number(draftDocEntry),
+    ])) as any[];
+
+    if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+      return getSalesOrder(sessionId, String(draftMatch[0].DocEntry), true);
+    }
   }
 
   const repo = await getTenantRepository(dbName, SalesOrderSchema);
@@ -241,6 +290,27 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = Number(payload.draftDocEntry || 0);
+
+    // Defensive fallback: when converting a draft to a real document, re-read the draft from SAP
+    // before deleting it so we can carry forward Comments/NumAtCard if the payload doesn't include them.
+    let draftComments: string | undefined;
+    let draftNumAtCard: string | undefined;
+    if (!isDraft && draftDocEntry > 0) {
+      try {
+        const draftData = (await serviceLayerClient.request(
+          sessionId,
+          "GET",
+          `/Drafts(${draftDocEntry})?$select=Comments,NumAtCard`,
+        )) as { Comments?: string; NumAtCard?: string };
+        draftComments = draftData?.Comments;
+        draftNumAtCard = draftData?.NumAtCard;
+      } catch {
+        // Non-fatal: if we can't read the draft, proceed with the provided payload values.
+      }
+    }
+
     const session = serviceLayerClient.getSession(sessionId);
     const resolvedDbName = session?.companyDB || "";
 
@@ -257,8 +327,8 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments,
-      NumAtCard: payload.NumAtCard,
+      Comments: payload.Comments ?? draftComments,
+      NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
       AttachmentEntry: absoluteEntry ?? undefined,
@@ -297,12 +367,15 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
       RoundingDiffAmount: payload.RoundingDiffAmount,
     };
 
+    if (isDraft) {
+      sapPayload.DocObjectCode = "17";
+    }
+
     // Standardize date into ISO format (YYYY-MM-DD) for Service Layer ingestion.
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
-    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -311,18 +384,32 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
       )}-${docDueDate.slice(6, 8)}`;
     }
 
+    const endpoint = isDraft ? "/Drafts" : "/Orders";
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
-      "/Orders",
+      endpoint,
       sapPayload,
     )) as SAPDocumentResponse;
 
     logger.info({
       docEntry: result.DocEntry,
       docNum: result.DocNum,
-      msg: "Sales order created in SAP",
+      msg: isDraft ? "Sales order draft created in SAP" : "Sales order created in SAP",
     });
+
+    if (!isDraft && draftDocEntry) {
+      logger.info({ draftDocEntry, msg: "Deleting source draft after sales order conversion" });
+      await serviceLayerClient
+        .request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`)
+        .catch((err) => {
+          logger.error({
+            draftDocEntry,
+            error: err.message,
+            msg: "Failed to delete draft after conversion",
+          });
+        });
+    }
 
     // Invalidate the sales dashboard cache as revenue and order counts have changed.
     if (resolvedDbName) {
@@ -342,7 +429,9 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      message: "Sales Order created successfully",
+      message: isDraft
+        ? "Sales Order Draft saved successfully"
+        : "Sales Order created successfully",
       success: true,
     };
   } catch (err: unknown) {
@@ -355,12 +444,14 @@ export const createSalesOrder = async (sessionId: string, payload: Record<string
   }
 };
 
-// PATCH request to update mutable document fields (Comments, Address, Lines).
 export const updateSalesOrder = async (
   sessionId: string,
   id: string,
   payload: Record<string, unknown>,
 ) => {
+  const isDraft = payload.isDraft === true || Boolean(payload.draftDocEntry);
+  const docEntry = isDraft ? Number(payload.draftDocEntry || id) : id;
+
   try {
     const sapPayload: Record<string, unknown> = {};
 
@@ -371,27 +462,45 @@ export const updateSalesOrder = async (
         // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
         let existingAttachmentEntry: number | null = null;
-        try {
-          const soRepo = await getTenantRepository(dbName, SalesOrderSchema);
-          const soDoc = await soRepo.findOne({
-            where: { docEntry: Number(id) },
-            select: ["docNum", "atcEntry"],
-          });
-          if (soDoc) {
-            docNum = soDoc.docNum;
-            existingAttachmentEntry = soDoc.atcEntry ?? null;
+        if (!isDraft) {
+          try {
+            const soRepo = await getTenantRepository(dbName, SalesOrderSchema);
+            const soDoc = await soRepo.findOne({
+              where: { docEntry: Number(id) },
+              select: ["docNum", "atcEntry"],
+            });
+            if (soDoc) {
+              docNum = soDoc.docNum;
+              existingAttachmentEntry = soDoc.atcEntry ?? null;
+            }
+          } catch (dbErr: any) {
+            logger.warn(
+              { id, err: dbErr.message },
+              "Failed to query database for doc info, falling back to Service Layer GET",
+            );
+            // Fallback to Service Layer GET if database query fails
+            try {
+              const docData = await serviceLayerClient.request<any>(
+                sessionId,
+                "GET",
+                `/Orders(${id})?$select=DocNum,AttachmentEntry`,
+              );
+              if (docData?.DocNum) {
+                docNum = docData.DocNum;
+              }
+              if (docData?.AttachmentEntry) {
+                existingAttachmentEntry = docData.AttachmentEntry;
+              }
+            } catch (err: any) {
+              logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+            }
           }
-        } catch (dbErr: any) {
-          logger.warn(
-            { id, err: dbErr.message },
-            "Failed to query database for doc info, falling back to Service Layer GET",
-          );
-          // Fallback to Service Layer GET if database query fails
+        } else {
           try {
             const docData = await serviceLayerClient.request<any>(
               sessionId,
               "GET",
-              `/Orders(${id})?$select=DocNum,AttachmentEntry`,
+              `/Drafts(${docEntry})?$select=DocNum,AttachmentEntry`,
             );
             if (docData?.DocNum) {
               docNum = docData.DocNum;
@@ -400,7 +509,10 @@ export const updateSalesOrder = async (
               existingAttachmentEntry = docData.AttachmentEntry;
             }
           } catch (err: any) {
-            logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+            logger.warn(
+              { id: docEntry, err: err.message },
+              "Failed to fetch doc info from Service Layer",
+            );
           }
         }
 
@@ -408,8 +520,8 @@ export const updateSalesOrder = async (
           await attachmentsService.syncAttachmentsOnUpdate(
             sessionId,
             dbName,
-            "SalesOrder",
-            id,
+            isDraft ? "SalesOrderDraft" : "SalesOrder",
+            String(docEntry),
             docNum,
             payload.attachments as any[],
             existingAttachmentEntry,
@@ -436,9 +548,9 @@ export const updateSalesOrder = async (
     if (payload.DocDate !== undefined) {
       sapPayload.DocDate = payload.DocDate;
     }
+    const endpoint = isDraft ? `/Drafts(${docEntry})` : `/Orders(${id})`;
     if (payload.DocDueDate !== undefined) {
       sapPayload.DocDueDate = payload.DocDueDate;
-      await adjustPayloadDates(sessionId, sapPayload, true, `/Orders(${id})`);
     }
     if (payload.SalesPersonCode !== undefined) {
       sapPayload.SalesPersonCode = payload.SalesPersonCode;
@@ -481,12 +593,12 @@ export const updateSalesOrder = async (
 
     logger.info({
       changedFields: Object.keys(sapPayload),
-      id,
+      id: docEntry,
       lineCount: Array.isArray(sapPayload.DocumentLines) ? sapPayload.DocumentLines.length : 0,
       msg: "Sales order update payload prepared",
     });
 
-    await serviceLayerClient.request(sessionId, "PATCH", `/Orders(${id})`, sapPayload, true, {
+    await serviceLayerClient.request(sessionId, "PATCH", endpoint, sapPayload, true, {
       "B1S-ReplaceCollectionsOnPatch": "true",
     });
 
@@ -497,7 +609,9 @@ export const updateSalesOrder = async (
     }
 
     return {
-      message: "Sales Order updated successfully",
+      message: isDraft
+        ? "Sales Order Draft saved successfully"
+        : "Sales Order updated successfully",
       success: true,
     };
   } catch (err: unknown) {

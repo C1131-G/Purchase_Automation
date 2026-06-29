@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Lock,
@@ -181,7 +181,7 @@ function ActionsPopoverContent({
           <Link
             key={target}
             to={getTargetRoute(target)}
-            search={{ sourceDocNum: copyToDocNum, sourceDocType: copyToSourceDocType }}
+            search={{ sourceDocNum: copyToDocNum, sourceDocType: copyToSourceDocType as any }}
             viewTransition
             onClick={() => setOpen(false)}
             className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none no-underline"
@@ -263,6 +263,7 @@ function AddPopoverContent({
   onReset,
   isSubmitting,
   onSelectAction,
+  isDirty,
 }: {
   onSubmitMode?: ((mode: "save-new" | "view" | "close" | "draft") => void) | undefined;
   isSaved: boolean;
@@ -270,9 +271,12 @@ function AddPopoverContent({
   onReset?: (() => void) | undefined;
   isSubmitting?: boolean | undefined;
   onSelectAction?: ((action: "save-new" | "view" | "close" | "draft") => void) | undefined;
+  isDirty?: boolean | undefined;
 }) {
   const { setOpen } = Popover.usePopoverContext();
   const [menuView, setMenuView] = useState<"main" | "download">("main");
+  const router = useRouter();
+  const isDraftConversion = Boolean((router.state.location.search as any)?.draftDocNum);
 
   // Reset menuView when popover closes/unmounts
   useEffect(() => {
@@ -393,11 +397,11 @@ function AddPopoverContent({
               onSubmitMode?.("draft");
               setOpen(false);
             }}
-            disabled={isSubmitting}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            disabled={isSubmitting || (isDraftConversion && !isDirty)}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
           >
             <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
-            <span>Save & Draft</span>
+            <span>{isDraftConversion ? "Update & Draft" : "Save & Draft"}</span>
           </button>
         </>
       ) : (
@@ -495,6 +499,7 @@ interface BaseProductSectionProps {
   showSubmitButton?: boolean | undefined;
   isReadOnly?: boolean | undefined;
   submitDisabled?: boolean | undefined;
+  isDirty?: boolean | undefined;
   customSearchAction?: ReactNode | undefined;
   productRows?: ProductRow[] | undefined;
   setProductRows?:
@@ -527,6 +532,8 @@ export function BaseProductSection({
   createError,
   backToUrl,
   backToLabel = "Back to Table",
+  submitLabel = "Add",
+  submitLoadingText = "Saving...",
   isSubmitting,
   onSubmit,
   onSubmitMode,
@@ -544,6 +551,7 @@ export function BaseProductSection({
   submitDisabled = false,
   allowSearchInEditMode = false,
   isReadOnly = false,
+  isDirty,
   customSearchAction,
   productRows,
   setProductRows,
@@ -552,6 +560,7 @@ export function BaseProductSection({
   defaultWarehouseCode,
 }: BaseProductSectionProps) {
   const navigate = useNavigate();
+  const router = useRouter();
   const showBackPopover = true;
   const effectiveHideSearch = hideSearch || (isEditMode && !allowSearchInEditMode);
 
@@ -567,6 +576,7 @@ export function BaseProductSection({
 
   const getSubmitButtonLabel = () => {
     if (isSubmitting || activeAction) {
+      const isDraftConversion = Boolean((router.state.location.search as any)?.draftDocNum);
       switch (activeAction) {
         case "save-new":
           return "Saving & New...";
@@ -575,12 +585,12 @@ export function BaseProductSection({
         case "close":
           return "Saving & Closing...";
         case "draft":
-          return "Saving & Draft...";
+          return isDraftConversion ? "Updating & Draft..." : "Saving & Draft...";
         default:
-          return "Saving...";
+          return submitLoadingText;
       }
     }
-    return "Add";
+    return submitLabel;
   };
 
   let copyToTargets: string[] = [];
@@ -1023,6 +1033,7 @@ export function BaseProductSection({
                           onReset={onReset}
                           isSubmitting={isSubmitting}
                           onSelectAction={setActiveAction}
+                          isDirty={isDirty}
                         />
                       </div>
                     </Popover.Content>

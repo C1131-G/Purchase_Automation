@@ -38,31 +38,9 @@ export const createSharedKeys = {
   uoms: () => [...createSharedKeys.all, "uoms"] as const,
   vendors: () => [...createSharedKeys.all, "vendors-v3"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
-  financialPeriod: () => [...createSharedKeys.all, "financial-period-active"] as const,
 };
 
 export const createSharedQueries = {
-  financialPeriod: () =>
-    queryOptions({
-      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
-      queryFn: async () => {
-        const response = await apiClient<{
-          data: {
-            AbsEntry: number;
-            F_RefDate: string;
-            T_RefDate: string;
-            LinkAct_1?: string;
-            LinkAct_2?: string;
-            LinkAct_3?: string;
-            LinkAct_12?: string;
-          } | null;
-          success: boolean;
-        }>("/api/v1/financial-period/active");
-        return response.data;
-      },
-      queryKey: createSharedKeys.financialPeriod(),
-      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
-    }),
   priceLists: () =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,

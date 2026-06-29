@@ -16,6 +16,7 @@ interface APInvoiceProductSectionProps {
     { quantity?: string; discountPercent?: string; discountAmount?: string }
   >;
   submitDisabled?: boolean;
+  isDirty?: boolean;
   createError: string | null;
   createDisabledReason: string | null;
   missingSearchMandatoryFields: string[];
@@ -71,6 +72,7 @@ export function APInvoiceProductSection({
   rows,
   productRowDrafts,
   submitDisabled,
+  isDirty,
   createError,
   createDisabledReason,
   missingSearchMandatoryFields,
@@ -116,6 +118,7 @@ export function APInvoiceProductSection({
   return (
     <BaseProductSection
       submitDisabled={submitDisabled}
+      isDirty={isDirty}
       sectionId="ap-invoice-product-section"
       onSearchProducts={() => {
         if (isReadOnlyMode) {
@@ -139,7 +142,7 @@ export function APInvoiceProductSection({
       createError={createError}
       backToUrl="/purchase/ap-invoice"
       backToLabel="Back to Table"
-      submitLabel={submitLabel ?? (isEditMode ? "Update" : "Create")}
+      submitLabel={submitLabel ?? (isEditMode ? "Update" : "Add")}
       submitLoadingText={submitLoadingText ?? (isEditMode ? "Updating..." : "Adding...")}
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}

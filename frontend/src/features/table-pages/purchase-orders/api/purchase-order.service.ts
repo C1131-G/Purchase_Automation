@@ -65,7 +65,7 @@ export interface PurchaseOrderDetail {
   Comments?: string;
   DocCurr?: string;
   DocTotal?: number;
-  DocStatus?: "Open" | "Partial" | "Closed" | "O" | "C";
+  DocStatus?: "Open" | "Partial" | "Closed" | "O" | "C" | "Draft";
   DocumentLines?: PurchaseOrderDetailLine[];
   attachments?: any[];
 }
@@ -80,8 +80,12 @@ export const purchaseOrderAPI = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  getPurchaseOrderByDocNum: async (docNum: string | number) =>
-    apiClient<PurchaseOrderDetailResponse>(`/api/v1/purchase-orders/by-doc-num/${docNum}`),
+  getPurchaseOrderByDocNum: async (docNum: string | number, draftDocEntry?: string) => {
+    const query = draftDocEntry ? `?draftDocEntry=${draftDocEntry}` : "";
+    return apiClient<PurchaseOrderDetailResponse>(
+      `/api/v1/purchase-orders/by-doc-num/${docNum}${query}`,
+    );
+  },
   getPurchaseOrderDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query

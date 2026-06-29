@@ -141,7 +141,19 @@ export function SalesOrderTable() {
   const columns = useMemo(
     () =>
       createSalesOrderColumns({
-        onDocNumDoubleClick: (docNum) => {
+        onDocNumDoubleClick: (docNum, draftDocEntry) => {
+          if (draftDocEntry) {
+            void navigate({
+              search: (prev) => ({
+                ...prev,
+                draftDocNum: String(docNum),
+                draftDocEntry: String(draftDocEntry),
+              }),
+              to: "/sales/create-order",
+              viewTransition: true,
+            });
+            return;
+          }
           const normalized = String(docNum).trim();
           if (!normalized) {
             return;
@@ -153,7 +165,10 @@ export function SalesOrderTable() {
             viewTransition: true,
           } as never);
         },
-        onDocNumHover: (docNum) => {
+        onDocNumHover: (docNum, draftDocEntry) => {
+          if (draftDocEntry) {
+            return;
+          }
           const normalized = String(docNum).trim();
           if (!normalized) {
             return;

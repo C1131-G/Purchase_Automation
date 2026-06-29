@@ -21,25 +21,33 @@ const mapDocStatusLabel = (value: string) => {
   if (normalized === "C") {
     return "Closed";
   }
+  if (normalized === "Draft") {
+    return "Draft";
+  }
   return normalized;
 };
 
 interface CreateSalesQuotationColumnsOptions {
-  onDocNumDoubleClick?: (docNum: string | number) => void;
-  onDocNumHover?: (docNum: string | number) => void;
+  onDocNumDoubleClick?: (row: SalesQuotationListItem) => void;
+  onDocNumHover?: (docNum: string | number, draftDocEntry?: string | number) => void;
 }
 
 export const createSalesQuotationColumns = (options?: CreateSalesQuotationColumnsOptions) => [
   columnHelper.accessor("DocNum", {
-    cell: (info) => (
-      <DocNumCell
-        value={info.getValue()}
-        docEntry={info.row.original.id as number}
-        docType="sales-quotation"
-        onHover={options?.onDocNumHover}
-        onDoubleClick={options?.onDocNumDoubleClick}
-      />
-    ),
+    cell: (info) => {
+      const isDraft = info.row.original.DocStatus === "Draft";
+      return (
+        <DocNumCell
+          value={isDraft ? `${info.getValue()} (Draft #${info.row.original.id})` : info.getValue()}
+          docEntry={isDraft ? undefined : (info.row.original.id as number)}
+          docType={isDraft ? undefined : "sales-quotation"}
+          onHover={() =>
+            options?.onDocNumHover?.(info.getValue(), isDraft ? info.row.original.id : undefined)
+          }
+          onDoubleClick={() => options?.onDocNumDoubleClick?.(info.row.original)}
+        />
+      );
+    },
     enableSorting: true,
     filterFn: "includesString",
     header: ({ column, table }) => (
@@ -133,6 +141,7 @@ export const createSalesQuotationColumns = (options?: CreateSalesQuotationColumn
       filterOptions: [
         { label: "Open", value: "Open" },
         { label: "Closed", value: "Closed" },
+        { label: "Draft", value: "Draft" },
       ],
       filterType: "select",
     },

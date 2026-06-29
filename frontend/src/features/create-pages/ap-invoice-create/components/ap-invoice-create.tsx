@@ -35,6 +35,8 @@ interface APInvoiceCreateProps {
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 export function APInvoiceCreate({
@@ -42,6 +44,8 @@ export function APInvoiceCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum,
+  draftDocEntry,
 }: APInvoiceCreateProps) {
   const router = useRouter();
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
@@ -53,6 +57,8 @@ export function APInvoiceCreate({
   const state = useAPInvoiceCreate({
     docNum: docNum || "",
     mode,
+    draftDocNum: draftDocNum || "",
+    draftDocEntry: draftDocEntry || "",
     onCreateSuccess: () => {
       setSourceCleared(false);
     },
@@ -150,7 +156,13 @@ export function APInvoiceCreate({
         label: "A/P Invoice Data Table",
         to: "/purchase/ap-invoice",
       }}
-      pageTitle={state.isEditMode ? `Update A/P Invoice ${docNum}` : "Create A/P Invoice"}
+      pageTitle={
+        state.isEditMode
+          ? `Update A/P Invoice ${docNum}`
+          : draftDocNum
+            ? `Create A/P Invoice (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+            : "Create A/P Invoice"
+      }
       editError={
         state.isEditMode && state.editDetailQuery.isError
           ? state.editDetailQuery.error instanceof Error
@@ -159,7 +171,7 @@ export function APInvoiceCreate({
           : null
       }
       topActions={
-        !state.isEditMode ? (
+        !state.isEditMode && !draftDocNum ? (
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
@@ -196,7 +208,7 @@ export function APInvoiceCreate({
         ) : null
       }
     >
-      {state.trackerDocType && state.trackerDocEntry && (
+      {state.trackerDocType && state.trackerDocEntry && !draftDocNum && (
         <div className="mb-4 mt-2 w-full">
           <div className="relative z-10 overflow-x-auto w-full">
             <RelationshipMapTracker
@@ -362,13 +374,13 @@ export function APInvoiceCreate({
           loading={isFormHydrating}
           referenceNo={state.referenceNo}
           comments={state.remarks}
-          referenceNoDisabled={false}
           uniformReadOnlyAppearance={state.isEditMode}
-          onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
-          commentsDisabled={false}
-          onCommentsDisabledClick={() => state.setRemarks(state.remarks)}
+          referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
+          commentsInvalid={Boolean(state.fieldErrors.comments)}
+          referenceNoErrorText={state.fieldErrors.referenceNo}
+          commentsErrorText={state.fieldErrors.comments}
           referenceLabel="VENDOR REF NO"
         />
       </div>
@@ -390,6 +402,7 @@ export function APInvoiceCreate({
         rows={state.rows}
         productRowDrafts={state.productRowDrafts}
         submitDisabled={state.submitDisabled}
+        isDirty={state.isDirty}
         setProductRows={state.setProductRows}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
@@ -405,9 +418,7 @@ export function APInvoiceCreate({
         requiredFieldLabelText={AP_INVOICE_FIELD_LABEL_TEXT}
         openProductPopup={state.openProductPopup}
         prefetchProducts={state.prefetchProducts}
-        isSubmitting={
-          state.isEditMode ? state.updateMutation.isPending : state.createMutation.isPending
-        }
+        isSubmitting={state.createMutation.isPending || state.updateMutation.isPending}
         isEditMode={state.isEditMode}
         onUpdateProductRow={state.updateProductRow}
         onRemoveProductRow={state.removeProductRow}
@@ -432,7 +443,7 @@ export function APInvoiceCreate({
             viewTransition: true,
           });
         }}
-        submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
+        submitLoadingText={state.isEditMode || Boolean(draftDocNum) ? "Updating..." : "Adding..."}
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
         onEditRestrictedClick={state.showEditRestrictedToast}

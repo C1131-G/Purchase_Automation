@@ -21,25 +21,34 @@ const mapDocStatusLabel = (value: string) => {
   if (normalized === "C") {
     return "Closed";
   }
+  if (normalized === "Draft") {
+    return "Draft";
+  }
   return normalized;
 };
 
 interface CreateArCreditMemoColumnsOptions {
-  onDocNumDoubleClick?: (docNum: string | number) => void;
-  onDocNumHover?: (docNum: string | number) => void;
+  onDocNumDoubleClick?: (docNum: string | number, draftDocEntry?: string | number) => void;
+  onDocNumHover?: (docNum: string | number, draftDocEntry?: string | number) => void;
 }
 
 export const createArCreditMemoColumns = (options?: CreateArCreditMemoColumnsOptions) => [
   columnHelper.accessor("DocNum", {
-    cell: (info) => (
-      <DocNumCell
-        value={info.getValue()}
-        docEntry={info.row.original.id as number}
-        docType="ar-credit-memo"
-        onHover={options?.onDocNumHover}
-        onDoubleClick={options?.onDocNumDoubleClick}
-      />
-    ),
+    cell: (info) => {
+      const isDraft = info.row.original.DocStatus === "Draft";
+      const docEntry = info.row.original.id;
+      return (
+        <DocNumCell
+          value={isDraft ? `${info.getValue()} (Draft #${docEntry})` : info.getValue()}
+          docEntry={isDraft ? undefined : (docEntry as number)}
+          docType={isDraft ? undefined : "ar-credit-memo"}
+          onHover={() => options?.onDocNumHover?.(info.getValue(), isDraft ? docEntry : undefined)}
+          onDoubleClick={() =>
+            options?.onDocNumDoubleClick?.(info.getValue(), isDraft ? docEntry : undefined)
+          }
+        />
+      );
+    },
     enableSorting: true,
     filterFn: "includesString",
     header: ({ column, table }) => (
@@ -133,6 +142,7 @@ export const createArCreditMemoColumns = (options?: CreateArCreditMemoColumnsOpt
       filterOptions: [
         { label: "Open", value: "Open" },
         { label: "Closed", value: "Closed" },
+        { label: "Draft", value: "Draft" },
       ],
       filterType: "select",
     },

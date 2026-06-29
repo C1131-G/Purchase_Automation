@@ -651,7 +651,7 @@ export function CreateProductTableRow({
       </td>
       {showUom && (
         <td className="relative min-w-0 px-2 py-2">
-          <div className="relative w-[100px]">
+          <div className="relative w-full">
             <input
               type="text"
               value={uomInput}

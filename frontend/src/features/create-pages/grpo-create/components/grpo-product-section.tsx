@@ -16,6 +16,7 @@ interface GRPOProductSectionProps {
     { quantity?: string; discountPercent?: string; discountAmount?: string }
   >;
   submitDisabled?: boolean;
+  isDirty?: boolean;
   createError: string | null;
   createDisabledReason: string | null;
   missingSearchMandatoryFields: string[];
@@ -68,6 +69,7 @@ export function GRPOProductSection({
   rows,
   productRowDrafts,
   submitDisabled,
+  isDirty,
   createError,
   createDisabledReason,
   missingSearchMandatoryFields,
@@ -134,7 +136,7 @@ export function GRPOProductSection({
       createError={createError}
       backToUrl="/purchase/grpo"
       backToLabel="Back to Table"
-      submitLabel={isEditMode ? "Update" : "Create"}
+      submitLabel={isEditMode ? "Update" : "Add"}
       submitLoadingText={submitLoadingText || (isEditMode ? "Updating..." : "Adding...")}
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}
@@ -148,6 +150,7 @@ export function GRPOProductSection({
       secondaryActions={secondaryActions}
       onSubmitMode={onSubmitMode}
       isSaved={isSaved}
+      isDirty={isDirty}
       savedDocNum={savedDocNum}
       onDownload={onDownload}
       onReset={onReset}

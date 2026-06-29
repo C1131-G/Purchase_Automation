@@ -109,8 +109,12 @@ export const purchaseQuotationAPI = {
     apiClient<OpenPurchaseQuotationLinesResponse>(
       `/api/v1/purchase-quotations/open-lines?cardCode=${cardCode}`,
     ),
-  getPurchaseQuotationByDocNum: async (docNum: string | number) =>
-    apiClient<PurchaseQuotationDetailResponse>(`/api/v1/purchase-quotations/by-doc-num/${docNum}`),
+  getPurchaseQuotationByDocNum: async (docNum: string | number, draftDocEntry?: string) => {
+    const query = draftDocEntry ? `?draftDocEntry=${draftDocEntry}` : "";
+    return apiClient<PurchaseQuotationDetailResponse>(
+      `/api/v1/purchase-quotations/by-doc-num/${docNum}${query}`,
+    );
+  },
   getPurchaseQuotationDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query

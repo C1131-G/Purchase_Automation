@@ -48,6 +48,8 @@ interface PurchaseOrderProductSectionProps {
   vendorCode: PurchaseOrderState["codeInput"];
   defaultWarehouseCode: PurchaseOrderState["effectiveWarehouseCode"];
   submitDisabled?: boolean;
+  isDirty?: boolean;
+  isSubmitting?: boolean;
 }
 
 /**
@@ -94,6 +96,8 @@ export function PurchaseOrderProductSection({
   vendorCode,
   defaultWarehouseCode,
   submitDisabled,
+  isDirty,
+  isSubmitting,
 }: PurchaseOrderProductSectionProps) {
   return (
     <BaseProductSection
@@ -115,10 +119,11 @@ export function PurchaseOrderProductSection({
       backToUrl="/purchase/orders"
       submitLabel={submitLabel}
       submitLoadingText={submitLoadingText}
-      isSubmitting={createPurchaseOrderMutation.isPending}
+      isSubmitting={isSubmitting ?? createPurchaseOrderMutation.isPending}
       onSubmit={handleCreateOrder}
       onSubmitMode={onSubmitMode}
       isSaved={isSaved}
+      isDirty={isDirty}
       savedDocNum={savedDocNum}
       onDownload={onDownload}
       onReset={onReset}

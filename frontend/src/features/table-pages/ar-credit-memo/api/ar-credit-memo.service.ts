@@ -31,8 +31,11 @@ export const ArCreditMemoAPI = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  getArCreditMemoById: async (id: string | number) =>
-    apiClient<{ success: boolean; data: unknown }>(`/api/v1/ar-credit-memos/${id}`),
+  getArCreditMemoById: async (id: string | number, draftDocEntry?: string | number) => {
+    const query = toQueryString({ draftDocEntry });
+    const path = query ? `/api/v1/ar-credit-memos/${id}?${query}` : `/api/v1/ar-credit-memos/${id}`;
+    return apiClient<{ success: boolean; data: unknown }>(path);
+  },
   getArCreditMemoDocNums: async (search?: string, limit?: number) => {
     const query = toQueryString({ limit, search });
     const path = query

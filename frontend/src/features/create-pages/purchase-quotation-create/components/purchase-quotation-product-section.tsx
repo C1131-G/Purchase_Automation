@@ -49,6 +49,8 @@ interface PurchaseQuotationProductSectionProps {
   vendorCode: PurchaseQuotationState["codeInput"];
   defaultWarehouseCode: PurchaseQuotationState["effectiveWarehouseCode"];
   submitDisabled?: boolean;
+  isDirty?: boolean;
+  isSubmitting?: boolean;
 }
 
 /**
@@ -79,7 +81,7 @@ export function PurchaseQuotationProductSection({
   warehousesLoading,
   uoms,
   handleCreateOrder,
-  submitLabel = "Create",
+  submitLabel = "Add",
   submitLoadingText = "Creating...",
   secondaryActions,
   isEditMode,
@@ -96,6 +98,8 @@ export function PurchaseQuotationProductSection({
   vendorCode,
   defaultWarehouseCode,
   submitDisabled,
+  isDirty,
+  isSubmitting,
 }: PurchaseQuotationProductSectionProps) {
   return (
     <BaseProductSection
@@ -119,10 +123,11 @@ export function PurchaseQuotationProductSection({
       submitLabel={submitLabel}
       submitLoadingText={submitLoadingText}
       secondaryActions={secondaryActions}
-      isSubmitting={createPurchaseQuotationMutation.isPending}
+      isSubmitting={isSubmitting ?? createPurchaseQuotationMutation.isPending}
       onSubmit={handleCreateOrder}
       onSubmitMode={onSubmitMode}
       isSaved={isSaved}
+      isDirty={isDirty}
       savedDocNum={savedDocNum}
       onDownload={onDownload}
       onReset={onReset}

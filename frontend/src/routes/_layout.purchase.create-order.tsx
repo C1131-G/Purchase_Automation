@@ -6,6 +6,13 @@ import { PurchaseOrderCreate } from "@/features/create-pages/purchase-order-crea
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/routes/_require-active-session";
 
+const createOrderSearchSchema = z.object({
+  sourceDocNum: z.string().or(z.number()).transform(String).optional(),
+  sourceDocType: z.enum(["PurchaseQuotation"]).optional(),
+  draftDocNum: z.string().optional(),
+  draftDocEntry: z.string().optional(),
+});
+
 /**
  * PurchaseOrderCreateRoute: Transactional page for drafting new procurement orders.
  * SECURITY: Requires an active backend session before rendering the form.
@@ -16,14 +23,18 @@ export const Route = createFileRoute("/_layout/purchase/create-order")({
   },
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
-  validateSearch: z.object({
-    sourceDocNum: z.string().or(z.number()).transform(String).optional(),
-    sourceDocType: z.enum(["PurchaseQuotation"]).optional(),
-  }),
+  validateSearch: createOrderSearchSchema,
 });
 
 function RouteComponent() {
   useDocumentTitle("Create Purchase Order | ERP Portal");
-  const { sourceDocNum, sourceDocType } = Route.useSearch();
-  return <PurchaseOrderCreate sourceDocNum={sourceDocNum} sourceDocType={sourceDocType} />;
+  const { sourceDocNum, sourceDocType, draftDocNum, draftDocEntry } = Route.useSearch();
+  return (
+    <PurchaseOrderCreate
+      sourceDocNum={sourceDocNum}
+      sourceDocType={sourceDocType}
+      draftDocNum={draftDocNum}
+      draftDocEntry={draftDocEntry}
+    />
+  );
 }

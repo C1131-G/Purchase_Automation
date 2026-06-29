@@ -25,21 +25,28 @@ const mapDocStatusLabel = (value: string) => {
 };
 
 interface CreatePurchaseQuotationColumnsOptions {
-  onDocNumDoubleClick?: (docNum: string | number) => void;
+  onDocNumDoubleClick?: (docNum: string | number, isDraft?: boolean, docEntry?: number) => void;
   onDocNumHover?: (docNum: string | number) => void;
 }
 
 export const createPurchaseQuotationColumns = (options?: CreatePurchaseQuotationColumnsOptions) => [
   columnHelper.accessor("DocNum", {
-    cell: (info) => (
-      <DocNumCell
-        value={info.getValue()}
-        docEntry={info.row.original.id as number}
-        docType="purchase-quotation"
-        onHover={options?.onDocNumHover}
-        onDoubleClick={options?.onDocNumDoubleClick}
-      />
-    ),
+    cell: (info) => {
+      const isDraft = info.row.original.DocStatus === "Draft";
+      const docNum = info.getValue();
+      const displayValue = isDraft ? `${docNum} (Draft #${info.row.original.id})` : docNum;
+      return (
+        <DocNumCell
+          value={displayValue}
+          docEntry={isDraft ? undefined : (info.row.original.id as number)}
+          docType={isDraft ? undefined : "purchase-quotation"}
+          onHover={isDraft ? undefined : options?.onDocNumHover}
+          onDoubleClick={() => {
+            options?.onDocNumDoubleClick?.(docNum, isDraft, info.row.original.id);
+          }}
+        />
+      );
+    },
     enableSorting: true,
     filterFn: "includesString",
     header: ({ column, table }) => (
@@ -133,6 +140,7 @@ export const createPurchaseQuotationColumns = (options?: CreatePurchaseQuotation
       filterOptions: [
         { label: "Open", value: "Open" },
         { label: "Closed", value: "Closed" },
+        { label: "Draft", value: "Draft" },
       ],
       filterType: "select",
     },

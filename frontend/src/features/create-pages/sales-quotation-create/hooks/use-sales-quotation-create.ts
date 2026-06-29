@@ -60,6 +60,8 @@ type SalesQuotationCreateMode = "create" | "edit";
 interface UseSalesQuotationCreateOptions {
   mode?: SalesQuotationCreateMode;
   docNum?: string;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions) {
@@ -72,8 +74,38 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
+  const parseSalesQuotationHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
+    const referenceNo = String(detail.NumAtCard ?? "").trim();
+    const rawComments = String(detail.Comments ?? "").trim();
+
+    if (referenceNo) {
+      const legacyReferencePrefix = `${referenceNo} | `;
+      return {
+        comments: rawComments.startsWith(legacyReferencePrefix)
+          ? rawComments.slice(legacyReferencePrefix.length).trim()
+          : rawComments,
+        referenceNo,
+      };
+    }
+
+    const splitComments = rawComments.split(" | ").map((part) => part.trim());
+    if (splitComments.length > 1) {
+      return {
+        comments: splitComments.slice(1).join(" | "),
+        referenceNo: splitComments[0] ?? "",
+      };
+    }
+
+    return {
+      comments: rawComments,
+      referenceNo,
+    };
+  };
+
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";
+  const draftDocNum = options?.draftDocNum ?? "";
+  const draftDocEntry = options?.draftDocEntry ?? "";
   const header = useSQHeader();
   const resetSQCreate = useResetSQCreateAction();
   const setHeader = useSetSQHeaderAction();
@@ -190,7 +222,6 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     modals.setProductPopupOpen(false);
     modals.setStockPreviewProduct(null);
     setCreateError(null);
-    hydratedDocNumRef.current = null;
     setHydratedDocNum(null);
     setFormSnapshot(null);
     setAttachments([]);
@@ -200,6 +231,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     documentName: "Sales Quotation",
     moduleType: "sales",
     defaultUrl: "/sales/create-quotation",
+    tableUrl: "/sales/quotations",
     resetForm,
     getPayloadString: () => {
       const payload = {
@@ -234,11 +266,11 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       };
       return JSON.stringify(payload);
     },
-    isEditMode,
+    isEditMode: isEditMode,
   });
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       resetSQCreate();
       hydratedDocNumRef.current = null;
       setHydratedDocNum(null);
@@ -247,11 +279,14 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       resetSQCreate();
       lookups.resetWarehouse();
     };
-  }, [isEditMode, resetSQCreate, lookups.resetWarehouse]);
+  }, [isEditMode, draftDocNum, resetSQCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
-    ...salesQuotationQueries.detailByDocNum(editDocNum),
-    enabled: isEditMode && Boolean(editDocNum),
+    ...salesQuotationQueries.detailByDocNum(
+      isEditMode ? editDocNum : draftDocNum,
+      isEditMode ? undefined : draftDocEntry,
+    ),
+    enabled: (isEditMode && Boolean(editDocNum)) || (!isEditMode && Boolean(draftDocNum)),
   });
 
   const isClosed =
@@ -259,18 +294,18 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     editDetailQuery.data?.data?.DocStatus === "C";
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       return;
     }
-    const currentDocNum = editDocNum;
-    if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) {
+    const hydrationKey = isEditMode ? editDocNum : `${draftDocNum}_${draftDocEntry ?? ""}`;
+    const currentDocNum = isEditMode ? editDocNum : draftDocNum;
+    if (!hydrationKey || hydratedDocNumRef.current === hydrationKey) {
       return;
     }
     const detail = editDetailQuery.data?.data;
     if (!detail) {
       return;
     }
-    hydratedDocNumRef.current = currentDocNum;
 
     if (!loadingToastRef.current) {
       loadingToastRef.current = pageLoadingToast("Sales Quotation", "edit");
@@ -301,9 +336,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       matchedVendor?.salesEmployeeName?.trim() ||
       "";
 
-    const rawComments = String(detail.Comments ?? "").trim();
-    const referenceNo = String(detail.NumAtCard ?? "").trim();
-    const comments = rawComments;
+    const { comments, referenceNo } = parseSalesQuotationHeaderNotes(detail);
 
     const docDate = String(detail.DocDate ?? "").slice(0, 10);
     const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
@@ -486,11 +519,13 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
               price: row.price,
               discountPercent: row.discountPercent,
               warehouseCode: row.warehouseCode,
+              uomCode: row.uomCode,
+              uomEntry: row.uomEntry,
             })),
         });
 
-        hydratedDocNumRef.current = currentDocNum;
-        setHydratedDocNum(currentDocNum);
+        hydratedDocNumRef.current = hydrationKey;
+        setHydratedDocNum(hydrationKey);
       } finally {
         loadingToastRef.current?.dismiss();
         loadingToastRef.current = null;
@@ -501,6 +536,8 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     editDetailQuery.data,
     header.docDate,
     isEditMode,
+    draftDocNum,
+    draftDocEntry,
     lookups,
     editDocNum,
     productsHook,
@@ -704,67 +741,84 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   function handleCreateOrderAction(action: "save-new" | "view" | "close" | "draft" = "save-new") {
     void handleCreateOrder(action);
   }
-
   const handleCreateOrder = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
   ) => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      setSubmitAttempted(false);
-      return;
-    }
+    const isDraftAction = action === "draft";
+    const isDraftUpdate = isDraftAction && Boolean(draftDocNum);
+    const isUpdating = isEditMode || isDraftUpdate;
 
-    setSubmitAttempted(true);
-    const nextErrors: ProductSearchFieldError = {
-      ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
-    };
-    missingMandatoryFields.forEach((field) => {
-      const mandatoryKey = field as keyof typeof MANDATORY_ERROR_TEXT;
-      nextErrors[field as keyof ProductSearchFieldError] = MANDATORY_ERROR_TEXT[mandatoryKey];
-    });
+    if (isDraftAction && !draftDocNum) {
+      // New draft: validate customer is filled, then create draft
+      if (!lookups.codeInput.trim() || !lookups.nameInput.trim()) {
+        setSubmitAttempted(true);
+        const nextErrors = { ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS };
+        nextErrors.vendorCode = MANDATORY_ERROR_TEXT.vendorCode;
+        nextErrors.vendorName = MANDATORY_ERROR_TEXT.vendorName;
+        setProductSearchFieldErrors(nextErrors);
+        setCreateError("Customer is required to save as draft.");
+        return;
+      }
+      setSubmitAttempted(true);
+      setCreateError(null);
+    } else {
+      // Non-draft or draft update: run full validation
+      if (!isDraftAction) {
+        setSubmitAttempted(true);
+      }
+      const nextErrors: ProductSearchFieldError = {
+        ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
+      };
+      missingMandatoryFields.forEach((field) => {
+        const mandatoryKey = field as keyof typeof MANDATORY_ERROR_TEXT;
+        nextErrors[field as keyof ProductSearchFieldError] = MANDATORY_ERROR_TEXT[mandatoryKey];
+      });
 
-    if (Object.values(nextErrors).some(Boolean)) {
-      setProductSearchFieldErrors(nextErrors);
-      setCreateError(requiredFieldsErrorText);
-      return;
+      if (!isDraftAction && Object.values(nextErrors).some(Boolean)) {
+        setProductSearchFieldErrors(nextErrors);
+        setCreateError(requiredFieldsErrorText);
+        return;
+      }
+
+      const validRows = productsHook.productRows.filter(
+        (row) => row.productCode.trim() && row.quantity > 0,
+      );
+      if (!isDraftAction && validRows.length === 0) {
+        setCreateError(rowsErrorText);
+        return;
+      }
+
+      if (isEditMode && !isDirty) {
+        const noChangeMessage = "Change at least one field before update.";
+        setCreateError(noChangeMessage);
+        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+        return;
+      }
+
+      setCreateError(null);
     }
 
     const validRows = productsHook.productRows.filter(
       (row) => row.productCode.trim() && row.quantity > 0,
     );
-    if (validRows.length === 0) {
-      setCreateError(rowsErrorText);
-      return;
-    }
 
-    if (isEditMode && !isDirty) {
-      const noChangeMessage = "Change at least one field before update.";
-      setCreateError(noChangeMessage);
-      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-      return;
-    }
+    const buildLines = () =>
+      validRows.map((row) => ({
+        LineNum: row.lineNum,
+        DiscountPercent: row.discountPercent,
+        ItemCode: row.productCode,
+        Price: row.price,
+        Quantity: row.quantity,
+        UoMEntry: row.uomEntry ?? undefined,
+        VatGroup: row.vatGroup || undefined,
+        WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+      }));
 
-    setCreateError(null);
-
-    const payload = isEditMode
+    const payload = isUpdating
       ? {
-          Address: lookups.billToAddress.trim() || undefined,
-          Address2: lookups.shipToAddress.trim() || undefined,
           Comments: header.comments.trim() || undefined,
+          DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
-          DocDate: header.docDate,
-          DocDueDate: header.docDueDate || header.docDate,
-          DocumentLines: validRows.map((row) => ({
-            LineNum: row.lineNum,
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-          })),
           SalesPersonCode: resolvedSalesEmployeeCode,
           attachments: attachments.map((att) => ({
             sourcePath: att.sourcePath || "",
@@ -777,22 +831,12 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       : {
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
-          CardCode: (header.vendorCode || lookups.codeInput).trim(),
+          CardCode: lookups.codeInput.trim(),
           Comments: header.comments.trim() || undefined,
+          DocDate: header.docDate || undefined,
+          DocDueDate: header.docDueDate || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
-          DocDate: header.docDate,
-          DocDueDate: header.docDueDate || header.docDate,
-          DocumentLines: validRows.map((row) => ({
-            LineNum: row.lineNum,
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-          })),
+          DocumentLines: buildLines(),
           SalesPersonCode: resolvedSalesEmployeeCode,
           attachments: attachments.map((att) => ({
             sourcePath: att.sourcePath || "",
@@ -803,27 +847,45 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           })),
         };
 
-    saveActions.startSaveTracking(isEditMode ? "update" : action);
-    saveActions.actionToast.startLoading("Sales Quotation", isEditMode ? "update" : action);
+    const trackingAction = isDraftAction
+      ? isDraftUpdate
+        ? "draft-update"
+        : "draft"
+      : isEditMode
+        ? "update"
+        : action;
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("Sales Quotation", trackingAction);
     try {
       let createdDocNum: string | number | undefined;
-      if (isEditMode) {
+      if (isUpdating) {
         const detail = editDetailQuery.data?.data;
-        const docEntry = detail?.DocEntry ?? detail?.id;
+        const docEntry = isEditMode
+          ? (detail?.DocEntry ?? detail?.id)
+          : draftDocEntry
+            ? Number(draftDocEntry)
+            : undefined;
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update sales quotation. Document id is missing.");
           saveActions.actionToast.showError("Sales Quotation", "update", "Document ID is missing.");
           return;
         }
+        const finalPayload = isDraftAction
+          ? { ...payload, isDraft: true, draftDocEntry: Number(draftDocEntry) }
+          : payload;
         await updateSalesQuotationMutation.mutateAsync({
           id: docEntry,
-          payload,
+          payload: finalPayload,
         });
-        createdDocNum = detail?.DocNum;
+        createdDocNum = isEditMode ? detail?.DocNum : draftDocNum;
 
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
         const updatedDetailRes = await queryClient.fetchQuery(
-          salesQuotationQueries.detailByDocNum(String(createdDocNum)),
+          salesQuotationQueries.detailByDocNum(
+            String(createdDocNum),
+            isEditMode ? undefined : String(draftDocEntry),
+          ),
         );
         const updatedDetail = updatedDetailRes?.data;
         if (updatedDetail) {
@@ -867,9 +929,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             matchedVendor?.salesEmployeeName?.trim() ||
             "";
 
-          const rawComments = String(updatedDetail.Comments ?? "").trim();
-          const referenceNo = String(updatedDetail.NumAtCard ?? "").trim();
-          const comments = rawComments;
+          const { comments, referenceNo } = parseSalesQuotationHeaderNotes(updatedDetail);
           const docDueDate = String(updatedDetail.DocDueDate ?? "").slice(0, 10);
           const address = String(
             updatedDetail.Address ?? (updatedDetail as Record<string, unknown>).address ?? "",
@@ -890,12 +950,19 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
               grossAmount: price * quantity,
               headerDiscountPercent: Number((updatedDetail as any).DiscountPercent ?? 0),
             });
+            const rawLine = line as any;
+            const uomCode = String(
+              rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode ?? "",
+            ).trim();
+            const uomEntry = Number(rawLine.UoMEntry ?? rawLine.uomEntry ?? rawLine.UomEntry);
             return {
               productCode: itemCode,
               quantity,
               price,
               discountPercent,
               warehouseCode: String(line.WarehouseCode ?? "").trim(),
+              uomCode: uomCode || undefined,
+              uomEntry: Number.isFinite(uomEntry) ? uomEntry : undefined,
             };
           });
 
@@ -919,12 +986,23 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
                 price: row.price,
                 discountPercent: row.discountPercent,
                 warehouseCode: row.warehouseCode,
+                uomCode: row.uomCode,
+                uomEntry: row.uomEntry,
               })),
           });
         }
       } else {
+        const finalCreatePayload = isDraftAction
+          ? {
+              ...payload,
+              isDraft: true,
+              ...(draftDocEntry ? { draftDocEntry: Number(draftDocEntry) } : {}),
+            }
+          : draftDocEntry
+            ? { ...payload, draftDocEntry: Number(draftDocEntry) }
+            : payload;
         const result = await createSalesQuotationMutation.mutateAsync({
-          payload,
+          payload: finalCreatePayload,
         });
         createdDocNum = (result as { data?: { DocNum?: number } }).data?.DocNum;
       }
@@ -939,10 +1017,15 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         queryClient.prefetchQuery(salesQuotationQueries.docNumSuggestions(undefined, 100)),
       ]);
 
-      if (isEditMode) {
-        const currentDocNum = (options?.docNum ?? "").trim();
+      if (isUpdating) {
+        const currentDocNum = isEditMode ? (options?.docNum ?? "").trim() : draftDocNum;
         if (currentDocNum) {
-          void queryClient.invalidateQueries(salesQuotationQueries.detailByDocNum(currentDocNum));
+          void queryClient.invalidateQueries(
+            salesQuotationQueries.detailByDocNum(
+              currentDocNum,
+              isEditMode ? undefined : String(draftDocEntry),
+            ),
+          );
         }
         lookups.resetWarehouse();
       }
@@ -962,11 +1045,13 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     }
   };
 
-  const submitSalesQuotationMutation = isEditMode
-    ? updateSalesQuotationMutation
-    : createSalesQuotationMutation;
+  const submitSalesQuotationMutation = {
+    ...createSalesQuotationMutation,
+    isPending: createSalesQuotationMutation.isPending || updateSalesQuotationMutation.isPending,
+  };
   const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
+    const isDraftMode = Boolean(draftDocNum);
+    if ((!isEditMode && !isDraftMode) || !formSnapshot) {
       return false;
     }
     const current = {
@@ -989,11 +1074,14 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           price: row.price,
           discountPercent: row.discountPercent,
           warehouseCode: row.warehouseCode,
+          uomCode: row.uomCode,
+          uomEntry: row.uomEntry,
         })),
     };
     return JSON.stringify(current) !== JSON.stringify(formSnapshot);
   }, [
     isEditMode,
+    draftDocNum,
     formSnapshot,
     header.comments,
     header.referenceNo,
@@ -1017,7 +1105,9 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     [productsHook.productRows],
   );
   const summaryCurrencyLabel = summaryCurrency === "MULTI" ? "MULTI" : summaryCurrency;
-  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum;
+  const isEditHydrated = !isEditMode
+    ? !draftDocNum || hydratedDocNum === `${draftDocNum}_${draftDocEntry ?? ""}`
+    : !editDocNum || hydratedDocNum === editDocNum;
 
   return {
     ...lookups,
@@ -1044,6 +1134,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     header,
     isEditHydrated,
     isEditMode,
+    isDirty,
     isSaved: saveActions.isSaved,
     savedDocNum: saveActions.savedDocNum,
     missingMandatoryFields,
@@ -1073,5 +1164,6 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     isClosed,
     attachments,
     setAttachments,
+    draftDocNum,
   };
 }

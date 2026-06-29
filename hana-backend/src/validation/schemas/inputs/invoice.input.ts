@@ -63,14 +63,15 @@ export const InvoiceQuerySchema = z
     // Normalize Aliases to Standard Keys
     const normalized = { ...data };
 
-    // Smart Status Mapping: Convert "Open"/"Closed" to "O"/"C" (Case-Insensitive)
+    // Smart Status Mapping: Convert "Open"/"Closed"/"Draft" to canonical values (Case-Insensitive)
     if (normalized.DocStatus) {
       const statusUpper = normalized.DocStatus.toUpperCase();
       if (statusUpper === "OPEN") {
         normalized.DocStatus = "O";
-      }
-      if (statusUpper === "CLOSED") {
+      } else if (statusUpper === "CLOSED") {
         normalized.DocStatus = "C";
+      } else if (statusUpper === "DRAFT") {
+        normalized.DocStatus = "D";
       }
     }
 
@@ -128,19 +129,32 @@ export const CreateInvoiceInputSchema = z.object({
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(), // Sales Employee code (OINV.SlpCode).
   attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 // UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
 export const UpdateInvoiceInputSchema = z
   .object({
+    Address: z.string().optional(),
+    Address2: z.string().optional(),
     Comments: z.string().optional(),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
     DocDueDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
+    DocumentLines: z.array(InvoiceLineItemSchema).optional(),
     NumAtCard: z.string().optional(),
     SalesPersonCode: z.coerce.number().int().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    CardCode: z.string().optional(),
+    CardName: z.string().optional(),
+    draftDocEntry: z.coerce.number().optional(),
   })
   .strict();
 

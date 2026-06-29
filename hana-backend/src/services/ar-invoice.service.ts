@@ -6,144 +6,163 @@ import { purgeCache } from "@/core/utils/cache";
 import { executeTenantQuery, getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { InvoiceFilters } from "@/dal/types/ar-invoice.types";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
-import type { ARInvoice } from "@/db/schemas/ar-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
-import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
-import { adjustPayloadDates } from "./date-adjustment.util";
 import { attachmentsService } from "./attachments.service";
 
 // Fetches a paginated list of A/R Invoices from HANA with dynamic filtering support.
+// Uses a UNION ALL pattern to combine final documents (OINV) with drafts (ODRF, ObjType='13').
 export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, ARInvoiceSchema);
-    const queryBuilder = repo.createQueryBuilder("inv");
-    queryBuilder.where("1=1");
+    const buildSubQuery = (table: string, isDraft: boolean) => {
+      const whereClauses = ["1=1"];
+      const params: unknown[] = [];
 
-    // Dynamic Filter: Invoice Number (DocNum).
-    if (filters.DocNum) {
-      queryBuilder.andWhere("CAST(inv.docNum AS NVARCHAR) LIKE :docNum", {
-        docNum: `%${filters.DocNum}%`,
-      });
-    }
-
-    // Dynamic Filter: Customer Code (Standard: CardCode).
-    if (filters.CardCode) {
-      queryBuilder.andWhere("inv.cardCode LIKE :cardCode", {
-        cardCode: `%${filters.CardCode}%`,
-      });
-    }
-
-    // Dynamic Filter: Customer Name search (Standard: CardName).
-    if (filters.CardName) {
-      queryBuilder.andWhere("LOWER(inv.cardName) LIKE LOWER(:cardName)", {
-        cardName: `%${filters.CardName}%`,
-      });
-    }
-
-    // Dynamic Filter: Date Range Start (Standard: DocDate).
-    if (filters.DocDateStart) {
-      queryBuilder.andWhere("inv.docDate >= :startDate", {
-        startDate: filters.DocDateStart,
-      });
-    }
-
-    // Dynamic Filter: Date Range End (Standard: DocDate).
-    if (filters.DocDateEnd) {
-      queryBuilder.andWhere("inv.docDate <= :endDate", {
-        endDate: filters.DocDateEnd,
-      });
-    }
-
-    // Dynamic Filter: SAP Document Status (Standard: DocStatus).
-    if (filters.DocStatus) {
-      const statusMap: Record<string, string> = {
-        Closed: "C",
-        Open: "O",
-      };
-      const statusValue = statusMap[filters.DocStatus] || filters.DocStatus;
-      queryBuilder.andWhere("inv.docStatus = :status", {
-        status: statusValue,
-      });
-    }
-    // Dynamic Filter: Customer reference (NumAtCard).
-    if (filters.NumAtCard) {
-      queryBuilder.andWhere("LOWER(inv.numAtCard) LIKE LOWER(:numAtCard)", {
-        numAtCard: `%${filters.NumAtCard}%`,
-      });
-    }
-    // Dynamic Filter: Total amount comparison.
-    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
-      if (filters.DocTotalOperator === "eq") {
-        queryBuilder.andWhere("inv.docTotal = :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+      if (isDraft) {
+        whereClauses.push(`"ObjType" = '13'`);
       }
-      if (filters.DocTotalOperator === "lt") {
-        queryBuilder.andWhere("inv.docTotal < :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.DocNum) {
+        whereClauses.push(`CAST("DocNum" AS NVARCHAR) LIKE ?`);
+        params.push(`%${filters.DocNum}%`);
       }
-      if (filters.DocTotalOperator === "gt") {
-        queryBuilder.andWhere("inv.docTotal > :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.CardCode) {
+        whereClauses.push(`"CardCode" LIKE ?`);
+        params.push(`%${filters.CardCode}%`);
       }
-    }
+
+      if (filters.CardName) {
+        whereClauses.push(`LOWER("CardName") LIKE LOWER(?)`);
+        params.push(`%${filters.CardName}%`);
+      }
+
+      if (filters.DocDateStart) {
+        whereClauses.push(`"DocDate" >= ?`);
+        params.push(filters.DocDateStart);
+      }
+
+      if (filters.DocDateEnd) {
+        whereClauses.push(`"DocDate" <= ?`);
+        params.push(filters.DocDateEnd);
+      }
+
+      if (filters.DocStatus) {
+        const statusVal = filters.DocStatus;
+        if (isDraft) {
+          if (statusVal !== "D" && statusVal !== "Draft") {
+            whereClauses.push("1=0");
+          }
+        } else {
+          if (statusVal === "D" || statusVal === "Draft") {
+            whereClauses.push("1=0");
+          } else {
+            whereClauses.push(`"DocStatus" = ?`);
+            params.push(statusVal);
+          }
+        }
+      }
+
+      if (filters.NumAtCard) {
+        whereClauses.push(`LOWER("NumAtCard") LIKE LOWER(?)`);
+        params.push(`%${filters.NumAtCard}%`);
+      }
+
+      if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+        const opMap = { eq: "=", lt: "<", gt: ">" };
+        const op = opMap[filters.DocTotalOperator as keyof typeof opMap];
+        if (op) {
+          whereClauses.push(`"DocTotal" ${op} ?`);
+          params.push(filters.DocTotal);
+        }
+      }
+
+      const selectColumns = isDraft
+        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus", "NumAtCard", "Address", "Address2", 0 AS "PaidToDate"`
+        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus", "NumAtCard", "Address", "Address2", COALESCE("PaidToDate", 0) AS "PaidToDate"`;
+
+      const sql = `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
+      return { sql, params };
+    };
+
+    const subInv = buildSubQuery("OINV", false);
+    const subDraft = buildSubQuery("ODRF", true);
+
+    const combinedSql = `
+      SELECT * FROM (
+        ${subInv.sql}
+        UNION ALL
+        ${subDraft.sql}
+      ) AS "Combined"
+    `;
+    const combinedParams = [...subInv.params, ...subDraft.params];
+
+    const countSql = `SELECT COUNT(*) AS "total" FROM (${combinedSql}) AS "Counted"`;
 
     const sortFieldMap: Record<string, string> = {
-      CardCode: "inv.cardCode",
-      CardName: "inv.cardName",
-      DocDate: "inv.docDate",
-      DocNum: "inv.docNum",
-      DocStatus: "inv.docStatus",
-      DocTotal: "inv.docTotal",
-      NumAtCard: "inv.numAtCard",
-      paidToDate: "inv.paidToDate",
+      CardCode: `"CardCode"`,
+      CardName: `"CardName"`,
+      DocDate: `"DocDate"`,
+      DocNum: `"DocNum"`,
+      DocStatus: `"DocStatus"`,
+      DocTotal: `"DocTotal"`,
+      NumAtCard: `"NumAtCard"`,
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
-    const sort = requestedSortField
-      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
-      : ({ "inv.docDate": "DESC", "inv.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
+    const orderBy = requestedSortField
+      ? `ORDER BY ${requestedSortField} ${requestedSortOrder}`
+      : `ORDER BY "DocDate" DESC, "DocNum" DESC`;
 
-    // Handles pagination and sorting logic via unified PageService.
-    const result = await PageService.getPagedData<ARInvoice>({
-      dbName,
-      entityName: "ARInvoices",
-      limit: Number(filters.limit) || 10,
-      page: Number(filters.page) || 1,
-      query: queryBuilder,
-      sort,
-    });
+    const limit = Number(filters.limit) || 10;
+    const page = Number(filters.page) || 1;
+    const offset = (page - 1) * limit;
 
-    // Maps database entities to standardized API response objects.
+    const dataSql = `
+      ${combinedSql}
+      ${orderBy}
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...combinedParams, limit, offset];
+
+    const [countRows, dataRows] = await Promise.all([
+      executeTenantQuery(dbName, countSql, combinedParams) as Promise<any[]>,
+      executeTenantQuery(dbName, dataSql, dataParams) as Promise<any[]>,
+    ]);
+
+    const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
+    const totalPages = Math.ceil(total / limit);
+
     return {
-      ...result,
-      data: result.data.map((data) => ({
-        id: data.docEntry,
-        DocNum: data.docNum,
-        DocDate: data.docDate,
-        CardCode: data.cardCode,
-        CardName: data.cardName,
-        DocTotal: data.docTotal,
-        BalanceDue:
-          Math.round(
-            (Number(data.docTotal) -
-              Number(((data as unknown as Record<string, unknown>).paidToDate as number) || 0)) *
-              100,
-          ) / 100,
-        DocCurr: data.docCurr,
-        NumAtCard: data.numAtCard,
-        DocStatus: data.docStatus,
-        Address: data.address,
-        Address2: data.address2,
-        // Include paid amount for AR invoices to calculate outstanding balances on frontend.
-        paidToDate: ((data as unknown as Record<string, unknown>).paidToDate as number) || 0,
+      data: dataRows.map((row: any) => ({
+        id: row.DocEntry,
+        DocNum: row.DocNum,
+        DocDate: row.DocDate,
+        CardCode: row.CardCode,
+        CardName: row.CardName,
+        DocTotal: row.DocTotal,
+        BalanceDue: Math.round((Number(row.DocTotal) - Number(row.PaidToDate ?? 0)) * 100) / 100,
+        DocCurr: row.DocCurr,
+        NumAtCard: row.NumAtCard,
+        DocStatus:
+          row.DocStatus === "O"
+            ? "Open"
+            : row.DocStatus === "C"
+              ? "Closed"
+              : row.DocStatus === "D"
+                ? "Draft"
+                : row.DocStatus,
+        Address: row.Address,
+        Address2: row.Address2,
+        paidToDate: Number(row.PaidToDate ?? 0),
       })),
+      limit,
+      page,
+      total,
+      totalPages,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
@@ -178,12 +197,13 @@ export const getInvoiceDocNums = async (dbName: string, search?: string, limit?:
 };
 
 // Retrieves detailed data for a single A/R Invoice from the SAP Service Layer.
-export const getInvoice = async (sessionId: string, id: string) => {
+export const getInvoice = async (sessionId: string, id: string, isDraft = false) => {
   try {
+    const endpoint = isDraft ? `/Drafts(${id})` : `/Invoices(${id})`;
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
-      `/Invoices(${id})`,
+      endpoint,
     )) as SAPDocumentResponse;
 
     const attachmentEntry = (result as any).AttachmentEntry || null;
@@ -217,7 +237,7 @@ export const getInvoice = async (sessionId: string, id: string) => {
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: result.TotalDiscount ?? 0,
       // normalizes SAP's internal string status.
-      DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       Comments: result.Comments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
@@ -240,10 +260,26 @@ export const getInvoice = async (sessionId: string, id: string) => {
 };
 
 // Resolves a DocNum to DocEntry from HANA and fetches full details from Service Layer.
-export const getInvoiceByDocNum = async (sessionId: string, dbName: string, id: string) => {
+export const getInvoiceByDocNum = async (
+  sessionId: string,
+  dbName: string,
+  id: string,
+  draftDocEntry?: string,
+) => {
   const normalizedId = id.trim();
   if (!normalizedId) {
     throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+  }
+
+  if (draftDocEntry) {
+    const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '13' AND "DocEntry" = ?`;
+    const draftMatch = (await executeTenantQuery(dbName, draftQuery, [
+      Number(draftDocEntry),
+    ])) as any[];
+
+    if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+      return getInvoice(sessionId, String(draftMatch[0].DocEntry), true);
+    }
   }
 
   const repo = await getTenantRepository(dbName, ARInvoiceSchema);
@@ -344,6 +380,27 @@ export const createInvoice = async (
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = Number(payload.draftDocEntry || 0);
+
+    // Defensive fallback: when converting a draft to a real document, re-read the draft from SAP
+    // before deleting it so we can carry forward Comments/NumAtCard if the payload doesn't include them.
+    let draftComments: string | undefined;
+    let draftNumAtCard: string | undefined;
+    if (!isDraft && draftDocEntry > 0) {
+      try {
+        const draftData = (await serviceLayerClient.request(
+          sessionId,
+          "GET",
+          `/Drafts(${draftDocEntry})?$select=Comments,NumAtCard`,
+        )) as { Comments?: string; NumAtCard?: string };
+        draftComments = draftData?.Comments;
+        draftNumAtCard = draftData?.NumAtCard;
+      } catch {
+        // Non-fatal: if we can't read the draft, proceed with the provided payload values.
+      }
+    }
+
     const session = serviceLayerClient.getSession(sessionId);
     const resolvedDbName = session?.companyDB || dbName || "";
 
@@ -360,7 +417,7 @@ export const createInvoice = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments,
+      Comments: payload.Comments ?? draftComments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
       AttachmentEntry: absoluteEntry ?? undefined,
@@ -394,9 +451,13 @@ export const createInvoice = async (
 
         return docLine;
       }),
-      NumAtCard: payload.NumAtCard,
+      NumAtCard: payload.NumAtCard ?? draftNumAtCard,
       SalesPersonCode: payload.SalesPersonCode,
     };
+
+    if (isDraft) {
+      sapPayload.DocObjectCode = "13";
+    }
 
     // Auto-allocate bin locations if dbName is provided and warehouse requires it
     const documentLines = (sapPayload.DocumentLines as Record<string, unknown>[]) ?? [];
@@ -408,7 +469,6 @@ export const createInvoice = async (
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
-    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -419,12 +479,26 @@ export const createInvoice = async (
 
     logger.info({ msg: "DEBUG: SAP Invoice Payload", sapPayload });
 
+    const endpoint = isDraft ? "/Drafts" : "/Invoices";
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
-      "/Invoices",
+      endpoint,
       sapPayload,
     )) as SAPDocumentResponse;
+
+    if (!isDraft && draftDocEntry) {
+      logger.info({ draftDocEntry, msg: "Deleting source draft after A/R Invoice conversion" });
+      await serviceLayerClient
+        .request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`)
+        .catch((err) => {
+          logger.error({
+            draftDocEntry,
+            error: err.message,
+            msg: "Failed to delete draft after conversion",
+          });
+        });
+    }
 
     // Purge sales-related dashboard cache to ensure totals are recalculated.
     if (resolvedDbName) {
@@ -444,7 +518,9 @@ export const createInvoice = async (
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      message: "A/R Invoice created successfully",
+      message: isDraft
+        ? "A/R Invoice Draft saved successfully"
+        : "A/R Invoice created successfully",
       success: true,
     };
   } catch (err: unknown) {
@@ -463,6 +539,9 @@ export const updateInvoice = async (
   id: string,
   payload: Record<string, unknown>,
 ) => {
+  const isDraft = payload.isDraft === true || Boolean(payload.draftDocEntry);
+  const docEntry = isDraft ? Number(payload.draftDocEntry || id) : id;
+
   try {
     const sapPayload: Record<string, unknown> = {};
 
@@ -473,27 +552,45 @@ export const updateInvoice = async (
         // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
         let existingAttachmentEntry: number | null = null;
-        try {
-          const invoiceRepo = await getTenantRepository(dbName, ARInvoiceSchema);
-          const invoiceDoc = await invoiceRepo.findOne({
-            where: { docEntry: Number(id) },
-            select: ["docNum", "atcEntry"],
-          });
-          if (invoiceDoc) {
-            docNum = invoiceDoc.docNum;
-            existingAttachmentEntry = invoiceDoc.atcEntry ?? null;
+        if (!isDraft) {
+          try {
+            const invoiceRepo = await getTenantRepository(dbName, ARInvoiceSchema);
+            const invoiceDoc = await invoiceRepo.findOne({
+              where: { docEntry: Number(id) },
+              select: ["docNum", "atcEntry"],
+            });
+            if (invoiceDoc) {
+              docNum = invoiceDoc.docNum;
+              existingAttachmentEntry = invoiceDoc.atcEntry ?? null;
+            }
+          } catch (dbErr: any) {
+            logger.warn(
+              { id, err: dbErr.message },
+              "Failed to query database for doc info, falling back to Service Layer GET",
+            );
+            // Fallback to Service Layer GET if database query fails
+            try {
+              const docData = await serviceLayerClient.request<any>(
+                sessionId,
+                "GET",
+                `/Invoices(${id})?$select=DocNum,AttachmentEntry`,
+              );
+              if (docData?.DocNum) {
+                docNum = docData.DocNum;
+              }
+              if (docData?.AttachmentEntry) {
+                existingAttachmentEntry = docData.AttachmentEntry;
+              }
+            } catch (err: any) {
+              logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+            }
           }
-        } catch (dbErr: any) {
-          logger.warn(
-            { id, err: dbErr.message },
-            "Failed to query database for doc info, falling back to Service Layer GET",
-          );
-          // Fallback to Service Layer GET if database query fails
+        } else {
           try {
             const docData = await serviceLayerClient.request<any>(
               sessionId,
               "GET",
-              `/Invoices(${id})?$select=DocNum,AttachmentEntry`,
+              `/Drafts(${docEntry})?$select=DocNum,AttachmentEntry`,
             );
             if (docData?.DocNum) {
               docNum = docData.DocNum;
@@ -502,7 +599,10 @@ export const updateInvoice = async (
               existingAttachmentEntry = docData.AttachmentEntry;
             }
           } catch (err: any) {
-            logger.warn({ id, err: err.message }, "Failed to fetch doc info from Service Layer");
+            logger.warn(
+              { id: docEntry, err: err.message },
+              "Failed to fetch doc info from Service Layer",
+            );
           }
         }
 
@@ -510,8 +610,8 @@ export const updateInvoice = async (
           await attachmentsService.syncAttachmentsOnUpdate(
             sessionId,
             dbName,
-            "ARInvoice",
-            id,
+            isDraft ? "ARInvoiceDraft" : "ARInvoice",
+            String(docEntry),
             docNum,
             payload.attachments as any[],
             existingAttachmentEntry,
@@ -526,10 +626,19 @@ export const updateInvoice = async (
     if (Object.hasOwn(payload, "Comments")) {
       sapPayload.Comments = payload.Comments;
     }
-    if (payload.DocDueDate) {
-      sapPayload.DocDueDate = payload.DocDueDate;
-      await adjustPayloadDates(sessionId, sapPayload, true, `/Invoices(${id})`);
+    if (Object.hasOwn(payload, "Address")) {
+      sapPayload.Address = payload.Address;
     }
+    if (Object.hasOwn(payload, "Address2")) {
+      sapPayload.Address2 = payload.Address2;
+    }
+    if (payload.DocDate !== undefined) {
+      sapPayload.DocDate = payload.DocDate;
+    }
+    if (payload.DocDueDate !== undefined) {
+      sapPayload.DocDueDate = payload.DocDueDate;
+    }
+    const endpoint = isDraft ? `/Drafts(${docEntry})` : `/Invoices(${id})`;
     if (Object.hasOwn(payload, "NumAtCard")) {
       sapPayload.NumAtCard = payload.NumAtCard;
     }
@@ -564,7 +673,7 @@ export const updateInvoice = async (
       });
     }
 
-    await serviceLayerClient.request(sessionId, "PATCH", `/Invoices(${id})`, sapPayload, true, {
+    await serviceLayerClient.request(sessionId, "PATCH", endpoint, sapPayload, true, {
       "B1S-ReplaceCollectionsOnPatch": "true",
     });
 
@@ -575,7 +684,9 @@ export const updateInvoice = async (
     }
 
     return {
-      message: "A/R Invoice updated successfully",
+      message: isDraft
+        ? "A/R Invoice Draft saved successfully"
+        : "A/R Invoice updated successfully",
       success: true,
     };
   } catch (err: unknown) {

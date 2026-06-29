@@ -29,7 +29,19 @@ export const CreateInvoiceInputSchema = z.object({
 });
 
 export const UpdateInvoiceInputSchema = z.object({
+  address: z.string().optional(),
+  address2: z.string().optional(),
   comments: z.string().optional(),
+  docDate: z.string().optional(),
+  draftDocEntry: z.coerce.number().optional(),
+  isDraft: z.boolean().optional(),
+  cardCode: z.string().optional(),
+  cardName: z.string().optional(),
+  attachments: z.array(z.any()).optional(),
+  salesPersonCode: z.number().optional(),
+  docDueDate: z.string().optional(),
+  numAtCard: z.string().optional(),
+  lines: z.array(z.any()).optional(),
 });
 
 export type InvoiceQuery = z.infer<typeof InvoiceQuerySchema>;

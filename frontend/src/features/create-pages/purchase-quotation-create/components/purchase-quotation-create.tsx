@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { goeyToast } from "goey-toast";
 import type { MouseEvent } from "react";
 
@@ -24,6 +24,8 @@ import { PurchaseQuotationProductSection } from "@/features/create-pages/purchas
 import { usePurchaseQuotationCreate } from "@/features/create-pages/purchase-quotation-create/hooks/use-purchase-quotation-create";
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 
+const routeApi = getRouteApi("/_layout/purchase/create-quotation");
+
 interface PurchaseQuotationCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
@@ -37,6 +39,19 @@ interface PurchaseQuotationCreateProps {
 export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuotationCreateProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
+
+  let draftDocNum: string | undefined;
+  let draftDocEntry: string | undefined;
+  if (mode === "create") {
+    try {
+      const search = routeApi.useSearch();
+      draftDocNum = search.draftDocNum;
+      draftDocEntry = search.draftDocEntry;
+    } catch {
+      // not in create route
+    }
+  }
+
   const state = usePurchaseQuotationCreate(
     docNum
       ? {
@@ -44,6 +59,8 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
           mode,
         }
       : {
+          draftDocNum,
+          draftDocEntry,
           mode,
           onCreateSuccess: () => {},
         },
@@ -51,13 +68,16 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
 
   const pageTitle = state.isEditMode
     ? `Update Purchase Quotation ${docNum}`
-    : "Create Purchase Quotation";
-  const isFormHydrating = !state.isEditMode
-    ? state.vendorsQuery.isLoading &&
-      state.warehousesQuery.isLoading &&
-      state.salesEmployeesQuery.isLoading &&
-      !state.vendorsQuery.data
-    : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
+    : draftDocNum
+      ? `Create Purchase Quotation (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+      : "Create Purchase Quotation";
+  const isFormHydrating =
+    !state.isEditMode && !draftDocNum
+      ? state.vendorsQuery.isLoading &&
+        state.warehousesQuery.isLoading &&
+        state.salesEmployeesQuery.isLoading &&
+        !state.vendorsQuery.data
+      : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleVendorRestrictedClick = state.isEditMode
     ? (event: MouseEvent<HTMLDivElement>) => {
@@ -353,11 +373,16 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
           createError={state.createError}
           createDisabledReason={state.createDisabledReason}
           createPurchaseQuotationMutation={state.createPurchaseQuotationMutation}
+          isSubmitting={
+            state.createPurchaseQuotationMutation.isPending ||
+            state.updatePurchaseQuotationMutation.isPending
+          }
           missingMandatoryFields={state.missingMandatoryFields}
           requiredCompletionPercent={state.requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
           onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
+          isDirty={state.isDirty}
           savedDocNum={state.savedDocNum}
           onDownload={useDocumentDownload(
             state.isEditMode ? docNum : state.savedDocNum,
@@ -377,7 +402,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
           isEditMode={state.isEditMode}
           isClosed={state.isClosed}
           allowSearchInEditMode={state.isEditMode}
-          submitLabel={state.isEditMode ? "Update" : "Create"}
+          submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
             state.isEditMode && !state.isClosed && docNum ? (

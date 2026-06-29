@@ -1,19 +1,16 @@
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { executeTenantQuery, getTenantRepository } from "@/dal/tenant-dal.helper";
 import type { GRPOFilters } from "@/dal/types/grpo.types";
 // Data Access & Schemas
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { APInvoiceHeaderSchema } from "@/db/schemas/apinvoiceheader.schema";
-import type { GRPO } from "@/db/schemas/grpo.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
-import { PageService } from "@/services/page-service.service";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
-import { adjustPayloadDates } from "./date-adjustment.util";
 
 import { resolveBaseLineQuantities } from "./base-qty-validation.util";
 import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
@@ -22,110 +19,134 @@ import { attachmentsService } from "./attachments.service";
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
   try {
-    const repo = await getTenantRepository(dbName, GRPOSchema);
-    const queryBuilder = repo.createQueryBuilder("grpo");
-    queryBuilder.where("1=1");
+    const buildSubQuery = (table: string, isDraft: boolean) => {
+      const whereClauses = ["1=1"];
+      const params: unknown[] = [];
 
-    // Dynamic Filter: GRPO Number (DocNum).
-    if (filters.DocNum) {
-      queryBuilder.andWhere("CAST(grpo.docNum AS NVARCHAR) LIKE :docNum", {
-        docNum: `%${filters.DocNum}%`,
-      });
-    }
-
-    // Dynamic Filter: Vendor Code (Standard: CardCode).
-    if (filters.CardCode) {
-      queryBuilder.andWhere("grpo.cardCode LIKE :cardCode", {
-        cardCode: `%${filters.CardCode}%`,
-      });
-    }
-
-    // Dynamic Filter: Vendor Name case-insensitive search (Standard: CardName).
-    if (filters.CardName) {
-      queryBuilder.andWhere("LOWER(grpo.cardName) LIKE LOWER(:cardName)", {
-        cardName: `%${filters.CardName}%`,
-      });
-    }
-
-    // Dynamic Filter: Date Range Start (Standard: DocDate).
-    if (filters.DocDateStart) {
-      queryBuilder.andWhere("grpo.docDate >= :startDate", {
-        startDate: filters.DocDateStart,
-      });
-    }
-
-    // Dynamic Filter: Date Range End (Standard: DocDate).
-    if (filters.DocDateEnd) {
-      queryBuilder.andWhere("grpo.docDate <= :endDate", {
-        endDate: filters.DocDateEnd,
-      });
-    }
-
-    // Dynamic Filter: SAP Document Status (Standard: DocStatus).
-    if (filters.DocStatus) {
-      queryBuilder.andWhere("grpo.docStatus = :status", {
-        status: filters.DocStatus,
-      });
-    }
-
-    // Dynamic Filter: Total amount comparison.
-    if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
-      if (filters.DocTotalOperator === "eq") {
-        queryBuilder.andWhere("grpo.docTotal = :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+      if (isDraft) {
+        whereClauses.push(`"ObjType" = '20'`);
       }
-      if (filters.DocTotalOperator === "lt") {
-        queryBuilder.andWhere("grpo.docTotal < :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.DocNum) {
+        whereClauses.push(`CAST("DocNum" AS NVARCHAR) LIKE ?`);
+        params.push(`%${filters.DocNum}%`);
       }
-      if (filters.DocTotalOperator === "gt") {
-        queryBuilder.andWhere("grpo.docTotal > :docTotal", {
-          docTotal: filters.DocTotal,
-        });
+
+      if (filters.CardCode) {
+        whereClauses.push(`"CardCode" LIKE ?`);
+        params.push(`%${filters.CardCode}%`);
       }
-    }
+
+      if (filters.CardName) {
+        whereClauses.push(`LOWER("CardName") LIKE LOWER(?)`);
+        params.push(`%${filters.CardName}%`);
+      }
+
+      if (filters.DocDateStart) {
+        whereClauses.push(`"DocDate" >= ?`);
+        params.push(filters.DocDateStart);
+      }
+
+      if (filters.DocDateEnd) {
+        whereClauses.push(`"DocDate" <= ?`);
+        params.push(filters.DocDateEnd);
+      }
+
+      if (filters.DocStatus) {
+        const statusVal = filters.DocStatus;
+        if (isDraft) {
+          if (statusVal !== "D" && statusVal !== "Draft") {
+            whereClauses.push("1=0");
+          }
+        } else {
+          if (statusVal === "D" || statusVal === "Draft") {
+            whereClauses.push("1=0");
+          } else {
+            whereClauses.push(`"DocStatus" = ?`);
+            params.push(statusVal);
+          }
+        }
+      }
+
+      if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
+        const opMap = { eq: "=", lt: "<", gt: ">" };
+        const op = opMap[filters.DocTotalOperator as keyof typeof opMap];
+        if (op) {
+          whereClauses.push(`"DocTotal" ${op} ?`);
+          params.push(filters.DocTotal);
+        }
+      }
+
+      const selectColumns = isDraft
+        ? `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", 'D' AS "DocStatus"`
+        : `"DocEntry", "DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocCur" AS "DocCurr", "DocStatus"`;
+
+      const sql = `SELECT ${selectColumns} FROM "${table}" WHERE ${whereClauses.join(" AND ")}`;
+      return { sql, params };
+    };
+
+    const subGRPO = buildSubQuery("OPDN", false);
+    const subDraft = buildSubQuery("ODRF", true);
+
+    const combinedSql = `
+      SELECT * FROM (
+        ${subGRPO.sql}
+        UNION ALL
+        ${subDraft.sql}
+      ) AS "Combined"
+    `;
+    const combinedParams = [...subGRPO.params, ...subDraft.params];
+
+    const countSql = `SELECT COUNT(*) AS "total" FROM (${combinedSql}) AS "Counted"`;
 
     const sortFieldMap: Record<string, string> = {
-      CardCode: "grpo.cardCode",
-      CardName: "grpo.cardName",
-      DocDate: "grpo.docDate",
-      DocNum: "grpo.docNum",
-      DocStatus: "grpo.docStatus",
-      DocTotal: "grpo.docTotal",
+      CardCode: `"CardCode"`,
+      CardName: `"CardName"`,
+      DocDate: `"DocDate"`,
+      DocNum: `"DocNum"`,
+      DocStatus: `"DocStatus"`,
+      DocTotal: `"DocTotal"`,
     };
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
-    const sort = requestedSortField
-      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
-      : ({ "grpo.docDate": "DESC", "grpo.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
+    const orderBy = requestedSortField
+      ? `ORDER BY ${requestedSortField} ${requestedSortOrder}`
+      : `ORDER BY "DocDate" DESC, "DocNum" DESC`;
 
-    // Executes the query with centralized pagination and sorting logic.
-    const result = await PageService.getPagedData<GRPO>({
-      dbName,
-      entityName: "GRPOs",
-      limit: Number(filters.limit) || 10,
-      page: Number(filters.page) || 1,
-      query: queryBuilder,
-      sort,
-    });
+    const limit = Number(filters.limit) || 10;
+    const page = Number(filters.page) || 1;
+    const offset = (page - 1) * limit;
 
-    // Maps database rows to the standard internal GRPO model.
+    const dataSql = `
+      ${combinedSql}
+      ${orderBy}
+      LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...combinedParams, limit, offset];
+
+    const [countRows, dataRows] = await Promise.all([
+      executeTenantQuery(dbName, countSql, combinedParams) as Promise<any[]>,
+      executeTenantQuery(dbName, dataSql, dataParams) as Promise<any[]>,
+    ]);
+
+    const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
+    const totalPages = Math.ceil(total / limit);
+
     return {
-      ...result,
-      data: result.data.map((data) => ({
-        CardCode: data.cardCode,
-        CardName: data.cardName,
-        DocCurr: data.docCurr,
-        DocDate: data.docDate,
-        DocNum: data.docNum,
-        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
-        DocTotal: data.docTotal,
-        Address: data.address,
-        Address2: data.address2,
-        id: data.docEntry,
+      data: dataRows.map((row: any) => ({
+        CardCode: row.CardCode,
+        CardName: row.CardName,
+        DocCurr: row.DocCurr,
+        DocDate: row.DocDate,
+        DocNum: row.DocNum,
+        DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",
+        DocTotal: row.DocTotal,
+        id: row.DocEntry,
       })),
+      limit,
+      page,
+      total,
+      totalPages,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
@@ -281,12 +302,13 @@ export const getPODetail = async (sessionId: string, dbName: string, id: string)
 };
 
 // Obtains the full GRPO document structure from the Service Layer.
-export const getGRPO = async (sessionId: string, id: string) => {
+export const getGRPO = async (sessionId: string, id: string, isDraft = false) => {
   try {
+    const endpoint = isDraft ? `/Drafts(${id})` : `/PurchaseDeliveryNotes(${id})`;
     const result = (await serviceLayerClient.request(
       sessionId,
       "GET",
-      `/PurchaseDeliveryNotes(${id})`,
+      endpoint,
     )) as SAPDocumentResponse;
 
     const enrichedLines = (result.DocumentLines || []).map((line: SAPDocumentLine) => {
@@ -332,7 +354,7 @@ export const getGRPO = async (sessionId: string, id: string) => {
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      DocStatus: result.DocumentStatus === "bost_Open" ? "O" : "C",
+      DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
       DocTotal: result.DocTotal,
@@ -355,58 +377,86 @@ export const getGRPO = async (sessionId: string, id: string) => {
 };
 
 // Resolves a GRPO by its DocNum from the local HANA database to get its Service Layer DocEntry.
-export const getGRPOByDocNum = async (sessionId: string, dbName: string, id: string) => {
-  const normalizedId = id.trim();
-  if (!normalizedId) {
-    throw new AppError("ID is required", 400, "VALIDATION_ERROR");
+export const getGRPOByDocNum = async (
+  sessionId: string,
+  dbName: string,
+  docNum: string,
+  draftDocEntry?: string,
+) => {
+  const normalizedDocNum = docNum.trim();
+  if (!normalizedDocNum) {
+    throw new AppError("DocNum is required", 400, "VALIDATION_ERROR");
   }
 
-  // Resolves DocNum to DocEntry from HANA if necessary, ensuring Service Layer compatibility.
+  if (draftDocEntry) {
+    const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '20' AND "DocEntry" = ?`;
+    const draftMatch = (await executeTenantQuery(dbName, draftQuery, [
+      Number(draftDocEntry),
+    ])) as any[];
+
+    if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+      return getGRPO(sessionId, String(draftMatch[0].DocEntry), true);
+    }
+  }
+
+  // 1. Check OPDN (real document)
   const repo = await getTenantRepository(dbName, GRPOSchema);
   const match = await repo
     .createQueryBuilder("grpo")
     .select(["grpo.docEntry"])
-    .where("CAST(grpo.docNum AS NVARCHAR) = :id", { id: normalizedId })
+    .where("CAST(grpo.docNum AS NVARCHAR) = :docNum", {
+      docNum: normalizedDocNum,
+    })
     .getOne();
 
-  // If a match is found in HANA, we use the resolved DocEntry.
-  // Otherwise, we assume the provided ID is already an internal DocEntry and pass it directly.
-  const grpoDocEntry = match?.docEntry ? String(match.docEntry) : normalizedId;
-  const grpoDetail = await getGRPO(sessionId, grpoDocEntry);
+  if (match?.docEntry) {
+    const grpoDocEntry = String(match.docEntry);
+    const grpoDetail = await getGRPO(sessionId, grpoDocEntry);
 
-  // Calculate remaining open quantity per line by querying consumed quantities from PCH1 (AP Invoice lines).
-  const pch1Repo = await getTenantRepository(dbName, APInvoiceHeaderSchema);
-  const consumedLines = await pch1Repo
-    .createQueryBuilder("pch1")
-    .select("pch1.baseLine", "baseLine")
-    .addSelect("SUM(pch1.quantity)", "consumedQty")
-    .where("pch1.baseEntry = :baseEntry", { baseEntry: grpoDetail.DocEntry })
-    .andWhere("pch1.baseType = 20")
-    .groupBy("pch1.baseLine")
-    .getRawMany<{ baseLine: number; consumedQty: string }>();
+    // Calculate remaining open quantity per line by querying consumed quantities from PCH1 (AP Invoice lines).
+    const pch1Repo = await getTenantRepository(dbName, APInvoiceHeaderSchema);
+    const consumedLines = await pch1Repo
+      .createQueryBuilder("pch1")
+      .select("pch1.baseLine", "baseLine")
+      .addSelect("SUM(pch1.quantity)", "consumedQty")
+      .where("pch1.baseEntry = :baseEntry", { baseEntry: grpoDetail.DocEntry })
+      .andWhere("pch1.baseType = 20")
+      .groupBy("pch1.baseLine")
+      .getRawMany<{ baseLine: number; consumedQty: string }>();
 
-  const consumedByLine = new Map<number, number>();
-  for (const row of consumedLines) {
-    consumedByLine.set(Number(row.baseLine), Number(row.consumedQty ?? 0));
-  }
+    const consumedByLine = new Map<number, number>();
+    for (const row of consumedLines) {
+      consumedByLine.set(Number(row.baseLine), Number(row.consumedQty ?? 0));
+    }
 
-  // Enrich lines with calculated OpenQty.
-  const enrichedLines = (grpoDetail.DocumentLines || []).map((line: Record<string, unknown>) => {
-    const lineNum = Number(line.LineNum ?? 0);
-    const orderedQty = Number(line.Quantity ?? 0);
-    const consumedQty = Number(consumedByLine.get(lineNum) ?? 0);
-    const openQty = Math.max(0, orderedQty - consumedQty);
+    // Enrich lines with calculated OpenQty.
+    const enrichedLines = (grpoDetail.DocumentLines || []).map((line: Record<string, unknown>) => {
+      const lineNum = Number(line.LineNum ?? 0);
+      const orderedQty = Number(line.Quantity ?? 0);
+      const consumedQty = Number(consumedByLine.get(lineNum) ?? 0);
+      const openQty = Math.max(0, orderedQty - consumedQty);
+
+      return {
+        ...line,
+        OpenQty: openQty,
+      };
+    });
 
     return {
-      ...line,
-      OpenQty: openQty,
+      ...grpoDetail,
+      DocumentLines: enrichedLines,
     };
-  });
+  }
 
-  return {
-    ...grpoDetail,
-    DocumentLines: enrichedLines,
-  };
+  // 2. Check ODRF (draft document)
+  const draftQuery = `SELECT "DocEntry" FROM "ODRF" WHERE "ObjType" = '20' AND CAST("DocNum" AS NVARCHAR) = ?`;
+  const draftMatch = (await executeTenantQuery(dbName, draftQuery, [normalizedDocNum])) as any[];
+
+  if (draftMatch && draftMatch.length > 0 && draftMatch[0].DocEntry) {
+    return getGRPO(sessionId, String(draftMatch[0].DocEntry), true);
+  }
+
+  throw new AppError("GRPO not found", 404, "NOT_FOUND");
 };
 
 // Creates a GRPO document in SAP. Crucially, it links each line back to its source Purchase Order.
@@ -415,13 +465,32 @@ export const createGRPO = async (
   payload: Record<string, unknown>,
   dbName?: string,
 ) => {
-  const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
-  const attachments = payload.attachments as any[];
-
   try {
-    const documentLines = lines;
-    if (dbName && documentLines.length > 0) {
-      await resolveBaseLineQuantities(sessionId, documentLines);
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = Number(payload.draftDocEntry || 0);
+    const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
+    const attachments = payload.attachments as any[];
+
+    // Defensive fallback: when converting a draft to a real document, re-read the draft from SAP
+    // before deleting it so we can carry forward Comments/NumAtCard if the payload doesn't include them.
+    let draftComments: string | undefined;
+    let draftNumAtCard: string | undefined;
+    if (!isDraft && draftDocEntry > 0) {
+      try {
+        const draftData = (await serviceLayerClient.request(
+          sessionId,
+          "GET",
+          `/Drafts(${draftDocEntry})?$select=Comments,NumAtCard`,
+        )) as { Comments?: string; NumAtCard?: string };
+        draftComments = draftData?.Comments;
+        draftNumAtCard = draftData?.NumAtCard;
+      } catch {
+        // Non-fatal: if we can't read the draft, proceed with the provided payload values.
+      }
+    }
+
+    if (!isDraft && dbName && lines.length > 0) {
+      await resolveBaseLineQuantities(sessionId, lines);
     }
 
     const session = serviceLayerClient.getSession(sessionId);
@@ -440,7 +509,7 @@ export const createGRPO = async (
       Address: payload.Address,
       Address2: payload.Address2,
       CardCode: payload.CardCode,
-      Comments: payload.Comments,
+      Comments: payload.Comments ?? draftComments,
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
       AttachmentEntry: absoluteEntry ?? undefined,
@@ -476,15 +545,18 @@ export const createGRPO = async (
 
         return line;
       }),
-      NumAtCard: payload.NumAtCard,
+      NumAtCard: payload.NumAtCard ?? draftNumAtCard,
     };
+
+    if (isDraft) {
+      sapPayload.DocObjectCode = "20";
+    }
 
     // Standardizes date format for SAP.
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {
       sapPayload.DocDate = `${docDate.slice(0, 4)}-${docDate.slice(4, 6)}-${docDate.slice(6, 8)}`;
     }
-    await adjustPayloadDates(sessionId, sapPayload);
     const docDueDate = sapPayload.DocDueDate as string;
     if (docDueDate && docDueDate.length === 8) {
       sapPayload.DocDueDate = `${docDueDate.slice(0, 4)}-${docDueDate.slice(
@@ -497,14 +569,14 @@ export const createGRPO = async (
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
-      "/PurchaseDeliveryNotes",
+      isDraft ? "/Drafts" : "/PurchaseDeliveryNotes",
       sapPayload,
     )) as SAPDocumentResponse;
 
     // Purge purchase dashboard cache as the PO statues and totals have likely changed.
     if (resolvedDbName) {
       purgeCache(`dash:purchase:${resolvedDbName}:`);
-      if (result?.DocEntry && absoluteEntry !== null) {
+      if (!isDraft && result?.DocEntry && absoluteEntry !== null) {
         await attachmentsService.finalizeAndLinkAttachments(
           resolvedDbName,
           "GRPO",
@@ -518,14 +590,32 @@ export const createGRPO = async (
 
     // Reconcile originating PO(s) after GRPO save.
     // Walks back to the PO from base linkage and closes it if fully consumed.
-    if (dbName) {
-      await reconcilePOAfterCopyTo(sessionId, dbName, documentLines);
+    // Skip reconciliation for draft saves.
+    if (!isDraft && dbName) {
+      await reconcilePOAfterCopyTo(sessionId, dbName, lines);
+    }
+
+    // Delete the draft after successful conversion to a real document.
+    if (!isDraft && Number.isFinite(draftDocEntry) && draftDocEntry > 0) {
+      try {
+        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
+        logger.info({
+          draftDocEntry,
+          msg: "Deleted converted GRPO draft",
+        });
+      } catch (delErr: any) {
+        logger.error({
+          draftDocEntry,
+          error: delErr.message,
+          msg: "Failed to delete draft after conversion",
+        });
+      }
     }
 
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
-      message: "GRPO created successfully",
+      message: isDraft ? "GRPO Draft saved successfully" : "GRPO created successfully",
       success: true,
     };
   } catch (err: unknown) {
@@ -545,23 +635,65 @@ export const updateGRPO = async (
   payload: Record<string, unknown>,
 ) => {
   try {
+    const isDraft = payload.isDraft === true;
     const sapPayload: Record<string, unknown> = {};
 
-    if (Object.hasOwn(payload, "Comments")) {
+    if (payload.Comments !== undefined) {
       sapPayload.Comments = payload.Comments;
     }
-    if (Object.hasOwn(payload, "DocDueDate")) {
-      sapPayload.DocDueDate = payload.DocDueDate;
-      await adjustPayloadDates(sessionId, sapPayload, true, `/PurchaseDeliveryNotes(${id})`);
-    }
-    if (Object.hasOwn(payload, "NumAtCard")) {
+    if (payload.NumAtCard !== undefined) {
       sapPayload.NumAtCard = payload.NumAtCard;
     }
-    if (Object.hasOwn(payload, "Address")) {
+    if (payload.Address !== undefined) {
       sapPayload.Address = payload.Address;
     }
-    if (Object.hasOwn(payload, "Address2")) {
+    if (payload.Address2 !== undefined) {
       sapPayload.Address2 = payload.Address2;
+    }
+    if (payload.DocDate !== undefined) {
+      sapPayload.DocDate = payload.DocDate;
+    }
+    if (payload.DocDueDate !== undefined) {
+      sapPayload.DocDueDate = payload.DocDueDate;
+    }
+
+    if (payload.SalesPersonCode !== undefined) {
+      sapPayload.SalesPersonCode = payload.SalesPersonCode;
+    }
+
+    const lines = payload.DocumentLines as Record<string, unknown>[];
+    if (lines) {
+      sapPayload.DocumentLines = lines.map((item) => {
+        const docLine: Record<string, unknown> = {
+          LineNum: item.LineNum !== undefined ? Number(item.LineNum) : undefined,
+          ItemCode: item.ItemCode as string,
+          Quantity: item.Quantity as number,
+          UnitPrice: (item.UnitPrice || item.Price) as number,
+          DiscountPercent: Number(item.DiscountPercent ?? 0),
+          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+          VatGroup: item.VatGroup as string,
+          WarehouseCode: item.WarehouseCode as string,
+        };
+        const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+        if (Number.isFinite(uomEntry) && uomEntry > 0) {
+          docLine.UoMEntry = Math.trunc(uomEntry);
+          docLine.UseBaseUnit = "tNO";
+        } else {
+          const uomCode = item.UoMCode ?? item.UomCode;
+          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+            docLine.UoMCode = uomCode as string | number;
+            docLine.UseBaseUnit = "tNO";
+          }
+        }
+
+        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
+          docLine.BaseType = item.BaseType;
+          docLine.BaseEntry = item.BaseEntry;
+          docLine.BaseLine = item.BaseLine;
+        }
+
+        return docLine;
+      });
     }
 
     if (payload.attachments !== undefined) {
@@ -571,6 +703,7 @@ export const updateGRPO = async (
         // Fetch DocNum and existing AttachmentEntry directly from HANA database via TypeORM
         let docNum: string | number = id;
         let existingAttachmentEntry: number | null = null;
+        let successDb = false;
         try {
           const grpoRepo = await getTenantRepository(dbName, GRPOSchema);
           const grpoDoc = await grpoRepo.findOne({
@@ -580,18 +713,24 @@ export const updateGRPO = async (
           if (grpoDoc) {
             docNum = grpoDoc.docNum;
             existingAttachmentEntry = grpoDoc.atcEntry ?? null;
+            successDb = true;
           }
         } catch (dbErr: any) {
           logger.warn(
             { id, err: dbErr.message },
             "Failed to query database for doc info, falling back to Service Layer GET",
           );
-          // Fallback to Service Layer GET if database query fails
+        }
+
+        if (!successDb) {
+          // Fallback to Service Layer GET if database query fails or document not found (e.g. for drafts)
           try {
             const docData = await serviceLayerClient.request<any>(
               sessionId,
               "GET",
-              `/PurchaseDeliveryNotes(${id})?$select=DocNum,AttachmentEntry`,
+              isDraft
+                ? `/Drafts(${id})?$select=DocNum,AttachmentEntry`
+                : `/PurchaseDeliveryNotes(${id})?$select=DocNum,AttachmentEntry`,
             );
             if (docData?.DocNum) {
               docNum = docData.DocNum;
@@ -624,8 +763,10 @@ export const updateGRPO = async (
     await serviceLayerClient.request(
       sessionId,
       "PATCH",
-      `/PurchaseDeliveryNotes(${id})`,
+      isDraft ? `/Drafts(${id})` : `/PurchaseDeliveryNotes(${id})`,
       sapPayload,
+      true,
+      { "B1S-ReplaceCollectionsOnPatch": "true" },
     );
 
     // Invalidate dashboard metrics for the tenant.
@@ -635,7 +776,7 @@ export const updateGRPO = async (
     }
 
     return {
-      message: "GRPO updated successfully",
+      message: isDraft ? "GRPO Draft saved successfully" : "GRPO updated successfully",
       success: true,
     };
   } catch (err: unknown) {

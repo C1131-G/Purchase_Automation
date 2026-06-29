@@ -92,13 +92,15 @@ export const getPurchaseQuotationByDocNum = async (
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { docNum } = authReq.params;
+    const draftDocEntry = req.query.draftDocEntry as string | undefined;
 
-    logger.info({ docNum, msg: "Fetching Purchase Quotation detail by DocNum" });
+    logger.info({ docNum, draftDocEntry, msg: "Fetching Purchase Quotation detail by DocNum" });
 
     const data = await purchaseQuotationService.getPurchaseQuotationByDocNum(
       sessionId,
       dbName,
       docNum as string,
+      draftDocEntry,
     );
     if (!data) {
       return res.status(404).json({ message: "Purchase Quotation not found", success: false });

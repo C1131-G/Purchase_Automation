@@ -59,14 +59,15 @@ export const SalesOrderQuerySchema = z
     // Normalize Aliases to Standard Keys
     const normalized = { ...data };
 
-    // Smart Status Mapping: Convert "Open"/"Closed" to "O"/"C" (Case-Insensitive)
+    // Smart Status Mapping: Convert "Open"/"Closed"/"Draft" to canonical values (Case-Insensitive)
     if (normalized.DocStatus) {
       const statusUpper = normalized.DocStatus.toUpperCase();
       if (statusUpper === "OPEN") {
         normalized.DocStatus = "O";
-      }
-      if (statusUpper === "CLOSED") {
+      } else if (statusUpper === "CLOSED") {
         normalized.DocStatus = "C";
+      } else if (statusUpper === "DRAFT") {
+        normalized.DocStatus = "D";
       }
     }
 
@@ -123,6 +124,8 @@ export const CreateSalesOrderInputSchema = z.object({
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 // UpdateSalesOrderInputSchema: Edit flow blocks customer updates (CardCode/CardName).
@@ -145,6 +148,8 @@ export const UpdateSalesOrderInputSchema = z
     Rounding: z.enum(["tYES", "tNO"]).optional(),
     RoundingDiffAmount: z.number().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    draftDocEntry: z.coerce.number().optional(),
   })
   .strict();
 

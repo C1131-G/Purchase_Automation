@@ -101,13 +101,15 @@ export const getPurchaseOrderByDocNum = async (req: Request, res: Response, next
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { docNum } = authReq.params;
+    const draftDocEntry = req.query.draftDocEntry as string | undefined;
 
-    logger.info({ docNum, msg: "Fetching PO detail by DocNum" });
+    logger.info({ docNum, draftDocEntry, msg: "Fetching PO detail by DocNum" });
 
     const data = await purchaseOrderService.getPurchaseOrderByDocNum(
       sessionId,
       dbName,
       docNum as string,
+      draftDocEntry,
     );
 
     res.status(200).json({

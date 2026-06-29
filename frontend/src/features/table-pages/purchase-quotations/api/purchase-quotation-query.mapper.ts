@@ -85,6 +85,7 @@ export const mapSearchToPurchaseQuotationListParams = (
   const docStatus = getEnumFilter<PurchaseQuotationStatus>(filters, "DocStatus", [
     "Open",
     "Closed",
+    "Draft",
   ]);
   const docTotal = getDocTotalFilter(filters);
 

@@ -35,6 +35,8 @@ interface PurchaseOrderCreateProps {
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "PurchaseQuotation" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 /**
@@ -47,6 +49,8 @@ export function PurchaseOrderCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum,
+  draftDocEntry,
 }: PurchaseOrderCreateProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -63,6 +67,8 @@ export function PurchaseOrderCreate({
           mode,
           sourceDocNum,
           sourceDocType,
+          draftDocNum,
+          draftDocEntry,
           onCreateSuccess: () => {
             setSourceCleared(false);
           },
@@ -95,16 +101,19 @@ export function PurchaseOrderCreate({
 
   const pageTitle = state.isEditMode
     ? `Update Purchase Order ${docNum || ""}`
-    : "Create Purchase Order";
+    : draftDocNum
+      ? `Create Purchase Order (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+      : "Create Purchase Order";
   const committedDocNums =
     !sourceCleared && sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
-  const isFormHydrating = !state.isEditMode
-    ? (state.vendorsQuery.isLoading &&
-        state.warehousesQuery.isLoading &&
-        state.salesEmployeesQuery.isLoading &&
-        !state.vendorsQuery.data) ||
-      state.isSourceHydrating
-    : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
+  const isFormHydrating =
+    !state.isEditMode && !draftDocNum
+      ? (state.vendorsQuery.isLoading &&
+          state.warehousesQuery.isLoading &&
+          state.salesEmployeesQuery.isLoading &&
+          !state.vendorsQuery.data) ||
+        state.isSourceHydrating
+      : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleVendorRestrictedClick = state.isEditMode
     ? (event: MouseEvent<HTMLDivElement>) => {
@@ -151,7 +160,7 @@ export function PurchaseOrderCreate({
           : null
       }
       topActions={
-        !state.isEditMode ? (
+        !state.isEditMode && !state.draftDocNum ? (
           <CopyFromDropdown
             vendorCode={state.codeInput}
             vendorName={state.nameInput}
@@ -414,6 +423,9 @@ export function PurchaseOrderCreate({
         createError={state.createError}
         createDisabledReason={state.createDisabledReason}
         createPurchaseOrderMutation={state.createPurchaseOrderMutation}
+        isSubmitting={
+          state.createPurchaseOrderMutation.isPending || state.updatePurchaseOrderMutation.isPending
+        }
         missingMandatoryFields={state.missingMandatoryFields}
         requiredCompletionPercent={state.requiredCompletionPercent}
         handleCreateOrder={state.handleCreateOrder}
@@ -438,7 +450,7 @@ export function PurchaseOrderCreate({
         isEditMode={state.isEditMode}
         isClosed={state.isClosed}
         allowSearchInEditMode={state.isEditMode}
-        submitLabel={state.isEditMode ? "Update" : "Create"}
+        submitLabel={state.isEditMode ? "Update" : "Add"}
         submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
         secondaryActions={
           state.isEditMode && !state.isClosed ? (
@@ -451,6 +463,7 @@ export function PurchaseOrderCreate({
         }
         warehouseErrors={state.warehouseErrors}
         submitDisabled={state.submitDisabled}
+        isDirty={state.isDirty}
       />
       <PurchaseOrderModals state={state} />
     </CreatePageWrapper>

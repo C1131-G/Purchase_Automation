@@ -7,7 +7,8 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
 export const salesOrderKeys = {
   all: ["sales-orders"] as const,
-  detailByDocNum: (docNum: string) => [...salesOrderKeys.all, "detail-by-doc-num", docNum] as const,
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
+    [...salesOrderKeys.all, "detail-by-doc-num", docNum, draftDocEntry ?? ""] as const,
   docNumSuggestions: (search?: string, limit?: number) =>
     [...salesOrderKeys.all, "doc-num-suggestions", search ?? "", limit ?? "all"] as const,
   list: (params: SalesOrderListParams) => [...salesOrderKeys.all, "list", params] as const,
@@ -15,11 +16,11 @@ export const salesOrderKeys = {
 };
 
 export const salesOrderQueries = {
-  detailByDocNum: (docNum: string) =>
+  detailByDocNum: (docNum: string, draftDocEntry?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
-      queryFn: () => salesOrderAPI.getSalesOrderByDocNum(docNum),
-      queryKey: salesOrderKeys.detailByDocNum(docNum),
+      queryFn: () => salesOrderAPI.getSalesOrderByDocNum(docNum, draftDocEntry),
+      queryKey: salesOrderKeys.detailByDocNum(docNum, draftDocEntry),
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
   docNumSuggestions: (search?: string, limit?: number) =>

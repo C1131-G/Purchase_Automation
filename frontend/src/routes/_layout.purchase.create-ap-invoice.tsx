@@ -16,11 +16,20 @@ export const Route = createFileRoute("/_layout/purchase/create-ap-invoice")({
   validateSearch: z.object({
     sourceDocNum: z.string().or(z.number()).transform(String).optional(),
     sourceDocType: z.enum(["PurchaseOrder", "GoodsReceiptPO", "PurchaseQuotation"]).optional(),
+    draftDocNum: z.string().or(z.number()).transform(String).optional(),
+    draftDocEntry: z.string().or(z.number()).transform(String).optional(),
   }),
 });
 
 function RouteComponent() {
   useDocumentTitle("Create AP Invoice | ERP Portal");
-  const { sourceDocNum, sourceDocType } = Route.useSearch();
-  return <APInvoiceCreate sourceDocNum={sourceDocNum} sourceDocType={sourceDocType} />;
+  const { sourceDocNum, sourceDocType, draftDocNum, draftDocEntry } = Route.useSearch();
+  return (
+    <APInvoiceCreate
+      sourceDocNum={sourceDocNum}
+      sourceDocType={sourceDocType}
+      draftDocNum={draftDocNum}
+      draftDocEntry={draftDocEntry}
+    />
+  );
 }

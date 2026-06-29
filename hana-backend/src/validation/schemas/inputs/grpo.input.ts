@@ -146,6 +146,8 @@ export const CreateGRPOInputSchema = z.object({
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.coerce.number().int().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().optional(),
 });
 
 // UpdateGRPOInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
@@ -154,13 +156,22 @@ export const UpdateGRPOInputSchema = z
     Address: z.string().optional(),
     Address2: z.string().optional(),
     Comments: z.string().optional(),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
     DocDueDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
+    DocumentLines: z.array(GRPOLineItemSchema).min(1).optional(),
     NumAtCard: z.string().optional(),
     SalesPersonCode: z.coerce.number().int().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    CardCode: z.string().optional(),
+    CardName: z.string().optional(),
+    draftDocEntry: z.coerce.number().optional(),
   })
   .strict();
 

@@ -87,6 +87,7 @@ export const mapSearchToPurchaseOrderListParams = (
     "Open",
     "Partial",
     "Closed",
+    "Draft",
   ]);
 
   // For date single-pick semantics, one boundary means exact day.

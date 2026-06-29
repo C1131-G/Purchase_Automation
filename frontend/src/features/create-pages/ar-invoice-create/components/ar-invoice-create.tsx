@@ -37,6 +37,8 @@ import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invo
 interface ARInvoiceCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 /**
@@ -44,7 +46,12 @@ interface ARInvoiceCreateProps {
  * State is managed by useARInvoiceCreate for a clean, declarative UI.
  * Leverages CreatePageWrapper for consistent entity layout.
  */
-export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProps) {
+export function ARInvoiceCreate({
+  mode = "create",
+  docNum,
+  draftDocNum,
+  draftDocEntry,
+}: ARInvoiceCreateProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const search = useSearch({ strict: false });
@@ -68,6 +75,8 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
           mode,
           sourceDocNum: !sourceCleared ? sourceDocNum : undefined,
           sourceDocType: !sourceCleared ? sourceDocType : undefined,
+          draftDocNum,
+          draftDocEntry,
         },
   );
 
@@ -268,12 +277,18 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
     }
   };
 
-  const pageTitle = state.isEditMode ? `Update A/R Invoice ${docNum}` : "Create A/R Invoice";
+  const pageTitle = state.isEditMode
+    ? `Update A/R Invoice ${docNum}`
+    : draftDocNum
+      ? `Create A/R Invoice (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+      : "Create A/R Invoice";
   const isFormHydrating = !state.isEditMode
-    ? state.vendorsQuery.isLoading &&
-      state.warehousesQuery.isLoading &&
-      state.salesEmployeesQuery.isLoading &&
-      !state.vendorsQuery.data
+    ? draftDocNum
+      ? !state.isEditHydrated
+      : state.vendorsQuery.isLoading &&
+        state.warehousesQuery.isLoading &&
+        state.salesEmployeesQuery.isLoading &&
+        !state.vendorsQuery.data
     : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleCustomerRestrictedClick = state.isEditMode
@@ -326,7 +341,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
             : null
         }
         topActions={
-          !state.isEditMode ? (
+          !state.isEditMode && !draftDocNum ? (
             <CopyFromDropdown
               vendorCode={state.codeInput}
               vendorName={state.nameInput}
@@ -345,7 +360,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
           ) : null
         }
       >
-        {state.trackerDocType && state.trackerDocEntry && (
+        {state.trackerDocType && state.trackerDocEntry && !draftDocNum && (
           <div className="mb-4 mt-2 w-full">
             <div className="relative z-10 overflow-x-auto w-full">
               <RelationshipMapTracker
@@ -522,6 +537,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
           onSubmitMode={state.handleCreateOrder}
           isSaved={state.isSaved}
           savedDocNum={state.savedDocNum}
+          isDirty={state.isDirty}
           onDownload={useDocumentDownload(
             mode === "edit" ? docNum : state.savedDocNum,
             "ar-invoices",
@@ -537,7 +553,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
               viewTransition: true,
             });
           }}
-          submitLabel={state.isEditMode ? "Update" : "Create"}
+          submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           onEditRestrictedClick={state.showEditRestrictedToast}
           warehouses={state.warehouses}
@@ -560,7 +576,7 @@ export function ARInvoiceCreate({ mode = "create", docNum }: ARInvoiceCreateProp
           }}
         />
 
-        {!state.isEditMode && (
+        {!state.isEditMode && !draftDocNum && (
           <>
             <CopyFromDialog
               open={state.pullFromSOModalOpen}

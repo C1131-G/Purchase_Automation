@@ -59,14 +59,15 @@ export const CreditNoteQuerySchema = z
     // Normalize Aliases to Standard Keys
     const normalized = { ...data };
 
-    // Smart Status Mapping: Convert "Open"/"Closed" to "O"/"C" (Case-Insensitive)
+    // Smart Status Mapping: Convert "Open"/"Closed"/"Draft" to canonical values (Case-Insensitive)
     if (normalized.DocStatus) {
       const statusUpper = normalized.DocStatus.toUpperCase();
       if (statusUpper === "OPEN") {
         normalized.DocStatus = "O";
-      }
-      if (statusUpper === "CLOSED") {
+      } else if (statusUpper === "CLOSED") {
         normalized.DocStatus = "C";
+      } else if (statusUpper === "DRAFT") {
+        normalized.DocStatus = "D";
       }
     }
 
@@ -121,13 +122,34 @@ export const CreateCreditNoteInputSchema = z.object({
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.coerce.number().int().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 // UpdateCreditNoteInputSchema: Allows modification of credit note drafts.
-export const UpdateCreditNoteInputSchema = CreateCreditNoteInputSchema.partial().extend({
-  Address: z.string().optional(),
-  Address2: z.string().optional(),
-});
+export const UpdateCreditNoteInputSchema = z
+  .object({
+    Address: z.string().optional(),
+    Address2: z.string().optional(),
+    Comments: z.string().optional(),
+    DocDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocDueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+      .optional(),
+    DocumentLines: z.array(CreditNoteLineItemSchema).optional(),
+    NumAtCard: z.string().optional(),
+    SalesPersonCode: z.coerce.number().int().optional(),
+    attachments: z.array(AttachmentInputSchema).optional(),
+    isDraft: z.boolean().optional(),
+    CardCode: z.string().optional(),
+    CardName: z.string().optional(),
+    draftDocEntry: z.coerce.number().optional(),
+  })
+  .strict();
 
 export type CreditNoteQuery = z.infer<typeof CreditNoteQuerySchema>;
 export type CreditNoteDocNumLookupQuery = z.infer<typeof CreditNoteDocNumLookupQuerySchema>;

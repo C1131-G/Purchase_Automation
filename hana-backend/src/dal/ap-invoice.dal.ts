@@ -65,10 +65,16 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { id } = authReq.params;
+    const draftDocEntry = (req.query.draftDocEntry as string) || undefined;
 
     logger.info({ dbName, id, msg: "Fetching A/P Invoice detail" });
 
-    const data = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+    const data = await apInvoiceService.getInvoiceByDocNum(
+      sessionId,
+      dbName,
+      id as string,
+      draftDocEntry,
+    );
 
     if (!data) {
       return res.status(404).json({ message: "A/P Invoice not found", success: false });
@@ -120,11 +126,20 @@ export const updateInvoice = async (req: Request, res: Response, next: NextFunct
 
     logger.info({ dbName, id: id as string, msg: "Updating A/P Invoice" });
 
-    const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+    const isDraft = validatedPayload.isDraft === true || Boolean(validatedPayload.draftDocEntry);
+    let targetDocEntry: string;
+
+    if (isDraft) {
+      targetDocEntry = String(validatedPayload.draftDocEntry || id);
+    } else {
+      const detail = await apInvoiceService.getInvoiceByDocNum(sessionId, dbName, id as string);
+      targetDocEntry = String(detail.id);
+    }
+
     // Note: getInvoiceByDocNum returns the full detail including internal DocEntry (detail.id)
     const updateResult = await apInvoiceService.updateInvoice(
       sessionId,
-      String(detail.id),
+      targetDocEntry,
       validatedPayload,
     );
 

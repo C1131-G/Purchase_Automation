@@ -59,6 +59,8 @@ type PurchaseQuotationCreateMode = "create" | "edit";
 interface UsePurchaseQuotationCreateOptions {
   mode?: PurchaseQuotationCreateMode;
   docNum?: string;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
   onCreateSuccess?: () => void;
 }
 
@@ -138,6 +140,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   const lastRestrictedToastAtRef = useRef(0);
   const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
   const editDocNum = (options?.docNum ?? "").trim();
+  const draftDocNum = (options?.draftDocNum ?? "").trim();
+  const draftDocEntry = (options?.draftDocEntry ?? "").trim();
+  const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
@@ -186,7 +191,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   });
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       resetPQCreate();
       hydratedDocNumRef.current = null;
       setHydratedDocNum(null);
@@ -195,11 +200,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       resetPQCreate();
       lookups.resetWarehouse();
     };
-  }, [isEditMode, resetPQCreate, lookups.resetWarehouse]);
+  }, [isEditMode, draftDocNum, resetPQCreate, lookups.resetWarehouse]);
 
   const editDetailQuery = useQuery({
-    ...purchaseQuotationQueries.detailByDocNum(editDocNum),
-    enabled: isEditMode && Boolean(editDocNum),
+    ...purchaseQuotationQueries.detailByDocNum(fetchDocNum, isEditMode ? undefined : draftDocEntry),
+    enabled: (isEditMode && Boolean(editDocNum)) || Boolean(draftDocNum),
   });
 
   const isClosed =
@@ -208,11 +213,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     editDetailQuery.data?.data?.DocStatus === "C";
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       return;
     }
-    const currentDocNum = editDocNum;
-    if (!currentDocNum || hydratedDocNumRef.current === currentDocNum) {
+    const hydrationKey = isEditMode ? editDocNum : `${draftDocNum}_${draftDocEntry ?? ""}`;
+    if (!hydrationKey || hydratedDocNumRef.current === hydrationKey) {
       return;
     }
     const detail = editDetailQuery.data?.data;
@@ -220,7 +225,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       return;
     }
 
-    hydratedDocNumRef.current = currentDocNum;
+    hydratedDocNumRef.current = hydrationKey;
 
     // Show loading toast when starting edit hydration
     if (!loadingToastRef.current) {
@@ -344,7 +349,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             .trim()
             .slice(0, 10);
           return {
-            id: `row-${currentDocNum}-${index}`,
+            id: `row-${hydrationKey}-${index}`,
             lineNum: typeof line.LineNum === "number" ? line.LineNum : index,
             productCode: itemCode,
             productName: String(line.ItemDescription ?? productMeta?.name ?? "").trim(),
@@ -457,8 +462,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             })),
         });
 
-        hydratedDocNumRef.current = currentDocNum;
-        setHydratedDocNum(currentDocNum);
+        hydratedDocNumRef.current = hydrationKey;
+        setHydratedDocNum(hydrationKey);
       } finally {
         // Dismiss loading toast when edit hydration is complete (success or error)
         loadingToastRef.current?.dismiss();
@@ -472,6 +477,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     isEditMode,
     lookups,
     editDocNum,
+    draftDocNum,
+    draftDocEntry,
     productsHook,
     setHeader,
   ]);
@@ -674,7 +681,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     setFormSnapshot,
     submitDisabled: dirtySubmitDisabled,
   } = useEditDirtyState({
-    isEditMode,
+    isEditMode: isEditMode || Boolean(draftDocNum),
     currentFields: useMemo(
       () => ({
         comments: header.comments.trim(),
@@ -739,8 +746,6 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     modals.setProductPopupOpen(false);
     modals.setStockPreviewProduct(null);
     setCreateError(null);
-    hydratedDocNumRef.current = null;
-    setHydratedDocNum(null);
     setFormSnapshot(null);
     setAttachments([]);
   }, [resetPQCreate, lookups, modals, productsHook]);
@@ -775,6 +780,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     documentName: "Purchase Quotation",
     moduleType: "purchase",
     defaultUrl: "/purchase/create-quotation",
+    tableUrl: "/purchase/quotations",
     resetForm,
     getPayloadString: () => {
       const payload = {
@@ -811,91 +817,65 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   const handleCreateOrder = async (
     action: "save-new" | "view" | "close" | "draft" = "save-new",
   ) => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      setSubmitAttempted(false);
-      return;
-    }
+    const isDraftAction = action === "draft";
+    const draftCardCode = (header.vendorCode || lookups.codeInput).trim();
 
-    setSubmitAttempted(true);
-    const nextErrors: ProductSearchFieldError = {
-      ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
-    };
-    missingMandatoryFields.forEach((field) => {
-      const mandatoryKey = field as keyof typeof MANDATORY_ERROR_TEXT;
-      nextErrors[field as keyof ProductSearchFieldError] = MANDATORY_ERROR_TEXT[mandatoryKey];
-    });
+    if (isDraftAction) {
+      if (!draftCardCode) {
+        setSubmitAttempted(true);
+        const nextErrors: ProductSearchFieldError = {
+          ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
+          vendorCode: "Vendor Code is required.",
+          vendorName: "Vendor Name is required.",
+        };
+        setProductSearchFieldErrors(nextErrors);
+        setCreateError("Vendor is required to save as draft.");
+        return;
+      }
+    } else {
+      setSubmitAttempted(true);
+      const nextErrors: ProductSearchFieldError = {
+        ...EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
+      };
+      missingMandatoryFields.forEach((field) => {
+        const mandatoryKey = field as keyof typeof MANDATORY_ERROR_TEXT;
+        nextErrors[field as keyof ProductSearchFieldError] = MANDATORY_ERROR_TEXT[mandatoryKey];
+      });
 
-    if (Object.values(nextErrors).some(Boolean)) {
-      setProductSearchFieldErrors(nextErrors);
-      setCreateError(requiredFieldsErrorText);
-      return;
-    }
+      if (Object.values(nextErrors).some(Boolean)) {
+        setProductSearchFieldErrors(nextErrors);
+        setCreateError(requiredFieldsErrorText);
+        return;
+      }
 
-    if (validRows.length === 0) {
-      setCreateError(rowsErrorText);
-      return;
-    }
+      if (validRows.length === 0) {
+        setCreateError(rowsErrorText);
+        return;
+      }
 
-    if (isEditMode && !isDirty) {
-      const noChangeMessage = "Change at least one field before update.";
-      setCreateError(noChangeMessage);
-      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-      return;
+      if (isEditMode && !isDirty) {
+        const noChangeMessage = "Change at least one field before update.";
+        setCreateError(noChangeMessage);
+        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+        return;
+      }
     }
 
     setCreateError(null);
 
-    const payload = isEditMode
+    const loadedDraftDocEntry =
+      editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id;
+
+    const payload = isDraftAction
       ? {
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
-          Comments: header.comments.trim() || undefined,
-          NumAtCard: header.referenceNo.trim() || undefined,
-          DocDate: header.docDate,
-          DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-          // When closed, SAP blocks line-level field updates (ShipDate/ReqDate → ODBC -1029).
-          // Only send DocumentLines for open documents.
-          ...(isClosed
-            ? {}
-            : {
-                RequriedDate: getEffectivePurchaseQuotationDueDate(
-                  header.docDueDate,
-                  header.docDate,
-                ),
-                DocumentLines: validRows.map((row) => ({
-                  LineNum: row.lineNum,
-                  DiscountPercent: row.discountPercent,
-                  ItemCode: row.productCode,
-                  ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-                  Quantity: row.quantity,
-                  UnitPrice: row.price,
-                  UoMCode: row.uomCode || undefined,
-                  UoMEntry: row.uomEntry ?? undefined,
-                  VatGroup: row.vatGroup || undefined,
-                  WarehouseCode:
-                    row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-                })),
-              }),
-          SalesPersonCode: resolvedSalesEmployeeCode,
-          attachments: attachments.map((att) => ({
-            sourcePath: att.sourcePath || "",
-            fileName: att.fileName,
-            fileExtension: att.fileExtension || "",
-            freeText: att.freeText || "",
-            attachmentDate: att.attachmentDate || "",
-          })),
-        }
-      : {
-          Address: lookups.billToAddress.trim() || undefined,
-          Address2: lookups.shipToAddress.trim() || undefined,
-          CardCode: (header.vendorCode || lookups.codeInput).trim(),
+          CardCode: draftCardCode,
           DocCurrency:
             summaryCurrencyLabel !== "$" && summaryCurrencyLabel !== "MULTI" && summaryCurrencyLabel
               ? summaryCurrencyLabel
-              : lookups.vendors.find(
-                  (v) => String(v.code) === String(header.vendorCode || lookups.codeInput).trim(),
-                )?.currency || undefined,
+              : lookups.vendors.find((v) => String(v.code) === String(draftCardCode).trim())
+                  ?.currency || undefined,
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
@@ -920,20 +900,109 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             freeText: att.freeText || "",
             attachmentDate: att.attachmentDate || "",
           })),
-        };
+          isDraft: true,
+        }
+      : isEditMode
+        ? {
+            Address: lookups.billToAddress.trim() || undefined,
+            Address2: lookups.shipToAddress.trim() || undefined,
+            Comments: header.comments.trim() || undefined,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            DocDate: header.docDate,
+            DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+            // When closed, SAP blocks line-level field updates (ShipDate/ReqDate → ODBC -1029).
+            // Only send DocumentLines for open documents.
+            ...(isClosed
+              ? {}
+              : {
+                  RequriedDate: getEffectivePurchaseQuotationDueDate(
+                    header.docDueDate,
+                    header.docDate,
+                  ),
+                  DocumentLines: validRows.map((row) => ({
+                    LineNum: row.lineNum,
+                    DiscountPercent: row.discountPercent,
+                    ItemCode: row.productCode,
+                    ReqDate: getEffectivePurchaseQuotationDueDate(
+                      header.docDueDate,
+                      header.docDate,
+                    ),
+                    Quantity: row.quantity,
+                    UnitPrice: row.price,
+                    UoMCode: row.uomCode || undefined,
+                    UoMEntry: row.uomEntry ?? undefined,
+                    VatGroup: row.vatGroup || undefined,
+                    WarehouseCode:
+                      row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+                  })),
+                }),
+            SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
+          }
+        : {
+            Address: lookups.billToAddress.trim() || undefined,
+            Address2: lookups.shipToAddress.trim() || undefined,
+            CardCode: (header.vendorCode || lookups.codeInput).trim(),
+            DocCurrency:
+              summaryCurrencyLabel !== "$" &&
+              summaryCurrencyLabel !== "MULTI" &&
+              summaryCurrencyLabel
+                ? summaryCurrencyLabel
+                : lookups.vendors.find(
+                    (v) => String(v.code) === String(header.vendorCode || lookups.codeInput).trim(),
+                  )?.currency || undefined,
+            Comments: header.comments.trim() || undefined,
+            NumAtCard: header.referenceNo.trim() || undefined,
+            DocDate: header.docDate,
+            DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+            DocumentLines: validRows.map((row) => ({
+              LineNum: row.lineNum,
+              DiscountPercent: row.discountPercent,
+              ItemCode: row.productCode,
+              ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+              Quantity: row.quantity,
+              UnitPrice: row.price,
+              UoMCode: row.uomCode || undefined,
+              UoMEntry: row.uomEntry ?? undefined,
+              VatGroup: row.vatGroup || undefined,
+              WarehouseCode:
+                row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
+            })),
+            SalesPersonCode: resolvedSalesEmployeeCode,
+            attachments: attachments.map((att) => ({
+              sourcePath: att.sourcePath || "",
+              fileName: att.fileName,
+              fileExtension: att.fileExtension || "",
+              freeText: att.freeText || "",
+              attachmentDate: att.attachmentDate || "",
+            })),
+            draftDocEntry: loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined,
+          };
 
-    saveActions.startSaveTracking(isEditMode ? "update" : action);
-    saveActions.actionToast.startLoading("Purchase Quotation", isEditMode ? "update" : action);
+    const isDraftUpdate = isDraftAction && loadedDraftDocEntry !== undefined;
+    const isUpdating = isEditMode || isDraftUpdate;
+    const trackingAction = isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("Purchase Quotation", trackingAction);
     try {
       let createdDocNum: string | number | undefined;
-      if (isEditMode) {
-        const detail = editDetailQuery.data?.data;
-        const docEntry = detail?.DocEntry ?? detail?.id;
+
+      if (isUpdating) {
+        const docEntry = isEditMode
+          ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+          : loadedDraftDocEntry;
         if (docEntry === undefined || docEntry === null) {
           setCreateError("Unable to update Purchase Quotation. Document id is missing.");
           saveActions.actionToast.showError(
             "Purchase Quotation",
-            "update",
+            trackingAction,
             "Document ID is missing.",
           );
           return;
@@ -942,7 +1011,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           id: docEntry,
           payload,
         });
-        createdDocNum = detail?.DocNum;
+        createdDocNum = isEditMode
+          ? editDetailQuery.data?.data?.DocNum
+          : (editDetailQuery.data?.data?.DocNum ?? draftDocNum);
 
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
         const updatedDetailRes = await queryClient.fetchQuery(
@@ -1100,13 +1171,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         queryClient.prefetchQuery(purchaseQuotationQueries.docNumSuggestions(undefined, 10)),
         queryClient.prefetchQuery(purchaseQuotationQueries.docNumSuggestions(undefined, 100)),
       ]);
-      if (isEditMode && createdDocNum !== undefined) {
+      if ((isEditMode || isDraftUpdate) && createdDocNum !== undefined) {
         void queryClient.invalidateQueries(
           purchaseQuotationQueries.detailByDocNum(String(createdDocNum)),
         );
       }
 
-      await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
+      await saveActions.handleActionSuccess(trackingAction, createdDocNum);
 
       if (!isEditMode && action === "save-new") {
         options?.onCreateSuccess?.();
@@ -1114,13 +1185,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     } catch (error) {
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
-        `Failed to ${isEditMode ? "update" : "create"} Purchase Quotation. Try again.`,
+        `Failed to ${isUpdating ? "update" : "create"} Purchase Quotation. Try again.`,
       );
-      saveActions.actionToast.showError(
-        "Purchase Quotation",
-        isEditMode ? "update" : action,
-        errorMessage,
-      );
+      saveActions.actionToast.showError("Purchase Quotation", trackingAction, errorMessage);
       setCreateError(errorMessage);
     }
   };
@@ -1138,7 +1205,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     [productsHook.productRows],
   );
   const summaryCurrencyLabel = summaryCurrency === "MULTI" ? "MULTI" : summaryCurrency;
-  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum;
+  const isEditHydrated = isEditMode
+    ? Boolean(editDocNum) && hydratedDocNum === editDocNum
+    : draftDocNum
+      ? Boolean(draftDocNum) && hydratedDocNum === `${draftDocNum}_${draftDocEntry ?? ""}`
+      : true;
 
   return {
     ...lookups,
@@ -1187,12 +1258,17 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     summaryCurrencyLabel,
     today,
     totals,
-    trackerDocType: isEditMode ? ("purchase-quotation" as const) : null,
-    trackerDocEntry: isEditMode
-      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
-      : null,
+    trackerDocType:
+      isEditMode && editDetailQuery.data?.data?.DocStatus !== "Draft"
+        ? ("purchase-quotation" as const)
+        : null,
+    trackerDocEntry:
+      isEditMode && editDetailQuery.data?.data?.DocStatus !== "Draft"
+        ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+        : null,
     updatePurchaseQuotationMutation,
-    submitDisabled: dirtySubmitDisabled,
+    isDirty,
+    submitDisabled: isEditMode ? dirtySubmitDisabled : false,
     attachments,
     setAttachments,
   };

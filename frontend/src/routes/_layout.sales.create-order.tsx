@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { z } from "zod";
+
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { SalesOrderCreate } from "@/features/create-pages/sales-order-create/components/sales-order-create";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -15,9 +17,17 @@ export const Route = createFileRoute("/_layout/sales/create-order")({
   },
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
+  validateSearch: (search) =>
+    z
+      .object({
+        draftDocNum: z.string().or(z.number()).transform(String).optional(),
+        draftDocEntry: z.string().or(z.number()).transform(String).optional(),
+      })
+      .parse(search),
 });
 
 function RouteComponent() {
   useDocumentTitle("Create Sales Order | ERP Portal");
-  return <SalesOrderCreate />;
+  const { draftDocNum, draftDocEntry } = Route.useSearch();
+  return <SalesOrderCreate draftDocNum={draftDocNum} draftDocEntry={draftDocEntry} />;
 }

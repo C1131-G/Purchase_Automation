@@ -85,6 +85,7 @@ export const mapSearchToAPInvoiceListParams = (search: APInvoiceSearch): APInvoi
     "Open",
     "Partial",
     "Closed",
+    "Draft",
   ]);
 
   const start = docDate?.from ?? docDate?.to;

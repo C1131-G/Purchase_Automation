@@ -118,9 +118,20 @@ export function ArCreditMemoTable() {
   const columns = useMemo(
     () =>
       createArCreditMemoColumns({
-        onDocNumDoubleClick: (docNum) => {
+        onDocNumDoubleClick: (docNum, draftDocEntry) => {
           const normalized = String(docNum).trim();
           if (!normalized) {
+            return;
+          }
+          if (draftDocEntry) {
+            void navigate({
+              search: {
+                draftDocNum: normalized,
+                draftDocEntry: String(draftDocEntry),
+              },
+              to: "/sales/ar-credit-memo/create",
+              viewTransition: true,
+            } as never);
             return;
           }
           prefetchEditRouteData(normalized);
@@ -130,7 +141,10 @@ export function ArCreditMemoTable() {
             viewTransition: true,
           } as never);
         },
-        onDocNumHover: (docNum) => {
+        onDocNumHover: (docNum, draftDocEntry) => {
+          if (draftDocEntry) {
+            return;
+          }
           const normalized = String(docNum).trim();
           if (!normalized) {
             return;

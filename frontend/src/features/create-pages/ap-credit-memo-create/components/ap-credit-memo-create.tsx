@@ -31,6 +31,8 @@ interface APCreditMemoCreateProps {
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "APInvoice" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
 }
 
 type CopyFromSourceType = "APInvoice";
@@ -40,6 +42,8 @@ export function APCreditMemoCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum,
+  draftDocEntry,
 }: APCreditMemoCreateProps) {
   const router = useRouter();
   const [copyFromDialogOpen, setCopyFromDialogOpen] = useState(false);
@@ -49,6 +53,8 @@ export function APCreditMemoCreate({
   const state = useAPCreditMemoCreate({
     docNum: docNum || "",
     mode,
+    draftDocNum: draftDocNum || "",
+    draftDocEntry: draftDocEntry || "",
     onCreateSuccess: () => {
       setSourceCleared(false);
     },
@@ -103,7 +109,9 @@ export function APCreditMemoCreate({
 
   const pageTitle = state.isEditMode
     ? `Update A/P Credit Memo ${docNum || ""}`
-    : "Create A/P Credit Memo";
+    : draftDocNum
+      ? `Create A/P Credit Memo (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
+      : "Create A/P Credit Memo";
 
   return (
     <CreatePageWrapper
@@ -122,7 +130,7 @@ export function APCreditMemoCreate({
           : null
       }
       topActions={
-        !state.isEditMode ? (
+        !state.isEditMode && !draftDocNum ? (
           <CopyFromDropdown
             vendorCode={state.vendorCodeInput}
             vendorName={state.vendorNameInput}
@@ -147,7 +155,7 @@ export function APCreditMemoCreate({
         ) : undefined
       }
     >
-      {state.trackerDocType && state.trackerDocEntry && (
+      {state.trackerDocType && state.trackerDocEntry && !draftDocNum && (
         <div className="mb-4 mt-2 w-full">
           <div className="relative z-10 overflow-x-auto w-full">
             <RelationshipMapTracker
@@ -308,13 +316,13 @@ export function APCreditMemoCreate({
           loading={isFormHydrating}
           referenceNo={state.referenceNo}
           comments={state.remarks}
-          referenceNoDisabled={false}
           uniformReadOnlyAppearance={state.isEditMode}
-          onReferenceNoDisabledClick={() => state.setReferenceNo(state.referenceNo)}
           onReferenceNoChange={state.setReferenceNo}
           onCommentsChange={state.setRemarks}
-          commentsDisabled={false}
-          onCommentsDisabledClick={() => state.setRemarks(state.remarks)}
+          referenceNoInvalid={Boolean(state.fieldErrors.referenceNo)}
+          commentsInvalid={Boolean(state.fieldErrors.comments)}
+          referenceNoErrorText={state.fieldErrors.referenceNo}
+          commentsErrorText={state.fieldErrors.comments}
           referenceLabel="VENDOR REF NO"
         />
       </div>
@@ -336,6 +344,7 @@ export function APCreditMemoCreate({
         rows={state.rows}
         productRowDrafts={state.productRowDrafts}
         submitDisabled={state.submitDisabled}
+        isDirty={state.isDirty}
         setProductRows={state.setProductRows}
         vendorCode={state.vendorCodeInput}
         vendorName={state.vendorNameInput}
@@ -351,9 +360,7 @@ export function APCreditMemoCreate({
         requiredFieldLabelText={AP_CREDIT_MEMO_FIELD_LABEL_TEXT}
         openProductPopup={state.openProductPopup}
         prefetchProducts={state.prefetchProducts}
-        isSubmitting={
-          state.isEditMode ? state.updateMutation.isPending : state.createMutation.isPending
-        }
+        isSubmitting={state.createMutation.isPending || state.updateMutation.isPending}
         isEditMode={state.isEditMode}
         onUpdateProductRow={state.updateProductRow}
         onRemoveProductRow={state.removeProductRow}

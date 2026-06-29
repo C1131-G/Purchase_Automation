@@ -44,7 +44,7 @@ import {
   GRPO_MANDATORY_FIELDS,
 } from "@/features/create-pages/grpo-create/utils/grpo-create.utils";
 import type { GRPOMandatoryField } from "@/features/create-pages/grpo-create/utils/grpo-create.utils";
-import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
+import { grpoKeys, grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
 import {
   purchaseOrderKeys,
   purchaseOrderQueries,
@@ -103,6 +103,8 @@ interface UseGRPOCreateOptions {
   docNum?: string;
   sourceDocNum?: string | undefined;
   sourceDocType?: "PurchaseOrder" | "PurchaseQuotation" | undefined;
+  draftDocNum?: string | undefined;
+  draftDocEntry?: string | undefined;
   onCreateSuccess?: () => void;
 }
 
@@ -122,6 +124,8 @@ export function useGRPOCreate({
   docNum,
   sourceDocNum,
   sourceDocType,
+  draftDocNum: draftDocNumOption,
+  draftDocEntry: draftDocEntryOption,
   onCreateSuccess,
 }: UseGRPOCreateOptions) {
   const parseGRPOHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
@@ -153,6 +157,9 @@ export function useGRPOCreate({
   };
   const isEditMode = mode === "edit";
   const editDocNum = (docNum ?? "").trim();
+  const draftDocNum = (draftDocNumOption ?? "").trim();
+  const draftDocEntry = (draftDocEntryOption ?? "").trim();
+  const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
   const queryClient = useQueryClient();
   const header = useGRPOHeader();
   const setHeader = useSetGRPOHeaderAction();
@@ -267,7 +274,6 @@ export function useGRPOCreate({
   const vendorsQuery = useQuery(createSharedQueries.vendors());
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const salesEmployeesQuery = useQuery(createSharedQueries.salesEmployees());
-  const financialPeriodQuery = useQuery(createSharedQueries.financialPeriod());
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
@@ -351,8 +357,8 @@ export function useGRPOCreate({
   });
 
   const editDetailQuery = useQuery({
-    ...grpoQueries.detailByDocNum(editDocNum),
-    enabled: isEditMode && Boolean(editDocNum),
+    ...grpoQueries.detailByDocNum(fetchDocNum, isEditMode ? undefined : draftDocEntry),
+    enabled: (isEditMode && Boolean(editDocNum)) || Boolean(draftDocNum),
   });
 
   const isClosed =
@@ -361,7 +367,7 @@ export function useGRPOCreate({
     editDetailQuery.data?.data?.DocStatus === "C";
 
   const isDirty = useMemo(() => {
-    if (!isEditMode || !formSnapshot) {
+    if ((!isEditMode && !draftDocNum) || !formSnapshot) {
       return false;
     }
     const current = {
@@ -387,7 +393,7 @@ export function useGRPOCreate({
     attachments,
   ]);
 
-  const submitDisabled = isEditMode ? !isDirty : false;
+  const submitDisabled = isEditMode || Boolean(draftDocNum) ? !isDirty : false;
   const docStatus =
     editDetailQuery.data?.data?.DocStatus === "O" ||
     editDetailQuery.data?.data?.DocStatus === "bost_Open"
@@ -398,7 +404,7 @@ export function useGRPOCreate({
         : (editDetailQuery.data?.data?.DocStatus ?? "Open");
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode && !draftDocNum) {
       // Preserve store state during same-page route transitions (e.g. search param updates).
       // Cleanup is handled when unmounting and leaving the page.
     }
@@ -408,7 +414,7 @@ export function useGRPOCreate({
         resetWarehouse();
       }
     };
-  }, [isEditMode, resetGRPOCreate, resetWarehouse]);
+  }, [isEditMode, draftDocNum, resetGRPOCreate, resetWarehouse]);
 
   useEffect(() => {
     if (header.warehouseCode && warehouses.length > 0) {
@@ -686,8 +692,277 @@ export function useGRPOCreate({
     vendors,
   ]);
 
+  // Draft Hydration: Loads existing draft data into the form when draftDocNum is present
   useEffect(() => {
-    if (mode !== "create") {
+    if (isEditMode || !draftDocNum) {
+      return;
+    }
+    const currentDocNum = fetchDocNum;
+    if (!currentDocNum) {
+      return;
+    }
+    const detail = editDetailQuery.data?.data;
+    if (!detail) {
+      return;
+    }
+
+    const isMetadataLoaded = vendors.length > 0 && salesEmployees.length > 0;
+    const hydrationKey = `${draftDocNum}_${draftDocEntry ?? ""}`;
+    if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) {
+      return;
+    }
+
+    // Show loading toast when starting draft hydration
+    if (!loadingToastRef.current) {
+      loadingToastRef.current = pageLoadingToast("GRPO", "edit");
+    }
+
+    void (async () => {
+      try {
+        setVendorCodeInput(String(detail.CardCode ?? "").trim());
+        setVendorNameInput(String(detail.CardName ?? "").trim());
+        const loadedDocDate = String(detail.DocDate ?? "").slice(0, 10) || getTodayISO();
+        const { comments: remarks, referenceNo } = parseGRPOHeaderNotes(detail);
+
+        const matchedVendor = vendors.find(
+          (vendor) => String(vendor.code).trim() === String(detail.CardCode ?? "").trim(),
+        );
+        const buyerFromDocCode =
+          detail.SalesPersonCode !== undefined && detail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(detail.SalesPersonCode),
+              )?.name
+            : "";
+        const buyerFromVendorCode =
+          matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
+              )?.name
+            : "";
+
+        setBuyerInput(
+          buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || "",
+        );
+        const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
+
+        setHeader({
+          docDate: loadedDocDate,
+          docDueDate,
+          referenceNo,
+          remarks,
+        });
+        const billAddr = String(detail.Address ?? "").trim();
+        const shipAddr = String((detail as Record<string, unknown>).Address2 ?? "").trim();
+        setBillToAddress(billAddr);
+        setShipToAddress(shipAddr);
+        const detailLines = detail.DocumentLines ?? [];
+        const productsForWarehouse =
+          effectiveWarehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+                .catch((): ProductLookupItem[] => [])
+            : [];
+
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
+        const uniqueItemCodes = [
+          ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
+          );
+        }
+
+        await Promise.all(
+          uniqueItemCodes.map(async (itemCode) => {
+            const warehouseStocks = await queryClient
+              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+              .catch(() => []);
+            stockByItemCode.set(
+              itemCode,
+              warehouseStocks.map((stock) => ({
+                code: String(stock.code ?? "").trim(),
+                stock: Number(stock.stock ?? 0),
+              })),
+            );
+          }),
+        );
+
+        const taxRateByItemCode = await resolveProductTaxRates(
+          queryClient,
+          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          "purchase",
+        );
+        const resolvedHeaderDiscountPercent = Number(
+          (detail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
+        setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
+
+        const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
+          const lineData = line as Record<string, unknown>;
+          const quantity = Math.max(0, Number(line.Quantity ?? 0));
+          const price = Number(line.Price ?? line.UnitPrice ?? 0);
+          const grossAmount = Math.max(0, price * quantity);
+          const itemCode = String(line.ItemCode ?? "").trim();
+          const productMeta = productByCode.get(itemCode);
+          const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
+          const warehouseStocks = stockByItemCode.get(itemCode) ?? [];
+          const lineStock = lineWarehouseCode
+            ? Number(warehouseStocks.find((stock) => stock.code === lineWarehouseCode)?.stock ?? 0)
+            : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
+          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+            grossAmount,
+            headerDiscountPercent: resolvedHeaderDiscountPercent,
+            line: line as unknown as Record<string, unknown>,
+          });
+
+          return {
+            id: `${currentDocNum}-${index}`,
+            productCode: itemCode,
+            productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
+            stock: lineStock,
+            currency: "",
+            vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
+            taxRate:
+              (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+              taxRateByItemCode.get(itemCode) ||
+              0,
+            uomCode: (() => {
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) return code;
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) {
+                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                if (match?.code) return match.code;
+              }
+              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+            })(),
+            uomEntry: (() => {
+              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+              if (Number.isFinite(entry) && entry > 0) return entry;
+              const code = String(
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+              ).trim();
+              if (code) {
+                const match = productMeta?.uomList?.find((u) => u.code === code);
+                if (match?.uomEntry !== undefined) return match.uomEntry;
+              }
+              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+            })(),
+            purchaseUomCode: productMeta?.purchaseUomCode,
+            purchaseUomEntry: productMeta?.purchaseUomEntry,
+            salesUomCode: productMeta?.uomCode,
+            salesUomEntry: productMeta?.uomEntry,
+            uomList: productMeta?.uomList,
+            baseQuantity: quantity,
+            quantity,
+            discountPercent,
+            discountAmount,
+            comment: "",
+            price,
+            warehouseCode: lineWarehouseCode,
+            baseEntry:
+              typeof line.BaseEntry === "number" && Number.isFinite(line.BaseEntry)
+                ? line.BaseEntry
+                : undefined,
+            baseLine:
+              typeof line.BaseLine === "number" && Number.isFinite(line.BaseLine)
+                ? line.BaseLine
+                : undefined,
+            baseType:
+              typeof line.BaseType === "number" && Number.isFinite(line.BaseType)
+                ? line.BaseType
+                : undefined,
+            selected: false,
+          };
+        });
+        setLines(mappedLines);
+        const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const matchedWarehouseEdit = warehouses.find(
+          (w) => String(w.code).trim() === editWarehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(
+            matchedWarehouseEdit?.name ?? editWarehouseCode,
+            editWarehouseCode,
+          ),
+        );
+        setBillToAddress(String(detail.Address ?? "").trim());
+        setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
+
+        const rawAttachments = detail.attachments || [];
+        setAttachments(
+          rawAttachments.map((item: any, idx: number) => ({
+            id: `loaded-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
+
+        setFormSnapshot({
+          remarks: (remarks || "").trim(),
+          referenceNo: (referenceNo || "").trim(),
+          docDueDate: docDueDate,
+          billToAddress: billAddr,
+          shipToAddress: shipAddr,
+          attachments: rawAttachments.map((item: any) => ({
+            fileName: item.fileName,
+            freeText: item.freeText || item.remarks || "",
+          })),
+        });
+
+        if (isMetadataLoaded) {
+          hydratedDocNumRef.current = hydrationKey;
+        }
+        setHydratedDocNum(hydrationKey);
+      } finally {
+        loadingToastRef.current?.dismiss();
+        loadingToastRef.current = null;
+      }
+    })();
+  }, [
+    draftDocNum,
+    draftDocEntry,
+    editDetailQuery.data,
+    isEditMode,
+    queryClient,
+    salesEmployees,
+    setHeader,
+    setLines,
+    setBillToAddress,
+    setShipToAddress,
+    vendors,
+    warehouses,
+    effectiveWarehouseCode,
+    fetchDocNum,
+  ]);
+
+  useEffect(() => {
+    if (isEditMode || draftDocNum) {
       return;
     }
     const currentSourceDocNum = sourceDocNum;
@@ -993,7 +1268,8 @@ export function useGRPOCreate({
 
     void fetchAllSources();
   }, [
-    mode,
+    isEditMode,
+    draftDocNum,
     sourceDocNum,
     sourceDocType,
     vendors,
@@ -1628,8 +1904,12 @@ export function useGRPOCreate({
   }, [missingMandatoryFields.length]);
 
   const requiredFieldsTotal = GRPO_MANDATORY_FIELDS.length;
-  const isEditHydrated = !isEditMode || !editDocNum || hydratedDocNum === editDocNum;
-  const isSourceHydrating = mode === "create" && Boolean(sourceDocNum) && !sourceHydrationComplete;
+  const isEditHydrated = isEditMode
+    ? !editDocNum || hydratedDocNum === editDocNum
+    : !draftDocNum ||
+      (hydratedDocNum !== null && hydratedDocNum === `${draftDocNum}_${draftDocEntry ?? ""}`);
+  const isSourceHydrating =
+    !isEditMode && !draftDocNum && Boolean(sourceDocNum) && !sourceHydrationComplete;
 
   const createDisabledReason = useMemo(() => {
     if (missingMandatoryFields.length > 0) {
@@ -1823,65 +2103,122 @@ export function useGRPOCreate({
     documentName: "GRPO",
     moduleType: "purchase",
     defaultUrl: "/purchase/create-grpo",
+    tableUrl: "/purchase/grpo",
     resetForm,
     getPayloadString,
     isEditMode,
   });
 
   const handleCreateGRPO = async (action: "save-new" | "view" | "close" | "draft" = "save-new") => {
-    if (action === "draft") {
-      await saveActions.handleActionSuccess("draft");
-      setSubmitAttempted(false);
-      return;
-    }
+    const isDraftAction = action === "draft";
+    const draftCardCode = vendorCodeInput.trim();
 
-    setSubmitAttempted(true);
-    if (!isEditMode && missingMandatoryFields.length > 0) {
-      const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS };
-      missingMandatoryFields.forEach((field) => {
-        nextErrors[field] = GRPO_FIELD_ERROR_TEXT[field];
-      });
-      setFieldErrors(nextErrors);
-      setCreateError("Fill required fields before creating GRPO.");
-      return;
-    }
+    if (isDraftAction) {
+      if (!draftCardCode) {
+        setSubmitAttempted(true);
+        const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS };
+        nextErrors.vendorCode = GRPO_FIELD_ERROR_TEXT.vendorCode;
+        nextErrors.vendorName = GRPO_FIELD_ERROR_TEXT.vendorName;
+        setFieldErrors(nextErrors);
+        setCreateError("Vendor is required to save as draft.");
+        return;
+      }
+    } else {
+      setSubmitAttempted(true);
+      if (!isEditMode && missingMandatoryFields.length > 0) {
+        const nextErrors = { ...EMPTY_GRPO_FIELD_ERRORS };
+        missingMandatoryFields.forEach((field) => {
+          nextErrors[field] = GRPO_FIELD_ERROR_TEXT[field];
+        });
+        setFieldErrors(nextErrors);
+        setCreateError("Fill required fields before creating GRPO.");
+        return;
+      }
 
-    if (filteredRows.length === 0) {
-      setCreateError("Set at least one line quantity greater than 0.");
-      return;
-    }
+      if (filteredRows.length === 0) {
+        setCreateError("Set at least one line quantity greater than 0.");
+        return;
+      }
 
-    if (isEditMode && !isDirty) {
-      const noChangeMessage = "Change at least one field before update.";
-      setCreateError(noChangeMessage);
-      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-      return;
+      if (isEditMode && !isDirty) {
+        const noChangeMessage = "Change at least one field before update.";
+        setCreateError(noChangeMessage);
+        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
+        return;
+      }
     }
 
     setCreateError(null);
-    const payload = JSON.parse(getPayloadString());
 
-    saveActions.startSaveTracking(isEditMode ? "update" : action);
-    saveActions.actionToast.startLoading("GRPO", isEditMode ? "update" : action);
+    const loadedDraftDocEntry =
+      editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id;
+
+    const payload = isDraftAction
+      ? {
+          Address: billToAddress.trim() || undefined,
+          Address2: shipToAddress.trim() || undefined,
+          CardCode: draftCardCode,
+          Comments: header.remarks.trim() || undefined,
+          DocDate: header.docDate || undefined,
+          DocDueDate: header.docDueDate || undefined,
+          NumAtCard: header.referenceNo.trim() || undefined,
+          DocumentLines: filteredRows.map((row) => ({
+            DiscountPercent: row.discountPercent,
+            ItemCode: row.productCode,
+            Quantity: row.quantity,
+            UnitPrice: row.price,
+            UoMCode: row.uomCode || undefined,
+            UoMEntry: row.uomEntry ?? undefined,
+            VatGroup: row.vatGroup || undefined,
+            WarehouseCode: row.warehouseCode || undefined,
+          })),
+          SalesPersonCode: resolvedSalesEmployeeCode,
+          attachments: attachments.map((att) => ({
+            sourcePath: att.sourcePath || "",
+            fileName: att.fileName,
+            fileExtension: att.fileExtension || "",
+            freeText: att.freeText || "",
+            attachmentDate: att.attachmentDate || "",
+          })),
+          isDraft: true,
+          draftDocEntry: loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined,
+        }
+      : (() => {
+          const parsed = JSON.parse(getPayloadString());
+          if (loadedDraftDocEntry) {
+            parsed.draftDocEntry = Number(loadedDraftDocEntry);
+          }
+          return parsed;
+        })();
+
+    const isDraftUpdate = isDraftAction && loadedDraftDocEntry !== undefined;
+    const isUpdating = isEditMode || isDraftUpdate;
+    const trackingAction = isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
+
+    saveActions.startSaveTracking(trackingAction);
+    saveActions.actionToast.startLoading("GRPO", trackingAction);
     try {
-      let createdDocNum: number | undefined;
-      if (isEditMode) {
-        const detail = editDetailQuery.data?.data;
+      let createdDocNum: string | number | undefined;
+      if (isUpdating) {
+        const detail = isEditMode ? editDetailQuery.data?.data : editDetailQuery.data?.data;
         const id = detail?.id ?? detail?.DocEntry;
         if (id === undefined || id === null) {
           setCreateError("Unable to update GRPO. Document id is missing.");
-          saveActions.actionToast.showError("GRPO", "update", "Document ID is missing.");
+          saveActions.actionToast.showError("GRPO", trackingAction, "Document ID is missing.");
           return;
         }
         await updateMutation.mutateAsync({
           id,
           payload,
         });
-        createdDocNum = detail?.DocNum;
+        createdDocNum = isEditMode ? detail?.DocNum : (detail?.DocNum ?? draftDocNum);
 
         // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
         const updatedDetailRes = await queryClient.fetchQuery(
-          grpoQueries.detailByDocNum(String(createdDocNum)),
+          grpoQueries.detailByDocNum(
+            String(createdDocNum),
+            isEditMode ? undefined : String(loadedDraftDocEntry),
+          ),
         );
         const updatedDetail = updatedDetailRes?.data;
         if (updatedDetail) {
@@ -1921,13 +2258,33 @@ export function useGRPOCreate({
       }
 
       saveActions.trackMutationSuccess();
+
+      void queryClient.invalidateQueries({ queryKey: grpoKeys.all });
+      void Promise.allSettled([
+        queryClient.prefetchQuery(grpoQueries.list({ limit: 10, page: 1 })),
+        queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 10)),
+        queryClient.prefetchQuery(grpoQueries.docNumSuggestions(undefined, 100)),
+      ]);
+
+      if (isEditMode || loadedDraftDocEntry) {
+        const currentDocNum = isEditMode ? (docNum ?? "").trim() : draftDocNum;
+        if (currentDocNum) {
+          void queryClient.invalidateQueries(
+            grpoQueries.detailByDocNum(
+              currentDocNum,
+              isEditMode ? undefined : String(loadedDraftDocEntry),
+            ),
+          );
+        }
+      }
+
       await saveActions.handleActionSuccess(isEditMode ? "update" : action, createdDocNum);
 
+      if (!isEditMode && action === "save-new") {
+        onCreateSuccess?.();
+      }
+
       if (isEditMode) {
-        const currentDocNum = (docNum ?? "").trim();
-        if (currentDocNum) {
-          void queryClient.invalidateQueries(grpoQueries.detailByDocNum(currentDocNum));
-        }
         window.scrollTo({ behavior: "smooth", top: 0 });
         setSubmitAttempted(false);
         resetWarehouse();
@@ -1974,9 +2331,9 @@ export function useGRPOCreate({
     } catch (error) {
       const errorMsg = normalizeCreateOrderErrorMessage(
         error,
-        `Failed to ${isEditMode ? "update" : "create"} GRPO. Try again.`,
+        `Failed to ${trackingAction} GRPO. Try again.`,
       );
-      saveActions.actionToast.showError("GRPO", isEditMode ? "update" : action, errorMsg);
+      saveActions.actionToast.showError("GRPO", trackingAction, errorMsg);
       setCreateError(errorMsg);
     }
   };
@@ -1997,7 +2354,6 @@ export function useGRPOCreate({
     vendorsQuery,
     warehousesQuery,
     salesEmployeesQuery,
-    financialPeriodQuery,
     productsQuery,
     productWarehouseStocksQuery,
     editDetailQuery,
@@ -2080,6 +2436,7 @@ export function useGRPOCreate({
     setStockPreviewProduct,
     openStockPreview,
 
+    isDirty,
     submitDisabled,
     fieldErrors,
     createError,
@@ -2097,6 +2454,7 @@ export function useGRPOCreate({
     isSaved: saveActions.isSaved,
     savedDocNum: saveActions.savedDocNum,
     resetForm: saveActions.handleReset,
+    draftDocNum,
 
     setDocDate: (val: string) =>
       isEditMode ? notifyRestricted("Document Date") : setHeader({ docDate: val }),
@@ -2130,10 +2488,12 @@ export function useGRPOCreate({
     hasCopiedRows,
     confirmVendorChange,
     cancelVendorChange,
-    trackerDocType: isEditMode ? ("grpo" as const) : null,
-    trackerDocEntry: isEditMode
-      ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
-      : null,
+    trackerDocType:
+      isEditMode && editDetailQuery.data?.data?.DocStatus !== "Draft" ? ("grpo" as const) : null,
+    trackerDocEntry:
+      isEditMode && editDetailQuery.data?.data?.DocStatus !== "Draft"
+        ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
+        : null,
     attachments,
     setAttachments,
   };
