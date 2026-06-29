@@ -36,3 +36,19 @@ export const goodsReceiptQueries = {
       staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
     }),
 };
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+export function useUpdateGoodsReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      id: string | number;
+      payload: { Comments?: string; JrnlMemo?: string; Ref2?: string; Attachments?: any[] };
+    }) => goodsReceiptAPI.updateGoodsReceipt(data.id, data.payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.all });
+      queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detailById(variables.id) });
+    },
+  });
+}

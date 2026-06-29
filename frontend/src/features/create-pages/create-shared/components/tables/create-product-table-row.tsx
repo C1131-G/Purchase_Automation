@@ -1010,7 +1010,10 @@ export function CreateProductTableRow({
         )}
       </td>
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
-        {row.price.toFixed(2)}
+        {Number(row.price).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6,
+        })}
       </td>
       <td className="min-w-0 px-2 py-2">
         <input

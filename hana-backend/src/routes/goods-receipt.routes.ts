@@ -19,5 +19,6 @@ router.get(
 );
 router.get("/:id", goodsReceiptDal.getGoodsReceipt);
 router.post("/", goodsReceiptDal.createGoodsReceipt);
+router.patch("/:id", goodsReceiptDal.updateGoodsReceipt);
 
 export const goodsReceiptRoutes = router;

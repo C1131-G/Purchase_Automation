@@ -37,6 +37,7 @@ interface CreateGoodsReceiptPayload {
   Ref2?: string;
   Comments?: string;
   JrnlMemo?: string;
+  Attachments?: any[];
   DocumentLines: {
     ItemCode: string;
     Quantity: number;
@@ -151,6 +152,8 @@ export function GoodsReceiptCreate() {
 
   // Determine the price list CODE (numeric string) to pass to the products API
   const resolvedPriceListCode = (() => {
+    if (resolvedPriceList === "Last Evaluated Price") return "-2";
+    if (resolvedPriceList === "Last Purchase Price") return "-1";
     const selected = priceLists.find((pl) => pl.name === resolvedPriceList);
     return selected ? selected.code : undefined;
   })();
@@ -192,9 +195,8 @@ export function GoodsReceiptCreate() {
               : Array.isArray(raw.data)
                 ? (raw.data as Record<string, unknown>[])
                 : [];
-            const match = items.find(
-              (item) => String(item.ItemCode ?? item.itemCode ?? item.code ?? "").trim() === code,
-            );
+            // Use the first returned item since the backend search (using LIKE) handles invisible chars/partial matches
+            const match = items[0];
             return {
               code,
               price: match ? Number(match.Price ?? match.price ?? match.AvgPrice ?? 0) : null,
@@ -282,6 +284,7 @@ export function GoodsReceiptCreate() {
       TaxDate: documentDate || getTodayISO(),
       ...(ref2 ? { Ref2: ref2 } : {}),
       ...(remarks ? { Comments: remarks } : {}),
+      ...(attachments.length > 0 ? { Attachments: attachments } : {}),
       JrnlMemo: journalRemark || "Goods Receipt",
       DocumentLines: validRows.map((r) => ({
         ItemCode: r.itemNo,

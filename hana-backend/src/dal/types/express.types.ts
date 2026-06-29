@@ -9,6 +9,7 @@ declare global {
         userName: string;
         dbName: string;
         dbServer: string;
+        sessionId: string;
       };
     }
   }
