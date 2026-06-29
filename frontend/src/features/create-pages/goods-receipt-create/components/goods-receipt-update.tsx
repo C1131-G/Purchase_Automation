@@ -170,6 +170,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                     onClick={() => {
                       void router.navigate({
                         to: "/dashboard/inventory" as any,
+                        viewTransition: true,
                       });
                     }}
                     className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"

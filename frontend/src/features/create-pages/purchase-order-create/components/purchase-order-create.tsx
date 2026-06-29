@@ -437,16 +437,7 @@ export function PurchaseOrderCreate({
           "purchase-orders",
           "Purchase_Order",
         )}
-        onReset={() => {
-          state.resetForm();
-          window.scrollTo({ behavior: "smooth", top: 0 });
-          void router.navigate({
-            replace: true,
-            search: {},
-            to: "/purchase/create-order",
-            viewTransition: true,
-          });
-        }}
+        onReset={state.resetForm}
         isEditMode={state.isEditMode}
         isClosed={state.isClosed}
         allowSearchInEditMode={state.isEditMode}

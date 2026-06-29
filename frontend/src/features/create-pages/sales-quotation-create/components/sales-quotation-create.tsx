@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+
 import { goeyToast } from "goey-toast";
 import type { MouseEvent } from "react";
 
@@ -43,7 +43,6 @@ export function SalesQuotationCreate({
   draftDocEntry,
 }: SalesQuotationCreateProps) {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const state = useSalesQuotationCreate(
     docNum
       ? { docNum, mode }
@@ -330,16 +329,7 @@ export function SalesQuotationCreate({
             "sales-quotations",
             "Sales_Quotation",
           )}
-          onReset={() => {
-            state.resetForm();
-            window.scrollTo({ behavior: "smooth", top: 0 });
-            void router.navigate({
-              replace: true,
-              search: {},
-              to: "/sales/create-quotation",
-              viewTransition: true,
-            });
-          }}
+          onReset={state.resetForm}
           submitLabel={state.isEditMode ? "Update" : "Add"}
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={

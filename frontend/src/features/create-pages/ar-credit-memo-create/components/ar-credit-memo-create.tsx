@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+
 import { goeyToast } from "goey-toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -59,7 +59,6 @@ export function ArCreditMemoCreate({
   draftDocEntry,
 }: ArCreditMemoCreateProps) {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   const [sourceCleared, setSourceCleared] = useState(false);
 
@@ -298,6 +297,7 @@ export function ArCreditMemoCreate({
     createError,
     createDisabledReason,
     createArCreditMemoMutation,
+    isPending,
     missingMandatoryFields,
     requiredCompletionPercent,
     missingSearchMandatoryFields,
@@ -561,6 +561,7 @@ export function ArCreditMemoCreate({
           createError={createError}
           createDisabledReason={createDisabledReason}
           createArCreditMemoMutation={createArCreditMemoMutation}
+          isSubmittingState={isPending}
           missingMandatoryFields={missingMandatoryFields}
           requiredCompletionPercent={requiredCompletionPercent}
           handleCreateOrder={state.handleCreateOrder}
@@ -572,18 +573,11 @@ export function ArCreditMemoCreate({
             "ar-credit-memos",
             "AR_Credit_Memo",
           )}
-          onReset={() => {
-            state.resetForm();
-            window.scrollTo({ behavior: "smooth", top: 0 });
-            void router.navigate({
-              replace: true,
-              search: {},
-              to: "/sales/ar-credit-memo/create",
-              viewTransition: true,
-            } as any);
-          }}
-          submitLabel={state.isEditMode ? "Update" : "Add"}
-          submitLoadingText={state.isEditMode ? "Updating..." : "Creating..."}
+          onReset={state.resetForm}
+          submitLabel={state.isEditMode || Boolean(draftDocNum) ? "Update" : "Add"}
+          submitLoadingText={
+            state.isEditMode || Boolean(draftDocNum) ? "Updating..." : "Creating..."
+          }
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
         />

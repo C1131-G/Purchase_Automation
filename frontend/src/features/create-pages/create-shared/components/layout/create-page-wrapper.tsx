@@ -49,6 +49,8 @@ export function CreatePageWrapper({
     section = "Inventory";
   }
 
+  const isPurchaseOrSales = dashboardUrl.includes("purchase") || dashboardUrl.includes("sales");
+
   return (
     <div className="relative h-full w-full bg-zinc-50 p-3 pb-20 overflow-y-auto">
       {/* Top Actions - Positioned absolute top-right */}
@@ -60,7 +62,7 @@ export function CreatePageWrapper({
         <Link
           to={dashboardUrl}
           className="text-zinc-400 transition-colors hover:text-blue-600"
-          viewTransition
+          viewTransition={isPurchaseOrSales}
         >
           {section} Dashboard
         </Link>
@@ -70,7 +72,7 @@ export function CreatePageWrapper({
           search={breadcrumbParent.search || { limit: 10, page: 1 }}
           className="text-zinc-400 transition-colors hover:text-blue-600"
           onMouseEnter={breadcrumbParent.onMouseEnter}
-          viewTransition
+          viewTransition={isPurchaseOrSales}
         >
           {breadcrumbParent.label}
         </Link>

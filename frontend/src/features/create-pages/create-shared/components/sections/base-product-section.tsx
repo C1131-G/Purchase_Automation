@@ -110,8 +110,6 @@ export function ActionsPopoverContent({
   const [menuView, setMenuView] = useState<"main" | "download" | "copy-to">("main");
 
   const effectiveTargets = copyToTargets || [];
-  const effectiveDocNum = copyToDocNum || "";
-  const effectiveSourceDocType = copyToSourceDocType || "";
 
   // Reset menuView when popover closes/unmounts
   useEffect(() => {

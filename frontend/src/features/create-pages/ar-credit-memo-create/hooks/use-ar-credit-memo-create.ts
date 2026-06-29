@@ -967,6 +967,8 @@ export function useArCreditMemoCreate({
           DocDueDate: header.docDueDate || undefined,
           NumAtCard: currentReferenceNo || undefined,
           SalesPersonCode: currentSalesPersonCode,
+          ...(isDraftUpdateAction ? { isDraft: true } : {}),
+          ...(isDraftUpdateAction && draftDocEntry ? { draftDocEntry: Number(draftDocEntry) } : {}),
         }
       : {
           Address: header.billToAddress || undefined,

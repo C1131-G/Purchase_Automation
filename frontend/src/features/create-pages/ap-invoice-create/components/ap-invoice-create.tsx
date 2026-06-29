@@ -127,7 +127,14 @@ export function APInvoiceCreate({
     }
     const docNums = selected.map((s) => s.docNum).join(",");
     const { docType } = selected[0]!;
-    window.location.href = `/purchase/create-ap-invoice?sourceDocNum=${encodeURIComponent(docNums)}&sourceDocType=${docType}`;
+    void router.navigate({
+      to: "/purchase/create-ap-invoice",
+      search: {
+        sourceDocNum: docNums,
+        sourceDocType: docType as "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation",
+      },
+      viewTransition: true,
+    });
   };
 
   const activeVendor = (state.vendors as any[]).find(
@@ -433,16 +440,7 @@ export function APInvoiceCreate({
           "ap-invoices",
           "AP_Invoice",
         )}
-        onReset={() => {
-          state.resetForm();
-          window.scrollTo({ behavior: "smooth", top: 0 });
-          void router.navigate({
-            replace: true,
-            search: {},
-            to: "/purchase/create-ap-invoice",
-            viewTransition: true,
-          });
-        }}
+        onReset={state.resetForm}
         submitLoadingText={state.isEditMode || Boolean(draftDocNum) ? "Updating..." : "Adding..."}
         warehouses={state.warehouses}
         warehousesLoading={state.warehousesQuery.isLoading || isFormHydrating}
