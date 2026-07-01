@@ -1,14 +1,11 @@
-// OpenAPI Registry: The central collection point for all Zod definitions and security schemes.
+// Swagger registry: Central registry for OpenAPI path definitions.
 
 import { OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
 
-export const registry = new OpenAPIRegistry();
+const registry = new OpenAPIRegistry();
 
-// Security Scheme Registration: Defines how the API handles authentication.
-// In this portal, we use secure, httpOnly cookies named 'vendorportal.sid'.
-registry.registerComponent("securitySchemes", "SessionCookie", {
-  description: "Express session cookie for authentication",
-  in: "cookie",
-  name: "vendorportal.sid",
-  type: "apiKey",
-});
+export const registerPath = (path: string, method: string, options: any) => {
+  registry.registerPath({ method, path: `/api/v1${path}`, ...options });
+};
+
+export const createDocument = () => registry;

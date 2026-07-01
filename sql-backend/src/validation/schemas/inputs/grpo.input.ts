@@ -1,58 +1,39 @@
-import { z } from "@/config/zod";
+import { z } from "zod";
 
-export const GRPOQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(20),
-  page: z.coerce.number().min(1).default(1),
-  search: z.string().optional(),
-  status: z.enum(["O", "C"]).optional(),
+const GrpoLineSchema = z.object({
+  lineNum: z.coerce.number().int(),
+  itemCode: z.string().min(1),
+  itemDescription: z.string().optional(),
+  quantity: z.coerce.number().positive(),
+  unitPrice: z.coerce.number().min(0).optional(),
+  warehouseCode: z.string().optional(),
+  uomCode: z.string().optional(),
+  baseEntry: z.coerce.number().int().optional(),
+  baseLine: z.coerce.number().int().optional(),
+  baseType: z.coerce.number().int().optional(),
 });
 
-export const GRPODocNumLookupQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(50).default(10),
-  search: z.string().optional(),
-});
-
-export const AvailablePOsQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(50).default(10),
-  search: z.string().optional(),
-});
-
-export const CreateGRPOInputSchema = z.object({
+export const CreateGrpoSchema = z.object({
+  docNum: z.coerce.number().int(),
+  docDate: z.string().min(1),
+  docDueDate: z.string().optional(),
   cardCode: z.string().min(1),
+  cardName: z.string().optional(),
+  docCurrency: z.string().optional(),
+  address: z.string().optional(),
+  address2: z.string().optional(),
   comments: z.string().optional(),
-  docDate: z.string().transform((val) => new Date(val)),
-  lines: z
-    .array(
-      z.object({
-        itemCode: z.string(),
-        quantity: z.number().positive(),
-        warehouse: z.string().optional(),
-      }),
-    )
-    .min(1),
-  poDocEntry: z.number().positive(),
+  lines: z.array(GrpoLineSchema).min(1),
 });
 
-export const UpdateGRPOInputSchema = z.object({
+export const UpdateGrpoSchema = CreateGrpoSchema.partial();
+
+export const GrpoListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).default(1),
   cardCode: z.string().optional(),
-  comments: z.string().optional(),
-  docDate: z.string().optional(),
-  lines: z
-    .array(
-      z.object({
-        itemCode: z.string(),
-        quantity: z.number().positive(),
-        warehouse: z.string().optional(),
-      }),
-    )
-    .optional(),
-  poDocEntry: z.number().optional(),
-  isDraft: z.boolean().optional(),
-  draftDocEntry: z.coerce.number().optional(),
+  docStatus: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  search: z.string().optional(),
 });
-
-export type GRPOQuery = z.infer<typeof GRPOQuerySchema>;
-export type GRPODocNumLookupQuery = z.infer<typeof GRPODocNumLookupQuerySchema>;
-export type AvailablePOsQuery = z.infer<typeof AvailablePOsQuerySchema>;
-export type CreateGRPOInput = z.infer<typeof CreateGRPOInputSchema>;
-export type UpdateGRPOInput = z.infer<typeof UpdateGRPOInputSchema>;

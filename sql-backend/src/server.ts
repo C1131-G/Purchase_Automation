@@ -1,49 +1,46 @@
+import "dotenv/config";
+
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
-import { initializeDatabase } from "@/db/config/data-source";
+import { app } from "@/app";
+import { initializeDatabase, closeDatabase } from "@/db/client";
 
-import { createApp } from "./app";
+async function start() {
+  logger.info({ port: config.server.port }, "Starting SQL backend...");
 
-const startServer = async () => {
-  try {
-    logger.info({ env: config.nodeEnv, msg: "Starting SQL Backend" });
+  await initializeDatabase();
 
-    await initializeDatabase();
-    logger.info({ msg: "Database initialized" });
+  const server = app.listen(config.server.port, () => {
+    logger.info({ port: config.server.port }, "SQL backend listening");
+  });
 
-    const app = createApp();
-
-    const server = app.listen(config.server.port, () => {
-      logger.info({
-        frontend: config.server.frontendUrl,
-        msg: "SQL Backend running",
-        port: config.server.port,
-      });
+  const shutdown = async (signal: string) => {
+    logger.info({ signal }, "Shutdown signal received");
+    server.close(async () => {
+      await closeDatabase();
+      process.exit(0);
     });
+    setTimeout(() => {
+      logger.error("Forced shutdown after timeout");
+      process.exit(1);
+    }, config.server.shutdownTimeout);
+  };
 
-    const shutdown = async (signal: string) => {
-      logger.info({ msg: `${signal} received, shutting down gracefully` });
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 
-      server.close(() => {
-        logger.info({ msg: "HTTP server closed" });
-        process.exit(0);
-      });
-
-      setTimeout(() => {
-        logger.error({ msg: "Forced shutdown after timeout" });
-        process.exit(1);
-      }, config.server.shutdownTimeout);
-    };
-
-    process.on("SIGTERM", () => shutdown("SIGTERM"));
-    process.on("SIGINT", () => shutdown("SIGINT"));
-  } catch (error) {
-    logger.fatal({
-      error: error instanceof Error ? error.message : String(error),
-      msg: "Failed to start server",
-    });
+  process.on("uncaughtException", (err) => {
+    logger.fatal({ err }, "Uncaught exception");
     process.exit(1);
-  }
-};
+  });
 
-startServer();
+  process.on("unhandledRejection", (reason) => {
+    logger.fatal({ reason }, "Unhandled rejection");
+    process.exit(1);
+  });
+}
+
+start().catch((err) => {
+  logger.fatal({ err }, "Failed to start SQL backend");
+  process.exit(1);
+});

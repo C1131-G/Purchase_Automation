@@ -12,6 +12,7 @@ import { GRPOHeaderSchema } from "@/db/schemas/grpoheader.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 
+import { config } from "@/config/env";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/services/attachments.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -517,12 +518,36 @@ export const createPurchaseOrder = async (
       )}-${docDueDate.slice(6, 8)}`;
     }
 
+    const sapEndpoint = isDraft ? "/Drafts" : "/PurchaseOrders";
+    const sapUrl = `${config.serviceLayer.serviceLayerURL}${sapEndpoint}`;
+
+    logger.info({
+      msg: "Sending PO to SAP Service Layer",
+      url: sapUrl,
+      cardCode: sapPayload.CardCode,
+      docDate: sapPayload.DocDate,
+      docDueDate: sapPayload.DocDueDate,
+      lineCount: (sapPayload.DocumentLines as any[])?.length ?? 0,
+      salesPersonCode: sapPayload.SalesPersonCode,
+      isDraft,
+    });
+
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
       isDraft ? "/Drafts" : "/PurchaseOrders",
       sapPayload,
     )) as SAPDocumentResponse;
+
+    logger.info({
+      msg: "PO created in SAP Service Layer",
+      url: sapUrl,
+      docEntry: result.DocEntry,
+      docNum: result.DocNum,
+      cardCode: result.CardCode,
+      docTotal: result.DocTotal,
+      docCurrency: result.DocCurrency,
+    });
 
     // Invalidate the procurement dashboard metrics for this tenant.
     const resolvedDbNameFromRes =

@@ -131,7 +131,15 @@ export const createPurchaseOrder = async (req: Request, res: Response, next: Nex
     // Validate the deep object structure against the SAP-compliant Zod schema.
     const validatedPayload = CreatePurchaseOrderInputSchema.parse(payload);
 
-    logger.info({ msg: "Creating PO", vendor: validatedPayload.CardCode });
+    logger.info({
+      msg: "PO create request received",
+      vendor: validatedPayload.CardCode,
+      docDate: validatedPayload.DocDate,
+      docDueDate: validatedPayload.DocDueDate,
+      lineCount: validatedPayload.DocumentLines?.length ?? 0,
+      isDraft: validatedPayload.isDraft ?? false,
+      draftDocEntry: validatedPayload.draftDocEntry ?? 0,
+    });
 
     const result = await purchaseOrderService.createPurchaseOrder(sessionId, validatedPayload);
 

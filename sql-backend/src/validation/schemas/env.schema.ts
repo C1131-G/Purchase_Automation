@@ -1,25 +1,26 @@
 import { z } from "zod";
 
 export const EnvSchema = z.object({
-  FRONTEND_URL: z.string().default("http://localhost:5173"),
-
+  // Server
+  PORT: z.coerce.number().int().positive().default(4001),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  FRONTEND_URL: z.string().default("http://localhost:5173"),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
 
-  PORT: z.coerce.number().default(4001),
+  // PostgreSQL
+  DATABASE_URL: z.string().url().trim().startsWith("postgresql://"),
 
-  SESSION_SECRET: z.string().min(64, "Session secret must be at least 64 characters"),
+  // Logging
+  LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
 
-  SHUTDOWN_TIMEOUT: z.coerce.number().default(10_000),
+  // Session
+  SESSION_SECRET: z.string().min(32).trim(),
 
-  SQL_COMMON_DB: z.string().default("PortalCommon"),
+  // Attachments
+  ATTACHMENTS_BASE_PATH: z.string().default("./uploads"),
 
-  SQL_HOST: z.string().default("localhost"),
-
-  SQL_PASSWORD: z.string().default(""),
-
-  SQL_PORT: z.coerce.number().default(1433),
-
-  SQL_USER: z.string().default("sa"),
-
-  TRUST_PROXY_HOPS: z.coerce.number().default(1),
+  // Lifecycle
+  SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(10_000),
 });
+
+export type EnvConfig = z.infer<typeof EnvSchema>;

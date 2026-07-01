@@ -1,9 +1,10 @@
-import { z } from "@/config/zod";
+import { z } from "zod";
 
 export const MasterDataQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(20),
-  page: z.coerce.number().min(1).default(1),
-  search: z.string().optional(),
+  search: z.string().trim().optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  warehouseCode: z.string().optional(),
+  itemCode: z.string().trim().optional(),
+  type: z.enum(["sales", "purchase"]).optional(),
+  country: z.string().trim().optional(),
 });
-
-export type MasterDataQuery = z.infer<typeof MasterDataQuerySchema>;

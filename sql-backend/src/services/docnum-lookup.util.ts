@@ -1,10 +1,8 @@
-export const lookupDocNum = async (
-  _dbName: string,
-  _docType: string,
-  _search: string,
-  _limit = 10,
-) => ({ data: [], total: 0 });
+// DocNum Lookup Utility: Shared helper for safe DocNum search limits.
 
-export const validateDocNum = (docNum: string): boolean => /^\d+$/.test(docNum);
+const MAX_SUGGESTIONS = 10;
 
-export const docnumLookup = { lookupDocNum, validateDocNum };
+export const getSafeDocNumLimit = (limit?: number): number => {
+  if (!limit || limit < 1) return MAX_SUGGESTIONS;
+  return Math.min(limit, 100);
+};

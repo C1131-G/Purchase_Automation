@@ -1,24 +1,15 @@
-// Organization DAL: Handles organization/tenant data access.
+// Organization DAL: Express handler for pre-login org listing.
 
 import type { RequestHandler } from "express";
+import { organizationService } from "@/services/organization.service";
 
-import { AppDataSource } from "@/db/config/data-source";
-import { OrganizationSchema } from "@/db/schemas/organization.schema";
-
-export const getOrganizations: RequestHandler = async (_req, res, next) => {
+export const getAllOrganizations: RequestHandler = async (_req, res, next) => {
   try {
-    const repo = AppDataSource.getRepository(OrganizationSchema);
-    const orgs = await repo.find({ where: { isActive: true } });
-
-    res.status(200).json({
-      data: orgs,
-      success: true,
-    });
-  } catch (error) {
-    next(error);
+    const databases = await organizationService.getAvailableDatabases();
+    res.status(200).json({ data: databases, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const organizationDal = {
-  getOrganizations,
-};
+export const organizationDal = { getAllOrganizations };

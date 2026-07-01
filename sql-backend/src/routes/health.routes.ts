@@ -1,18 +1,24 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
 
-import { AppDataSource } from "@/db/config/data-source";
+import { getDb } from "@/db/client";
 
-export const healthRoutes = Router();
+const router = Router();
 
-healthRoutes.get("/", (_req: Request, res: Response) => {
-  const isConnected = AppDataSource.isInitialized;
-  res.status(200).json({
-    database: {
-      connected: isConnected,
-      uptime: 0,
-    },
-    status: "OK",
+router.get("/", (_req, res) => {
+  let dbStatus = "disconnected";
+  try {
+    getDb();
+    dbStatus = "connected";
+  } catch {
+    dbStatus = "disconnected";
+  }
+
+  res.json({
+    status: "ok",
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    db: dbStatus,
   });
 });
+
+export const healthRoutes = router;

@@ -43,7 +43,7 @@ export const PurchaseOrderSchema = new EntitySchema<PurchaseOrder>({
       type: "nvarchar" as HANAColumnType,
     },
     cardName: {
-      length: 100,
+      length: 100, //200 change all area based SAP
       name: "CardName",
       type: "nvarchar" as HANAColumnType,
     },

@@ -1,135 +1,116 @@
-// Master Data DAL: Handles master data lookups.
+import type { RequestHandler } from "express";
 
-import type { NextFunction, Request, Response } from "express";
+import { masterDataService } from "@/services/master-data.service";
 
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
-import { getTenantDataSource } from "@/db/config/data-source";
-import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
-import { ItemSchema } from "@/db/schemas/item.schema";
-import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
-import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
-import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
-
-const getDbName = (req: Request) => (req as unknown as AuthenticatedRequest).user?.dbName || "";
-
-export const getProducts = async (req: Request, res: Response, next: NextFunction) => {
+export const getProducts: RequestHandler = async (req, res, next) => {
   try {
-    const dbName = getDbName(req);
-    const ds = await getTenantDataSource(dbName);
-    const repo = ds.getRepository(ItemSchema);
-
-    const page = Number.parseInt(req.query.page as string) || 1;
-    const limit = Number.parseInt(req.query.limit as string) || 20;
-    const search = (req.query.search as string) || "";
-
-    const where = search ? { itemCode: require("typeorm").Like(`%${search}%`) } : {};
-
-    const [data, total] = await repo.findAndCount({
-      order: { itemCode: "ASC" },
-      skip: (page - 1) * limit,
-      take: limit,
-      where,
+    const { warehouseCode, search, limit, type, priceList } = req.query;
+    const result = await masterDataService.getProducts({
+      warehouseCode: typeof warehouseCode === "string" ? warehouseCode : undefined,
+      search: typeof search === "string" ? search : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      type: type === "sales" || type === "purchase" ? type : undefined,
+      priceList: typeof priceList === "string" ? Number(priceList) : undefined,
     });
-
-    res.status(200).json({ data, limit, page, success: true, total });
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
-export const getVendors = async (req: Request, res: Response, next: NextFunction) => {
+export const getProductWarehouseStocks: RequestHandler = async (req, res, next) => {
   try {
-    const dbName = getDbName(req);
-    const ds = await getTenantDataSource(dbName);
-    const repo = ds.getRepository(BusinessPartnerSchema);
-
-    const page = Number.parseInt(req.query.page as string) || 1;
-    const limit = Number.parseInt(req.query.limit as string) || 20;
-
-    const [data, total] = await repo.findAndCount({
-      order: { cardCode: "ASC" },
-      skip: (page - 1) * limit,
-      take: limit,
-      where: { cardType: "S" },
-    });
-
-    res.status(200).json({ data, limit, page, success: true, total });
+    const itemCode = req.params.itemCode as string;
+    const result = await masterDataService.getProductWarehouseStocks(itemCode);
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
-export const getCustomers = async (req: Request, res: Response, next: NextFunction) => {
+export const getVendors: RequestHandler = async (req, res, next) => {
   try {
-    const dbName = getDbName(req);
-    const ds = await getTenantDataSource(dbName);
-    const repo = ds.getRepository(BusinessPartnerSchema);
-
-    const page = Number.parseInt(req.query.page as string) || 1;
-    const limit = Number.parseInt(req.query.limit as string) || 20;
-
-    const [data, total] = await repo.findAndCount({
-      order: { cardCode: "ASC" },
-      skip: (page - 1) * limit,
-      take: limit,
-      where: { cardType: "C" },
-    });
-
-    res.status(200).json({ data, limit, page, success: true, total });
+    const result = await masterDataService.getVendors(
+      typeof req.query.search === "string" ? req.query.search : undefined,
+    );
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
-export const getWarehouses = async (req: Request, res: Response, next: NextFunction) => {
+export const getCustomers: RequestHandler = async (req, res, next) => {
   try {
-    const dbName = getDbName(req);
-    const ds = await getTenantDataSource(dbName);
-    const repo = ds.getRepository(WarehouseSchema);
-
-    const [data, total] = await repo.findAndCount({
-      order: { whsCode: "ASC" },
-    });
-
-    res.status(200).json({ data, success: true, total });
+    const result = await masterDataService.getCustomers(
+      typeof req.query.search === "string" ? req.query.search : undefined,
+    );
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
-export const getUOMs = async (req: Request, res: Response, next: NextFunction) => {
+export const getTaxCodes: RequestHandler = async (_req, res, next) => {
   try {
-    const dbName = getDbName(req);
-    const ds = await getTenantDataSource(dbName);
-    const repo = ds.getRepository(UnitOfMeasurementSchema);
-
-    const [data, total] = await repo.findAndCount({
-      order: { uomCode: "ASC" },
-    });
-
-    res.status(200).json({ data, success: true, total });
+    const result = await masterDataService.getTaxCodes();
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
-export const getTaxCodes = async (req: Request, res: Response, next: NextFunction) => {
+export const getUOMs: RequestHandler = async (_req, res, next) => {
   try {
-    const dbName = getDbName(req);
-    const ds = await getTenantDataSource(dbName);
-    const repo = ds.getRepository(TaxGroupSchema);
+    const result = await masterDataService.getUOMs();
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const data = await repo.find();
+export const getPriceLists: RequestHandler = async (_req, res, next) => {
+  try {
+    const result = await masterDataService.getPriceLists();
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    res.status(200).json({ data, success: true });
+export const getWarehouses: RequestHandler = async (_req, res, next) => {
+  try {
+    const result = await masterDataService.getWarehouses();
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSalesEmployees: RequestHandler = async (_req, res, next) => {
+  try {
+    const result = await masterDataService.getSalesEmployees();
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getChartOfAccounts: RequestHandler = async (_req, res, next) => {
+  try {
+    const result = await masterDataService.getChartOfAccounts();
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
 export const masterDataDal = {
+  getChartOfAccounts,
   getCustomers,
+  getPriceLists,
+  getProductWarehouseStocks,
   getProducts,
+  getSalesEmployees,
   getTaxCodes,
   getUOMs,
   getVendors,

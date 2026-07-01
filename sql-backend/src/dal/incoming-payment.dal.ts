@@ -1,123 +1,87 @@
-// Incoming Payment DAL: Manages HTTP requests for Incoming Payment operations.
-
-import type { NextFunction, Request, Response } from "express";
-
-import { logger } from "@/core/logger/pino-logger";
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
-import type { PaymentQuery } from "@/dal/types/incoming-payment.types";
+import type { RequestHandler } from "express";
 import { incomingPaymentService } from "@/services/incoming-payment.service";
-import { CreatePaymentInputSchema } from "@/validation/schemas/inputs/payment.input";
-import type { PaymentDocNumLookupQuery } from "@/validation/schemas/inputs/payment.input";
 
-export const getPayments = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    PaymentQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const filters = authReq.query;
-
-    logger.info({ dbName, filters, msg: "Fetching Incoming Payments" });
-
-    const result = await incomingPaymentService.getPayments(dbName, filters);
-
-    logger.info({
-      count: result.data.length,
-      msg: "Fetched Incoming Payments",
-      total: result.total,
+    const { page, limit, cardCode, dateFrom, dateTo, search } = req.query;
+    const r = await incomingPaymentService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
     });
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    res.status(200).json({ data: r, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getPaymentDocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    PaymentDocNumLookupQuery
-  >;
+export const getDocNums: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { search, limit } = authReq.query;
-    const data = await incomingPaymentService.getPaymentDocNums(dbName, search, limit);
+    const { search, limit } = req.query;
+    const data = await incomingPaymentService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
+    );
     res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getPayment = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = authReq.params;
-
-    logger.info({ dbName, id, msg: "Fetching Incoming Payment detail" });
-
-    const data = await incomingPaymentService.getPayment(dbName, id as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "Incoming Payment not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await incomingPaymentService.getById(Number(req.params.id));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getPaymentByDocNum = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getByDocNum: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { docNum } = authReq.params;
-
-    logger.info({ dbName, docNum, msg: "Fetching Incoming Payment by DocNum" });
-
-    const data = await incomingPaymentService.getPaymentByDocNum(dbName, docNum as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "Incoming Payment not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await incomingPaymentService.getByDocNum(Number(req.params.docNum));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const createPayment = async (req: Request, res: Response, next: NextFunction) => {
-  const _authReq = req as unknown as AuthenticatedRequest;
+export const create: RequestHandler = async (req, res, next) => {
   try {
-    const payload = req.body;
-    CreatePaymentInputSchema.parse(payload);
+    const result = await incomingPaymentService.create(req.body);
+    res.status(201).json({ data: result, message: "Incoming payment created", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
 
-    logger.info({
-      cardCode: (payload as Record<string, unknown>).CardCode,
-      msg: "Creating Incoming Payment",
-    });
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await incomingPaymentService.update(Number(req.params.id), req.body);
+    res.status(200).json({ data: result, message: "Incoming payment updated", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
 
-    res.status(201).json({
-      data: payload,
-      message: "Payment created (stub)",
-      success: true,
-    });
-  } catch (error) {
-    next(error);
+export const cancel: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await incomingPaymentService.cancel(Number(req.params.id));
+    res.status(200).json({ data: result, message: "Incoming payment cancelled", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
 export const incomingPaymentDal = {
-  createPayment,
-  getPayment,
-  getPaymentByDocNum,
-  getPaymentDocNums,
-  getPayments,
+  cancel,
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  update,
 };

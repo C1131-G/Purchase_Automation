@@ -1,137 +1,71 @@
-// A/R Credit Memo DAL: Manages HTTP requests for A/R Credit Memo operations.
-
-import type { NextFunction, Request, Response } from "express";
-
-import { logger } from "@/core/logger/pino-logger";
-import type { CreditNoteQuery } from "@/dal/types/ar-credit-memo.types";
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
+import type { RequestHandler } from "express";
 import { arCreditMemoService } from "@/services/ar-credit-memo.service";
-import {
-  CreateCreditNoteInputSchema,
-  UpdateCreditNoteInputSchema,
-} from "@/validation/schemas/inputs/credit-note.input";
-import type { CreditNoteDocNumLookupQuery } from "@/validation/schemas/inputs/credit-note.input";
 
-export const getCreditNotes = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    CreditNoteQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const filters = authReq.query;
-
-    logger.info({ dbName, filters, msg: "Fetching A/R Credit Memos" });
-
-    const result = await arCreditMemoService.getCreditMemos(dbName, filters);
-
-    logger.info({
-      count: result.data.length,
-      msg: "Fetched A/R Credit Memos",
-      total: result.total,
+    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
+    const r = await arCreditMemoService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      docStatus: typeof docStatus === "string" ? docStatus : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
     });
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    res.status(200).json({ data: r, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getCreditNoteDocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    CreditNoteDocNumLookupQuery
-  >;
+export const getDocNums: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { search, limit } = authReq.query;
-    const data = await arCreditMemoService.getCreditMemoDocNums(dbName, search, limit);
+    const { search, limit } = req.query;
+    const data = await arCreditMemoService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
+    );
     res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getCreditNote = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = authReq.params;
-
-    logger.info({ dbName, id, msg: "Fetching A/R Credit Memo detail" });
-
-    const data = await arCreditMemoService.getCreditMemo(dbName, id as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "A/R Credit Memo not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await arCreditMemoService.getById(Number(req.params.id));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
-  const _authReq = req as unknown as AuthenticatedRequest;
+export const create: RequestHandler = async (req, res, next) => {
   try {
-    const payload = req.body;
-    CreateCreditNoteInputSchema.parse(payload);
-
-    logger.info({
-      customer: (payload as Record<string, unknown>).CardCode,
-      msg: "Creating A/R Credit Memo",
-    });
-
-    res.status(201).json({
-      data: payload,
-      message: "Credit Memo created (stub)",
-      success: true,
-    });
-  } catch (error) {
-    next(error);
+    const result = await arCreditMemoService.create(req.body);
+    res.status(201).json({ data: result, message: "AR Credit memo created", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const updateCreditNote = async (_req: Request, res: Response, next: NextFunction) => {
-  const _authReq = _req as unknown as AuthenticatedRequest;
+export const update: RequestHandler = async (req, res, next) => {
   try {
-    const payload = _req.body;
-    UpdateCreditNoteInputSchema.parse(payload);
-
-    logger.info({
-      id: (payload as Record<string, unknown>).id as string,
-      msg: "Updating A/R Credit Memo",
-    });
-
-    res.status(200).json({ message: "Credit Memo updated (stub)", success: true });
-  } catch (error) {
-    next(error);
+    const result = await arCreditMemoService.update(Number(req.params.id), req.body);
+    res.status(200).json({ data: result, message: "AR Credit memo updated", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const cancelCreditNote = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const cancel: RequestHandler = async (req, res, next) => {
   try {
-    const { id } = authReq.params;
-
-    logger.info({ id, msg: "Cancelling A/R Credit Memo" });
-
-    res.status(200).json({ message: "Credit Memo cancelled (stub)", success: true });
-  } catch (error) {
-    next(error);
+    const result = await arCreditMemoService.cancel(Number(req.params.id));
+    res.status(200).json({ data: result, message: "AR Credit memo cancelled", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const arCreditMemoDal = {
-  cancelCreditNote,
-  createCreditNote,
-  getCreditNote,
-  getCreditNoteDocNums,
-  getCreditNotes,
-  updateCreditNote,
-};
+export const arCreditMemoDal = { cancel, create, getById, getDocNums, getList, update };

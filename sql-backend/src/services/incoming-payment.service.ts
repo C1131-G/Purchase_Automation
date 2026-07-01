@@ -1,62 +1,124 @@
-// Incoming Payment Service: Handles incoming payment business logic.
+// Incoming Payment Service: Full CRUD for incoming payments.
 
-import { Like } from "typeorm";
+import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { incomingPayments } from "@/db/schema/incoming-payments";
+import { AppError } from "@/core/errors/app-error";
+import { logger } from "@/core/logger/pino-logger";
+import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 
-import { getTenantDataSource } from "@/db/config/data-source";
-import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
-
-export const getPayments = async (
-  dbName: string,
-  filters: { page?: number; limit?: number; status?: string; search?: string },
-) => {
-  const ds = await getTenantDataSource(dbName);
-  const repo = ds.getRepository(IncomingPaymentSchema);
-  const where: Record<string, unknown> = {};
-  if (filters.status) {
-    where.docStatus = filters.status;
-  }
-  if (filters.search) {
-    where.cardCode = Like(`%${filters.search}%`);
-  }
-
-  const [data, total] = await repo.findAndCount({
-    order: { docDate: "DESC" },
-    skip: ((filters.page || 1) - 1) * (filters.limit || 20),
-    take: filters.limit || 20,
-    where,
-  });
-  return { data, limit: filters.limit || 20, page: filters.page || 1, total };
+export const getList = async (filters: any = {}) => {
+  const db = getDb();
+  const page = filters.page ?? 1;
+  const limit = filters.limit ?? 20;
+  const offset = (page - 1) * limit;
+  const where = and(
+    filters.cardCode ? eq(incomingPayments.cardCode, filters.cardCode) : undefined,
+    filters.dateFrom ? sql`${incomingPayments.docDate} >= ${filters.dateFrom}` : undefined,
+    filters.dateTo ? sql`${incomingPayments.docDate} <= ${filters.dateTo}` : undefined,
+    filters.search
+      ? or(
+          sql`CAST(${incomingPayments.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
+          like(incomingPayments.cardName, `%${filters.search}%`),
+        )
+      : undefined,
+  );
+  const [t] = await db.select({ total: count() }).from(incomingPayments).where(where);
+  const rows = await db
+    .select()
+    .from(incomingPayments)
+    .where(where)
+    .orderBy(desc(incomingPayments.docNum))
+    .limit(limit)
+    .offset(offset);
+  return {
+    data: rows,
+    total: Number(t.total),
+    page,
+    limit,
+    totalPages: Math.ceil(Number(t.total) / limit),
+  };
 };
 
-export const getPaymentDocNums = async (dbName: string, search?: string, limit = 10) => {
-  const ds = await getTenantDataSource(dbName);
-  const repo = ds.getRepository(IncomingPaymentSchema);
-  const where = search ? { docNum: Like(`%${search}%`) } : {};
-  const data = await repo.find({
-    cache: true,
-    order: { docNum: "DESC" },
-    select: ["docNum", "docEntry"],
-    take: limit,
-    where,
-  });
-  return { data };
+export const getById = async (id: number) => {
+  const db = getDb();
+  const [h] = await db.select().from(incomingPayments).where(eq(incomingPayments.id, id)).limit(1);
+  if (!h) throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
+  return { ...h, lines: [] };
 };
 
-export const getPayment = async (dbName: string, id: string) => {
-  const ds = await getTenantDataSource(dbName);
-  const repo = ds.getRepository(IncomingPaymentSchema);
-  return repo.findOne({ where: { docEntry: Number.parseInt(id) } });
+export const getByDocNum = async (docNum: number) => {
+  const db = getDb();
+  const [h] = await db
+    .select()
+    .from(incomingPayments)
+    .where(eq(incomingPayments.docNum, docNum))
+    .limit(1);
+  if (!h) throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
+  return { ...h, lines: [] };
 };
 
-export const getPaymentByDocNum = async (dbName: string, docNum: string) => {
-  const ds = await getTenantDataSource(dbName);
-  const repo = ds.getRepository(IncomingPaymentSchema);
-  return repo.findOne({ where: { docNum: Number.parseInt(docNum) } });
+export const getDocNums = async (search?: string, limit?: number) => {
+  const db = getDb();
+  const rows = await db
+    .select({ docNum: incomingPayments.docNum })
+    .from(incomingPayments)
+    .where(search ? sql`CAST(${incomingPayments.docNum} AS TEXT) LIKE ${`%${search}%`}` : undefined)
+    .limit(getSafeDocNumLimit(limit))
+    .orderBy(desc(incomingPayments.docNum));
+  return rows.map((r) => r.docNum);
+};
+
+export const create = async (payload: any) => {
+  const db = getDb();
+  const [h] = await db
+    .insert(incomingPayments)
+    .values({
+      docNum: payload.docNum,
+      docDate: payload.docDate,
+      cardCode: payload.cardCode,
+      cardName: payload.cardName ?? null,
+      docCurrency: payload.docCurrency ?? null,
+      docTotal: payload.docTotal != null ? String(payload.docTotal) : null,
+      counterRef: payload.counterRef ?? null,
+      paymentMode: payload.paymentMode ?? null,
+    })
+    .returning();
+  logger.info({ docNum: payload.docNum }, "Incoming payment created");
+  return getById(h.id);
+};
+
+export const update = async (id: number, payload: any) => {
+  const db = getDb();
+  const [ex] = await db.select().from(incomingPayments).where(eq(incomingPayments.id, id)).limit(1);
+  if (!ex) throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
+  await db
+    .update(incomingPayments)
+    .set({
+      docDate: payload.docDate,
+      cardCode: payload.cardCode,
+      cardName: payload.cardName,
+      counterRef: payload.counterRef ?? undefined,
+      paymentMode: payload.paymentMode ?? undefined,
+    })
+    .where(eq(incomingPayments.id, id));
+  return getById(id);
+};
+
+export const cancel = async (id: number) => {
+  const db = getDb();
+  const [ex] = await db.select().from(incomingPayments).where(eq(incomingPayments.id, id)).limit(1);
+  if (!ex) throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
+  await db.delete(incomingPayments).where(eq(incomingPayments.id, id));
+  logger.info({ id }, "Incoming payment cancelled (deleted)");
 };
 
 export const incomingPaymentService = {
-  getPayment,
-  getPaymentByDocNum,
-  getPaymentDocNums,
-  getPayments,
+  cancel,
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  update,
 };

@@ -1,66 +1,28 @@
-import express from "express";
+import { Router } from "express";
 
-import { lookupLimiter } from "@/core/middleware/rate-limit.middleware";
-import { validateSession } from "@/core/middleware/session.middleware";
+import { validateSession } from "@/core/middleware/auth.middleware";
+import { purchaseOrderDal } from "@/dal/purchase-order.dal";
+import { createExportHandler } from "@/dal/export.dal";
 import { purchaseOrderService } from "@/services/purchase-order.service";
 
-const router = express.Router();
+const router = Router();
 
 router.use(validateSession);
 
-const getDbName = (req: express.Request) =>
-  (req as express.Request & { user: { dbName: string } }).user?.dbName || "";
+router.get("/docnums", purchaseOrderDal.getDocNums);
+router.get("/by-doc-num/:docNum", purchaseOrderDal.getByDocNum);
+router.get("/:id", purchaseOrderDal.getById);
+router.get("/", purchaseOrderDal.getList);
+router.post("/", purchaseOrderDal.create);
+router.patch("/:id", purchaseOrderDal.update);
+router.post("/:id/cancel", purchaseOrderDal.cancel);
 
-router.get("/", async (req, res, next) => {
-  try {
-    const dbName = getDbName(req);
-    const page = Number.parseInt(req.query.page as string) || 1;
-    const limit = Number.parseInt(req.query.limit as string) || 20;
-    const status = req.query.status as string;
-    const search = req.query.search as string;
-
-    const result = await purchaseOrderService.getPurchaseOrders(dbName, {
-      limit,
-      page,
-      search,
-      status,
-    });
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get("/docnums", lookupLimiter, async (req, res, next) => {
-  try {
-    const dbName = getDbName(req);
-    const search = req.query.search as string;
-    const limit = Number.parseInt(req.query.limit as string) || 10;
-
-    const result = await purchaseOrderService.getPurchaseOrderDocNums(dbName, search, limit);
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get("/:id", async (req, res, next) => {
-  try {
-    const dbName = getDbName(req);
-    const { id } = req.params;
-
-    const data = await purchaseOrderService.getPurchaseOrder(dbName, id);
-
-    if (!data) {
-      return res.status(404).json({ message: "Purchase Order not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get(
+  "/by-doc-num/:docNum/export/:format",
+  createExportHandler(async (docNum) => {
+    const result = await purchaseOrderService.getByDocNum(docNum);
+    return { doc: result, lines: result.lines ?? [], attachments: [] };
+  }, "Purchase Order"),
+);
 
 export const purchaseOrderRoutes = router;

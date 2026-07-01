@@ -1,26 +1,10 @@
-import express from "express";
+// Organization Routes: Public pre-login endpoint.
+// Mirrors hana-backend/src/routes/organization.routes.ts — no validateSession.
 
-import { AppDataSource } from "@/db/config/data-source";
-import { OrganizationSchema } from "@/db/schemas/organization.schema";
+import { Router } from "express";
+import { organizationDal } from "@/dal/organization.dal";
 
-const router = express.Router();
-
-router.get("/", async (req, res, next) => {
-  try {
-    const repo = AppDataSource.getRepository(OrganizationSchema);
-    const orgs = await repo.find({ where: { isActive: true } });
-
-    res.status(200).json({
-      data: orgs.map((o) => ({
-        dbName: o.dbName,
-        dbServer: o.dbServer,
-        name: o.name,
-      })),
-      success: true,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+const router = Router();
+router.get("/", organizationDal.getAllOrganizations);
 
 export const organizationRoutes = router;

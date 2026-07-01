@@ -1,34 +1,23 @@
+// Swagger/OpenAPI configuration: Builds the OpenAPI document and serves Swagger UI.
+
+import type { Application, Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
+import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
+import { createDocument } from "./swagger-registry";
+import "@/config/zod";
 
-import { config } from "@/config/env";
-import { logger } from "@/core/logger/pino-logger";
+export const configureSwagger = (app: Application) => {
+  const registry = createDocument();
 
-const swaggerSpec = {
-  components: {
-    securitySchemes: {
-      cookieAuth: {
-        in: "cookie",
-        name: "vendorportal.sid",
-        type: "apiKey",
-      },
-    },
-  },
-  info: {
-    description: "SQL Server backend API for Vendor Portal",
-    title: "Vendor Portal API (SQL Backend)",
-    version: "1.0.0",
-  },
-  openapi: "3.0.0",
-  security: [{ cookieAuth: [] }],
-  servers: [
-    {
-      description: "Development server",
-      url: `http://localhost:${config.server.port}`,
-    },
-  ],
-};
+  const generator = new OpenApiGeneratorV3(registry.definitions);
+  const document = generator.generateDocument({
+    info: { title: "Vendor Portal SQL Backend API", version: "1.0.0" },
+    openapi: "3.0.3",
+    servers: [{ url: "/api/v1", description: "API v1" }],
+  });
 
-export const initSwagger = (app: unknown) => {
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  logger.info({ msg: "Swagger docs available at /api-docs" });
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(document));
+  app.get("/api-docs.json", (_req: Request, res: Response) => {
+    res.json(document);
+  });
 };

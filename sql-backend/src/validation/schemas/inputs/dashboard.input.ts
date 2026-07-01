@@ -1,7 +1,9 @@
-import { z } from "@/config/zod";
+import { z } from "zod";
 
 export const DashboardSummaryQuerySchema = z.object({
-  range: z.enum(["week", "month", "quarter", "year"]).optional(),
+  range: z.enum(["weekly", "monthly", "yearly"]).optional().default("yearly"),
 });
 
-export type DashboardSummaryQuery = z.infer<typeof DashboardSummaryQuerySchema>;
+export const DashboardPeriodQuerySchema = z.object({
+  period: z.enum(["week", "month", "year", "all"]).optional().default("month"),
+});

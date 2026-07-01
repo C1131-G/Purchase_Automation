@@ -1,68 +1,97 @@
-// Purchase Order DAL: Handles purchase order data access.
+// Purchase Order DAL: Express request handlers for purchase order CRUD.
 
-import type { NextFunction, Request, Response } from "express";
+import type { RequestHandler } from "express";
 
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
-import type { PurchaseOrderQuery } from "@/dal/types/purchase-order.types";
 import { purchaseOrderService } from "@/services/purchase-order.service";
+import { CreatePurchaseOrderSchema } from "@/validation/schemas/inputs/purchase-orders.input";
 
-export const getPurchaseOrders = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    PurchaseOrderQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const filters = authReq.query;
-
-    const result = await purchaseOrderService.getPurchaseOrders(dbName, filters);
-
-    res.status(200).json({ success: true, ...result });
+    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
+    const result = await purchaseOrderService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      docStatus: typeof docStatus === "string" ? docStatus : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
+    });
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
-export const getPurchaseOrderDocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { search, limit } = req.query as { search?: string; limit?: string };
+    const id = Number(req.params.id);
+    const result = await purchaseOrderService.getById(id);
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const data = await purchaseOrderService.getPurchaseOrderDocNums(
-      dbName,
-      search,
-      Number.parseInt(limit) || 10,
+export const getByDocNum: RequestHandler = async (req, res, next) => {
+  try {
+    const docNum = Number(req.params.docNum);
+    const result = await purchaseOrderService.getByDocNum(docNum);
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDocNums: RequestHandler = async (req, res, next) => {
+  try {
+    const { search, limit } = req.query;
+    const result = await purchaseOrderService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
     );
-
-    res.status(200).json({ success: true, ...data });
+    res.status(200).json({ data: result, success: true });
   } catch (error) {
     next(error);
   }
 };
 
-export const getPurchaseOrder = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const create: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = req.params;
+    const validated = CreatePurchaseOrderSchema.parse(req.body);
+    const result = await purchaseOrderService.create(validated as any);
+    res.status(201).json({ data: result, message: "Purchase order created", success: true });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const data = await purchaseOrderService.getPurchaseOrder(dbName, id);
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const result = await purchaseOrderService.update(id, req.body);
+    res.status(200).json({ data: result, message: "Purchase order updated", success: true });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    if (!data) {
-      return res.status(404).json({ message: "Purchase Order not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
+export const cancel: RequestHandler = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const result = await purchaseOrderService.cancel(id);
+    res.status(200).json({ data: result, message: "Purchase order cancelled", success: true });
   } catch (error) {
     next(error);
   }
 };
 
 export const purchaseOrderDal = {
-  getPurchaseOrder,
-  getPurchaseOrderDocNums,
-  getPurchaseOrders,
+  cancel,
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  update,
 };

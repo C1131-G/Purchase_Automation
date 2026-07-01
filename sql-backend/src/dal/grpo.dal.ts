@@ -1,101 +1,71 @@
-// GRPO DAL: Handles goods receipt PO data access.
-
-import type { NextFunction, Request, Response } from "express";
-
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
-import type { GRPOQuery, GRPODocNumLookupQuery, AvailablePOsQuery } from "@/dal/types/grpo.types";
+import type { RequestHandler } from "express";
 import { grpoService } from "@/services/grpo.service";
 
-export const getGRPOs = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    GRPOQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const result = await grpoService.getGRPOs(dbName, authReq.query);
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
+    const result = await grpoService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      docStatus: typeof docStatus === "string" ? docStatus : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
+    });
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getGRPODocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    GRPODocNumLookupQuery
-  >;
+export const getDocNums: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const result = await grpoService.getGRPODocNums(
-      dbName,
-      authReq.query.search,
-      authReq.query.limit,
+    const { search, limit } = req.query;
+    const data = await grpoService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
     );
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getAvailablePOs = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    AvailablePOsQuery
-  >;
-  try {
-    const { dbName } = authReq.user;
-    const result = await grpoService.getAvailablePOs(
-      dbName,
-      authReq.query.search,
-      authReq.query.limit,
-    );
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getPODetail = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
-  try {
-    const { dbName } = authReq.user;
-    const { id } = req.params;
-    const data = await grpoService.getGRPO(dbName, id);
-    if (!data) {
-      return res.status(404).json({ message: "PO not found", success: false });
-    }
     res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getGRPO = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = req.params;
-    const data = await grpoService.getGRPO(dbName, id);
-    if (!data) {
-      return res.status(404).json({ message: "GRPO not found", success: false });
-    }
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await grpoService.getById(Number(req.params.id));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const grpoDal = {
-  getAvailablePOs,
-  getGRPO,
-  getGRPODocNums,
-  getGRPOs,
-  getPODetail,
+export const create: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await grpoService.create(req.body);
+    res.status(201).json({ data: result, message: "GRPO created", success: true });
+  } catch (e) {
+    next(e);
+  }
 };
+
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await grpoService.update(Number(req.params.id), req.body);
+    res.status(200).json({ data: result, message: "GRPO updated", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const cancel: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await grpoService.cancel(Number(req.params.id));
+    res.status(200).json({ data: result, message: "GRPO cancelled", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const grpoDal = { cancel, create, getById, getDocNums, getList, update };

@@ -1,9 +1,8 @@
-import { z } from "@/config/zod";
+import { z } from "zod";
 
 export const LoginInputSchema = z.object({
-  companyDB: z.string().min(1, "Company DB is required"),
-  password: z.string().min(1, "Password is required"),
-  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1),
+  username: z.string().min(1).trim(),
 });
 
 export type LoginInput = z.infer<typeof LoginInputSchema>;

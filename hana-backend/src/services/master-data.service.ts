@@ -142,7 +142,11 @@ const fetchBusinessPartnerAddresses = async (
       {
         billToAddress?: string;
         shipToAddress?: string;
-        addresses: { addressName: string; addressType: "B" | "S"; addressText: string }[];
+        addresses: {
+          addressName: string;
+          addressType: "B" | "S";
+          addressText: string;
+        }[];
       }
     >();
   }
@@ -171,7 +175,11 @@ const fetchBusinessPartnerAddresses = async (
     {
       billToAddress?: string;
       shipToAddress?: string;
-      addresses: { addressName: string; addressType: "B" | "S"; addressText: string }[];
+      addresses: {
+        addressName: string;
+        addressType: "B" | "S";
+        addressText: string;
+      }[];
     }
   >();
 
@@ -426,7 +434,9 @@ export const getProducts = async (
             return [];
           }
           const priceRepository = await getTenantRepository(dbName, ItemPriceSchema);
-          const priceWhere: Record<string, unknown> = { ItemCode: In(itemCodes) };
+          const priceWhere: Record<string, unknown> = {
+            ItemCode: In(itemCodes),
+          };
           if (priceList !== undefined && priceList >= 0) {
             priceWhere.PriceList = priceList;
           }
@@ -909,7 +919,11 @@ export const getPriceLists = async (dbName: string) => {
 
         return [...specialPriceLists, ...fromDb];
       } catch (err) {
-        logger.warn({ db: dbName, err, msg: "Failed to fetch price lists from OPLN" });
+        logger.warn({
+          db: dbName,
+          err,
+          msg: "Failed to fetch price lists from OPLN",
+        });
         return [];
       }
     },
@@ -932,7 +946,12 @@ export const getSeries = async (dbName: string, documentType: string) => {
            WHERE "ObjectCode" = '${documentType}'
              AND "Locked" = 'N'
            ORDER BY "Series" ASC`,
-        )) as Array<{ Series: unknown; SeriesName: unknown; ObjectCode: unknown; Locked: unknown }>;
+        )) as Array<{
+          Series: unknown;
+          SeriesName: unknown;
+          ObjectCode: unknown;
+          Locked: unknown;
+        }>;
 
         return rows
           .filter((row) => row.SeriesName && String(row.SeriesName).trim())
@@ -944,7 +963,12 @@ export const getSeries = async (dbName: string, documentType: string) => {
             name: toTrimmed(row.SeriesName),
           }));
       } catch (err) {
-        logger.warn({ db: dbName, documentType, err, msg: "Failed to fetch series from NNM1" });
+        logger.warn({
+          db: dbName,
+          documentType,
+          err,
+          msg: "Failed to fetch series from NNM1",
+        });
         return [];
       }
     },
@@ -985,7 +1009,12 @@ export const getWarehouseBins = async (dbName: string, warehouseCode: string) =>
            WHERE "WhsCode" = '${warehouseCode}'
              AND "Disabled" = 'N'
            ORDER BY "BinCode" ASC`,
-        )) as Array<{ AbsEntry: unknown; BinCode: unknown; WhsCode: unknown; Descr: unknown }>;
+        )) as Array<{
+          AbsEntry: unknown;
+          BinCode: unknown;
+          WhsCode: unknown;
+          Descr: unknown;
+        }>;
 
         return rows.map((row) => ({
           AbsEntry: Number(row.AbsEntry),
@@ -994,7 +1023,12 @@ export const getWarehouseBins = async (dbName: string, warehouseCode: string) =>
           Description: toTrimmed(row.Descr),
         }));
       } catch (err) {
-        logger.warn({ db: dbName, err, msg: "Failed to fetch bins from OBIN", warehouseCode });
+        logger.warn({
+          db: dbName,
+          err,
+          msg: "Failed to fetch bins from OBIN",
+          warehouseCode,
+        });
         return [];
       }
     },

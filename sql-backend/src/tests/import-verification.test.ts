@@ -1,4 +1,3 @@
-import "@/config/zod";
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -6,15 +5,16 @@ import { describe, expect, it } from "vitest";
 
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
-const srcDir = join(__dirname, "..");
+const srcDir = join(__dirname, "..", "..");
 
 function getAllFiles(dirPath: string, arrayOfFiles: string[] = []) {
   const files = readdirSync(dirPath);
 
   files.forEach((file) => {
     const fullPath = join(dirPath, file);
+
     if (statSync(fullPath).isDirectory()) {
-      if (file === "tests") {
+      if (file === "node_modules" || file === "tests" || file === "migrations" || file === "meta") {
         return;
       }
       arrayOfFiles = getAllFiles(fullPath, arrayOfFiles);
@@ -39,19 +39,18 @@ describe("Project Import Integrity", () => {
   files.forEach((file) => {
     const relativePath = relative(srcDir, file);
 
-    if (relativePath === "server.ts") {
+    if (
+      relativePath === "server.ts" ||
+      relativePath === "db/seed.ts" ||
+      relativePath === "db/migrate.ts"
+    ) {
       return;
     }
 
-    it(`Success: import module "${relativePath}"`, async () => {
-      try {
-        const normalizedPath = `../${relativePath.replaceAll("\\", "/")}`;
-        const module = await import(normalizedPath);
-        expect(module).toBeDefined();
-      } catch (error) {
-        console.error(`Failed to import ${relativePath}:`, error);
-        throw error;
-      }
+    it(`import module "${relativePath}"`, { timeout: 30_000 }, async () => {
+      const normalizedPath = `../${relativePath.replaceAll("\\", "/")}`;
+      const module = await import(normalizedPath);
+      expect(module).toBeDefined();
     });
   });
 });

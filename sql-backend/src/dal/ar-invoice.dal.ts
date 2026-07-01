@@ -1,134 +1,80 @@
-// A/R Invoice DAL: Handles HTTP requests for A/R Invoice operations.
-
-import type { NextFunction, Request, Response } from "express";
-
-import { logger } from "@/core/logger/pino-logger";
-import type { InvoiceQuery } from "@/dal/types/ar-invoice.types";
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
+import type { RequestHandler } from "express";
 import { arInvoiceService } from "@/services/ar-invoice.service";
-import {
-  CreateInvoiceInputSchema,
-  UpdateInvoiceInputSchema,
-} from "@/validation/schemas/inputs/invoice.input";
-import type { InvoiceDocNumLookupQuery } from "@/validation/schemas/inputs/invoice.input";
 
-export const getInvoices = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    InvoiceQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const filters = authReq.query;
-
-    logger.info({ dbName, filters, msg: "Fetching A/R Invoices" });
-
-    const result = await arInvoiceService.getInvoices(dbName, filters);
-
-    logger.info({
-      count: result.data.length,
-      msg: "Fetched A/R Invoices",
-      total: result.total,
+    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
+    const r = await arInvoiceService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      docStatus: typeof docStatus === "string" ? docStatus : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
     });
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    res.status(200).json({ data: r, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getInvoiceDocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    InvoiceDocNumLookupQuery
-  >;
+export const getDocNums: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { search, limit } = authReq.query;
-    const data = await arInvoiceService.getInvoiceDocNums(dbName, search, limit);
+    const { search, limit } = req.query;
+    const data = await arInvoiceService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
+    );
     res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getInvoice = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = authReq.params;
-
-    logger.info({ dbName, id, msg: "Fetching A/R Invoice detail" });
-
-    const data = await arInvoiceService.getInvoice(dbName, id as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "A/R Invoice not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await arInvoiceService.getById(Number(req.params.id));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const createInvoice = async (req: Request, res: Response, next: NextFunction) => {
-  const _authReq = req as unknown as AuthenticatedRequest;
+export const create: RequestHandler = async (req, res, next) => {
   try {
-    const payload = req.body;
-    CreateInvoiceInputSchema.parse(payload);
-
-    logger.info({
-      customer: (payload as Record<string, unknown>).CardCode,
-      msg: "Creating A/R Invoice",
-    });
-
-    res.status(201).json({
-      data: payload,
-      message: "Invoice created (stub)",
-      success: true,
-    });
-  } catch (error) {
-    next(error);
+    const result = await arInvoiceService.create(req.body);
+    res.status(201).json({ data: result, message: "AR Invoice created", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const updateInvoice = async (_req: Request, res: Response, next: NextFunction) => {
-  const _authReq = _req as unknown as AuthenticatedRequest;
+export const update: RequestHandler = async (req, res, next) => {
   try {
-    const payload = _req.body;
-    UpdateInvoiceInputSchema.parse(payload);
-
-    logger.info({ id: payload.id as string, msg: "Updating A/R Invoice" });
-
-    res.status(200).json({ message: "Invoice updated (stub)", success: true });
-  } catch (error) {
-    next(error);
+    const result = await arInvoiceService.update(Number(req.params.id), req.body);
+    res.status(200).json({ data: result, message: "AR Invoice updated", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const cancelInvoice = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const cancel: RequestHandler = async (req, res, next) => {
   try {
-    const { id } = authReq.params;
-
-    logger.info({ id, msg: "Cancelling A/R Invoice" });
-
-    res.status(200).json({ message: "Invoice cancelled (stub)", success: true });
-  } catch (error) {
-    next(error);
+    const result = await arInvoiceService.cancel(Number(req.params.id));
+    res.status(200).json({ data: result, message: "AR Invoice cancelled", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const arInvoiceDal = {
-  cancelInvoice,
-  createInvoice,
-  getInvoice,
-  getInvoiceDocNums,
-  getInvoices,
-  updateInvoice,
+export const reopen: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await arInvoiceService.reopen(Number(req.params.id));
+    res.status(200).json({ data: result, message: "AR Invoice reopened", success: true });
+  } catch (e) {
+    next(e);
+  }
 };
+
+export const arInvoiceDal = { cancel, create, getById, getDocNums, getList, reopen, update };

@@ -1,102 +1,88 @@
-// Purchase Quotation DAL: Manages HTTP requests for Purchase Quotation operations.
-
-import type { NextFunction, Request, Response } from "express";
-
-import { logger } from "@/core/logger/pino-logger";
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
-import type { PurchaseQuotationQuery } from "@/dal/types/purchase-quotation.types";
+import type { RequestHandler } from "express";
 import { purchaseQuotationService } from "@/services/purchase-quotation.service";
-import { CreatePurchaseQuotationInputSchema } from "@/validation/schemas/inputs/purchase-quotation.input";
-import type { PurchaseQuotationDocNumLookupQuery } from "@/validation/schemas/inputs/purchase-quotation.input";
 
-export const getQuotations = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    PurchaseQuotationQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const filters = authReq.query;
-
-    logger.info({ dbName, filters, msg: "Fetching Purchase Quotations" });
-
-    const result = await purchaseQuotationService.getQuotations(dbName, filters);
-
-    logger.info({
-      count: result.data.length,
-      msg: "Fetched Purchase Quotations",
-      total: result.total,
+    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
+    const result = await purchaseQuotationService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      docStatus: typeof docStatus === "string" ? docStatus : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
     });
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    res.status(200).json({ data: result.data ?? result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getQuotationDocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    PurchaseQuotationDocNumLookupQuery
-  >;
+export const getDocNums: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { search, limit } = authReq.query;
-    const data = await purchaseQuotationService.getQuotationDocNums(dbName, search, limit);
+    const { search, limit } = req.query;
+    const data = await purchaseQuotationService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
+    );
     res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getQuotation = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getByDocNum: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = authReq.params;
-
-    logger.info({ dbName, id, msg: "Fetching Purchase Quotation detail" });
-
-    const data = await purchaseQuotationService.getQuotation(dbName, id as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "Purchase Quotation not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await purchaseQuotationService.getByDocNum(Number(req.params.docNum));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const createQuotation = async (req: Request, res: Response, next: NextFunction) => {
-  const _authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const payload = req.body;
-    CreatePurchaseQuotationInputSchema.parse(payload);
+    const result = await purchaseQuotationService.getById(Number(req.params.id));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
+  }
+};
 
-    logger.info({
-      vendor: (payload as Record<string, unknown>).CardCode,
-      msg: "Creating Purchase Quotation",
-    });
+export const create: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await purchaseQuotationService.create(req.body);
+    res.status(201).json({ data: result, message: "Purchase quotation created", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
 
-    res.status(201).json({
-      data: payload,
-      message: "Quotation created (stub)",
-      success: true,
-    });
-  } catch (error) {
-    next(error);
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await purchaseQuotationService.update(Number(req.params.id), req.body);
+    res.status(200).json({ data: result, message: "Purchase quotation updated", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const cancel: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await purchaseQuotationService.cancel(Number(req.params.id));
+    res.status(200).json({ data: result, message: "Purchase quotation cancelled", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
 export const purchaseQuotationDal = {
-  createQuotation,
-  getQuotation,
-  getQuotationDocNums,
-  getQuotations,
+  cancel,
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  update,
 };

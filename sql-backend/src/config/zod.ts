@@ -1,10 +1,8 @@
-// Zod Initialization: Extends the core Zod library with OpenAPI descriptors.
-// This must be imported at the very top of the entry point to ensure all schemas are registerable for documentation.
+// Zod OpenAPI extension: Must be imported at entry to enable .openapi() on all schemas.
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 
-// Mutation: Enhances the global Zod prototype with .openapi() helper methods.
 extendZodWithOpenApi(z);
 
 export { z };

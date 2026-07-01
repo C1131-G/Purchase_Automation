@@ -1,14 +1,15 @@
-import { z } from "@/config/zod";
+import { z } from "zod";
 
-export const PaginationQuerySchema = z.object({
+export const PaginationInputSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(20),
   page: z.coerce.number().min(1).default(1),
-  search: z.string().optional(),
 });
 
-export const IdParamSchema = z.object({
-  id: z.string().min(1),
+export const SearchInputSchema = z.object({
+  search: z.string().trim().optional(),
 });
 
-export type PaginationQuery = z.infer<typeof PaginationQuerySchema>;
-export type IdParam = z.infer<typeof IdParamSchema>;
+export const DateRangeInputSchema = z.object({
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+});

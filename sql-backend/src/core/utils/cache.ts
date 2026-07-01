@@ -1,34 +1,61 @@
 import { LRUCache } from "lru-cache";
 
-const cache = new LRUCache<string, unknown>({
-  max: 500,
+import { logger } from "@/core/logger/pino-logger";
+
+const options = {
+  max: 5000,
   ttl: 1000 * 60 * 5,
-});
+  updateAgeOnGet: false,
+} as const;
+
+const cache = new LRUCache<string, object>(options);
+const inFlight = new Map<string, Promise<unknown>>();
 
 export const getCachedData = async <T>(
   key: string,
   fetcher: () => Promise<T>,
-  _ttl?: number,
+  ttl?: number,
 ): Promise<T> => {
-  const cached = cache.get(key) as T | undefined;
-  if (cached !== undefined) {
-    return cached;
+  if (cache.has(key)) {
+    return cache.get(key) as T;
   }
-  const data = await fetcher();
-  cache.set(key, data);
+
+  if (inFlight.has(key)) {
+    return inFlight.get(key) as Promise<T>;
+  }
+
+  const fetchPromise = fetcher().finally(() => {
+    inFlight.delete(key);
+  });
+
+  inFlight.set(key, fetchPromise);
+
+  const data = await fetchPromise;
+  if (data !== undefined && data !== null) {
+    cache.set(key, data, { ttl });
+  }
   return data;
 };
 
-export const purgeCache = (prefix: string): void => {
-  const keys = cache.keys();
-  for (const key of keys) {
-    if (key.startsWith(prefix)) {
+export const invalidateKey = (key: string): void => {
+  cache.delete(key);
+};
+
+export const purgeCache = (pattern: string): void => {
+  let count = 0;
+  for (const key of cache.keys()) {
+    if (key.startsWith(pattern)) {
       cache.delete(key);
+      count++;
     }
+  }
+  if (count > 0) {
+    logger.info({ pattern, removedCount: count }, "Cache purged by pattern");
   }
 };
 
-export const cacheService = {
-  get: getCachedData,
-  purge: purgeCache,
-};
+export const getCacheStats = () => ({
+  keys: Array.from(cache.keys()),
+  max: cache.max,
+  size: cache.size,
+});

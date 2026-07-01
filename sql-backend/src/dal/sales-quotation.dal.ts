@@ -1,102 +1,88 @@
-// Sales Quotation DAL: Manages HTTP requests for Sales Quotation operations.
-
-import type { NextFunction, Request, Response } from "express";
-
-import { logger } from "@/core/logger/pino-logger";
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
-import type { SalesQuotationQuery } from "@/dal/types/sales-quotation.types";
+import type { RequestHandler } from "express";
 import { salesQuotationService } from "@/services/sales-quotation.service";
-import { CreateSalesQuotationInputSchema } from "@/validation/schemas/inputs/sales-quotation.input";
-import type { SalesQuotationDocNumLookupQuery } from "@/validation/schemas/inputs/sales-quotation.input";
 
-export const getQuotations = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    SalesQuotationQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const filters = authReq.query;
-
-    logger.info({ dbName, filters, msg: "Fetching Sales Quotations" });
-
-    const result = await salesQuotationService.getQuotations(dbName, filters);
-
-    logger.info({
-      count: result.data.length,
-      msg: "Fetched Sales Quotations",
-      total: result.total,
+    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
+    const r = await salesQuotationService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      docStatus: typeof docStatus === "string" ? docStatus : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
     });
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    res.status(200).json({ data: r, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getQuotationDocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    SalesQuotationDocNumLookupQuery
-  >;
+export const getDocNums: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { search, limit } = authReq.query;
-    const data = await salesQuotationService.getQuotationDocNums(dbName, search, limit);
+    const { search, limit } = req.query;
+    const data = await salesQuotationService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
+    );
     res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getQuotation = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getByDocNum: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = authReq.params;
-
-    logger.info({ dbName, id, msg: "Fetching Sales Quotation detail" });
-
-    const data = await salesQuotationService.getQuotation(dbName, id as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "Sales Quotation not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await salesQuotationService.getByDocNum(Number(req.params.docNum));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const createQuotation = async (req: Request, res: Response, next: NextFunction) => {
-  const _authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const payload = req.body;
-    CreateSalesQuotationInputSchema.parse(payload);
+    const result = await salesQuotationService.getById(Number(req.params.id));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
+  }
+};
 
-    logger.info({
-      customer: (payload as Record<string, unknown>).CardCode,
-      msg: "Creating Sales Quotation",
-    });
+export const create: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await salesQuotationService.create(req.body);
+    res.status(201).json({ data: result, message: "Sales quotation created", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
 
-    res.status(201).json({
-      data: payload,
-      message: "Quotation created (stub)",
-      success: true,
-    });
-  } catch (error) {
-    next(error);
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await salesQuotationService.update(Number(req.params.id), req.body);
+    res.status(200).json({ data: result, message: "Sales quotation updated", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const cancel: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await salesQuotationService.cancel(Number(req.params.id));
+    res.status(200).json({ data: result, message: "Sales quotation cancelled", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
 export const salesQuotationDal = {
-  createQuotation,
-  getQuotation,
-  getQuotationDocNums,
-  getQuotations,
+  cancel,
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  update,
 };

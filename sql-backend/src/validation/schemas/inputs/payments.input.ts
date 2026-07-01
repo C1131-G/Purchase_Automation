@@ -1,30 +1,47 @@
-import { z } from "@/config/zod";
+import { z } from "zod";
 
 export const PaymentQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(20),
-  page: z.coerce.number().min(1).default(1),
-  search: z.string().optional(),
-  status: z.enum(["O", "C"]).optional(),
+  docNum: z.string().optional(),
+  cardCode: z.string().optional(),
+  cardName: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  docTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
+  docTotal: z.coerce.number().optional(),
+  paymentMode: z.string().optional(),
+  counterRef: z.string().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  sortBy: z
+    .enum(["doc_num", "doc_date", "card_code", "card_name", "doc_total", "payment_mode"])
+    .optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
 });
 
 export const PaymentDocNumLookupQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(50).default(10),
-  search: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(10).optional(),
+  search: z.string().trim().min(1).max(50).optional(),
+});
+
+const PaymentInvoiceLineSchema = z.object({
+  docEntry: z.coerce.number().int().positive(),
+  invoiceType: z.string().optional(),
+  sumApplied: z.coerce.number().positive(),
 });
 
 export const CreatePaymentInputSchema = z.object({
   cardCode: z.string().min(1),
-  cashSum: z.number().optional(),
-  comments: z.string().optional(),
-  docDate: z.string().transform((val) => new Date(val)),
-  transferSum: z.number().optional(),
+  docDate: z.string().optional(),
+  reference: z.string().optional(),
+  remarks: z.string().optional(),
+  paymentMode: z.string().optional(),
+  cashSum: z.coerce.number().optional(),
+  cashAccount: z.string().nullable().optional(),
+  transferSum: z.coerce.number().optional(),
+  transferDate: z.string().optional(),
+  transferAccount: z.string().optional(),
+  transferReference: z.string().optional(),
+  invoices: z.array(PaymentInvoiceLineSchema).optional(),
 });
 
-export const UpdatePaymentInputSchema = z.object({
-  comments: z.string().optional(),
-});
-
-export type PaymentQuery = z.infer<typeof PaymentQuerySchema>;
-export type PaymentDocNumLookupQuery = z.infer<typeof PaymentDocNumLookupQuerySchema>;
-export type CreatePaymentInput = z.infer<typeof CreatePaymentInputSchema>;
-export type UpdatePaymentInput = z.infer<typeof UpdatePaymentInputSchema>;
+export const UpdatePaymentInputSchema = CreatePaymentInputSchema.partial();

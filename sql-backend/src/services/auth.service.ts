@@ -1,69 +1,35 @@
-import bcrypt from "bcrypt";
+import { eq } from "drizzle-orm";
 
+import { getDb } from "@/db/client";
+import { users } from "@/db/schema/users";
+import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
-import type { LoginResponse } from "@/dal/types/auth.types";
-import { getTenantDataSource } from "@/db/config/data-source";
-import { UserSchema } from "@/db/schemas/user.schema";
 
-export const login = async (
-  username: string,
-  password: string,
-  dbName: string,
-): Promise<LoginResponse> => {
-  try {
-    const ds = await getTenantDataSource(dbName);
-    const userRepo = ds.getRepository(UserSchema);
+export const login = async (username: string, password: string) => {
+  const db = getDb();
 
-    const user = await userRepo.findOne({
-      where: { username: username.toUpperCase() },
-    });
+  const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
 
-    if (!user) {
-      const error = new Error("Invalid username or password") as Error & {
-        statusCode: number;
-      };
-      error.statusCode = 401;
-      throw error;
-    }
-
-    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordMatch) {
-      const error = new Error("Invalid username or password") as Error & {
-        statusCode: number;
-      };
-      error.statusCode = 401;
-      throw error;
-    }
-
-    const sessionId = `sql_${Date.now()}_${Math.random().toString(36).slice(7)}`;
-
-    logger.info({ company: dbName, msg: "User login success", username });
-
-    return {
-      sessionId,
-      sessionTimeout: 1800,
-      user: {
-        dbName,
-        userName: user.name || username,
-      },
-    };
-  } catch (err: unknown) {
-    const caughtError = err instanceof Error ? err : new Error(String(err));
-    logger.error({
-      company: dbName,
-      error: caughtError.message,
-      msg: "User login failed",
-      username,
-    });
-    throw caughtError;
+  if (!user) {
+    throw new AppError("Invalid username or password", 401, "AUTH_FAILED");
   }
+
+  // Verify password (bcryptjs at runtime)
+  const bcrypt = await import("bcryptjs");
+  const passwordValid = await bcrypt.compare(password, user.password);
+
+  if (!passwordValid) {
+    throw new AppError("Invalid username or password", 401, "AUTH_FAILED");
+  }
+
+  logger.info({ username }, "User login successful");
+
+  return {
+    user: {
+      companyName: user.companyName,
+      userName: user.username,
+    },
+  };
 };
 
-export const logout = async (_sessionId: string): Promise<void> => {
-  logger.info({ msg: "User logged out" });
-};
-
-export const authService = {
-  login,
-  logout,
-};
+export const authService = { login };

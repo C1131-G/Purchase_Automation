@@ -1,36 +1,28 @@
 import type { RequestHandler } from "express";
 
 import { logger } from "@/core/logger/pino-logger";
-import { purgeCache } from "@/core/utils/cache";
-import type { LoginResponse } from "@/dal/types/auth.types";
 import { authService } from "@/services/auth.service";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
-    const { username, password, companyDB } = req.body;
+    const { username, password } = req.body;
 
-    logger.info({ dbName: companyDB, msg: "Login attempt", username });
+    logger.info({ username }, "Login attempt");
 
-    const result: LoginResponse = await authService.login(username, password, companyDB);
+    const result = await authService.login(username, password);
 
-    req.session.regenerate((err) => {
-      if (err) {
-        return next(err);
-      }
+    req.session.regenerate(async (err) => {
+      if (err) return next(err);
 
-      const { session } = req;
-      session.sessionId = result.sessionId;
-      session.dbName = companyDB;
-      session.user = result.user;
-      session.userAgent = req.headers["user-agent"];
+      req.session.user = {
+        companyName: result.user.companyName,
+        userName: result.user.userName,
+      };
 
-      logger.info({ msg: "Login successful", username });
+      logger.info({ username }, "Login successful");
 
       res.status(200).json({
-        data: {
-          sessionTimeout: result.sessionTimeout,
-          user: result.user,
-        },
+        data: { user: result.user },
         success: true,
       });
     });
@@ -39,52 +31,27 @@ export const login: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const getCurrentUser: RequestHandler = async (req, res, next) => {
-  try {
-    const { user } = req.session;
+export const getCurrentUser: RequestHandler = async (req, res, _next) => {
+  const { user } = req.session;
 
-    if (!user) {
-      return res.status(401).json({
-        message: "Not authenticated",
-        success: false,
-      });
-    }
-
-    res.status(200).json({
-      data: { user },
-      success: true,
+  if (!user) {
+    return res.status(401).json({
+      message: "Not authenticated",
+      success: false,
     });
-  } catch (error) {
-    next(error);
   }
+
+  res.status(200).json({
+    data: { user },
+    success: true,
+  });
 };
 
 export const logout: RequestHandler = async (req, res, next) => {
   try {
-    const { sessionId, dbName } = req.session;
-
-    logger.info({
-      msg: "Logout attempt",
-      sessionId: sessionId ? "present" : "missing",
-    });
-
-    if (sessionId) {
-      try {
-        await authService.logout(sessionId);
-      } catch (error) {
-        logger.error({ error: (error as Error).message, msg: "Logout error" });
-      }
-    }
-
-    if (dbName) {
-      purgeCache(`master:${dbName}:`);
-      purgeCache(`dash:sales:${dbName}:`);
-      purgeCache(`dash:purchase:${dbName}:`);
-    }
-
     req.session.destroy((err) => {
       if (err) {
-        logger.error({ error: err, msg: "Session destroy error" });
+        logger.error({ error: err }, "Session destroy error");
         return next(err);
       }
 
@@ -100,8 +67,4 @@ export const logout: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const authDal = {
-  getCurrentUser,
-  login,
-  logout,
-};
+export const authDal = { getCurrentUser, login, logout };

@@ -1,155 +1,80 @@
-// Sales Order DAL: Manages HTTP requests for Sales Order operations.
-
-import type { NextFunction, Request, Response } from "express";
-
-import { logger } from "@/core/logger/pino-logger";
-import type { AuthenticatedRequest } from "@/dal/types/express.types";
-import type { SalesOrderQuery } from "@/dal/types/sales-order.types";
+import type { RequestHandler } from "express";
 import { salesOrderService } from "@/services/sales-order.service";
-import { CreateSalesOrderInputSchema } from "@/validation/schemas/inputs/sales-order.input";
-import type { SalesOrderDocNumLookupQuery } from "@/validation/schemas/inputs/sales-order.input";
 
-export const getSalesOrders = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    SalesOrderQuery
-  >;
+export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const filters = authReq.query;
-
-    logger.info({ dbName, filters, msg: "Fetching Sales Orders" });
-
-    const result = await salesOrderService.getSalesOrders(dbName, filters);
-
-    logger.info({
-      count: result.data.length,
-      msg: "Fetched Sales Orders",
-      total: result.total,
+    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
+    const r = await salesOrderService.getList({
+      page: typeof page === "string" ? Number(page) : undefined,
+      limit: typeof limit === "string" ? Number(limit) : undefined,
+      cardCode: typeof cardCode === "string" ? cardCode : undefined,
+      docStatus: typeof docStatus === "string" ? docStatus : undefined,
+      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
+      dateTo: typeof dateTo === "string" ? dateTo : undefined,
+      search: typeof search === "string" ? search : undefined,
     });
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    res.status(200).json({ data: r, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getSalesOrderDocNums = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest<
-    Record<string, never>,
-    unknown,
-    unknown,
-    SalesOrderDocNumLookupQuery
-  >;
+export const getDocNums: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { search, limit } = authReq.query;
-    const data = await salesOrderService.getSalesOrderDocNums(dbName, search, limit);
+    const { search, limit } = req.query;
+    const data = await salesOrderService.getDocNums(
+      typeof search === "string" ? search : undefined,
+      typeof limit === "string" ? Number(limit) : undefined,
+    );
     res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getSalesOrder = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getByDocNum: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { id } = authReq.params;
-
-    logger.info({ dbName, id, msg: "Fetching Sales Order detail" });
-
-    const data = await salesOrderService.getSalesOrder(dbName, id as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "Sales Order not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await salesOrderService.getByDocNum(Number(req.params.docNum));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getSalesOrderByDocNum = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-    const { docNum } = authReq.params;
-
-    logger.info({ dbName, docNum, msg: "Fetching Sales Order by DocNum" });
-
-    const data = await salesOrderService.getSalesOrderByDocNum(dbName, docNum as string);
-
-    if (!data) {
-      return res.status(404).json({ message: "Sales Order not found", success: false });
-    }
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await salesOrderService.getById(Number(req.params.id));
+    res.status(200).json({ data: result, success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getSalesEmployees = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const create: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-
-    logger.info({ dbName, msg: "Fetching Sales Employees" });
-
-    const data = await salesOrderService.getSalesEmployees(dbName);
-
-    res.status(200).json({ data, success: true });
-  } catch (error) {
-    next(error);
+    const result = await salesOrderService.create(req.body);
+    res.status(201).json({ data: result, message: "Sales order created", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const getOpenSalesOrderLines = async (req: Request, res: Response, next: NextFunction) => {
-  const authReq = req as unknown as AuthenticatedRequest;
+export const update: RequestHandler = async (req, res, next) => {
   try {
-    const { dbName } = authReq.user;
-
-    logger.info({ dbName, msg: "Fetching Open Sales Order Lines" });
-
-    const result = await salesOrderService.getOpenSalesOrderLines(dbName);
-
-    res.status(200).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
+    const result = await salesOrderService.update(Number(req.params.id), req.body);
+    res.status(200).json({ data: result, message: "Sales order updated", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const createSalesOrder = async (req: Request, res: Response, next: NextFunction) => {
-  const _authReq = req as unknown as AuthenticatedRequest;
+export const cancel: RequestHandler = async (req, res, next) => {
   try {
-    const payload = req.body;
-    CreateSalesOrderInputSchema.parse(payload);
-
-    logger.info({
-      customer: (payload as Record<string, unknown>).CardCode,
-      msg: "Creating Sales Order",
-    });
-
-    res.status(201).json({
-      data: payload,
-      message: "Sales Order created (stub)",
-      success: true,
-    });
-  } catch (error) {
-    next(error);
+    const result = await salesOrderService.cancel(Number(req.params.id));
+    res.status(200).json({ data: result, message: "Sales order cancelled", success: true });
+  } catch (e) {
+    next(e);
   }
 };
 
-export const salesOrderDal = {
-  createSalesOrder,
-  getOpenSalesOrderLines,
-  getSalesEmployees,
-  getSalesOrder,
-  getSalesOrderByDocNum,
-  getSalesOrderDocNums,
-  getSalesOrders,
-};
+export const salesOrderDal = { cancel, create, getByDocNum, getById, getDocNums, getList, update };
