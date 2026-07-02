@@ -5,11 +5,11 @@ import { authService } from "@/services/auth.service";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, companyDB } = req.body;
 
-    logger.info({ username }, "Login attempt");
+    logger.info({ username, companyDB }, "Login attempt");
 
-    const result = await authService.login(username, password);
+    const result = await authService.login(username, password, companyDB);
 
     req.session.regenerate(async (err) => {
       if (err) return next(err);
@@ -17,6 +17,8 @@ export const login: RequestHandler = async (req, res, next) => {
       req.session.user = {
         companyName: result.user.companyName,
         userName: result.user.userName,
+        dbName: result.user.dbName,
+        dbServer: result.user.dbServer,
       };
 
       logger.info({ username }, "Login successful");

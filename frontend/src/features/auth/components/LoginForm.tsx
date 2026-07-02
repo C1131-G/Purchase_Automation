@@ -17,10 +17,45 @@ import { loginSchema } from "@/features/auth/schemas/auth.schema";
 import type { LoginFormData } from "@/features/auth/schemas/auth.schema";
 import { useAuthError } from "@/store/auth/auth.store";
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 // LoginForm: Authenticated entryway utilizing standardized Sapphire and Industrial design patterns.
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false);
   const ORG_ERROR_TOAST_ID = "auth-org-load-error";
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    defaultValues: {
+      organization: "",
+      password: "",
+      username: "",
+    },
+    resolver: zodResolver(loginSchema),
+  });
+
+  const watchedUsername = watch("username");
+  const debouncedUsername = useDebounce(watchedUsername, 500);
 
   // --- Real Backend Hooks ---
   const authError = useAuthError();
@@ -29,8 +64,19 @@ export function LoginForm() {
     isLoading: isLoadingOrgs,
     isError: isOrganizationsError,
     isFetching: isOrganizationsFetching,
-  } = useQuery(authQueries.organization());
+  } = useQuery(authQueries.organization(debouncedUsername));
   const { mutate: loginMutation, isPending: isLoggingIn } = useLogin();
+
+  const orgLabelMap = React.useMemo(() => {
+    if (!organizations) return {};
+    return organizations.reduce(
+      (acc, org) => {
+        acc[org.dbName] = org.companyName;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+  }, [organizations]);
 
   React.useEffect(() => {
     if (isLoadingOrgs || isOrganizationsFetching) {
@@ -48,19 +94,12 @@ export function LoginForm() {
     });
   }, [isLoadingOrgs, isOrganizationsFetching, isOrganizationsError]);
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    formState: { errors },
-  } = useForm<LoginFormData>({
-    defaultValues: {
-      organization: "",
-      password: "",
-      username: "",
-    },
-    resolver: zodResolver(loginSchema),
-  });
+  // Auto-select DB if exactly 1 DB is returned
+  React.useEffect(() => {
+    if (organizations && organizations.length === 1 && organizations[0]) {
+      setValue("organization", organizations[0].dbName, { shouldValidate: true });
+    }
+  }, [organizations, setValue]);
 
   // onSubmit: Manages login form submission and state synchronization.
   const onSubmit = (data: LoginFormData) => {
@@ -111,16 +150,18 @@ export function LoginForm() {
               <Select
                 id="organization"
                 name="organization"
-                defaultValue={field.value}
+                value={field.value}
                 onValueChange={field.onChange}
-                disabled={isLoadingOrgs || isLoggingIn}
+                disabled={
+                  !organizations || organizations.length === 0 || isLoadingOrgs || isLoggingIn
+                }
                 autoComplete="off"
               >
                 <Select.Trigger className="border-zinc-200 bg-white hover:bg-white hover:border-zinc-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white">
                   <div className="flex items-center gap-3 overflow-hidden flex-1">
                     <Building2 className="size-4 text-zinc-400 shrink-0" />
                     <div className="truncate text-left">
-                      <Select.Value placeholder="Select Database..." />
+                      <Select.Value placeholder="Select Database..." labelMap={orgLabelMap} />
                     </div>
                   </div>
                   <Select.Icon>
@@ -149,7 +190,7 @@ export function LoginForm() {
                             </Select.Item>
                           ))
                         ) : (
-                          <div className="px-3 py-2 text-xs text-zinc-500">
+                          <div className="px-3 py-2 text-xs text-zinc-500 font-medium">
                             {isLoadingOrgs || isOrganizationsFetching
                               ? "Loading databases..."
                               : "No databases available."}

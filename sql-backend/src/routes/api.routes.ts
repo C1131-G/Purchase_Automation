@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
+import { initTenantContext } from "@/core/middleware/tenant.middleware";
 import { authenticatedApiLimiter } from "@/core/middleware/rate-limit.middleware";
 import { authRoutes } from "./auth.routes";
 import { organizationRoutes } from "./organization.routes";
@@ -34,6 +35,7 @@ router.use("/organizations", organizationRoutes);
 
 // Protected routes
 router.use(validateSession);
+router.use(initTenantContext);
 router.use(authenticatedApiLimiter);
 
 router.use("/master-data", masterDataRoutes);

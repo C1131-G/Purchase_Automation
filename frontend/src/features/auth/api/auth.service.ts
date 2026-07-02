@@ -16,8 +16,10 @@ export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type User = z.infer<typeof userSchema>;
 
 export const OrganizationsAPI = {
-  getAll: async () =>
-    apiClient<z.infer<typeof organizationsResponseSchema>>("/api/v1/organizations"),
+  getAll: async (username?: string) =>
+    apiClient<z.infer<typeof organizationsResponseSchema>>(
+      `/api/v1/organizations${username ? `?username=${encodeURIComponent(username)}` : ""}`,
+    ),
 };
 
 export const authAPI = {

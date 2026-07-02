@@ -1,4 +1,5 @@
 import { LRUCache } from "lru-cache";
+import { dbContext } from "@/db/client";
 
 import { logger } from "@/core/logger/pino-logger";
 
@@ -16,35 +17,42 @@ export const getCachedData = async <T>(
   fetcher: () => Promise<T>,
   ttl?: number,
 ): Promise<T> => {
-  if (cache.has(key)) {
-    return cache.get(key) as T;
+  const context = dbContext.getStore();
+  const namespacedKey = context?.dbName ? `${context.dbName}:${key}` : key;
+
+  if (cache.has(namespacedKey)) {
+    return cache.get(namespacedKey) as T;
   }
 
-  if (inFlight.has(key)) {
-    return inFlight.get(key) as Promise<T>;
+  if (inFlight.has(namespacedKey)) {
+    return inFlight.get(namespacedKey) as Promise<T>;
   }
 
   const fetchPromise = fetcher().finally(() => {
-    inFlight.delete(key);
+    inFlight.delete(namespacedKey);
   });
 
-  inFlight.set(key, fetchPromise);
+  inFlight.set(namespacedKey, fetchPromise);
 
   const data = await fetchPromise;
   if (data !== undefined && data !== null) {
-    cache.set(key, data, { ttl });
+    cache.set(namespacedKey, data, { ttl });
   }
   return data;
 };
 
 export const invalidateKey = (key: string): void => {
-  cache.delete(key);
+  const context = dbContext.getStore();
+  const namespacedKey = context?.dbName ? `${context.dbName}:${key}` : key;
+  cache.delete(namespacedKey);
 };
 
 export const purgeCache = (pattern: string): void => {
+  const context = dbContext.getStore();
+  const namespacedPattern = context?.dbName ? `${context.dbName}:${pattern}` : pattern;
   let count = 0;
   for (const key of cache.keys()) {
-    if (key.startsWith(pattern)) {
+    if (key.startsWith(namespacedPattern)) {
       cache.delete(key);
       count++;
     }

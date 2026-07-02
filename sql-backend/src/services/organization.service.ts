@@ -1,7 +1,8 @@
-// Organization Service: Returns company info for the login page.
-// Mirrors hana-backend's organization service but single-tenant (no SAP tenant registry).
-
-import { getCachedData } from "@/core/utils/cache";
+import { eq, and } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { users } from "@/db/schema/users";
+import { organizations } from "@/db/schema/organizations";
+import { userDbAccess } from "@/db/schema/user-db-access";
 
 interface DatabaseItem {
   dbName: string;
@@ -10,23 +11,26 @@ interface DatabaseItem {
   isActive: string;
 }
 
-const dummyOrg: DatabaseItem = {
-  dbName: "ERP",
-  companyName: "VedhaSoft ERP",
-  dbServer: "localhost",
-  isActive: "Y",
-};
+export const getAvailableDatabases = async (username?: string): Promise<DatabaseItem[]> => {
+  const db = getDb();
 
-export const getAvailableDatabases = async (): Promise<DatabaseItem[]> => {
-  return getCachedData(
-    "all_databases",
-    async () => {
-      // For single-tenant SQL, return a hardcoded org.
-      // Future: read from a config table if multi-tenant is needed.
-      return [dummyOrg];
-    },
-    60 * 60 * 1000,
-  ); // 1 hour cache
+  if (!username) {
+    return [];
+  }
+
+  const results = await db
+    .select({
+      dbName: organizations.dbName,
+      companyName: organizations.companyName,
+      dbServer: organizations.dbServer,
+      isActive: organizations.isActive,
+    })
+    .from(organizations)
+    .innerJoin(userDbAccess, eq(userDbAccess.dbName, organizations.dbName))
+    .innerJoin(users, eq(users.id, userDbAccess.userId))
+    .where(and(eq(users.username, username), eq(organizations.isActive, "Y")));
+
+  return results;
 };
 
 export const organizationService = { getAvailableDatabases };

@@ -15,6 +15,13 @@
       "when": 1782885815011,
       "tag": "0001_supreme_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782973538843,
+      "tag": "0002_add_organizations_and_access",
+      "breakpoints": true
     }
   ]
 }
