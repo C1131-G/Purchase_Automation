@@ -73,6 +73,17 @@ export const createGoodsIssueColumns = (options?: CreateGoodsIssueColumnsOptions
       minSize: 12,
       size: 14,
     }),
+    columnHelper.accessor("Comments", {
+      cell: (info) => info.getValue() || "-",
+      filterFn: "includesString",
+      header: ({ column, table }) => (
+        <TableColumnSort column={column} sortingState={table.getState().sorting} title="Remarks" />
+      ),
+      id: "Comments",
+      meta: { filterType: "text" },
+      minSize: 12,
+      size: 14,
+    }),
     columnHelper.accessor("DocTotal", {
       cell: (info) => formatDocTotal(info.getValue(), info.row.original.DocCurr ?? "FJD"),
       enableColumnFilter: true,
