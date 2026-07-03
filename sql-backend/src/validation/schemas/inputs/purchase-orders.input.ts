@@ -13,7 +13,7 @@ const PurchaseOrderLineSchema = z.object({
 });
 
 export const CreatePurchaseOrderSchema = z.object({
-  docNum: z.coerce.number().int(),
+  docNum: z.coerce.number().int().optional(),
   docDate: z.string().min(1),
   docDueDate: z.string().optional(),
   cardCode: z.string().min(1),

@@ -1,38 +1,69 @@
-// Dashboard period calculation: converts period enum to date boundaries.
+// Dashboard period — matching hana exactly.
 
-import type { DashboardPeriod } from "./dashboard.types";
-import { PERIOD_LABELS } from "./dashboard.constants";
+import type { DashboardPeriod, DashboardGranularity, PeriodWindow } from "./dashboard.types";
 
-export const getDateRange = (
-  period: "week" | "month" | "year" | "all" = "month",
-): DashboardPeriod => {
-  const now = new Date();
-  const endDate = now.toISOString().split("T")[0];
-  let startDate: string;
+const dayLabelFormatter = new Intl.DateTimeFormat("en-US", { day: "2-digit", month: "short" });
+const monthLabelFormatter = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" });
 
-  switch (period) {
-    case "week": {
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      startDate = weekAgo.toISOString().split("T")[0];
-      break;
-    }
-    case "month": {
-      const monthAgo = new Date(now);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      startDate = monthAgo.toISOString().split("T")[0];
-      break;
-    }
-    case "year": {
-      const yearAgo = new Date(now);
-      yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-      startDate = yearAgo.toISOString().split("T")[0];
-      break;
-    }
-    default: {
-      startDate = "2000-01-01";
-    }
-  }
+export const toDateOnly = (value: Date): string => value.toISOString().slice(0, 10);
 
-  return { endDate, label: PERIOD_LABELS[period], startDate };
+export const fromDateOnly = (value: string): Date => {
+  const [y, m, d] = value.split("-");
+  return new Date(Date.UTC(Number(y ?? "1970"), Number(m ?? "1") - 1, Number(d ?? "1")));
+};
+
+const shiftDays = (value: string, days: number): string => {
+  const date = fromDateOnly(value);
+  date.setUTCDate(date.getUTCDate() + days);
+  return toDateOnly(date);
+};
+
+const startOfMonth = (value: Date): Date =>
+  new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1));
+const startOfYear = (value: Date): Date => new Date(Date.UTC(value.getUTCFullYear(), 0, 1));
+
+const startOfIsoWeek = (value: Date): Date => {
+  const date = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+  const day = date.getUTCDay() === 0 ? 7 : date.getUTCDay();
+  date.setUTCDate(date.getUTCDate() - day + 1);
+  return date;
+};
+
+const daysBetweenInclusive = (start: string, end: string): number => {
+  const ms = fromDateOnly(end).getTime() - fromDateOnly(start).getTime();
+  return Math.floor(ms / 86_400_000) + 1;
+};
+
+export const getPeriodWindow = (period: DashboardPeriod): PeriodWindow => {
+  const today = new Date();
+  const todayUtc = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+  const currentEnd = toDateOnly(todayUtc);
+  if (period === "all")
+    return { current: { start: null, end: null }, previous: null, granularity: "month" };
+  const isWeekOrMonth = period === "week" || period === "month";
+  const start =
+    period === "week"
+      ? toDateOnly(startOfIsoWeek(todayUtc))
+      : period === "month"
+        ? toDateOnly(startOfMonth(todayUtc))
+        : toDateOnly(startOfYear(todayUtc));
+  const days = daysBetweenInclusive(start, currentEnd);
+  return {
+    current: { start, end: currentEnd },
+    previous: { start: shiftDays(start, -days), end: shiftDays(start, -1) },
+    granularity: isWeekOrMonth ? "day" : "month",
+  };
+};
+
+export const createBucketKey = (value: string, granularity: DashboardGranularity): string =>
+  granularity === "day" ? value : value.slice(0, 7);
+
+export const createBucketLabel = (bucket: string, granularity: DashboardGranularity): string => {
+  if (granularity === "day") return dayLabelFormatter.format(fromDateOnly(bucket));
+  const [y, m] = bucket.split("-");
+  return monthLabelFormatter.format(
+    new Date(Date.UTC(Number(y ?? "1970"), Number(m ?? "1") - 1, 1)),
+  );
 };

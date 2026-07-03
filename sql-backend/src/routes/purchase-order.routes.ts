@@ -10,6 +10,7 @@ const router = Router();
 router.use(validateSession);
 
 router.get("/docnums", purchaseOrderDal.getDocNums);
+router.get("/next-docnum", purchaseOrderDal.previewNextDocNum);
 router.get("/by-doc-num/:docNum", purchaseOrderDal.getByDocNum);
 router.get("/:id", purchaseOrderDal.getById);
 router.get("/", purchaseOrderDal.getList);

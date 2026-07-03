@@ -1,7 +1,6 @@
 import "dotenv/config";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq } from "drizzle-orm";
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
 import { faker } from "@faker-js/faker";
@@ -81,22 +80,22 @@ async function runSeed() {
     .insert(organizations)
     .values([
       {
-        companyName: "VedhaSoft ERP Corporate HQ",
-        dbName: "ERP_MAIN",
+        companyName: "CIBI ERP Corporate HQ",
+        dbName: "CIBI_ERP_DB",
         dbServer: "localhost",
         isActive: "Y",
       },
       {
-        companyName: "VedhaSoft ERP Regional Branch",
-        dbName: "ERP_BRANCH",
+        companyName: "VISHNU ERP Corporate HQ",
+        dbName: "VISHNU_ERP_DB",
         dbServer: "localhost",
         isActive: "Y",
       },
       {
-        companyName: "VedhaSoft Inactive Org",
-        dbName: "ERP_INACTIVE",
+        companyName: "VISHNU ERP Corporate HQ",
+        dbName: "VISHNU_ERP_BRANCH_DB",
         dbServer: "localhost",
-        isActive: "N",
+        isActive: "Y",
       },
     ])
     .returning();
@@ -109,39 +108,24 @@ async function runSeed() {
     .insert(users)
     .values([
       {
-        username: "main_user_1",
-        password: "mainpass1",
-        companyName: "VedhaSoft ERP Corporate HQ",
+        username: "Cibi",
+        password: "admin@123",
+        companyName: "CIBI ERP Corporate HQ",
       },
       {
-        username: "main_user_2",
-        password: "mainpass2",
-        companyName: "VedhaSoft ERP Corporate HQ",
+        username: "Chandru",
+        password: "admin@123",
+        companyName: "CIBI ERP Corporate HQ",
       },
       {
-        username: "multi_db_user",
-        password: "multipass",
-        companyName: "VedhaSoft ERP Corporate HQ",
+        username: "Vishnu",
+        password: "admin123",
+        companyName: "VISHNU ERP Corporate HQ",
       },
       {
-        username: "shared_admin",
-        password: "adminpass",
-        companyName: "Shared Administrator",
-      },
-      {
-        username: "inactive_user",
-        password: "inactivepass",
-        companyName: "VedhaSoft ERP Corporate HQ",
-      },
-      {
-        username: "user_inactive_db",
-        password: "inactivedbpass",
-        companyName: "VedhaSoft Inactive Org",
-      },
-      {
-        username: "no_access_user",
-        password: "nopass",
-        companyName: "No Access Corp",
+        username: "Veera",
+        password: "employee123",
+        companyName: "VISHNU ERP Corporate HQ",
       },
     ])
     .returning();
@@ -153,19 +137,13 @@ async function runSeed() {
   // 5. Seed User-DB Access mapping
   logger.info("Seeding user DB access records in registry...");
   await registryDb.insert(userDbAccess).values([
-    // main_user_1 & main_user_2 -> ERP_MAIN
-    { userId: userMap.get("main_user_1")!, dbName: "ERP_MAIN" },
-    { userId: userMap.get("main_user_2")!, dbName: "ERP_MAIN" },
-    // multi_db_user -> ERP_MAIN & ERP_BRANCH
-    { userId: userMap.get("multi_db_user")!, dbName: "ERP_MAIN" },
-    { userId: userMap.get("multi_db_user")!, dbName: "ERP_BRANCH" },
-    // shared_admin -> ERP_MAIN & ERP_BRANCH
-    { userId: userMap.get("shared_admin")!, dbName: "ERP_MAIN" },
-    { userId: userMap.get("shared_admin")!, dbName: "ERP_BRANCH" },
-    // inactive_user -> ERP_MAIN (will simulate inactive by omitting from tenant users)
-    { userId: userMap.get("inactive_user")!, dbName: "ERP_MAIN" },
-    // user_inactive_db -> ERP_INACTIVE (db is inactive)
-    { userId: userMap.get("user_inactive_db")!, dbName: "ERP_INACTIVE" },
+    { userId: userMap.get("Cibi")!, dbName: "CIBI_ERP_DB" },
+    { userId: userMap.get("Chandru")!, dbName: "CIBI_ERP_DB" },
+
+    { userId: userMap.get("Vishnu")!, dbName: "VISHNU_ERP_DB" },
+    { userId: userMap.get("Vishnu")!, dbName: "VISHNU_ERP_BRANCH_DB" },
+
+    { userId: userMap.get("Veera")!, dbName: "VISHNU_ERP_BRANCH_DB" },
   ]);
 
   logger.info("Registry database seeding completed.");
@@ -173,9 +151,9 @@ async function runSeed() {
 
   // 6. Dynamic Seeding of each Tenant Database
   const tenantConfigs = [
-    { dbName: "ERP_MAIN", seed: 111, prefix: "MC-" },
-    { dbName: "ERP_BRANCH", seed: 222, prefix: "RB-" },
-    { dbName: "ERP_INACTIVE", seed: 333, prefix: "IA-" },
+    { dbName: "CIBI_ERP_DB", seed: 111, prefix: "MC-" },
+    { dbName: "VISHNU_ERP_DB", seed: 222, prefix: "RB-" },
+    { dbName: "VISHNU_ERP_BRANCH_DB", seed: 333, prefix: "IA-" },
   ];
 
   for (const tenant of tenantConfigs) {
@@ -275,9 +253,21 @@ async function runSeed() {
 
     // C. Seed Warehouses
     const whValues = [
-      { code: `${tenant.prefix}WH-01`, name: "Main Warehouse", inactive: false },
-      { code: `${tenant.prefix}WH-02`, name: "Shipping Warehouse", inactive: false },
-      { code: `${tenant.prefix}WH-03`, name: "Returns Warehouse", inactive: false },
+      {
+        code: `${tenant.prefix}WH-01`,
+        name: "Main Warehouse",
+        inactive: false,
+      },
+      {
+        code: `${tenant.prefix}WH-02`,
+        name: "Shipping Warehouse",
+        inactive: false,
+      },
+      {
+        code: `${tenant.prefix}WH-03`,
+        name: "Returns Warehouse",
+        inactive: false,
+      },
     ];
     await db.insert(warehouses).values(whValues);
 
@@ -374,9 +364,21 @@ async function runSeed() {
       const stockQty3 = faker.number.int({ min: 0, max: 50 });
 
       stockValues.push(
-        { itemCode: code, warehouseCode: `${tenant.prefix}WH-01`, onHand: stockQty1.toString() },
-        { itemCode: code, warehouseCode: `${tenant.prefix}WH-02`, onHand: stockQty2.toString() },
-        { itemCode: code, warehouseCode: `${tenant.prefix}WH-03`, onHand: stockQty3.toString() },
+        {
+          itemCode: code,
+          warehouseCode: `${tenant.prefix}WH-01`,
+          onHand: stockQty1.toString(),
+        },
+        {
+          itemCode: code,
+          warehouseCode: `${tenant.prefix}WH-02`,
+          onHand: stockQty2.toString(),
+        },
+        {
+          itemCode: code,
+          warehouseCode: `${tenant.prefix}WH-03`,
+          onHand: stockQty3.toString(),
+        },
       );
     }
     await db.insert(items).values(itemValues);

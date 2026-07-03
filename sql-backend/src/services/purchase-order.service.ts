@@ -10,6 +10,7 @@ import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { calculateLineTotal } from "@/services/discount.util";
+import { getNextDocNum, previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 
 export interface POListFilters {
   page?: number;
@@ -34,7 +35,7 @@ export interface POLineInput {
 }
 
 export interface CreatePOInput {
-  docNum: number;
+  docNum?: number;
   docDate: string;
   docDueDate?: string;
   cardCode: string;
@@ -150,6 +151,9 @@ export const getDocNums = async (search?: string, limit?: number) => {
 export const create = async (payload: CreatePOInput) => {
   const db = getDb();
 
+  const docNum =
+    payload.docNum ?? (await getNextDocNum("purchase_orders", "purchase_orders", 10000));
+
   const lineTotal = payload.lines.reduce(
     (sum, l) => sum + calculateLineTotal(l.unitPrice ?? 0, l.quantity, l.discountPercent),
     0,
@@ -158,7 +162,7 @@ export const create = async (payload: CreatePOInput) => {
   const [header] = await db
     .insert(purchaseOrders)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       docDueDate: payload.docDueDate ?? null,
       cardCode: payload.cardCode,
@@ -270,6 +274,10 @@ export const cancel = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return await previewNextDocNumHelper("purchase_orders", "purchase_orders", 10000);
+};
+
 export const purchaseOrderService = {
   cancel,
   create,
@@ -278,4 +286,5 @@ export const purchaseOrderService = {
   getDocNums,
   getList,
   update,
+  previewNextDocNum,
 };
