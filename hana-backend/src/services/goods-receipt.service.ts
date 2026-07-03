@@ -278,7 +278,6 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
       ),
     };
 
-
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",

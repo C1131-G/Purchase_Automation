@@ -102,7 +102,6 @@ export function GoodsIssueProductTableRow({
   const [uomNameInput, setUomNameInput] = React.useState(row.uomName || "");
   const [uomNameLookupOpen, setUomNameLookupOpen] = React.useState(false);
 
-
   const blurTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Queries
@@ -348,7 +347,6 @@ export function GoodsIssueProductTableRow({
           placeholder="0.00"
         />
       </td>
-
 
       {/* Warehouse */}
       <td className="relative px-2 py-2">
@@ -615,7 +613,6 @@ export function GoodsIssueProductTableRow({
           }}
         />
       </td>
-
 
       {/* Actions */}
       <td className="px-2 py-2 text-right">

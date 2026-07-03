@@ -22,7 +22,10 @@ import { CreatePageWrapper } from "@/features/create-pages/create-shared/compone
 import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/components/inventory/inventory-document-header";
 import { InventoryDocumentFooter } from "@/features/create-pages/create-shared/components/inventory/inventory-document-footer";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
-import { UploadGrid, type AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
+import {
+  UploadGrid,
+  type AttachmentItem,
+} from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
 import type { GoodsIssueRow } from "@/features/create-pages/goods-issue-create/types/goods-issue.types";
@@ -54,10 +57,10 @@ interface CreateGoodsIssuePayload {
 }
 
 async function postGoodsIssue(payload: CreateGoodsIssuePayload) {
-  return apiClient<{ success: boolean; DocNum: number; DocEntry: number }>(
-    "/api/v1/goods-issues",
-    { method: "POST", body: JSON.stringify(payload) },
-  );
+  return apiClient<{ success: boolean; DocNum: number; DocEntry: number }>("/api/v1/goods-issues", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 function useCreateGoodsIssue() {
@@ -431,7 +434,6 @@ export function GoodsIssueCreate() {
             />
           </div>
         </InventoryDocumentHeader>
-
 
         {/* Table */}
         <GoodsIssueTable

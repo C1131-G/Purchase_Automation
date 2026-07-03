@@ -20,7 +20,10 @@ import { CreatePageWrapper } from "@/features/create-pages/create-shared/compone
 import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/components/inventory/inventory-document-header";
 import { InventoryDocumentFooter } from "@/features/create-pages/create-shared/components/inventory/inventory-document-footer";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
-import { UploadGrid, type AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
+import {
+  UploadGrid,
+  type AttachmentItem,
+} from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
@@ -373,7 +376,6 @@ export function GoodsReceiptCreate() {
           onRef2Change={setRef2}
           idPrefix={ID_PREFIX}
         />
-
 
         {/* Table */}
         <GoodsReceiptTable

@@ -13,8 +13,8 @@ async function run() {
     }
     const meta = await serviceLayerClient.request(sessionId, "GET", "/$metadata");
     // Let's just find the properties of Document for Goods Issue
-    const fs = require('fs');
-    fs.writeFileSync('metadata.xml', meta);
+    const fs = require("fs");
+    fs.writeFileSync("metadata.xml", meta);
     console.log("Metadata written");
   } catch (err) {
     console.error("ERROR DETECTED:", err);

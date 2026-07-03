@@ -282,7 +282,6 @@ export const createGoodsIssue = async (sessionId: string, payload: Record<string
       ),
     };
 
-
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",

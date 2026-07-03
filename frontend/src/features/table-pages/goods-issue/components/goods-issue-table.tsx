@@ -116,8 +116,6 @@ export function GoodsIssueTable() {
     [searchParams.columnFilters],
   );
 
-
-
   const tableState = useMemo(
     () => ({
       columnFilters,

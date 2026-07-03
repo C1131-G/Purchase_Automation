@@ -21,4 +21,3 @@ function GoodsIssueEditPage() {
   useDocumentTitle(`Update Goods Issue ${docNum} | ERP Portal`);
   return <GoodsIssueUpdate docNum={docNum} />;
 }
-

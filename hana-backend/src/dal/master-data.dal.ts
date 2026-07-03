@@ -177,8 +177,12 @@ export const getBranches = async (req: Request, res: Response, next: NextFunctio
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { sessionId } = authReq.user;
-    const { serviceLayerClient } = await import('@/services/service-layer.service');
-    const result = await serviceLayerClient.request(sessionId, 'GET', '/DistributionRules?$select=FactorCode,FactorDescription');
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+    const result = await serviceLayerClient.request(
+      sessionId,
+      "GET",
+      "/DistributionRules?$select=FactorCode,FactorDescription",
+    );
     const data = result.value.map((r: any) => ({ Code: r.FactorCode, Name: r.FactorDescription }));
     res.status(200).json({ data, success: true });
   } catch (error) {
