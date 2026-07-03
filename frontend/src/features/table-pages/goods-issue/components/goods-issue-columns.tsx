@@ -10,7 +10,12 @@ import { formatDocTotal } from "@/features/table-pages/table-shared/utils/curren
 
 const columnHelper = createColumnHelper<GoodsIssueListItem>();
 
-export const createGoodsIssueColumns = () => {
+interface CreateGoodsIssueColumnsOptions {
+  onDocNumDoubleClick?: (docNum: string | number) => void;
+  onDocNumHover?: (docNum: string | number) => void;
+}
+
+export const createGoodsIssueColumns = (options?: CreateGoodsIssueColumnsOptions) => {
   return [
     columnHelper.accessor("DocNum", {
       cell: (info) => (
@@ -18,6 +23,8 @@ export const createGoodsIssueColumns = () => {
           value={info.getValue()}
           docEntry={info.row.original.id as number}
           docType="goods-issue"
+          onHover={options?.onDocNumHover}
+          onDoubleClick={options?.onDocNumDoubleClick}
         />
       ),
       enableSorting: true,
@@ -50,19 +57,14 @@ export const createGoodsIssueColumns = () => {
       minSize: 12,
       size: 14,
     }),
-    columnHelper.accessor("TaxDate", {
-      cell: (info) => {
-        const date = info.getValue();
-        if (!date) return "-";
-        return new Date(date).toLocaleDateString("en-GB");
-      },
-      filterFn: (row, columnId, filterValue) =>
-        matchesDateRange(row.getValue(columnId), filterValue),
+    columnHelper.accessor("Comments", {
+      cell: (info) => info.getValue() || "-",
+      filterFn: "includesString",
       header: ({ column, table }) => (
-        <TableColumnSort column={column} sortingState={table.getState().sorting} title="Tax Date" />
+        <TableColumnSort column={column} sortingState={table.getState().sorting} title="Remarks" />
       ),
-      id: "TaxDate",
-      meta: { filterType: "date" },
+      id: "Comments",
+      meta: { filterType: "text" },
       minSize: 12,
       size: 14,
     }),

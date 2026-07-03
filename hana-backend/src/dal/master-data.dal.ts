@@ -17,14 +17,18 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
       typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : undefined;
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
     const limit =
-      typeof req.query.limit === "string" && req.query.limit.trim() !== ""
-        ? Number(req.query.limit)
-        : undefined;
+      typeof req.query.limit === "number"
+        ? req.query.limit
+        : typeof req.query.limit === "string" && req.query.limit.trim() !== ""
+          ? Number(req.query.limit)
+          : undefined;
     const type = req.query.type as "sales" | "purchase" | undefined;
     const priceList =
-      typeof req.query.priceList === "string" && req.query.priceList.trim() !== ""
-        ? Number(req.query.priceList)
-        : undefined;
+      typeof req.query.priceList === "number"
+        ? req.query.priceList
+        : typeof req.query.priceList === "string" && req.query.priceList.trim() !== ""
+          ? Number(req.query.priceList)
+          : undefined;
     logger.info({
       dbName,
       limit,
@@ -169,6 +173,19 @@ export const getWarehouseBins = async (req: Request, res: Response, next: NextFu
   }
 };
 
+export const getBranches = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.user;
+    const { serviceLayerClient } = await import('@/services/service-layer.service');
+    const result = await serviceLayerClient.request(sessionId, 'GET', '/DistributionRules?$select=FactorCode,FactorDescription');
+    const data = result.value.map((r: any) => ({ Code: r.FactorCode, Name: r.FactorDescription }));
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const masterDataDal = {
   getCustomers,
   getPriceLists,
@@ -180,4 +197,5 @@ export const masterDataDal = {
   getWarehouses,
   getSeries,
   getWarehouseBins,
+  getBranches,
 };

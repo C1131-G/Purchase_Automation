@@ -167,6 +167,7 @@ export const getGoodsReceiptByDocNum = async (
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
     Ref2: header.ref2,
     Series: header.series,
+    PriceList: slDoc?.PriceList,
     DocumentLines: lines.map((l) => {
       const slLine = slDoc?.DocumentLines?.find((sl: any) => sl.LineNum === l.lineNum);
       return {
@@ -219,6 +220,23 @@ export const getGoodsReceiptDocNums = async (dbName: string, search?: string, li
 
 export const createGoodsReceipt = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    let absoluteEntry: number | null = null;
+    if (
+      payload.Attachments &&
+      Array.isArray(payload.Attachments) &&
+      payload.Attachments.length > 0 &&
+      dbName
+    ) {
+      const { attachmentsService } = await import("@/services/attachments.service");
+      absoluteEntry = await attachmentsService.createSAPAttachment(
+        sessionId,
+        dbName,
+        payload.Attachments as any[],
+      );
+    }
+
     const sapPayload: Record<string, unknown> = {
       DocDate: payload.DocDate,
       TaxDate: payload.TaxDate,
@@ -228,6 +246,10 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
       ...(payload.Series !== undefined && payload.Series !== null
         ? { Series: Number(payload.Series) }
         : {}),
+      ...(payload.PriceList !== undefined && payload.PriceList !== null
+        ? { PriceList: Number(payload.PriceList) }
+        : {}),
+      AttachmentEntry: absoluteEntry ?? undefined,
       DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map(
         (line, index) => {
           const l: Record<string, unknown> = {
@@ -256,7 +278,7 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
       ),
     };
 
-    const { serviceLayerClient } = await import("@/services/service-layer.service");
+
     const result = (await serviceLayerClient.request(
       sessionId,
       "POST",
@@ -265,25 +287,17 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
     )) as { DocEntry: number; DocNum: number };
 
     const { purgeCache } = await import("@/core/utils/cache");
-    const session = serviceLayerClient.getSession(sessionId);
-    const dbName = session?.companyDB || "";
 
     // Process attachments if they exist
-    if (
-      payload.Attachments &&
-      Array.isArray(payload.Attachments) &&
-      payload.Attachments.length > 0 &&
-      dbName
-    ) {
+    if (absoluteEntry !== null && dbName) {
       const { attachmentsService } = await import("@/services/attachments.service");
-      await attachmentsService.linkAttachmentsOnCreate(
-        sessionId,
+      await attachmentsService.finalizeAndLinkAttachments(
         dbName,
-        "GoodsReceipts",
+        "GoodsReceipt",
         result.DocEntry,
         result.DocNum,
+        absoluteEntry,
         payload.Attachments as any[],
-        "InventoryGenEntries",
       );
     }
 

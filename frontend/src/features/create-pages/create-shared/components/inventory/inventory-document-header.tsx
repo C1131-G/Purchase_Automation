@@ -20,6 +20,7 @@ interface InventoryDocumentHeaderProps {
   onRef2Change: (v: string) => void;
   idPrefix?: string;
   isEditMode?: boolean;
+  children?: React.ReactNode;
 }
 
 export function InventoryDocumentHeader({
@@ -41,6 +42,7 @@ export function InventoryDocumentHeader({
   onRef2Change,
   idPrefix = "inventory",
   isEditMode = false,
+  children,
 }: InventoryDocumentHeaderProps) {
   return (
     <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
@@ -167,6 +169,7 @@ export function InventoryDocumentHeader({
             placeholder="Reference 2"
           />
         </div>
+        {children}
       </SectionCard>
     </div>
   );

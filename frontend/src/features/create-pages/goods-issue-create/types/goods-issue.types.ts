@@ -3,4 +3,8 @@ import type { InventoryBaseRow } from "@/features/create-pages/create-shared/com
 /**
  * GoodsIssueRow: Represents one line item in the Goods Issue product table.
  */
-export interface GoodsIssueRow extends InventoryBaseRow {}
+export interface GoodsIssueRow extends InventoryBaseRow {
+  unitPrice: string;
+  total: string;
+  costingCode: string;
+}

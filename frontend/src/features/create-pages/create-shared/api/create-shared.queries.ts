@@ -41,6 +41,7 @@ export const createSharedKeys = {
   series: (documentType: string) => [...createSharedKeys.all, "series", documentType] as const,
   warehouseBins: (warehouseCode: string) =>
     [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
+  branches: () => [...createSharedKeys.all, "branches"] as const,
 };
 
 export const createSharedQueries = {
@@ -189,6 +190,25 @@ export const createSharedQueries = {
         );
       },
       queryKey: createSharedKeys.warehouseBins(warehouseCode),
+      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
+    }),
+  branches: () =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
+      queryFn: async () => {
+        const response = await masterDataAPI.getBranches();
+        if ("data" in response) {
+          return (response.data as { Code: string; Name: string }[]).map((i) => ({
+            code: i.Code,
+            name: i.Name,
+          }));
+        }
+        return (response as { Code: string; Name: string }[]).map((i) => ({
+          code: i.Code,
+          name: i.Name,
+        }));
+      },
+      queryKey: createSharedKeys.branches(),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
 };

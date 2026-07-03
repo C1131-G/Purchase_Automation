@@ -9,9 +9,12 @@ export interface GoodsIssue {
   docDate: Date;
   taxDate: Date;
   comments?: string;
+  jrnlMemo?: string;
   docTotal: number;
   docStatus: string;
   docCurr?: string;
+  ref2?: string;
+  series?: number;
 }
 
 export const GoodsIssueSchema = new EntitySchema<GoodsIssue>({
@@ -55,6 +58,23 @@ export const GoodsIssueSchema = new EntitySchema<GoodsIssue>({
       name: "DocCur",
       nullable: true,
       type: "nvarchar" as HANAColumnType,
+    },
+    jrnlMemo: {
+      length: 50,
+      name: "JrnlMemo",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    ref2: {
+      length: 254,
+      name: "Ref2",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    series: {
+      name: "Series",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
   },
   indices: [

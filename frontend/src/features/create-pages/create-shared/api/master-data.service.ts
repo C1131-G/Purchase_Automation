@@ -112,4 +112,8 @@ export const masterDataAPI = {
       | MasterDataResponse<{ AbsEntry: number; BinCode: string }>
       | { AbsEntry: number; BinCode: string }[]
     >(`/api/v1/master-data/warehouses/${warehouseCode}/bins`),
+  getBranches: async () =>
+    apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
+      `/api/v1/master-data/branches`,
+    ),
 };

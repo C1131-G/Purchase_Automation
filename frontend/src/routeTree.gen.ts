@@ -61,6 +61,7 @@ import { Route as LayoutPurchaseGrpoDocNumEditRouteImport } from './routes/_layo
 import { Route as LayoutPurchaseApInvoiceDocNumEditRouteImport } from './routes/_layout.purchase.ap-invoice.$docNum.edit'
 import { Route as LayoutPurchaseApCreditMemoDocNumEditRouteImport } from './routes/_layout.purchase.ap-credit-memo.$docNum.edit'
 import { Route as LayoutInventoryGoodsReceiptDocNumEditRouteImport } from './routes/_layout.inventory.goods-receipt.$docNum.edit'
+import { Route as LayoutInventoryGoodsIssueDocNumEditRouteImport } from './routes/_layout.inventory.goods-issue.$docNum.edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -358,6 +359,12 @@ const LayoutInventoryGoodsReceiptDocNumEditRoute =
     path: '/$docNum/edit',
     getParentRoute: () => LayoutInventoryGoodsReceiptRoute,
   } as any)
+const LayoutInventoryGoodsIssueDocNumEditRoute =
+  LayoutInventoryGoodsIssueDocNumEditRouteImport.update({
+    id: '/$docNum/edit',
+    path: '/$docNum/edit',
+    getParentRoute: () => LayoutInventoryGoodsIssueRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -399,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/inventory/transfer/create': typeof LayoutInventoryTransferCreateRoute
   '/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
   '/sales/ar-credit-memo/select-invoice': typeof LayoutSalesArCreditMemoSelectInvoiceRoute
+  '/inventory/goods-issue/$docNum/edit': typeof LayoutInventoryGoodsIssueDocNumEditRoute
   '/inventory/goods-receipt/$docNum/edit': typeof LayoutInventoryGoodsReceiptDocNumEditRoute
   '/purchase/ap-credit-memo/$docNum/edit': typeof LayoutPurchaseApCreditMemoDocNumEditRoute
   '/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
@@ -452,6 +460,7 @@ export interface FileRoutesByTo {
   '/inventory/transfer/create': typeof LayoutInventoryTransferCreateRoute
   '/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
   '/sales/ar-credit-memo/select-invoice': typeof LayoutSalesArCreditMemoSelectInvoiceRoute
+  '/inventory/goods-issue/$docNum/edit': typeof LayoutInventoryGoodsIssueDocNumEditRoute
   '/inventory/goods-receipt/$docNum/edit': typeof LayoutInventoryGoodsReceiptDocNumEditRoute
   '/purchase/ap-credit-memo/$docNum/edit': typeof LayoutPurchaseApCreditMemoDocNumEditRoute
   '/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
@@ -507,6 +516,7 @@ export interface FileRoutesById {
   '/_layout/inventory/transfer/create': typeof LayoutInventoryTransferCreateRoute
   '/_layout/sales/ar-credit-memo/create': typeof LayoutSalesArCreditMemoCreateRoute
   '/_layout/sales/ar-credit-memo/select-invoice': typeof LayoutSalesArCreditMemoSelectInvoiceRoute
+  '/_layout/inventory/goods-issue/$docNum/edit': typeof LayoutInventoryGoodsIssueDocNumEditRoute
   '/_layout/inventory/goods-receipt/$docNum/edit': typeof LayoutInventoryGoodsReceiptDocNumEditRoute
   '/_layout/purchase/ap-credit-memo/$docNum/edit': typeof LayoutPurchaseApCreditMemoDocNumEditRoute
   '/_layout/purchase/ap-invoice/$docNum/edit': typeof LayoutPurchaseApInvoiceDocNumEditRoute
@@ -562,6 +572,7 @@ export interface FileRouteTypes {
     | '/inventory/transfer/create'
     | '/sales/ar-credit-memo/create'
     | '/sales/ar-credit-memo/select-invoice'
+    | '/inventory/goods-issue/$docNum/edit'
     | '/inventory/goods-receipt/$docNum/edit'
     | '/purchase/ap-credit-memo/$docNum/edit'
     | '/purchase/ap-invoice/$docNum/edit'
@@ -615,6 +626,7 @@ export interface FileRouteTypes {
     | '/inventory/transfer/create'
     | '/sales/ar-credit-memo/create'
     | '/sales/ar-credit-memo/select-invoice'
+    | '/inventory/goods-issue/$docNum/edit'
     | '/inventory/goods-receipt/$docNum/edit'
     | '/purchase/ap-credit-memo/$docNum/edit'
     | '/purchase/ap-invoice/$docNum/edit'
@@ -669,6 +681,7 @@ export interface FileRouteTypes {
     | '/_layout/inventory/transfer/create'
     | '/_layout/sales/ar-credit-memo/create'
     | '/_layout/sales/ar-credit-memo/select-invoice'
+    | '/_layout/inventory/goods-issue/$docNum/edit'
     | '/_layout/inventory/goods-receipt/$docNum/edit'
     | '/_layout/purchase/ap-credit-memo/$docNum/edit'
     | '/_layout/purchase/ap-invoice/$docNum/edit'
@@ -1055,6 +1068,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutInventoryGoodsReceiptDocNumEditRouteImport
       parentRoute: typeof LayoutInventoryGoodsReceiptRoute
     }
+    '/_layout/inventory/goods-issue/$docNum/edit': {
+      id: '/_layout/inventory/goods-issue/$docNum/edit'
+      path: '/$docNum/edit'
+      fullPath: '/inventory/goods-issue/$docNum/edit'
+      preLoaderRoute: typeof LayoutInventoryGoodsIssueDocNumEditRouteImport
+      parentRoute: typeof LayoutInventoryGoodsIssueRoute
+    }
   }
 }
 
@@ -1076,11 +1096,14 @@ const LayoutDashboardRouteWithChildren = LayoutDashboardRoute._addFileChildren(
 
 interface LayoutInventoryGoodsIssueRouteChildren {
   LayoutInventoryGoodsIssueCreateRoute: typeof LayoutInventoryGoodsIssueCreateRoute
+  LayoutInventoryGoodsIssueDocNumEditRoute: typeof LayoutInventoryGoodsIssueDocNumEditRoute
 }
 
 const LayoutInventoryGoodsIssueRouteChildren: LayoutInventoryGoodsIssueRouteChildren =
   {
     LayoutInventoryGoodsIssueCreateRoute: LayoutInventoryGoodsIssueCreateRoute,
+    LayoutInventoryGoodsIssueDocNumEditRoute:
+      LayoutInventoryGoodsIssueDocNumEditRoute,
   }
 
 const LayoutInventoryGoodsIssueRouteWithChildren =
