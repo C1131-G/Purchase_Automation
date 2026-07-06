@@ -8,6 +8,9 @@ const router = Router();
 router.use(validateSession);
 router.get("/", apCreditMemoDal.getList);
 router.get("/docnums", loginLimiter, apCreditMemoDal.getDocNums);
+router.get("/next-docnum", async (_req, res) => {
+  res.json({ data: await apCreditMemoService.previewNextDocNum(), success: true });
+});
 router.get("/:id", apCreditMemoDal.getById);
 router.post("/", apCreditMemoDal.create);
 router.patch("/:id", apCreditMemoDal.update);

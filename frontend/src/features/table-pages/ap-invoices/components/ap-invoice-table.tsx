@@ -390,6 +390,9 @@ export function APInvoiceTable() {
     action: lastActionRef.current,
     hasData: !!apInvoiceList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

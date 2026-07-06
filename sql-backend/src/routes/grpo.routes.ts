@@ -9,6 +9,9 @@ const router = Router();
 router.use(validateSession);
 router.get("/", grpoDal.getList);
 router.get("/docnums", loginLimiter, grpoDal.getDocNums);
+router.get("/next-docnum", async (_req, res) => {
+  res.json({ data: await grpoService.previewNextDocNum(), success: true });
+});
 router.get("/available-pos", quickLookupDal.getAvailablePos);
 router.get("/po-detail/:id", quickLookupDal.getPoDetail);
 router.get("/:id", grpoDal.getById);

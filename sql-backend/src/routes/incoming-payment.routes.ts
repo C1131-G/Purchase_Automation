@@ -9,6 +9,9 @@ const router = Router();
 router.use(validateSession);
 router.get("/", incomingPaymentDal.getList);
 router.get("/docnums", loginLimiter, incomingPaymentDal.getDocNums);
+router.get("/next-docnum", async (_req, res) => {
+  res.json({ data: await incomingPaymentService.previewNextDocNum(), success: true });
+});
 router.get("/by-doc-num/:docNum", incomingPaymentDal.getByDocNum);
 router.get("/accounts", quickLookupDal.getAccounts);
 router.get("/:id", incomingPaymentDal.getById);

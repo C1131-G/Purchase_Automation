@@ -1,6 +1,6 @@
 // Purchase Quotation Service: CRUD for purchase quotations against local PostgreSQL via Drizzle.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { purchaseQuotations } from "@/db/schema/purchase-quotations";
@@ -8,25 +8,24 @@ import { purchaseQuotationLines } from "@/db/schema/purchase-quotation-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { getNextDocNum, previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
 
-  const where = and(
-    filters.cardCode ? eq(purchaseQuotations.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(purchaseQuotations.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${purchaseQuotations.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${purchaseQuotations.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${purchaseQuotations.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(purchaseQuotations.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+  const sortColumns = {
+    DocNum: purchaseQuotations.docNum,
+    DocDate: purchaseQuotations.docDate,
+    CardCode: purchaseQuotations.cardCode,
+    CardName: purchaseQuotations.cardName,
+    DocTotal: purchaseQuotations.docTotal,
+    DocStatus: purchaseQuotations.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(purchaseQuotations, filters, sortColumns);
 
   const [totalResult] = await db.select({ total: count() }).from(purchaseQuotations).where(where);
   const total = Number(totalResult.total);
@@ -35,7 +34,7 @@ export const getList = async (filters: any = {}) => {
     .select()
     .from(purchaseQuotations)
     .where(where)
-    .orderBy(desc(purchaseQuotations.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
 
@@ -90,10 +89,11 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const docNum = await getNextDocNum("purchase_quotations", "purchase_quotations", 10000);
   const [header] = await db
     .insert(purchaseQuotations)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       cardCode: payload.cardCode,
       cardName: payload.cardName ?? null,
@@ -122,7 +122,7 @@ export const create = async (payload: any) => {
     );
   }
 
-  logger.info({ docNum: payload.docNum }, "Purchase quotation created");
+  logger.info({ docNum }, "Purchase quotation created");
   return getById(header.id);
 };
 
@@ -179,6 +179,10 @@ export const cancel = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("purchase_quotations", "purchase_quotations", 10000);
+};
+
 export const purchaseQuotationService = {
   cancel,
   create,
@@ -186,5 +190,6 @@ export const purchaseQuotationService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };

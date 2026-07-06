@@ -9,6 +9,7 @@ interface UseTableToastProps {
   hasData: boolean;
   /** Which action triggered the current fetch – drives the toast message. */
   action?: TableFetchAction;
+  onSettled?: () => void;
 }
 
 const ACTION_MESSAGES: Record<TableFetchAction, string> = {
@@ -27,7 +28,12 @@ const TOAST_COOLDOWN_MS = 900;
  * in the background (stale data already visible). The message reflects the
  * action that triggered the fetch. Dismissed automatically when done.
  */
-export function useTableToast({ isFetching, hasData, action = "fetching" }: UseTableToastProps) {
+export function useTableToast({
+  isFetching,
+  hasData,
+  action = "fetching",
+  onSettled,
+}: UseTableToastProps) {
   const toastIdRef = useRef<string | number | null>(null);
   const wasFetchingRef = useRef(false);
   const lastToastKeyRef = useRef<string | null>(null);
@@ -85,8 +91,9 @@ export function useTableToast({ isFetching, hasData, action = "fetching" }: UseT
     if (wasFetchingRef.current) {
       dismissToast();
       wasFetchingRef.current = false;
+      onSettled?.();
     }
-  }, [isFetching, hasData, action, dismissToast, showToast]);
+  }, [isFetching, hasData, action, dismissToast, showToast, onSettled]);
 
   useEffect(
     () => () => {

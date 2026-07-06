@@ -1,28 +1,34 @@
 // Goods Issue Service: CRUD for inventory goods issues.
 
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { goodsIssues } from "@/db/schema/goods-issues";
 import { goodsIssueLines } from "@/db/schema/goods-issue-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 
+import { buildSqlListFilters } from "@/core/utils/query-helper";
+
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.docStatus ? eq(goodsIssues.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${goodsIssues.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${goodsIssues.docDate} <= ${filters.dateTo}` : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: goodsIssues.docNum,
+    DocDate: goodsIssues.docDate,
+    DocTotal: goodsIssues.docTotal,
+    DocStatus: goodsIssues.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(goodsIssues, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(goodsIssues).where(where);
   const rows = await db
     .select()
     .from(goodsIssues)
     .where(where)
-    .orderBy(desc(goodsIssues.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -98,8 +104,19 @@ export const create = async (payload: any) => {
     );
   }
 
-  logger.info({ docNum: payload.docNum }, "Goods issue created");
+  logger.info({ docNum }, "Goods issue created");
   return getById(h.id);
 };
 
-export const goodsIssueService = { create, getByDocNum, getById, getDocNums, getList };
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("goods_issues", "goods_issues", 81000);
+};
+
+export const goodsIssueService = {
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  previewNextDocNum,
+};

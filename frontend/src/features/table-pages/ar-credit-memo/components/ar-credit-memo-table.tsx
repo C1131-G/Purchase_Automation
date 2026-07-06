@@ -373,6 +373,9 @@ export function ArCreditMemoTable() {
     action: lastActionRef.current,
     hasData: !!ArCreditMemoList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

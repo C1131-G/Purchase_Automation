@@ -411,6 +411,9 @@ export function ARInvoiceTable({
     action: lastActionRef.current,
     hasData: !!arInvoiceList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

@@ -9,6 +9,9 @@ const router = Router();
 router.use(validateSession);
 router.get("/", salesQuotationDal.getList);
 router.get("/docnums", loginLimiter, salesQuotationDal.getDocNums);
+router.get("/next-docnum", async (_req, res) => {
+  res.json({ data: await salesQuotationService.previewNextDocNum(), success: true });
+});
 router.get("/open-lines", quickLookupDal.getOpenLines);
 router.get("/SalesEmployee", quickLookupDal.getSalesEmployee);
 router.get("/by-doc-num/:docNum", salesQuotationDal.getByDocNum);

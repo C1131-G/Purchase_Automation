@@ -8,15 +8,7 @@ import {
 
 export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { page, limit, cardCode, dateFrom, dateTo, search } = req.query;
-    const r = await outgoingPaymentService.getList({
-      page: typeof page === "string" ? Number(page) : undefined,
-      limit: typeof limit === "string" ? Number(limit) : undefined,
-      cardCode: typeof cardCode === "string" ? cardCode : undefined,
-      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
-      dateTo: typeof dateTo === "string" ? dateTo : undefined,
-      search: typeof search === "string" ? search : undefined,
-    });
+    const r = await outgoingPaymentService.getList(req.query);
     const transformed = r.data
       ? toPascalCaseList(r as any)
       : { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
@@ -39,7 +31,7 @@ export const getDocNums: RequestHandler = async (req, res, next) => {
 };
 export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const result = await outgoingPaymentService.getById(Number(req.params.id));
+    const result = await outgoingPaymentService.getByDocNum(Number(req.params.id));
     res.status(200).json({ data: toPascalCase(result), success: true });
   } catch (e) {
     next(e);

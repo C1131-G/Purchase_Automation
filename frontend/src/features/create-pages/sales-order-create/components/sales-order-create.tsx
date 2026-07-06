@@ -208,11 +208,7 @@ export function SalesOrderCreate({
     : [];
 
   return (
-    <div
-      onClickCapture={() => goeyToast.dismiss()}
-      onKeyDownCapture={() => goeyToast.dismiss()}
-      className="contents"
-    >
+    <div className="contents">
       <CreatePageWrapper
         dashboardName="Sales Dashboard"
         dashboardUrl="/dashboard/sales"

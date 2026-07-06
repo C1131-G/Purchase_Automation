@@ -8,16 +8,7 @@ import {
 
 export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { page, limit, cardCode, docStatus, dateFrom, dateTo, search } = req.query;
-    const result = await salesOrderService.getList({
-      page: typeof page === "string" ? Number(page) : undefined,
-      limit: typeof limit === "string" ? Number(limit) : undefined,
-      cardCode: typeof cardCode === "string" ? cardCode : undefined,
-      docStatus: typeof docStatus === "string" ? docStatus : undefined,
-      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
-      dateTo: typeof dateTo === "string" ? dateTo : undefined,
-      search: typeof search === "string" ? search : undefined,
-    });
+    const result = await salesOrderService.getList(req.query);
     const transformed = result.data
       ? toPascalCaseList(result as any)
       : { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
@@ -51,7 +42,7 @@ export const getByDocNum: RequestHandler = async (req, res, next) => {
 
 export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const result = await salesOrderService.getById(Number(req.params.id));
+    const result = await salesOrderService.getByDocNum(Number(req.params.id));
     res.status(200).json({ data: toPascalCase(result), success: true });
   } catch (e) {
     next(e);

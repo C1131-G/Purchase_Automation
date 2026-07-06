@@ -1,6 +1,6 @@
 // Sales Order Service: CRUD for sales orders.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { salesOrders } from "@/db/schema/sales-orders";
@@ -8,30 +8,30 @@ import { salesOrderLines } from "@/db/schema/sales-order-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.cardCode ? eq(salesOrders.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(salesOrders.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${salesOrders.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${salesOrders.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${salesOrders.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(salesOrders.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: salesOrders.docNum,
+    DocDate: salesOrders.docDate,
+    CardCode: salesOrders.cardCode,
+    CardName: salesOrders.cardName,
+    DocTotal: salesOrders.docTotal,
+    DocStatus: salesOrders.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(salesOrders, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(salesOrders).where(where);
   const rows = await db
     .select()
     .from(salesOrders)
     .where(where)
-    .orderBy(desc(salesOrders.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {

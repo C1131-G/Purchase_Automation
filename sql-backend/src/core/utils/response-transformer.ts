@@ -160,6 +160,12 @@ const transformRow = (row: Record<string, unknown>): Record<string, unknown> => 
   const output: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(row)) {
+    // Lines array → transform each line (must be processed before DOC_FIELD_MAP check)
+    if ((key === "lines" || key === "DocumentLines") && Array.isArray(value)) {
+      output.DocumentLines = value.map((line: Record<string, unknown>) => transformLineItem(line));
+      continue;
+    }
+
     // Item master special handling
     if (key in ITEM_FIELD_MAP) {
       const mapped = ITEM_FIELD_MAP[key];
@@ -186,12 +192,6 @@ const transformRow = (row: Record<string, unknown>): Record<string, unknown> => 
       continue;
     }
 
-    // Lines array → transform each line
-    if (key === "lines" && Array.isArray(value)) {
-      output.DocumentLines = value.map((line: Record<string, unknown>) => transformLineItem(line));
-      continue;
-    }
-
     // Passthrough for fields without explicit mapping
     output[key] = value;
   }
@@ -202,6 +202,14 @@ const transformRow = (row: Record<string, unknown>): Record<string, unknown> => 
   }
   if ("id" in output) {
     output.id = parseNumber(output.id);
+  }
+  // Normalise nullable string fields: SQL nullable columns return null; coerce to ""
+  // so the response shape matches HANA (which always returns strings for these fields).
+  if ("CardName" in output && output.CardName === null) {
+    output.CardName = "";
+  }
+  if ("DocCurr" in output && output.DocCurr === null) {
+    output.DocCurr = "";
   }
 
   return output;

@@ -1,7 +1,7 @@
 // Purchase Order Service: CRUD for purchase orders against local PostgreSQL via Drizzle.
 // Mirrors hana-backend/src/services/purchase-order.service.ts without SAP Service Layer logic.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { purchaseOrders } from "@/db/schema/purchase-orders";
@@ -11,6 +11,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { calculateLineTotal } from "@/services/discount.util";
 import { getNextDocNum, previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export interface POListFilters {
   page?: number;
@@ -20,6 +21,12 @@ export interface POListFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  docNum?: string;
+  cardName?: string;
+  docTotal?: string | number;
+  docTotalOperator?: string;
 }
 
 export interface POLineInput {
@@ -51,30 +58,23 @@ export interface CreatePOInput {
 
 // ─── Listing ────────────────────────────────────────────────────────────────
 
-export const getList = async (filters: POListFilters = {}) => {
+export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
 
-  const whereConditions = and(
-    filters.cardCode ? eq(purchaseOrders.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(purchaseOrders.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${purchaseOrders.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${purchaseOrders.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${purchaseOrders.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(purchaseOrders.cardName, `%${filters.search}%`),
-          like(purchaseOrders.cardCode, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+  const sortColumns = {
+    DocNum: purchaseOrders.docNum,
+    DocDate: purchaseOrders.docDate,
+    CardCode: purchaseOrders.cardCode,
+    CardName: purchaseOrders.cardName,
+    DocTotal: purchaseOrders.docTotal,
+    DocStatus: purchaseOrders.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(purchaseOrders, filters, sortColumns);
 
-  const [totalResult] = await db
-    .select({ total: count() })
-    .from(purchaseOrders)
-    .where(whereConditions);
+  const [totalResult] = await db.select({ total: count() }).from(purchaseOrders).where(where);
 
   const total = Number(totalResult.total);
   const totalPages = Math.ceil(total / limit);
@@ -82,8 +82,8 @@ export const getList = async (filters: POListFilters = {}) => {
   const rows = await db
     .select()
     .from(purchaseOrders)
-    .where(whereConditions)
-    .orderBy(desc(purchaseOrders.docNum))
+    .where(where)
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
 
@@ -152,7 +152,7 @@ export const create = async (payload: CreatePOInput) => {
   const db = getDb();
 
   const docNum =
-    payload.docNum ?? (await getNextDocNum("purchase_orders", "purchase_orders", 10000));
+    payload.docNum ?? (await getNextDocNum("purchase_orders", "purchase_orders", 20000));
 
   const lineTotal = payload.lines.reduce(
     (sum, l) => sum + calculateLineTotal(l.unitPrice ?? 0, l.quantity, l.discountPercent),

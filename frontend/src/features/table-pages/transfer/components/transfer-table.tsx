@@ -269,6 +269,9 @@ export function TransferTable() {
     action: lastActionRef.current,
     hasData: !!tList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

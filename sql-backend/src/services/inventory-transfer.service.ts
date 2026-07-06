@@ -1,29 +1,37 @@
 // Inventory Transfer Service: CRUD for inventory transfers.
 // Matches hana-backend's transfer.service.ts (read-only) + adds create capability.
 
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { inventoryTransfers } from "@/db/schema/inventory-transfers";
 import { inventoryTransferLines } from "@/db/schema/inventory-transfer-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.docStatus ? eq(inventoryTransfers.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${inventoryTransfers.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${inventoryTransfers.docDate} <= ${filters.dateTo}` : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: inventoryTransfers.docNum,
+    DocDate: inventoryTransfers.docDate,
+    DocTotal: inventoryTransfers.docTotal,
+    DocStatus: inventoryTransfers.docStatus,
+    Filler: inventoryTransfers.filler,
+    ToWhsCode: inventoryTransfers.toWarehouseCode,
+  };
+  const { where, orderBy } = buildSqlListFilters(inventoryTransfers, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(inventoryTransfers).where(where);
   const rows = await db
     .select()
     .from(inventoryTransfers)
     .where(where)
-    .orderBy(desc(inventoryTransfers.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -48,7 +56,7 @@ export const getById = async (id: number) => {
     .from(inventoryTransferLines)
     .where(eq(inventoryTransferLines.docEntry, id))
     .orderBy(asc(inventoryTransferLines.lineNum));
-  return { ...h, DocumentLines: lines };
+  return { ...h, lines };
 };
 
 export const getByDocNum = async (docNum: number) => {
@@ -64,7 +72,7 @@ export const getByDocNum = async (docNum: number) => {
     .from(inventoryTransferLines)
     .where(eq(inventoryTransferLines.docEntry, h.id))
     .orderBy(asc(inventoryTransferLines.lineNum));
-  return { ...h, DocumentLines: lines };
+  return { ...h, lines };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -109,8 +117,19 @@ export const create = async (payload: any) => {
     );
   }
 
-  logger.info({ docNum: payload.docNum }, "Inventory transfer created");
+  logger.info({ docNum }, "Inventory transfer created");
   return getById(h.id);
 };
 
-export const inventoryTransferService = { create, getByDocNum, getById, getDocNums, getList };
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("inventory_transfers", "inventory_transfers", 83000);
+};
+
+export const inventoryTransferService = {
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  previewNextDocNum,
+};

@@ -401,6 +401,9 @@ export function SalesQuotationTable() {
     action: lastActionRef.current,
     hasData: !!salesQuotationList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

@@ -1,6 +1,6 @@
 // AP Credit Memo Service: Full CRUD for AP credit memos.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { apCreditMemos } from "@/db/schema/ap-credit-memos";
@@ -8,30 +8,31 @@ import { apCreditMemoLines } from "@/db/schema/ap-credit-memo-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.cardCode ? eq(apCreditMemos.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(apCreditMemos.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${apCreditMemos.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${apCreditMemos.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${apCreditMemos.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(apCreditMemos.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: apCreditMemos.docNum,
+    DocDate: apCreditMemos.docDate,
+    CardCode: apCreditMemos.cardCode,
+    CardName: apCreditMemos.cardName,
+    DocTotal: apCreditMemos.docTotal,
+    DocStatus: apCreditMemos.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(apCreditMemos, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(apCreditMemos).where(where);
   const rows = await db
     .select()
     .from(apCreditMemos)
     .where(where)
-    .orderBy(desc(apCreditMemos.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -152,6 +153,10 @@ export const cancel = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("ap_credit_memos", "ap_credit_memos", 61000);
+};
+
 export const apCreditMemoService = {
   cancel,
   create,
@@ -159,5 +164,6 @@ export const apCreditMemoService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };

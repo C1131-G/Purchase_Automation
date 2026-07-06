@@ -1,6 +1,6 @@
 // AP Invoice Service: Full CRUD for AP invoices.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { apInvoices } from "@/db/schema/ap-invoices";
@@ -8,30 +8,30 @@ import { apInvoiceLines } from "@/db/schema/ap-invoice-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.cardCode ? eq(apInvoices.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(apInvoices.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${apInvoices.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${apInvoices.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${apInvoices.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(apInvoices.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: apInvoices.docNum,
+    DocDate: apInvoices.docDate,
+    CardCode: apInvoices.cardCode,
+    CardName: apInvoices.cardName,
+    DocTotal: apInvoices.docTotal,
+    DocStatus: apInvoices.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(apInvoices, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(apInvoices).where(where);
   const rows = await db
     .select()
     .from(apInvoices)
     .where(where)
-    .orderBy(desc(apInvoices.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -156,6 +156,10 @@ export const reopen = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("ap_invoices", "ap_invoices", 60000);
+};
+
 export const apInvoiceService = {
   cancel,
   create,
@@ -163,6 +167,7 @@ export const apInvoiceService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   reopen,
   update,
 };

@@ -358,6 +358,9 @@ export function OutgoingPaymentTable() {
     action: lastActionRef.current,
     hasData: !!paymentList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

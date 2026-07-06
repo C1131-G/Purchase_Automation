@@ -397,6 +397,9 @@ export function SalesOrderTable() {
     action: lastActionRef.current,
     hasData: !!salesOrderList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

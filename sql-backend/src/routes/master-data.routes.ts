@@ -13,6 +13,7 @@ router.get("/vendors", masterDataDal.getVendors);
 router.get("/customers", masterDataDal.getCustomers);
 router.get("/products", masterDataDal.getProducts);
 router.get("/products/:itemCode/stock", masterDataDal.getProductWarehouseStocks);
+router.get("/product-warehouse-stocks", masterDataDal.getProductWarehouseStocks);
 router.get("/tax-codes", masterDataDal.getTaxCodes);
 router.get("/TaxDeclarations", masterDataDal.getTaxCodes);
 router.get("/uoms", masterDataDal.getUOMs);

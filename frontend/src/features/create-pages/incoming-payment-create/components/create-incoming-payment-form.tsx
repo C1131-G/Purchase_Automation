@@ -217,7 +217,6 @@ export function CreateIncomingPaymentForm() {
     TransferAccount?: string;
     TransferReference?: string;
   }) => {
-    console.log("!!! FRONTEND PAYMENT SUBMIT v2 !!!", paymentDetails);
     // 1. Calculate total actually paid from modal (Cash + Checks + Cards + Transfer)
     const totalCash = paymentDetails.CashSum || 0;
     const totalChecks = paymentDetails.PaymentChecks?.reduce((sum, c) => sum + c.CheckSum, 0) || 0;
@@ -312,7 +311,7 @@ export function CreateIncomingPaymentForm() {
   };
 
   return (
-    <div className="contents" onClickCapture={() => goeyToast.dismiss()}>
+    <div className="contents">
       <CreatePageWrapper
         dashboardName="Sales Dashboard"
         dashboardUrl="/dashboard/sales"

@@ -1,6 +1,6 @@
 // GRPO Service: CRUD for goods receipt purchase orders.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { grpo } from "@/db/schema/grpo";
@@ -8,32 +8,30 @@ import { grpoLines } from "@/db/schema/grpo-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
 
-  const where = and(
-    filters.cardCode ? eq(grpo.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(grpo.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${grpo.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${grpo.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${grpo.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(grpo.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+  const sortColumns = {
+    DocNum: grpo.docNum,
+    DocDate: grpo.docDate,
+    CardCode: grpo.cardCode,
+    CardName: grpo.cardName,
+    DocTotal: grpo.docTotal,
+    DocStatus: grpo.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(grpo, filters, sortColumns);
 
   const [totalResult] = await db.select({ total: count() }).from(grpo).where(where);
   const rows = await db
     .select()
     .from(grpo)
     .where(where)
-    .orderBy(desc(grpo.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -82,10 +80,11 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const docNum = await getNextDocNum("grpo", "grpo", 50000);
   const [header] = await db
     .insert(grpo)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       cardCode: payload.cardCode,
       cardName: payload.cardName ?? null,
@@ -159,4 +158,17 @@ export const cancel = async (id: number) => {
   return getById(id);
 };
 
-export const grpoService = { cancel, create, getByDocNum, getById, getDocNums, getList, update };
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("grpo", "grpo", 50000);
+};
+
+export const grpoService = {
+  cancel,
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  previewNextDocNum,
+  update,
+};

@@ -1,36 +1,37 @@
 // AR Invoice Service: Full CRUD for AR invoices.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { arInvoices } from "@/db/schema/ar-invoices";
 import { arInvoiceLines } from "@/db/schema/ar-invoice-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.cardCode ? eq(arInvoices.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(arInvoices.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${arInvoices.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${arInvoices.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${arInvoices.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(arInvoices.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: arInvoices.docNum,
+    DocDate: arInvoices.docDate,
+    CardCode: arInvoices.cardCode,
+    CardName: arInvoices.cardName,
+    DocTotal: arInvoices.docTotal,
+    DocStatus: arInvoices.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(arInvoices, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(arInvoices).where(where);
   const rows = await db
     .select()
     .from(arInvoices)
     .where(where)
-    .orderBy(desc(arInvoices.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -157,6 +158,10 @@ export const reopen = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("ar_invoices", "ar_invoices", 70000);
+};
+
 export const arInvoiceService = {
   cancel,
   create,
@@ -164,6 +169,7 @@ export const arInvoiceService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   reopen,
   update,
 };

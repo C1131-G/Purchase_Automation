@@ -371,6 +371,9 @@ export function APCreditMemoTable() {
     action: lastActionRef.current,
     hasData: !!apCreditMemoList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

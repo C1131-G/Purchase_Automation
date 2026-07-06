@@ -366,6 +366,9 @@ export function IncomingPaymentTable() {
     action: lastActionRef.current,
     hasData: !!incomingPaymentList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

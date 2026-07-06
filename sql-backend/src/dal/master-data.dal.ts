@@ -20,7 +20,7 @@ export const getProducts: RequestHandler = async (req, res, next) => {
 
 export const getProductWarehouseStocks: RequestHandler = async (req, res, next) => {
   try {
-    const itemCode = req.params.itemCode as string;
+    const itemCode = (req.params.itemCode || req.query.itemCode || "") as string;
     const result = await masterDataService.getProductWarehouseStocks(itemCode);
     res.status(200).json({ data: result, success: true });
   } catch (error) {

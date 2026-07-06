@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
 
-import { goeyToast } from "goey-toast";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
@@ -94,11 +93,7 @@ export function SalesQuotationCreate({
     : [];
 
   return (
-    <div
-      onClickCapture={() => goeyToast.dismiss()}
-      onKeyDownCapture={() => goeyToast.dismiss()}
-      className="contents"
-    >
+    <div className="contents">
       <CreatePageWrapper
         dashboardName="Sales Dashboard"
         dashboardUrl="/dashboard/sales"

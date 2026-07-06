@@ -400,6 +400,9 @@ export function PurchaseOrderTable() {
     action: lastActionRef.current,
     hasData: !!poList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

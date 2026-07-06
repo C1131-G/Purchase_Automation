@@ -386,6 +386,9 @@ export function GRPOTable() {
     action: lastActionRef.current,
     hasData: !!grpoList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

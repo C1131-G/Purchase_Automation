@@ -15,11 +15,11 @@ const findFilter = (filters: ColumnFiltersState, id: string) => filters.find((f)
 
 const getStringFilter = (filters: ColumnFiltersState, id: string): string | undefined => {
   const value = findFilter(filters, id)?.value;
-  if (typeof value !== "string") {
+  if (value === undefined || value === null) {
     return undefined;
   }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  const strValue = String(value).trim();
+  return strValue.length > 0 ? strValue : undefined;
 };
 
 const getDateRangeFilter = (

@@ -2,9 +2,9 @@ import { z } from "zod";
 
 export const purchaseOrderListItemSchema = z.object({
   CardCode: z.string(),
-  CardName: z.string(),
-  DocCurr: z.string(),
-  DocDate: z.string(),
+  CardName: z.string().nullable(),
+  DocCurr: z.string().nullable(),
+  DocDate: z.string().nullable(),
   DocNum: z.number(),
   DocStatus: z.enum(["Open", "Partial", "Closed", "Draft"]),
   DocTotal: z.union([z.number(), z.string()]),

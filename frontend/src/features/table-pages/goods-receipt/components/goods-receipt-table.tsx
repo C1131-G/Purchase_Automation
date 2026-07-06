@@ -299,6 +299,9 @@ export function GoodsReceiptTable() {
     action: lastActionRef.current,
     hasData: !!grList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

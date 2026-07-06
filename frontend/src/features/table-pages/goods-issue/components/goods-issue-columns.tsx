@@ -33,6 +33,7 @@ export const createGoodsIssueColumns = () => {
       meta: { filterType: "text" },
       minSize: 12,
       size: 14,
+      sortingFn: "basic",
     }),
     columnHelper.accessor("DocDate", {
       cell: (info) => {

@@ -1,24 +1,18 @@
 import type { RequestHandler } from "express";
 import { inventoryTransferService } from "@/services/inventory-transfer.service";
+import {
+  toPascalCase,
+  toPascalCaseDocnums,
+  toPascalCaseList,
+} from "@/core/utils/response-transformer";
 
 export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const { page, limit, docStatus, dateFrom, dateTo } = req.query;
-    const r = await inventoryTransferService.getList({
-      page: typeof page === "string" ? Number(page) : undefined,
-      limit: typeof limit === "string" ? Number(limit) : undefined,
-      docStatus: typeof docStatus === "string" ? docStatus : undefined,
-      dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
-      dateTo: typeof dateTo === "string" ? dateTo : undefined,
-    });
-    res.status(200).json({
-      data: r.data,
-      total: r.total,
-      page: r.page,
-      limit: r.limit,
-      totalPages: r.totalPages,
-      success: true,
-    });
+    const r = await inventoryTransferService.getList(req.query);
+    const transformed = r.data
+      ? toPascalCaseList(r as any)
+      : { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+    res.status(200).json({ ...transformed, success: true });
   } catch (e) {
     next(e);
   }
@@ -27,7 +21,7 @@ export const getList: RequestHandler = async (req, res, next) => {
 export const getTransfer: RequestHandler = async (req, res, next) => {
   try {
     const result = await inventoryTransferService.getByDocNum(Number(req.params.id));
-    res.status(200).json({ data: result, success: true });
+    res.status(200).json({ data: toPascalCase(result), success: true });
   } catch (e) {
     next(e);
   }
@@ -40,7 +34,7 @@ export const getDocNums: RequestHandler = async (req, res, next) => {
       typeof search === "string" ? search : undefined,
       typeof limit === "string" ? Number(limit) : undefined,
     );
-    res.status(200).json({ data, success: true });
+    res.status(200).json({ data: toPascalCaseDocnums(data), success: true });
   } catch (e) {
     next(e);
   }
@@ -49,7 +43,9 @@ export const getDocNums: RequestHandler = async (req, res, next) => {
 export const create: RequestHandler = async (req, res, next) => {
   try {
     const result = await inventoryTransferService.create(req.body);
-    res.status(201).json({ data: result, message: "Inventory transfer created", success: true });
+    res
+      .status(201)
+      .json({ data: toPascalCase(result), message: "Inventory transfer created", success: true });
   } catch (e) {
     next(e);
   }

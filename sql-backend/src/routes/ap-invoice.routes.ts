@@ -8,6 +8,9 @@ const router = Router();
 router.use(validateSession);
 router.get("/", apInvoiceDal.getList);
 router.get("/docnums", loginLimiter, apInvoiceDal.getDocNums);
+router.get("/next-docnum", async (_req, res) => {
+  res.json({ data: await apInvoiceService.previewNextDocNum(), success: true });
+});
 router.get("/:id", apInvoiceDal.getById);
 router.post("/", apInvoiceDal.create);
 router.patch("/:id", apInvoiceDal.update);

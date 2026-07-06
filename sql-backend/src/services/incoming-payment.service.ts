@@ -1,34 +1,34 @@
 // Incoming Payment Service: Full CRUD for incoming payments.
 
-import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { incomingPayments } from "@/db/schema/incoming-payments";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.cardCode ? eq(incomingPayments.cardCode, filters.cardCode) : undefined,
-    filters.dateFrom ? sql`${incomingPayments.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${incomingPayments.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${incomingPayments.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(incomingPayments.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: incomingPayments.docNum,
+    DocDate: incomingPayments.docDate,
+    CardCode: incomingPayments.cardCode,
+    CardName: incomingPayments.cardName,
+    DocTotal: incomingPayments.docTotal,
+  };
+  const { where, orderBy } = buildSqlListFilters(incomingPayments, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(incomingPayments).where(where);
   const rows = await db
     .select()
     .from(incomingPayments)
     .where(where)
-    .orderBy(desc(incomingPayments.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {

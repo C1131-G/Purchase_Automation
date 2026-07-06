@@ -395,6 +395,9 @@ export function PurchaseQuotationTable() {
     action: lastActionRef.current,
     hasData: !!purchaseQuotationList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

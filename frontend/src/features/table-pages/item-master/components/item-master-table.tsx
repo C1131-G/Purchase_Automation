@@ -276,6 +276,9 @@ export function ItemMasterTable() {
     action: lastActionRef.current,
     hasData: !!itemsList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

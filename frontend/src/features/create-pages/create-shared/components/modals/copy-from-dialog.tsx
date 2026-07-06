@@ -61,6 +61,14 @@ interface DocumentOption {
   docTotal?: number;
 }
 
+interface CopyFromDocumentSummary {
+  DocNum: string | number;
+  DocDate?: string | null;
+  DocEntry?: number;
+  DocStatus?: string;
+  id?: number;
+}
+
 interface DocDetailCache {
   lines: { itemName: string; openQty: number }[];
   totalOpenQty: number;
@@ -383,7 +391,7 @@ export function CopyFromDialog({
 
         const isAllowedStatus = includeClosed
           ? () => true
-          : (doc: { DocStatus?: string }) => {
+          : (doc: CopyFromDocumentSummary) => {
               const status = String(doc.DocStatus ?? "").trim();
               return (
                 status === "Open" ||
@@ -393,8 +401,9 @@ export function CopyFromDialog({
               );
             };
 
-        const newDocs = (result.data || []).filter(isAllowedStatus).map(
-          (doc: { DocNum: string | number; DocDate?: string; DocEntry?: number; id?: number }) =>
+        const sourceDocs = (result.data ?? []) as CopyFromDocumentSummary[];
+        const newDocs = sourceDocs.filter(isAllowedStatus).map(
+          (doc) =>
             ({
               code: String(doc.DocNum),
               docDate: doc.DocDate ? new Date(doc.DocDate).toLocaleDateString("en-GB") : "",

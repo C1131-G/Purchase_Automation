@@ -268,6 +268,9 @@ export function GoodsIssueTable() {
     action: lastActionRef.current,
     hasData: !!giList,
     isFetching,
+    onSettled: () => {
+      lastActionRef.current = "fetching";
+    },
   });
 
   const handleResetTable = useCallback(() => {

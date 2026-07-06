@@ -1,31 +1,35 @@
 // Goods Receipt Service: CRUD for inventory goods receipts.
 
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { goodsReceipts } from "@/db/schema/goods-receipts";
 import { goodsReceiptLines } from "@/db/schema/goods-receipt-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
+
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.docStatus ? eq(goodsReceipts.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${goodsReceipts.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${goodsReceipts.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? sql`CAST(${goodsReceipts.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: goodsReceipts.docNum,
+    DocDate: goodsReceipts.docDate,
+    DocTotal: goodsReceipts.docTotal,
+    DocStatus: goodsReceipts.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(goodsReceipts, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(goodsReceipts).where(where);
   const rows = await db
     .select()
     .from(goodsReceipts)
     .where(where)
-    .orderBy(desc(goodsReceipts.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -125,4 +129,16 @@ export const update = async (id: number, payload: any) => {
   return getById(id);
 };
 
-export const goodsReceiptService = { create, getByDocNum, getById, getDocNums, getList, update };
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("goods_receipts", "goods_receipts", 80000);
+};
+
+export const goodsReceiptService = {
+  create,
+  getByDocNum,
+  getById,
+  getDocNums,
+  getList,
+  previewNextDocNum,
+  update,
+};

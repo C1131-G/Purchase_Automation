@@ -12,6 +12,9 @@ router.use(validateSession);
 
 router.get("/", transferRequestDal.getList);
 router.get("/docnums", loginLimiter, transferRequestDal.getDocNums);
+router.get("/next-docnum", async (_req, res) => {
+  res.json({ data: await inventoryTransferRequestService.previewNextDocNum(), success: true });
+});
 router.get("/:id", transferRequestDal.getTransferRequest);
 router.post("/", transferRequestDal.create);
 

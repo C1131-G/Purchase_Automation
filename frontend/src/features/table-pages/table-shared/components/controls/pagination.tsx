@@ -72,7 +72,7 @@ export function TablePagination<TData>({
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Positioner className="w-17.5" side="top">
+              <Select.Positioner className="w-24" side="top">
                 <Select.Popup>
                   <Select.List>
                     {[10, 20, 30, 40, 50].map((optionPageSize) => (

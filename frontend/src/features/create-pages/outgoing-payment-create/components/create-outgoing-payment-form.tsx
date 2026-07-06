@@ -355,7 +355,7 @@ export function CreateOutgoingPaymentForm() {
   };
 
   return (
-    <div className="contents" onClickCapture={() => goeyToast.dismiss()}>
+    <div className="contents">
       <CreatePageWrapper
         dashboardName="Purchase Dashboard"
         dashboardUrl="/dashboard/purchase"

@@ -1,36 +1,36 @@
 // AR Credit Memo Service: Full CRUD for AR credit memos.
 
-import { and, asc, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { arCreditMemos } from "@/db/schema/ar-credit-memos";
 import { arCreditMemoLines } from "@/db/schema/ar-credit-memo-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.cardCode ? eq(arCreditMemos.cardCode, filters.cardCode) : undefined,
-    filters.docStatus ? eq(arCreditMemos.docStatus, filters.docStatus) : undefined,
-    filters.dateFrom ? sql`${arCreditMemos.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${arCreditMemos.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${arCreditMemos.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(arCreditMemos.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: arCreditMemos.docNum,
+    DocDate: arCreditMemos.docDate,
+    CardCode: arCreditMemos.cardCode,
+    CardName: arCreditMemos.cardName,
+    DocTotal: arCreditMemos.docTotal,
+    DocStatus: arCreditMemos.docStatus,
+  };
+  const { where, orderBy } = buildSqlListFilters(arCreditMemos, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(arCreditMemos).where(where);
   const rows = await db
     .select()
     .from(arCreditMemos)
     .where(where)
-    .orderBy(desc(arCreditMemos.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -109,7 +109,7 @@ export const create = async (payload: any) => {
       })),
     );
   }
-  logger.info({ docNum: payload.docNum }, "AR Credit memo created");
+  logger.info({ docNum }, "AR Credit memo created");
   return getById(h.id);
 };
 
@@ -151,6 +151,10 @@ export const cancel = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("ar_credit_memos", "ar_credit_memos", 71000);
+};
+
 export const arCreditMemoService = {
   cancel,
   create,
@@ -158,5 +162,6 @@ export const arCreditMemoService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };

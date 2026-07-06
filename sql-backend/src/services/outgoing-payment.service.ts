@@ -1,34 +1,34 @@
 // Outgoing Payment Service: Full CRUD for outgoing payments.
 
-import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { outgoingPayments } from "@/db/schema/outgoing-payments";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
-  const page = filters.page ?? 1;
-  const limit = filters.limit ?? 20;
+  const page = Number(filters.page) || 1;
+  const limit = Number(filters.limit) || 10;
   const offset = (page - 1) * limit;
-  const where = and(
-    filters.cardCode ? eq(outgoingPayments.cardCode, filters.cardCode) : undefined,
-    filters.dateFrom ? sql`${outgoingPayments.docDate} >= ${filters.dateFrom}` : undefined,
-    filters.dateTo ? sql`${outgoingPayments.docDate} <= ${filters.dateTo}` : undefined,
-    filters.search
-      ? or(
-          sql`CAST(${outgoingPayments.docNum} AS TEXT) LIKE ${`%${filters.search}%`}`,
-          like(outgoingPayments.cardName, `%${filters.search}%`),
-        )
-      : undefined,
-  );
+
+  const sortColumns = {
+    DocNum: outgoingPayments.docNum,
+    DocDate: outgoingPayments.docDate,
+    CardCode: outgoingPayments.cardCode,
+    CardName: outgoingPayments.cardName,
+    DocTotal: outgoingPayments.docTotal,
+  };
+  const { where, orderBy } = buildSqlListFilters(outgoingPayments, filters, sortColumns);
+
   const [t] = await db.select({ total: count() }).from(outgoingPayments).where(where);
   const rows = await db
     .select()
     .from(outgoingPayments)
     .where(where)
-    .orderBy(desc(outgoingPayments.docNum))
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
   return {
@@ -106,6 +106,10 @@ export const cancel = async (id: number) => {
   logger.info({ id }, "Outgoing payment cancelled (deleted)");
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("outgoing_payments", "outgoing_payments", 91000);
+};
+
 export const outgoingPaymentService = {
   cancel,
   create,
@@ -113,5 +117,6 @@ export const outgoingPaymentService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };
