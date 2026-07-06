@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { ArrowLeft, ChevronDown, LayoutDashboard, Table } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -8,40 +8,65 @@ import { ActionsPopoverContent } from "@/features/create-pages/create-shared/com
 
 import { Button } from "@/components/button";
 import { Popover } from "@/components/popover";
+import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { InventoryDocumentFooter } from "@/features/create-pages/create-shared/components/inventory/inventory-document-footer";
-import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/components/inventory/inventory-document-header";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
-import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
-import { GoodsReceiptTable } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-table";
-import {
-  goodsReceiptQueries,
-  useUpdateGoodsReceipt,
-} from "@/features/table-pages/goods-receipt/api/goods-receipt.queries";
+import type { GoodsIssueRow } from "@/features/create-pages/goods-issue-create/types/goods-issue.types";
+import { GoodsIssueTable } from "@/features/create-pages/goods-issue-create/components/goods-issue-table";
+import { goodsIssueQueries } from "@/features/table-pages/goods-issue/api/goods-issue.queries";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
+import { apiClient } from "@/shared/api/client";
 
-interface GoodsReceiptUpdateProps {
+interface GoodsIssueUpdateProps {
   docNum: string;
 }
 
-export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
+// ─── SAP mutation ────────────────────────────────────────────────────────────
+
+interface UpdateGoodsIssuePayload {
+  Comments?: string;
+  JrnlMemo?: string;
+  Ref2?: string;
+  Attachments?: any[];
+}
+
+function useUpdateGoodsIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: UpdateGoodsIssuePayload }) => {
+      return apiClient<{ success: boolean; data: any }>(`/api/v1/goods-issues/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: goodsIssueQueries.list({}).queryKey });
+    },
+  });
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
   const router = useRouter();
   const [remarks, setRemarks] = useState("");
   const [journalRemark, setJournalRemark] = useState("");
   const [ref2, setRef2] = useState("");
-  const [rows, setRows] = useState<GoodsReceiptRow[]>([]);
+  const [rows, setRows] = useState<GoodsIssueRow[]>([]);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [branch, setBranch] = useState("");
 
-  const updateMutation = useUpdateGoodsReceipt();
+  const updateMutation = useUpdateGoodsIssue();
 
   // Load GR detail data
   const {
     data: grDetail,
     isLoading: grLoading,
     isError: grError,
-  } = useQuery(goodsReceiptQueries.detailById(docNum));
+  } = useQuery(goodsIssueQueries.detailById(docNum));
 
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const uomsQuery = useQuery(createSharedQueries.uoms());
@@ -50,12 +75,15 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
 
   const grData = grDetail?.data;
 
-  // Map backend lines to GoodsReceiptRow format once on load
+  // Map backend lines to GoodsIssueRow format once on load
   useEffect(() => {
     if (grData?.DocumentLines) {
       setRemarks(grData.Comments || "");
       setJournalRemark(grData.JrnlMemo || "");
       setRef2(grData.Ref2 || "");
+      if (grData.DocumentLines?.length > 0) {
+        setBranch(grData.DocumentLines[0].CostingCode || grData.DocumentLines[0].OcrCode || "");
+      }
 
       const mappedRows = grData.DocumentLines.map((line: any, idx: number) => {
         const binAlloc = line.DocumentLinesBinAllocations?.[0]?.BinAbsEntry ?? 0;
@@ -66,13 +94,14 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
           itemNo: line.ItemCode || "",
           itemDescription: line.Dscription || line.ItemDescription || "",
           uomCode: line.UomCode || line.UoMCode || "",
-          uomName: line.UomCode || line.UoMCode || "", // fallback
+          uomName: line.unitMsr || line.UomCode || line.UoMCode || "",
           whse: line.WhsCode || line.WarehouseCode || "",
           quantity: qty,
           unitPrice: String(price),
           total: `FJD ${(qty * price).toFixed(2)}`,
           binLocationAllocation: binAlloc,
           accountCode: line.AcctCode || line.AccountCode || "",
+          costingCode: line.CostingCode || line.OcrCode || "",
         };
       });
       setRows(mappedRows);
@@ -94,7 +123,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
     return (
       <div className="p-6 text-center">
         <div className="text-sm font-semibold text-red-500">
-          Failed to load Goods Receipt details.
+          Failed to load Goods Issue details.
         </div>
         <Button onClick={() => router.history.back()} className="mt-4">
           Go Back
@@ -106,8 +135,8 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
   return (
     <CreatePageWrapper
       dashboardUrl="/dashboard/inventory"
-      breadcrumbParent={{ label: "Goods Receipt Data Table", to: "/inventory/goods-receipt" }}
-      pageTitle={`Goods Receipt #${grData.DocNum}`}
+      breadcrumbParent={{ label: "Goods Issue Data Table", to: "/inventory/goods-issue" }}
+      pageTitle={`Goods Issue #${grData.DocNum}`}
     >
       <div className="space-y-4">
         {/* Header - Read Only (except Ref2 maybe) */}
@@ -134,14 +163,27 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
             onPostingDateChange={() => {}}
             onDocumentDateChange={() => {}}
             onRef2Change={setRef2}
-            idPrefix="gr-view"
+            idPrefix="gi-view"
             isEditMode={true}
-          />
+          >
+            <div>
+              <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                Branch
+              </label>
+              <input
+                type="text"
+                value={branch}
+                readOnly
+                disabled
+                className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-100 pl-3 pr-8 text-sm text-zinc-500 outline-none cursor-not-allowed"
+              />
+            </div>
+          </InventoryDocumentHeader>
         </div>
 
         {/* Contents Section */}
         <div>
-          <GoodsReceiptTable
+          <GoodsIssueTable
             rows={rows}
             onRowsChange={setRows}
             openProductPopup={() => {}}
@@ -159,7 +201,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
             <UploadGrid
               attachments={attachments}
               onAttachmentsChange={setAttachments}
-              moduleName="GoodsReceipt"
+              moduleName="GoodsIssue"
               readOnly={true}
             />
           </SectionCard>
@@ -172,7 +214,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
             journalRemark={journalRemark}
             onRemarksChange={setRemarks}
             onJournalRemarkChange={setJournalRemark}
-            idPrefix="gr-view"
+            idPrefix="gi-view"
           />
         </div>
 
@@ -218,7 +260,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                     onClick={() => {
                       void router.navigate({
                         search: { limit: 10, page: 1 } as any,
-                        to: "/inventory/goods-receipt",
+                        to: "/inventory/goods-issue",
                         viewTransition: true,
                       });
                     }}
@@ -278,18 +320,18 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                         },
                         {
                           onSuccess: () => {
-                            goeyToast.success("Goods Receipt updated successfully.");
+                            goeyToast.success("Goods Issue updated successfully.");
                           },
                           onError: (err: any) => {
                             goeyToast.error(
-                              err?.response?.data?.message || "Failed to update Goods Receipt.",
+                              err?.response?.data?.message || "Failed to update Goods Issue.",
                             );
                           },
                         },
                       );
                     }}
                     onDownload={(type) => {
-                      goeyToast.info(`Downloading Goods Receipt as ${type.toUpperCase()}...`);
+                      goeyToast.info(`Downloading Goods Issue as ${type.toUpperCase()}...`);
                     }}
                     isSubmitting={updateMutation.isPending}
                     submitDisabled={false}

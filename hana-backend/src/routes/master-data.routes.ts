@@ -46,4 +46,7 @@ router.get("/series", masterDataDal.getSeries);
 // GET /warehouses/:code/bins: List of bins for a warehouse from Service Layer
 router.get("/warehouses/:code/bins", masterDataDal.getWarehouseBins);
 
+// GET /branches: List of branches (DistributionRules) from Service Layer
+router.get("/branches", masterDataDal.getBranches);
+
 export const masterDataRoutes = router;

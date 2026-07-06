@@ -19,6 +19,8 @@ router.get(
   validateQuery(GoodsIssueDocNumLookupQuerySchema),
   goodsIssueDal.getGoodsIssueDocNums,
 );
+router.post("/", goodsIssueDal.createGoodsIssue);
 router.get("/:id", goodsIssueDal.getGoodsIssue);
+router.patch("/:id", goodsIssueDal.updateGoodsIssue);
 
 export const goodsIssueRoutes = router;

@@ -10,6 +10,7 @@ export const MasterDataQuerySchema = z.object({
   itemCode: z.string().trim().optional(),
   type: z.enum(["sales", "purchase"]).optional(),
   country: z.string().trim().optional(),
+  priceList: z.coerce.number().optional(),
 });
 
 export type MasterDataQuery = z.infer<typeof MasterDataQuerySchema>;

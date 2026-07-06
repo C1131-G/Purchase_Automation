@@ -109,13 +109,38 @@ export const getGoodsIssues = async (dbName: string, filters: GoodsIssueQuery) =
   }
 };
 
-export const getGoodsIssueByDocNum = async (dbName: string, docNum: number | string) => {
+export const getGoodsIssueByDocNum = async (
+  sessionId: string,
+  dbName: string,
+  docNum: number | string,
+) => {
   const repo = await getTenantRepository(dbName, GoodsIssueSchema);
   const header = await repo.findOne({ where: { docNum: Number(docNum) } });
   if (!header) return null;
 
   const lineRepo = await getTenantRepository(dbName, GoodsIssueLineSchema);
   const lines = await lineRepo.find({ where: { docEntry: header.docEntry } });
+
+  const { serviceLayerClient } = await import("@/services/service-layer.service");
+  let slDoc: any = null;
+  let attachments: any[] = [];
+  try {
+    slDoc = await serviceLayerClient.request(
+      sessionId,
+      "GET",
+      `/InventoryGenExits(${header.docEntry})`,
+    );
+    if (slDoc?.AttachmentEntry) {
+      const { attachmentsService } = await import("@/services/attachments.service");
+      attachments = await attachmentsService.getSAPAttachment(
+        sessionId,
+        slDoc.AttachmentEntry,
+        dbName,
+      );
+    }
+  } catch {
+    // Ignore error, fallback to without bin allocations
+  }
 
   return {
     DocEntry: header.docEntry,
@@ -129,21 +154,41 @@ export const getGoodsIssueByDocNum = async (dbName: string, docNum: number | str
         ? header.taxDate.toISOString().slice(0, 10)
         : String(header.taxDate).slice(0, 10),
     Comments: header.comments,
+    JrnlMemo: header.jrnlMemo,
     DocTotal: Number(header.docTotal || 0),
+    DocCurr: header.docCurr || "FJD",
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
-    DocumentLines: lines.map((l) => ({
-      DocEntry: l.docEntry,
-      LineNum: l.lineNum,
-      ItemCode: l.itemCode,
-      Dscription: l.dscription,
-      Quantity: Number(l.quantity || 0),
-      Price: Number(l.price || 0),
-      WhsCode: l.whsCode,
-      AcctCode: l.acctCode,
-      BaseType: l.baseType,
-      BaseEntry: l.baseEntry,
-      BaseLine: l.baseLine,
-    })),
+    Ref2: header.ref2,
+    Series: header.series,
+    PriceList: slDoc?.PriceList,
+    DocumentLines: lines.map((l) => {
+      const slLine = slDoc?.DocumentLines?.find((sl: any) => sl.LineNum === l.lineNum);
+      const lineBinAllocations = slLine?.DocumentLinesBinAllocations || [];
+      return {
+        LineNum: l.lineNum,
+        ItemCode: l.itemCode,
+        Dscription: l.dscription,
+        Quantity: Number(l.quantity || 0),
+        Price: Number(l.price || 0),
+        LineTotal: Number(l.lineTotal || 0),
+        WhsCode: l.whsCode,
+        AcctCode: l.acctCode,
+        CostingCode: l.ocrCode,
+        OcrCode: l.ocrCode,
+        UomCode: l.uomCode,
+        unitMsr: l.unitMsr,
+        BaseType: l.baseType,
+        BaseEntry: l.baseEntry,
+        BaseLine: l.baseLine,
+        DocumentLinesBinAllocations: lineBinAllocations.map((ba: any) => ({
+          BinAbsEntry: ba.BinAbsEntry,
+          Quantity: ba.Quantity,
+          AllowNegativeQuantity: ba.AllowNegativeQuantity,
+          BaseLineNumber: ba.BaseLineNumber,
+        })),
+      };
+    }),
+    Attachments: attachments,
   };
 };
 
@@ -175,8 +220,177 @@ export const getGoodsIssueDocNums = async (dbName: string, search?: string, limi
     .filter((item) => item.code.length > 0);
 };
 
+export const createGoodsIssue = async (sessionId: string, payload: Record<string, unknown>) => {
+  try {
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || "";
+    let absoluteEntry: number | null = null;
+    if (
+      payload.Attachments &&
+      Array.isArray(payload.Attachments) &&
+      payload.Attachments.length > 0 &&
+      dbName
+    ) {
+      const { attachmentsService } = await import("@/services/attachments.service");
+      absoluteEntry = await attachmentsService.createSAPAttachment(
+        sessionId,
+        dbName,
+        payload.Attachments as any[],
+      );
+    }
+
+    const sapPayload: Record<string, unknown> = {
+      DocDate: payload.DocDate,
+      TaxDate: payload.TaxDate,
+      Comments: payload.Comments,
+      JrnlMemo: payload.JrnlMemo,
+      Reference2: payload.Ref2,
+      ...(payload.Series !== undefined && payload.Series !== null
+        ? { Series: Number(payload.Series) }
+        : {}),
+      ...(payload.PriceList !== undefined && payload.PriceList !== null
+        ? { PriceList: Number(payload.PriceList) }
+        : {}),
+      AttachmentEntry: absoluteEntry ?? undefined,
+      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map(
+        (line, index) => {
+          const l: Record<string, unknown> = {
+            ItemCode: line.ItemCode,
+            Quantity: Number(line.Quantity) || 1,
+            UnitPrice: Number(line.UnitPrice) || 0,
+          };
+          if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
+          if (line.UoMCode) l.UoMCode = line.UoMCode;
+          if (line.AccountCode) l.AccountCode = line.AccountCode;
+          if (line.CostingCode) l.CostingCode = line.CostingCode; // This is the "Branch"
+
+          if (
+            Array.isArray(line.DocumentLinesBinAllocations) &&
+            (line.DocumentLinesBinAllocations as unknown[]).length > 0
+          ) {
+            l.DocumentLinesBinAllocations = (line.DocumentLinesBinAllocations as any[]).map(
+              (ba) => ({
+                BaseLineNumber: ba.BaseLineNumber ?? index,
+                BinAbsEntry: Number(ba.BinAbsEntry),
+                Quantity: Number(ba.Quantity) || 1,
+              }),
+            );
+          }
+          return l;
+        },
+      ),
+    };
+
+    const result = (await serviceLayerClient.request(
+      sessionId,
+      "POST",
+      "/InventoryGenExits",
+      sapPayload,
+    )) as { DocEntry: number; DocNum: number };
+
+    const { purgeCache } = await import("@/core/utils/cache");
+
+    if (absoluteEntry !== null && dbName) {
+      const { attachmentsService } = await import("@/services/attachments.service");
+      await attachmentsService.finalizeAndLinkAttachments(
+        dbName,
+        "GoodsIssues",
+        result.DocEntry,
+        result.DocNum,
+        absoluteEntry,
+        payload.Attachments as any[],
+      );
+    }
+
+    if (dbName) {
+      purgeCache(`dash:inventory:${dbName}:`);
+    }
+
+    return {
+      DocEntry: result.DocEntry,
+      DocNum: result.DocNum,
+      message: "Goods Issue created successfully",
+      success: true,
+    };
+  } catch (err: unknown) {
+    throw err instanceof Error ? err : new Error(String(err));
+  }
+};
+
+export const updateGoodsIssue = async (
+  sessionId: string,
+  docEntry: number | string,
+  payload: Record<string, unknown>,
+) => {
+  try {
+    const sapPayload: Record<string, unknown> = {};
+    if (payload.Comments !== undefined) sapPayload.Comments = payload.Comments;
+    if (payload.JrnlMemo !== undefined) sapPayload.JrnlMemo = payload.JrnlMemo;
+    if (payload.Ref2 !== undefined) sapPayload.Reference2 = payload.Ref2;
+
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+
+    let shouldUpdateDoc = true;
+
+    if (payload.Attachments !== undefined) {
+      const session = serviceLayerClient.getSession(sessionId);
+      const dbName = session?.companyDB || "";
+      if (dbName) {
+        const { attachmentsService } = await import("@/services/attachments.service");
+        const existingDoc = await serviceLayerClient.request<{
+          DocNum: number;
+          AttachmentEntry: number | null;
+        }>(sessionId, "GET", `/InventoryGenExits(${docEntry})?$select=DocNum,AttachmentEntry`);
+
+        const syncResult = await attachmentsService.syncAttachmentsOnUpdate(
+          sessionId,
+          dbName,
+          "GoodsIssues",
+          docEntry,
+          existingDoc.DocNum,
+          payload.Attachments as any[],
+          existingDoc.AttachmentEntry || null,
+        );
+
+        if (syncResult.shouldUpdateDoc) {
+          sapPayload.AttachmentEntry = syncResult.attachmentEntry;
+        }
+
+        if (Object.keys(sapPayload).length === 0) {
+          shouldUpdateDoc = false;
+        }
+      }
+    }
+
+    if (shouldUpdateDoc) {
+      await serviceLayerClient.request(
+        sessionId,
+        "PATCH",
+        `/InventoryGenExits(${docEntry})`,
+        sapPayload,
+      );
+    }
+
+    const { purgeCache } = await import("@/core/utils/cache");
+    const session = serviceLayerClient.getSession(sessionId);
+    if (session?.companyDB) {
+      purgeCache(`dash:inventory:${session.companyDB}:`);
+    }
+
+    return {
+      message: "Goods Issue updated successfully",
+      success: true,
+    };
+  } catch (err: unknown) {
+    throw err instanceof Error ? err : new Error(String(err));
+  }
+};
+
 export const goodsIssueService = {
   getGoodsIssues,
   getGoodsIssueByDocNum,
   getGoodsIssueDocNums,
+  createGoodsIssue,
+  updateGoodsIssue,
 };

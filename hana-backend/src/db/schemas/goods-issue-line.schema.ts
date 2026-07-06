@@ -12,6 +12,9 @@ export interface GoodsIssueLine {
   price: number;
   whsCode: string;
   acctCode: string;
+  uomCode?: string;
+  unitMsr?: string;
+  ocrCode?: string;
   baseType?: number;
   baseEntry?: number;
   baseLine?: number;
@@ -59,6 +62,24 @@ export const GoodsIssueLineSchema = new EntitySchema<GoodsIssueLine>({
     acctCode: {
       length: 15,
       name: "AcctCode",
+      type: "nvarchar" as HANAColumnType,
+    },
+    uomCode: {
+      length: 20,
+      name: "UomCode",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    unitMsr: {
+      length: 20,
+      name: "unitMsr",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    ocrCode: {
+      length: 8,
+      name: "OcrCode",
+      nullable: true,
       type: "nvarchar" as HANAColumnType,
     },
     baseType: {

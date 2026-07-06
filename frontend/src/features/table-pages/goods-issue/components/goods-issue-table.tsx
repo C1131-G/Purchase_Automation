@@ -42,7 +42,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const routeApi = getRouteApi("/_layout/inventory/goods-issue");
 const TABLE_ID = "goodsIssue";
-const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "TaxDate", "DocTotal", "DocStatus"];
+const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "TaxDate", "DocTotal", "DocStatus", "Comments"];
 
 export function GoodsIssueTable() {
   const searchParams = routeApi.useSearch();
@@ -61,7 +61,27 @@ export function GoodsIssueTable() {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
-  const columns = useMemo(() => createGoodsIssueColumns(), []);
+  const pagination = useMemo(
+    () => ({
+      pageIndex: Math.max((searchParams.page ?? 1) - 1, 0),
+      pageSize: Math.max(searchParams.limit ?? 10, 1),
+    }),
+    [searchParams.page, searchParams.limit],
+  );
+
+  const columns = useMemo(
+    () =>
+      createGoodsIssueColumns({
+        onDocNumDoubleClick: (docNum) => {
+          void navigate({
+            to: "/inventory/goods-issue/$docNum/edit",
+            params: { docNum: String(docNum) },
+            search: { limit: pagination.pageSize, page: pagination.pageIndex + 1 } as any,
+          });
+        },
+      }),
+    [navigate, pagination.pageIndex, pagination.pageSize],
+  );
   const columnIds = useMemo(
     () =>
       columns
@@ -94,14 +114,6 @@ export function GoodsIssueTable() {
   const columnFilters = useMemo<ColumnFiltersState>(
     () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
     [searchParams.columnFilters],
-  );
-
-  const pagination = useMemo(
-    () => ({
-      pageIndex: Math.max((searchParams.page ?? 1) - 1, 0),
-      pageSize: Math.max(searchParams.limit ?? 10, 1),
-    }),
-    [searchParams.page, searchParams.limit],
   );
 
   const tableState = useMemo(

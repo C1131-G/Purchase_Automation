@@ -10,7 +10,12 @@ import { formatDocTotal } from "@/features/table-pages/table-shared/utils/curren
 
 const columnHelper = createColumnHelper<GoodsIssueListItem>();
 
-export const createGoodsIssueColumns = () => {
+interface CreateGoodsIssueColumnsOptions {
+  onDocNumDoubleClick?: (docNum: string | number) => void;
+  onDocNumHover?: (docNum: string | number) => void;
+}
+
+export const createGoodsIssueColumns = (options?: CreateGoodsIssueColumnsOptions) => {
   return [
     columnHelper.accessor("DocNum", {
       cell: (info) => (
@@ -18,6 +23,8 @@ export const createGoodsIssueColumns = () => {
           value={info.getValue()}
           docEntry={info.row.original.id as number}
           docType="goods-issue"
+          onHover={options?.onDocNumHover}
+          onDoubleClick={options?.onDocNumDoubleClick}
         />
       ),
       enableSorting: true,

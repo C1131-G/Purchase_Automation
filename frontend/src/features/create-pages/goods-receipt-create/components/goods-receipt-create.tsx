@@ -19,10 +19,13 @@ import { Popover } from "@/components/popover";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/components/inventory/inventory-document-header";
 import { InventoryDocumentFooter } from "@/features/create-pages/create-shared/components/inventory/inventory-document-footer";
-import { InventoryDocumentAttachments } from "@/features/create-pages/create-shared/components/inventory/inventory-document-attachments";
+import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import {
+  UploadGrid,
+  type AttachmentItem,
+} from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
-import type { AttachmentItem } from "@/features/create-pages/create-shared/components/inventory/types/inventory-document.types";
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
 import { GoodsReceiptTable } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-table";
 import { ProductPopupModal } from "@/features/create-pages/create-shared/components/modals/product-popup-modal";
@@ -38,6 +41,8 @@ interface CreateGoodsReceiptPayload {
   Comments?: string;
   JrnlMemo?: string;
   Attachments?: any[];
+  Series?: string | number;
+  PriceList?: string | number;
   DocumentLines: {
     ItemCode: string;
     Quantity: number;
@@ -75,7 +80,6 @@ const getTodayISO = () => new Date().toISOString().slice(0, 10);
 export function GoodsReceiptCreate() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"contents" | "attachments">("contents");
 
   const [priceList, setPriceList] = useState("");
   const [docNumber, setDocNumber] = useState("");
@@ -285,6 +289,7 @@ export function GoodsReceiptCreate() {
       ...(ref2 ? { Ref2: ref2 } : {}),
       ...(remarks ? { Comments: remarks } : {}),
       ...(attachments.length > 0 ? { Attachments: attachments } : {}),
+      ...(resolvedPriceListCode !== undefined ? { PriceList: Number(resolvedPriceListCode) } : {}),
       JrnlMemo: journalRemark || "Goods Receipt",
       DocumentLines: validRows.map((r) => ({
         ItemCode: r.itemNo,
@@ -372,147 +377,119 @@ export function GoodsReceiptCreate() {
           idPrefix={ID_PREFIX}
         />
 
-        {/* Tabs */}
-        <div className="flex border-b border-zinc-200">
-          <button
-            type="button"
-            id="gr-tab-contents"
-            className={`cursor-pointer border-b-2 px-4 py-2.5 text-sm font-semibold outline-none transition ${
-              activeTab === "contents"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-zinc-500 hover:text-zinc-700"
-            }`}
-            onClick={() => setActiveTab("contents")}
-          >
-            Contents
-          </button>
-          <button
-            type="button"
-            id="gr-tab-attachments"
-            className={`cursor-pointer border-b-2 px-4 py-2.5 text-sm font-semibold outline-none transition ${
-              activeTab === "attachments"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-zinc-500 hover:text-zinc-700"
-            }`}
-            onClick={() => setActiveTab("attachments")}
-          >
-            Attachments
-          </button>
-        </div>
+        {/* Table */}
+        <GoodsReceiptTable
+          rows={rows}
+          onRowsChange={setRows}
+          openProductPopup={openProductPopup}
+          prefetchProducts={prefetchProducts}
+          warehouses={warehouses}
+          warehousesLoading={warehousesQuery.isLoading}
+          uoms={uomsQuery.data ?? []}
+          priceListCode={resolvedPriceListCode ?? undefined}
+        />
+        {/* Product selection popup — always multi-select capable */}
+        {productPopupOpen && (
+          <ProductPopupModal
+            open={productPopupOpen}
+            search={productSearch}
+            results={products}
+            loading={productsQuery.isLoading}
+            backgroundLoading={productsQuery.isFetching && !productsQuery.isLoading}
+            error={productsQuery.isError ? "Error loading products" : null}
+            onSearchChange={setProductSearch}
+            onClose={() => setProductPopupOpen(false)}
+            onSelect={(p) =>
+              selectProduct({
+                code: p.code,
+                name: p.name,
+                ...(p.uomCode ? { uomCode: p.uomCode } : {}),
+                ...(p.uomName ? { uomName: p.uomName } : {}),
+                price: p.price,
+              })
+            }
+            onSelectMultiple={(items) => {
+              setRows((prev) => {
+                const newRows = [...prev];
+                const itemsToInsert = [...items];
 
-        {/* Table / Attachments */}
-        {activeTab === "contents" ? (
-          <>
-            <GoodsReceiptTable
-              rows={rows}
-              onRowsChange={setRows}
-              openProductPopup={openProductPopup}
-              prefetchProducts={prefetchProducts}
-              warehouses={warehouses}
-              warehousesLoading={warehousesQuery.isLoading}
-              uoms={uomsQuery.data ?? []}
-              priceListCode={resolvedPriceListCode ?? undefined}
-            />
-            {/* Product selection popup — always multi-select capable */}
-            {productPopupOpen && (
-              <ProductPopupModal
-                open={productPopupOpen}
-                search={productSearch}
-                results={products}
-                loading={productsQuery.isLoading}
-                backgroundLoading={productsQuery.isFetching && !productsQuery.isLoading}
-                error={productsQuery.isError ? "Error loading products" : null}
-                onSearchChange={setProductSearch}
-                onClose={() => setProductPopupOpen(false)}
-                onSelect={(p) =>
-                  selectProduct({
-                    code: p.code,
-                    name: p.name,
-                    ...(p.uomCode ? { uomCode: p.uomCode } : {}),
-                    ...(p.uomName ? { uomName: p.uomName } : {}),
-                    price: p.price,
-                  })
+                // 1. Replace the active row first, if any
+                if (activeProductRowId) {
+                  const targetIdx = newRows.findIndex((r) => r.id === activeProductRowId);
+                  if (targetIdx !== -1 && itemsToInsert.length > 0) {
+                    const first = itemsToInsert.shift()!;
+                    newRows[targetIdx] = {
+                      ...newRows[targetIdx],
+                      id: newRows[targetIdx]!.id,
+                      whse: newRows[targetIdx]!.whse,
+                      quantity: newRows[targetIdx]!.quantity,
+                      binLocationAllocation: newRows[targetIdx]!.binLocationAllocation,
+                      accountCode: newRows[targetIdx]!.accountCode,
+                      itemNo: first.code,
+                      itemDescription: first.name,
+                      uomCode: first.uomCode ?? "",
+                      uomName: first.uomName ?? "",
+                      unitPrice: String(first.price ?? 0),
+                      total: `FJD ${(1 * (first.price ?? 0)).toFixed(2)}`,
+                    };
+                  }
                 }
-                onSelectMultiple={(items) => {
-                  setRows((prev) => {
-                    const newRows = [...prev];
-                    const itemsToInsert = [...items];
 
-                    // 1. Replace the active row first, if any
-                    if (activeProductRowId) {
-                      const targetIdx = newRows.findIndex((r) => r.id === activeProductRowId);
-                      if (targetIdx !== -1 && itemsToInsert.length > 0) {
-                        const first = itemsToInsert.shift()!;
-                        newRows[targetIdx] = {
-                          ...newRows[targetIdx],
-                          id: newRows[targetIdx]!.id,
-                          whse: newRows[targetIdx]!.whse,
-                          quantity: newRows[targetIdx]!.quantity,
-                          binLocationAllocation: newRows[targetIdx]!.binLocationAllocation,
-                          accountCode: newRows[targetIdx]!.accountCode,
-                          itemNo: first.code,
-                          itemDescription: first.name,
-                          uomCode: first.uomCode ?? "",
-                          uomName: first.uomName ?? "",
-                          unitPrice: String(first.price ?? 0),
-                          total: `FJD ${(1 * (first.price ?? 0)).toFixed(2)}`,
-                        };
-                      }
-                    }
+                for (let i = 0; i < newRows.length && itemsToInsert.length > 0; i++) {
+                  const currentRow = newRows[i]!;
+                  if (!currentRow.itemNo.trim()) {
+                    const next = itemsToInsert.shift()!;
+                    newRows[i] = {
+                      ...currentRow,
+                      id: currentRow.id,
+                      whse: currentRow.whse,
+                      quantity: currentRow.quantity,
+                      binLocationAllocation: currentRow.binLocationAllocation,
+                      accountCode: currentRow.accountCode,
+                      itemNo: next.code,
+                      itemDescription: next.name,
+                      uomCode: next.uomCode ?? "",
+                      uomName: next.uomName ?? "",
+                      unitPrice: String(next.price ?? 0),
+                      total: `FJD ${(1 * (next.price ?? 0)).toFixed(2)}`,
+                    };
+                  }
+                }
 
-                    for (let i = 0; i < newRows.length && itemsToInsert.length > 0; i++) {
-                      const currentRow = newRows[i]!;
-                      if (!currentRow.itemNo.trim()) {
-                        const next = itemsToInsert.shift()!;
-                        newRows[i] = {
-                          ...currentRow,
-                          id: currentRow.id,
-                          whse: currentRow.whse,
-                          quantity: currentRow.quantity,
-                          binLocationAllocation: currentRow.binLocationAllocation,
-                          accountCode: currentRow.accountCode,
-                          itemNo: next.code,
-                          itemDescription: next.name,
-                          uomCode: next.uomCode ?? "",
-                          uomName: next.uomName ?? "",
-                          unitPrice: String(next.price ?? 0),
-                          total: `FJD ${(1 * (next.price ?? 0)).toFixed(2)}`,
-                        };
-                      }
-                    }
+                // 3. Append remaining items as new rows
+                const restRows = itemsToInsert.map((item) => ({
+                  id: Math.random().toString(36).substr(2, 9),
+                  itemNo: item.code,
+                  itemDescription: item.name,
+                  uomCode: item.uomCode ?? "",
+                  uomName: item.uomName ?? "",
+                  whse: "",
+                  quantity: 1,
+                  unitPrice: String(item.price ?? 0),
+                  total: `FJD ${(1 * (item.price ?? 0)).toFixed(2)}`,
+                  binLocationAllocation: 0,
+                  accountCode: "",
+                }));
 
-                    // 3. Append remaining items as new rows
-                    const restRows = itemsToInsert.map((item) => ({
-                      id: Math.random().toString(36).substr(2, 9),
-                      itemNo: item.code,
-                      itemDescription: item.name,
-                      uomCode: item.uomCode ?? "",
-                      uomName: item.uomName ?? "",
-                      whse: "",
-                      quantity: 1,
-                      unitPrice: String(item.price ?? 0),
-                      total: `FJD ${(1 * (item.price ?? 0)).toFixed(2)}`,
-                      binLocationAllocation: 0,
-                      accountCode: "",
-                    }));
-
-                    return newRows.concat(restRows);
-                  });
-                  setProductPopupOpen(false);
-                }}
-                // Always use "__document_search__" so the modal is in multi-select mode
-                selectedProductRowId="__document_search__"
-              />
-            )}
-          </>
-        ) : (
-          <InventoryDocumentAttachments
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-            idPrefix={ID_PREFIX}
-            targetPathPrefix="C:\\SAP_Attachments\\"
+                return newRows.concat(restRows);
+              });
+              setProductPopupOpen(false);
+            }}
+            // Always use "__document_search__" so the modal is in multi-select mode
+            selectedProductRowId="__document_search__"
           />
         )}
+
+        {/* Attachments Section Card */}
+        <div className="mt-3">
+          <SectionCard title="ATTACHMENTS">
+            <UploadGrid
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              moduleName="GoodsReceipt"
+            />
+          </SectionCard>
+        </div>
 
         {/* Footer */}
         <InventoryDocumentFooter
