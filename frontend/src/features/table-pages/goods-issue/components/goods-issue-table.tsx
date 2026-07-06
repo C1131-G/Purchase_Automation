@@ -42,7 +42,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const routeApi = getRouteApi("/_layout/inventory/goods-issue");
 const TABLE_ID = "goodsIssue";
-const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "Comments", "DocTotal", "DocStatus"];
+const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "TaxDate", "DocTotal", "DocStatus", "Comments"];
 
 export function GoodsIssueTable() {
   const searchParams = routeApi.useSearch();

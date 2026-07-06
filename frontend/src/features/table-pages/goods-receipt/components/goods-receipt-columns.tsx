@@ -57,14 +57,19 @@ export const createGoodsReceiptColumns = (options?: CreateGoodsReceiptColumnsOpt
       minSize: 12,
       size: 14,
     }),
-    columnHelper.accessor("Comments", {
-      cell: (info) => info.getValue() || "-",
-      filterFn: "includesString",
+    columnHelper.accessor("TaxDate", {
+      cell: (info) => {
+        const date = info.getValue();
+        if (!date) return "-";
+        return new Date(date).toLocaleDateString("en-GB");
+      },
+      filterFn: (row, columnId, filterValue) =>
+        matchesDateRange(row.getValue(columnId), filterValue),
       header: ({ column, table }) => (
-        <TableColumnSort column={column} sortingState={table.getState().sorting} title="Remarks" />
+        <TableColumnSort column={column} sortingState={table.getState().sorting} title="Tax Date" />
       ),
-      id: "Comments",
-      meta: { filterType: "text" },
+      id: "TaxDate",
+      meta: { filterType: "date" },
       minSize: 12,
       size: 14,
     }),

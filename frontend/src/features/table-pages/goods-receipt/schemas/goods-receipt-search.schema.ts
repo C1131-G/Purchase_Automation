@@ -11,6 +11,12 @@ export const goodsReceiptColumnFilterValueSchema = z.union([
       to: z.string().optional(),
     })
     .strict(),
+  z
+    .object({
+      operator: z.enum(["eq", "lt", "gt"]),
+      value: z.coerce.number(),
+    })
+    .strict(),
 ]);
 
 export const goodsReceiptColumnFilterSchema = z.object({
