@@ -5,6 +5,7 @@ tables.md
 tax-details.md
 .env
 .zed
+.codex
 .pnpm-store/
 node_modules/
 dist/
