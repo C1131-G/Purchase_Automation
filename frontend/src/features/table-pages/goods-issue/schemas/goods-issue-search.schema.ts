@@ -27,6 +27,7 @@ export const goodsIssueColumnFilterSchema = z.object({
 export const goodsIssueSearchSchema = z.object({
   DocNum: z.string().optional(),
   Comments: z.string().optional(),
+  DocStatus: z.string().optional(),
   DocDateStart: z.string().optional(),
   DocDateEnd: z.string().optional(),
   TaxDateStart: z.string().optional(),

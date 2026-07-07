@@ -235,7 +235,7 @@ export function GoodsIssueCreate() {
           return {
             ...r,
             unitPrice: String(newPrice),
-            total: total > 0 ? `FJD ${total.toFixed(2)}` : "FJD 0.00",
+            total: total > 0 ? total.toFixed(2) : "0.00",
           };
         }),
       );
@@ -276,7 +276,7 @@ export function GoodsIssueCreate() {
             uomCode: product.uomCode ?? r.uomCode,
             uomName: product.uomName ?? r.uomName,
             unitPrice: String(price),
-            total: `FJD ${total.toFixed(2)}`,
+            total: total.toFixed(2),
           };
         }),
       );
@@ -489,7 +489,7 @@ export function GoodsIssueCreate() {
                       uomCode: first.uomCode ?? "",
                       uomName: first.uomName ?? "",
                       unitPrice: String(first.price ?? 0),
-                      total: `FJD ${(1 * (first.price ?? 0)).toFixed(2)}`,
+                      total: (1 * (first.price ?? 0)).toFixed(2),
                     };
                   }
                 }
@@ -511,7 +511,7 @@ export function GoodsIssueCreate() {
                       uomCode: next.uomCode ?? "",
                       uomName: next.uomName ?? "",
                       unitPrice: String(next.price ?? 0),
-                      total: `FJD ${(1 * (next.price ?? 0)).toFixed(2)}`,
+                      total: (1 * (next.price ?? 0)).toFixed(2),
                     };
                   }
                 }
@@ -526,7 +526,7 @@ export function GoodsIssueCreate() {
                   whse: "",
                   quantity: 1,
                   unitPrice: String(item.price ?? 0),
-                  total: `FJD ${(1 * (item.price ?? 0)).toFixed(2)}`,
+                  total: (1 * (item.price ?? 0)).toFixed(2),
                   binLocationAllocation: 0,
                   accountCode: "",
                   costingCode: "",

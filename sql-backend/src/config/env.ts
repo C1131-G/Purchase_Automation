@@ -37,4 +37,7 @@ export const config = {
   session: {
     secret: validatedEnv.SESSION_SECRET,
   },
+  currency: {
+    defaultCode: validatedEnv.DEFAULT_CURRENCY_CODE,
+  },
 };

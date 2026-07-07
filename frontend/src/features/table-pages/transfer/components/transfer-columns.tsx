@@ -74,7 +74,7 @@ export const createTransferColumns = () => {
       size: 12,
     }),
     columnHelper.accessor("DocTotal", {
-      cell: (info) => formatDocTotal(info.getValue(), info.row.original.DocCurr ?? "FJD"),
+      cell: (info) => formatDocTotal(info.getValue(), info.row.original.DocCurr),
       filterFn: (row, columnId, filterValue) =>
         matchesNumberComparison(row.getValue(columnId), filterValue),
       header: ({ column, table }) => (

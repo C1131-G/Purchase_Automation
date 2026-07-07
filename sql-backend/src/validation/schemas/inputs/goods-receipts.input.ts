@@ -9,6 +9,10 @@ const GoodsReceiptLineSchema = z.object({
   warehouseCode: z.string().optional(),
   acctCode: z.string().optional(),
   uomCode: z.string().optional(),
+  ocrCode: z.string().optional(),
+  costingCode: z.string().optional(),
+  unitMsr: z.string().optional(),
+  documentLinesBinAllocations: z.array(z.any()).optional(),
 });
 
 export const CreateGoodsReceiptSchema = z.object({
@@ -20,7 +24,16 @@ export const CreateGoodsReceiptSchema = z.object({
   docCurrency: z.string().optional(),
   ref2: z.string().optional(),
   series: z.coerce.number().int().optional(),
+  priceList: z.coerce.number().int().optional(),
+  attachments: z.array(z.any()).optional(),
   lines: z.array(GoodsReceiptLineSchema).min(1),
+});
+
+export const UpdateGoodsReceiptSchema = z.object({
+  comments: z.string().optional(),
+  jrnlMemo: z.string().optional(),
+  ref2: z.string().optional(),
+  attachments: z.array(z.any()).optional(),
 });
 
 export const GoodsReceiptListQuerySchema = z.object({

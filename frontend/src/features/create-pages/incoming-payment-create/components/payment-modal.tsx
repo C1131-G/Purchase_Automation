@@ -1,6 +1,7 @@
 import { goeyToast } from "goey-toast";
 import { CheckCircle2, Delete, Plus, Trash2, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { formatCurrency } from "@/features/dashboard/utils/formatters";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 
@@ -74,6 +75,7 @@ interface PaymentModalProps {
     TransferReference?: string;
   }) => void;
   isPaymentOnAccount?: boolean;
+  currencyCode?: string | undefined;
 }
 
 export function PaymentModal({
@@ -82,6 +84,7 @@ export function PaymentModal({
   balanceDue,
   onPaymentSubmit,
   isPaymentOnAccount,
+  currencyCode,
 }: PaymentModalProps) {
   const [activeTab, setActiveTab] = useState<"Cash" | "Card" | "Cheque" | "Bank Transfer">("Cash");
 
@@ -527,12 +530,16 @@ export function PaymentModal({
               {balanceDue > 0 && (
                 <div className="flex gap-1.5">
                   <span className="text-blue-500 font-medium">Invoice Amt.:</span>
-                  <span className="font-bold text-blue-500">FJD {balanceDue.toFixed(2)}</span>
+                  <span className="font-bold text-blue-500">
+                    {formatCurrency(balanceDue, currencyCode)}
+                  </span>
                 </div>
               )}
               <div className="flex gap-1.5">
                 <span className="text-emerald-500 font-medium">Paid:</span>
-                <span className="font-bold text-emerald-500">FJD {totalPaid.toFixed(2)}</span>
+                <span className="font-bold text-emerald-500">
+                  {formatCurrency(totalPaid, currencyCode)}
+                </span>
               </div>
               {(balanceDue > 0 || !isPaymentOnAccount) && (
                 <div className="flex gap-1.5">
@@ -540,7 +547,7 @@ export function PaymentModal({
                     {remainingBalance < 0 ? "On Account:" : "Bal.:"}
                   </span>
                   <span className="font-bold text-orange-500">
-                    FJD {Math.abs(remainingBalance).toFixed(2)}
+                    {formatCurrency(Math.abs(remainingBalance), currencyCode)}
                   </span>
                 </div>
               )}
@@ -841,7 +848,7 @@ export function PaymentModal({
                       <div>
                         <span className="text-slate-400 block mb-0.5">Surcharge</span>{" "}
                         <span className="font-bold text-slate-700">
-                          FJD {currentSurchargeAmount.toFixed(2)}
+                          {formatCurrency(currentSurchargeAmount, currencyCode)}
                         </span>
                       </div>
                     </div>
@@ -895,7 +902,7 @@ export function PaymentModal({
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="font-bold text-slate-700">
-                                FJD {card.amount.toFixed(2)}
+                                {formatCurrency(card.amount, currencyCode)}
                               </span>
                               <button
                                 onClick={() => handleRemoveCard(card.id)}

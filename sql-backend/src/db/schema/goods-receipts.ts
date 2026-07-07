@@ -12,6 +12,8 @@ export const goodsReceipts = pgTable("goods_receipts", {
   docStatus: text("doc_status").default("O"),
   ref2: text("ref2"),
   series: integer("series"),
+  priceList: integer("price_list"),
+  attachmentEntry: integer("attachment_entry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

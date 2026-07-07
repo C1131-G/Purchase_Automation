@@ -111,10 +111,34 @@ export function GoodsIssueTable() {
     return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER);
   }, [searchParams.columnOrder, columnIds]);
 
-  const columnFilters = useMemo<ColumnFiltersState>(
-    () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
-    [searchParams.columnFilters],
-  );
+  const columnFilters = useMemo<ColumnFiltersState>(() => {
+    if (searchParams.columnFilters !== undefined) {
+      return cloneFilters(normalizeColumnFilters(searchParams.columnFilters));
+    }
+    // Hydrate from direct query parameters
+    const built: ColumnFiltersState = [];
+    if (searchParams.DocNum) built.push({ id: "DocNum", value: searchParams.DocNum });
+    if (searchParams.Comments) built.push({ id: "Comments", value: searchParams.Comments });
+    if (searchParams.DocDateStart || searchParams.DocDateEnd) {
+      built.push({
+        id: "DocDate",
+        value: { from: searchParams.DocDateStart, to: searchParams.DocDateEnd },
+      });
+    }
+    if (searchParams.TaxDateStart || searchParams.TaxDateEnd) {
+      built.push({
+        id: "TaxDate",
+        value: { from: searchParams.TaxDateStart, to: searchParams.TaxDateEnd },
+      });
+    }
+    if (searchParams.DocTotal !== undefined && searchParams.DocTotalOperator) {
+      built.push({
+        id: "DocTotal",
+        value: { operator: searchParams.DocTotalOperator, value: searchParams.DocTotal },
+      });
+    }
+    return cloneFilters(built);
+  }, [searchParams]);
 
   const tableState = useMemo(
     () => ({
@@ -162,12 +186,28 @@ export function GoodsIssueTable() {
       const normalized = normalizeColumnFilters(next);
       const nextFilters = cloneFilters(normalized);
       setColumnFilters(TABLE_ID, nextFilters);
+      const nextSearchFilters = nextFilters as any;
+
+      const docNumVal = nextFilters.find((f) => f.id === "DocNum")?.value;
+      const commentsVal = nextFilters.find((f) => f.id === "Comments")?.value;
+      const docDateVal = nextFilters.find((f) => f.id === "DocDate")?.value as any;
+      const taxDateVal = nextFilters.find((f) => f.id === "TaxDate")?.value as any;
+      const docTotalVal = nextFilters.find((f) => f.id === "DocTotal")?.value as any;
+
       navigate({
         replace: true,
         search: (prev: GoodsIssueSearch) => ({
           ...prev,
           page: 1,
-          columnFilters: nextFilters as any,
+          columnFilters: nextSearchFilters,
+          DocNum: docNumVal ? String(docNumVal) : undefined,
+          Comments: commentsVal ? String(commentsVal) : undefined,
+          DocDateStart: docDateVal?.from ?? docDateVal?.to ?? undefined,
+          DocDateEnd: docDateVal?.to ?? docDateVal?.from ?? undefined,
+          TaxDateStart: taxDateVal?.from ?? taxDateVal?.to ?? undefined,
+          TaxDateEnd: taxDateVal?.to ?? taxDateVal?.from ?? undefined,
+          DocTotalOperator: docTotalVal?.operator ?? undefined,
+          DocTotal: docTotalVal?.value ?? undefined,
         }),
       });
     },

@@ -54,13 +54,14 @@ export const getById = async (id: number) => {
   return { ...h, lines };
 };
 
-export const getByDocNum = async (docNum: number) => {
+export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
   const db = getDb();
-  const [h] = await db
-    .select()
-    .from(arCreditMemos)
-    .where(eq(arCreditMemos.docNum, docNum))
-    .limit(1);
+  let h;
+  if (draftDocEntry && draftDocEntry > 0) {
+    [h] = await db.select().from(arCreditMemos).where(eq(arCreditMemos.id, draftDocEntry)).limit(1);
+  } else {
+    [h] = await db.select().from(arCreditMemos).where(eq(arCreditMemos.docNum, docNum)).limit(1);
+  }
   if (!h) throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
   const lines = await db
     .select()
@@ -83,17 +84,80 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const isDraft = payload.isDraft === true;
+  const draftDocEntry = payload.draftDocEntry;
+
+  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
+    const [existing] = await db
+      .select()
+      .from(arCreditMemos)
+      .where(eq(arCreditMemos.id, draftDocEntry))
+      .limit(1);
+
+    if (!existing) {
+      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    }
+
+    const docNum = payload.docNum;
+    const lineTotal = payload.lines.reduce(
+      (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+      0,
+    );
+
+    await db
+      .update(arCreditMemos)
+      .set({
+        docNum,
+        docDate: payload.docDate,
+        cardCode: payload.cardCode,
+        cardName: payload.cardName ?? null,
+        docCurrency: payload.docCurrency ?? null,
+        docStatus: "O",
+        docTotal: String(lineTotal),
+      })
+      .where(eq(arCreditMemos.id, draftDocEntry));
+
+    await db.delete(arCreditMemoLines).where(eq(arCreditMemoLines.docEntry, draftDocEntry));
+    if (payload.lines?.length) {
+      await db.insert(arCreditMemoLines).values(
+        payload.lines.map((l: any) => ({
+          docEntry: draftDocEntry,
+          lineNum: l.lineNum,
+          itemCode: l.itemCode,
+          itemDescription: l.itemDescription ?? null,
+          quantity: String(l.quantity),
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+          warehouseCode: l.warehouseCode ?? null,
+          uomCode: l.uomCode ?? null,
+          lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+        })),
+      );
+    }
+
+    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real AR Credit memo");
+    return getById(draftDocEntry);
+  }
+
+  const docStatus = isDraft ? "D" : "O";
+  const docNum = payload.docNum;
+  const lineTotal = payload.lines.reduce(
+    (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+    0,
+  );
+
   const [h] = await db
     .insert(arCreditMemos)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       cardCode: payload.cardCode,
       cardName: payload.cardName ?? null,
       docCurrency: payload.docCurrency ?? null,
-      docStatus: "O",
+      docStatus,
+      docTotal: String(lineTotal),
     })
     .returning();
+
   if (payload.lines?.length) {
     await db.insert(arCreditMemoLines).values(
       payload.lines.map((l: any) => ({
@@ -109,6 +173,7 @@ export const create = async (payload: any) => {
       })),
     );
   }
+
   logger.info({ docNum }, "AR Credit memo created");
   return getById(h.id);
 };
@@ -117,13 +182,22 @@ export const update = async (id: number, payload: any) => {
   const db = getDb();
   const [ex] = await db.select().from(arCreditMemos).where(eq(arCreditMemos.id, id)).limit(1);
   if (!ex) throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
+
+  const updatedDocStatus = payload.isDraft === true ? "D" : ex.docStatus;
+  const lineTotal = payload.lines
+    ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
+    : Number(ex.docTotal);
+
   await db
     .update(arCreditMemos)
     .set({
       docDate: payload.docDate,
       docCurrency: payload.docCurrency,
+      docStatus: updatedDocStatus,
+      docTotal: String(lineTotal),
     })
     .where(eq(arCreditMemos.id, id));
+
   if (payload.lines) {
     await db.delete(arCreditMemoLines).where(eq(arCreditMemoLines.docEntry, id));
     await db.insert(arCreditMemoLines).values(

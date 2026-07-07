@@ -26,6 +26,8 @@ export const CreateArInvoiceSchema = z.object({
   address: z.string().optional(),
   address2: z.string().optional(),
   lines: z.array(ArInvoiceLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdateArInvoiceSchema = CreateArInvoiceSchema.partial();

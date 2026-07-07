@@ -8,6 +8,9 @@ const KEY_MAP: Record<string, string> = {
   DocStatus: "docStatus",
   DocDateStart: "dateFrom",
   DocDateEnd: "dateTo",
+  TaxDateStart: "taxDateStart",
+  TaxDateEnd: "taxDateEnd",
+  ToWhsCode: "toWhsCode",
   DocTotal: "docTotal",
   DocTotalOperator: "docTotalOperator",
   limit: "limit",
@@ -68,8 +71,9 @@ const transformKeys = (obj: any): any => {
 };
 
 export const requestTransformerMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  // Skip transformation for item-master, master-data, and files/attachments upload
+  // Skip transformation for items, item-master, master-data, and files/attachments upload
   if (
+    req.originalUrl.includes("/items") ||
     req.originalUrl.includes("/item-master") ||
     req.originalUrl.includes("/master-data") ||
     req.originalUrl.includes("/attachments")

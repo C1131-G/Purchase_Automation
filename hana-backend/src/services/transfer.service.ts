@@ -1,4 +1,5 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getDisplayCurrency } from "@/services/currency.util";
 import { InventoryTransferSchema } from "@/db/schemas/inventory-transfer.schema";
 import { InventoryTransferLineSchema } from "@/db/schemas/inventory-transfer-line.schema";
 import type { InventoryTransfer } from "@/db/schemas/inventory-transfer.schema";
@@ -86,23 +87,26 @@ export const getTransfers = async (dbName: string, filters: TransferQuery) => {
       sort,
     });
 
+    const displayCurrency = await getDisplayCurrency(dbName);
     return {
       ...result,
-      data: result.data.map((data) => ({
-        DocEntry: data.docEntry,
-        DocNum: data.docNum,
-        DocDate:
-          data.docDate instanceof Date
-            ? data.docDate.toISOString().slice(0, 10)
-            : String(data.docDate).slice(0, 10),
-        Comments: data.comments,
-        Filler: data.filler,
-        ToWhsCode: data.toWhsCode,
-        DocTotal: Number(data.docTotal || 0),
-        DocCurr: data.docCurr || "FJD",
-        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
-        id: data.docEntry,
-      })),
+      data: await Promise.all(
+        result.data.map(async (data) => ({
+          DocEntry: data.docEntry,
+          DocNum: data.docNum,
+          DocDate:
+            data.docDate instanceof Date
+              ? data.docDate.toISOString().slice(0, 10)
+              : String(data.docDate).slice(0, 10),
+          Comments: data.comments,
+          Filler: data.filler,
+          ToWhsCode: data.toWhsCode,
+          DocTotal: Number(data.docTotal || 0),
+          DocCurr: data.docCurr || displayCurrency,
+          DocStatus: data.docStatus === "O" ? "Open" : "Closed",
+          id: data.docEntry,
+        })),
+      ),
     };
   } catch (err: unknown) {
     throw err instanceof Error ? err : new Error(String(err));
@@ -128,6 +132,7 @@ export const getTransferByDocNum = async (dbName: string, docNum: number | strin
     Filler: header.filler,
     ToWhsCode: header.toWhsCode,
     DocTotal: Number(header.docTotal || 0),
+    DocCurr: header.docCurr || (await getDisplayCurrency(dbName)),
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
     DocumentLines: lines.map((l) => ({
       DocEntry: l.docEntry,

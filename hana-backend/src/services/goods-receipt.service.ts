@@ -1,4 +1,5 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getDisplayCurrency } from "@/services/currency.util";
 import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
 import { GoodsReceiptLineSchema } from "@/db/schemas/goods-receipt-line.schema";
 import type { GoodsReceipt } from "@/db/schemas/goods-receipt.schema";
@@ -91,26 +92,29 @@ export const getGoodsReceipts = async (dbName: string, filters: GoodsReceiptQuer
       sort,
     });
 
+    const displayCurrency = await getDisplayCurrency(dbName);
     return {
       ...result,
-      data: result.data.map((data) => ({
-        DocEntry: data.docEntry,
-        DocNum: data.docNum,
-        DocDate:
-          data.docDate instanceof Date
-            ? data.docDate.toISOString().slice(0, 10)
-            : String(data.docDate).slice(0, 10),
-        TaxDate:
-          data.taxDate instanceof Date
-            ? data.taxDate.toISOString().slice(0, 10)
-            : String(data.taxDate).slice(0, 10),
-        Comments: data.comments,
-        JrnlMemo: data.jrnlMemo,
-        DocTotal: Number(data.docTotal || 0),
-        DocCurr: data.docCurr || "FJD",
-        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
-        id: data.docEntry,
-      })),
+      data: await Promise.all(
+        result.data.map(async (data) => ({
+          DocEntry: data.docEntry,
+          DocNum: data.docNum,
+          DocDate:
+            data.docDate instanceof Date
+              ? data.docDate.toISOString().slice(0, 10)
+              : String(data.docDate).slice(0, 10),
+          TaxDate:
+            data.taxDate instanceof Date
+              ? data.taxDate.toISOString().slice(0, 10)
+              : String(data.taxDate).slice(0, 10),
+          Comments: data.comments,
+          JrnlMemo: data.jrnlMemo,
+          DocTotal: Number(data.docTotal || 0),
+          DocCurr: data.docCurr || displayCurrency,
+          DocStatus: data.docStatus === "O" ? "Open" : "Closed",
+          id: data.docEntry,
+        })),
+      ),
     };
   } catch (err: unknown) {
     throw err instanceof Error ? err : new Error(String(err));
@@ -164,6 +168,7 @@ export const getGoodsReceiptByDocNum = async (
     Comments: header.comments,
     JrnlMemo: header.jrnlMemo,
     DocTotal: Number(header.docTotal || 0),
+    DocCurr: header.docCurr || (await getDisplayCurrency(dbName)),
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
     Ref2: header.ref2,
     Series: header.series,

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { goeyToast } from "goey-toast";
 import { Check, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { formatCurrency } from "@/features/dashboard/utils/formatters";
 
 import { Button } from "@/components/button";
 import { OutgoingPaymentEditSkeleton } from "@/components/skeleton/outgoing-payment-edit-skeleton";
@@ -21,6 +22,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
   } = useQuery(outgoingPaymentQueries.detail(docNum));
 
   const paymentDetail = response?.data;
+  const currencyCode = paymentDetail?.DocCurr || undefined;
   const queryClient = useQueryClient();
 
   const [remarks, setRemarks] = useState("");
@@ -206,7 +208,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                           </td>
                           <td className="px-5 py-3 text-zinc-600">{inv.DocNum || inv.DocEntry}</td>
                           <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                            FJD {Number(inv.SumApplied).toFixed(2)}
+                            {formatCurrency(Number(inv.SumApplied), currencyCode)}
                           </td>
                         </tr>
                       ),
@@ -232,53 +234,53 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600">Cash Sum</span>
                 <span className="font-medium text-zinc-900">
-                  FJD{" "}
-                  {(
+                  {formatCurrency(
                     Number(paymentDetail.CashSum || 0) +
-                    (paymentDetail.PaymentChecks?.filter(
-                      (c: { BankCode: string }) => c.BankCode === "CASH",
-                    ).reduce(
-                      (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
-                      0,
-                    ) || 0)
-                  ).toFixed(2)}
+                      (paymentDetail.PaymentChecks?.filter(
+                        (c: { BankCode: string }) => c.BankCode === "CASH",
+                      ).reduce(
+                        (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
+                        0,
+                      ) || 0),
+                    currencyCode,
+                  )}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600">Check Sum</span>
                 <span className="font-medium text-zinc-900">
-                  FJD{" "}
-                  {(
+                  {formatCurrency(
                     Number(paymentDetail.CheckSum || 0) ||
-                    paymentDetail.PaymentChecks?.filter(
-                      (c: { BankCode: string }) => c.BankCode !== "CASH",
-                    ).reduce(
-                      (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
+                      paymentDetail.PaymentChecks?.filter(
+                        (c: { BankCode: string }) => c.BankCode !== "CASH",
+                      ).reduce(
+                        (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
+                        0,
+                      ) ||
                       0,
-                    ) ||
-                    0
-                  ).toFixed(2)}
+                    currencyCode,
+                  )}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600">Transfer Sum</span>
                 <span className="font-medium text-zinc-900">
-                  FJD {Number(paymentDetail.TrsfrSum || 0).toFixed(2)}
+                  {formatCurrency(Number(paymentDetail.TrsfrSum || 0), currencyCode)}
                 </span>
               </div>
               <div className="border-t border-zinc-100 pt-3 flex justify-between">
                 <span className="font-bold text-zinc-900">Doc Total</span>
                 <span className="text-lg font-black text-blue-600">
-                  FJD{" "}
-                  {(
+                  {formatCurrency(
                     Number(paymentDetail.DocTotal || 0) ||
-                    Number(paymentDetail.CashSum || 0) +
-                      (paymentDetail.PaymentChecks?.reduce(
-                        (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
-                        0,
-                      ) || 0) +
-                      Number(paymentDetail.TrsfrSum || 0)
-                  ).toFixed(2)}
+                      Number(paymentDetail.CashSum || 0) +
+                        (paymentDetail.PaymentChecks?.reduce(
+                          (acc: number, c: { CheckSum: number }) => acc + Number(c.CheckSum || 0),
+                          0,
+                        ) || 0) +
+                        Number(paymentDetail.TrsfrSum || 0),
+                    currencyCode,
+                  )}
                 </span>
               </div>
             </div>
@@ -312,7 +314,9 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                     <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">
                       <div className="font-bold text-zinc-800 mb-2 flex justify-between">
                         <span>Cash Payment</span>
-                        <span>FJD {Number(paymentDetail.CashSum || 0).toFixed(2)}</span>
+                        <span>
+                          {formatCurrency(Number(paymentDetail.CashSum || 0), currencyCode)}
+                        </span>
                       </div>
                       {paymentDetail.CashAccount && (
                         <div className="space-y-1.5 text-zinc-600">
@@ -335,7 +339,9 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                     <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">
                       <div className="font-bold text-zinc-800 mb-2 flex justify-between">
                         <span>Bank Transfer</span>
-                        <span>FJD {Number(paymentDetail.TrsfrSum || 0).toFixed(2)}</span>
+                        <span>
+                          {formatCurrency(Number(paymentDetail.TrsfrSum || 0), currencyCode)}
+                        </span>
                       </div>
                       <div className="space-y-1.5 text-zinc-600">
                         {paymentDetail.TransferDate && (
@@ -388,7 +394,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                           >
                             <div className="font-bold text-zinc-800 mb-2 flex justify-between">
                               <span>Check Payment</span>
-                              <span>FJD {Number(chk.CheckSum || 0).toFixed(2)}</span>
+                              <span>{formatCurrency(Number(chk.CheckSum || 0), currencyCode)}</span>
                             </div>
                             <div className="space-y-1.5 text-zinc-600">
                               <div className="flex justify-between">

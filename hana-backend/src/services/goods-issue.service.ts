@@ -1,4 +1,5 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getDisplayCurrency } from "@/services/currency.util";
 import { GoodsIssueSchema } from "@/db/schemas/goods-issue.schema";
 import { GoodsIssueLineSchema } from "@/db/schemas/goods-issue-line.schema";
 import type { GoodsIssue } from "@/db/schemas/goods-issue.schema";
@@ -75,7 +76,12 @@ export const getGoodsIssues = async (dbName: string, filters: GoodsIssueQuery) =
       ? { [requestedSortField]: requestedSortOrder }
       : { "gi.docDate": "DESC", "gi.docNum": "DESC" };
 
-    const result = await PageService.getPagedData<GoodsIssue>({
+    const {
+      data: pagedData,
+      total,
+      page,
+      limit,
+    } = await PageService.getPagedData<GoodsIssue>({
       dbName,
       entityName: "GoodsIssues",
       limit: Number(filters.limit) || 10,
@@ -84,25 +90,31 @@ export const getGoodsIssues = async (dbName: string, filters: GoodsIssueQuery) =
       sort,
     });
 
+    const displayCurrency = await getDisplayCurrency(dbName);
     return {
-      ...result,
-      data: result.data.map((data) => ({
-        DocEntry: data.docEntry,
-        DocNum: data.docNum,
-        DocDate:
-          data.docDate instanceof Date
-            ? data.docDate.toISOString().slice(0, 10)
-            : String(data.docDate).slice(0, 10),
-        TaxDate:
-          data.taxDate instanceof Date
-            ? data.taxDate.toISOString().slice(0, 10)
-            : String(data.taxDate).slice(0, 10),
-        Comments: data.comments,
-        DocTotal: Number(data.docTotal || 0),
-        DocCurr: data.docCurr || "FJD",
-        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
-        id: data.docEntry,
-      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data: await Promise.all(
+        pagedData.map(async (data: any) => ({
+          DocEntry: data.docEntry,
+          DocNum: data.docNum,
+          DocDate:
+            data.docDate instanceof Date
+              ? data.docDate.toISOString().slice(0, 10)
+              : String(data.docDate).slice(0, 10),
+          TaxDate:
+            data.taxDate instanceof Date
+              ? data.taxDate.toISOString().slice(0, 10)
+              : String(data.taxDate).slice(0, 10),
+          Comments: data.comments,
+          DocTotal: Number(data.docTotal || 0),
+          DocCurr: data.docCurr || displayCurrency,
+          DocStatus: data.docStatus === "O" ? "Open" : "Closed",
+          id: data.docEntry,
+        })),
+      ),
     };
   } catch (err: unknown) {
     throw err instanceof Error ? err : new Error(String(err));
@@ -156,7 +168,7 @@ export const getGoodsIssueByDocNum = async (
     Comments: header.comments,
     JrnlMemo: header.jrnlMemo,
     DocTotal: Number(header.docTotal || 0),
-    DocCurr: header.docCurr || "FJD",
+    DocCurr: header.docCurr || (await getDisplayCurrency(dbName)),
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
     Ref2: header.ref2,
     Series: header.series,

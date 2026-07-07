@@ -70,17 +70,23 @@ const formatLabel = (key: string): string => {
 };
 
 const formatFullCurrency = (value: number, currency: string): string => {
+  const cleanCurrency = String(currency || "").trim();
+  if (!cleanCurrency || cleanCurrency === "$") {
+    return new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: currency.trim() || "USD",
+      currency: cleanCurrency,
       maximumFractionDigits: 0,
     }).format(value);
   } catch {
     const formatted = new Intl.NumberFormat("en-US", {
       maximumFractionDigits: 0,
     }).format(value);
-    return currency.trim().length > 0 ? `${formatted} ${currency}` : formatted;
+    return `${cleanCurrency} ${formatted}`.trim();
   }
 };
 

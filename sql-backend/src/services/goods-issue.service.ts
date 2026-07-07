@@ -4,6 +4,7 @@ import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { goodsIssues } from "@/db/schema/goods-issues";
 import { goodsIssueLines } from "@/db/schema/goods-issue-lines";
+import { attachments } from "@/db/schema/attachments";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 
@@ -49,7 +50,19 @@ export const getById = async (id: number) => {
     .from(goodsIssueLines)
     .where(eq(goodsIssueLines.docEntry, id))
     .orderBy(asc(goodsIssueLines.lineNum));
-  return { ...h, lines };
+
+  const attachmentsList = h.attachmentEntry
+    ? await db.select().from(attachments).where(eq(attachments.absEntry, h.attachmentEntry))
+    : [];
+
+  return {
+    ...h,
+    lines: lines.map((l) => ({
+      ...l,
+      binAllocations: l.binAllocations || [],
+    })),
+    attachments: attachmentsList,
+  };
 };
 
 export const getByDocNum = async (docNum: number) => {
@@ -61,7 +74,19 @@ export const getByDocNum = async (docNum: number) => {
     .from(goodsIssueLines)
     .where(eq(goodsIssueLines.docEntry, h.id))
     .orderBy(asc(goodsIssueLines.lineNum));
-  return { ...h, lines };
+
+  const attachmentsList = h.attachmentEntry
+    ? await db.select().from(attachments).where(eq(attachments.absEntry, h.attachmentEntry))
+    : [];
+
+  return {
+    ...h,
+    lines: lines.map((l) => ({
+      ...l,
+      binAllocations: l.binAllocations || [],
+    })),
+    attachments: attachmentsList,
+  };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -78,14 +103,38 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+
+  let attachmentEntry: number | null = null;
+  if (payload.attachments && Array.isArray(payload.attachments) && payload.attachments.length > 0) {
+    attachmentEntry = Date.now() + Math.floor(Math.random() * 10000);
+    await db.insert(attachments).values(
+      payload.attachments.map((att: any) => ({
+        absEntry: attachmentEntry,
+        fileName: att.fileName,
+        fileExtension: att.fileExtension,
+        sourcePath: att.sourcePath,
+        freeText: att.freeText ?? null,
+        attachmentDate: att.attachmentDate
+          ? att.attachmentDate.split("T")[0]
+          : new Date().toISOString().split("T")[0],
+      })),
+    );
+  }
+
   const [h] = await db
     .insert(goodsIssues)
     .values({
       docNum: payload.docNum,
       docDate: payload.docDate,
+      taxDate: payload.taxDate ?? null,
       docStatus: "O",
       comments: payload.comments ?? null,
+      jrnlMemo: payload.jrnlMemo ?? null,
       docCurrency: payload.docCurrency ?? null,
+      ref2: payload.ref2 ?? null,
+      series: payload.series ?? null,
+      priceList: payload.priceList ?? null,
+      attachmentEntry: attachmentEntry,
     })
     .returning();
 
@@ -100,15 +149,70 @@ export const create = async (payload: any) => {
         price: l.price != null ? String(l.price) : null,
         warehouseCode: l.warehouseCode ?? null,
         acctCode: l.acctCode ?? null,
+        ocrCode: l.ocrCode ?? l.costingCode ?? null,
+        uomCode: l.uomCode ?? null,
+        unitMsr: l.unitMsr ?? null,
+        binAllocations: l.documentLinesBinAllocations ?? null,
       })),
     );
   }
 
-  logger.info({ docNum }, "Goods issue created");
+  logger.info({ docNum: payload.docNum }, "Goods issue created");
   return getById(h.id);
 };
 
+export const update = async (id: number, payload: any) => {
+  const db = getDb();
+  const [ex] = await db.select().from(goodsIssues).where(eq(goodsIssues.id, id)).limit(1);
+  if (!ex) throw new AppError("Goods issue not found", 404, "NOT_FOUND");
+
+  let attachmentEntry = ex.attachmentEntry;
+  if (payload.attachments !== undefined) {
+    if (
+      payload.attachments &&
+      Array.isArray(payload.attachments) &&
+      payload.attachments.length > 0
+    ) {
+      if (!attachmentEntry) {
+        attachmentEntry = Date.now() + Math.floor(Math.random() * 10000);
+      } else {
+        await db.delete(attachments).where(eq(attachments.absEntry, attachmentEntry));
+      }
+      await db.insert(attachments).values(
+        payload.attachments.map((att: any) => ({
+          absEntry: attachmentEntry,
+          fileName: att.fileName,
+          fileExtension: att.fileExtension,
+          sourcePath: att.sourcePath,
+          freeText: att.freeText ?? null,
+          attachmentDate: att.attachmentDate
+            ? att.attachmentDate.split("T")[0]
+            : new Date().toISOString().split("T")[0],
+        })),
+      );
+    } else {
+      if (attachmentEntry) {
+        await db.delete(attachments).where(eq(attachments.absEntry, attachmentEntry));
+        attachmentEntry = null;
+      }
+    }
+  }
+
+  await db
+    .update(goodsIssues)
+    .set({
+      comments: payload.comments !== undefined ? payload.comments : ex.comments,
+      jrnlMemo: payload.jrnlMemo !== undefined ? payload.jrnlMemo : ex.jrnlMemo,
+      ref2: payload.ref2 !== undefined ? payload.ref2 : ex.ref2,
+      attachmentEntry: attachmentEntry,
+    })
+    .where(eq(goodsIssues.id, id));
+
+  return getById(id);
+};
+
 export const previewNextDocNum = async () => {
+  const previewNextDocNumHelper = (await import("./docnum-lookup.util")).previewNextDocNumHelper;
   return previewNextDocNumHelper("goods_issues", "goods_issues", 81000);
 };
 
@@ -119,4 +223,5 @@ export const goodsIssueService = {
   getDocNums,
   getList,
   previewNextDocNum,
+  update,
 };

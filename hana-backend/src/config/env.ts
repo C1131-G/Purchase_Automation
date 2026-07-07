@@ -62,4 +62,7 @@ export const config = {
   attachments: {
     basePath: validatedEnv.ATTACHMENTS_BASE_PATH,
   },
+  currency: {
+    defaultCode: validatedEnv.DEFAULT_CURRENCY_CODE,
+  },
 };

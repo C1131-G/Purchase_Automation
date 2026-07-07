@@ -27,10 +27,13 @@ export const goodsReceiptColumnFilterSchema = z.object({
 export const goodsReceiptSearchSchema = z.object({
   DocNum: z.string().optional(),
   Comments: z.string().optional(),
+  DocStatus: z.string().optional(),
   DocDateStart: z.string().optional(),
   DocDateEnd: z.string().optional(),
   TaxDateStart: z.string().optional(),
   TaxDateEnd: z.string().optional(),
+  DocTotalOperator: z.enum(["eq", "lt", "gt"]).optional(),
+  DocTotal: z.coerce.number().optional(),
   columnFilters: z.array(goodsReceiptColumnFilterSchema).optional(),
   columnOrder: z.array(z.string()).optional(),
   columnVisibility: z.record(z.string(), z.boolean()).optional(),

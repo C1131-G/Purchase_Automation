@@ -38,7 +38,7 @@ const COLUMNS: InventoryColumn<TransferRow>[] = [
       const priceStr = String(row.unitPrice).replace(/[^0-9.]/g, "");
       const price = parseFloat(priceStr) || 0;
       const computedTotal = qty * price;
-      return computedTotal > 0 ? `USD ${computedTotal.toFixed(2)}` : "USD 0.00";
+      return computedTotal.toFixed(2);
     },
   },
 ];

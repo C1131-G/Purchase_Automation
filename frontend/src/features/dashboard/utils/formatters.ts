@@ -1,14 +1,18 @@
 export function formatCurrency(
   value: number | undefined | null,
-  currencyCode: string = "FJD",
+  currencyCode?: string,
   isCompact = false,
 ): string {
   if (value === undefined || value === null || isNaN(value)) return "—";
 
   // Sanitize currencyCode if it's '$' or empty
-  let cleanCurrency = String(currencyCode || "").trim();
-  if (cleanCurrency === "$" || !cleanCurrency) {
-    cleanCurrency = "FJD";
+  const cleanCurrency = String(currencyCode || "").trim();
+  if (!cleanCurrency || cleanCurrency === "$") {
+    return new Intl.NumberFormat("en-US", {
+      notation: isCompact ? "compact" : "standard",
+      maximumFractionDigits: isCompact ? 1 : 2,
+      minimumFractionDigits: isCompact ? 0 : 2,
+    }).format(value);
   }
 
   try {
@@ -27,7 +31,7 @@ export function formatCurrency(
       maximumFractionDigits: isCompact ? 1 : 2,
       minimumFractionDigits: isCompact ? 0 : 2,
     }).format(value);
-    return `${currencyCode} ${formattedNum}`.trim();
+    return `${cleanCurrency} ${formattedNum}`.trim();
   }
 }
 

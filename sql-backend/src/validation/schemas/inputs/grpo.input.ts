@@ -24,6 +24,8 @@ export const CreateGrpoSchema = z.object({
   address2: z.string().optional(),
   comments: z.string().optional(),
   lines: z.array(GrpoLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdateGrpoSchema = CreateGrpoSchema.partial();

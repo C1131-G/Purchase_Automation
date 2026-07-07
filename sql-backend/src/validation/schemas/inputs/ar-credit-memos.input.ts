@@ -21,6 +21,8 @@ export const CreateArCreditMemoSchema = z.object({
   address: z.string().optional(),
   address2: z.string().optional(),
   lines: z.array(ArCreditMemoLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdateArCreditMemoSchema = CreateArCreditMemoSchema.partial();

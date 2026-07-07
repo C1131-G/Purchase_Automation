@@ -51,4 +51,15 @@ export const create: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const goodsIssueDal = { create, getById, getDocNums, getList };
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await goodsIssueService.update(Number(req.params.id), req.body);
+    res
+      .status(200)
+      .json({ data: toPascalCase(result), message: "Goods issue updated", success: true });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const goodsIssueDal = { create, getById, getDocNums, getList, update };

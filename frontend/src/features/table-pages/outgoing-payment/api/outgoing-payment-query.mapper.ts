@@ -102,14 +102,14 @@ export const mapSearchToOutgoingPaymentListParams = (
   const sortOrder = firstSort ? (firstSort.desc ? "desc" : "asc") : undefined;
 
   return {
-    CardCode: getStringFilter(filters, "CardCode"),
-    CardName: getStringFilter(filters, "CardName"),
-    DocDateEnd: end,
-    DocDateStart: start,
-    DocNum: getStringFilter(filters, "DocNum"),
-    DocTotal: docTotal?.value,
-    DocTotalOperator: docTotal?.operator,
-    PaymentMode: getPaymentModeFilter(filters, "PaymentMode"),
+    CardCode: getStringFilter(filters, "CardCode") ?? search.CardCode,
+    CardName: getStringFilter(filters, "CardName") ?? search.CardName,
+    DocDateEnd: end ?? search.DocDateEnd,
+    DocDateStart: start ?? search.DocDateStart,
+    DocNum: getStringFilter(filters, "DocNum") ?? search.DocNum,
+    DocTotal: docTotal?.value ?? search.DocTotal,
+    DocTotalOperator: docTotal?.operator ?? search.DocTotalOperator,
+    PaymentMode: getPaymentModeFilter(filters, "PaymentMode") ?? (search as any).PaymentMode,
     limit: Math.max(search.limit ?? 10, 1),
     page: Math.max(search.page ?? 1, 1),
     sortBy,

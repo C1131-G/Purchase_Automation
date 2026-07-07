@@ -26,6 +26,8 @@ export const CreateSalesOrderSchema = z.object({
   salesPersonCode: z.coerce.number().int().optional(),
   discountPercent: z.coerce.number().min(0).max(100).optional(),
   lines: z.array(SalesOrderLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdateSalesOrderSchema = CreateSalesOrderSchema.partial();

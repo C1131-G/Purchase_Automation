@@ -55,9 +55,14 @@ export const getById = async (id: number) => {
   return { ...h, lines };
 };
 
-export const getByDocNum = async (docNum: number) => {
+export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
   const db = getDb();
-  const [h] = await db.select().from(arInvoices).where(eq(arInvoices.docNum, docNum)).limit(1);
+  let h;
+  if (draftDocEntry && draftDocEntry > 0) {
+    [h] = await db.select().from(arInvoices).where(eq(arInvoices.id, draftDocEntry)).limit(1);
+  } else {
+    [h] = await db.select().from(arInvoices).where(eq(arInvoices.docNum, docNum)).limit(1);
+  }
   if (!h) throw new AppError("AR Invoice not found", 404, "NOT_FOUND");
   const lines = await db
     .select()
@@ -80,18 +85,82 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const isDraft = payload.isDraft === true;
+  const draftDocEntry = payload.draftDocEntry;
+
+  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
+    const [existing] = await db
+      .select()
+      .from(arInvoices)
+      .where(eq(arInvoices.id, draftDocEntry))
+      .limit(1);
+
+    if (!existing) {
+      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    }
+
+    const docNum = payload.docNum;
+    const lineTotal = payload.lines.reduce(
+      (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+      0,
+    );
+
+    await db
+      .update(arInvoices)
+      .set({
+        docNum,
+        docDate: payload.docDate,
+        cardCode: payload.cardCode,
+        cardName: payload.cardName ?? null,
+        docCurrency: payload.docCurrency ?? null,
+        docStatus: "O",
+        docTotal: String(lineTotal),
+        numAtCard: payload.numAtCard ?? null,
+      })
+      .where(eq(arInvoices.id, draftDocEntry));
+
+    await db.delete(arInvoiceLines).where(eq(arInvoiceLines.docEntry, draftDocEntry));
+    if (payload.lines?.length) {
+      await db.insert(arInvoiceLines).values(
+        payload.lines.map((l: any) => ({
+          docEntry: draftDocEntry,
+          lineNum: l.lineNum,
+          itemCode: l.itemCode,
+          itemDescription: l.itemDescription ?? null,
+          quantity: String(l.quantity),
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+          warehouseCode: l.warehouseCode ?? null,
+          uomCode: l.uomCode ?? null,
+          lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+        })),
+      );
+    }
+
+    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real AR Invoice");
+    return getById(draftDocEntry);
+  }
+
+  const docStatus = isDraft ? "D" : "O";
+  const docNum = payload.docNum;
+  const lineTotal = payload.lines.reduce(
+    (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+    0,
+  );
+
   const [h] = await db
     .insert(arInvoices)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       cardCode: payload.cardCode,
       cardName: payload.cardName ?? null,
       docCurrency: payload.docCurrency ?? null,
-      docStatus: "O",
+      docStatus,
+      docTotal: String(lineTotal),
       numAtCard: payload.numAtCard ?? null,
     })
     .returning();
+
   if (payload.lines?.length) {
     await db.insert(arInvoiceLines).values(
       payload.lines.map((l: any) => ({
@@ -107,6 +176,7 @@ export const create = async (payload: any) => {
       })),
     );
   }
+
   logger.info({ docNum: payload.docNum }, "AR Invoice created");
   return getById(h.id);
 };
@@ -115,14 +185,23 @@ export const update = async (id: number, payload: any) => {
   const db = getDb();
   const [ex] = await db.select().from(arInvoices).where(eq(arInvoices.id, id)).limit(1);
   if (!ex) throw new AppError("AR Invoice not found", 404, "NOT_FOUND");
+
+  const updatedDocStatus = payload.isDraft === true ? "D" : ex.docStatus;
+  const lineTotal = payload.lines
+    ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
+    : Number(ex.docTotal);
+
   await db
     .update(arInvoices)
     .set({
       docDate: payload.docDate,
       docCurrency: payload.docCurrency,
+      docStatus: updatedDocStatus,
+      docTotal: String(lineTotal),
       numAtCard: payload.numAtCard ?? undefined,
     })
     .where(eq(arInvoices.id, id));
+
   if (payload.lines) {
     await db.delete(arInvoiceLines).where(eq(arInvoiceLines.docEntry, id));
     await db.insert(arInvoiceLines).values(

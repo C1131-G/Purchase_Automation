@@ -55,13 +55,22 @@ export const getById = async (id: number) => {
   return { ...h, lines };
 };
 
-export const getByDocNum = async (docNum: number) => {
+export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
   const db = getDb();
-  const [h] = await db
-    .select()
-    .from(salesQuotations)
-    .where(eq(salesQuotations.docNum, docNum))
-    .limit(1);
+  let h;
+  if (draftDocEntry && draftDocEntry > 0) {
+    [h] = await db
+      .select()
+      .from(salesQuotations)
+      .where(eq(salesQuotations.id, draftDocEntry))
+      .limit(1);
+  } else {
+    [h] = await db
+      .select()
+      .from(salesQuotations)
+      .where(eq(salesQuotations.docNum, docNum))
+      .limit(1);
+  }
   if (!h) throw new AppError("Sales quotation not found", 404, "NOT_FOUND");
   const lines = await db
     .select()
@@ -84,15 +93,83 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const isDraft = payload.isDraft === true;
+  const draftDocEntry = payload.draftDocEntry;
+
+  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
+    const [existing] = await db
+      .select()
+      .from(salesQuotations)
+      .where(eq(salesQuotations.id, draftDocEntry))
+      .limit(1);
+
+    if (!existing) {
+      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    }
+
+    const docNum = payload.docNum;
+    const lineTotal = payload.lines.reduce(
+      (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+      0,
+    );
+
+    await db
+      .update(salesQuotations)
+      .set({
+        docNum,
+        docDate: payload.docDate,
+        cardCode: payload.cardCode,
+        cardName: payload.cardName ?? null,
+        docCurrency: payload.docCurrency ?? null,
+        docStatus: "O",
+        docTotal: String(lineTotal),
+        comments: payload.comments ?? null,
+        salesPersonCode: payload.salesPersonCode ?? null,
+      })
+      .where(eq(salesQuotations.id, draftDocEntry));
+
+    await db.delete(salesQuotationLines).where(eq(salesQuotationLines.docEntry, draftDocEntry));
+    if (payload.lines?.length) {
+      await db.insert(salesQuotationLines).values(
+        payload.lines.map((l: any) => ({
+          docEntry: draftDocEntry,
+          lineNum: l.lineNum,
+          itemCode: l.itemCode,
+          itemDescription: l.itemDescription ?? null,
+          quantity: String(l.quantity),
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+          discountPercent: l.discountPercent != null ? String(l.discountPercent) : null,
+          vatGroup: l.vatGroup ?? null,
+          vatPercent: l.vatPercent != null ? String(l.vatPercent) : null,
+          warehouseCode: l.warehouseCode ?? null,
+          uomCode: l.uomCode ?? null,
+          lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+          openQty: String(l.quantity),
+        })),
+      );
+    }
+
+    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real Sales quotation");
+    return getById(draftDocEntry);
+  }
+
+  const docStatus = isDraft ? "D" : "O";
+  const docNum = payload.docNum;
+  const lineTotal = payload.lines.reduce(
+    (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+    0,
+  );
+
   const [h] = await db
     .insert(salesQuotations)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       cardCode: payload.cardCode,
       cardName: payload.cardName ?? null,
       docCurrency: payload.docCurrency ?? null,
-      docStatus: "O",
+      docStatus,
+      docTotal: String(lineTotal),
       comments: payload.comments ?? null,
       salesPersonCode: payload.salesPersonCode ?? null,
     })
@@ -126,14 +203,23 @@ export const update = async (id: number, payload: any) => {
   const db = getDb();
   const [ex] = await db.select().from(salesQuotations).where(eq(salesQuotations.id, id)).limit(1);
   if (!ex) throw new AppError("Sales quotation not found", 404, "NOT_FOUND");
+
+  const updatedDocStatus = payload.isDraft === true ? "D" : ex.docStatus;
+  const lineTotal = payload.lines
+    ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
+    : Number(ex.docTotal);
+
   await db
     .update(salesQuotations)
     .set({
       docDate: payload.docDate,
+      docStatus: updatedDocStatus,
+      docTotal: String(lineTotal),
       comments: payload.comments,
       docCurrency: payload.docCurrency,
     })
     .where(eq(salesQuotations.id, id));
+
   if (payload.lines) {
     await db.delete(salesQuotationLines).where(eq(salesQuotationLines.docEntry, id));
     await db.insert(salesQuotationLines).values(

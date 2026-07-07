@@ -110,14 +110,23 @@ export const getById = async (id: number) => {
   return { ...header, lines };
 };
 
-export const getByDocNum = async (docNum: number) => {
+export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
   const db = getDb();
 
-  const [header] = await db
-    .select()
-    .from(purchaseOrders)
-    .where(eq(purchaseOrders.docNum, docNum))
-    .limit(1);
+  let header;
+  if (draftDocEntry && draftDocEntry > 0) {
+    [header] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, draftDocEntry))
+      .limit(1);
+  } else {
+    [header] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.docNum, docNum))
+      .limit(1);
+  }
 
   if (!header) {
     throw new AppError("Purchase order not found", 404, "NOT_FOUND");
@@ -148,14 +157,78 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 // ─── Mutations ──────────────────────────────────────────────────────────────
 
-export const create = async (payload: CreatePOInput) => {
+export const create = async (payload: any) => {
   const db = getDb();
+  const isDraft = payload.isDraft === true;
+  const draftDocEntry = payload.draftDocEntry;
 
+  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
+    const [existing] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, draftDocEntry))
+      .limit(1);
+
+    if (!existing) {
+      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    }
+
+    const docNum = await getNextDocNum("purchase_orders", "purchase_orders", 20000);
+    const lineTotal = payload.lines.reduce(
+      (sum: number, l: any) =>
+        sum + calculateLineTotal(l.unitPrice ?? 0, l.quantity, l.discountPercent),
+      0,
+    );
+
+    await db
+      .update(purchaseOrders)
+      .set({
+        docNum,
+        docDate: payload.docDate,
+        docDueDate: payload.docDueDate ?? null,
+        cardCode: payload.cardCode,
+        cardName: payload.cardName ?? null,
+        docTotal: String(lineTotal),
+        docCurrency: payload.docCurrency ?? null,
+        docStatus: "O",
+        address: payload.address ?? null,
+        address2: payload.address2 ?? null,
+        comments: payload.comments ?? null,
+        salesPersonCode: payload.salesPersonCode ?? null,
+        discountPercent: payload.discountPercent ? String(payload.discountPercent) : null,
+      })
+      .where(eq(purchaseOrders.id, draftDocEntry));
+
+    await db.delete(purchaseOrderLines).where(eq(purchaseOrderLines.docEntry, draftDocEntry));
+    if (payload.lines.length > 0) {
+      await db.insert(purchaseOrderLines).values(
+        payload.lines.map((l: any) => ({
+          docEntry: draftDocEntry,
+          lineNum: l.lineNum,
+          itemCode: l.itemCode,
+          itemDescription: l.itemDescription ?? null,
+          quantity: String(l.quantity),
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+          discountPercent: l.discountPercent != null ? String(l.discountPercent) : null,
+          vatGroup: l.vatGroup ?? null,
+          warehouseCode: l.warehouseCode ?? null,
+          uomCode: l.uomCode ?? null,
+          lineTotal: String(calculateLineTotal(l.unitPrice ?? 0, l.quantity, l.discountPercent)),
+        })),
+      );
+    }
+
+    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real Purchase order");
+    return getById(draftDocEntry);
+  }
+
+  const docStatus = isDraft ? "D" : "O";
   const docNum =
     payload.docNum ?? (await getNextDocNum("purchase_orders", "purchase_orders", 20000));
 
   const lineTotal = payload.lines.reduce(
-    (sum, l) => sum + calculateLineTotal(l.unitPrice ?? 0, l.quantity, l.discountPercent),
+    (sum: number, l: any) =>
+      sum + calculateLineTotal(l.unitPrice ?? 0, l.quantity, l.discountPercent),
     0,
   );
 
@@ -169,7 +242,7 @@ export const create = async (payload: CreatePOInput) => {
       cardName: payload.cardName ?? null,
       docTotal: String(lineTotal),
       docCurrency: payload.docCurrency ?? null,
-      docStatus: "O",
+      docStatus,
       address: payload.address ?? null,
       address2: payload.address2 ?? null,
       comments: payload.comments ?? null,
@@ -180,7 +253,7 @@ export const create = async (payload: CreatePOInput) => {
 
   if (payload.lines.length > 0) {
     await db.insert(purchaseOrderLines).values(
-      payload.lines.map((l) => ({
+      payload.lines.map((l: any) => ({
         docEntry: header.id,
         lineNum: l.lineNum,
         itemCode: l.itemCode,
@@ -196,12 +269,11 @@ export const create = async (payload: CreatePOInput) => {
     );
   }
 
-  logger.info({ docNum: payload.docNum, id: header.id }, "Purchase order created");
-
+  logger.info({ docNum, id: header.id }, "Purchase order created");
   return getById(header.id);
 };
 
-export const update = async (id: number, payload: Partial<CreatePOInput>) => {
+export const update = async (id: number, payload: any) => {
   const db = getDb();
 
   const [existing] = await db
@@ -214,6 +286,8 @@ export const update = async (id: number, payload: Partial<CreatePOInput>) => {
     throw new AppError("Purchase order not found", 404, "NOT_FOUND");
   }
 
+  const updatedDocStatus = payload.isDraft === true ? "D" : existing.docStatus;
+
   await db
     .update(purchaseOrders)
     .set({
@@ -222,6 +296,7 @@ export const update = async (id: number, payload: Partial<CreatePOInput>) => {
       cardCode: payload.cardCode ?? undefined,
       cardName: payload.cardName ?? undefined,
       docCurrency: payload.docCurrency ?? undefined,
+      docStatus: updatedDocStatus,
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
       comments: payload.comments ?? undefined,
@@ -235,7 +310,7 @@ export const update = async (id: number, payload: Partial<CreatePOInput>) => {
     await db.delete(purchaseOrderLines).where(eq(purchaseOrderLines.docEntry, id));
 
     await db.insert(purchaseOrderLines).values(
-      payload.lines.map((l) => ({
+      payload.lines.map((l: any) => ({
         docEntry: id,
         lineNum: l.lineNum,
         itemCode: l.itemCode,

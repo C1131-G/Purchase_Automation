@@ -34,6 +34,7 @@ import { outgoingPaymentKeys } from "@/features/table-pages/outgoing-payment/api
 import { outgoingPaymentAPI } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.service";
 
 import { useOutgoingPaymentLookups } from "../hooks/use-outgoing-payment-lookups";
+import { formatCurrency } from "@/features/dashboard/utils/formatters";
 import {
   OutgoingPaymentCreateActiveFilter,
   OutgoingPaymentCreateFilters,
@@ -85,6 +86,12 @@ export function CreateOutgoingPaymentForm() {
 
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
   const [isPaymentOnAccount, setIsPaymentOnAccount] = useState(false);
+
+  const selectedVendor = useMemo(() => {
+    return lookups.vendors.find((v: any) => v.code === lookups.codeInput);
+  }, [lookups.vendors, lookups.codeInput]);
+
+  const currencyCode = selectedVendor?.currency || undefined;
   const [editingAmounts, setEditingAmounts] = useState<Record<string, string>>({});
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
@@ -748,19 +755,19 @@ export function CreateOutgoingPaymentForm() {
                 <div className="flex justify-between text-sm">
                   <span className="text-zinc-600">Selected Invoices</span>
                   <span className="font-medium text-zinc-900">
-                    + FJD {totalInvoices.toFixed(2)}
+                    + {formatCurrency(totalInvoices, currencyCode)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-zinc-600">Applied Credit Memos</span>
                   <span className="font-medium text-orange-600">
-                    - FJD {totalCreditMemos.toFixed(2)}
+                    - {formatCurrency(totalCreditMemos, currencyCode)}
                   </span>
                 </div>
                 <div className="border-t border-zinc-100 pt-3 flex justify-between">
                   <span className="font-bold text-zinc-900">Balance Due</span>
                   <span className="text-lg font-black text-blue-600">
-                    FJD {Math.max(0, balanceDue).toFixed(2)}
+                    {formatCurrency(Math.max(0, balanceDue), currencyCode)}
                   </span>
                 </div>
               </div>
@@ -803,6 +810,7 @@ export function CreateOutgoingPaymentForm() {
           balanceDue={Math.max(0, balanceDue)}
           isPaymentOnAccount={isPaymentOnAccount}
           onPaymentSubmit={handlePaymentSubmit}
+          currencyCode={currencyCode}
         />
       </CreatePageWrapper>
     </div>

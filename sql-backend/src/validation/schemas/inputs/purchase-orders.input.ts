@@ -25,6 +25,8 @@ export const CreatePurchaseOrderSchema = z.object({
   salesPersonCode: z.coerce.number().int().optional(),
   discountPercent: z.coerce.number().min(0).max(100).optional(),
   lines: z.array(PurchaseOrderLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdatePurchaseOrderSchema = CreatePurchaseOrderSchema.partial();

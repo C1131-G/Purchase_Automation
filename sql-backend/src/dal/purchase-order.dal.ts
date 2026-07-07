@@ -22,7 +22,8 @@ export const getList: RequestHandler = async (req, res, next) => {
 
 export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const result = await purchaseOrderService.getByDocNum(Number(req.params.id));
+    const draftDocEntry = req.query.draftDocEntry ? Number(req.query.draftDocEntry) : undefined;
+    const result = await purchaseOrderService.getByDocNum(Number(req.params.id), draftDocEntry);
     res.status(200).json({ data: toPascalCase(result), success: true });
   } catch (error) {
     next(error);
@@ -31,7 +32,8 @@ export const getById: RequestHandler = async (req, res, next) => {
 
 export const getByDocNum: RequestHandler = async (req, res, next) => {
   try {
-    const result = await purchaseOrderService.getByDocNum(Number(req.params.docNum));
+    const draftDocEntry = req.query.draftDocEntry ? Number(req.query.draftDocEntry) : undefined;
+    const result = await purchaseOrderService.getByDocNum(Number(req.params.docNum), draftDocEntry);
     res.status(200).json({ data: toPascalCase(result), success: true });
   } catch (error) {
     next(error);

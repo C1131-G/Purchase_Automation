@@ -98,10 +98,22 @@ export function ItemMasterTable() {
     return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER);
   }, [searchParams.columnOrder, columnIds]);
 
-  const columnFilters = useMemo<ColumnFiltersState>(
-    () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
-    [searchParams.columnFilters],
-  );
+  const columnFilters = useMemo<ColumnFiltersState>(() => {
+    if (searchParams.columnFilters !== undefined) {
+      return cloneFilters(normalizeColumnFilters(searchParams.columnFilters));
+    }
+    // Hydrate from direct query parameters
+    const built: ColumnFiltersState = [];
+    if (searchParams.ItemCode) built.push({ id: "ItemCode", value: searchParams.ItemCode });
+    if (searchParams.ItemName) built.push({ id: "ItemName", value: searchParams.ItemName });
+    if (searchParams.frozenFor) built.push({ id: "frozenFor", value: searchParams.frozenFor });
+    if (searchParams.validFor) built.push({ id: "validFor", value: searchParams.validFor });
+    if (searchParams.ItmsGrpCod !== undefined)
+      built.push({ id: "ItmsGrpCod", value: searchParams.ItmsGrpCod });
+    if (searchParams.InvntryUom) built.push({ id: "InvntryUom", value: searchParams.InvntryUom });
+    if (searchParams.CodeBars) built.push({ id: "CodeBars", value: searchParams.CodeBars });
+    return cloneFilters(built);
+  }, [searchParams]);
 
   const pagination = useMemo(
     () => ({
@@ -158,12 +170,31 @@ export function ItemMasterTable() {
       const nextFilters = cloneFilters(normalized);
       setColumnFilters(TABLE_ID, nextFilters);
       setPagination(TABLE_ID, { pageIndex: 0 });
+
+      const itemCodeVal = nextFilters.find((f) => f.id === "ItemCode")?.value;
+      const itemNameVal = nextFilters.find((f) => f.id === "ItemName")?.value;
+      const frozenForVal = nextFilters.find((f) => f.id === "frozenFor")?.value;
+      const validForVal = nextFilters.find((f) => f.id === "validFor")?.value;
+      const itmsGrpCodVal = nextFilters.find((f) => f.id === "ItmsGrpCod")?.value;
+      const invntryUomVal = nextFilters.find((f) => f.id === "InvntryUom")?.value;
+      const codeBarsVal = nextFilters.find((f) => f.id === "CodeBars")?.value;
+
       navigate({
         replace: true,
         search: (prev: ItemMasterSearch) => ({
           ...prev,
           page: 1,
           columnFilters: nextFilters as any,
+          ItemCode: itemCodeVal ? String(itemCodeVal) : undefined,
+          ItemName: itemNameVal ? String(itemNameVal) : undefined,
+          frozenFor: frozenForVal ? String(frozenForVal) : undefined,
+          validFor: validForVal ? String(validForVal) : undefined,
+          ItmsGrpCod:
+            itmsGrpCodVal !== undefined && itmsGrpCodVal !== null && itmsGrpCodVal !== ""
+              ? Number(itmsGrpCodVal)
+              : undefined,
+          InvntryUom: invntryUomVal ? String(invntryUomVal) : undefined,
+          CodeBars: codeBarsVal ? String(codeBarsVal) : undefined,
         }),
       });
     },

@@ -43,13 +43,13 @@ export const mapSearchToItemMasterListParams = (search: ItemMasterSearch): ItemM
   const sortOrder = firstSort ? (firstSort.desc ? "desc" : "asc") : undefined;
 
   return {
-    ItemCode: getStringFilter(filters, "ItemCode") || search.ItemCode,
-    ItemName: getStringFilter(filters, "ItemName") || search.ItemName,
-    frozenFor: getStringFilter(filters, "frozenFor") || search.frozenFor,
-    validFor: getStringFilter(filters, "validFor") || search.validFor,
-    ItmsGrpCod: getNumberFilter(filters, "ItmsGrpCod") || search.ItmsGrpCod,
-    InvntryUom: getStringFilter(filters, "InvntryUom") || search.InvntryUom,
-    CodeBars: getStringFilter(filters, "CodeBars") || search.CodeBars,
+    ItemCode: getStringFilter(filters, "ItemCode") ?? search.ItemCode,
+    ItemName: getStringFilter(filters, "ItemName") ?? search.ItemName,
+    frozenFor: getStringFilter(filters, "frozenFor") ?? search.frozenFor,
+    validFor: getStringFilter(filters, "validFor") ?? search.validFor,
+    ItmsGrpCod: getNumberFilter(filters, "ItmsGrpCod") ?? search.ItmsGrpCod,
+    InvntryUom: getStringFilter(filters, "InvntryUom") ?? search.InvntryUom,
+    CodeBars: getStringFilter(filters, "CodeBars") ?? search.CodeBars,
     limit: Math.max(search.limit ?? 10, 1),
     page: Math.max(search.page ?? 1, 1),
     sortBy,

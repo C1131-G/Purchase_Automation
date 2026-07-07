@@ -18,6 +18,7 @@ import { itemPrices } from "@/db/schema/item-prices";
 import { itemWarehouseStock } from "@/db/schema/item-warehouse-stock";
 import { items } from "@/db/schema/items";
 import { businessPartners } from "@/db/schema/business-partners";
+import { businessPartnerAddresses } from "@/db/schema/business-partner-addresses";
 
 import { purchaseOrders } from "@/db/schema/purchase-orders";
 import { purchaseOrderLines } from "@/db/schema/purchase-order-lines";
@@ -216,6 +217,7 @@ async function runSeed() {
     await db.delete(itemWarehouseStock);
     await db.delete(items);
     await db.delete(businessPartners);
+    await db.delete(businessPartnerAddresses);
     await db.delete(warehouses);
     await db.delete(unitOfMeasurements);
     await db.delete(priceLists);
@@ -289,35 +291,145 @@ async function runSeed() {
 
     // F. Seed Business Partners (Customers & Vendors)
     const bpValues: any[] = [];
+    const addressValues: any[] = [];
     // 10 Vendors
     for (let i = 1; i <= 10; i++) {
+      const code = `${tenant.prefix}V-${String(i).padStart(3, "0")}`;
+      const name = `${faker.company.name()} Vendor`;
+      const billToDef = "Billing Default";
+      const shipToDef = "Shipping Default";
+
+      const billToAddrText1 = faker.location.streetAddress(true);
+      const billToAddrText2 = faker.location.streetAddress(true);
+      const shipToAddrText1 = faker.location.streetAddress(true);
+      const shipToAddrText2 = faker.location.streetAddress(true);
+
       bpValues.push({
-        code: `${tenant.prefix}V-${String(i).padStart(3, "0")}`,
-        name: `${faker.company.name()} Vendor`,
+        code,
+        name,
         type: "S",
         currency: "USD",
         phone: faker.phone.number(),
         email: faker.internet.email(),
-        billToAddress: faker.location.streetAddress(true),
-        shipToAddress: faker.location.streetAddress(true),
+        billToAddress: billToAddrText1,
+        shipToAddress: shipToAddrText1,
+        billToDef,
+        shipToDef,
         frozen: false,
+      });
+
+      addressValues.push({
+        cardCode: code,
+        addressType: "B",
+        address: "Billing Default",
+        street: billToAddrText1,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
+      });
+      addressValues.push({
+        cardCode: code,
+        addressType: "B",
+        address: "Billing Secondary",
+        street: billToAddrText2,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
+      });
+      addressValues.push({
+        cardCode: code,
+        addressType: "S",
+        address: "Shipping Default",
+        street: shipToAddrText1,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
+      });
+      addressValues.push({
+        cardCode: code,
+        addressType: "S",
+        address: "Shipping Secondary",
+        street: shipToAddrText2,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
       });
     }
     // 10 Customers
     for (let i = 1; i <= 10; i++) {
+      const code = `${tenant.prefix}C-${String(i).padStart(3, "0")}`;
+      const name = `${faker.company.name()} Customer`;
+      const billToDef = "Billing Default";
+      const shipToDef = "Shipping Default";
+
+      const billToAddrText1 = faker.location.streetAddress(true);
+      const billToAddrText2 = faker.location.streetAddress(true);
+      const shipToAddrText1 = faker.location.streetAddress(true);
+      const shipToAddrText2 = faker.location.streetAddress(true);
+
       bpValues.push({
-        code: `${tenant.prefix}C-${String(i).padStart(3, "0")}`,
-        name: `${faker.company.name()} Customer`,
+        code,
+        name,
         type: "C",
         currency: "USD",
         phone: faker.phone.number(),
         email: faker.internet.email(),
-        billToAddress: faker.location.streetAddress(true),
-        shipToAddress: faker.location.streetAddress(true),
+        billToAddress: billToAddrText1,
+        shipToAddress: shipToAddrText1,
+        billToDef,
+        shipToDef,
         frozen: false,
+      });
+
+      addressValues.push({
+        cardCode: code,
+        addressType: "B",
+        address: "Billing Default",
+        street: billToAddrText1,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
+      });
+      addressValues.push({
+        cardCode: code,
+        addressType: "B",
+        address: "Billing Secondary",
+        street: billToAddrText2,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
+      });
+      addressValues.push({
+        cardCode: code,
+        addressType: "S",
+        address: "Shipping Default",
+        street: shipToAddrText1,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
+      });
+      addressValues.push({
+        cardCode: code,
+        addressType: "S",
+        address: "Shipping Secondary",
+        street: shipToAddrText2,
+        city: faker.location.city(),
+        state: faker.location.state(),
+        zipCode: faker.location.zipCode(),
+        country: faker.location.countryCode(),
       });
     }
     await db.insert(businessPartners).values(bpValues);
+    if (addressValues.length > 0) {
+      await db.insert(businessPartnerAddresses).values(addressValues);
+    }
 
     const bpVendors = bpValues.filter((bp) => bp.type === "S");
     const bpCustomers = bpValues.filter((bp) => bp.type === "C");

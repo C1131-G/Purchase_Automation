@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
+import { formatCurrency } from "@/features/dashboard/utils/formatters";
 
 type ColumnAlign = "left" | "right" | "center";
 
@@ -36,6 +37,7 @@ interface InventoryLineTableProps<T extends TableRow> {
   showGrandTotal?: boolean;
   getGrandTotal?: (rows: T[]) => number;
   minWidth?: string;
+  currency?: string;
 }
 
 export function InventoryLineTable<T extends TableRow>({
@@ -43,9 +45,10 @@ export function InventoryLineTable<T extends TableRow>({
   onRowsChange,
   defaultRow,
   columns,
-  showGrandTotal = false,
+  showGrandTotal = true,
   getGrandTotal,
-  minWidth = "1000px",
+  minWidth = "800px",
+  currency,
 }: InventoryLineTableProps<T>) {
   const computedColumns = columns.filter(
     (col): col is ComputedInventoryColumn<T> => col.type === "computed",
@@ -194,7 +197,9 @@ export function InventoryLineTable<T extends TableRow>({
         {showGrandTotal && (
           <div className="pr-4 text-right">
             <span className="mr-2 text-xs font-medium text-zinc-500">Grand Total:</span>
-            <span className="text-sm font-bold text-zinc-900">FJD {grandTotal.toFixed(2)}</span>
+            <span className="text-sm font-bold text-zinc-900">
+              {formatCurrency(grandTotal, currency)}
+            </span>
           </div>
         )}
       </div>

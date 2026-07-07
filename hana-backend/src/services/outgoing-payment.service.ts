@@ -1,5 +1,6 @@
 // Outgoing Payment Service: Manages payment transactions to vendors. Uses HANA database for listings and SAP Service Layer for payment creation.
 import { In } from "typeorm";
+import { getDisplayCurrency } from "@/services/currency.util";
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
@@ -101,12 +102,13 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       sort,
     });
 
+    const displayCurrency = await getDisplayCurrency(dbName);
     return {
       ...result,
       data: result.data.map((data) => ({
         CardCode: data.cardCode,
         CardName: data.cardName,
-        DocCurr: data.docCurr,
+        DocCurr: data.docCurr || displayCurrency,
         DocDate: data.docDate,
         DocNum: data.docNum,
         DocTotal: data.docTotal,
@@ -180,12 +182,16 @@ export const getPayment = async (sessionId: string, id: string) => {
       };
     });
 
+    const session = serviceLayerClient.getSession(sessionId);
+    const dbName = session?.companyDB || (process.env.COMMON_DB as string) || "";
+    const displayCurrency = await getDisplayCurrency(dbName);
+
     return {
       CardCode: result.CardCode,
       CardName: result.CardName,
       CashSum: (result as unknown as Record<string, unknown>).CashSum || 0,
       CheckSum: (result as unknown as Record<string, unknown>).CheckSum || 0,
-      DocCurr: result.DocCurrency,
+      DocCurr: result.DocCurrency || displayCurrency,
       DocDate: result.DocDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,

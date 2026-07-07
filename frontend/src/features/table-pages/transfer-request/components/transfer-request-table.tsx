@@ -91,10 +91,31 @@ export function TransferRequestTable() {
     return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER);
   }, [searchParams.columnOrder, columnIds]);
 
-  const columnFilters = useMemo<ColumnFiltersState>(
-    () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
-    [searchParams.columnFilters],
-  );
+  const columnFilters = useMemo<ColumnFiltersState>(() => {
+    if (searchParams.columnFilters !== undefined) {
+      return cloneFilters(normalizeColumnFilters(searchParams.columnFilters));
+    }
+    // Hydrate from direct query parameters
+    const built: ColumnFiltersState = [];
+    if (searchParams.DocNum) built.push({ id: "DocNum", value: searchParams.DocNum });
+    if (searchParams.Comments) built.push({ id: "Comments", value: searchParams.Comments });
+    if (searchParams.DocStatus) built.push({ id: "DocStatus", value: searchParams.DocStatus });
+    if (searchParams.Filler) built.push({ id: "Filler", value: searchParams.Filler });
+    if (searchParams.ToWhsCode) built.push({ id: "ToWhsCode", value: searchParams.ToWhsCode });
+    if (searchParams.DocDateStart || searchParams.DocDateEnd) {
+      built.push({
+        id: "DocDate",
+        value: { from: searchParams.DocDateStart, to: searchParams.DocDateEnd },
+      });
+    }
+    if (searchParams.DocTotal !== undefined && searchParams.DocTotalOperator) {
+      built.push({
+        id: "DocTotal",
+        value: { operator: searchParams.DocTotalOperator, value: searchParams.DocTotal },
+      });
+    }
+    return cloneFilters(built);
+  }, [searchParams]);
 
   const pagination = useMemo(
     () => ({
@@ -153,12 +174,31 @@ export function TransferRequestTable() {
       const normalized = normalizeColumnFilters(next);
       const nextFilters = cloneFilters(normalized);
       setColumnFilters(TABLE_ID, nextFilters);
+      const nextSearchFilters = nextFilters as any;
+
+      const docNumVal = nextFilters.find((f) => f.id === "DocNum")?.value;
+      const commentsVal = nextFilters.find((f) => f.id === "Comments")?.value;
+      const docStatusVal = nextFilters.find((f) => f.id === "DocStatus")?.value;
+      const fillerVal = nextFilters.find((f) => f.id === "Filler")?.value;
+      const toWhsCodeVal = nextFilters.find((f) => f.id === "ToWhsCode")?.value;
+      const docDateVal = nextFilters.find((f) => f.id === "DocDate")?.value as any;
+      const docTotalVal = nextFilters.find((f) => f.id === "DocTotal")?.value as any;
+
       navigate({
         replace: true,
         search: (prev: TransferRequestSearch) => ({
           ...prev,
           page: 1,
-          columnFilters: nextFilters as any,
+          columnFilters: nextSearchFilters,
+          DocNum: docNumVal ? String(docNumVal) : undefined,
+          Comments: commentsVal ? String(commentsVal) : undefined,
+          DocStatus: docStatusVal ? String(docStatusVal) : undefined,
+          Filler: fillerVal ? String(fillerVal) : undefined,
+          ToWhsCode: toWhsCodeVal ? String(toWhsCodeVal) : undefined,
+          DocDateStart: docDateVal?.from ?? docDateVal?.to ?? undefined,
+          DocDateEnd: docDateVal?.to ?? docDateVal?.from ?? undefined,
+          DocTotalOperator: docTotalVal?.operator ?? undefined,
+          DocTotal: docTotalVal?.value ?? undefined,
         }),
       });
     },

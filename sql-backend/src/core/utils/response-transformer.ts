@@ -46,6 +46,8 @@ const DOC_FIELD_MAP: Record<string, string> = {
   updatedAt: "updatedAt",
   docNumStart: "DocNumStart",
   docNumEnd: "DocNumEnd",
+  priceList: "PriceList",
+  attachments: "Attachments",
 };
 
 // Line item field maps
@@ -80,6 +82,10 @@ const LINE_FIELD_MAP: Record<string, string> = {
   grossTotal: "GrossTotal",
   netTotal: "NetTotal",
   taxAmount: "TaxAmount",
+  ocrCode: "OcrCode",
+  costingCode: "CostingCode",
+  unitMsr: "unitMsr",
+  binAllocations: "DocumentLinesBinAllocations",
 };
 
 // Item master field maps
@@ -132,6 +138,7 @@ const NUMERIC_FIELDS = new Set([
   "DocTotal",
   "paidToDate",
   "BalanceDue",
+  "PriceList",
 ]);
 
 const DOC_STATUS_FIELDS = new Set(["DocStatus", "LineStatus"]);
@@ -166,11 +173,27 @@ const transformRow = (row: Record<string, unknown>): Record<string, unknown> => 
       continue;
     }
 
+    // Attachments array → format camelCase structure directly
+    if ((key === "attachments" || key === "Attachments") && Array.isArray(value)) {
+      output.Attachments = value.map((att: any) => ({
+        fileName: att.fileName,
+        fileExtension: att.fileExtension,
+        sourcePath: att.sourcePath,
+        attachmentDate: att.attachmentDate,
+        freeText: att.freeText || "",
+      }));
+      continue;
+    }
+
     // Item master special handling
     if (key in ITEM_FIELD_MAP) {
       const mapped = ITEM_FIELD_MAP[key];
       if (mapped && mapped.length > 0) {
-        output[mapped] = value;
+        if (mapped === "frozenFor") {
+          output[mapped] = value === true || value === 1 || value === "Y" ? "Y" : "N";
+        } else {
+          output[mapped] = value;
+        }
       }
       continue;
     }
@@ -212,6 +235,13 @@ const transformRow = (row: Record<string, unknown>): Record<string, unknown> => 
     output.DocCurr = "";
   }
 
+  // Dynamically compute BalanceDue for invoices and credit memos
+  if ("DocTotal" in output && "paidToDate" in output) {
+    const total = Number(output.DocTotal ?? 0);
+    const paid = Number(output.paidToDate ?? 0);
+    output.BalanceDue = Math.round((total - paid) * 100) / 100;
+  }
+
   return output;
 };
 
@@ -236,6 +266,13 @@ const transformLineItem = (line: Record<string, unknown>): Record<string, unknow
     }
     // Passthrough
     output[key] = value;
+  }
+
+  // Ensure both Price and UnitPrice are populated and identical
+  if ("UnitPrice" in output && !("Price" in output)) {
+    output.Price = output.UnitPrice;
+  } else if ("Price" in output && !("UnitPrice" in output)) {
+    output.UnitPrice = output.Price;
   }
 
   return output;

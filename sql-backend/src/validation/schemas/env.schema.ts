@@ -21,6 +21,9 @@ export const EnvSchema = z.object({
 
   // Lifecycle
   SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(10_000),
+
+  // Fallback Currency
+  DEFAULT_CURRENCY_CODE: z.string().min(3).max(3),
 });
 
 export type EnvConfig = z.infer<typeof EnvSchema>;

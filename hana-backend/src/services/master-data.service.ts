@@ -6,6 +6,7 @@ import type { EntitySchema, FindManyOptions, ObjectLiteral } from "typeorm";
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getDisplayCurrency } from "@/services/currency.util";
 import { executeTenantQuery } from "@/dal/tenant-dal.helper";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
@@ -501,7 +502,7 @@ export const getProducts = async (
 
       let defaultCurrency = toTrimmed(adminSettings?.MainCurncy);
       if (!defaultCurrency || defaultCurrency === "$") {
-        defaultCurrency = "FJD";
+        defaultCurrency = await getDisplayCurrency(dbName);
       }
       const taxRateByCode = new Map<string, number>();
       for (const taxGroup of taxGroups) {
@@ -691,7 +692,8 @@ export const getVendors = async (dbName: string) => {
   });
   const adminSettings = settingsRows[0] ?? null;
   const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
-  const defaultCurrency = rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : "FJD";
+  const defaultCurrency =
+    rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : await getDisplayCurrency(dbName);
 
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
@@ -770,7 +772,8 @@ export const getCustomers = async (dbName: string) => {
   });
   const adminSettings = settingsRows[0] ?? null;
   const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
-  const defaultCurrency = rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : "FJD";
+  const defaultCurrency =
+    rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : await getDisplayCurrency(dbName);
 
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,

@@ -40,6 +40,7 @@ export const EnvSchema = z.object({
   SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(10_000),
   HANA_MAX_POOL_SIZE: z.coerce.number().int().positive().default(30),
   HANA_CONNECTION_LIFE_TIME: z.coerce.number().int().positive().default(3600),
+  DEFAULT_CURRENCY_CODE: z.string().min(3).max(3),
 });
 
 export type EnvConfig = z.infer<typeof EnvSchema>;

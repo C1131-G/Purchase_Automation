@@ -162,24 +162,72 @@ const getPartners = async (type: string, search?: string) => {
               )
           : [];
 
-      const addressMap = new Map<string, { billTo?: string; shipTo?: string }>();
-      for (const addr of addresses) {
-        if (!addressMap.has(addr.cardCode)) {
-          addressMap.set(addr.cardCode, {});
+      const addressMap = new Map<
+        string,
+        {
+          billToAddress?: string;
+          shipToAddress?: string;
+          addresses: {
+            addressName: string;
+            addressType: "B" | "S";
+            addressText: string;
+          }[];
         }
-        const entry = addressMap.get(addr.cardCode)!;
-        if (addr.addressType === "B") entry.billTo = addr.address ?? undefined;
-        if (addr.addressType === "S") entry.shipTo = addr.address ?? undefined;
+      >();
+
+      for (const addr of addresses) {
+        const cardCode = addr.cardCode;
+        if (!addressMap.has(cardCode)) {
+          addressMap.set(cardCode, { addresses: [] });
+        }
+        const entry = addressMap.get(cardCode)!;
+
+        const parts = [addr.street, addr.block, addr.city, addr.state, addr.zipCode, addr.country]
+          .map((s) => String(s || "").trim())
+          .filter(Boolean);
+        const formattedAddress =
+          parts.length > 0 ? parts.join(", ") : String(addr.address || "").trim();
+
+        if (formattedAddress) {
+          entry.addresses.push({
+            addressName: String(addr.address || "").trim(),
+            addressType: (addr.addressType || "B") as "B" | "S",
+            addressText: formattedAddress,
+          });
+        }
       }
 
-      return partners.map((p) => ({
-        code: p.code,
-        name: p.name,
-        currency: p.currency,
-        phone: p.phone,
-        email: p.email,
-        addresses: addressMap.get(p.code),
-      }));
+      return partners.map((p) => {
+        const entry = addressMap.get(p.code) || { addresses: [] };
+        const defaults = {
+          billToDef: p.billToDef,
+          shipToDef: p.shipToDef,
+        };
+
+        const bAddresses = entry.addresses.filter((a) => a.addressType === "B");
+        const sAddresses = entry.addresses.filter((a) => a.addressType === "S");
+
+        const defaultBillTo =
+          bAddresses.find(
+            (a) => a.addressName.toLowerCase() === defaults.billToDef?.trim().toLowerCase(),
+          ) || bAddresses[0];
+
+        const defaultShipTo =
+          sAddresses.find(
+            (a) => a.addressName.toLowerCase() === defaults.shipToDef?.trim().toLowerCase(),
+          ) || sAddresses[0];
+
+        return {
+          code: p.code,
+          name: p.name,
+          currency: p.currency,
+          phone: p.phone,
+          email: p.email,
+          billToAddress: defaultBillTo?.addressText || p.billToAddress || "",
+          shipToAddress: defaultShipTo?.addressText || p.shipToAddress || "",
+          addresses: entry.addresses,
+        };
+      });
     },
     tenMinutes,
   );

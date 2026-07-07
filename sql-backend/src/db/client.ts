@@ -23,6 +23,39 @@ function getConnectionStringForDb(dbName: string): string {
   return url.toString();
 }
 
+async function ensureColumnsExist(pool: pg.Pool, dbName: string) {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      ALTER TABLE goods_issues ADD COLUMN IF NOT EXISTS jrnl_memo TEXT;
+      ALTER TABLE goods_issues ADD COLUMN IF NOT EXISTS ref2 TEXT;
+      ALTER TABLE goods_issues ADD COLUMN IF NOT EXISTS series INTEGER;
+      ALTER TABLE goods_issues ADD COLUMN IF NOT EXISTS price_list INTEGER;
+      ALTER TABLE goods_issues ADD COLUMN IF NOT EXISTS attachment_entry INTEGER;
+
+      ALTER TABLE goods_receipts ADD COLUMN IF NOT EXISTS price_list INTEGER;
+      ALTER TABLE goods_receipts ADD COLUMN IF NOT EXISTS attachment_entry INTEGER;
+
+      ALTER TABLE goods_issue_lines ADD COLUMN IF NOT EXISTS ocr_code TEXT;
+      ALTER TABLE goods_issue_lines ADD COLUMN IF NOT EXISTS uom_code TEXT;
+      ALTER TABLE goods_issue_lines ADD COLUMN IF NOT EXISTS unit_msr TEXT;
+      ALTER TABLE goods_issue_lines ADD COLUMN IF NOT EXISTS bin_allocations JSONB;
+
+      ALTER TABLE goods_receipt_lines ADD COLUMN IF NOT EXISTS ocr_code TEXT;
+      ALTER TABLE goods_receipt_lines ADD COLUMN IF NOT EXISTS unit_msr TEXT;
+      ALTER TABLE goods_receipt_lines ADD COLUMN IF NOT EXISTS bin_allocations JSONB;
+
+      ALTER TABLE business_partners ADD COLUMN IF NOT EXISTS bill_to_def TEXT;
+      ALTER TABLE business_partners ADD COLUMN IF NOT EXISTS ship_to_def TEXT;
+    `);
+    logger.info({ dbName }, "Verified goods issue/receipt database columns exist");
+  } catch (err) {
+    logger.error({ err, dbName }, "Error verifying database columns");
+  } finally {
+    client.release();
+  }
+}
+
 export async function initializeDatabase() {
   registryPool = new pg.Pool({
     connectionString: config.postgres.databaseUrl,
@@ -44,6 +77,8 @@ export async function initializeDatabase() {
   pools.set(defaultDbName, registryPool);
   dbInstances.set(defaultDbName, registryDb);
 
+  await ensureColumnsExist(registryPool, defaultDbName);
+
   return registryDb;
 }
 
@@ -62,6 +97,10 @@ export function getDbForTenant(dbName: string) {
     pools.set(dbName, tenantPool);
     tenantDb = drizzle(tenantPool);
     dbInstances.set(dbName, tenantDb);
+
+    ensureColumnsExist(tenantPool, dbName).catch((err) => {
+      logger.error({ err, dbName }, "Background column verification failed");
+    });
   }
 
   return tenantDb!;

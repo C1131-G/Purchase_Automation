@@ -27,6 +27,8 @@ export const CreateSalesQuotationSchema = z.object({
   comments: z.string().optional(),
   salesPersonCode: z.coerce.number().int().optional(),
   lines: z.array(SalesQuotationLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdateSalesQuotationSchema = CreateSalesQuotationSchema.partial();

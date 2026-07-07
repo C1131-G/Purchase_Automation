@@ -194,7 +194,7 @@ export function GoodsIssueProductTableRow({
       uomCode: item.uomCode ?? "",
       uomName: item.uomName ?? "",
       unitPrice: String(price),
-      total: total > 0 ? `FJD ${total.toFixed(2)}` : "FJD 0.00",
+      total: total > 0 ? total.toFixed(2) : "0.00",
     });
     setProductFocused(false);
     setDescriptionFocused(false);
@@ -224,7 +224,7 @@ export function GoodsIssueProductTableRow({
     const newPriceStr = field === "unitPrice" ? String(value) : String(row.unitPrice);
     const newPrice = parseFloat(newPriceStr.replace(/[^0-9.]/g, "")) || 0;
     const total = newQty * newPrice;
-    patch.total = total > 0 ? `FJD ${total.toFixed(2)}` : "FJD 0.00";
+    patch.total = total > 0 ? total.toFixed(2) : "0.00";
     updateProductRow(row.id, patch);
   };
 

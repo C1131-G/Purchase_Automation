@@ -185,7 +185,7 @@ export function ArCreditMemoProductSection({
           clearProductRowDraft={clearProductRowDraft}
           prefetchProducts={prefetchProducts}
           totals={totals}
-          summaryCurrencyLabel={summaryCurrencyLabel}
+          summaryCurrencyLabel={summaryCurrencyLabel ?? null}
           createError={createError}
           showSelection={true}
           showReturnReason={true}

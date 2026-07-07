@@ -1,4 +1,4 @@
-import { integer, numeric, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { integer, jsonb, numeric, pgTable, serial, text } from "drizzle-orm/pg-core";
 
 export const goodsReceiptLines = pgTable("goods_receipt_lines", {
   id: serial("id").primaryKey(),
@@ -11,6 +11,9 @@ export const goodsReceiptLines = pgTable("goods_receipt_lines", {
   warehouseCode: text("warehouse_code"),
   acctCode: text("acct_code"),
   uomCode: text("uom_code"),
+  ocrCode: text("ocr_code"),
+  unitMsr: text("unit_msr"),
+  binAllocations: jsonb("bin_allocations"),
   baseType: integer("base_type"),
   baseEntry: integer("base_entry"),
   baseLine: integer("base_line"),

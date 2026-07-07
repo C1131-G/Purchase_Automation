@@ -12,4 +12,5 @@ router.get("/next-docnum", async (_req, res) => {
 });
 router.get("/:id", goodsIssueDal.getById);
 router.post("/", goodsIssueDal.create);
+router.patch("/:id", goodsIssueDal.update);
 export const goodsIssueRoutes = router;

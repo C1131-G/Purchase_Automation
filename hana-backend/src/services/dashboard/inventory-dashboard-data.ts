@@ -3,7 +3,7 @@
 
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
-import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
+import { getDisplayCurrency } from "@/services/currency.util";
 import { ItemSchema } from "@/db/schemas/item.schema";
 import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
 import { GoodsReceiptLineSchema } from "@/db/schemas/goods-receipt-line.schema";
@@ -179,18 +179,19 @@ export const loadInventoryDataset = async (
     async () => {
       const window = getPeriodWindow(period);
 
+      const currency = await getDisplayCurrency(dbName);
+
       // Phase 1: All document + metadata queries run in parallel.
       // - 4 inventory flow modules × (current + previous) = up to 8 parallel doc fetches
       // - 1 item master aggregate query
       // - 1 warehouse list query (for name resolution)
-      // - 1 admin settings query (for display currency)
-      const [moduleDatasetsRaw, itemStats, warehousesRaw, settingsRows] = await Promise.all([
+      const [moduleDatasetsRaw, itemStats, warehousesRaw] = await Promise.all([
         Promise.all(
           INVENTORY_MODULES.map(async (module) => {
             const [current, previous] = await Promise.all([
-              fetchModuleDocuments(module, window.current, dbName),
+              fetchModuleDocuments(module, window.current, dbName, currency),
               window.previous
-                ? fetchModuleDocuments(module, window.previous, dbName)
+                ? fetchModuleDocuments(module, window.previous, dbName, currency)
                 : Promise.resolve([]),
             ]);
             return { module, current, previous } as ModuleDataset;
@@ -198,12 +199,8 @@ export const loadInventoryDataset = async (
         ),
         fetchItemStats(dbName),
         getTenantRepository(dbName, WarehouseSchema).then((repo) => repo.find()),
-        getTenantRepository(dbName, AdminSettingsSchema).then((repo) =>
-          repo.find({ select: ["MainCurncy"], take: 1 }),
-        ),
       ]);
 
-      const currency = settingsRows[0]?.MainCurncy || "FJD";
       const whsMap = new Map(warehousesRaw.map((w) => [w.WhsCode, w.WhsName]));
 
       // Phase 2: Warehouse group queries (4 line-table JOINs in parallel).

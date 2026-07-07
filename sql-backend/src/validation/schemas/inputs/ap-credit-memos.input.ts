@@ -21,6 +21,8 @@ export const CreateApCreditMemoSchema = z.object({
   address: z.string().optional(),
   address2: z.string().optional(),
   lines: z.array(ApCreditMemoLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdateApCreditMemoSchema = CreateApCreditMemoSchema.partial();

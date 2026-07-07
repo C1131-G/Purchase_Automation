@@ -2,6 +2,7 @@ import type { GoodsIssueRow } from "@/features/create-pages/goods-issue-create/t
 import { GoodsIssueProductTable } from "./goods-issue-product-table";
 import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { Plus } from "lucide-react";
+import { formatCurrency } from "@/features/dashboard/utils/formatters";
 
 interface GoodsIssueTableProps {
   rows: GoodsIssueRow[];
@@ -75,7 +76,9 @@ export function GoodsIssueTable({
         </button>
         <div className="pr-4 text-right">
           <span className="mr-2 text-xs font-medium text-zinc-500">Grand Total:</span>
-          <span className="text-sm font-bold text-zinc-900">FJD {grandTotal.toFixed(2)}</span>
+          <span className="text-sm font-bold text-zinc-900">
+            {formatCurrency(grandTotal, undefined)}
+          </span>
         </div>
       </div>
     </div>

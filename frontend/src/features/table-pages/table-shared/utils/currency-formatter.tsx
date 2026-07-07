@@ -2,7 +2,7 @@
  * Formats a document total value with the given currency,
  * rendering the currency code in small, light text and the amount in semi-bold text.
  */
-export function formatDocTotal(value: unknown, currency: string) {
+export function formatDocTotal(value: unknown, currency?: string) {
   const rawAmount = Number.parseFloat(String(value));
   if (Number.isNaN(rawAmount)) return "-";
 

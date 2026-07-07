@@ -1,5 +1,6 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
 import { getCachedData } from "@/core/utils/cache";
+import { getDisplayCurrency } from "@/services/currency.util";
 
 // Purchase schemas
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
@@ -22,9 +23,6 @@ import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
 import { GoodsIssueSchema } from "@/db/schemas/goods-issue.schema";
 import { InventoryTransferRequestSchema } from "@/db/schemas/inventory-transfer-request.schema";
 import { InventoryTransferSchema } from "@/db/schemas/inventory-transfer.schema";
-
-// Settings schema (OADM)
-import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 
 import { PURCHASE_MODULES, SALES_MODULES } from "./dashboard.constants";
 import { getPeriodWindow } from "./dashboard.period";
@@ -62,6 +60,7 @@ export const fetchModuleDocuments = async (
   module: DocumentModule,
   range: DateRange,
   dbName: string,
+  displayCurrency: string,
 ): Promise<RawDashboardDocument[]> => {
   const schema = SCHEMA_MAP[module];
   if (!schema) {
@@ -113,7 +112,7 @@ export const fetchModuleDocuments = async (
     }
 
     // Determine docCurr
-    const docCurr = doc.docCurr || doc.docCur || doc.docCurrency || "USD";
+    const docCurr = doc.docCurr || doc.docCur || doc.docCurrency || displayCurrency;
 
     // Format dates to YYYY-MM-DD strings
     const docDateStr =
@@ -157,26 +156,20 @@ export const loadAreaDataset = async (
       const window = getPeriodWindow(period);
       const modules = area === "purchase" ? PURCHASE_MODULES : SALES_MODULES;
 
+      const displayCurrency = await getDisplayCurrency(dbName);
+
       const datasets = await Promise.all(
         modules.map(async (module) => {
           const [current, previous] = await Promise.all([
-            fetchModuleDocuments(module, window.current, dbName),
+            fetchModuleDocuments(module, window.current, dbName, displayCurrency),
             window.previous
-              ? fetchModuleDocuments(module, window.previous, dbName)
+              ? fetchModuleDocuments(module, window.previous, dbName, displayCurrency)
               : Promise.resolve([]),
           ]);
 
           return { module, current, previous };
         }),
       );
-
-      const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
-      const settingsRows = await adminSettingsRepo.find({
-        select: ["MainCurncy"],
-        take: 1,
-      });
-      const settings = settingsRows[0] ?? null;
-      const displayCurrency = settings?.MainCurncy || "USD";
 
       return {
         currency: displayCurrency,

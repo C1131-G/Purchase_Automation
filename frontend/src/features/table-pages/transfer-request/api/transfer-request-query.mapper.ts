@@ -74,13 +74,13 @@ export const mapSearchToTransferRequestListParams = (
   const sortOrder = firstSort ? (firstSort.desc ? "desc" : "asc") : undefined;
 
   return {
-    DocNum: getStringFilter(filters, "DocNum") || search.DocNum,
-    Comments: getStringFilter(filters, "Comments") || search.Comments,
-    DocStatus: getStringFilter(filters, "DocStatus") || search.DocStatus,
-    Filler: getStringFilter(filters, "Filler") || search.Filler,
-    ToWhsCode: getStringFilter(filters, "ToWhsCode") || search.ToWhsCode,
-    DocDateStart: start || search.DocDateStart,
-    DocDateEnd: end || search.DocDateEnd,
+    DocNum: getStringFilter(filters, "DocNum") ?? search.DocNum,
+    Comments: getStringFilter(filters, "Comments") ?? search.Comments,
+    DocStatus: getStringFilter(filters, "DocStatus") ?? (search.DocStatus as any),
+    Filler: getStringFilter(filters, "Filler") ?? search.Filler,
+    ToWhsCode: getStringFilter(filters, "ToWhsCode") ?? search.ToWhsCode,
+    DocDateStart: start ?? search.DocDateStart,
+    DocDateEnd: end ?? search.DocDateEnd,
     DocTotal: docTotal?.value ?? search.DocTotal,
     DocTotalOperator: docTotal?.operator ?? search.DocTotalOperator,
     limit: Math.max(search.limit ?? 10, 1),

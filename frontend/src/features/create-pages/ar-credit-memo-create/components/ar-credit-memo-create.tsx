@@ -355,18 +355,22 @@ export function ArCreditMemoCreate({
 
   const activeVendor = (state.vendors as any[]).find((v) => String(v.code) === String(codeInput));
   const billToOptions = activeVendor?.addresses
-    ? activeVendor.addresses.map((addr: any) => ({
-        addressName: addr.addressName,
-        addressText: addr.addressText,
-        addressType: addr.addressType,
-      }))
+    ? activeVendor.addresses
+        .filter((addr: any) => addr.addressType === "B")
+        .map((addr: any) => ({
+          addressName: addr.addressName,
+          addressText: addr.addressText,
+          addressType: addr.addressType,
+        }))
     : [];
   const shipToOptions = activeVendor?.addresses
-    ? activeVendor.addresses.map((addr: any) => ({
-        addressName: addr.addressName,
-        addressText: addr.addressText,
-        addressType: addr.addressType,
-      }))
+    ? activeVendor.addresses
+        .filter((addr: any) => addr.addressType === "S")
+        .map((addr: any) => ({
+          addressName: addr.addressName,
+          addressText: addr.addressText,
+          addressType: addr.addressType,
+        }))
     : [];
 
   return (

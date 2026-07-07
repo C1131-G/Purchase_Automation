@@ -11,6 +11,8 @@ export const businessPartners = pgTable("business_partners", {
   email: text("email"),
   billToAddress: text("bill_to_address"),
   shipToAddress: text("ship_to_address"),
+  billToDef: text("bill_to_def"),
+  shipToDef: text("ship_to_def"),
   frozen: boolean("frozen").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

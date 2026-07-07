@@ -21,5 +21,6 @@ router.get("/price-lists", masterDataDal.getPriceLists);
 router.get("/warehouses", masterDataDal.getWarehouses);
 router.get("/sales-employees", masterDataDal.getSalesEmployees);
 router.get("/chart-of-accounts", masterDataDal.getChartOfAccounts);
+router.get("/branches", masterDataDal.getBranches);
 
 export const masterDataRoutes = router;

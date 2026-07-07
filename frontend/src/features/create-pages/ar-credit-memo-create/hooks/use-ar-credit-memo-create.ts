@@ -1213,7 +1213,7 @@ export function useArCreditMemoCreate({
     effectiveWarehouseCode: header.warehouseCode,
     // Totals & submission
     totals,
-    summaryCurrencyLabel: productsHook.productRows[0]?.currency || "FJD",
+    summaryCurrencyLabel: productsHook.productRows[0]?.currency || undefined,
     createError,
     submitAttempted,
     submitDisabled,

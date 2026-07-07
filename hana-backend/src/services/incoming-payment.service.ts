@@ -5,6 +5,7 @@ import { In } from "typeorm";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getDisplayCurrency } from "@/services/currency.util";
 import type { PaymentFilters } from "@/dal/types/incoming-payment.types";
 import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
@@ -340,7 +341,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       DocDate: payload.DocDate,
       TaxDate: payload.DocDate,
       DueDate: payload.DocDate,
-      DocCurrency: payload.DocCurrency || "FJD",
+      DocCurrency: payload.DocCurrency || (await getDisplayCurrency(dbName)),
       DocObjectCode: "bopot_IncomingPayments",
       PaymentInvoices:
         (payload.PaymentInvoices as Record<string, unknown>[])
@@ -608,7 +609,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
             ((sapPayload.PaymentChecks as any[])?.reduce((sum, c) => sum + (c.CheckSum || 0), 0) ||
               0) +
             ((sapPayload.BankChargeAmount as number) || 0),
-          docCurr: result.DocCurrency || "FJD",
+          docCurr: result.DocCurrency || (await getDisplayCurrency(dbName)),
           paymentMode: (sapPayload.U_Mode_Pay as string) || "CASH",
         });
       } catch (e) {

@@ -98,7 +98,7 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
           whse: line.WhsCode || line.WarehouseCode || "",
           quantity: qty,
           unitPrice: String(price),
-          total: `FJD ${(qty * price).toFixed(2)}`,
+          total: (qty * price).toFixed(2),
           binLocationAllocation: binAlloc,
           accountCode: line.AcctCode || line.AccountCode || "",
           costingCode: line.CostingCode || line.OcrCode || "",

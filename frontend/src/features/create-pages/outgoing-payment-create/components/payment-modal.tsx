@@ -1,5 +1,6 @@
 import { Calendar as CalendarIcon, CheckCircle2, Delete } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { formatCurrency } from "@/features/dashboard/utils/formatters";
 import type { ComponentProps, ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -45,6 +46,7 @@ interface PaymentModalProps {
     TransferReference?: string;
   }) => void;
   isPaymentOnAccount?: boolean;
+  currencyCode?: string | undefined;
 }
 
 export function PaymentModal({
@@ -53,6 +55,7 @@ export function PaymentModal({
   balanceDue,
   onPaymentSubmit,
   isPaymentOnAccount,
+  currencyCode,
 }: PaymentModalProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -467,7 +470,9 @@ export function PaymentModal({
               {balanceDue > 0 && (
                 <div className="flex gap-1.5">
                   <span className="text-blue-400 font-medium">Invoice:</span>
-                  <span className="font-bold text-blue-400">FJD {balanceDue.toFixed(2)}</span>
+                  <span className="font-bold text-blue-400">
+                    {formatCurrency(balanceDue, currencyCode)}
+                  </span>
                 </div>
               )}
               {(balanceDue > 0 || !isPaymentOnAccount) && (
@@ -476,13 +481,15 @@ export function PaymentModal({
                     {remainingBalance < 0 ? "On Account:" : "Balance:"}
                   </span>
                   <span className="font-bold text-orange-500">
-                    FJD {Math.abs(remainingBalance).toFixed(2)}
+                    {formatCurrency(Math.abs(remainingBalance), currencyCode)}
                   </span>
                 </div>
               )}
               <div className="flex gap-1.5">
                 <span className="text-emerald-500 font-medium">Paid:</span>
-                <span className="font-bold text-emerald-500">FJD {totalPaid.toFixed(2)}</span>
+                <span className="font-bold text-emerald-500">
+                  {formatCurrency(totalPaid, currencyCode)}
+                </span>
               </div>
             </div>
           </div>

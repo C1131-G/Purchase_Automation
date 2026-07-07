@@ -8,9 +8,9 @@ export const getProducts: RequestHandler = async (req, res, next) => {
     const result = await masterDataService.getProducts({
       warehouseCode: typeof warehouseCode === "string" ? warehouseCode : undefined,
       search: typeof search === "string" ? search : undefined,
-      limit: typeof limit === "string" ? Number(limit) : undefined,
+      limit: limit != null ? Number(limit) : undefined,
       type: type === "sales" || type === "purchase" ? type : undefined,
-      priceList: typeof priceList === "string" ? Number(priceList) : undefined,
+      priceList: priceList != null ? Number(priceList) : undefined,
     });
     res.status(200).json({ data: result, success: true });
   } catch (error) {
@@ -104,6 +104,21 @@ export const getChartOfAccounts: RequestHandler = async (_req, res, next) => {
   }
 };
 
+export const getBranches: RequestHandler = async (_req, res, next) => {
+  try {
+    const result = [
+      { Code: "01", Name: "Branch 1" },
+      { Code: "02", Name: "Branch 2" },
+      { Code: "03", Name: "Branch 3" },
+      { Code: "04", Name: "Branch 4" },
+      { Code: "05", Name: "Branch 5" },
+    ];
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const masterDataDal = {
   getChartOfAccounts,
   getCustomers,
@@ -115,4 +130,5 @@ export const masterDataDal = {
   getUOMs,
   getVendors,
   getWarehouses,
+  getBranches,
 };

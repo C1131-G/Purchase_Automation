@@ -1,4 +1,5 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getDisplayCurrency } from "@/services/currency.util";
 import { InventoryTransferRequestSchema } from "@/db/schemas/inventory-transfer-request.schema";
 import { InventoryTransferRequestLineSchema } from "@/db/schemas/inventory-transfer-request-line.schema";
 import type { InventoryTransferRequest } from "@/db/schemas/inventory-transfer-request.schema";
@@ -87,23 +88,26 @@ export const getTransferRequests = async (dbName: string, filters: TransferReque
       sort,
     });
 
+    const displayCurrency = await getDisplayCurrency(dbName);
     return {
       ...result,
-      data: result.data.map((data) => ({
-        DocEntry: data.docEntry,
-        DocNum: data.docNum,
-        DocDate:
-          data.docDate instanceof Date
-            ? data.docDate.toISOString().slice(0, 10)
-            : String(data.docDate).slice(0, 10),
-        Comments: data.comments,
-        DocTotal: Number(data.docTotal || 0),
-        DocCurr: data.docCurr || "FJD",
-        DocStatus: data.docStatus === "O" ? "Open" : "Closed",
-        Filler: data.filler,
-        ToWhsCode: data.toWhsCode,
-        id: data.docEntry,
-      })),
+      data: await Promise.all(
+        result.data.map(async (data) => ({
+          DocEntry: data.docEntry,
+          DocNum: data.docNum,
+          DocDate:
+            data.docDate instanceof Date
+              ? data.docDate.toISOString().slice(0, 10)
+              : String(data.docDate).slice(0, 10),
+          Comments: data.comments,
+          DocTotal: Number(data.docTotal || 0),
+          DocCurr: data.docCurr || displayCurrency,
+          DocStatus: data.docStatus === "O" ? "Open" : "Closed",
+          Filler: data.filler,
+          ToWhsCode: data.toWhsCode,
+          id: data.docEntry,
+        })),
+      ),
     };
   } catch (err: unknown) {
     throw err instanceof Error ? err : new Error(String(err));
@@ -127,6 +131,7 @@ export const getTransferRequestByDocNum = async (dbName: string, docNum: number 
         : String(header.docDate).slice(0, 10),
     Comments: header.comments,
     DocTotal: Number(header.docTotal || 0),
+    DocCurr: header.docCurr || (await getDisplayCurrency(dbName)),
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
     Filler: header.filler,
     ToWhsCode: header.toWhsCode,

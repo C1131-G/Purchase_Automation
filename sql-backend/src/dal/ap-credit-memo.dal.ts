@@ -33,7 +33,8 @@ export const getDocNums: RequestHandler = async (req, res, next) => {
 
 export const getById: RequestHandler = async (req, res, next) => {
   try {
-    const result = await apCreditMemoService.getByDocNum(Number(req.params.id));
+    const draftDocEntry = req.query.draftDocEntry ? Number(req.query.draftDocEntry) : undefined;
+    const result = await apCreditMemoService.getByDocNum(Number(req.params.id), draftDocEntry);
     res.status(200).json({ data: toPascalCase(result), success: true });
   } catch (e) {
     next(e);

@@ -100,14 +100,14 @@ export const mapSearchToPurchaseQuotationListParams = (
   const sortOrder = firstSort ? (firstSort.desc ? "desc" : "asc") : undefined;
 
   return {
-    CardCode: getStringFilter(filters, "CardCode"),
-    CardName: getStringFilter(filters, "CardName"),
-    DocDateEnd: end,
-    DocDateStart: start,
-    DocNum: getStringFilter(filters, "DocNum"),
-    DocStatus: docStatus,
-    DocTotal: docTotal?.value,
-    DocTotalOperator: docTotal?.operator,
+    CardCode: getStringFilter(filters, "CardCode") ?? search.CardCode,
+    CardName: getStringFilter(filters, "CardName") ?? search.CardName,
+    DocDateEnd: end ?? search.DocDateEnd,
+    DocDateStart: start ?? search.DocDateStart,
+    DocNum: getStringFilter(filters, "DocNum") ?? search.DocNum,
+    DocStatus: docStatus ?? (search.DocStatus as any),
+    DocTotal: docTotal?.value ?? search.DocTotal,
+    DocTotalOperator: docTotal?.operator ?? search.DocTotalOperator,
     limit: Math.max(search.limit ?? 10, 1),
     page: Math.max(search.page ?? 1, 1),
     sortBy,

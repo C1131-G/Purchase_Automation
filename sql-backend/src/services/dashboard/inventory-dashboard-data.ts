@@ -3,6 +3,7 @@
 import { sql, desc, eq, and, gte, lte } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { getCachedData } from "@/core/utils/cache";
+import { getDisplayCurrency } from "@/services/currency.util";
 
 import { items } from "@/db/schema/items";
 import { itemWarehouseStock } from "@/db/schema/item-warehouse-stock";
@@ -179,8 +180,9 @@ export const loadInventoryDataset = async (period: DashboardPeriod): Promise<Inv
       const whsMap = new Map(warehouseRows.map((w: any) => [w.code, w.name]));
       const warehouseGroups = await fetchWarehouseGroups(period, whsMap);
 
+      const displayCurrency = await getDisplayCurrency();
       return {
-        currency: "USD",
+        currency: displayCurrency,
         period,
         granularity: window.granularity,
         modules: moduleDatasetsRaw,

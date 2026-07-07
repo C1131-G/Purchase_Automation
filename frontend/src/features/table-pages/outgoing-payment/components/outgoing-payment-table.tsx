@@ -165,10 +165,31 @@ export function OutgoingPaymentTable() {
     return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER);
   }, [searchParams.columnOrder, columnIds]);
 
-  const columnFilters = useMemo<ColumnFiltersState>(
-    () => cloneFilters(normalizeColumnFilters(searchParams.columnFilters)),
-    [searchParams.columnFilters],
-  );
+  const columnFilters = useMemo<ColumnFiltersState>(() => {
+    if (searchParams.columnFilters !== undefined) {
+      return cloneFilters(normalizeColumnFilters(searchParams.columnFilters));
+    }
+    // Hydrate from direct query parameters
+    const built: ColumnFiltersState = [];
+    if (searchParams.CardCode) built.push({ id: "CardCode", value: searchParams.CardCode });
+    if (searchParams.CardName) built.push({ id: "CardName", value: searchParams.CardName });
+    if (searchParams.DocNum) built.push({ id: "DocNum", value: searchParams.DocNum });
+    if ((searchParams as any).PaymentMode)
+      built.push({ id: "PaymentMode", value: (searchParams as any).PaymentMode });
+    if (searchParams.DocDateStart || searchParams.DocDateEnd) {
+      built.push({
+        id: "DocDate",
+        value: { from: searchParams.DocDateStart, to: searchParams.DocDateEnd },
+      });
+    }
+    if (searchParams.DocTotal !== undefined && searchParams.DocTotalOperator) {
+      built.push({
+        id: "DocTotal",
+        value: { operator: searchParams.DocTotalOperator, value: searchParams.DocTotal },
+      });
+    }
+    return cloneFilters(built);
+  }, [searchParams]);
 
   const pagination = useMemo(
     () => ({
@@ -230,15 +251,30 @@ export function OutgoingPaymentTable() {
       setColumnFilters(TABLE_ID, nextFilters);
       setPagination(TABLE_ID, { pageIndex: 0 });
       const nextSearchColumnFilters = toOutgoingPaymentColumnFilters(nextFilters);
+
+      const docNumVal = nextFilters.find((f) => f.id === "DocNum")?.value;
+      const cardCodeVal = nextFilters.find((f) => f.id === "CardCode")?.value;
+      const cardNameVal = nextFilters.find((f) => f.id === "CardName")?.value;
+      const paymentModeVal = nextFilters.find((f) => f.id === "PaymentMode")?.value;
+      const docDateVal = nextFilters.find((f) => f.id === "DocDate")?.value as any;
+      const docTotalVal = nextFilters.find((f) => f.id === "DocTotal")?.value as any;
+
       navigate({
         replace: true,
-        search: (prev: OutgoingPaymentSearch) => ({
-          ...prev,
-          page: 1,
-          columnFilters: nextSearchColumnFilters,
-          DocTotalOperator: undefined,
-          DocTotal: undefined,
-        }),
+        search: (prev: OutgoingPaymentSearch) =>
+          ({
+            ...prev,
+            page: 1,
+            columnFilters: nextSearchColumnFilters,
+            DocNum: docNumVal ? String(docNumVal) : undefined,
+            CardCode: cardCodeVal ? String(cardCodeVal) : undefined,
+            CardName: cardNameVal ? String(cardNameVal) : undefined,
+            PaymentMode: paymentModeVal ? String(paymentModeVal) : undefined,
+            DocDateStart: docDateVal?.from ?? docDateVal?.to ?? undefined,
+            DocDateEnd: docDateVal?.to ?? docDateVal?.from ?? undefined,
+            DocTotalOperator: docTotalVal?.operator ?? undefined,
+            DocTotal: docTotalVal?.value ?? undefined,
+          }) as any,
       });
     },
     onColumnOrderChange: (updater) => {

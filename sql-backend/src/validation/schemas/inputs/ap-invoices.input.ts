@@ -25,6 +25,8 @@ export const CreateApInvoiceSchema = z.object({
   address: z.string().optional(),
   address2: z.string().optional(),
   lines: z.array(ApInvoiceLineSchema).min(1),
+  isDraft: z.boolean().optional(),
+  draftDocEntry: z.coerce.number().int().optional(),
 });
 
 export const UpdateApInvoiceSchema = CreateApInvoiceSchema.partial();

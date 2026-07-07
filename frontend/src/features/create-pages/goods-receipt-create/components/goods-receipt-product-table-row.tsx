@@ -1,5 +1,6 @@
 import React from "react";
 import { Search, Trash2 } from "lucide-react";
+import { formatCurrency } from "@/features/dashboard/utils/formatters";
 import { useQuery } from "@tanstack/react-query";
 
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
@@ -194,7 +195,7 @@ export function GoodsReceiptProductTableRow({
       uomCode: item.uomCode ?? "",
       uomName: item.uomName ?? "",
       unitPrice: String(price),
-      total: total > 0 ? `FJD ${total.toFixed(2)}` : "FJD 0.00",
+      total: total > 0 ? total.toFixed(2) : "0.00",
     });
     setProductFocused(false);
     setDescriptionFocused(false);
@@ -224,7 +225,7 @@ export function GoodsReceiptProductTableRow({
     const newPriceStr = field === "unitPrice" ? String(value) : String(row.unitPrice);
     const newPrice = parseFloat(newPriceStr.replace(/[^0-9.]/g, "")) || 0;
     const total = newQty * newPrice;
-    patch.total = total > 0 ? `FJD ${total.toFixed(2)}` : "FJD 0.00";
+    patch.total = total > 0 ? total.toFixed(2) : "0.00";
     updateProductRow(row.id, patch);
   };
 
@@ -349,7 +350,9 @@ export function GoodsReceiptProductTableRow({
       </td>
 
       {/* Total */}
-      <td className="px-2 py-2 text-xs font-semibold text-zinc-700">{row.total || "FJD 0.00"}</td>
+      <td className="px-2 py-2 text-xs font-semibold text-zinc-700">
+        {row.total ? formatCurrency(Number(row.total), undefined) : "0.00"}
+      </td>
 
       {/* Warehouse */}
       <td className="relative px-2 py-2">

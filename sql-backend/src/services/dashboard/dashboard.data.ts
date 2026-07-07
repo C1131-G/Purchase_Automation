@@ -4,6 +4,7 @@
 import { and, gte, lte, asc, count, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { getCachedData } from "@/core/utils/cache";
+import { getDisplayCurrency } from "@/services/currency.util";
 
 import { purchaseQuotations } from "@/db/schema/purchase-quotations";
 import { purchaseOrders } from "@/db/schema/purchase-orders";
@@ -54,7 +55,7 @@ const SCHEMA_MAP: Record<DocumentModule, any> = {
   transfer: inventoryTransfers,
 };
 
-const mapRow = (module: DocumentModule, doc: any): RawDashboardDocument => {
+const getRowDates = (doc: any) => {
   const docDate =
     doc.docDate instanceof Date
       ? doc.docDate.toISOString().slice(0, 10)
@@ -65,6 +66,16 @@ const mapRow = (module: DocumentModule, doc: any): RawDashboardDocument => {
       : doc.docDueDate
         ? String(doc.docDueDate).slice(0, 10)
         : docDate;
+  return { docDate, docDueDate };
+};
+
+const mapRow = (
+  module: DocumentModule,
+  doc: any,
+  defaultCurrency: string,
+): RawDashboardDocument => {
+  const { docDate, docDueDate } = getRowDates(doc);
+
   return {
     module,
     docEntry: Number(doc.id || 0),
@@ -74,7 +85,7 @@ const mapRow = (module: DocumentModule, doc: any): RawDashboardDocument => {
     cardCode: String(doc.cardCode || ""),
     cardName: String(doc.cardName || ""),
     docTotal: Number(doc.docTotal || 0),
-    docCurrency: doc.docCurrency || "USD",
+    docCurrency: doc.docCurrency || defaultCurrency,
     docStatus: String(doc.docStatus || "C"),
     paidToDate: Number(doc.paidToDate || 0),
   };
@@ -90,12 +101,13 @@ export const fetchModuleDocuments = async (
   const conditions: any[] = [];
   if (range.start) conditions.push(gte(schema.docDate, range.start));
   if (range.end) conditions.push(lte(schema.docDate, range.end));
+  const defaultCurrency = await getDisplayCurrency();
   const rows = await db
     .select()
     .from(schema)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(schema.docDate));
-  return rows.map((doc: any) => mapRow(module, doc));
+  return rows.map((doc: any) => mapRow(module, doc, defaultCurrency));
 };
 
 export const loadAreaDataset = async (
@@ -122,7 +134,13 @@ export const loadAreaDataset = async (
           return { module, current, previous };
         }),
       );
-      return { currency: "USD", modules: datasets, period, granularity: window.granularity };
+      const defaultCurrency = await getDisplayCurrency();
+      return {
+        currency: defaultCurrency,
+        modules: datasets,
+        period,
+        granularity: window.granularity,
+      };
     },
     15 * 1000,
   );

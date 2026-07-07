@@ -46,6 +46,12 @@ export function CreateIncomingPaymentForm() {
   const [openDocsSearch, setOpenDocsSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeFilter>({});
 
+  const selectedVendor = useMemo(() => {
+    return lookups.vendors.find((v: any) => v.code === lookups.codeInput);
+  }, [lookups.vendors, lookups.codeInput]);
+
+  const currencyCode = selectedVendor?.currency || undefined;
+
   const dateFilterLabel = useMemo(() => {
     const applied = isDateRangeFilter(dateRange) ? dateRange : {};
     let lbl = "Filter by date";
@@ -593,6 +599,7 @@ export function CreateIncomingPaymentForm() {
           balanceDue={Math.max(0, balanceDue)}
           isPaymentOnAccount={isPaymentOnAccount}
           onPaymentSubmit={handlePaymentSubmit}
+          currencyCode={currencyCode}
         />
       </CreatePageWrapper>
     </div>

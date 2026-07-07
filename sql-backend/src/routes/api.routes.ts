@@ -41,6 +41,7 @@ router.use(authenticatedApiLimiter);
 router.use(requestTransformerMiddleware);
 
 router.use("/master-data", masterDataRoutes);
+router.use("/items", itemMasterRoutes);
 router.use("/item-master", itemMasterRoutes);
 router.use("/purchase-orders", purchaseOrderRoutes);
 router.use("/purchase-quotations", purchaseQuotationRoutes);
@@ -53,7 +54,9 @@ router.use("/ar-invoices", arInvoiceRoutes);
 router.use("/ar-credit-memos", arCreditMemoRoutes);
 router.use("/goods-receipts", goodsReceiptRoutes);
 router.use("/goods-issues", goodsIssueRoutes);
+router.use("/inventory-transfers", transferRoutes);
 router.use("/transfers", transferRoutes);
+router.use("/inventory-transfer-requests", transferRequestRoutes);
 router.use("/transfer-requests", transferRequestRoutes);
 router.use("/incoming-payments", incomingPaymentRoutes);
 router.use("/outgoing-payments", outgoingPaymentRoutes);

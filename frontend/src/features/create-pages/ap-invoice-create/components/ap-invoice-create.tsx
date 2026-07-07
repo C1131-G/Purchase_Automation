@@ -141,18 +141,22 @@ export function APInvoiceCreate({
     (v) => String(v.code) === String(state.vendorCodeInput),
   );
   const billToOptions = activeVendor?.addresses
-    ? activeVendor.addresses.map((addr: any) => ({
-        addressName: addr.addressName,
-        addressText: addr.addressText,
-        addressType: addr.addressType,
-      }))
+    ? activeVendor.addresses
+        .filter((addr: any) => addr.addressType === "B")
+        .map((addr: any) => ({
+          addressName: addr.addressName,
+          addressText: addr.addressText,
+          addressType: addr.addressType,
+        }))
     : [];
   const shipToOptions = activeVendor?.addresses
-    ? activeVendor.addresses.map((addr: any) => ({
-        addressName: addr.addressName,
-        addressText: addr.addressText,
-        addressType: addr.addressType,
-      }))
+    ? activeVendor.addresses
+        .filter((addr: any) => addr.addressType === "S")
+        .map((addr: any) => ({
+          addressName: addr.addressName,
+          addressText: addr.addressText,
+          addressType: addr.addressType,
+        }))
     : [];
 
   return (

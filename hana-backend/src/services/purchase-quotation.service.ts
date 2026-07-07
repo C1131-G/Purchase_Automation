@@ -4,8 +4,8 @@ import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 import { getTenantRepository, executeTenantQuery } from "@/dal/tenant-dal.helper";
+import { getDisplayCurrency } from "@/services/currency.util";
 import type { PurchaseQuotationFilters } from "@/dal/types/purchase-quotation.types";
-import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { PurchaseQuotationLineSchema } from "@/db/schemas/purchase-quotation-line.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
@@ -340,17 +340,8 @@ export const createPurchaseQuotation = async (
     const attachments = payload.attachments as any[];
 
     let docCurrency = String(payload.DocCurrency || payload.DocCurr || "").trim();
-    if ((!docCurrency || docCurrency === "$") && dbName) {
-      const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
-      const settingsRows = await adminSettingsRepo.find({
-        select: ["MainCurncy"],
-        take: 1,
-      });
-      const adminSettings = settingsRows[0] ?? null;
-      const rawMainCurncy = String(adminSettings?.MainCurncy || "").trim();
-      docCurrency = rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : "FJD";
-    } else if (!docCurrency || docCurrency === "$") {
-      docCurrency = "FJD";
+    if (!docCurrency || docCurrency === "$") {
+      docCurrency = await getDisplayCurrency(dbName || "");
     }
 
     const session = serviceLayerClient.getSession(sessionId);

@@ -8,6 +8,11 @@ const GoodsIssueLineSchema = z.object({
   price: z.coerce.number().min(0).optional(),
   warehouseCode: z.string().optional(),
   acctCode: z.string().optional(),
+  ocrCode: z.string().optional(),
+  costingCode: z.string().optional(),
+  uomCode: z.string().optional(),
+  unitMsr: z.string().optional(),
+  documentLinesBinAllocations: z.array(z.any()).optional(),
 });
 
 export const CreateGoodsIssueSchema = z.object({
@@ -15,8 +20,20 @@ export const CreateGoodsIssueSchema = z.object({
   docDate: z.string().min(1),
   taxDate: z.string().optional(),
   comments: z.string().optional(),
+  jrnlMemo: z.string().optional(),
   docCurrency: z.string().optional(),
+  ref2: z.string().optional(),
+  series: z.coerce.number().int().optional(),
+  priceList: z.coerce.number().int().optional(),
+  attachments: z.array(z.any()).optional(),
   lines: z.array(GoodsIssueLineSchema).min(1),
+});
+
+export const UpdateGoodsIssueSchema = z.object({
+  comments: z.string().optional(),
+  jrnlMemo: z.string().optional(),
+  ref2: z.string().optional(),
+  attachments: z.array(z.any()).optional(),
 });
 
 export const GoodsIssueListQuerySchema = z.object({

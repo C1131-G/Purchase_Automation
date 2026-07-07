@@ -1,20 +1,68 @@
 import { and, eq, ilike, or, sql, desc, asc } from "drizzle-orm";
 
 export const buildSqlListFilters = (table: any, filters: any, sortColumns: Record<string, any>) => {
-  const cardCode = filters.cardCode;
-  const cardName = filters.cardName;
-  const docNum = filters.docNum;
-  const dateFrom = filters.dateFrom;
-  const dateTo = filters.dateTo;
-  const docStatus = filters.docStatus;
-  const docTotal = filters.docTotal;
-  const docTotalOperator = filters.docTotalOperator;
+  const cardCode = filters.CardCode ?? filters.cardCode;
+  const cardName = filters.CardName ?? filters.cardName;
+  const docNum = filters.DocNum ?? filters.docNum;
+  const dateFrom = filters.DocDateStart ?? filters.dateFrom;
+  const dateTo = filters.DocDateEnd ?? filters.dateTo;
+  const docStatus = filters.DocStatus ?? filters.docStatus;
+  const docTotal = filters.DocTotal ?? filters.docTotal;
+  const docTotalOperator = filters.DocTotalOperator ?? filters.docTotalOperator;
+
+  // Extra filters for parity
+  const comments = filters.Comments ?? filters.comments;
+  const jrnlMemo = filters.JrnlMemo ?? filters.jrnlMemo;
+  const taxDateStart = filters.TaxDateStart ?? filters.taxDateStart;
+  const taxDateEnd = filters.TaxDateEnd ?? filters.taxDateEnd;
+  const filler = filters.Filler ?? filters.filler;
+  const toWhsCode = filters.ToWarehouseCode ?? filters.ToWhsCode ?? filters.toWhsCode;
+  const counterRef = filters.CounterRef ?? filters.counterRef;
+  const paymentMode = filters.PaymentMode ?? filters.paymentMode;
 
   const conditions: any[] = [];
 
   // CardCode filter: case-insensitive wildcard match
   if (cardCode && table.cardCode) {
     conditions.push(ilike(table.cardCode, `%${cardCode}%`));
+  }
+
+  // Comments filter: case-insensitive wildcard match
+  if (comments && table.comments) {
+    conditions.push(ilike(table.comments, `%${comments}%`));
+  }
+
+  // JrnlMemo filter: case-insensitive wildcard match
+  if (jrnlMemo && table.jrnlMemo) {
+    conditions.push(ilike(table.jrnlMemo, `%${jrnlMemo}%`));
+  }
+
+  // Tax Date range filters
+  if (taxDateStart && table.taxDate) {
+    conditions.push(sql`${table.taxDate} >= ${taxDateStart}`);
+  }
+  if (taxDateEnd && table.taxDate) {
+    conditions.push(sql`${table.taxDate} <= ${taxDateEnd}`);
+  }
+
+  // Filler (from warehouse) filter: case-insensitive wildcard match
+  if (filler && table.filler) {
+    conditions.push(ilike(table.filler, `%${filler}%`));
+  }
+
+  // To Warehouse filter: case-insensitive wildcard match on table.toWarehouseCode
+  if (toWhsCode && table.toWarehouseCode) {
+    conditions.push(ilike(table.toWarehouseCode, `%${toWhsCode}%`));
+  }
+
+  // CounterRef filter: case-insensitive wildcard match
+  if (counterRef && table.counterRef) {
+    conditions.push(ilike(table.counterRef, `%${counterRef}%`));
+  }
+
+  // PaymentMode filter: case-insensitive wildcard match
+  if (paymentMode && table.paymentMode) {
+    conditions.push(ilike(table.paymentMode, `%${paymentMode}%`));
   }
 
   // CardName filter: case-insensitive wildcard match
