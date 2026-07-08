@@ -10,6 +10,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { getNextDocNum, previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
+import { resolveCardName } from "@/services/master-data.service";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
@@ -118,17 +119,23 @@ export const create = async (payload: any) => {
       0,
     );
 
+    const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
     await db
       .update(purchaseQuotations)
       .set({
         docNum,
         docDate: payload.docDate,
+        docDueDate: payload.docDueDate ?? null,
         cardCode: payload.cardCode,
-        cardName: payload.cardName ?? null,
+        cardName,
         docCurrency: payload.docCurrency ?? null,
         docStatus: "O",
         docTotal: String(lineTotal),
+        address: payload.address ?? null,
+        address2: payload.address2 ?? null,
         comments: payload.comments ?? null,
+        numAtCard: payload.numAtCard ?? null,
         salesPersonCode: payload.salesPersonCode ?? null,
       })
       .where(eq(purchaseQuotations.id, draftDocEntry));
@@ -138,9 +145,9 @@ export const create = async (payload: any) => {
       .where(eq(purchaseQuotationLines.docEntry, draftDocEntry));
     if (payload.lines?.length) {
       await db.insert(purchaseQuotationLines).values(
-        payload.lines.map((l: any) => ({
+        payload.lines.map((l: any, idx: number) => ({
           docEntry: draftDocEntry,
-          lineNum: l.lineNum,
+          lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
           itemCode: l.itemCode,
           itemDescription: l.itemDescription ?? null,
           quantity: String(l.quantity),
@@ -165,26 +172,32 @@ export const create = async (payload: any) => {
     0,
   );
 
+  const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
   const [header] = await db
     .insert(purchaseQuotations)
     .values({
       docNum,
       docDate: payload.docDate,
+      docDueDate: payload.docDueDate ?? null,
       cardCode: payload.cardCode,
-      cardName: payload.cardName ?? null,
+      cardName,
       docCurrency: payload.docCurrency ?? null,
       docStatus,
       docTotal: String(lineTotal),
+      address: payload.address ?? null,
+      address2: payload.address2 ?? null,
       comments: payload.comments ?? null,
+      numAtCard: payload.numAtCard ?? null,
       salesPersonCode: payload.salesPersonCode ?? null,
     })
     .returning();
 
   if (payload.lines?.length) {
     await db.insert(purchaseQuotationLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: header.id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         itemDescription: l.itemDescription ?? null,
         quantity: String(l.quantity),
@@ -216,24 +229,34 @@ export const update = async (id: number, payload: any) => {
     ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
     : Number(existing.docTotal);
 
+  const cardName = await resolveCardName(
+    payload.cardCode ?? existing.cardCode,
+    payload.cardName !== undefined ? payload.cardName : existing.cardName,
+  );
+
   await db
     .update(purchaseQuotations)
     .set({
       docDate: payload.docDate,
+      docDueDate: payload.docDueDate ?? undefined,
       docCurrency: payload.docCurrency,
       docStatus: updatedDocStatus,
       docTotal: String(lineTotal),
+      address: payload.address ?? undefined,
+      address2: payload.address2 ?? undefined,
       comments: payload.comments,
+      numAtCard: payload.numAtCard ?? undefined,
       salesPersonCode: payload.salesPersonCode,
+      cardName: cardName ?? undefined,
     })
     .where(eq(purchaseQuotations.id, id));
 
   if (payload.lines) {
     await db.delete(purchaseQuotationLines).where(eq(purchaseQuotationLines.docEntry, id));
     await db.insert(purchaseQuotationLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         itemDescription: l.itemDescription ?? null,
         quantity: String(l.quantity),

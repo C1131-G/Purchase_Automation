@@ -15,6 +15,7 @@ export const arInvoices = pgTable("ar_invoices", {
   numAtCard: text("num_at_card"),
   address: text("address"),
   address2: text("address2"),
+  comments: text("comments"),
   attachmentEntry: integer("attachment_entry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

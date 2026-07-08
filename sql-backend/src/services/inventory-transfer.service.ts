@@ -105,9 +105,9 @@ export const create = async (payload: any) => {
 
   if (payload.lines?.length) {
     await db.insert(inventoryTransferLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: h.id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         dscription: l.dscription ?? null,
         quantity: String(l.quantity),

@@ -12,6 +12,7 @@ import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { calculateLineTotal } from "@/services/discount.util";
 import { getNextDocNum, previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
+import { resolveCardName } from "@/services/master-data.service";
 
 export interface POListFilters {
   page?: number;
@@ -173,12 +174,14 @@ export const create = async (payload: any) => {
       throw new AppError("Draft document not found", 404, "NOT_FOUND");
     }
 
-    const docNum = await getNextDocNum("purchase_orders", "purchase_orders", 20000);
+    const docNum =
+      payload.docNum ?? (await getNextDocNum("purchase_orders", "purchase_orders", 20000));
     const lineTotal = payload.lines.reduce(
       (sum: number, l: any) =>
         sum + calculateLineTotal(l.unitPrice ?? 0, l.quantity, l.discountPercent),
       0,
     );
+    const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
     await db
       .update(purchaseOrders)
@@ -187,13 +190,14 @@ export const create = async (payload: any) => {
         docDate: payload.docDate,
         docDueDate: payload.docDueDate ?? null,
         cardCode: payload.cardCode,
-        cardName: payload.cardName ?? null,
+        cardName,
         docTotal: String(lineTotal),
         docCurrency: payload.docCurrency ?? null,
         docStatus: "O",
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         comments: payload.comments ?? null,
+        numAtCard: payload.numAtCard ?? null,
         salesPersonCode: payload.salesPersonCode ?? null,
         discountPercent: payload.discountPercent ? String(payload.discountPercent) : null,
       })
@@ -202,9 +206,9 @@ export const create = async (payload: any) => {
     await db.delete(purchaseOrderLines).where(eq(purchaseOrderLines.docEntry, draftDocEntry));
     if (payload.lines.length > 0) {
       await db.insert(purchaseOrderLines).values(
-        payload.lines.map((l: any) => ({
+        payload.lines.map((l: any, idx: number) => ({
           docEntry: draftDocEntry,
-          lineNum: l.lineNum,
+          lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
           itemCode: l.itemCode,
           itemDescription: l.itemDescription ?? null,
           quantity: String(l.quantity),
@@ -232,6 +236,8 @@ export const create = async (payload: any) => {
     0,
   );
 
+  const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
   const [header] = await db
     .insert(purchaseOrders)
     .values({
@@ -239,13 +245,14 @@ export const create = async (payload: any) => {
       docDate: payload.docDate,
       docDueDate: payload.docDueDate ?? null,
       cardCode: payload.cardCode,
-      cardName: payload.cardName ?? null,
+      cardName,
       docTotal: String(lineTotal),
       docCurrency: payload.docCurrency ?? null,
       docStatus,
       address: payload.address ?? null,
       address2: payload.address2 ?? null,
       comments: payload.comments ?? null,
+      numAtCard: payload.numAtCard ?? null,
       salesPersonCode: payload.salesPersonCode ?? null,
       discountPercent: payload.discountPercent ? String(payload.discountPercent) : null,
     })
@@ -253,9 +260,9 @@ export const create = async (payload: any) => {
 
   if (payload.lines.length > 0) {
     await db.insert(purchaseOrderLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: header.id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         itemDescription: l.itemDescription ?? null,
         quantity: String(l.quantity),
@@ -288,18 +295,24 @@ export const update = async (id: number, payload: any) => {
 
   const updatedDocStatus = payload.isDraft === true ? "D" : existing.docStatus;
 
+  const cardName = await resolveCardName(
+    payload.cardCode ?? existing.cardCode,
+    payload.cardName !== undefined ? payload.cardName : existing.cardName,
+  );
+
   await db
     .update(purchaseOrders)
     .set({
-      docDate: payload.docDate ?? undefined,
+      docDate: payload.docDate,
       docDueDate: payload.docDueDate ?? undefined,
       cardCode: payload.cardCode ?? undefined,
-      cardName: payload.cardName ?? undefined,
+      cardName: cardName ?? undefined,
       docCurrency: payload.docCurrency ?? undefined,
       docStatus: updatedDocStatus,
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
       comments: payload.comments ?? undefined,
+      numAtCard: payload.numAtCard ?? undefined,
       salesPersonCode: payload.salesPersonCode ?? undefined,
       discountPercent:
         payload.discountPercent != null ? String(payload.discountPercent) : undefined,
@@ -310,9 +323,9 @@ export const update = async (id: number, payload: any) => {
     await db.delete(purchaseOrderLines).where(eq(purchaseOrderLines.docEntry, id));
 
     await db.insert(purchaseOrderLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         itemDescription: l.itemDescription ?? null,
         quantity: String(l.quantity),

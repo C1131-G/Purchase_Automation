@@ -13,6 +13,8 @@ export const arCreditMemos = pgTable("ar_credit_memos", {
   paidToDate: numeric("paid_to_date", { precision: 19, scale: 6 }),
   address: text("address"),
   address2: text("address2"),
+  comments: text("comments"),
+  numAtCard: text("num_at_card"),
   attachmentEntry: integer("attachment_entry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

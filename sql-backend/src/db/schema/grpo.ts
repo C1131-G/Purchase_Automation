@@ -13,6 +13,7 @@ export const grpo = pgTable("grpo", {
   address: text("address"),
   address2: text("address2"),
   comments: text("comments"),
+  numAtCard: text("num_at_card"),
   attachmentEntry: integer("attachment_entry"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

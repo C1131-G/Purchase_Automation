@@ -19,6 +19,8 @@ import { itemWarehouseStock } from "@/db/schema/item-warehouse-stock";
 import { items } from "@/db/schema/items";
 import { businessPartners } from "@/db/schema/business-partners";
 import { businessPartnerAddresses } from "@/db/schema/business-partner-addresses";
+import { salesEmployees } from "@/db/schema/sales-employees";
+import { taxGroups } from "@/db/schema/tax-groups";
 
 import { purchaseOrders } from "@/db/schema/purchase-orders";
 import { purchaseOrderLines } from "@/db/schema/purchase-order-lines";
@@ -54,6 +56,7 @@ import { outgoingPayments } from "@/db/schema/outgoing-payments";
 
 import { ensureDatabaseExists } from "@/db/client";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { adminSettings } from "@/db/schema/admin-settings";
 
 // Helper to format date for database storage
 const formatDate = (date: Date): string => {
@@ -62,6 +65,9 @@ const formatDate = (date: Date): string => {
 
 async function runSeed() {
   logger.info("Starting database seed process...");
+
+  // Seed currency — reads from DEFAULT_CURRENCY_CODE env (no hardcoded value)
+  const seedCurrency = config.currency.defaultCode;
 
   // 1. Connect to the registry database
   const registryPool = new pg.Pool({
@@ -218,10 +224,16 @@ async function runSeed() {
     await db.delete(items);
     await db.delete(businessPartners);
     await db.delete(businessPartnerAddresses);
+    await db.delete(salesEmployees);
+    await db.delete(taxGroups);
     await db.delete(warehouses);
     await db.delete(unitOfMeasurements);
     await db.delete(priceLists);
+    await db.delete(adminSettings);
     await db.delete(users);
+
+    // Seed admin settings (MainCurncy — used by getDisplayCurrency())
+    await db.insert(adminSettings).values({ code: "MainCurncy", value: seedCurrency });
 
     // B. Seed Tenant Users
     // Only insert users who are allowed to access this tenant database (active users)
@@ -289,6 +301,24 @@ async function runSeed() {
     ];
     await db.insert(priceLists).values(plValues);
 
+    // Seed Sales Employees
+    const seValues = [
+      { code: 1, name: "Sales Employee 1", active: true },
+      { code: 2, name: "Sales Employee 2", active: true },
+      { code: 3, name: "Buyer Employee 1", active: true },
+      { code: 4, name: "Buyer Employee 2", active: true },
+    ];
+    await db.insert(salesEmployees).values(seValues);
+
+    // Seed Tax Groups
+    const tgValues = [
+      { code: "O1", name: "Output Tax 18%", rate: "18.00", inactive: false },
+      { code: "O2", name: "Output Tax 12%", rate: "12.00", inactive: false },
+      { code: "I1", name: "Input Tax 18%", rate: "18.00", inactive: false },
+      { code: "I2", name: "Input Tax 12%", rate: "12.00", inactive: false },
+    ];
+    await db.insert(taxGroups).values(tgValues);
+
     // F. Seed Business Partners (Customers & Vendors)
     const bpValues: any[] = [];
     const addressValues: any[] = [];
@@ -315,6 +345,7 @@ async function runSeed() {
         shipToAddress: shipToAddrText1,
         billToDef,
         shipToDef,
+        salesEmployeeCode: i % 2 === 0 ? 3 : 4,
         frozen: false,
       });
 
@@ -382,6 +413,7 @@ async function runSeed() {
         shipToAddress: shipToAddrText1,
         billToDef,
         shipToDef,
+        salesEmployeeCode: i % 2 === 0 ? 1 : 2,
         frozen: false,
       });
 
@@ -537,7 +569,7 @@ async function runSeed() {
         docDueDate: formatDate(new Date(docDate.getTime() + 14 * 24 * 60 * 60 * 1000)),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: i % 2 === 0 ? "O" : "C",
         address: bp.billToAddress,
         comments: `Seeded purchase quotation ${i}`,
@@ -591,7 +623,7 @@ async function runSeed() {
         docDueDate: formatDate(new Date(docDate.getTime() + 14 * 24 * 60 * 60 * 1000)),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: i % 15 === 0 ? "D" : i % 20 === 0 ? "C" : "O",
         address: bp.billToAddress,
         comments: `Seeded purchase order ${i}`,
@@ -646,7 +678,7 @@ async function runSeed() {
         docDueDate: formatDate(new Date(docDate.getTime() + 14 * 24 * 60 * 60 * 1000)),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: "O",
         address: bp.billToAddress,
         comments: `Seeded GRPO ${i}`,
@@ -703,7 +735,7 @@ async function runSeed() {
         docDueDate: formatDate(new Date(docDate.getTime() + 30 * 24 * 60 * 60 * 1000)),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: i % 2 === 0 ? "C" : "O",
         paidToDate: (i % 2 === 0 ? docTotal : 0).toString(),
         address: bp.billToAddress,
@@ -761,7 +793,7 @@ async function runSeed() {
         docDueDate: formatDate(docDate),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: "C",
         address: bp.billToAddress,
         comments: `Seeded credit memo ${i}`,
@@ -817,7 +849,7 @@ async function runSeed() {
         docDueDate: formatDate(new Date(docDate.getTime() + 14 * 24 * 60 * 60 * 1000)),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: "O",
         address: bp.billToAddress,
         docTotal: docTotal.toString(),
@@ -870,7 +902,7 @@ async function runSeed() {
         docDueDate: formatDate(new Date(docDate.getTime() + 14 * 24 * 60 * 60 * 1000)),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: i % 15 === 0 ? "D" : i % 20 === 0 ? "C" : "O",
         address: bp.billToAddress,
         docTotal: docTotal.toString(),
@@ -923,7 +955,7 @@ async function runSeed() {
         docDueDate: formatDate(new Date(docDate.getTime() + 30 * 24 * 60 * 60 * 1000)),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: i % 2 === 0 ? "C" : "O",
         paidToDate: (i % 2 === 0 ? docTotal : 0).toString(),
         address: bp.billToAddress,
@@ -981,7 +1013,7 @@ async function runSeed() {
         docDueDate: formatDate(docDate),
         cardCode: bp.code,
         cardName: bp.name,
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         docStatus: "C",
         address: bp.billToAddress,
         docTotal: docTotal.toString(),
@@ -1026,7 +1058,7 @@ async function runSeed() {
         cardCode: bp.code,
         cardName: bp.name,
         docTotal: ap.total.toString(),
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         paymentMode: "Cash",
       });
     }
@@ -1047,7 +1079,7 @@ async function runSeed() {
         cardCode: bp.code,
         cardName: bp.name,
         docTotal: ar.total.toString(),
-        docCurrency: "USD",
+        docCurrency: seedCurrency,
         paymentMode: "Cash",
       });
     }

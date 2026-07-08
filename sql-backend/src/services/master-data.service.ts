@@ -1,7 +1,7 @@
 // Master Data Service: Read-only lookups for business partners, items, warehouses, and reference data.
 // Mirrors hana-backend/src/services/master-data.service.ts but queries local PostgreSQL via Drizzle.
 
-import { and, eq, like, or, sql } from "drizzle-orm";
+import { and, eq, inArray, like, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { businessPartners } from "@/db/schema/business-partners";
@@ -16,6 +16,7 @@ import { salesEmployees } from "@/db/schema/sales-employees";
 import { chartOfAccounts } from "@/db/schema/chart-of-accounts";
 import { itemPrices } from "@/db/schema/item-prices";
 import { getCachedData } from "@/core/utils/cache";
+import { getDisplayCurrency } from "@/services/currency.util";
 
 const tenMinutes = 1000 * 60 * 10;
 const fiveMinutes = 1000 * 60 * 5;
@@ -57,46 +58,136 @@ export const getProducts = async (filters: ProductFilters = {}) => {
           barcode: items.barcode,
           avgPrice: items.avgPrice,
           lastPurchasePrice: items.lastPurchasePrice,
+          defaultWarehouse: items.defaultWarehouse,
         })
         .from(items)
         .where(conditions)
         .limit(limit);
 
-      const enriched = await Promise.all(
-        rows.map(async (row) => {
-          let onHand = 0;
-          let price: number | undefined;
+      if (rows.length === 0) {
+        return [];
+      }
 
-          if (filters.warehouseCode) {
-            const [stock] = await db
-              .select({ qty: itemWarehouseStock.onHand })
-              .from(itemWarehouseStock)
-              .where(
-                and(
-                  eq(itemWarehouseStock.itemCode, row.code),
-                  eq(itemWarehouseStock.warehouseCode, filters.warehouseCode),
-                ),
-              )
-              .limit(1);
-            onHand = stock ? Number(stock.qty ?? 0) : 0;
-          }
+      const codes = rows.map((r) => r.code);
 
-          if (filters.priceList) {
-            const [priceRow] = await db
-              .select({ p: itemPrices.price })
-              .from(itemPrices)
-              .where(
-                and(eq(itemPrices.itemCode, row.code), eq(itemPrices.priceList, filters.priceList)),
-              )
-              .limit(1);
-            price = priceRow ? Number(priceRow.p ?? 0) : undefined;
-          }
+      // Bulk fetch stock to avoid N+1 queries
+      const stockMap = new Map<string, number>();
+      if (filters.warehouseCode) {
+        const stocks = await db
+          .select({
+            itemCode: itemWarehouseStock.itemCode,
+            qty: itemWarehouseStock.onHand,
+          })
+          .from(itemWarehouseStock)
+          .where(
+            and(
+              inArray(itemWarehouseStock.itemCode, codes),
+              eq(itemWarehouseStock.warehouseCode, filters.warehouseCode),
+            ),
+          );
+        for (const s of stocks) {
+          stockMap.set(s.itemCode, Number(s.qty ?? 0));
+        }
+      } else {
+        const stocks = await db
+          .select({
+            itemCode: itemWarehouseStock.itemCode,
+            qty: itemWarehouseStock.onHand,
+          })
+          .from(itemWarehouseStock)
+          .where(inArray(itemWarehouseStock.itemCode, codes));
+        for (const s of stocks) {
+          const current = stockMap.get(s.itemCode) ?? 0;
+          stockMap.set(s.itemCode, current + Number(s.qty ?? 0));
+        }
+      }
 
-          return { ...row, onHand, price };
-        }),
-      );
+      // Bulk fetch price to avoid N+1 queries
+      const priceMap = new Map<string, number>();
+      if (filters.priceList !== undefined && filters.priceList !== null) {
+        const prices = await db
+          .select({
+            itemCode: itemPrices.itemCode,
+            price: itemPrices.price,
+          })
+          .from(itemPrices)
+          .where(
+            and(inArray(itemPrices.itemCode, codes), eq(itemPrices.priceList, filters.priceList)),
+          );
+        for (const p of prices) {
+          priceMap.set(p.itemCode, Number(p.price ?? 0));
+        }
+      }
 
-      return enriched;
+      // Fetch UOMs
+      const uoms = await db.select().from(unitOfMeasurements);
+      const uomMap = new Map<string, { code: string; entry: number; name: string }>();
+      for (const u of uoms) {
+        if (u.code) {
+          uomMap.set(u.code.toLowerCase(), {
+            code: u.code,
+            entry: u.entry,
+            name: u.name,
+          });
+        }
+      }
+
+      // Fetch Tax Groups
+      const activeTaxes = await db.select().from(taxGroups).where(eq(taxGroups.inactive, false));
+      const taxMap = new Map<string, number>();
+      for (const t of activeTaxes) {
+        taxMap.set(t.code.toUpperCase(), Number(t.rate ?? 0));
+      }
+
+      const defaultCurrency = await getDisplayCurrency();
+
+      return rows.map((row) => {
+        const resolvedStock = stockMap.get(row.code) ?? 0;
+        const resolvedPrice = priceMap.has(row.code)
+          ? priceMap.get(row.code)!
+          : Number(row.avgPrice ?? 0);
+
+        const resolvedTaxCode = filters.type === "purchase" ? "I1" : "O1";
+        const resolvedTaxRate = taxMap.get(resolvedTaxCode.toUpperCase()) ?? 0;
+
+        const inventoryUomText = row.inventoryUom || "";
+        const resolvedUom = inventoryUomText
+          ? uomMap.get(inventoryUomText.toLowerCase())
+          : undefined;
+        const resolvedUomCode = resolvedUom?.code || inventoryUomText;
+        const resolvedUomEntry = resolvedUom?.entry;
+        const resolvedUomName = resolvedUom?.name || resolvedUomCode;
+
+        const uomList = resolvedUomCode
+          ? [{ code: resolvedUomCode, name: resolvedUomName, entry: resolvedUomEntry }]
+          : [];
+
+        return {
+          id: row.code,
+          productCode: row.code,
+          productName: row.name,
+          ItemCode: row.code,
+          ItemName: row.name,
+          OnHand: resolvedStock,
+          stock: resolvedStock,
+          Price: resolvedPrice,
+          AvgPrice: Number(row.avgPrice ?? 0),
+          Currency: defaultCurrency,
+          UoMCode: resolvedUomCode,
+          UoMEntry: resolvedUomEntry,
+          UoMName: resolvedUomName,
+          Uom: inventoryUomText,
+          UomList: uomList,
+          PurchaseUoMCode: resolvedUomCode,
+          PurchaseUoMEntry: resolvedUomEntry,
+          PurchaseUom: inventoryUomText,
+          TaxCode: resolvedTaxCode,
+          TaxRate: resolvedTaxRate,
+          taxCode: resolvedTaxCode,
+          taxRate: resolvedTaxRate,
+          Warehouse: filters.warehouseCode || row.defaultWarehouse || "",
+        };
+      });
     },
     tenMinutes,
   );
@@ -162,6 +253,24 @@ const getPartners = async (type: string, search?: string) => {
               )
           : [];
 
+      const slpCodes = partners
+        .map((p) => p.salesEmployeeCode)
+        .filter((code): code is number => code !== null && code !== undefined);
+
+      const salesEmployeeMap = new Map<number, string>();
+      if (slpCodes.length > 0) {
+        const slpRows = await db
+          .select({
+            code: salesEmployees.code,
+            name: salesEmployees.name,
+          })
+          .from(salesEmployees)
+          .where(and(inArray(salesEmployees.code, slpCodes), eq(salesEmployees.active, true)));
+        for (const row of slpRows) {
+          salesEmployeeMap.set(row.code, row.name);
+        }
+      }
+
       const addressMap = new Map<
         string,
         {
@@ -199,33 +308,51 @@ const getPartners = async (type: string, search?: string) => {
 
       return partners.map((p) => {
         const entry = addressMap.get(p.code) || { addresses: [] };
-        const defaults = {
-          billToDef: p.billToDef,
-          shipToDef: p.shipToDef,
-        };
+        const billToDef = p.billToDef?.trim().toLowerCase() || "";
+        const shipToDef = p.shipToDef?.trim().toLowerCase() || "";
 
         const bAddresses = entry.addresses.filter((a) => a.addressType === "B");
         const sAddresses = entry.addresses.filter((a) => a.addressType === "S");
 
-        const defaultBillTo =
-          bAddresses.find(
-            (a) => a.addressName.toLowerCase() === defaults.billToDef?.trim().toLowerCase(),
-          ) || bAddresses[0];
+        let defaultBillTo = billToDef
+          ? bAddresses.find((a) => a.addressName.toLowerCase() === billToDef)
+          : undefined;
+        if (!defaultBillTo && bAddresses.length > 0) {
+          defaultBillTo = bAddresses[0];
+        }
 
-        const defaultShipTo =
-          sAddresses.find(
-            (a) => a.addressName.toLowerCase() === defaults.shipToDef?.trim().toLowerCase(),
-          ) || sAddresses[0];
+        let defaultShipTo = shipToDef
+          ? sAddresses.find((a) => a.addressName.toLowerCase() === shipToDef)
+          : undefined;
+        if (!defaultShipTo && sAddresses.length > 0) {
+          defaultShipTo = sAddresses[0];
+        }
+
+        const salesEmployeeName =
+          p.salesEmployeeCode !== null && p.salesEmployeeCode !== undefined
+            ? (salesEmployeeMap.get(p.salesEmployeeCode) ?? "")
+            : "";
 
         return {
+          id: p.code,
+          CardCode: p.code,
+          CardName: p.name,
+          Address: p.billToAddress || "",
+          Currency: p.currency,
+          SlpCode: p.salesEmployeeCode,
           code: p.code,
           name: p.name,
           currency: p.currency,
           phone: p.phone,
           email: p.email,
           billToAddress: defaultBillTo?.addressText || p.billToAddress || "",
-          shipToAddress: defaultShipTo?.addressText || p.shipToAddress || "",
+          shipToAddress:
+            defaultShipTo?.addressText || defaultBillTo?.addressText || p.shipToAddress || "",
           addresses: entry.addresses,
+          salesEmployeeCode: p.salesEmployeeCode,
+          SalesEmployeeCode: p.salesEmployeeCode,
+          salesEmployeeName,
+          SalesEmployeeName: salesEmployeeName,
         };
       });
     },
@@ -309,6 +436,23 @@ export const getChartOfAccounts = async () => {
     },
     tenMinutes,
   );
+};
+
+export const resolveCardName = async (
+  cardCode: string | undefined | null,
+  cardName: string | undefined | null,
+): Promise<string | null> => {
+  if (cardName && cardName.trim()) return cardName.trim();
+  if (!cardCode || !cardCode.trim()) return null;
+
+  const db = getDb();
+  const [bp] = await db
+    .select({ name: businessPartners.name })
+    .from(businessPartners)
+    .where(eq(businessPartners.code, cardCode.trim()))
+    .limit(1);
+
+  return bp?.name ?? null;
 };
 
 export const masterDataService = {

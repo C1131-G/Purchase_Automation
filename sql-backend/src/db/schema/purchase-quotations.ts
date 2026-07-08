@@ -13,6 +13,7 @@ export const purchaseQuotations = pgTable("purchase_quotations", {
   address: text("address"),
   address2: text("address2"),
   comments: text("comments"),
+  numAtCard: text("num_at_card"),
   salesPersonCode: integer("sales_person_code"),
   discountPercent: numeric("discount_percent", { precision: 5, scale: 2 }),
   attachmentEntry: integer("attachment_entry"),

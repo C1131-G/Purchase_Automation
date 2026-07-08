@@ -7,6 +7,7 @@ import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
+import { resolveCardName } from "@/services/master-data.service";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
@@ -71,13 +72,15 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
   const [h] = await db
     .insert(incomingPayments)
     .values({
       docNum: payload.docNum,
       docDate: payload.docDate,
       cardCode: payload.cardCode,
-      cardName: payload.cardName ?? null,
+      cardName,
       docCurrency: payload.docCurrency ?? null,
       docTotal: payload.docTotal != null ? String(payload.docTotal) : null,
       counterRef: payload.counterRef ?? null,
@@ -92,12 +95,17 @@ export const update = async (id: number, payload: any) => {
   const db = getDb();
   const [ex] = await db.select().from(incomingPayments).where(eq(incomingPayments.id, id)).limit(1);
   if (!ex) throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
+  const cardName = await resolveCardName(
+    payload.cardCode ?? ex.cardCode,
+    payload.cardName !== undefined ? payload.cardName : ex.cardName,
+  );
+
   await db
     .update(incomingPayments)
     .set({
       docDate: payload.docDate,
       cardCode: payload.cardCode,
-      cardName: payload.cardName,
+      cardName: cardName ?? undefined,
       counterRef: payload.counterRef ?? undefined,
       paymentMode: payload.paymentMode ?? undefined,
     })
