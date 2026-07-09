@@ -215,7 +215,7 @@ export const update = async (id: number, payload: any) => {
 };
 
 export const previewNextDocNum = async () => {
-  const previewNextDocNumHelper = (await import("./docnum-lookup.util")).previewNextDocNumHelper;
+  const { previewNextDocNum: previewNextDocNumHelper } = await import("@/core/utils/series");
   return previewNextDocNumHelper("goods_receipts", "goods_receipts", 80000);
 };
 

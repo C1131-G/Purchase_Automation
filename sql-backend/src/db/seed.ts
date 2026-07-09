@@ -581,7 +581,7 @@ async function runSeed() {
     const pqLinesToInsert: any[] = [];
     seededPQs.forEach((pq, index) => {
       const specs = pqLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         pqLinesToInsert.push({
           docEntry: pq.id,
           lineNum: lineIndex,
@@ -636,7 +636,7 @@ async function runSeed() {
     const poLinesToInsert: any[] = [];
     seededPOs.forEach((po, index) => {
       const specs = poLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         poLinesToInsert.push({
           docEntry: po.id,
           lineNum: lineIndex,
@@ -690,7 +690,7 @@ async function runSeed() {
     const grpoLinesToInsert: any[] = [];
     seededGRPOs.forEach((gr, index) => {
       const specs = grpoLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         grpoLinesToInsert.push({
           docEntry: gr.id,
           lineNum: lineIndex,
@@ -751,7 +751,7 @@ async function runSeed() {
     const apLinesToInsert: any[] = [];
     seededAPInvoices.forEach((ap, index) => {
       const specs = apInvoiceLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         apLinesToInsert.push({
           docEntry: ap.id,
           lineNum: lineIndex,
@@ -805,7 +805,7 @@ async function runSeed() {
     const apCMLinesToInsert: any[] = [];
     seededAPCMs.forEach((cm, index) => {
       const specs = apCMLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         apCMLinesToInsert.push({
           docEntry: cm.id,
           lineNum: lineIndex,
@@ -860,7 +860,7 @@ async function runSeed() {
     const sqLinesToInsert: any[] = [];
     seededSQs.forEach((sq, index) => {
       const specs = sqLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         sqLinesToInsert.push({
           docEntry: sq.id,
           lineNum: lineIndex,
@@ -913,7 +913,7 @@ async function runSeed() {
     const soLinesToInsert: any[] = [];
     seededSOs.forEach((so, index) => {
       const specs = soLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         soLinesToInsert.push({
           docEntry: so.id,
           lineNum: lineIndex,
@@ -971,7 +971,7 @@ async function runSeed() {
     const arLinesToInsert: any[] = [];
     seededARInvoices.forEach((ar, index) => {
       const specs = arInvoiceLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         arLinesToInsert.push({
           docEntry: ar.id,
           lineNum: lineIndex,
@@ -1024,7 +1024,7 @@ async function runSeed() {
     const arCMLinesToInsert: any[] = [];
     seededARCMs.forEach((cm, index) => {
       const specs = arCMLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         arCMLinesToInsert.push({
           docEntry: cm.id,
           lineNum: lineIndex,
@@ -1113,7 +1113,7 @@ async function runSeed() {
     const grLinesToInsert: any[] = [];
     seededGRs.forEach((gr, index) => {
       const specs = grLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         grLinesToInsert.push({
           docEntry: gr.id,
           lineNum: lineIndex,
@@ -1153,7 +1153,7 @@ async function runSeed() {
     const giLinesToInsert: any[] = [];
     seededGIs.forEach((gi, index) => {
       const specs = giLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         giLinesToInsert.push({
           docEntry: gi.id,
           lineNum: lineIndex,
@@ -1195,7 +1195,7 @@ async function runSeed() {
     const itLinesToInsert: any[] = [];
     seededITs.forEach((it, index) => {
       const specs = itLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         itLinesToInsert.push({
           docEntry: it.id,
           lineNum: lineIndex,
@@ -1237,7 +1237,7 @@ async function runSeed() {
     const itrLinesToInsert: any[] = [];
     seededITRs.forEach((itr, index) => {
       const specs = itrLinesSpec[index];
-      specs.forEach((spec, lineIndex) => {
+      specs.forEach((spec: any, lineIndex: number) => {
         itrLinesToInsert.push({
           docEntry: itr.id,
           lineNum: lineIndex,

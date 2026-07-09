@@ -8,6 +8,7 @@ import { salesOrderLines } from "@/db/schema/sales-order-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 import { resolveCardName } from "@/services/master-data.service";
 
@@ -253,6 +254,10 @@ export const cancel = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("sales_orders", "sales_orders", 30000);
+};
+
 export const salesOrderService = {
   cancel,
   create,
@@ -260,5 +265,6 @@ export const salesOrderService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };

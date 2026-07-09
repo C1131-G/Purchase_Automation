@@ -20,8 +20,15 @@ import { inventoryTransfers } from "@/db/schema/inventory-transfers";
 import { INVENTORY_MODULES } from "./dashboard.constants";
 import { fetchModuleDocuments } from "./dashboard.data";
 import { getPeriodWindow } from "./dashboard.period";
-import type { DashboardPeriod, DashboardPartnerGroup, ModuleDataset } from "./dashboard.types";
-import type { InventoryDataset, InventoryItemStats } from "./dashboard.types";
+import type {
+  DashboardPeriod,
+  DashboardPartnerGroup,
+  InventoryDataset,
+  InventoryItemStats,
+  ModuleDataset,
+} from "./dashboard.types";
+
+export type { InventoryDataset, InventoryItemStats } from "./dashboard.types";
 
 // ---------------------------------------------------------------------------
 // Item stats
@@ -177,7 +184,12 @@ export const loadInventoryDataset = async (period: DashboardPeriod): Promise<Inv
         getDb().select({ code: warehouses.code, name: warehouses.name }).from(warehouses),
       ]);
 
-      const whsMap = new Map(warehouseRows.map((w: any) => [w.code, w.name]));
+      const whsMap = new Map<string, string>(
+        warehouseRows.map((w: { code: string | null; name: string | null }) => [
+          String(w.code ?? ""),
+          String(w.name ?? ""),
+        ]),
+      );
       const warehouseGroups = await fetchWarehouseGroups(period, whsMap);
 
       const displayCurrency = await getDisplayCurrency();

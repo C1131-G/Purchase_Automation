@@ -6,6 +6,7 @@ import { incomingPayments } from "@/db/schema/incoming-payments";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 import { resolveCardName } from "@/services/master-data.service";
 
@@ -119,6 +120,11 @@ export const cancel = async (id: number) => {
   if (!ex) throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
   await db.delete(incomingPayments).where(eq(incomingPayments.id, id));
   logger.info({ id }, "Incoming payment cancelled (deleted)");
+  return { id };
+};
+
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("incoming_payments", "incoming_payments", 90000);
 };
 
 export const incomingPaymentService = {
@@ -128,5 +134,6 @@ export const incomingPaymentService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };

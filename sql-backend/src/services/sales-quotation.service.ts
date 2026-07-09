@@ -8,6 +8,7 @@ import { salesQuotationLines } from "@/db/schema/sales-quotation-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 import { resolveCardName } from "@/services/master-data.service";
 
@@ -267,6 +268,10 @@ export const cancel = async (id: number) => {
   return getById(id);
 };
 
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("sales_quotations", "sales_quotations", 40000);
+};
+
 export const salesQuotationService = {
   cancel,
   create,
@@ -274,5 +279,6 @@ export const salesQuotationService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };

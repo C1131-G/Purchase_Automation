@@ -227,9 +227,9 @@ export async function generateExcel(data: ExportDocumentData): Promise<Buffer> {
         cell.alignment = { vertical: "middle", horizontal: "right" };
       }
 
-      if (colIdx === 4) cell.numFormat = "#,##0";
-      if (colIdx === 5 || colIdx === 9) cell.numFormat = "#,##0.00";
-      if (colIdx === 6 || colIdx === 7) cell.numFormat = "0.0%";
+      if (colIdx === 4) cell.numFmt = "#,##0";
+      if (colIdx === 5 || colIdx === 9) cell.numFmt = "#,##0.00";
+      if (colIdx === 6 || colIdx === 7) cell.numFmt = "0.0%";
 
       // Zebra striping
       if (isAlternate) {
@@ -295,7 +295,7 @@ export async function generateExcel(data: ExportDocumentData): Promise<Buffer> {
     bold: true,
     color: { argb: "FF0F172A" },
   };
-  ws.getCell(totalsRowIdx, valCol).numFormat = "#,##0.00";
+  ws.getCell(totalsRowIdx, valCol).numFmt = "#,##0.00";
   totalsRowIdx++;
 
   // Discount
@@ -318,7 +318,7 @@ export async function generateExcel(data: ExportDocumentData): Promise<Buffer> {
       bold: true,
       color: { argb: "FFB91C1C" },
     };
-    ws.getCell(totalsRowIdx, valCol).numFormat = "-#,##0.00";
+    ws.getCell(totalsRowIdx, valCol).numFmt = "-#,##0.00";
     totalsRowIdx++;
   }
 
@@ -343,7 +343,7 @@ export async function generateExcel(data: ExportDocumentData): Promise<Buffer> {
     bold: true,
     color: { argb: "FF1E3A8A" },
   };
-  ws.getCell(totalsRowIdx, valCol).numFormat = `"${data.docCurr || ""} " #,##0.00`;
+  ws.getCell(totalsRowIdx, valCol).numFmt = `"${data.docCurr || ""} " #,##0.00`;
   ws.getCell(totalsRowIdx, valCol).border = {
     bottom: { style: "double", color: { argb: "FF1E3A8A" } }, // Double underline for accounting
   };

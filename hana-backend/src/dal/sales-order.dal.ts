@@ -67,7 +67,7 @@ export const getSalesOrder = async (req: Request, res: Response, next: NextFunct
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
-    const { draftDocEntry } = authReq.query;
+    const draftDocEntry = (req.query.draftDocEntry as string) || undefined;
 
     logger.info({ id, draftDocEntry, msg: "Fetching Sales Order detail" });
 
@@ -92,7 +92,7 @@ export const getSalesOrderByDocNum = async (req: Request, res: Response, next: N
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { docNum } = authReq.params;
-    const { draftDocEntry } = authReq.query;
+    const draftDocEntry = (req.query.draftDocEntry as string) || undefined;
 
     logger.info({ docNum, draftDocEntry, msg: "Fetching Sales Order detail by DocNum" });
 
@@ -100,7 +100,7 @@ export const getSalesOrderByDocNum = async (req: Request, res: Response, next: N
       sessionId,
       dbName,
       docNum as string,
-      draftDocEntry as string,
+      draftDocEntry,
     );
     if (!data) {
       return res.status(404).json({ message: "Sales Order not found", success: false });

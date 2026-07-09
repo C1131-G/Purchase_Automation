@@ -207,7 +207,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string, isDraft = 
     const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
-    let attachments = [];
+    let attachments: import("./attachments.service").FileMetadata[] = [];
     if (attachmentEntry) {
       attachments = await attachmentsService.getSAPAttachment(sessionId, attachmentEntry, dbName);
     }
@@ -550,8 +550,9 @@ export const createPurchaseOrder = async (
     });
 
     // Invalidate the procurement dashboard metrics for this tenant.
-    const resolvedDbNameFromRes =
-      result.CompanyDB || result.DBName || session?.companyDB || resolvedDbName;
+    const resolvedDbNameFromRes = String(
+      result.CompanyDB || result.DBName || session?.companyDB || resolvedDbName || "",
+    );
     if (resolvedDbNameFromRes) {
       purgeCache(`dash:purchase:${resolvedDbNameFromRes}:`);
       if (result?.DocEntry && absoluteEntry !== null) {

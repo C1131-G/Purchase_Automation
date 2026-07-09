@@ -164,7 +164,7 @@ export const getWarehouseBins = async (req: Request, res: Response, next: NextFu
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { dbName } = authReq.user;
-    const warehouseCode = req.params.code;
+    const warehouseCode = String(req.params.code);
     logger.info({ dbName, msg: "Fetching warehouse bins from OBIN", warehouseCode });
     const data = await masterDataService.getWarehouseBins(dbName, warehouseCode);
     res.status(200).json({ data, success: true });
@@ -178,12 +178,10 @@ export const getBranches = async (req: Request, res: Response, next: NextFunctio
   try {
     const { sessionId } = authReq.user;
     const { serviceLayerClient } = await import("@/services/service-layer.service");
-    const result = await serviceLayerClient.request(
-      sessionId,
-      "GET",
-      "/DistributionRules?$select=FactorCode,FactorDescription",
-    );
-    const data = result.value.map((r: any) => ({ Code: r.FactorCode, Name: r.FactorDescription }));
+    const result = await serviceLayerClient.request<{
+      value: Array<{ FactorCode: string; FactorDescription: string }>;
+    }>(sessionId, "GET", "/DistributionRules?$select=FactorCode,FactorDescription");
+    const data = result.value.map((r) => ({ Code: r.FactorCode, Name: r.FactorDescription }));
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);

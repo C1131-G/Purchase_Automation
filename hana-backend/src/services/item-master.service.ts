@@ -64,8 +64,8 @@ export const getItems = async (dbName: string, filters: ItemMasterQuery) => {
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
     const sort = requestedSortField
-      ? { [requestedSortField]: requestedSortOrder }
-      : { "item.ItemCode": "ASC" };
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "item.ItemCode": "ASC" } as Record<string, "ASC" | "DESC">);
 
     const result = await PageService.getPagedData<Item>({
       dbName,

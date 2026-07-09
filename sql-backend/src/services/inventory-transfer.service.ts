@@ -91,10 +91,11 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const docNum = payload.docNum;
   const [h] = await db
     .insert(inventoryTransfers)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       docStatus: "O",
       comments: payload.comments ?? null,

@@ -34,7 +34,7 @@ describe("Master Data - Business Partner Lookups", () => {
     const db = getDb();
 
     // Mock select chain
-    vi.mocked(db.select).mockImplementation((_selectFields: any) => {
+    vi.mocked(db.select).mockImplementation(((_selectFields: any) => {
       return {
         from: vi.fn().mockImplementation((table: any) => {
           return {
@@ -92,7 +92,7 @@ describe("Master Data - Business Partner Lookups", () => {
           };
         }),
       };
-    });
+    }) as any);
 
     const result = await getVendors();
 
@@ -121,7 +121,7 @@ describe("Master Data - Business Partner Lookups", () => {
   it("should fall back to the first valid address of appropriate type if default address is missing", async () => {
     const db = getDb();
 
-    vi.mocked(db.select).mockImplementation((_selectFields: any) => {
+    vi.mocked(db.select).mockImplementation(((_selectFields: any) => {
       return {
         from: vi.fn().mockImplementation((table: any) => {
           return {
@@ -168,7 +168,7 @@ describe("Master Data - Business Partner Lookups", () => {
           };
         }),
       };
-    });
+    }) as any);
 
     const result = await getCustomers();
 
@@ -188,7 +188,7 @@ describe("Master Data - Business Partner Lookups", () => {
     it("should retrieve and align products with default tax codes, resolved UOM fields, and aggregate stock when no warehouse filter is supplied", async () => {
       const db = getDb();
 
-      vi.mocked(db.select).mockImplementation((_selectFields: any) => {
+      vi.mocked(db.select).mockImplementation(((_selectFields: any) => {
         const chain = (table: any) => {
           const mockWhere = () => {
             let data: any[] = [];
@@ -239,7 +239,7 @@ describe("Master Data - Business Partner Lookups", () => {
             return chain(table);
           },
         };
-      });
+      }) as any);
 
       const result = await getProducts({ priceList: 1 });
 
@@ -269,7 +269,7 @@ describe("Master Data - Business Partner Lookups", () => {
     it("should return warehouse-specific stock and purchase tax codes in a purchase flow", async () => {
       const db = getDb();
 
-      vi.mocked(db.select).mockImplementation((_selectFields: any) => {
+      vi.mocked(db.select).mockImplementation(((_selectFields: any) => {
         const chain = (table: any) => {
           const mockWhere = () => {
             let data: any[] = [];
@@ -317,7 +317,7 @@ describe("Master Data - Business Partner Lookups", () => {
             return chain(table);
           },
         };
-      });
+      }) as any);
 
       const result = await getProducts({
         type: "purchase",

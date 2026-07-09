@@ -73,8 +73,8 @@ export const getGoodsIssues = async (dbName: string, filters: GoodsIssueQuery) =
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
     const sort = requestedSortField
-      ? { [requestedSortField]: requestedSortOrder }
-      : { "gi.docDate": "DESC", "gi.docNum": "DESC" };
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "gi.docDate": "DESC", "gi.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     const {
       data: pagedData,
@@ -182,7 +182,7 @@ export const getGoodsIssueByDocNum = async (
         Dscription: l.dscription,
         Quantity: Number(l.quantity || 0),
         Price: Number(l.price || 0),
-        LineTotal: Number(l.lineTotal || 0),
+        LineTotal: Number((l as { lineTotal?: number }).lineTotal || 0),
         WhsCode: l.whsCode,
         AcctCode: l.acctCode,
         CostingCode: l.ocrCode,

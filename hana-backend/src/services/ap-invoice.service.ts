@@ -12,7 +12,7 @@ import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.
 
 import { resolveBaseLineQuantities } from "./base-qty-validation.util";
 import { reconcilePOAfterCopyTo } from "./po-reconcile.util";
-import { attachmentsService } from "./attachments.service";
+import { attachmentsService, type FileMetadata } from "./attachments.service";
 
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
@@ -240,7 +240,7 @@ export const getInvoice = async (
     const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbNameResolved = session?.companyDB || "";
-    let attachments = [];
+    let attachments: FileMetadata[] = [];
     if (attachmentEntry) {
       attachments = await attachmentsService.getSAPAttachment(
         sessionId,

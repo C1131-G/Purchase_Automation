@@ -80,8 +80,8 @@ export const getGoodsReceipts = async (dbName: string, filters: GoodsReceiptQuer
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
     const sort = requestedSortField
-      ? { [requestedSortField]: requestedSortOrder }
-      : { "gr.docDate": "DESC", "gr.docNum": "DESC" };
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "gr.docDate": "DESC", "gr.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     const result = await PageService.getPagedData<GoodsReceipt>({
       dbName,
@@ -225,6 +225,7 @@ export const getGoodsReceiptDocNums = async (dbName: string, search?: string, li
 
 export const createGoodsReceipt = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
     let absoluteEntry: number | null = null;

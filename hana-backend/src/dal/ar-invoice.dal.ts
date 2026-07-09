@@ -64,7 +64,7 @@ export const getInvoice = async (req: Request, res: Response, next: NextFunction
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
-    const { draftDocEntry } = authReq.query;
+    const draftDocEntry = (req.query.draftDocEntry as string) || undefined;
 
     logger.info({ id, draftDocEntry, msg: "Fetching A/R Invoice detail" });
 

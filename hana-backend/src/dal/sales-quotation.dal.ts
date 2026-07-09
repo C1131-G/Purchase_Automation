@@ -91,7 +91,7 @@ export const getSalesQuotationByDocNum = async (
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { docNum } = authReq.params;
-    const { draftDocEntry } = authReq.query;
+    const draftDocEntry = (req.query.draftDocEntry as string) || undefined;
 
     logger.info({ docNum, draftDocEntry, msg: "Fetching Sales Quotation detail by DocNum" });
 
@@ -99,7 +99,7 @@ export const getSalesQuotationByDocNum = async (
       sessionId,
       dbName,
       docNum as string,
-      draftDocEntry ? String(draftDocEntry) : undefined,
+      draftDocEntry,
     );
     if (!data) {
       return res.status(404).json({ message: "Sales Quotation not found", success: false });
