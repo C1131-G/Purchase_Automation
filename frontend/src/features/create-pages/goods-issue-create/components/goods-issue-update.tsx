@@ -321,6 +321,10 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
                             Comments: remarks,
                             JrnlMemo: journalRemark,
                             Ref2: ref2,
+                            DocumentLines: rows.map((r, i) => ({
+                              LineNum: r.id.startsWith("line-") ? i : Number(r.id),
+                              U_INVADJMTRES: r.inventoryAdjustmentReason || null,
+                            })),
                             ...(attachments.length > 0 ? { Attachments: attachments } : {}),
                           },
                         },

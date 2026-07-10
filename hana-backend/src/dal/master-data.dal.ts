@@ -138,7 +138,7 @@ export const getWarehouses = async (req: Request, res: Response, next: NextFunct
 export const getPriceLists = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
-    const { dbName, sessionId } = authReq.user;
+    const { dbName } = authReq.user;
     logger.info({ dbName, msg: "Fetching price lists via Service Layer" });
     const data = await masterDataService.getPriceLists(dbName);
     res.status(200).json({ data, success: true });

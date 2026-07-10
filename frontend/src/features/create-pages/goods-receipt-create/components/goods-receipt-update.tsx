@@ -49,6 +49,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
   const seriesQuery = useQuery(createSharedQueries.series("60")); // using Goods Issue series as requested
   const priceListsQuery = useQuery(createSharedQueries.priceLists());
   const branchesQuery = useQuery(createSharedQueries.branches());
+  const reasonsQuery = useQuery(createSharedQueries.inventoryAdjustmentReasons("receipt"));
 
   const grData = grDetail?.data;
 
@@ -75,7 +76,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
           total: (qty * price).toFixed(2),
           binLocationAllocation: binAlloc,
           accountCode: line.AcctCode || line.AccountCode || "",
-          inventoryAdjustmentReason: line.U_INVADJMTRES || "",
+          inventoryAdjustmentReason: line.InventoryAdjustmentReason || line.U_INVADJMTRES || "",
         };
       });
       setRows(mappedRows);
@@ -172,6 +173,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
             warehouses={warehousesQuery.data ?? []}
             warehousesLoading={warehousesQuery.isLoading}
             uoms={uomsQuery.data ?? []}
+            reasons={reasonsQuery.data ?? []}
             priceListCode={undefined}
           />
         </div>
@@ -296,6 +298,10 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                             Comments: remarks,
                             JrnlMemo: journalRemark,
                             Ref2: ref2,
+                            DocumentLines: rows.map((r, i) => ({
+                              LineNum: r.id.startsWith("line-") ? i : Number(r.id),
+                              U_INVADJMTRES: r.inventoryAdjustmentReason || null,
+                            })),
                             ...(attachments.length > 0 ? { Attachments: attachments } : {}),
                           },
                         },

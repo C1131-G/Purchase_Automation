@@ -194,6 +194,7 @@ export const getGoodsIssueByDocNum = async (
         BaseEntry: l.baseEntry,
         BaseLine: l.baseLine,
         InventoryAdjustmentReason: slLine?.U_INVADJMTRES || "",
+        U_INVADJMTRES: slLine?.U_INVADJMTRES || "",
         DocumentLinesBinAllocations: lineBinAllocations.map((ba: any) => ({
           BinAbsEntry: ba.BinAbsEntry,
           Quantity: ba.Quantity,
@@ -277,22 +278,20 @@ export const createGoodsIssue = async (sessionId: string, payload: Record<string
         ? { PriceList: Number(payload.PriceList) }
         : {}),
       AttachmentEntry: absoluteEntry ?? undefined,
-      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map(
-        (line, index) => {
-          const l: Record<string, unknown> = {
-            ItemCode: line.ItemCode,
-            Quantity: Number(line.Quantity) || 1,
-            UnitPrice: Number(line.UnitPrice) || 0,
-          };
-          if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
-          if (line.UoMCode) l.UoMCode = line.UoMCode;
-          if (line.AccountCode) l.AccountCode = line.AccountCode;
-          if (line.CostingCode) l.CostingCode = line.CostingCode; // This is the "Branch"
-          if (line.InventoryAdjustmentReason) l.U_INVADJMTRES = line.InventoryAdjustmentReason;
+      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map((line) => {
+        const l: Record<string, unknown> = {
+          ItemCode: line.ItemCode,
+          Quantity: Number(line.Quantity) || 1,
+          UnitPrice: Number(line.UnitPrice) || 0,
+        };
+        if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
+        if (line.UoMCode) l.UoMCode = line.UoMCode;
+        if (line.AccountCode) l.AccountCode = line.AccountCode;
+        if (line.CostingCode) l.CostingCode = line.CostingCode; // This is the "Branch"
+        if (line.InventoryAdjustmentReason) l.U_INVADJMTRES = line.InventoryAdjustmentReason;
 
-          return l;
-        },
-      ),
+        return l;
+      }),
     };
 
     const result = (await serviceLayerClient.request(
@@ -341,6 +340,7 @@ export const updateGoodsIssue = async (
     if (payload.Comments !== undefined) sapPayload.Comments = payload.Comments;
     if (payload.JrnlMemo !== undefined) sapPayload.JrnlMemo = payload.JrnlMemo;
     if (payload.Ref2 !== undefined) sapPayload.Reference2 = payload.Ref2;
+    if (payload.DocumentLines !== undefined) sapPayload.DocumentLines = payload.DocumentLines;
 
     const { serviceLayerClient } = await import("@/services/service-layer.service");
 

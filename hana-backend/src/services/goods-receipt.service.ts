@@ -1,5 +1,4 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
-import { serviceLayerClient } from "@/services/service-layer.service";
 import { getDisplayCurrency } from "@/services/currency.util";
 import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
 import { GoodsReceiptLineSchema } from "@/db/schemas/goods-receipt-line.schema";
@@ -190,6 +189,8 @@ export const getGoodsReceiptByDocNum = async (
         BaseEntry: l.baseEntry,
         BaseLine: l.baseLine,
         CostingCode: slLine?.CostingCode || slLine?.OcrCode || "",
+        InventoryAdjustmentReason: slLine?.U_INVADJMTRES || "",
+        U_INVADJMTRES: slLine?.U_INVADJMTRES || "",
         DocumentLinesBinAllocations: slLine?.DocumentLinesBinAllocations || [],
       };
     }),
@@ -269,21 +270,19 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
         ? { PriceList: Number(payload.PriceList) }
         : {}),
       AttachmentEntry: absoluteEntry ?? undefined,
-      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map(
-        (line, index) => {
-          const l: Record<string, unknown> = {
-            ItemCode: line.ItemCode,
-            Quantity: Number(line.Quantity) || 1,
-            UnitPrice: Number(line.UnitPrice) || 0,
-          };
-          if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
-          if (line.UoMCode) l.UoMCode = line.UoMCode;
-          if (line.AccountCode) l.AccountCode = line.AccountCode;
-          if (line.CostingCode) l.CostingCode = line.CostingCode; // Maps the selected Branch (Distribution Rule)
-          if (line.InventoryAdjustmentReason) l.U_INVADJMTRES = line.InventoryAdjustmentReason;
-          return l;
-        },
-      ),
+      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map((line) => {
+        const l: Record<string, unknown> = {
+          ItemCode: line.ItemCode,
+          Quantity: Number(line.Quantity) || 1,
+          UnitPrice: Number(line.UnitPrice) || 0,
+        };
+        if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
+        if (line.UoMCode) l.UoMCode = line.UoMCode;
+        if (line.AccountCode) l.AccountCode = line.AccountCode;
+        if (line.CostingCode) l.CostingCode = line.CostingCode; // Maps the selected Branch (Distribution Rule)
+        if (line.InventoryAdjustmentReason) l.U_INVADJMTRES = line.InventoryAdjustmentReason;
+        return l;
+      }),
     };
 
     const result = (await serviceLayerClient.request(
@@ -333,6 +332,7 @@ export const updateGoodsReceipt = async (
     if (payload.Comments !== undefined) sapPayload.Comments = payload.Comments;
     if (payload.JrnlMemo !== undefined) sapPayload.JrnlMemo = payload.JrnlMemo;
     if (payload.Ref2 !== undefined) sapPayload.Reference2 = payload.Ref2;
+    if (payload.DocumentLines !== undefined) sapPayload.DocumentLines = payload.DocumentLines;
 
     const { serviceLayerClient } = await import("@/services/service-layer.service");
 
