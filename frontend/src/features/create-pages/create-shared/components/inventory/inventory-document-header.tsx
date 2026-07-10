@@ -85,8 +85,10 @@ export function InventoryDocumentHeader({
                 ))
               ) : (
                 <>
-                <option value="" disabled>No Series Available</option>
-              </>
+                  <option value="" disabled>
+                    No Series Available
+                  </option>
+                </>
               )}
             </select>
           </div>
@@ -113,7 +115,9 @@ export function InventoryDocumentHeader({
               ))
             ) : (
               <>
-                <option value="" disabled>No Price Lists Available</option>
+                <option value="" disabled>
+                  No Price Lists Available
+                </option>
               </>
             )}
           </select>

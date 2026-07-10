@@ -1060,7 +1060,7 @@ export const getWarehouseBranch = async (dbName: string, warehouseCode: string) 
       try {
         const rows = (await executeTenantQuery(
           dbName,
-          `SELECT "BPLid" FROM OWHS WHERE "WhsCode" = '${warehouseCode}'`
+          `SELECT "BPLid" FROM OWHS WHERE "WhsCode" = '${warehouseCode}'`,
         )) as Array<{ BPLid: unknown }>;
 
         if (rows && rows.length > 0 && rows[0].BPLid !== null && rows[0].BPLid !== undefined) {
@@ -1068,11 +1068,16 @@ export const getWarehouseBranch = async (dbName: string, warehouseCode: string) 
         }
         return null;
       } catch (err) {
-        logger.warn({ db: dbName, err, msg: "Failed to fetch warehouse branch from OWHS", warehouseCode });
+        logger.warn({
+          db: dbName,
+          err,
+          msg: "Failed to fetch warehouse branch from OWHS",
+          warehouseCode,
+        });
         return null;
       }
     },
-    1000 * 60 * 60 // 1 hour cache
+    1000 * 60 * 60, // 1 hour cache
   );
 };
 
@@ -1084,7 +1089,7 @@ export const getDefaultBranch = async (dbName: string) => {
       try {
         const rows = (await executeTenantQuery(
           dbName,
-          `SELECT TOP 1 "BPLId" FROM OBPL WHERE "Disabled" = 'N' ORDER BY "BPLId" ASC`
+          `SELECT TOP 1 "BPLId" FROM OBPL WHERE "Disabled" = 'N' ORDER BY "BPLId" ASC`,
         )) as Array<{ BPLId: unknown }>;
 
         if (rows && rows.length > 0) {
@@ -1096,36 +1101,39 @@ export const getDefaultBranch = async (dbName: string) => {
         return null;
       }
     },
-    1000 * 60 * 60 // 1 hour cache
+    1000 * 60 * 60, // 1 hour cache
   );
 };
 
-export const getInventoryAdjustmentReasons = async (dbName: string, type: "receipt" | "issue" = "receipt") => {
+export const getInventoryAdjustmentReasons = async (
+  dbName: string,
+  type: "receipt" | "issue" = "receipt",
+) => {
   const tableId = type === "issue" ? "IGE1" : "IGN1";
   const cacheKey = `master:${dbName}:InventoryAdjustmentReasons:${type}`;
-  
+
   return getCachedData(
     cacheKey,
     async () => {
       try {
         const rows = (await executeTenantQuery(
           dbName,
-          `SELECT "FldValue", "Descr" FROM "UFD1" WHERE "TableID"='${tableId}' AND "FieldID" IN (SELECT "FieldID" FROM "CUFD" WHERE "TableID"='${tableId}' AND "AliasID"='INVADJMTRES')`
+          `SELECT "FldValue", "Descr" FROM "UFD1" WHERE "TableID"='${tableId}' AND "FieldID" IN (SELECT "FieldID" FROM "CUFD" WHERE "TableID"='${tableId}' AND "AliasID"='INVADJMTRES')`,
         )) as Array<{
           FldValue: string;
           Descr: string;
         }>;
-        
-        return rows.map(row => ({
+
+        return rows.map((row) => ({
           code: row.FldValue,
-          name: row.Descr
+          name: row.Descr,
         }));
       } catch (err) {
         logger.error({ db: dbName, err }, "Failed to fetch inventory adjustment reasons");
         return [];
       }
     },
-    1000 * 60 * 60 // 1 hour cache
+    1000 * 60 * 60, // 1 hour cache
   );
 };
 

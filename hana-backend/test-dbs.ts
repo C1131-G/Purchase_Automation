@@ -1,8 +1,8 @@
-import axios from 'axios';
+import axios from "axios";
 
 async function testApi() {
   try {
-    const res = await axios.get('http://localhost:4000/api/v1/organization/databases');
+    const res = await axios.get("http://localhost:4000/api/v1/organization/databases");
     console.log("Databases:", res.data);
   } catch (err: any) {
     console.error("Error:");

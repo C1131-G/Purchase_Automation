@@ -135,8 +135,7 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
     );
   }
 
-  const branchName =
-    branchesQuery.data?.find((b) => b.code === branch)?.name || branch || "N/A";
+  const branchName = branchesQuery.data?.find((b) => b.code === branch)?.name || branch || "N/A";
 
   return (
     <CreatePageWrapper

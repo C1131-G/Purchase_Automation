@@ -316,7 +316,9 @@ export function GoodsIssueCreate() {
         ...(r.uomCode ? { UoMCode: r.uomCode } : {}),
         ...(r.accountCode ? { AccountCode: r.accountCode } : {}),
         ...(branch ? { CostingCode: branch } : {}),
-        ...(r.inventoryAdjustmentReason ? { InventoryAdjustmentReason: r.inventoryAdjustmentReason } : {}),
+        ...(r.inventoryAdjustmentReason
+          ? { InventoryAdjustmentReason: r.inventoryAdjustmentReason }
+          : {}),
         ...(r.binLocationAllocation
           ? {
               DocumentLinesBinAllocations: [
@@ -547,8 +549,6 @@ export function GoodsIssueCreate() {
             selectedProductRowId="__document_search__"
           />
         )}
-
-
 
         {/* Attachments Section Card */}
         <div className="mt-3">

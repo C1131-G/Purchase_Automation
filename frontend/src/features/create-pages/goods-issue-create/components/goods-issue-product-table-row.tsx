@@ -406,7 +406,6 @@ export function GoodsIssueProductTableRow({
         />
       </td>
 
-
       {/* Bin Location */}
       <td className="relative px-2 py-2 min-w-0">
         {enableBinLocations ? (

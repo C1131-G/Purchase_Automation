@@ -11,11 +11,17 @@ const dataSource = new DataSource({
 
 async function run() {
   await dataSource.initialize();
-  const res1 = await dataSource.query(`SELECT COLUMN_NAME FROM SYS.COLUMNS WHERE TABLE_NAME = 'OIGN' AND COLUMN_NAME LIKE '%Reas%'`);
+  const res1 = await dataSource.query(
+    `SELECT COLUMN_NAME FROM SYS.COLUMNS WHERE TABLE_NAME = 'OIGN' AND COLUMN_NAME LIKE '%Reas%'`,
+  );
   console.log("OIGN:", res1);
-  const res2 = await dataSource.query(`SELECT COLUMN_NAME FROM SYS.COLUMNS WHERE TABLE_NAME = 'IGN1' AND COLUMN_NAME LIKE '%Reas%'`);
+  const res2 = await dataSource.query(
+    `SELECT COLUMN_NAME FROM SYS.COLUMNS WHERE TABLE_NAME = 'IGN1' AND COLUMN_NAME LIKE '%Reas%'`,
+  );
   console.log("IGN1:", res2);
-  const res3 = await dataSource.query(`SELECT COLUMN_NAME FROM SYS.COLUMNS WHERE TABLE_NAME = 'OIGN' AND COLUMN_NAME LIKE '%Adj%'`);
+  const res3 = await dataSource.query(
+    `SELECT COLUMN_NAME FROM SYS.COLUMNS WHERE TABLE_NAME = 'OIGN' AND COLUMN_NAME LIKE '%Adj%'`,
+  );
   console.log("OIGN Adj:", res3);
   await dataSource.destroy();
 }

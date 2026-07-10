@@ -79,8 +79,9 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
         };
       });
       setRows(mappedRows);
-      
-      const lineBranch = grData.DocumentLines?.[0]?.CostingCode || grData.DocumentLines?.[0]?.OcrCode || "";
+
+      const lineBranch =
+        grData.DocumentLines?.[0]?.CostingCode || grData.DocumentLines?.[0]?.OcrCode || "";
       setBranch(lineBranch);
 
       if (grData.Attachments) {
@@ -110,8 +111,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
     );
   }
 
-  const branchName =
-    branchesQuery.data?.find((b) => b.code === branch)?.name || branch || "N/A";
+  const branchName = branchesQuery.data?.find((b) => b.code === branch)?.name || branch || "N/A";
 
   return (
     <CreatePageWrapper

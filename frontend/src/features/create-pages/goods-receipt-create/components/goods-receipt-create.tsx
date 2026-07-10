@@ -155,7 +155,7 @@ export function GoodsReceiptCreate() {
   const seriesQuery = useQuery(createSharedQueries.series("59")); // 59 is Goods Receipt
   const branchesQuery = useQuery(createSharedQueries.branches());
   const reasonsQuery = useQuery(createSharedQueries.inventoryAdjustmentReasons());
-  
+
   const warehouses = warehousesQuery.data ?? [];
   const priceLists = priceListsQuery.data ?? [];
   const seriesOptions = seriesQuery.data ?? [];
@@ -292,7 +292,6 @@ export function GoodsReceiptCreate() {
     setProductPopupOpen(false);
   };
 
-
   const handleAdd = (mode: "save-new" | "view" | "close" | "draft" = "save-new") => {
     if (rows.length === 0) {
       goeyToast.error("Please add at least one line item.");
@@ -320,7 +319,9 @@ export function GoodsReceiptCreate() {
         ...(r.uomCode ? { UoMCode: r.uomCode } : {}),
         ...(r.accountCode ? { AccountCode: r.accountCode } : {}),
         ...(branch ? { CostingCode: branch } : {}),
-        ...(r.inventoryAdjustmentReason ? { InventoryAdjustmentReason: r.inventoryAdjustmentReason } : {}),
+        ...(r.inventoryAdjustmentReason
+          ? { InventoryAdjustmentReason: r.inventoryAdjustmentReason }
+          : {}),
         ...(r.manSerNum === "Y" && r.serialNumbers && r.serialNumbers.length > 0
           ? { SerialNumbers: r.serialNumbers.map((sn) => ({ InternalSerialNumber: sn })) }
           : {}),
@@ -329,7 +330,6 @@ export function GoodsReceiptCreate() {
           : {}),
       })),
     };
-
 
     createMutation.mutate(payload, {
       onSuccess: (data) => {
@@ -556,8 +556,6 @@ export function GoodsReceiptCreate() {
             selectedProductRowId="__document_search__"
           />
         )}
-
-
 
         {/* Attachments Section Card */}
         <div className="mt-3">
