@@ -11,6 +11,16 @@ export interface InventoryBaseRow {
   quantity: number;
   binLocationAllocation: number;
   accountCode: string;
+  /** 'Y' if item is serial-managed, 'N' otherwise */
+  manSerNum?: string;
+  /** 'Y' if item is batch-managed, 'N' otherwise */
+  manBtchNum?: string;
+  /** Serial numbers entered for this line (serial-managed items) */
+  serialNumbers?: string[];
+  /** Batch number entered for this line (batch-managed items) */
+  batchNumber?: string;
+  /** Inventory Adjustment Reason UDF code (U_INVADJMTRES) */
+  inventoryAdjustmentReason?: string;
 }
 
 export interface AttachmentItem {

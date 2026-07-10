@@ -11,6 +11,7 @@ interface GoodsIssueProductTableProps {
   warehousesLoading: boolean;
   disableLineInputs?: boolean;
   uoms?: CreateLookupOption[];
+  reasons?: CreateLookupOption[];
   priceListCode?: string | undefined;
 }
 
@@ -23,6 +24,7 @@ export function GoodsIssueProductTable({
   warehousesLoading,
   disableLineInputs = false,
   uoms = [],
+  reasons = [],
   priceListCode,
 }: GoodsIssueProductTableProps) {
   const updateProductRow = (id: string, patch: Partial<GoodsIssueRow>) => {
@@ -35,7 +37,7 @@ export function GoodsIssueProductTable({
 
   return (
     <div style={{ overflowX: "auto", overflowY: "visible" }}>
-      <table className="w-full text-left text-sm text-zinc-700 min-w-[1400px]">
+      <table className="w-full text-left text-sm text-zinc-700 min-w-[1200px]">
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
             <th className="w-[12%] px-2 py-2">Item No.</th>
@@ -47,6 +49,7 @@ export function GoodsIssueProductTable({
             <th className="w-[8%] px-2 py-2">UoM Code</th>
             <th className="w-[8%] px-2 py-2">UoM Name</th>
             <th className="w-[10%] px-2 py-2">G/L Account</th>
+            <th className="w-[13%] px-2 py-2">Inventory Adjustment Reason</th>
             <th className="w-[5%] px-2 py-2 text-right">Actions</th>
           </tr>
         </thead>
@@ -76,6 +79,7 @@ export function GoodsIssueProductTable({
               warehousesLoading={warehousesLoading}
               disableInputs={disableLineInputs}
               uoms={uoms}
+              reasons={reasons}
               priceListCode={priceListCode}
             />
           ))}

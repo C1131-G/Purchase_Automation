@@ -11,10 +11,12 @@ import {
   CheckSquare,
   FileText,
   ChevronDown,
+  Search,
 } from "lucide-react";
 
 import { Button } from "@/components/button";
 import { Popover } from "@/components/popover";
+import { LookupPopup } from "@/components/lookup/lookup-popup";
 
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/components/inventory/inventory-document-header";
@@ -50,7 +52,10 @@ interface CreateGoodsReceiptPayload {
     WarehouseCode?: string;
     UoMCode?: string;
     AccountCode?: string;
-    BinLocationAllocation?: number;
+    CostingCode?: string;
+    SerialNumbers?: { InternalSerialNumber: string }[];
+    BatchNumbers?: { BatchNumber: string; Quantity: number }[];
+    InventoryAdjustmentReason?: string;
   }[];
 }
 
@@ -132,6 +137,11 @@ export function GoodsReceiptCreate() {
   ]);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
+  // Branch state
+  const [branch, setBranch] = useState("");
+  const [branchLookupOpen, setBranchLookupOpen] = useState(false);
+  const [branchSearch, setBranchSearch] = useState("");
+
   // Product popup state
   const [productPopupOpen, setProductPopupOpen] = useState(false);
   // activeProductRowId: null means "opened from document level" → multi-select mode
@@ -142,11 +152,15 @@ export function GoodsReceiptCreate() {
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const uomsQuery = useQuery(createSharedQueries.uoms());
   const priceListsQuery = useQuery(createSharedQueries.priceLists());
-  const seriesQuery = useQuery(createSharedQueries.series("59")); // 59 is typically Goods Receipt
-
+  const seriesQuery = useQuery(createSharedQueries.series("59")); // 59 is Goods Receipt
+  const branchesQuery = useQuery(createSharedQueries.branches());
+  const reasonsQuery = useQuery(createSharedQueries.inventoryAdjustmentReasons());
+  
   const warehouses = warehousesQuery.data ?? [];
   const priceLists = priceListsQuery.data ?? [];
   const seriesOptions = seriesQuery.data ?? [];
+  const branches = branchesQuery.data ?? [];
+  const reasons = reasonsQuery.data ?? [];
 
   const resolvedSeries = series || (seriesOptions.length > 0 ? seriesOptions[0]!.code : "");
 
@@ -249,6 +263,8 @@ export function GoodsReceiptCreate() {
     uomCode?: string;
     uomName?: string;
     price?: number;
+    manSerNum?: string;
+    manBtchNum?: string;
   }) => {
     if (activeProductRowId !== null) {
       setRows((prev) =>
@@ -265,12 +281,17 @@ export function GoodsReceiptCreate() {
             uomName: product.uomName ?? r.uomName,
             unitPrice: String(price),
             total: total.toFixed(2),
+            manSerNum: product.manSerNum ?? "N",
+            manBtchNum: product.manBtchNum ?? "N",
+            serialNumbers: [],
+            batchNumber: "",
           };
         }),
       );
     }
     setProductPopupOpen(false);
   };
+
 
   const handleAdd = (mode: "save-new" | "view" | "close" | "draft" = "save-new") => {
     if (rows.length === 0) {
@@ -298,18 +319,17 @@ export function GoodsReceiptCreate() {
         ...(r.whse ? { WarehouseCode: r.whse } : {}),
         ...(r.uomCode ? { UoMCode: r.uomCode } : {}),
         ...(r.accountCode ? { AccountCode: r.accountCode } : {}),
-        ...(r.binLocationAllocation
-          ? {
-              DocumentLinesBinAllocations: [
-                {
-                  BinAbsEntry: r.binLocationAllocation,
-                  Quantity: Number(r.quantity) || 1,
-                },
-              ],
-            }
+        ...(branch ? { CostingCode: branch } : {}),
+        ...(r.inventoryAdjustmentReason ? { InventoryAdjustmentReason: r.inventoryAdjustmentReason } : {}),
+        ...(r.manSerNum === "Y" && r.serialNumbers && r.serialNumbers.length > 0
+          ? { SerialNumbers: r.serialNumbers.map((sn) => ({ InternalSerialNumber: sn })) }
+          : {}),
+        ...(r.manBtchNum === "Y" && r.batchNumber
+          ? { BatchNumbers: [{ BatchNumber: r.batchNumber, Quantity: Number(r.quantity) || 1 }] }
           : {}),
       })),
     };
+
 
     createMutation.mutate(payload, {
       onSuccess: (data) => {
@@ -375,7 +395,51 @@ export function GoodsReceiptCreate() {
           onDocumentDateChange={setDocumentDate}
           onRef2Change={setRef2}
           idPrefix={ID_PREFIX}
-        />
+        >
+          <div>
+            <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+              Branch
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={branch}
+                readOnly
+                onClick={() => setBranchLookupOpen(true)}
+                className="h-10 w-full cursor-pointer rounded-xl border border-zinc-200 bg-zinc-50 pl-3 pr-8 text-sm text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                placeholder="Select Branch"
+              />
+              <button
+                type="button"
+                onClick={() => setBranchLookupOpen(true)}
+                className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            </div>
+            <LookupPopup
+              open={branchLookupOpen}
+              search={branchSearch}
+              results={branches.filter(
+                (b) =>
+                  b.code.toLowerCase().includes(branchSearch.toLowerCase()) ||
+                  b.name.toLowerCase().includes(branchSearch.toLowerCase()),
+              )}
+              loading={branchesQuery.isLoading}
+              error={branchesQuery.isError ? "Error loading branches" : null}
+              title="Select Branch"
+              searchPlaceholder="Search branch code or name..."
+              codeLabel="Code"
+              nameLabel="Name"
+              onSearchChange={setBranchSearch}
+              onClose={() => setBranchLookupOpen(false)}
+              onSelect={(item) => {
+                setBranch(item.code);
+                setBranchLookupOpen(false);
+              }}
+            />
+          </div>
+        </InventoryDocumentHeader>
 
         {/* Table */}
         <GoodsReceiptTable
@@ -386,6 +450,7 @@ export function GoodsReceiptCreate() {
           warehouses={warehouses}
           warehousesLoading={warehousesQuery.isLoading}
           uoms={uomsQuery.data ?? []}
+          reasons={reasons}
           priceListCode={resolvedPriceListCode ?? undefined}
         />
         {/* Product selection popup — always multi-select capable */}
@@ -431,6 +496,10 @@ export function GoodsReceiptCreate() {
                       uomName: first.uomName ?? "",
                       unitPrice: String(first.price ?? 0),
                       total: (1 * (first.price ?? 0)).toFixed(2),
+                      manSerNum: first.manSerNum ?? "N",
+                      manBtchNum: first.manBtchNum ?? "N",
+                      serialNumbers: [],
+                      batchNumber: "",
                     };
                   }
                 }
@@ -452,6 +521,10 @@ export function GoodsReceiptCreate() {
                       uomName: next.uomName ?? "",
                       unitPrice: String(next.price ?? 0),
                       total: (1 * (next.price ?? 0)).toFixed(2),
+                      manSerNum: next.manSerNum ?? "N",
+                      manBtchNum: next.manBtchNum ?? "N",
+                      serialNumbers: [],
+                      batchNumber: "",
                     };
                   }
                 }
@@ -469,6 +542,10 @@ export function GoodsReceiptCreate() {
                   total: (1 * (item.price ?? 0)).toFixed(2),
                   binLocationAllocation: 0,
                   accountCode: "",
+                  manSerNum: item.manSerNum ?? "N",
+                  manBtchNum: item.manBtchNum ?? "N",
+                  serialNumbers: [] as string[],
+                  batchNumber: "",
                 }));
 
                 return newRows.concat(restRows);
@@ -479,6 +556,8 @@ export function GoodsReceiptCreate() {
             selectedProductRowId="__document_search__"
           />
         )}
+
+
 
         {/* Attachments Section Card */}
         <div className="mt-3">

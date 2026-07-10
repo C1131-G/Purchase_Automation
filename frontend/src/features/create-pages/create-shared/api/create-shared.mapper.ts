@@ -199,6 +199,8 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
         record.taxCode ||
         "",
     ).trim(),
+    manSerNum: String(record.manSerNum ?? record.ManSerNum ?? "N").trim() || "N",
+    manBtchNum: String(record.manBtchNum ?? record.ManBtchNum ?? "N").trim() || "N",
   };
 };
 

@@ -40,6 +40,8 @@ export const productLookupItemSchema = lookupItemSchema.extend({
     )
     .optional(),
   vatGroup: z.string(),
+  manSerNum: z.string().optional(), // 'Y' if serial-managed
+  manBtchNum: z.string().optional(), // 'Y' if batch-managed
 });
 
 export const productWarehouseStockItemSchema = z.object({

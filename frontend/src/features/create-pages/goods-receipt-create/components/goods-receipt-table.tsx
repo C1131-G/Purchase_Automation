@@ -12,6 +12,7 @@ interface GoodsReceiptTableProps {
   warehouses: CreateLookupOption[];
   warehousesLoading: boolean;
   uoms?: CreateLookupOption[];
+  reasons?: CreateLookupOption[];
   priceListCode?: string | undefined;
 }
 
@@ -27,6 +28,7 @@ const DEFAULT_ROW: GoodsReceiptRow = {
   total: "",
   binLocationAllocation: 0,
   accountCode: "",
+  inventoryAdjustmentReason: "",
 };
 
 export function GoodsReceiptTable({
@@ -37,6 +39,7 @@ export function GoodsReceiptTable({
   warehouses,
   warehousesLoading,
   uoms = [],
+  reasons = [],
   priceListCode,
 }: GoodsReceiptTableProps) {
   const handleAddRow = () => {
@@ -61,6 +64,7 @@ export function GoodsReceiptTable({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           uoms={uoms}
+          reasons={reasons}
           priceListCode={priceListCode}
         />
       </div>

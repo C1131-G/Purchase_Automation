@@ -1,4 +1,5 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { serviceLayerClient } from "@/services/service-layer.service";
 import { getDisplayCurrency } from "@/services/currency.util";
 import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
 import { GoodsReceiptLineSchema } from "@/db/schemas/goods-receipt-line.schema";
@@ -188,6 +189,7 @@ export const getGoodsReceiptByDocNum = async (
         BaseType: l.baseType,
         BaseEntry: l.baseEntry,
         BaseLine: l.baseLine,
+        CostingCode: slLine?.CostingCode || slLine?.OcrCode || "",
         DocumentLinesBinAllocations: slLine?.DocumentLinesBinAllocations || [],
       };
     }),
@@ -242,12 +244,23 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
       );
     }
 
+    const { masterDataService } = await import("@/services/master-data.service");
+    const firstWhs = (payload.DocumentLines as Record<string, unknown>[])?.[0]?.WarehouseCode;
+    let branchId: number | null = null;
+    if (firstWhs) {
+      branchId = await masterDataService.getWarehouseBranch(dbName, String(firstWhs));
+    }
+    if (branchId === null) {
+      branchId = await masterDataService.getDefaultBranch(dbName);
+    }
+
     const sapPayload: Record<string, unknown> = {
       DocDate: payload.DocDate,
       TaxDate: payload.TaxDate,
       Comments: payload.Comments,
       JrnlMemo: payload.JrnlMemo,
       Reference2: payload.Ref2,
+      ...(branchId !== null ? { BPL_IDAssignedToInvoice: branchId } : {}),
       ...(payload.Series !== undefined && payload.Series !== null
         ? { Series: Number(payload.Series) }
         : {}),
@@ -265,19 +278,8 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
           if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
           if (line.UoMCode) l.UoMCode = line.UoMCode;
           if (line.AccountCode) l.AccountCode = line.AccountCode;
-          // Forward bin allocations if the warehouse has bins enabled
-          if (
-            Array.isArray(line.DocumentLinesBinAllocations) &&
-            (line.DocumentLinesBinAllocations as unknown[]).length > 0
-          ) {
-            l.DocumentLinesBinAllocations = (line.DocumentLinesBinAllocations as any[]).map(
-              (ba) => ({
-                BaseLineNumber: ba.BaseLineNumber ?? index,
-                BinAbsEntry: Number(ba.BinAbsEntry),
-                Quantity: Number(ba.Quantity) || 1,
-              }),
-            );
-          }
+          if (line.CostingCode) l.CostingCode = line.CostingCode; // Maps the selected Branch (Distribution Rule)
+          if (line.InventoryAdjustmentReason) l.U_INVADJMTRES = line.InventoryAdjustmentReason;
           return l;
         },
       ),
