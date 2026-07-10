@@ -7,6 +7,7 @@ import { inventoryTransferRequests } from "@/db/schema/inventory-transfer-reques
 import { inventoryTransferRequestLines } from "@/db/schema/inventory-transfer-request-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 
 export const getList = async (filters: any = {}) => {
@@ -92,10 +93,11 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const docNum = payload.docNum;
   const [h] = await db
     .insert(inventoryTransferRequests)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       docStatus: "O",
       comments: payload.comments ?? null,
@@ -106,9 +108,9 @@ export const create = async (payload: any) => {
 
   if (payload.lines?.length) {
     await db.insert(inventoryTransferRequestLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: h.id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         dscription: l.dscription ?? null,
         quantity: String(l.quantity),

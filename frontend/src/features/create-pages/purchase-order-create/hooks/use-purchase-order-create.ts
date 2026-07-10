@@ -18,6 +18,7 @@ import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shar
 import type {
   ActiveDatePicker,
   PopupMode,
+  ProductRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
@@ -117,6 +118,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const resetPOCreate = useResetPOCreateAction();
   const setHeader = useSetPOHeaderAction();
   const queryClient = useQueryClient();
+  const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const createPurchaseOrderMutation = useCreatePurchaseOrder();
   const updatePurchaseOrderMutation = useUpdatePurchaseOrder();
 
@@ -168,13 +170,16 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     headerWarehouseCode: header.warehouseCode ?? "",
     setHeader,
     onWarehouseSelected: (warehouseCode: string) => {
-      productsHook.setProductRows((prev) =>
+      setProductRows((prev) =>
         prev.map((row) => ({
           ...row,
           warehouseCode,
         })),
       );
     },
+    productRows,
+    setProductRows,
+    headerRemarks: header.comments ?? "",
   });
 
   const productsHook = usePoProducts({
@@ -187,6 +192,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
     vendorLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
+    productRows,
+    setProductRows,
   });
 
   useEffect(() => {

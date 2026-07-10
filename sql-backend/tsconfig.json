@@ -14,9 +14,8 @@
     "incremental": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] },
-    "ignoreDeprecations": "6.0"
+    "paths": { "@/*": ["./src/*"] },
+    "types": ["node", "vitest/globals"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

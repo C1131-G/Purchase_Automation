@@ -91,10 +91,11 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const docNum = payload.docNum;
   const [h] = await db
     .insert(inventoryTransfers)
     .values({
-      docNum: payload.docNum,
+      docNum,
       docDate: payload.docDate,
       docStatus: "O",
       comments: payload.comments ?? null,
@@ -105,9 +106,9 @@ export const create = async (payload: any) => {
 
   if (payload.lines?.length) {
     await db.insert(inventoryTransferLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: h.id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         dscription: l.dscription ?? null,
         quantity: String(l.quantity),

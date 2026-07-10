@@ -65,7 +65,7 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
     const { sessionId } = authReq.session;
     const { dbName } = authReq.user;
     const { id } = authReq.params;
-    const { draftDocEntry } = authReq.query;
+    const draftDocEntry = (req.query.draftDocEntry as string) || undefined;
 
     logger.info({ id, draftDocEntry, msg: "Fetching A/P Credit Memo detail" });
 
@@ -73,7 +73,7 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
       sessionId,
       dbName,
       id as string,
-      draftDocEntry as string,
+      draftDocEntry,
     );
     if (!data) {
       return res.status(404).json({ message: "A/P Credit Memo not found", success: false });

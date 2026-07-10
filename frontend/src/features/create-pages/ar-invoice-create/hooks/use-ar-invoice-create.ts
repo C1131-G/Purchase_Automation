@@ -163,19 +163,24 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   }, []);
 
+  const [productRows, setProductRows] = useState<ProductRow[]>([]);
+
   const lookups = useArLookups({
     clearFieldError,
     closeModal: () => modals.setModalOpen(false),
     headerWarehouseCode: header.warehouseCode ?? "",
     setHeader,
     onWarehouseSelected: (warehouseCode: string) => {
-      productsHook.setProductRows((prev) =>
+      setProductRows((prev) =>
         prev.map((row) => ({
           ...row,
           warehouseCode,
         })),
       );
     },
+    productRows,
+    setProductRows,
+    headerRemarks: header.comments ?? "",
   });
 
   const productsHook = useArProducts({
@@ -187,6 +192,8 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     setProductPopupOpen: modals.setProductPopupOpen,
     setProductSearch: modals.setProductSearch,
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
+    productRows,
+    setProductRows,
   });
 
   const cacheKey = isEditMode ? editDocNum : `${draftDocNum}_${draftDocEntry ?? ""}`;

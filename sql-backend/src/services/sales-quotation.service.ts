@@ -8,7 +8,11 @@ import { salesQuotationLines } from "@/db/schema/sales-quotation-lines";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
+import { resolveCardName } from "@/services/master-data.service";
+
+import { calculateOpenQty } from "@/services/copy-flow.service";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
@@ -52,7 +56,15 @@ export const getById = async (id: number) => {
     .from(salesQuotationLines)
     .where(eq(salesQuotationLines.docEntry, id))
     .orderBy(asc(salesQuotationLines.lineNum));
-  return { ...h, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 23, h.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...h, lines: linesWithQty };
 };
 
 export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
@@ -77,7 +89,15 @@ export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
     .from(salesQuotationLines)
     .where(eq(salesQuotationLines.docEntry, h.id))
     .orderBy(asc(salesQuotationLines.lineNum));
-  return { ...h, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 23, h.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...h, lines: linesWithQty };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -93,47 +113,91 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
-  const isDraft = payload.isDraft === true;
-  const draftDocEntry = payload.draftDocEntry;
+  return await db.transaction(async (tx) => {
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = payload.draftDocEntry;
 
-  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
-    const [existing] = await db
-      .select()
-      .from(salesQuotations)
-      .where(eq(salesQuotations.id, draftDocEntry))
-      .limit(1);
+    let headerId: number;
+    let docNum: number;
 
-    if (!existing) {
-      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    if (draftDocEntry && draftDocEntry > 0) {
+      const [existing] = await tx
+        .select()
+        .from(salesQuotations)
+        .where(eq(salesQuotations.id, draftDocEntry))
+        .limit(1);
+
+      if (!existing) {
+        throw new AppError("Draft document not found", 404, "NOT_FOUND");
+      }
+
+      headerId = draftDocEntry;
+      docNum = payload.docNum;
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      await tx
+        .update(salesQuotations)
+        .set({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus: isDraft ? "D" : "O",
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+          salesPersonCode: payload.salesPersonCode ?? null,
+        })
+        .where(eq(salesQuotations.id, draftDocEntry));
+
+      await tx.delete(salesQuotationLines).where(eq(salesQuotationLines.docEntry, draftDocEntry));
+    } else {
+      const docStatus = isDraft ? "D" : "O";
+      docNum = payload.docNum;
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      const [header] = await tx
+        .insert(salesQuotations)
+        .values({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus,
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+          salesPersonCode: payload.salesPersonCode ?? null,
+        })
+        .returning();
+      headerId = header.id;
     }
 
-    const docNum = payload.docNum;
-    const lineTotal = payload.lines.reduce(
-      (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-      0,
-    );
-
-    await db
-      .update(salesQuotations)
-      .set({
-        docNum,
-        docDate: payload.docDate,
-        cardCode: payload.cardCode,
-        cardName: payload.cardName ?? null,
-        docCurrency: payload.docCurrency ?? null,
-        docStatus: "O",
-        docTotal: String(lineTotal),
-        comments: payload.comments ?? null,
-        salesPersonCode: payload.salesPersonCode ?? null,
-      })
-      .where(eq(salesQuotations.id, draftDocEntry));
-
-    await db.delete(salesQuotationLines).where(eq(salesQuotationLines.docEntry, draftDocEntry));
     if (payload.lines?.length) {
-      await db.insert(salesQuotationLines).values(
-        payload.lines.map((l: any) => ({
-          docEntry: draftDocEntry,
-          lineNum: l.lineNum,
+      await tx.insert(salesQuotationLines).values(
+        payload.lines.map((l: any, idx: number) => ({
+          docEntry: headerId,
+          lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
           itemCode: l.itemCode,
           itemDescription: l.itemDescription ?? null,
           quantity: String(l.quantity),
@@ -145,109 +209,89 @@ export const create = async (payload: any) => {
           uomCode: l.uomCode ?? null,
           lineTotal: String((l.unitPrice ?? 0) * l.quantity),
           openQty: String(l.quantity),
+          baseEntry: l.baseEntry ?? null,
+          baseLine: l.baseLine ?? null,
+          baseType: l.baseType ?? null,
+          baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
         })),
       );
     }
 
-    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real Sales quotation");
-    return getById(draftDocEntry);
-  }
-
-  const docStatus = isDraft ? "D" : "O";
-  const docNum = payload.docNum;
-  const lineTotal = payload.lines.reduce(
-    (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-    0,
-  );
-
-  const [h] = await db
-    .insert(salesQuotations)
-    .values({
-      docNum,
-      docDate: payload.docDate,
-      cardCode: payload.cardCode,
-      cardName: payload.cardName ?? null,
-      docCurrency: payload.docCurrency ?? null,
-      docStatus,
-      docTotal: String(lineTotal),
-      comments: payload.comments ?? null,
-      salesPersonCode: payload.salesPersonCode ?? null,
-    })
-    .returning();
-
-  if (payload.lines?.length) {
-    await db.insert(salesQuotationLines).values(
-      payload.lines.map((l: any) => ({
-        docEntry: h.id,
-        lineNum: l.lineNum,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        discountPercent: l.discountPercent != null ? String(l.discountPercent) : null,
-        vatGroup: l.vatGroup ?? null,
-        vatPercent: l.vatPercent != null ? String(l.vatPercent) : null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-        openQty: String(l.quantity),
-      })),
-    );
-  }
-
-  logger.info({ docNum: payload.docNum }, "Sales quotation created");
-  return getById(h.id);
+    logger.info({ docNum: payload.docNum }, "Sales quotation created");
+    return getById(headerId);
+  });
 };
 
 export const update = async (id: number, payload: any) => {
   const db = getDb();
-  const [ex] = await db.select().from(salesQuotations).where(eq(salesQuotations.id, id)).limit(1);
-  if (!ex) throw new AppError("Sales quotation not found", 404, "NOT_FOUND");
+  return await db.transaction(async (tx) => {
+    const [ex] = await tx.select().from(salesQuotations).where(eq(salesQuotations.id, id)).limit(1);
+    if (!ex) throw new AppError("Sales quotation not found", 404, "NOT_FOUND");
 
-  const updatedDocStatus = payload.isDraft === true ? "D" : ex.docStatus;
-  const lineTotal = payload.lines
-    ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
-    : Number(ex.docTotal);
+    const updatedDocStatus =
+      payload.isDraft === true ? "D" : ex.docStatus === "D" ? "O" : ex.docStatus;
+    const lineTotal = payload.lines
+      ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
+      : Number(ex.docTotal);
 
-  await db
-    .update(salesQuotations)
-    .set({
-      docDate: payload.docDate,
-      docStatus: updatedDocStatus,
-      docTotal: String(lineTotal),
-      comments: payload.comments,
-      docCurrency: payload.docCurrency,
-    })
-    .where(eq(salesQuotations.id, id));
+    await tx
+      .update(salesQuotations)
+      .set({
+        docDate: payload.docDate,
+        docDueDate: payload.docDueDate ?? undefined,
+        docStatus: updatedDocStatus,
+        canceled: "N",
+        docTotal: String(lineTotal),
+        address: payload.address ?? undefined,
+        address2: payload.address2 ?? undefined,
+        comments: payload.comments,
+        numAtCard: payload.numAtCard ?? undefined,
+        docCurrency: payload.docCurrency,
+      })
+      .where(eq(salesQuotations.id, id));
 
-  if (payload.lines) {
-    await db.delete(salesQuotationLines).where(eq(salesQuotationLines.docEntry, id));
-    await db.insert(salesQuotationLines).values(
-      payload.lines.map((l: any) => ({
-        docEntry: id,
-        lineNum: l.lineNum,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        discountPercent: l.discountPercent != null ? String(l.discountPercent) : null,
-        vatGroup: l.vatGroup ?? null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-        openQty: String(l.quantity),
-      })),
-    );
-  }
-  return getById(id);
+    if (payload.lines) {
+      await tx.delete(salesQuotationLines).where(eq(salesQuotationLines.docEntry, id));
+      await tx.insert(salesQuotationLines).values(
+        payload.lines.map((l: any, idx: number) => ({
+          docEntry: id,
+          lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
+          itemCode: l.itemCode,
+          itemDescription: l.itemDescription ?? null,
+          quantity: String(l.quantity),
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+          discountPercent: l.discountPercent != null ? String(l.discountPercent) : null,
+          vatGroup: l.vatGroup ?? null,
+          warehouseCode: l.warehouseCode ?? null,
+          uomCode: l.uomCode ?? null,
+          lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+          openQty: String(l.quantity),
+          baseEntry: l.baseEntry ?? null,
+          baseLine: l.baseLine ?? null,
+          baseType: l.baseType ?? null,
+          baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
+        })),
+      );
+    }
+    return getById(id);
+  });
 };
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  const [ex] = await db.select().from(salesQuotations).where(eq(salesQuotations.id, id)).limit(1);
-  if (!ex) throw new AppError("Sales quotation not found", 404, "NOT_FOUND");
-  await db.update(salesQuotations).set({ docStatus: "C" }).where(eq(salesQuotations.id, id));
-  return getById(id);
+  return await db.transaction(async (tx) => {
+    const [ex] = await tx.select().from(salesQuotations).where(eq(salesQuotations.id, id)).limit(1);
+    if (!ex) throw new AppError("Sales quotation not found", 404, "NOT_FOUND");
+    await tx
+      .update(salesQuotations)
+      .set({ docStatus: "C", canceled: "Y" })
+      .where(eq(salesQuotations.id, id));
+    return getById(id);
+  });
+};
+
+export const previewNextDocNum = async () => {
+  return previewNextDocNumHelper("sales_quotations", "sales_quotations", 40000);
 };
 
 export const salesQuotationService = {
@@ -257,5 +301,6 @@ export const salesQuotationService = {
   getById,
   getDocNums,
   getList,
+  previewNextDocNum,
   update,
 };

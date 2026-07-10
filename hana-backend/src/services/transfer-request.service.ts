@@ -76,8 +76,8 @@ export const getTransferRequests = async (dbName: string, filters: TransferReque
     const requestedSortField = filters.sortBy ? sortFieldMap[filters.sortBy] : undefined;
     const requestedSortOrder = filters.sortOrder === "asc" ? "ASC" : "DESC";
     const sort = requestedSortField
-      ? { [requestedSortField]: requestedSortOrder }
-      : { "wtrq.docDate": "DESC", "wtrq.docNum": "DESC" };
+      ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
+      : ({ "wtrq.docDate": "DESC", "wtrq.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
     const result = await PageService.getPagedData<InventoryTransferRequest>({
       dbName,

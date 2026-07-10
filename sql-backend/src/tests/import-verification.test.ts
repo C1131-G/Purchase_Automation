@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
-const srcDir = join(__dirname, "..", "..");
+const srcDir = join(__dirname, "..");
 
 function getAllFiles(dirPath: string, arrayOfFiles: string[] = []) {
   const files = readdirSync(dirPath);
@@ -41,6 +41,7 @@ describe("Project Import Integrity", () => {
 
     if (
       relativePath === "server.ts" ||
+      relativePath === "app.ts" ||
       relativePath === "db/seed.ts" ||
       relativePath === "db/migrate.ts"
     ) {
@@ -48,7 +49,7 @@ describe("Project Import Integrity", () => {
     }
 
     it(`import module "${relativePath}"`, { timeout: 30_000 }, async () => {
-      const normalizedPath = `../${relativePath.replaceAll("\\", "/")}`;
+      const normalizedPath = `@/${relativePath.replaceAll("\\", "/")}`;
       const module = await import(normalizedPath);
       expect(module).toBeDefined();
     });

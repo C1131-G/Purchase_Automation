@@ -22,7 +22,7 @@ router.get(
   "/:id/export/:format",
   createExportHandler(async (id) => {
     const result = await inventoryTransferRequestService.getByDocNum(id);
-    return { doc: result, lines: result.DocumentLines ?? [], attachments: [] };
+    return { doc: result, lines: result.lines ?? [], attachments: [] };
   }, "Transfer Request"),
 );
 

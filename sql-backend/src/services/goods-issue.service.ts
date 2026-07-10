@@ -140,9 +140,9 @@ export const create = async (payload: any) => {
 
   if (payload.lines?.length) {
     await db.insert(goodsIssueLines).values(
-      payload.lines.map((l: any) => ({
+      payload.lines.map((l: any, idx: number) => ({
         docEntry: h.id,
-        lineNum: l.lineNum,
+        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
         itemCode: l.itemCode,
         dscription: l.dscription ?? null,
         quantity: String(l.quantity),
@@ -212,7 +212,7 @@ export const update = async (id: number, payload: any) => {
 };
 
 export const previewNextDocNum = async () => {
-  const previewNextDocNumHelper = (await import("./docnum-lookup.util")).previewNextDocNumHelper;
+  const { previewNextDocNum: previewNextDocNumHelper } = await import("@/core/utils/series");
   return previewNextDocNumHelper("goods_issues", "goods_issues", 81000);
 };
 

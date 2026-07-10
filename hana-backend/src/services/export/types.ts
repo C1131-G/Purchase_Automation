@@ -72,7 +72,7 @@ export function normalizeToExport(raw: Record<string, unknown>, label: string): 
 
   return {
     entityLabel: label,
-    docNum: raw.DocNum ?? raw.id ?? "",
+    docNum: (raw.DocNum ?? raw.id ?? "") as string | number,
     docDate: String(raw.DocDate ?? ""),
     docDueDate: String(raw.DocDueDate ?? ""),
     cardCode: String(raw.CardCode ?? ""),

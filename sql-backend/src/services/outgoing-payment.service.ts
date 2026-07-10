@@ -6,7 +6,9 @@ import { outgoingPayments } from "@/db/schema/outgoing-payments";
 import { AppError } from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
+import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/series";
 import { buildSqlListFilters } from "@/core/utils/query-helper";
+import { resolveCardName } from "@/services/master-data.service";
 
 export const getList = async (filters: any = {}) => {
   const db = getDb();
@@ -71,13 +73,15 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
+  const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
   const [h] = await db
     .insert(outgoingPayments)
     .values({
       docNum: payload.docNum,
       docDate: payload.docDate,
       cardCode: payload.cardCode,
-      cardName: payload.cardName ?? null,
+      cardName,
       docCurrency: payload.docCurrency ?? null,
       docTotal: payload.docTotal != null ? String(payload.docTotal) : null,
       paymentMode: payload.paymentMode ?? null,
@@ -104,6 +108,7 @@ export const cancel = async (id: number) => {
   if (!ex) throw new AppError("Outgoing payment not found", 404, "NOT_FOUND");
   await db.delete(outgoingPayments).where(eq(outgoingPayments.id, id));
   logger.info({ id }, "Outgoing payment cancelled (deleted)");
+  return { id };
 };
 
 export const previewNextDocNum = async () => {

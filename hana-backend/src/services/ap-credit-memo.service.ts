@@ -10,7 +10,7 @@ import { getSafeDocNumLimit } from "@/services/docnum-lookup.util";
 import { normalizeSAPLineData } from "@/services/sap-line-utils";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
-import { attachmentsService } from "./attachments.service";
+import { attachmentsService, type FileMetadata } from "./attachments.service";
 
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
@@ -192,7 +192,7 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string, isDr
     const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
-    let attachments = [];
+    let attachments: FileMetadata[] = [];
     if (attachmentEntry) {
       attachments = await attachmentsService.getSAPAttachment(sessionId, attachmentEntry, dbName);
     }

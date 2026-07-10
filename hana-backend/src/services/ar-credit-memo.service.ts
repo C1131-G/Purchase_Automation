@@ -201,7 +201,7 @@ export const getCreditNote = async (sessionId: string, id: string, isDraft = fal
     const attachmentEntry = (result as any).AttachmentEntry || null;
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
-    let attachments = [];
+    let attachments: import("./attachments.service").FileMetadata[] = [];
     if (attachmentEntry) {
       attachments = await attachmentsService.getSAPAttachment(sessionId, attachmentEntry, dbName);
     }

@@ -12,7 +12,7 @@ router.get("/docnums", loginLimiter, salesOrderDal.getDocNums);
 router.get("/next-docnum", async (_req, res) => {
   res.json({ data: await salesOrderService.previewNextDocNum(), success: true });
 });
-router.get("/open-lines", quickLookupDal.getOpenLines);
+router.get("/open-lines", quickLookupDal.getOpenSalesOrderLines);
 router.get("/SalesEmployee", quickLookupDal.getSalesEmployee);
 router.get("/by-doc-num/:docNum", salesOrderDal.getByDocNum);
 router.get("/:id", salesOrderDal.getById);

@@ -14,6 +14,10 @@ const PurchaseQuotationLineSchema = z.object({
   warehouseCode: z.string().optional(),
   uomCode: z.string().optional(),
   uomEntry: z.coerce.number().int().optional(),
+  baseEntry: z.coerce.number().int().optional(),
+  baseLine: z.coerce.number().int().optional(),
+  baseType: z.coerce.number().int().optional(),
+  baseQuantity: z.coerce.number().optional(),
 });
 
 export const CreatePurchaseQuotationSchema = z.object({

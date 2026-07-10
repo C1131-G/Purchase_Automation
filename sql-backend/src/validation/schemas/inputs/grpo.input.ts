@@ -11,6 +11,7 @@ const GrpoLineSchema = z.object({
   baseEntry: z.coerce.number().int().optional(),
   baseLine: z.coerce.number().int().optional(),
   baseType: z.coerce.number().int().optional(),
+  baseQuantity: z.coerce.number().optional(),
 });
 
 export const CreateGrpoSchema = z.object({

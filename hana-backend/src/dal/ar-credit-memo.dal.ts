@@ -67,7 +67,7 @@ export const getCreditNote = async (req: Request, res: Response, next: NextFunct
   try {
     const { sessionId } = authReq.session;
     const { id } = authReq.params;
-    const { draftDocEntry } = authReq.query;
+    const draftDocEntry = (req.query.draftDocEntry as string) || undefined;
 
     logger.info({ id, draftDocEntry, msg: "Fetching A/R Credit Memo detail" });
 

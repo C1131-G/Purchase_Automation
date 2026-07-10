@@ -13,6 +13,10 @@ const SalesQuotationLineSchema = z.object({
   warehouseCode: z.string().optional(),
   uomCode: z.string().optional(),
   uomEntry: z.coerce.number().int().optional(),
+  baseEntry: z.coerce.number().int().nullable().optional(),
+  baseLine: z.coerce.number().int().nullable().optional(),
+  baseType: z.coerce.number().int().nullable().optional(),
+  baseQuantity: z.coerce.number().min(0).nullable().optional(),
 });
 
 export const CreateSalesQuotationSchema = z.object({

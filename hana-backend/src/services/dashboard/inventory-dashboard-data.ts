@@ -134,7 +134,8 @@ const fetchWarehouseGroups = async (
           ? "SUM(line.quantity * line.price)"
           : "SUM(line.quantity * COALESCE(item.AvgPrice, 0))";
 
-        qb.leftJoin(ItemSchema, "item", "line.itemCode = item.ItemCode")
+        // TypeORM join overloads accept Function|string but not EntitySchema; cast for compile-time.
+        qb.leftJoin(ItemSchema as unknown as Function, "item", "line.itemCode = item.ItemCode")
           .select("line.whsCode", "whsCode")
           .addSelect("COUNT(DISTINCT line.docEntry)", "docCount")
           .addSelect(valExpr, "val")

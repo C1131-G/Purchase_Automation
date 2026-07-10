@@ -10,6 +10,10 @@ const PurchaseOrderLineSchema = z.object({
   vatGroup: z.string().optional(),
   warehouseCode: z.string().optional(),
   uomCode: z.string().optional(),
+  baseEntry: z.coerce.number().int().optional(),
+  baseLine: z.coerce.number().int().optional(),
+  baseType: z.coerce.number().int().optional(),
+  baseQuantity: z.coerce.number().optional(),
 });
 
 export const CreatePurchaseOrderSchema = z.object({

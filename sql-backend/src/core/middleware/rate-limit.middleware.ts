@@ -20,17 +20,17 @@ const buildLimiter = (
 export const loginLimiter = buildLimiter(
   10,
   "Too many login attempts. Please try again after 15 minutes.",
-  (req, res) => `ip:${ipKeyGenerator(req, res)}`,
+  (req) => `ip:${ipKeyGenerator(req.ip ?? "")}`,
 );
 
 export const lookupLimiter = buildLimiter(
   600,
   "Too many lookup requests. Please try again after 15 minutes.",
-  (req, res) => `user:${(req.session as any)?.user?.userId ?? ipKeyGenerator(req, res)}`,
+  (req) => `user:${(req.session as any)?.user?.userId ?? ipKeyGenerator(req.ip ?? "")}`,
 );
 
 export const authenticatedApiLimiter = buildLimiter(
   5000,
   "Too many requests. Please try again after 15 minutes.",
-  (req, res) => `user:${(req.session as any)?.user?.userId ?? ipKeyGenerator(req, res)}`,
+  (req) => `user:${(req.session as any)?.user?.userId ?? ipKeyGenerator(req.ip ?? "")}`,
 );

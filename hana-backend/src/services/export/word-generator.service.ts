@@ -12,6 +12,8 @@ import {
 } from "docx";
 import type { ExportDocumentData } from "./types";
 
+type DocxAlignment = (typeof AlignmentType)[keyof typeof AlignmentType];
+
 export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [];
 
@@ -146,7 +148,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
                       children: [
                         new TextRun({
                           text: "Same as billing address",
-                          italic: true,
+                          italics: true,
                           size: 18,
                           color: "94A3B8",
                         }),
@@ -176,7 +178,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
   const tableHeader = (
     text: string,
     widthPercent: number,
-    align: AlignmentType = AlignmentType.CENTER,
+    align: DocxAlignment = AlignmentType.CENTER,
   ) =>
     new TableCell({
       children: [
@@ -199,7 +201,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
   const tableCell = (
     paragraphs: Paragraph[],
     widthPercent: number,
-    align: AlignmentType = AlignmentType.LEFT,
+    align: DocxAlignment = AlignmentType.LEFT,
     isAlt = false,
   ) =>
     new TableCell({
@@ -234,7 +236,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
     const itemDetailsCellParagraphs = [
       new Paragraph({
         children: [new TextRun({ text: line.itemCode, bold: true, size: 16, color: "1E293B" })],
-        spacing: { before: 80, after: 40 },
+        spacing: { before: 80, after: line.itemDescription ? 40 : 80 },
       }),
     ];
     if (line.itemDescription) {
@@ -244,8 +246,6 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
           spacing: { after: 80 },
         }),
       );
-    } else {
-      itemDetailsCellParagraphs[0].spacing.after = 80;
     }
 
     return new TableRow({
@@ -525,7 +525,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
     const attHeaderCell = (
       text: string,
       widthPercent: number,
-      align: AlignmentType = AlignmentType.LEFT,
+      align: DocxAlignment = AlignmentType.LEFT,
     ) =>
       new TableCell({
         children: [
@@ -548,7 +548,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
     const attDataCell = (
       text: string,
       widthPercent: number,
-      align: AlignmentType = AlignmentType.LEFT,
+      align: DocxAlignment = AlignmentType.LEFT,
       isAlt = false,
     ) =>
       new TableCell({

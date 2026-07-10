@@ -2,8 +2,14 @@
 
 import type { RequestHandler } from "express";
 import { dashboardService } from "@/services/dashboard.service";
+import type { DashboardPeriod } from "@/services/dashboard/dashboard.types";
 
-const periodFromQuery = (p: unknown): string => (typeof p === "string" ? p : "month");
+const periodFromQuery = (p: unknown): DashboardPeriod => {
+  if (p === "week" || p === "month" || p === "year" || p === "all") return p;
+  if (p === "weekly") return "week";
+  if (p === "yearly") return "year";
+  return "month";
+};
 const rangeFromQuery = (r: unknown): string => (typeof r === "string" ? r : "yearly");
 
 // ─── Original compatibility endpoints ──────────────────────────────────────
@@ -38,7 +44,7 @@ export const getDashboardStats: RequestHandler = async (req, res, next) => {
 export const getSummary: RequestHandler = async (req, res, next) => {
   try {
     const p = periodFromQuery(req.query.period);
-    const result = await dashboardService.getDashboard(p as any);
+    const result = await dashboardService.getDashboard(p);
     res.status(200).json({ data: result, success: true });
   } catch (e) {
     next(e);
@@ -48,7 +54,7 @@ export const getSummary: RequestHandler = async (req, res, next) => {
 export const getPurchaseStats: RequestHandler = async (req, res, next) => {
   try {
     const p = periodFromQuery(req.query.period);
-    const result = await dashboardService.getPurchaseDashboard(p as any);
+    const result = await dashboardService.getPurchaseDashboard(p);
     res.status(200).json({ data: result, success: true });
   } catch (e) {
     next(e);
@@ -58,7 +64,7 @@ export const getPurchaseStats: RequestHandler = async (req, res, next) => {
 export const getSalesStats: RequestHandler = async (req, res, next) => {
   try {
     const p = periodFromQuery(req.query.period);
-    const result = await dashboardService.getSalesDashboard(p as any);
+    const result = await dashboardService.getSalesDashboard(p);
     res.status(200).json({ data: result, success: true });
   } catch (e) {
     next(e);

@@ -5,7 +5,17 @@ import { loadAreaDataset } from "./dashboard/dashboard.data";
 import { loadInventoryDataset } from "./dashboard/inventory-dashboard-data";
 import { buildPurchaseMain } from "./dashboard/purchase-dashboard";
 import { buildSalesMain } from "./dashboard/sales-dashboard";
-import { buildInventoryMain } from "./dashboard/inventory-dashboard";
+import { buildInventoryMain, getInventoryDashboard } from "./dashboard/inventory-dashboard";
+import { getDashboard as getLegacyDashboard } from "./dashboard/dashboard.view";
+
+const toPeriod = (period: string): DashboardPeriod =>
+  period === "weekly" || period === "week"
+    ? "week"
+    : period === "yearly" || period === "year"
+      ? "year"
+      : period === "all"
+        ? "all"
+        : "month";
 
 export const getPurchaseKpiSummary = async (period: DashboardPeriod) => {
   const d = await loadAreaDataset("purchase", period);
@@ -101,23 +111,41 @@ export const getInventoryExceptions = async (period: DashboardPeriod) => {
 };
 
 export const getPurchaseSummary = async (period: string = "yearly") =>
-  getPurchaseKpiSummary(period === "weekly" ? "week" : period === "yearly" ? "year" : "month");
+  getPurchaseKpiSummary(toPeriod(period));
 export const getSalesSummary = async (period: string = "yearly") =>
-  getSalesKpiSummary(period === "weekly" ? "week" : period === "yearly" ? "year" : "month");
+  getSalesKpiSummary(toPeriod(period));
 export const getDashboardStats = async (period: string = "yearly") => {
-  const p: DashboardPeriod = period === "weekly" ? "week" : period === "yearly" ? "year" : "month";
+  const p = toPeriod(period);
   const [pu, sa] = await Promise.all([getPurchaseKpiSummary(p), getSalesKpiSummary(p)]);
   return { data: { purchase: pu.data, sales: sa.data }, currency: pu.currency };
 };
 
+/** Full legacy dashboard snapshot. */
+export const getDashboard = async (period: DashboardPeriod) => getLegacyDashboard(period);
+
+export const getPurchaseDashboard = async (period: DashboardPeriod) => {
+  const d = await loadAreaDataset("purchase", period);
+  return buildPurchaseMain(d);
+};
+
+export const getSalesDashboard = async (period: DashboardPeriod) => {
+  const d = await loadAreaDataset("sales", period);
+  return buildSalesMain(d);
+};
+
+export { getInventoryDashboard };
+
 export const dashboardService = {
+  getDashboard,
   getDashboardStats,
+  getInventoryDashboard,
   getInventoryExceptions,
   getInventoryFunnel,
   getInventoryKpiSummary,
   getInventoryModuleCards,
   getInventoryTopPartners,
   getInventoryTrend,
+  getPurchaseDashboard,
   getPurchaseExceptions,
   getPurchaseFunnel,
   getPurchaseKpiSummary,
@@ -125,6 +153,7 @@ export const dashboardService = {
   getPurchaseSummary,
   getPurchaseTopPartners,
   getPurchaseTrend,
+  getSalesDashboard,
   getSalesExceptions,
   getSalesFunnel,
   getSalesKpiSummary,
