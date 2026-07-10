@@ -20,6 +20,7 @@ import type {
   ActiveDatePicker,
   PopupMode,
   ProductGridRow,
+  ProductRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
@@ -161,19 +162,24 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     setProductSearchFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   }, []);
 
+  const [productRows, setProductRows] = useState<ProductRow[]>([]);
+
   const lookups = useSoLookups({
     clearFieldError,
     closeModal: () => modals.setModalOpen(false),
     headerWarehouseCode: header.warehouseCode ?? "",
     setHeader,
     onWarehouseSelected: (warehouseCode: string) => {
-      productsHook.setProductRows((prev) =>
+      setProductRows((prev) =>
         prev.map((row) => ({
           ...row,
           warehouseCode,
         })),
       );
     },
+    productRows,
+    setProductRows,
+    headerRemarks: header.comments ?? "",
   });
 
   const productsHook = useSoProducts({
@@ -183,6 +189,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     productPopupOpen: modals.productPopupOpen,
     productSearch: modals.productSearch,
     setProductPopupOpen: modals.setProductPopupOpen,
+    productRows,
+    setProductRows,
     setProductSearch: modals.setProductSearch,
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
   });

@@ -6,9 +6,10 @@ const ArCreditMemoLineSchema = z.object({
   itemDescription: z.string().optional(),
   quantity: z.coerce.number().positive(),
   unitPrice: z.coerce.number().min(0).optional(),
-  baseEntry: z.coerce.number().int().optional(),
-  baseLine: z.coerce.number().int().optional(),
-  baseType: z.coerce.number().int().optional(),
+  baseEntry: z.coerce.number().int().nullable().optional(),
+  baseLine: z.coerce.number().int().nullable().optional(),
+  baseType: z.coerce.number().int().nullable().optional(),
+  baseQuantity: z.coerce.number().min(0).nullable().optional(),
 });
 
 export const CreateArCreditMemoSchema = z.object({

@@ -11,6 +11,12 @@ import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/serie
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 import { resolveCardName } from "@/services/master-data.service";
 
+import {
+  calculateOpenQty,
+  validateBaseLinks,
+  recalculateParentStatuses,
+} from "@/services/copy-flow.service";
+
 export const getList = async (filters: any = {}) => {
   const db = getDb();
   const page = Number(filters.page) || 1;
@@ -53,7 +59,15 @@ export const getById = async (id: number) => {
     .from(arCreditMemoLines)
     .where(eq(arCreditMemoLines.docEntry, id))
     .orderBy(asc(arCreditMemoLines.lineNum));
-  return { ...h, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 16, h.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...h, lines: linesWithQty };
 };
 
 export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
@@ -70,7 +84,15 @@ export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
     .from(arCreditMemoLines)
     .where(eq(arCreditMemoLines.docEntry, h.id))
     .orderBy(asc(arCreditMemoLines.lineNum));
-  return { ...h, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 16, h.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...h, lines: linesWithQty };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -86,164 +108,231 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
-  const isDraft = payload.isDraft === true;
-  const draftDocEntry = payload.draftDocEntry;
+  return await db.transaction(async (tx) => {
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = payload.draftDocEntry;
 
-  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
-    const [existing] = await db
-      .select()
-      .from(arCreditMemos)
-      .where(eq(arCreditMemos.id, draftDocEntry))
-      .limit(1);
-
-    if (!existing) {
-      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    if (!isDraft && payload.lines?.length) {
+      await validateBaseLinks(tx, payload.lines, payload.cardCode);
     }
 
-    const docNum = payload.docNum;
-    const lineTotal = payload.lines.reduce(
-      (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-      0,
-    );
+    let headerId: number;
+    let docNum: number;
 
-    const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+    if (draftDocEntry && draftDocEntry > 0) {
+      const [existing] = await tx
+        .select()
+        .from(arCreditMemos)
+        .where(eq(arCreditMemos.id, draftDocEntry))
+        .limit(1);
 
-    await db
-      .update(arCreditMemos)
-      .set({
-        docNum,
-        docDate: payload.docDate,
-        docDueDate: payload.docDueDate ?? null,
-        cardCode: payload.cardCode,
-        cardName,
-        docCurrency: payload.docCurrency ?? null,
-        docStatus: "O",
-        docTotal: String(lineTotal),
-        address: payload.address ?? null,
-        address2: payload.address2 ?? null,
-        comments: payload.comments ?? null,
-        numAtCard: payload.numAtCard ?? null,
-      })
-      .where(eq(arCreditMemos.id, draftDocEntry));
+      if (!existing) {
+        throw new AppError("Draft document not found", 404, "NOT_FOUND");
+      }
 
-    await db.delete(arCreditMemoLines).where(eq(arCreditMemoLines.docEntry, draftDocEntry));
+      headerId = draftDocEntry;
+      docNum = payload.docNum;
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      await tx
+        .update(arCreditMemos)
+        .set({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus: isDraft ? "D" : "O",
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+        })
+        .where(eq(arCreditMemos.id, draftDocEntry));
+
+      await tx.delete(arCreditMemoLines).where(eq(arCreditMemoLines.docEntry, draftDocEntry));
+    } else {
+      const docStatus = isDraft ? "D" : "O";
+      docNum = payload.docNum;
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      const [header] = await tx
+        .insert(arCreditMemos)
+        .values({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus,
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+        })
+        .returning();
+      headerId = header.id;
+    }
+
+    const parentInvoiceIds = new Set<number>();
+
     if (payload.lines?.length) {
-      await db.insert(arCreditMemoLines).values(
-        payload.lines.map((l: any, idx: number) => ({
-          docEntry: draftDocEntry,
-          lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-          itemCode: l.itemCode,
-          itemDescription: l.itemDescription ?? null,
-          quantity: String(l.quantity),
-          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-          warehouseCode: l.warehouseCode ?? null,
-          uomCode: l.uomCode ?? null,
-          lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-        })),
+      await tx.insert(arCreditMemoLines).values(
+        payload.lines.map((l: any, idx: number) => {
+          const baseType = Number(l.baseType);
+          const baseEntry = Number(l.baseEntry);
+          if (baseType === 13 && baseEntry) {
+            parentInvoiceIds.add(baseEntry);
+          }
+
+          return {
+            docEntry: headerId,
+            lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
+            itemCode: l.itemCode,
+            itemDescription: l.itemDescription ?? null,
+            quantity: String(l.quantity),
+            unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+            warehouseCode: l.warehouseCode ?? null,
+            uomCode: l.uomCode ?? null,
+            lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+            baseEntry: l.baseEntry ?? null,
+            baseLine: l.baseLine ?? null,
+            baseType: l.baseType ?? null,
+            baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
+          };
+        }),
       );
     }
 
-    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real AR Credit memo");
-    return getById(draftDocEntry);
-  }
+    if (!isDraft && parentInvoiceIds.size > 0) {
+      await recalculateParentStatuses(tx, parentInvoiceIds, 13);
+    }
 
-  const docStatus = isDraft ? "D" : "O";
-  const docNum = payload.docNum;
-  const lineTotal = payload.lines.reduce(
-    (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-    0,
-  );
-
-  const cardName = await resolveCardName(payload.cardCode, payload.cardName);
-
-  const [h] = await db
-    .insert(arCreditMemos)
-    .values({
-      docNum,
-      docDate: payload.docDate,
-      docDueDate: payload.docDueDate ?? null,
-      cardCode: payload.cardCode,
-      cardName,
-      docCurrency: payload.docCurrency ?? null,
-      docStatus,
-      docTotal: String(lineTotal),
-      address: payload.address ?? null,
-      address2: payload.address2 ?? null,
-      comments: payload.comments ?? null,
-      numAtCard: payload.numAtCard ?? null,
-    })
-    .returning();
-
-  if (payload.lines?.length) {
-    await db.insert(arCreditMemoLines).values(
-      payload.lines.map((l: any, idx: number) => ({
-        docEntry: h.id,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-      })),
-    );
-  }
-
-  logger.info({ docNum }, "AR Credit memo created");
-  return getById(h.id);
+    logger.info({ docNum }, "AR Credit memo created");
+    return getById(headerId);
+  });
 };
 
 export const update = async (id: number, payload: any) => {
   const db = getDb();
-  const [ex] = await db.select().from(arCreditMemos).where(eq(arCreditMemos.id, id)).limit(1);
-  if (!ex) throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
+  return await db.transaction(async (tx) => {
+    const [ex] = await tx.select().from(arCreditMemos).where(eq(arCreditMemos.id, id)).limit(1);
+    if (!ex) throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
 
-  const updatedDocStatus = payload.isDraft === true ? "D" : ex.docStatus;
-  const lineTotal = payload.lines
-    ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
-    : Number(ex.docTotal);
+    const isDraft = payload.isDraft === true;
+    if (!isDraft && payload.lines?.length) {
+      await validateBaseLinks(tx, payload.lines, payload.cardCode || ex.cardCode, id, 16);
+    }
 
-  await db
-    .update(arCreditMemos)
-    .set({
-      docDate: payload.docDate,
-      docDueDate: payload.docDueDate ?? undefined,
-      docCurrency: payload.docCurrency,
-      docStatus: updatedDocStatus,
-      docTotal: String(lineTotal),
-      address: payload.address ?? undefined,
-      address2: payload.address2 ?? undefined,
-      comments: payload.comments,
-      numAtCard: payload.numAtCard ?? undefined,
-    })
-    .where(eq(arCreditMemos.id, id));
+    // Capture old base links to recalculate
+    const oldLines = await tx
+      .select({ baseEntry: arCreditMemoLines.baseEntry, baseType: arCreditMemoLines.baseType })
+      .from(arCreditMemoLines)
+      .where(eq(arCreditMemoLines.docEntry, id));
+    const parentInvoiceIds = new Set<number>();
+    for (const ol of oldLines) {
+      if (ol.baseType === 13 && ol.baseEntry) parentInvoiceIds.add(ol.baseEntry);
+    }
 
-  if (payload.lines) {
-    await db.delete(arCreditMemoLines).where(eq(arCreditMemoLines.docEntry, id));
-    await db.insert(arCreditMemoLines).values(
-      payload.lines.map((l: any, idx: number) => ({
-        docEntry: id,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-      })),
-    );
-  }
-  return getById(id);
+    const updatedDocStatus = isDraft ? "D" : ex.docStatus === "D" ? "O" : ex.docStatus;
+    const lineTotal = payload.lines
+      ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
+      : Number(ex.docTotal);
+
+    await tx
+      .update(arCreditMemos)
+      .set({
+        docDate: payload.docDate,
+        docDueDate: payload.docDueDate ?? undefined,
+        docCurrency: payload.docCurrency,
+        docStatus: updatedDocStatus,
+        canceled: "N",
+        docTotal: String(lineTotal),
+        address: payload.address ?? undefined,
+        address2: payload.address2 ?? undefined,
+        comments: payload.comments,
+        numAtCard: payload.numAtCard ?? undefined,
+      })
+      .where(eq(arCreditMemos.id, id));
+
+    if (payload.lines) {
+      await tx.delete(arCreditMemoLines).where(eq(arCreditMemoLines.docEntry, id));
+      await tx.insert(arCreditMemoLines).values(
+        payload.lines.map((l: any, idx: number) => {
+          const baseType = Number(l.baseType);
+          const baseEntry = Number(l.baseEntry);
+          if (baseType === 13 && baseEntry) {
+            parentInvoiceIds.add(baseEntry);
+          }
+
+          return {
+            docEntry: id,
+            lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
+            itemCode: l.itemCode,
+            itemDescription: l.itemDescription ?? null,
+            quantity: String(l.quantity),
+            unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+            warehouseCode: l.warehouseCode ?? null,
+            uomCode: l.uomCode ?? null,
+            lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+            baseEntry: l.baseEntry ?? null,
+            baseLine: l.baseLine ?? null,
+            baseType: l.baseType ?? null,
+            baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
+          };
+        }),
+      );
+    }
+
+    if (!isDraft && parentInvoiceIds.size > 0) {
+      await recalculateParentStatuses(tx, parentInvoiceIds, 13);
+    }
+    return getById(id);
+  });
 };
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  const [ex] = await db.select().from(arCreditMemos).where(eq(arCreditMemos.id, id)).limit(1);
-  if (!ex) throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
-  await db.update(arCreditMemos).set({ docStatus: "C" }).where(eq(arCreditMemos.id, id));
-  return getById(id);
+  return await db.transaction(async (tx) => {
+    const [ex] = await tx.select().from(arCreditMemos).where(eq(arCreditMemos.id, id)).limit(1);
+    if (!ex) throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
+    await tx
+      .update(arCreditMemos)
+      .set({ docStatus: "C", canceled: "Y" })
+      .where(eq(arCreditMemos.id, id));
+
+    const lines = await tx
+      .select({ baseEntry: arCreditMemoLines.baseEntry, baseType: arCreditMemoLines.baseType })
+      .from(arCreditMemoLines)
+      .where(eq(arCreditMemoLines.docEntry, id));
+
+    const parentInvoiceIds = new Set<number>();
+    for (const l of lines) {
+      if (l.baseType === 13 && l.baseEntry) parentInvoiceIds.add(l.baseEntry);
+    }
+
+    if (parentInvoiceIds.size > 0) {
+      await recalculateParentStatuses(tx, parentInvoiceIds, 13);
+    }
+
+    return getById(id);
+  });
 };
 
 export const previewNextDocNum = async () => {

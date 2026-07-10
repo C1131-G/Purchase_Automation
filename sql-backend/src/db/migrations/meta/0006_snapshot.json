@@ -1,0 +1,4039 @@
+{
+  "id": "cd53b787-674d-4d5b-a67c-35e7a1982d82",
+  "prevId": "99711876-aa06-487d-a273-5cdfad0211e8",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.admin_settings": {
+      "name": "admin_settings",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ap_credit_memo_lines": {
+      "name": "ap_credit_memo_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ap_credit_memos": {
+      "name": "ap_credit_memos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "paid_to_date": {
+          "name": "paid_to_date",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ap_invoice_lines": {
+      "name": "ap_invoice_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_group": {
+          "name": "vat_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_percent": {
+          "name": "vat_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_entry": {
+          "name": "uom_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ap_invoices": {
+      "name": "ap_invoices",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "paid_to_date": {
+          "name": "paid_to_date",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ar_credit_memo_lines": {
+      "name": "ar_credit_memo_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ar_credit_memos": {
+      "name": "ar_credit_memos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "paid_to_date": {
+          "name": "paid_to_date",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ar_invoice_lines": {
+      "name": "ar_invoice_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_group": {
+          "name": "vat_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_percent": {
+          "name": "vat_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_entry": {
+          "name": "uom_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ar_invoices": {
+      "name": "ar_invoices",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_to_date": {
+          "name": "paid_to_date",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.attachments": {
+      "name": "attachments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "abs_entry": {
+          "name": "abs_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_path": {
+          "name": "source_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_extension": {
+          "name": "file_extension",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "free_text": {
+          "name": "free_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_date": {
+          "name": "attachment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bank_details": {
+      "name": "bank_details",
+      "schema": "",
+      "columns": {
+        "country_code": {
+          "name": "country_code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "bank_code": {
+          "name": "bank_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_name": {
+          "name": "bank_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.business_partner_addresses": {
+      "name": "business_partner_addresses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address_type": {
+          "name": "address_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "street": {
+          "name": "street",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "block": {
+          "name": "block",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zip_code": {
+          "name": "zip_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.business_partners": {
+      "name": "business_partners",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'S'"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sales_employee_code": {
+          "name": "sales_employee_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bill_to_address": {
+          "name": "bill_to_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ship_to_address": {
+          "name": "ship_to_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bill_to_def": {
+          "name": "bill_to_def",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ship_to_def": {
+          "name": "ship_to_def",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen": {
+          "name": "frozen",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "business_partners_code_unique": {
+          "name": "business_partners_code_unique",
+          "nullsNotDistinct": false,
+          "columns": ["code"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.chart_of_accounts": {
+      "name": "chart_of_accounts",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "postable": {
+          "name": "postable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finance": {
+          "name": "finance",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gl_accounts": {
+      "name": "gl_accounts",
+      "schema": "",
+      "columns": {
+        "gl_account": {
+          "name": "gl_account",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account": {
+          "name": "account",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.goods_issue_lines": {
+      "name": "goods_issue_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dscription": {
+          "name": "dscription",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acct_code": {
+          "name": "acct_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ocr_code": {
+          "name": "ocr_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_msr": {
+          "name": "unit_msr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bin_allocations": {
+          "name": "bin_allocations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.goods_issues": {
+      "name": "goods_issues",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_date": {
+          "name": "tax_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jrnl_memo": {
+          "name": "jrnl_memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "ref2": {
+          "name": "ref2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "series": {
+          "name": "series",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_list": {
+          "name": "price_list",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.goods_receipt_lines": {
+      "name": "goods_receipt_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dscription": {
+          "name": "dscription",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acct_code": {
+          "name": "acct_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ocr_code": {
+          "name": "ocr_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_msr": {
+          "name": "unit_msr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bin_allocations": {
+          "name": "bin_allocations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.goods_receipts": {
+      "name": "goods_receipts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_date": {
+          "name": "tax_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jrnl_memo": {
+          "name": "jrnl_memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "ref2": {
+          "name": "ref2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "series": {
+          "name": "series",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_list": {
+          "name": "price_list",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.grpo_lines": {
+      "name": "grpo_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_entry": {
+          "name": "uom_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.grpo": {
+      "name": "grpo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.incoming_payments": {
+      "name": "incoming_payments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "counter_ref": {
+          "name": "counter_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_mode": {
+          "name": "payment_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.inventory_transfer_lines": {
+      "name": "inventory_transfer_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dscription": {
+          "name": "dscription",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_warehouse_code": {
+          "name": "from_warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.inventory_transfer_request_lines": {
+      "name": "inventory_transfer_request_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dscription": {
+          "name": "dscription",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_warehouse_code": {
+          "name": "from_warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "open_qty": {
+          "name": "open_qty",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_status": {
+          "name": "line_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.inventory_transfer_requests": {
+      "name": "inventory_transfer_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filler": {
+          "name": "filler",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_warehouse_code": {
+          "name": "to_warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.inventory_transfers": {
+      "name": "inventory_transfers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filler": {
+          "name": "filler",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_warehouse_code": {
+          "name": "to_warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.item_prices": {
+      "name": "item_prices",
+      "schema": "",
+      "columns": {
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_list": {
+          "name": "price_list",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.item_warehouse_stock": {
+      "name": "item_warehouse_stock",
+      "schema": "",
+      "columns": {
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "on_hand": {
+          "name": "on_hand",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.items": {
+      "name": "items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "foreign_name": {
+          "name": "foreign_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "item_group_code": {
+          "name": "item_group_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inventory_uom": {
+          "name": "inventory_uom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purchase_item": {
+          "name": "purchase_item",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "sales_item": {
+          "name": "sales_item",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "inventory_item": {
+          "name": "inventory_item",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "default_warehouse": {
+          "name": "default_warehouse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avg_price": {
+          "name": "avg_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_purchase_price": {
+          "name": "last_purchase_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_purchase_date": {
+          "name": "last_purchase_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "barcode": {
+          "name": "barcode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frozen": {
+          "name": "frozen",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "items_code_unique": {
+          "name": "items_code_unique",
+          "nullsNotDistinct": false,
+          "columns": ["code"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.outgoing_payments": {
+      "name": "outgoing_payments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_mode": {
+          "name": "payment_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.price_lists": {
+      "name": "price_lists",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "list_num": {
+          "name": "list_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "list_name": {
+          "name": "list_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "price_lists_list_num_unique": {
+          "name": "price_lists_list_num_unique",
+          "nullsNotDistinct": false,
+          "columns": ["list_num"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.purchase_order_lines": {
+      "name": "purchase_order_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_group": {
+          "name": "vat_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_percent": {
+          "name": "vat_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_entry": {
+          "name": "uom_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.purchase_orders": {
+      "name": "purchase_orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sales_person_code": {
+          "name": "sales_person_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.purchase_quotation_lines": {
+      "name": "purchase_quotation_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_group": {
+          "name": "vat_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_percent": {
+          "name": "vat_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_entry": {
+          "name": "uom_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.purchase_quotations": {
+      "name": "purchase_quotations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sales_person_code": {
+          "name": "sales_person_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sales_employees": {
+      "name": "sales_employees",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sales_order_lines": {
+      "name": "sales_order_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_group": {
+          "name": "vat_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_percent": {
+          "name": "vat_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_entry": {
+          "name": "uom_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sales_orders": {
+      "name": "sales_orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sales_person_code": {
+          "name": "sales_person_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sales_quotation_lines": {
+      "name": "sales_quotation_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_entry": {
+          "name": "doc_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_num": {
+          "name": "line_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_code": {
+          "name": "item_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_group": {
+          "name": "vat_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vat_percent": {
+          "name": "vat_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "warehouse_code": {
+          "name": "warehouse_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_code": {
+          "name": "uom_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uom_entry": {
+          "name": "uom_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "open_qty": {
+          "name": "open_qty",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_entry": {
+          "name": "base_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_line": {
+          "name": "base_line",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_type": {
+          "name": "base_type",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_quantity": {
+          "name": "base_quantity",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sales_quotations": {
+      "name": "sales_quotations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "doc_num": {
+          "name": "doc_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_date": {
+          "name": "doc_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_due_date": {
+          "name": "doc_due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_code": {
+          "name": "card_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "card_name": {
+          "name": "card_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_total": {
+          "name": "doc_total",
+          "type": "numeric(19, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_currency": {
+          "name": "doc_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_status": {
+          "name": "doc_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'O'"
+        },
+        "canceled": {
+          "name": "canceled",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address2": {
+          "name": "address2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comments": {
+          "name": "comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "num_at_card": {
+          "name": "num_at_card",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sales_person_code": {
+          "name": "sales_person_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attachment_entry": {
+          "name": "attachment_entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tax_groups": {
+      "name": "tax_groups",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate": {
+          "name": "rate",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "inactive": {
+          "name": "inactive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.unit_of_measurements": {
+      "name": "unit_of_measurements",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entry": {
+          "name": "entry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Default Company'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_username_unique": {
+          "name": "users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": ["username"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.warehouses": {
+      "name": "warehouses",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "inactive": {
+          "name": "inactive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.organizations": {
+      "name": "organizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "db_name": {
+          "name": "db_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "db_server": {
+          "name": "db_server",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'localhost'"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Y'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "organizations_db_name_unique": {
+          "name": "organizations_db_name_unique",
+          "nullsNotDistinct": false,
+          "columns": ["db_name"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_db_access": {
+      "name": "user_db_access",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "db_name": {
+          "name": "db_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_db_access_user_id_users_id_fk": {
+          "name": "user_db_access_user_id_users_id_fk",
+          "tableFrom": "user_db_access",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_db_access_db_name_organizations_db_name_fk": {
+          "name": "user_db_access_db_name_organizations_db_name_fk",
+          "tableFrom": "user_db_access",
+          "tableTo": "organizations",
+          "columnsFrom": ["db_name"],
+          "columnsTo": ["db_name"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.document_series": {
+      "name": "document_series",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "next_num": {
+          "name": "next_num",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "series_name": {
+          "name": "series_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Primary'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "document_series_document_type_unique": {
+          "name": "document_series_document_type_unique",
+          "nullsNotDistinct": false,
+          "columns": ["document_type"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

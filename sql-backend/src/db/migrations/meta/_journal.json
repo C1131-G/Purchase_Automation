@@ -43,6 +43,20 @@
       "when": 1783491525698,
       "tag": "0005_abnormal_randall_flagg",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783660627391,
+      "tag": "0006_conscious_living_tribunal",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783661513538,
+      "tag": "0007_previous_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

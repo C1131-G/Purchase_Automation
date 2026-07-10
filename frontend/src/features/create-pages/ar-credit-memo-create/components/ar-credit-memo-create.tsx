@@ -590,6 +590,33 @@ export function ArCreditMemoCreate({
           }}
         />
 
+        {state.pendingVendorChange && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/30">
+            <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-5 shadow-lg">
+              <h3 className="mb-2 text-sm font-semibold text-zinc-900">Confirm Customer Change</h3>
+              <p className="mb-4 text-sm text-zinc-600">
+                Changing customer will affect copied document data. Continue?
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={state.cancelVendorChange}
+                  className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={state.confirmVendorChange}
+                  className="rounded-full border border-blue-600 bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {!state.isEditMode && !draftDocNum && (
           <CopyFromDialog
             open={copyFromDialogOpen}

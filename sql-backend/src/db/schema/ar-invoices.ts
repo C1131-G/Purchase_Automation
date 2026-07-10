@@ -10,7 +10,7 @@ export const arInvoices = pgTable("ar_invoices", {
   docTotal: numeric("doc_total", { precision: 19, scale: 6 }),
   docCurrency: text("doc_currency"),
   docStatus: text("doc_status").default("O"),
-  canceled: text("canceled"),
+  canceled: text("canceled").default("N"),
   paidToDate: numeric("paid_to_date", { precision: 19, scale: 6 }),
   numAtCard: text("num_at_card"),
   address: text("address"),

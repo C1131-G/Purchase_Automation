@@ -10,6 +10,7 @@ export const grpo = pgTable("grpo", {
   docTotal: numeric("doc_total", { precision: 19, scale: 6 }),
   docCurrency: text("doc_currency"),
   docStatus: text("doc_status").default("O"),
+  canceled: text("canceled").default("N"),
   address: text("address"),
   address2: text("address2"),
   comments: text("comments"),

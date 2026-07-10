@@ -12,6 +12,12 @@ import { getNextDocNum, previewNextDocNum as previewNextDocNumHelper } from "@/c
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 import { resolveCardName } from "@/services/master-data.service";
 
+import {
+  calculateOpenQty,
+  validateBaseLinks,
+  recalculateParentStatuses,
+} from "@/services/copy-flow.service";
+
 export const getList = async (filters: any = {}) => {
   const db = getDb();
   const page = Number(filters.page) || 1;
@@ -54,7 +60,15 @@ export const getById = async (id: number) => {
     .from(grpoLines)
     .where(eq(grpoLines.docEntry, id))
     .orderBy(asc(grpoLines.lineNum));
-  return { ...header, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 20, header.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...header, lines: linesWithQty };
 };
 
 export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
@@ -71,7 +85,15 @@ export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
     .from(grpoLines)
     .where(eq(grpoLines.docEntry, header.id))
     .orderBy(asc(grpoLines.lineNum));
-  return { ...header, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 20, header.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...header, lines: linesWithQty };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -87,47 +109,88 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
-  const isDraft = payload.isDraft === true;
-  const draftDocEntry = payload.draftDocEntry;
+  return await db.transaction(async (tx) => {
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = payload.draftDocEntry;
 
-  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
-    const [existing] = await db.select().from(grpo).where(eq(grpo.id, draftDocEntry)).limit(1);
-
-    if (!existing) {
-      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    if (!isDraft) {
+      await validateBaseLinks(tx, payload.lines, payload.cardCode);
     }
 
-    const docNum = await getNextDocNum("grpo", "grpo", 50000);
-    const lineTotal = payload.lines.reduce(
-      (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-      0,
-    );
+    let headerId: number;
+    let docNum: number;
 
-    const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+    if (draftDocEntry && draftDocEntry > 0) {
+      const [existing] = await tx.select().from(grpo).where(eq(grpo.id, draftDocEntry)).limit(1);
 
-    await db
-      .update(grpo)
-      .set({
-        docNum,
-        docDate: payload.docDate,
-        docDueDate: payload.docDueDate ?? null,
-        cardCode: payload.cardCode,
-        cardName,
-        docCurrency: payload.docCurrency ?? null,
-        docStatus: "O",
-        docTotal: String(lineTotal),
-        address: payload.address ?? null,
-        address2: payload.address2 ?? null,
-        comments: payload.comments ?? null,
-        numAtCard: payload.numAtCard ?? null,
-      })
-      .where(eq(grpo.id, draftDocEntry));
+      if (!existing) {
+        throw new AppError("Draft document not found", 404, "NOT_FOUND");
+      }
 
-    await db.delete(grpoLines).where(eq(grpoLines.docEntry, draftDocEntry));
+      headerId = draftDocEntry;
+      docNum = await getNextDocNum("grpo", "grpo", 50000);
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      await tx
+        .update(grpo)
+        .set({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus: isDraft ? "D" : "O",
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+        })
+        .where(eq(grpo.id, draftDocEntry));
+
+      await tx.delete(grpoLines).where(eq(grpoLines.docEntry, draftDocEntry));
+    } else {
+      const docStatus = isDraft ? "D" : "O";
+      docNum = await getNextDocNum("grpo", "grpo", 50000);
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      const [header] = await tx
+        .insert(grpo)
+        .values({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus,
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+        })
+        .returning();
+      headerId = header.id;
+    }
+
     if (payload.lines?.length) {
-      await db.insert(grpoLines).values(
+      await tx.insert(grpoLines).values(
         payload.lines.map((l: any, idx: number) => ({
-          docEntry: draftDocEntry,
+          docEntry: headerId,
           lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
           itemCode: l.itemCode,
           itemDescription: l.itemDescription ?? null,
@@ -139,118 +202,113 @@ export const create = async (payload: any) => {
           baseEntry: l.baseEntry ?? null,
           baseLine: l.baseLine ?? null,
           baseType: l.baseType ?? null,
+          baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
         })),
       );
     }
 
-    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real GRPO");
-    return getById(draftDocEntry);
-  }
+    if (!isDraft) {
+      const parentDocEntries = new Set<number>(
+        payload.lines.map((l: any) => l.baseEntry).filter(Boolean),
+      );
+      await recalculateParentStatuses(tx, parentDocEntries, 22);
+    }
 
-  const docStatus = isDraft ? "D" : "O";
-  const docNum = await getNextDocNum("grpo", "grpo", 50000);
-  const lineTotal = payload.lines.reduce(
-    (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-    0,
-  );
-
-  const cardName = await resolveCardName(payload.cardCode, payload.cardName);
-
-  const [header] = await db
-    .insert(grpo)
-    .values({
-      docNum,
-      docDate: payload.docDate,
-      docDueDate: payload.docDueDate ?? null,
-      cardCode: payload.cardCode,
-      cardName,
-      docCurrency: payload.docCurrency ?? null,
-      docStatus,
-      docTotal: String(lineTotal),
-      address: payload.address ?? null,
-      address2: payload.address2 ?? null,
-      comments: payload.comments ?? null,
-      numAtCard: payload.numAtCard ?? null,
-    })
-    .returning();
-
-  if (payload.lines?.length) {
-    await db.insert(grpoLines).values(
-      payload.lines.map((l: any, idx: number) => ({
-        docEntry: header.id,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-        baseEntry: l.baseEntry ?? null,
-        baseLine: l.baseLine ?? null,
-        baseType: l.baseType ?? null,
-      })),
-    );
-  }
-
-  logger.info({ docNum }, "GRPO created");
-  return getById(header.id);
+    logger.info({ docNum, id: headerId }, "GRPO processed");
+    return getById(headerId);
+  });
 };
 
 export const update = async (id: number, payload: any) => {
   const db = getDb();
-  const [existing] = await db.select().from(grpo).where(eq(grpo.id, id)).limit(1);
-  if (!existing) throw new AppError("GRPO not found", 404, "NOT_FOUND");
+  return await db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(grpo).where(eq(grpo.id, id)).limit(1);
+    if (!existing) throw new AppError("GRPO not found", 404, "NOT_FOUND");
 
-  const updatedDocStatus = payload.isDraft === true ? "D" : existing.docStatus;
-  const lineTotal = payload.lines
-    ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
-    : Number(existing.docTotal);
+    const isDraft = payload.isDraft === true || existing.docStatus === "D";
 
-  await db
-    .update(grpo)
-    .set({
-      docDate: payload.docDate,
-      docDueDate: payload.docDueDate ?? undefined,
-      docCurrency: payload.docCurrency,
-      docStatus: updatedDocStatus,
-      docTotal: String(lineTotal),
-      address: payload.address ?? undefined,
-      address2: payload.address2 ?? undefined,
-      comments: payload.comments,
-      numAtCard: payload.numAtCard ?? undefined,
-    })
-    .where(eq(grpo.id, id));
+    if (!isDraft && payload.lines) {
+      await validateBaseLinks(tx, payload.lines, payload.cardCode ?? existing.cardCode, id, 20);
+    }
 
-  if (payload.lines) {
-    await db.delete(grpoLines).where(eq(grpoLines.docEntry, id));
-    await db.insert(grpoLines).values(
-      payload.lines.map((l: any, idx: number) => ({
-        docEntry: id,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-        baseEntry: l.baseEntry ?? null,
-        baseLine: l.baseLine ?? null,
-        baseType: l.baseType ?? null,
-      })),
-    );
-  }
+    const updatedDocStatus =
+      payload.isDraft === true ? "D" : existing.docStatus === "D" ? "O" : existing.docStatus;
+    const lineTotal = payload.lines
+      ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
+      : Number(existing.docTotal);
 
-  return getById(id);
+    // Save old parent entries before we modify the lines
+    const oldLines = await tx
+      .select({ baseEntry: grpoLines.baseEntry })
+      .from(grpoLines)
+      .where(eq(grpoLines.docEntry, id));
+    const oldParentEntries = new Set<number>(oldLines.map((l: any) => l.baseEntry).filter(Boolean));
+
+    await tx
+      .update(grpo)
+      .set({
+        docDate: payload.docDate,
+        docDueDate: payload.docDueDate ?? undefined,
+        docCurrency: payload.docCurrency,
+        docStatus: updatedDocStatus,
+        canceled: "N",
+        docTotal: String(lineTotal),
+        address: payload.address ?? undefined,
+        address2: payload.address2 ?? undefined,
+        comments: payload.comments,
+        numAtCard: payload.numAtCard ?? undefined,
+      })
+      .where(eq(grpo.id, id));
+
+    if (payload.lines) {
+      await tx.delete(grpoLines).where(eq(grpoLines.docEntry, id));
+      await tx.insert(grpoLines).values(
+        payload.lines.map((l: any, idx: number) => ({
+          docEntry: id,
+          lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
+          itemCode: l.itemCode,
+          itemDescription: l.itemDescription ?? null,
+          quantity: String(l.quantity),
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+          warehouseCode: l.warehouseCode ?? null,
+          uomCode: l.uomCode ?? null,
+          lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+          baseEntry: l.baseEntry ?? null,
+          baseLine: l.baseLine ?? null,
+          baseType: l.baseType ?? null,
+          baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
+        })),
+      );
+
+      if (!isDraft) {
+        const newParentEntries = new Set<number>(
+          payload.lines.map((l: any) => l.baseEntry).filter(Boolean),
+        );
+        const allParentEntries = new Set<number>([...oldParentEntries, ...newParentEntries]);
+        await recalculateParentStatuses(tx, allParentEntries, 22);
+      }
+    }
+
+    return getById(id);
+  });
 };
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  const [existing] = await db.select().from(grpo).where(eq(grpo.id, id)).limit(1);
-  if (!existing) throw new AppError("GRPO not found", 404, "NOT_FOUND");
-  await db.update(grpo).set({ docStatus: "C" }).where(eq(grpo.id, id));
-  return getById(id);
+  return await db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(grpo).where(eq(grpo.id, id)).limit(1);
+    if (!existing) throw new AppError("GRPO not found", 404, "NOT_FOUND");
+    await tx.update(grpo).set({ docStatus: "C", canceled: "Y" }).where(eq(grpo.id, id));
+
+    const lines = await tx
+      .select({ baseEntry: grpoLines.baseEntry })
+      .from(grpoLines)
+      .where(eq(grpoLines.docEntry, id));
+    const parentEntries = new Set<number>(lines.map((l: any) => l.baseEntry).filter(Boolean));
+    await recalculateParentStatuses(tx, parentEntries, 22);
+
+    return getById(id);
+  });
 };
 
 export const previewNextDocNum = async () => {

@@ -12,6 +12,12 @@ import { previewNextDocNum as previewNextDocNumHelper } from "@/core/utils/serie
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 import { resolveCardName } from "@/services/master-data.service";
 
+import {
+  calculateOpenQty,
+  validateBaseLinks,
+  recalculateParentStatuses,
+} from "@/services/copy-flow.service";
+
 export const getList = async (filters: any = {}) => {
   const db = getDb();
   const page = Number(filters.page) || 1;
@@ -54,7 +60,15 @@ export const getById = async (id: number) => {
     .from(apCreditMemoLines)
     .where(eq(apCreditMemoLines.docEntry, id))
     .orderBy(asc(apCreditMemoLines.lineNum));
-  return { ...h, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 19, h.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...h, lines: linesWithQty };
 };
 
 export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
@@ -71,7 +85,15 @@ export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
     .from(apCreditMemoLines)
     .where(eq(apCreditMemoLines.docEntry, h.id))
     .orderBy(asc(apCreditMemoLines.lineNum));
-  return { ...h, lines };
+
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 19, h.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+
+  return { ...h, lines: linesWithQty };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -87,51 +109,92 @@ export const getDocNums = async (search?: string, limit?: number) => {
 
 export const create = async (payload: any) => {
   const db = getDb();
-  const isDraft = payload.isDraft === true;
-  const draftDocEntry = payload.draftDocEntry;
+  return await db.transaction(async (tx) => {
+    const isDraft = payload.isDraft === true;
+    const draftDocEntry = payload.draftDocEntry;
 
-  if (!isDraft && draftDocEntry && draftDocEntry > 0) {
-    const [existing] = await db
-      .select()
-      .from(apCreditMemos)
-      .where(eq(apCreditMemos.id, draftDocEntry))
-      .limit(1);
-
-    if (!existing) {
-      throw new AppError("Draft document not found", 404, "NOT_FOUND");
+    if (!isDraft) {
+      await validateBaseLinks(tx, payload.lines, payload.cardCode);
     }
 
-    const docNum = payload.docNum;
-    const lineTotal = payload.lines.reduce(
-      (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-      0,
-    );
+    let headerId: number;
+    let docNum: number;
 
-    const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+    if (draftDocEntry && draftDocEntry > 0) {
+      const [existing] = await tx
+        .select()
+        .from(apCreditMemos)
+        .where(eq(apCreditMemos.id, draftDocEntry))
+        .limit(1);
 
-    await db
-      .update(apCreditMemos)
-      .set({
-        docNum,
-        docDate: payload.docDate,
-        docDueDate: payload.docDueDate ?? null,
-        cardCode: payload.cardCode,
-        cardName,
-        docCurrency: payload.docCurrency ?? null,
-        docStatus: "O",
-        docTotal: String(lineTotal),
-        address: payload.address ?? null,
-        address2: payload.address2 ?? null,
-        comments: payload.comments ?? null,
-        numAtCard: payload.numAtCard ?? null,
-      })
-      .where(eq(apCreditMemos.id, draftDocEntry));
+      if (!existing) {
+        throw new AppError("Draft document not found", 404, "NOT_FOUND");
+      }
 
-    await db.delete(apCreditMemoLines).where(eq(apCreditMemoLines.docEntry, draftDocEntry));
+      headerId = draftDocEntry;
+      docNum = payload.docNum;
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      await tx
+        .update(apCreditMemos)
+        .set({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus: isDraft ? "D" : "O",
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+        })
+        .where(eq(apCreditMemos.id, draftDocEntry));
+
+      await tx.delete(apCreditMemoLines).where(eq(apCreditMemoLines.docEntry, draftDocEntry));
+    } else {
+      const docStatus = isDraft ? "D" : "O";
+      docNum = payload.docNum;
+      const lineTotal = payload.lines.reduce(
+        (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
+        0,
+      );
+
+      const cardName = await resolveCardName(payload.cardCode, payload.cardName);
+
+      const [header] = await tx
+        .insert(apCreditMemos)
+        .values({
+          docNum,
+          docDate: payload.docDate,
+          docDueDate: payload.docDueDate ?? null,
+          cardCode: payload.cardCode,
+          cardName,
+          docCurrency: payload.docCurrency ?? null,
+          docStatus,
+          canceled: "N",
+          docTotal: String(lineTotal),
+          address: payload.address ?? null,
+          address2: payload.address2 ?? null,
+          comments: payload.comments ?? null,
+          numAtCard: payload.numAtCard ?? null,
+        })
+        .returning();
+      headerId = header.id;
+    }
+
     if (payload.lines?.length) {
-      await db.insert(apCreditMemoLines).values(
+      await tx.insert(apCreditMemoLines).values(
         payload.lines.map((l: any, idx: number) => ({
-          docEntry: draftDocEntry,
+          docEntry: headerId,
           lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
           itemCode: l.itemCode,
           itemDescription: l.itemDescription ?? null,
@@ -140,111 +203,118 @@ export const create = async (payload: any) => {
           warehouseCode: l.warehouseCode ?? null,
           uomCode: l.uomCode ?? null,
           lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+          baseEntry: l.baseEntry ?? null,
+          baseLine: l.baseLine ?? null,
+          baseType: l.baseType ?? null,
+          baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
         })),
       );
     }
 
-    logger.info({ docNum, id: draftDocEntry }, "Draft converted to real AP Credit memo");
-    return getById(draftDocEntry);
-  }
+    if (!isDraft) {
+      const parentDocEntries = new Set<number>(
+        payload.lines.map((l: any) => l.baseEntry).filter(Boolean),
+      );
+      await recalculateParentStatuses(tx, parentDocEntries, 18);
+    }
 
-  const docStatus = isDraft ? "D" : "O";
-  const docNum = payload.docNum;
-  const lineTotal = payload.lines.reduce(
-    (sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity,
-    0,
-  );
-
-  const cardName = await resolveCardName(payload.cardCode, payload.cardName);
-
-  const [h] = await db
-    .insert(apCreditMemos)
-    .values({
-      docNum,
-      docDate: payload.docDate,
-      docDueDate: payload.docDueDate ?? null,
-      cardCode: payload.cardCode,
-      cardName,
-      docCurrency: payload.docCurrency ?? null,
-      docStatus,
-      docTotal: String(lineTotal),
-      address: payload.address ?? null,
-      address2: payload.address2 ?? null,
-      comments: payload.comments ?? null,
-      numAtCard: payload.numAtCard ?? null,
-    })
-    .returning();
-
-  if (payload.lines?.length) {
-    await db.insert(apCreditMemoLines).values(
-      payload.lines.map((l: any, idx: number) => ({
-        docEntry: h.id,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-      })),
-    );
-  }
-
-  logger.info({ docNum: payload.docNum }, "AP Credit memo created");
-  return getById(h.id);
+    logger.info({ docNum: payload.docNum }, "AP Credit memo created");
+    return getById(headerId);
+  });
 };
 
 export const update = async (id: number, payload: any) => {
   const db = getDb();
-  const [ex] = await db.select().from(apCreditMemos).where(eq(apCreditMemos.id, id)).limit(1);
-  if (!ex) throw new AppError("AP Credit memo not found", 404, "NOT_FOUND");
+  return await db.transaction(async (tx) => {
+    const [ex] = await tx.select().from(apCreditMemos).where(eq(apCreditMemos.id, id)).limit(1);
+    if (!ex) throw new AppError("AP Credit memo not found", 404, "NOT_FOUND");
 
-  const updatedDocStatus = payload.isDraft === true ? "D" : ex.docStatus;
-  const lineTotal = payload.lines
-    ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
-    : Number(ex.docTotal);
+    const isDraft = payload.isDraft === true || ex.docStatus === "D";
 
-  await db
-    .update(apCreditMemos)
-    .set({
-      docDate: payload.docDate,
-      docDueDate: payload.docDueDate ?? undefined,
-      docCurrency: payload.docCurrency,
-      docStatus: updatedDocStatus,
-      docTotal: String(lineTotal),
-      address: payload.address ?? undefined,
-      address2: payload.address2 ?? undefined,
-      comments: payload.comments,
-      numAtCard: payload.numAtCard ?? undefined,
-    })
-    .where(eq(apCreditMemos.id, id));
+    if (!isDraft && payload.lines) {
+      await validateBaseLinks(tx, payload.lines, payload.cardCode ?? ex.cardCode, id, 19);
+    }
 
-  if (payload.lines) {
-    await db.delete(apCreditMemoLines).where(eq(apCreditMemoLines.docEntry, id));
-    await db.insert(apCreditMemoLines).values(
-      payload.lines.map((l: any, idx: number) => ({
-        docEntry: id,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-        itemCode: l.itemCode,
-        itemDescription: l.itemDescription ?? null,
-        quantity: String(l.quantity),
-        unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
-        warehouseCode: l.warehouseCode ?? null,
-        uomCode: l.uomCode ?? null,
-        lineTotal: String((l.unitPrice ?? 0) * l.quantity),
-      })),
-    );
-  }
-  return getById(id);
+    const updatedDocStatus =
+      payload.isDraft === true ? "D" : ex.docStatus === "D" ? "O" : ex.docStatus;
+    const lineTotal = payload.lines
+      ? payload.lines.reduce((sum: number, l: any) => sum + (l.unitPrice ?? 0) * l.quantity, 0)
+      : Number(ex.docTotal);
+
+    // Save old parent entries before we modify the lines
+    const oldLines = await tx
+      .select({ baseEntry: apCreditMemoLines.baseEntry })
+      .from(apCreditMemoLines)
+      .where(eq(apCreditMemoLines.docEntry, id));
+    const oldParentEntries = new Set<number>(oldLines.map((l: any) => l.baseEntry).filter(Boolean));
+
+    await tx
+      .update(apCreditMemos)
+      .set({
+        docDate: payload.docDate,
+        docDueDate: payload.docDueDate ?? undefined,
+        docCurrency: payload.docCurrency,
+        docStatus: updatedDocStatus,
+        canceled: "N",
+        docTotal: String(lineTotal),
+        address: payload.address ?? undefined,
+        address2: payload.address2 ?? undefined,
+        comments: payload.comments,
+        numAtCard: payload.numAtCard ?? undefined,
+      })
+      .where(eq(apCreditMemos.id, id));
+
+    if (payload.lines) {
+      await tx.delete(apCreditMemoLines).where(eq(apCreditMemoLines.docEntry, id));
+      await tx.insert(apCreditMemoLines).values(
+        payload.lines.map((l: any, idx: number) => ({
+          docEntry: id,
+          lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
+          itemCode: l.itemCode,
+          itemDescription: l.itemDescription ?? null,
+          quantity: String(l.quantity),
+          unitPrice: l.unitPrice != null ? String(l.unitPrice) : null,
+          warehouseCode: l.warehouseCode ?? null,
+          uomCode: l.uomCode ?? null,
+          lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+          baseEntry: l.baseEntry ?? null,
+          baseLine: l.baseLine ?? null,
+          baseType: l.baseType ?? null,
+          baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
+        })),
+      );
+
+      if (!isDraft) {
+        const newParentEntries = new Set<number>(
+          payload.lines.map((l: any) => l.baseEntry).filter(Boolean),
+        );
+        const allParentEntries = new Set<number>([...oldParentEntries, ...newParentEntries]);
+        await recalculateParentStatuses(tx, allParentEntries, 18);
+      }
+    }
+    return getById(id);
+  });
 };
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  const [ex] = await db.select().from(apCreditMemos).where(eq(apCreditMemos.id, id)).limit(1);
-  if (!ex) throw new AppError("AP Credit memo not found", 404, "NOT_FOUND");
-  await db.update(apCreditMemos).set({ docStatus: "C" }).where(eq(apCreditMemos.id, id));
-  return getById(id);
+  return await db.transaction(async (tx) => {
+    const [ex] = await tx.select().from(apCreditMemos).where(eq(apCreditMemos.id, id)).limit(1);
+    if (!ex) throw new AppError("AP Credit memo not found", 404, "NOT_FOUND");
+    await tx
+      .update(apCreditMemos)
+      .set({ docStatus: "C", canceled: "Y" })
+      .where(eq(apCreditMemos.id, id));
+
+    const lines = await tx
+      .select({ baseEntry: apCreditMemoLines.baseEntry })
+      .from(apCreditMemoLines)
+      .where(eq(apCreditMemoLines.docEntry, id));
+    const parentEntries = new Set<number>(lines.map((l: any) => l.baseEntry).filter(Boolean));
+    await recalculateParentStatuses(tx, parentEntries, 18);
+
+    return getById(id);
+  });
 };
 
 export const previewNextDocNum = async () => {

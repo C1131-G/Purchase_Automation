@@ -12,6 +12,8 @@ import { getNextDocNum, previewNextDocNum as previewNextDocNumHelper } from "@/c
 import { buildSqlListFilters } from "@/core/utils/query-helper";
 import { resolveCardName } from "@/services/master-data.service";
 
+import { calculateOpenQty } from "@/services/copy-flow.service";
+
 export const getList = async (filters: any = {}) => {
   const db = getDb();
   const page = Number(filters.page) || 1;
@@ -55,7 +57,13 @@ export const getById = async (id: number) => {
     .from(purchaseQuotationLines)
     .where(eq(purchaseQuotationLines.docEntry, id))
     .orderBy(asc(purchaseQuotationLines.lineNum));
-  return { ...header, lines };
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 540000006, header.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+  return { ...header, lines: linesWithQty };
 };
 
 export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
@@ -80,7 +88,13 @@ export const getByDocNum = async (docNum: number, draftDocEntry?: number) => {
     .from(purchaseQuotationLines)
     .where(eq(purchaseQuotationLines.docEntry, header.id))
     .orderBy(asc(purchaseQuotationLines.lineNum));
-  return { ...header, lines };
+  const linesWithQty = await Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      openQty: await calculateOpenQty(db, 540000006, header.id, l.lineNum, Number(l.quantity || 0)),
+    })),
+  );
+  return { ...header, lines: linesWithQty };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -131,6 +145,7 @@ export const create = async (payload: any) => {
         cardName,
         docCurrency: payload.docCurrency ?? null,
         docStatus: "O",
+        canceled: "N",
         docTotal: String(lineTotal),
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
@@ -157,6 +172,10 @@ export const create = async (payload: any) => {
           warehouseCode: l.warehouseCode ?? null,
           uomCode: l.uomCode ?? null,
           lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+          baseType: l.baseType ?? null,
+          baseEntry: l.baseEntry ?? null,
+          baseLine: l.baseLine ?? null,
+          baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
         })),
       );
     }
@@ -184,6 +203,7 @@ export const create = async (payload: any) => {
       cardName,
       docCurrency: payload.docCurrency ?? null,
       docStatus,
+      canceled: "N",
       docTotal: String(lineTotal),
       address: payload.address ?? null,
       address2: payload.address2 ?? null,
@@ -207,6 +227,10 @@ export const create = async (payload: any) => {
         warehouseCode: l.warehouseCode ?? null,
         uomCode: l.uomCode ?? null,
         lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+        baseType: l.baseType ?? null,
+        baseEntry: l.baseEntry ?? null,
+        baseLine: l.baseLine ?? null,
+        baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
       })),
     );
   }
@@ -241,6 +265,7 @@ export const update = async (id: number, payload: any) => {
       docDueDate: payload.docDueDate ?? undefined,
       docCurrency: payload.docCurrency,
       docStatus: updatedDocStatus,
+      canceled: "N",
       docTotal: String(lineTotal),
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
@@ -266,6 +291,10 @@ export const update = async (id: number, payload: any) => {
         warehouseCode: l.warehouseCode ?? null,
         uomCode: l.uomCode ?? null,
         lineTotal: String((l.unitPrice ?? 0) * l.quantity),
+        baseType: l.baseType ?? null,
+        baseEntry: l.baseEntry ?? null,
+        baseLine: l.baseLine ?? null,
+        baseQuantity: l.baseQuantity != null ? String(l.baseQuantity) : null,
       })),
     );
   }
@@ -281,7 +310,10 @@ export const cancel = async (id: number) => {
     .where(eq(purchaseQuotations.id, id))
     .limit(1);
   if (!existing) throw new AppError("Purchase quotation not found", 404, "NOT_FOUND");
-  await db.update(purchaseQuotations).set({ docStatus: "C" }).where(eq(purchaseQuotations.id, id));
+  await db
+    .update(purchaseQuotations)
+    .set({ docStatus: "C", canceled: "Y" })
+    .where(eq(purchaseQuotations.id, id));
   return getById(id);
 };
 

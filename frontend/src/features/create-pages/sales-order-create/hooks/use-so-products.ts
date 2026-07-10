@@ -25,6 +25,8 @@ interface UseSoProductsProps {
   setProductSearch: (search: string) => void;
   stockPreviewProductCode: string | undefined;
   customerSelected: boolean;
+  productRows: ProductRow[];
+  setProductRows: React.Dispatch<React.SetStateAction<ProductRow[]>>;
 }
 
 export function useSoProducts({
@@ -36,9 +38,10 @@ export function useSoProducts({
   setProductSearch,
   stockPreviewProductCode,
   customerSelected,
+  productRows,
+  setProductRows,
 }: UseSoProductsProps) {
   const queryClient = useQueryClient();
-  const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
