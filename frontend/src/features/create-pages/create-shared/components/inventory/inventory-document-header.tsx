@@ -85,8 +85,9 @@ export function InventoryDocumentHeader({
                 ))
               ) : (
                 <>
-                  <option value="Primary">Primary</option>
-                  <option value="Manual">Manual</option>
+                  <option value="" disabled>
+                    No Series Available
+                  </option>
                 </>
               )}
             </select>
@@ -113,11 +114,10 @@ export function InventoryDocumentHeader({
                 </option>
               ))
             ) : (
-              // Fallback static options when no backend data
               <>
-                <option value="Last Purchase Price">Last Purchase Price</option>
-                <option value="Base Price">Base Price</option>
-                <option value="Regular Purchase Price">Regular Purchase Price</option>
+                <option value="" disabled>
+                  No Price Lists Available
+                </option>
               </>
             )}
           </select>

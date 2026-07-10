@@ -12,6 +12,7 @@ interface GoodsIssueTableProps {
   warehouses: CreateLookupOption[];
   warehousesLoading: boolean;
   uoms?: CreateLookupOption[];
+  reasons?: CreateLookupOption[];
   priceListCode?: string | undefined;
 }
 
@@ -28,6 +29,7 @@ const DEFAULT_ROW: GoodsIssueRow = {
   binLocationAllocation: 0,
   accountCode: "",
   costingCode: "",
+  inventoryAdjustmentReason: "",
 };
 
 export function GoodsIssueTable({
@@ -38,6 +40,7 @@ export function GoodsIssueTable({
   warehouses,
   warehousesLoading,
   uoms = [],
+  reasons = [],
   priceListCode,
 }: GoodsIssueTableProps) {
   const handleAddRow = () => {
@@ -62,6 +65,7 @@ export function GoodsIssueTable({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           uoms={uoms}
+          reasons={reasons}
           priceListCode={priceListCode}
         />
       </div>

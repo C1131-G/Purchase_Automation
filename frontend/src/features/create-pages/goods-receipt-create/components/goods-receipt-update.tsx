@@ -33,6 +33,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
   const [ref2, setRef2] = useState("");
   const [rows, setRows] = useState<GoodsReceiptRow[]>([]);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [branch, setBranch] = useState("");
 
   const updateMutation = useUpdateGoodsReceipt();
 
@@ -45,8 +46,10 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
 
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const uomsQuery = useQuery(createSharedQueries.uoms());
-  const seriesQuery = useQuery(createSharedQueries.series("59"));
+  const seriesQuery = useQuery(createSharedQueries.series("60")); // using Goods Issue series as requested
   const priceListsQuery = useQuery(createSharedQueries.priceLists());
+  const branchesQuery = useQuery(createSharedQueries.branches());
+  const reasonsQuery = useQuery(createSharedQueries.inventoryAdjustmentReasons("receipt"));
 
   const grData = grDetail?.data;
 
@@ -73,9 +76,15 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
           total: (qty * price).toFixed(2),
           binLocationAllocation: binAlloc,
           accountCode: line.AcctCode || line.AccountCode || "",
+          inventoryAdjustmentReason: line.InventoryAdjustmentReason || line.U_INVADJMTRES || "",
         };
       });
       setRows(mappedRows);
+
+      const lineBranch =
+        grData.DocumentLines?.[0]?.CostingCode || grData.DocumentLines?.[0]?.OcrCode || "";
+      setBranch(lineBranch);
+
       if (grData.Attachments) {
         setAttachments(grData.Attachments);
       }
@@ -103,6 +112,8 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
     );
   }
 
+  const branchName = branchesQuery.data?.find((b) => b.code === branch)?.name || branch || "N/A";
+
   return (
     <CreatePageWrapper
       dashboardUrl="/dashboard/inventory"
@@ -122,8 +133,8 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                   (grData.PriceList === -2 ? "Last Evaluated Price" : "Last Purchase Price")
                 : "Last Purchase Price"
             }
-            priceLists={[]}
-            priceListsLoading={false}
+            priceLists={priceListsQuery.data ?? []}
+            priceListsLoading={priceListsQuery.isLoading}
             postingDate={grData.DocDate ? grData.DocDate.slice(0, 10) : ""}
             documentDate={grData.TaxDate ? grData.TaxDate.slice(0, 10) : ""}
             ref2={ref2}
@@ -136,7 +147,20 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
             onRef2Change={setRef2}
             idPrefix="gr-view"
             isEditMode={true}
-          />
+          >
+            <div>
+              <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                Branch
+              </label>
+              <input
+                type="text"
+                value={branchesQuery.isLoading ? "Loading..." : branchName}
+                readOnly
+                disabled
+                className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-100 pl-3 pr-8 text-sm text-zinc-500 outline-none cursor-not-allowed"
+              />
+            </div>
+          </InventoryDocumentHeader>
         </div>
 
         {/* Contents Section */}
@@ -149,6 +173,7 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
             warehouses={warehousesQuery.data ?? []}
             warehousesLoading={warehousesQuery.isLoading}
             uoms={uomsQuery.data ?? []}
+            reasons={reasonsQuery.data ?? []}
             priceListCode={undefined}
           />
         </div>
@@ -273,6 +298,10 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                             Comments: remarks,
                             JrnlMemo: journalRemark,
                             Ref2: ref2,
+                            DocumentLines: rows.map((r, i) => ({
+                              LineNum: r.id.startsWith("line-") ? i : Number(r.id),
+                              U_INVADJMTRES: r.inventoryAdjustmentReason || null,
+                            })),
                             ...(attachments.length > 0 ? { Attachments: attachments } : {}),
                           },
                         },

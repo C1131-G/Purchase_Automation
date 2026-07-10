@@ -1039,6 +1039,104 @@ export const getWarehouseBins = async (dbName: string, warehouseCode: string) =>
   );
 };
 
+export const getSalesEmployees = async (dbName: string) => {
+  const repository = await getTenantRepository(dbName, SalesEmployeeSchema);
+  const rows = await repository.find({
+    select: ["SlpCode", "SlpName"] as const,
+    where: { Active: "Y" } as Record<string, unknown>,
+  });
+
+  return rows.map((row) => ({
+    code: String(row.SlpCode),
+    name: toTrimmed(row.SlpName) || String(row.SlpCode),
+  }));
+};
+
+export const getWarehouseBranch = async (dbName: string, warehouseCode: string) => {
+  const cacheKey = `master:${dbName}:WarehouseBranch:${warehouseCode}`;
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT "BPLid" FROM OWHS WHERE "WhsCode" = '${warehouseCode}'`,
+        )) as Array<{ BPLid: unknown }>;
+
+        if (rows && rows.length > 0 && rows[0].BPLid !== null && rows[0].BPLid !== undefined) {
+          return Number(rows[0].BPLid);
+        }
+        return null;
+      } catch (err) {
+        logger.warn({
+          db: dbName,
+          err,
+          msg: "Failed to fetch warehouse branch from OWHS",
+          warehouseCode,
+        });
+        return null;
+      }
+    },
+    1000 * 60 * 60, // 1 hour cache
+  );
+};
+
+export const getDefaultBranch = async (dbName: string) => {
+  const cacheKey = `master:${dbName}:DefaultBranch`;
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT TOP 1 "BPLId" FROM OBPL WHERE "Disabled" = 'N' ORDER BY "BPLId" ASC`,
+        )) as Array<{ BPLId: unknown }>;
+
+        if (rows && rows.length > 0) {
+          return Number(rows[0].BPLId);
+        }
+        return null;
+      } catch (err) {
+        logger.warn({ db: dbName, err, msg: "Failed to fetch default branch from OBPL" });
+        return null;
+      }
+    },
+    1000 * 60 * 60, // 1 hour cache
+  );
+};
+
+export const getInventoryAdjustmentReasons = async (
+  dbName: string,
+  type: "receipt" | "issue" = "receipt",
+) => {
+  const tableId = type === "issue" ? "IGE1" : "IGN1";
+  const cacheKey = `master:${dbName}:InventoryAdjustmentReasons:${type}`;
+
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT "FldValue", "Descr" FROM "UFD1" WHERE "TableID"='${tableId}' AND "FieldID" IN (SELECT "FieldID" FROM "CUFD" WHERE "TableID"='${tableId}' AND "AliasID"='INVADJMTRES')`,
+        )) as Array<{
+          FldValue: string;
+          Descr: string;
+        }>;
+
+        return rows.map((row) => ({
+          code: row.FldValue,
+          name: row.Descr,
+        }));
+      } catch (err) {
+        logger.error({ db: dbName, err }, "Failed to fetch inventory adjustment reasons");
+        return [];
+      }
+    },
+    1000 * 60 * 60, // 1 hour cache
+  );
+};
+
 export const masterDataService = {
   getCustomers,
   getPriceLists,
@@ -1050,4 +1148,8 @@ export const masterDataService = {
   getVendors,
   getWarehouses,
   getWarehouseBins,
+  getWarehouseBranch,
+  getDefaultBranch,
+  getSalesEmployees,
+  getInventoryAdjustmentReasons,
 };

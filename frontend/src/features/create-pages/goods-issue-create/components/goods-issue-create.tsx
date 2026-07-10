@@ -53,6 +53,9 @@ interface CreateGoodsIssuePayload {
     AccountCode?: string;
     CostingCode?: string;
     BinLocationAllocation?: number;
+    SerialNumbers?: { InternalSerialNumber: string }[];
+    BatchNumbers?: { BatchNumber: string; Quantity: number }[];
+    InventoryAdjustmentReason?: string;
   }[];
 }
 
@@ -154,11 +157,13 @@ export function GoodsIssueCreate() {
   const priceListsQuery = useQuery(createSharedQueries.priceLists());
   const seriesQuery = useQuery(createSharedQueries.series("59")); // 59 is typically Goods Issue
   const branchesQuery = useQuery(createSharedQueries.branches());
+  const reasonsQuery = useQuery(createSharedQueries.inventoryAdjustmentReasons("issue"));
 
   const warehouses = warehousesQuery.data ?? [];
   const priceLists = priceListsQuery.data ?? [];
   const seriesOptions = seriesQuery.data ?? [];
   const branches = branchesQuery.data ?? [];
+  const reasons = reasonsQuery.data ?? [];
 
   const resolvedSeries = series || (seriesOptions.length > 0 ? seriesOptions[0]!.code : "");
 
@@ -311,6 +316,9 @@ export function GoodsIssueCreate() {
         ...(r.uomCode ? { UoMCode: r.uomCode } : {}),
         ...(r.accountCode ? { AccountCode: r.accountCode } : {}),
         ...(branch ? { CostingCode: branch } : {}),
+        ...(r.inventoryAdjustmentReason
+          ? { InventoryAdjustmentReason: r.inventoryAdjustmentReason }
+          : {}),
         ...(r.binLocationAllocation
           ? {
               DocumentLinesBinAllocations: [
@@ -444,6 +452,7 @@ export function GoodsIssueCreate() {
           warehouses={warehouses}
           warehousesLoading={warehousesQuery.isLoading}
           uoms={uomsQuery.data ?? []}
+          reasons={reasons}
           priceListCode={resolvedPriceListCode ?? undefined}
         />
         {/* Product selection popup — always multi-select capable */}

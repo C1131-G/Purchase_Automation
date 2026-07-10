@@ -22,6 +22,7 @@ interface GoodsReceiptProductTableRowProps {
   warehousesLoading: boolean;
   disableInputs?: boolean;
   uoms?: CreateLookupOption[];
+  reasons?: CreateLookupOption[];
   priceListCode?: string | undefined;
 }
 
@@ -63,6 +64,7 @@ export function GoodsReceiptProductTableRow({
   warehousesLoading,
   disableInputs = false,
   uoms = [],
+  reasons = [],
   priceListCode,
 }: GoodsReceiptProductTableRowProps) {
   // Product Code state
@@ -618,6 +620,23 @@ export function GoodsReceiptProductTableRow({
             setAccountLookupOpen(false);
           }}
         />
+      </td>
+
+      {/* Inventory Adjustment Reason */}
+      <td className="px-2 py-2">
+        <select
+          value={row.inventoryAdjustmentReason || ""}
+          disabled={disableInputs}
+          onChange={(e) => updateProductRow(row.id, { inventoryAdjustmentReason: e.target.value })}
+          className="h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 pr-8 text-xs text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+        >
+          <option value="">Select Reason</option>
+          {reasons.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.name}
+            </option>
+          ))}
+        </select>
       </td>
 
       {/* Actions */}

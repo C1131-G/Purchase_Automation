@@ -139,7 +139,7 @@ export const getPriceLists = async (req: Request, res: Response, next: NextFunct
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { dbName } = authReq.user;
-    logger.info({ dbName, msg: "Fetching price lists" });
+    logger.info({ dbName, msg: "Fetching price lists via Service Layer" });
     const data = await masterDataService.getPriceLists(dbName);
     res.status(200).json({ data, success: true });
   } catch (error) {
@@ -188,6 +188,26 @@ export const getBranches = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+export const getInventoryAdjustmentReasons = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    logger.info({ dbName, msg: "Fetching inventory adjustment reasons" });
+    const { type } = req.query;
+    const data = await masterDataService.getInventoryAdjustmentReasons(
+      dbName,
+      (type as "receipt" | "issue") || "receipt",
+    );
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const masterDataDal = {
   getCustomers,
   getPriceLists,
@@ -200,4 +220,5 @@ export const masterDataDal = {
   getSeries,
   getWarehouseBins,
   getBranches,
+  getInventoryAdjustmentReasons,
 };

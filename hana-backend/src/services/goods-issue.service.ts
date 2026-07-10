@@ -1,4 +1,5 @@
 import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { serviceLayerClient } from "@/services/service-layer.service";
 import { getDisplayCurrency } from "@/services/currency.util";
 import { GoodsIssueSchema } from "@/db/schemas/goods-issue.schema";
 import { GoodsIssueLineSchema } from "@/db/schemas/goods-issue-line.schema";
@@ -192,6 +193,8 @@ export const getGoodsIssueByDocNum = async (
         BaseType: l.baseType,
         BaseEntry: l.baseEntry,
         BaseLine: l.baseLine,
+        InventoryAdjustmentReason: slLine?.U_INVADJMTRES || "",
+        U_INVADJMTRES: slLine?.U_INVADJMTRES || "",
         DocumentLinesBinAllocations: lineBinAllocations.map((ba: any) => ({
           BinAbsEntry: ba.BinAbsEntry,
           Quantity: ba.Quantity,
@@ -234,7 +237,6 @@ export const getGoodsIssueDocNums = async (dbName: string, search?: string, limi
 
 export const createGoodsIssue = async (sessionId: string, payload: Record<string, unknown>) => {
   try {
-    const { serviceLayerClient } = await import("@/services/service-layer.service");
     const session = serviceLayerClient.getSession(sessionId);
     const dbName = session?.companyDB || "";
     let absoluteEntry: number | null = null;
@@ -252,12 +254,23 @@ export const createGoodsIssue = async (sessionId: string, payload: Record<string
       );
     }
 
+    const { masterDataService } = await import("@/services/master-data.service");
+    const firstWhs = (payload.DocumentLines as Record<string, unknown>[])?.[0]?.WarehouseCode;
+    let branchId: number | null = null;
+    if (firstWhs) {
+      branchId = await masterDataService.getWarehouseBranch(dbName, String(firstWhs));
+    }
+    if (branchId === null) {
+      branchId = await masterDataService.getDefaultBranch(dbName);
+    }
+
     const sapPayload: Record<string, unknown> = {
       DocDate: payload.DocDate,
       TaxDate: payload.TaxDate,
       Comments: payload.Comments,
       JrnlMemo: payload.JrnlMemo,
       Reference2: payload.Ref2,
+      ...(branchId !== null ? { BPL_IDAssignedToInvoice: branchId } : {}),
       ...(payload.Series !== undefined && payload.Series !== null
         ? { Series: Number(payload.Series) }
         : {}),
@@ -265,33 +278,20 @@ export const createGoodsIssue = async (sessionId: string, payload: Record<string
         ? { PriceList: Number(payload.PriceList) }
         : {}),
       AttachmentEntry: absoluteEntry ?? undefined,
-      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map(
-        (line, index) => {
-          const l: Record<string, unknown> = {
-            ItemCode: line.ItemCode,
-            Quantity: Number(line.Quantity) || 1,
-            UnitPrice: Number(line.UnitPrice) || 0,
-          };
-          if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
-          if (line.UoMCode) l.UoMCode = line.UoMCode;
-          if (line.AccountCode) l.AccountCode = line.AccountCode;
-          if (line.CostingCode) l.CostingCode = line.CostingCode; // This is the "Branch"
+      DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map((line) => {
+        const l: Record<string, unknown> = {
+          ItemCode: line.ItemCode,
+          Quantity: Number(line.Quantity) || 1,
+          UnitPrice: Number(line.UnitPrice) || 0,
+        };
+        if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
+        if (line.UoMCode) l.UoMCode = line.UoMCode;
+        if (line.AccountCode) l.AccountCode = line.AccountCode;
+        if (line.CostingCode) l.CostingCode = line.CostingCode; // This is the "Branch"
+        if (line.InventoryAdjustmentReason) l.U_INVADJMTRES = line.InventoryAdjustmentReason;
 
-          if (
-            Array.isArray(line.DocumentLinesBinAllocations) &&
-            (line.DocumentLinesBinAllocations as unknown[]).length > 0
-          ) {
-            l.DocumentLinesBinAllocations = (line.DocumentLinesBinAllocations as any[]).map(
-              (ba) => ({
-                BaseLineNumber: ba.BaseLineNumber ?? index,
-                BinAbsEntry: Number(ba.BinAbsEntry),
-                Quantity: Number(ba.Quantity) || 1,
-              }),
-            );
-          }
-          return l;
-        },
-      ),
+        return l;
+      }),
     };
 
     const result = (await serviceLayerClient.request(
@@ -340,6 +340,7 @@ export const updateGoodsIssue = async (
     if (payload.Comments !== undefined) sapPayload.Comments = payload.Comments;
     if (payload.JrnlMemo !== undefined) sapPayload.JrnlMemo = payload.JrnlMemo;
     if (payload.Ref2 !== undefined) sapPayload.Reference2 = payload.Ref2;
+    if (payload.DocumentLines !== undefined) sapPayload.DocumentLines = payload.DocumentLines;
 
     const { serviceLayerClient } = await import("@/services/service-layer.service");
 

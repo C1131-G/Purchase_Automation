@@ -72,6 +72,8 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
   const uomsQuery = useQuery(createSharedQueries.uoms());
   const seriesQuery = useQuery(createSharedQueries.series("59"));
   const priceListsQuery = useQuery(createSharedQueries.priceLists());
+  const branchesQuery = useQuery(createSharedQueries.branches());
+  const reasonsQuery = useQuery(createSharedQueries.inventoryAdjustmentReasons("issue"));
 
   const grData = grDetail?.data;
 
@@ -102,6 +104,7 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
           binLocationAllocation: binAlloc,
           accountCode: line.AcctCode || line.AccountCode || "",
           costingCode: line.CostingCode || line.OcrCode || "",
+          inventoryAdjustmentReason: line.InventoryAdjustmentReason || "",
         };
       });
       setRows(mappedRows);
@@ -131,6 +134,8 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
       </div>
     );
   }
+
+  const branchName = branchesQuery.data?.find((b) => b.code === branch)?.name || branch || "N/A";
 
   return (
     <CreatePageWrapper
@@ -172,7 +177,7 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
               </label>
               <input
                 type="text"
-                value={branch}
+                value={branchesQuery.isLoading ? "Loading..." : branchName}
                 readOnly
                 disabled
                 className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-100 pl-3 pr-8 text-sm text-zinc-500 outline-none cursor-not-allowed"
@@ -191,6 +196,7 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
             warehouses={warehousesQuery.data ?? []}
             warehousesLoading={warehousesQuery.isLoading}
             uoms={uomsQuery.data ?? []}
+            reasons={reasonsQuery.data ?? []}
             priceListCode={undefined}
           />
         </div>
@@ -315,6 +321,10 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
                             Comments: remarks,
                             JrnlMemo: journalRemark,
                             Ref2: ref2,
+                            DocumentLines: rows.map((r, i) => ({
+                              LineNum: r.id.startsWith("line-") ? i : Number(r.id),
+                              U_INVADJMTRES: r.inventoryAdjustmentReason || null,
+                            })),
                             ...(attachments.length > 0 ? { Attachments: attachments } : {}),
                           },
                         },

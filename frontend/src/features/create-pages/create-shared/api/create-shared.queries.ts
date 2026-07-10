@@ -42,6 +42,8 @@ export const createSharedKeys = {
   warehouseBins: (warehouseCode: string) =>
     [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
   branches: () => [...createSharedKeys.all, "branches"] as const,
+  inventoryAdjustmentReasons: (type: "receipt" | "issue" = "receipt") =>
+    [...createSharedKeys.all, "inventory-adjustment-reasons", type] as const,
 };
 
 export const createSharedQueries = {
@@ -209,6 +211,16 @@ export const createSharedQueries = {
         }));
       },
       queryKey: createSharedKeys.branches(),
+      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
+    }),
+  inventoryAdjustmentReasons: (type: "receipt" | "issue" = "receipt") =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
+      queryFn: async () =>
+        normalizeLookups(
+          unwrapMasterData(await masterDataAPI.getInventoryAdjustmentReasons(type)).map(mapLookup),
+        ),
+      queryKey: createSharedKeys.inventoryAdjustmentReasons(type),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
 };

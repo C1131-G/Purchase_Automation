@@ -11,6 +11,7 @@ interface GoodsReceiptProductTableProps {
   warehousesLoading: boolean;
   disableLineInputs?: boolean;
   uoms?: CreateLookupOption[];
+  reasons?: CreateLookupOption[];
   priceListCode?: string | undefined;
 }
 
@@ -23,6 +24,7 @@ export function GoodsReceiptProductTable({
   warehousesLoading,
   disableLineInputs = false,
   uoms = [],
+  reasons = [],
   priceListCode,
 }: GoodsReceiptProductTableProps) {
   const updateProductRow = (id: string, patch: Partial<GoodsReceiptRow>) => {
@@ -48,13 +50,14 @@ export function GoodsReceiptProductTable({
             <th className="w-[8%] px-2 py-2">UoM Code</th>
             <th className="w-[8%] px-2 py-2">UoM Name</th>
             <th className="w-[12%] px-2 py-2">G/L Account</th>
+            <th className="w-[12%] px-2 py-2">Inventory Adjustment Reason</th>
             <th className="w-[5%] px-2 py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td className="px-3 py-8" colSpan={11}>
+              <td className="px-3 py-8" colSpan={12}>
                 <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
                   <div className="text-sm font-medium text-zinc-700">No items yet</div>
                   <div className="text-xs text-zinc-500">
@@ -77,6 +80,7 @@ export function GoodsReceiptProductTable({
               warehousesLoading={warehousesLoading}
               disableInputs={disableLineInputs}
               uoms={uoms}
+              reasons={reasons}
               priceListCode={priceListCode}
             />
           ))}
