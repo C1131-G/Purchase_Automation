@@ -12,6 +12,7 @@ const GoodsIssueLineSchema = z.object({
   costingCode: z.string().optional(),
   uomCode: z.string().optional(),
   unitMsr: z.string().optional(),
+  inventoryAdjustmentReason: z.string().optional(),
   documentLinesBinAllocations: z.array(z.any()).optional(),
 });
 

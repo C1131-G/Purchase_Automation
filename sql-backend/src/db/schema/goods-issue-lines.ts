@@ -17,4 +17,5 @@ export const goodsIssueLines = pgTable("goods_issue_lines", {
   baseType: integer("base_type"),
   baseEntry: integer("base_entry"),
   baseLine: integer("base_line"),
+  inventoryAdjustmentReason: text("inventory_adjustment_reason"),
 });

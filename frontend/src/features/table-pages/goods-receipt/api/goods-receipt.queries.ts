@@ -44,7 +44,12 @@ export function useUpdateGoodsReceipt() {
   return useMutation({
     mutationFn: (data: {
       id: string | number;
-      payload: { Comments?: string; JrnlMemo?: string; Ref2?: string; Attachments?: any[] };
+      payload: {
+        Comments?: string;
+        JrnlMemo?: string;
+        Ref2?: string;
+        Attachments?: any[];
+      };
     }) => goodsReceiptAPI.updateGoodsReceipt(data.id, data.payload),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.all });

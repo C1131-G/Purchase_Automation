@@ -12,6 +12,7 @@ const GoodsReceiptLineSchema = z.object({
   ocrCode: z.string().optional(),
   costingCode: z.string().optional(),
   unitMsr: z.string().optional(),
+  inventoryAdjustmentReason: z.string().optional(),
   documentLinesBinAllocations: z.array(z.any()).optional(),
 });
 

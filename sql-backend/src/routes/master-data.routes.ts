@@ -22,5 +22,6 @@ router.get("/warehouses", masterDataDal.getWarehouses);
 router.get("/sales-employees", masterDataDal.getSalesEmployees);
 router.get("/chart-of-accounts", masterDataDal.getChartOfAccounts);
 router.get("/branches", masterDataDal.getBranches);
+router.get("/inventory-adjustment-reasons", masterDataDal.getInventoryAdjustmentReasons);
 
 export const masterDataRoutes = router;

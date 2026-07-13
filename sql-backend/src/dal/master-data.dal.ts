@@ -119,6 +119,27 @@ export const getBranches: RequestHandler = async (_req, res, next) => {
   }
 };
 
+export const getInventoryAdjustmentReasons: RequestHandler = async (req, res, next) => {
+  try {
+    const type = req.query.type as string;
+    const result =
+      type === "issue"
+        ? [
+            { code: "01", name: "Damaged Goods" },
+            { code: "02", name: "Internal Consumption" },
+            { code: "03", name: "Expired Stock" },
+          ]
+        : [
+            { code: "01", name: "Purchase Return" },
+            { code: "02", name: "Stock Initialization" },
+            { code: "03", name: "Production Surplus" },
+          ];
+    res.status(200).json({ data: result, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const masterDataDal = {
   getChartOfAccounts,
   getCustomers,
@@ -131,4 +152,5 @@ export const masterDataDal = {
   getVendors,
   getWarehouses,
   getBranches,
+  getInventoryAdjustmentReasons,
 };

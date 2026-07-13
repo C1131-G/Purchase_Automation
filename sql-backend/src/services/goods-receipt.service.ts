@@ -60,6 +60,9 @@ export const getById = async (id: number) => {
     lines: lines.map((l) => ({
       ...l,
       binAllocations: l.binAllocations || [],
+      inventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
+      InventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
+      U_INVADJMTRES: l.inventoryAdjustmentReason || "",
     })),
     attachments: attachmentsList,
   };
@@ -88,6 +91,9 @@ export const getByDocNum = async (docNum: number) => {
     lines: lines.map((l) => ({
       ...l,
       binAllocations: l.binAllocations || [],
+      inventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
+      InventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
+      U_INVADJMTRES: l.inventoryAdjustmentReason || "",
     })),
     attachments: attachmentsList,
   };
@@ -156,6 +162,7 @@ export const create = async (payload: any) => {
         uomCode: l.uomCode ?? null,
         ocrCode: l.ocrCode ?? l.costingCode ?? null,
         unitMsr: l.unitMsr ?? null,
+        inventoryAdjustmentReason: l.inventoryAdjustmentReason ?? null,
         binAllocations: l.documentLinesBinAllocations ?? null,
       })),
     );
