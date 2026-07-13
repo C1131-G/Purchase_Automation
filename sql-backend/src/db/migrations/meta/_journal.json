@@ -57,6 +57,13 @@
       "when": 1783661513538,
       "tag": "0007_previous_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783665083255,
+      "tag": "0008_careful_sally_floyd",
+      "breakpoints": true
     }
   ]
 }

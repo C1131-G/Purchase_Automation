@@ -15,7 +15,6 @@ export const salesQuotationLines = pgTable("sales_quotation_lines", {
   uomCode: text("uom_code"),
   uomEntry: integer("uom_entry"),
   lineTotal: numeric("line_total", { precision: 19, scale: 6 }),
-  openQty: numeric("open_qty", { precision: 19, scale: 6 }),
   baseEntry: integer("base_entry"),
   baseLine: integer("base_line"),
   baseType: integer("base_type"),

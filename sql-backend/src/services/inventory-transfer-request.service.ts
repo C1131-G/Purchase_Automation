@@ -56,7 +56,8 @@ export const getById = async (id: number) => {
     .from(inventoryTransferRequestLines)
     .where(eq(inventoryTransferRequestLines.docEntry, id))
     .orderBy(asc(inventoryTransferRequestLines.lineNum));
-  return { ...h, lines };
+  const linesWithQty = lines.map((l) => ({ ...l, openQty: l.quantity }));
+  return { ...h, lines: linesWithQty };
 };
 
 export const getByDocNum = async (docNum: number) => {
@@ -72,7 +73,8 @@ export const getByDocNum = async (docNum: number) => {
     .from(inventoryTransferRequestLines)
     .where(eq(inventoryTransferRequestLines.docEntry, h.id))
     .orderBy(asc(inventoryTransferRequestLines.lineNum));
-  return { ...h, lines };
+  const linesWithQty = lines.map((l) => ({ ...l, openQty: l.quantity }));
+  return { ...h, lines: linesWithQty };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -116,7 +118,6 @@ export const create = async (payload: any) => {
         quantity: String(l.quantity),
         fromWarehouseCode: l.fromWarehouseCode ?? null,
         warehouseCode: l.warehouseCode ?? null,
-        openQty: String(l.quantity),
         lineStatus: "O",
       })),
     );

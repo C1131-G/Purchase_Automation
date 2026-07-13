@@ -9,6 +9,5 @@ export const inventoryTransferRequestLines = pgTable("inventory_transfer_request
   quantity: numeric("quantity", { precision: 19, scale: 6 }).notNull(),
   fromWarehouseCode: text("from_warehouse_code"),
   warehouseCode: text("warehouse_code"),
-  openQty: numeric("open_qty", { precision: 19, scale: 6 }),
   lineStatus: text("line_status"),
 });
