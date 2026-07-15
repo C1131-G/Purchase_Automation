@@ -1,4 +1,4 @@
-# Root-level markdown only (scratch notes, drafts). Docs/ stays tracked.
+# Root-level markdown only (scratch notes, drafts).
 /*.md
 !/README.md
 !/COMMIT_MESSAGE.md
@@ -7,6 +7,9 @@
 .env
 .zed
 .codex
+.commandcode
+.vscode
+Docs/
 .pnpm-store/
 node_modules/
 dist/
