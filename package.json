@@ -25,5 +25,5 @@
     "oxlint-plugin-react-doctor": "^0.7.6",
     "ultracite": "7.9.4"
   },
-  "packageManager": "pnpm@11.10.0"
+  "packageManager": "pnpm@11.13.0"
 }

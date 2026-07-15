@@ -2,13 +2,13 @@ import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
 
-import { attachmentDal } from "./attachments.controller";
+import { attachmentsController } from "./attachments.controller";
 
 const router = Router();
 router.use(validateSession);
-router.post("/upload", ...attachmentDal.upload);
-router.get("/", attachmentDal.getList);
-router.get("/:id/download", attachmentDal.download);
-router.delete("/:id", attachmentDal.remove);
+router.post("/upload", ...attachmentsController.upload);
+router.get("/", attachmentsController.getList);
+router.get("/:id/download", attachmentsController.download);
+router.delete("/:id", attachmentsController.remove);
 
 export const attachmentRoutes = router;

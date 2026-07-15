@@ -2,24 +2,24 @@ import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
 import { loginLimiter } from "@/core/middleware/rate-limit.middleware";
-import { createExportHandler } from "@/shared/route-handlers/export.handler";
+import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
 
-import { apInvoiceDal } from "./ap-invoice.controller";
+import { apInvoiceController } from "./ap-invoice.controller";
 import { apInvoiceService } from "./ap-invoice.service";
 
 const router = Router();
 router.use(validateSession);
 
-router.get("/", apInvoiceDal.getList);
-router.get("/docnums", loginLimiter, apInvoiceDal.getDocNums);
+router.get("/", apInvoiceController.getList);
+router.get("/docnums", loginLimiter, apInvoiceController.getDocNums);
 router.get("/next-docnum", async (_req, res) => {
   res.json({ data: await apInvoiceService.previewNextDocNum(), success: true });
 });
-router.get("/:id", apInvoiceDal.getById);
-router.post("/", apInvoiceDal.create);
-router.patch("/:id", apInvoiceDal.update);
-router.post("/:id/cancel", apInvoiceDal.cancel);
-router.post("/:id/reopen", apInvoiceDal.reopen);
+router.get("/:id", apInvoiceController.getById);
+router.post("/", apInvoiceController.create);
+router.patch("/:id", apInvoiceController.update);
+router.post("/:id/cancel", apInvoiceController.cancel);
+router.post("/:id/reopen", apInvoiceController.reopen);
 
 router.get(
   "/by-doc-num/:docNum/export/:format",

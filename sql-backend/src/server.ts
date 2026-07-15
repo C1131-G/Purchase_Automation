@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
+import { stopObservability } from "@/core/observability/otel-sdk";
 import { app } from "@/app";
 import { initializeDatabase, closeDatabase } from "@/db/client";
 
@@ -14,7 +15,16 @@ async function start() {
     logger.info({ port: config.server.port }, "SQL backend listening");
     if (process.env.NODE_ENV !== "production") {
       logger.info({ url: `http://localhost:${config.server.port}/api-docs` }, "API docs (web)");
-      logger.info({ url: `http://localhost:${config.server.port}/api-docs.json` }, "Postman collection (OpenAPI spec)");
+      logger.info(
+        { url: `http://localhost:${config.server.port}/api-docs.json` },
+        "Postman collection (OpenAPI spec)",
+      );
+      if (config.observability.metricsEnabled) {
+        logger.info(
+          { url: `http://localhost:${config.server.port}${config.observability.metricsPath}` },
+          "Prometheus metrics",
+        );
+      }
     }
   });
 
@@ -22,10 +32,11 @@ async function start() {
     logger.info({ signal }, "Shutdown signal received");
     server.close(async () => {
       await closeDatabase();
+      await stopObservability();
       process.exit(0);
     });
     setTimeout(() => {
-      logger.error("Forced shutdown after timeout");
+      logger.error({ timeoutMs: config.server.shutdownTimeout }, "Forced shutdown after timeout");
       process.exit(1);
     }, config.server.shutdownTimeout);
   };
@@ -39,7 +50,10 @@ async function start() {
   });
 
   process.on("unhandledRejection", (reason) => {
-    logger.fatal({ reason }, "Unhandled rejection");
+    logger.fatal(
+      { err: reason instanceof Error ? reason : new Error(String(reason)) },
+      "Unhandled rejection",
+    );
     process.exit(1);
   });
 }

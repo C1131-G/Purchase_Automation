@@ -67,7 +67,7 @@ class AtomicFileStore extends session.Store {
     } catch (err) {
       logger.error({
         event: "sessions_load_failed",
-        message: (err as Error).message,
+        err: err as Error,
       });
     }
   }
@@ -116,7 +116,7 @@ class AtomicFileStore extends session.Store {
       logger.error({
         event: "session_parse_failed",
         sid,
-        message: (err as Error).message,
+        err: err as Error,
       });
       this.sessions.delete(sid);
       this.lastAccess.delete(sid);
@@ -137,7 +137,7 @@ class AtomicFileStore extends session.Store {
           logger.error({
             event: "session_write_failed",
             sid,
-            message: err.message,
+            err,
           });
           if (callback) callback(err);
           return;
@@ -148,7 +148,7 @@ class AtomicFileStore extends session.Store {
       logger.error({
         event: "session_stringify_failed",
         sid,
-        message: (err as Error).message,
+        err: err as Error,
       });
       if (callback) callback(err);
     }
@@ -163,7 +163,7 @@ class AtomicFileStore extends session.Store {
         logger.error({
           event: "session_delete_failed",
           sid,
-          message: err.message,
+          err,
         });
         if (callback) callback(err);
         return;

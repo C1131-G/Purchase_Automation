@@ -1,12 +1,12 @@
 // Export orchestrator: dispatches to the correct generator based on format.
 
-import type { ExportDocumentData, ExportFormat } from "./types";
+import type { ExportDocumentData, ExportFormat } from "./export.types";
 import { generatePdf } from "./pdf-generator.service";
 import { generateExcel } from "./excel-generator.service";
 import { generateWord } from "./word-generator.service";
 
-export type { ExportDocumentData, ExportFormat } from "./types";
-export { normalizeToExport } from "./types";
+export type { ExportDocumentData, ExportFormat } from "./export.types";
+export { normalizeToExport } from "./export.types";
 
 export async function generateExport(
   data: ExportDocumentData,

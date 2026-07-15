@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 *.md
 !README.md
+errors.md
 
 node_modules
 dist

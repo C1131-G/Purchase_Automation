@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 import type { ZodError } from "zod";
 
 import { logger } from "@/core/logger/pino-logger";
+import { recordAppError } from "@/core/observability/metrics";
+import { recordExceptionOnActiveSpan } from "@/core/observability/tracing";
 
 export const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const error = err instanceof Error ? err : new Error(String(err));
@@ -13,14 +15,19 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
   const message = error.message || "Internal Server Error";
   const errorCode = (error as Error & { errorCode?: string }).errorCode || "UNKNOWN_ERROR";
 
-  logger.error({
-    msg: "Error handled",
-    error: message,
-    stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    statusCode,
-    path: req.path,
-    method: req.method,
-  });
+  recordExceptionOnActiveSpan(error);
+  recordAppError(error.name === "ZodError" ? "VALIDATION_ERROR" : errorCode, statusCode);
+
+  const log = req.log || logger;
+  log.error(
+    {
+      err: error,
+      statusCode,
+      path: req.path,
+      method: req.method,
+    },
+    "Error handled",
+  );
 
   if (error.name === "ZodError") {
     const zodError = error as unknown as ZodError;

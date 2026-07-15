@@ -11,4 +11,4 @@ export const getList: RequestHandler = async (_req, res, next) => {
   }
 };
 
-export const bankDetailsDal = { getList };
+export const bankDetailsController = { getList };

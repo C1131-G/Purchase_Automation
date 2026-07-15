@@ -1,5 +1,5 @@
 import { logger } from "@/core/logger/pino-logger";
-import { executeTenantQuery } from "@/dal/tenant-dal.helper";
+import { executeTenantQuery } from "@/db/tenant-query";
 
 export type PaymentType = "Cash" | "Check" | "CreditCard" | "Surcharge";
 
@@ -53,7 +53,7 @@ export const resolveGLAccount = async (
   } catch (err: any) {
     logger.error({
       msg: `TypeORM Account Resolution Failed for ${paymentType}`,
-      error: err.message,
+      err: err,
     });
   }
 

@@ -64,4 +64,4 @@ export const update: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const goodsIssueDal = { create, getById, getDocNums, getList, update };
+export const goodsIssueController = { create, getById, getDocNums, getList, update };

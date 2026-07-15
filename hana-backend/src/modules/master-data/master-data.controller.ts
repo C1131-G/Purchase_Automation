@@ -1,0 +1,210 @@
+// Master Data Controller: Handles requests for master data lookups (Products, Venodrs, Tax Codes, etc.).
+
+import type { NextFunction, Request, Response } from "express";
+
+// Core
+import type { AuthenticatedRequest } from "@/types/express.types";
+// Services
+import { masterDataService } from "./master-data.service";
+
+// Fetches the list of all available products (items) from the tenant database.
+export const getProducts = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const warehouseCode =
+      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const limit =
+      typeof req.query.limit === "number"
+        ? req.query.limit
+        : typeof req.query.limit === "string" && req.query.limit.trim() !== ""
+          ? Number(req.query.limit)
+          : undefined;
+    const type = req.query.type as "sales" | "purchase" | undefined;
+    const priceList =
+      typeof req.query.priceList === "number"
+        ? req.query.priceList
+        : typeof req.query.priceList === "string" && req.query.priceList.trim() !== ""
+          ? Number(req.query.priceList)
+          : undefined;
+    const productsResult = await masterDataService.getProducts(
+      dbName,
+      warehouseCode,
+      search,
+      limit,
+      type,
+      priceList,
+    );
+    res.status(200).json({ data: productsResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getProductWarehouseStocks = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const itemCode = typeof req.query.itemCode === "string" ? req.query.itemCode : "";
+    const productWarehouseStocksResult = await masterDataService.getProductWarehouseStocks(
+      dbName,
+      itemCode,
+    );
+    res.status(200).json({ data: productWarehouseStocksResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retrieves all vendors registered in the specific SAP company database.
+export const getVendors = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const vendorsResult = await masterDataService.getVendors(dbName);
+    res.status(200).json({ data: vendorsResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retrieves all customers registered in the specific SAP company database.
+export const getCustomers = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const customersResult = await masterDataService.getCustomers(dbName);
+    res.status(200).json({ data: customersResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Returns a list of all active tax codes defined for the tenant.
+export const getTaxCodes = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const taxCodesResult = await masterDataService.getTaxCodes(dbName);
+    res.status(200).json({ data: taxCodesResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Fetches standard Units of Measure (UOMs) used for inventory and transactions.
+export const getUOMs = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const uOMsResult = await masterDataService.getUOMs(dbName);
+    res.status(200).json({ data: uOMsResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retrieves the list of warehouses configured in the tenant's SAP system.
+export const getWarehouses = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const warehousesResult = await masterDataService.getWarehouses(dbName);
+    res.status(200).json({ data: warehousesResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retrieves the list of price lists from SAP HANA (OPLN table).
+export const getPriceLists = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const priceListsResult = await masterDataService.getPriceLists(dbName);
+    res.status(200).json({ data: priceListsResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSeries = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const documentType = typeof req.query.documentType === "string" ? req.query.documentType : "59";
+    const seriesResult = await masterDataService.getSeries(dbName, documentType);
+    res.status(200).json({ data: seriesResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWarehouseBins = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const warehouseCode = String(req.params.code);
+    const warehouseBinsResult = await masterDataService.getWarehouseBins(dbName, warehouseCode);
+    res.status(200).json({ data: warehouseBinsResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBranches = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { sessionId } = authReq.user;
+    const { serviceLayerClient } = await import("@/services/service-layer.service");
+    const distributionRulesResponse = await serviceLayerClient.request<{
+      value: Array<{ FactorCode: string; FactorDescription: string }>;
+    }>(sessionId, "GET", "/DistributionRules?$select=FactorCode,FactorDescription");
+    const branchOptions = distributionRulesResponse.value.map((r) => ({
+      Code: r.FactorCode,
+      Name: r.FactorDescription,
+    }));
+    res.status(200).json({ data: branchOptions, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getInventoryAdjustmentReasons = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const { type } = req.query;
+    const inventoryAdjustmentReasonsResult = await masterDataService.getInventoryAdjustmentReasons(
+      dbName,
+      (type as "receipt" | "issue") || "receipt",
+    );
+    res.status(200).json({ data: inventoryAdjustmentReasonsResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const masterDataController = {
+  getCustomers,
+  getPriceLists,
+  getProductWarehouseStocks,
+  getProducts,
+  getTaxCodes,
+  getUOMs,
+  getVendors,
+  getWarehouses,
+  getSeries,
+  getWarehouseBins,
+  getBranches,
+  getInventoryAdjustmentReasons,
+};

@@ -9,3 +9,4 @@ coverage/
 .idea/
 sessions/
 *.md
+errors.md

@@ -91,7 +91,7 @@ export const reopen: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const apInvoiceDal = {
+export const apInvoiceController = {
   cancel,
   create,
   getById,

@@ -48,4 +48,4 @@ export const getRelationshipMap: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const salesRelationshipDal = { getRelationshipMap };
+export const salesRelationshipController = { getRelationshipMap };

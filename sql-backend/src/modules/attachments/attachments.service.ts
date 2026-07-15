@@ -69,8 +69,15 @@ export const remove = async (id: number) => {
     if (fs.existsSync(record.sourcePath ?? "")) {
       fs.unlinkSync(record.sourcePath!);
     }
-  } catch {
-    logger.warn({ id, path: record.sourcePath }, "Failed to delete attachment file");
+  } catch (err: unknown) {
+    logger.warn(
+      {
+        err: err instanceof Error ? err : new Error(String(err)),
+        id,
+        path: record.sourcePath,
+      },
+      "Failed to delete attachment file",
+    );
   }
 
   await attachmentsRepository.delete(db, id);

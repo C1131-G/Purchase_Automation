@@ -2,30 +2,30 @@ import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
 import { loginLimiter } from "@/core/middleware/rate-limit.middleware";
-import { createExportHandler } from "@/shared/route-handlers/export.handler";
-import { quickLookupDal } from "@/shared/route-handlers/quick-lookup.handler";
+import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
+import { quickLookupController } from "@/shared/route-handlers/quick-lookup.handler";
 
-import { salesOrderDal } from "./sales-order.controller";
+import { salesOrderController } from "./sales-order.controller";
 import { salesOrderService } from "./sales-order.service";
 
 const router = Router();
 router.use(validateSession);
 
-router.get("/", salesOrderDal.getList);
-router.get("/docnums", loginLimiter, salesOrderDal.getDocNums);
+router.get("/", salesOrderController.getList);
+router.get("/docnums", loginLimiter, salesOrderController.getDocNums);
 router.get("/next-docnum", async (_req, res) => {
   res.json({
     data: await salesOrderService.previewNextDocNum(),
     success: true,
   });
 });
-router.get("/open-lines", quickLookupDal.getOpenSalesOrderLines);
-router.get("/SalesEmployee", quickLookupDal.getSalesEmployee);
-router.get("/by-doc-num/:docNum", salesOrderDal.getByDocNum);
-router.get("/:id", salesOrderDal.getById);
-router.post("/", salesOrderDal.create);
-router.patch("/:id", salesOrderDal.update);
-router.post("/:id/cancel", salesOrderDal.cancel);
+router.get("/open-lines", quickLookupController.getOpenSalesOrderLines);
+router.get("/SalesEmployee", quickLookupController.getSalesEmployee);
+router.get("/by-doc-num/:docNum", salesOrderController.getByDocNum);
+router.get("/:id", salesOrderController.getById);
+router.post("/", salesOrderController.create);
+router.patch("/:id", salesOrderController.update);
+router.post("/:id/cancel", salesOrderController.cancel);
 
 router.get(
   "/by-doc-num/:docNum/export/:format",

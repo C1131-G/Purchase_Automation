@@ -78,4 +78,4 @@ export const cancel: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const grpoDal = { cancel, create, getById, getDocNums, getList, update };
+export const grpoController = { cancel, create, getById, getDocNums, getList, update };

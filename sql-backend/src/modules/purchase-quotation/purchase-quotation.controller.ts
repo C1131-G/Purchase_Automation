@@ -91,7 +91,7 @@ export const cancel: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const purchaseQuotationDal = {
+export const purchaseQuotationController = {
   cancel,
   create,
   getByDocNum,

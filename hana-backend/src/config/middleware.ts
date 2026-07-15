@@ -7,6 +7,8 @@ import type { Application } from "express";
 import helmet from "helmet";
 
 import { config } from "@/config/env";
+import { requestLogger } from "@/core/middleware/request-logger.middleware";
+import { httpMetricsMiddleware } from "@/core/observability/http-metrics.middleware";
 
 export const configureMiddleware = (app: Application) => {
   // Respect upstream reverse proxy (LB/Ingress) for correct client IP extraction.
@@ -27,7 +29,7 @@ export const configureMiddleware = (app: Application) => {
   // Cross-Origin Resource Sharing: Restricted to the specific frontend URL for production security.
   app.use(
     cors({
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
       credentials: true, // Required for secure session cookie exchange.
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
@@ -41,4 +43,8 @@ export const configureMiddleware = (app: Application) => {
       threshold: 1024,
     }),
   );
+
+  // Request-scoped child logger (requestId) + one access line on response finish.
+  app.use(requestLogger);
+  app.use(httpMetricsMiddleware);
 };

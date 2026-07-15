@@ -25,8 +25,9 @@ export const EnvSchema = z.object({
   COMMON_DB: z.string().min(1).trim(),
   ORGANIZATION_TABLE: z.string().min(1).trim(),
 
-  // Lifecycle: Environment mode and connection pooling parameters for performance tuning.
+  // Lifecycle: Environment mode, log verbosity, and connection pooling.
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   HANA_POOLING: z
     .enum(["true", "false"])
     .transform((v) => v === "true")
@@ -41,6 +42,23 @@ export const EnvSchema = z.object({
   HANA_MAX_POOL_SIZE: z.coerce.number().int().positive().default(30),
   HANA_CONNECTION_LIFE_TIME: z.coerce.number().int().positive().default(3600),
   DEFAULT_CURRENCY_CODE: z.string().min(3).max(3),
+
+  // Observability (metrics + traces)
+  OTEL_SDK_DISABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  OTEL_SERVICE_NAME: z.string().min(1).optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.string().url().optional(),
+  OTEL_TRACES_SAMPLER: z.enum(["always_on", "always_off", "parentbased_traceidratio"]).optional(),
+  OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).default(0.1),
+  METRICS_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  METRICS_PATH: z.string().min(1).default("/metrics"),
+  METRICS_BEARER_TOKEN: z.string().min(1).optional(),
 });
 
 export type EnvConfig = z.infer<typeof EnvSchema>;

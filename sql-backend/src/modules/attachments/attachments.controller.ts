@@ -56,4 +56,4 @@ export const remove: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const attachmentDal = { download, getList, remove, upload };
+export const attachmentsController = { download, getList, remove, upload };

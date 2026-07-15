@@ -8,6 +8,21 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["src/**/*.test.ts"],
+    setupFiles: ["./tests/setup.ts"],
+    testTimeout: 15_000,
+    include: ["tests/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      include: [
+        "src/modules/purchase-*/**",
+        "src/modules/sales-*/**",
+        "src/modules/ap-*/**",
+        "src/modules/ar-*/**",
+        "src/modules/grpo/**",
+        "src/modules/*-payment/**",
+        "src/core/utils/**",
+      ],
+    },
   },
 });

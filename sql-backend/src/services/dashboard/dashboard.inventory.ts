@@ -1,6 +1,6 @@
 // Inventory dashboard builder — matching hana exactly.
 
-import { getCachedData } from "@/core/utils/cache.util";
+import { getCachedData } from "@/core/utils/cache";
 
 import {
   calculateRatio,

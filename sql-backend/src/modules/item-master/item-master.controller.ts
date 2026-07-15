@@ -59,7 +59,7 @@ export const getItemGroups = lookup(itemMasterService.getItemGroups);
 export const getInvntryUoms = lookup(itemMasterService.getInvntryUoms);
 export const getBarCodes = lookup(itemMasterService.getBarCodes);
 
-export const itemMasterDal = {
+export const itemMasterController = {
   getBarCodes,
   getInvntryUoms,
   getItem,

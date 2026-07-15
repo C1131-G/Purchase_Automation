@@ -1,8 +1,8 @@
 import { Router } from "express";
 
-import { organizationDal } from "./organization.controller";
+import { organizationController } from "./organization.controller";
 
 const router = Router();
-router.get("/", organizationDal.getAllOrganizations);
+router.get("/", organizationController.getAllOrganizations);
 
 export const organizationRoutes = router;

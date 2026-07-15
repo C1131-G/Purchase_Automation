@@ -2,26 +2,26 @@ import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
 import { loginLimiter } from "@/core/middleware/rate-limit.middleware";
-import { createExportHandler } from "@/shared/route-handlers/export.handler";
+import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
 
-import { arCreditMemoDal } from "./ar-credit-memo.controller";
+import { arCreditMemoController } from "./ar-credit-memo.controller";
 import { arCreditMemoService } from "./ar-credit-memo.service";
 
 const router = Router();
 router.use(validateSession);
 
-router.get("/", arCreditMemoDal.getList);
-router.get("/docnums", loginLimiter, arCreditMemoDal.getDocNums);
+router.get("/", arCreditMemoController.getList);
+router.get("/docnums", loginLimiter, arCreditMemoController.getDocNums);
 router.get("/next-docnum", async (_req, res) => {
   res.json({
     data: await arCreditMemoService.previewNextDocNum(),
     success: true,
   });
 });
-router.get("/:id", arCreditMemoDal.getById);
-router.post("/", arCreditMemoDal.create);
-router.patch("/:id", arCreditMemoDal.update);
-router.post("/:id/cancel", arCreditMemoDal.cancel);
+router.get("/:id", arCreditMemoController.getById);
+router.post("/", arCreditMemoController.create);
+router.patch("/:id", arCreditMemoController.update);
+router.post("/:id/cancel", arCreditMemoController.cancel);
 
 router.get(
   "/by-doc-num/:docNum/export/:format",

@@ -3,6 +3,7 @@ import pg from "pg";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
+import { registerPoolGauges } from "@/core/observability/metrics";
 
 export interface TenantContext {
   db: ReturnType<typeof drizzle>;
@@ -78,6 +79,16 @@ export async function initializeDatabase() {
   dbInstances.set(defaultDbName, registryDb);
 
   await ensureColumnsExist(registryPool, defaultDbName);
+
+  // Observable pool gauges for Prometheus (idle/active/waiting).
+  registerPoolGauges(() =>
+    Array.from(pools.entries()).map(([name, pool]) => ({
+      pool: name === defaultDbName ? "registry" : "tenant",
+      idle: pool.idleCount,
+      active: Math.max(0, pool.totalCount - pool.idleCount),
+      waiting: pool.waitingCount,
+    })),
+  );
 
   return registryDb;
 }

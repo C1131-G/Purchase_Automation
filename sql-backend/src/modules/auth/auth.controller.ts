@@ -1,15 +1,15 @@
 import type { RequestHandler } from "express";
 
-import { logger } from "@/core/logger/pino-logger";
+import { bindRequestLogger, logger } from "@/core/logger/pino-logger";
 
 import { authService } from "./auth.service";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
     const { username, password, companyDB } = req.body;
-    const log = req.log || logger;
 
-    log.info({ companyDB, username }, "Login attempt");
+    // Never log password — only username / tenant identifiers.
+    logger.info({ companyDB, username }, "Login attempt");
 
     const result = await authService.login(username, password, companyDB);
 
@@ -26,10 +26,13 @@ export const login: RequestHandler = async (req, res, next) => {
       };
 
       if (req.log) {
-        req.log = req.log.child({ userId: result.user.userName });
+        req.log = req.log.child({
+          dbName: result.user.dbName,
+          userId: result.user.userName,
+        });
+        bindRequestLogger(req.log);
       }
-      const successLog = req.log || logger;
-      successLog.info("Login successful");
+      logger.info("Login successful");
 
       res.status(200).json({
         data: { user: result.user },
@@ -59,10 +62,9 @@ export const getCurrentUser: RequestHandler = (req, res, _next) => {
 
 export const logout: RequestHandler = (req, res, next) => {
   try {
-    const log = req.log || logger;
     req.session.destroy((err) => {
       if (err) {
-        log.error({ err }, "Session destroy error");
+        logger.error({ err }, "Session destroy error");
         return next(err);
       }
 
@@ -78,4 +80,4 @@ export const logout: RequestHandler = (req, res, next) => {
   }
 };
 
-export const authDal = { getCurrentUser, login, logout };
+export const authController = { getCurrentUser, login, logout };

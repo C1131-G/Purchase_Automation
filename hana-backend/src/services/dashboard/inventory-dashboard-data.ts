@@ -2,8 +2,8 @@
 // mirroring the loadAreaDataset() pattern used by Purchase/Sales.
 
 import { getCachedData } from "@/core/utils/cache";
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
-import { getDisplayCurrency } from "@/services/currency.util";
+import { getTenantRepository } from "@/db/tenant-query";
+import { getDisplayCurrency } from "@/services/currency-format";
 import { ItemSchema } from "@/db/schemas/item.schema";
 import { GoodsReceiptSchema } from "@/db/schemas/goods-receipt.schema";
 import { GoodsReceiptLineSchema } from "@/db/schemas/goods-receipt-line.schema";

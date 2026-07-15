@@ -1,220 +1,232 @@
-// Swagger path definitions: Registers all API endpoints for OpenAPI documentation.
+// Full API surface (mirrors Express mounts under /api/v1).
 
-import { registerPath } from "./swagger-registry";
-
-const registerDocumentPaths = (
-  entityPath: string,
-  entityLabel: string,
-  supportsCancel = true,
-  supportsUpdate = true,
-) => {
-  registerPath(`/${entityPath}`, "get", {
-    summary: `List ${entityLabel}s`,
-    description: `Retrieves a paginated list of ${entityLabel} documents with filtering and sorting support.`,
-    responses: { "200": { description: `Paginated ${entityLabel} list` } },
-  });
-  registerPath(`/${entityPath}`, "post", {
-    summary: `Create ${entityLabel}`,
-    description: `Creates a new ${entityLabel} document.`,
-    responses: { "201": { description: `${entityLabel} created` } },
-  });
-  registerPath(`/${entityPath}/{id}`, "get", {
-    summary: `Get ${entityLabel} by ID`,
-    description: `Retrieves detailed information for a specific ${entityLabel} by its unique ID.`,
-    responses: { "200": { description: `${entityLabel} details` } },
-  });
-  if (supportsUpdate) {
-    registerPath(`/${entityPath}/{id}`, "patch", {
-      summary: `Update ${entityLabel}`,
-      description: `Updates comments or fields of an existing ${entityLabel} document.`,
-      responses: { "200": { description: `${entityLabel} updated` } },
-    });
-  }
-  if (supportsCancel) {
-    registerPath(`/${entityPath}/{id}/cancel`, "post", {
-      summary: `Cancel ${entityLabel}`,
-      description: `Cancels/closes an active ${entityLabel} document.`,
-      responses: { "200": { description: `${entityLabel} cancelled` } },
-    });
-  }
-  registerPath(`/${entityPath}/doc-nums`, "get", {
-    summary: `${entityLabel} doc number lookup`,
-    description: `Searches and retrieves document numbers for ${entityLabel} auto-suggest search fields.`,
-    responses: { "200": { description: "Doc numbers list" } },
-  });
-};
+import { cookieSecurity, jsonResponses, registerPath } from "@/config/swagger-registry";
+import { registerAllDocumentModulePaths } from "@/config/swagger-paths-documents";
+import { LoginInputSchema } from "@/modules/auth/auth.schema";
 
 export const registerAllPaths = () => {
-  // Auth
+  // --- Auth ---
   registerPath("/auth/login", "post", {
+    security: [],
+    operationId: "login",
     summary: "Login",
     description: "Authenticates credentials and establishes a user session cookie.",
-    request: { body: { content: { "application/json": { schema: { type: "object" } } } } },
-    responses: {
-      "200": { description: "Login successful" },
-      "401": { description: "Invalid credentials" },
+    tags: ["Authentication"],
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: LoginInputSchema } },
+      },
     },
+    responses: jsonResponses({
+      successDescription: "Login successful; session cookie set.",
+      publicRoute: true,
+    }),
   });
-
   registerPath("/auth/me", "get", {
+    security: cookieSecurity,
+    operationId: "getCurrentUser",
     summary: "Get current user",
     description: "Returns metadata for the currently authenticated session.",
-    responses: { "200": { description: "Current user data" } },
+    tags: ["Authentication"],
+    responses: jsonResponses({
+      successDescription: "Current user data.",
+      includeValidationError: false,
+    }),
   });
-
   registerPath("/auth/logout", "post", {
+    security: cookieSecurity,
+    operationId: "logout",
     summary: "Logout",
     description: "Destroys the current user session and clears authentication cookies.",
-    responses: { "200": { description: "Logged out" } },
+    tags: ["Authentication"],
+    responses: jsonResponses({
+      successDescription: "Logged out.",
+      includeValidationError: false,
+    }),
   });
 
-  // Master Data
-  registerPath("/master-data/vendors", "get", {
-    summary: "List vendors",
-    description: "Retrieves business partners filtered by supplier type.",
-    responses: { "200": { description: "Vendor list" } },
-  });
-  registerPath("/master-data/customers", "get", {
-    summary: "List customers",
-    description: "Retrieves business partners filtered by customer type.",
-    responses: { "200": { description: "Customer list" } },
-  });
-  registerPath("/master-data/products", "get", {
-    summary: "List products",
-    description: "Retrieves active catalog products.",
-    responses: { "200": { description: "Product list" } },
-  });
-  registerPath("/master-data/tax-codes", "get", {
-    summary: "List tax codes",
-    description: "Retrieves configured tax categories.",
-    responses: { "200": { description: "Tax codes" } },
-  });
-  registerPath("/master-data/uoms", "get", {
-    summary: "List UOMs",
-    description: "Retrieves units of measurement.",
-    responses: { "200": { description: "UOM list" } },
-  });
-  registerPath("/master-data/price-lists", "get", {
-    summary: "List price lists",
-    description: "Retrieves active base price catalogs.",
-    responses: { "200": { description: "Price lists" } },
-  });
-  registerPath("/master-data/warehouses", "get", {
-    summary: "List warehouses",
-    description: "Retrieves active storage warehouses.",
-    responses: { "200": { description: "Warehouse list" } },
-  });
-  registerPath("/master-data/sales-employees", "get", {
-    summary: "List sales employees",
-    description: "Retrieves active representatives list.",
-    responses: { "200": { description: "Employee list" } },
-  });
-  registerPath("/master-data/chart-of-accounts", "get", {
-    summary: "List chart of accounts",
-    description: "Retrieves active finance chart accounts.",
-    responses: { "200": { description: "COA list" } },
-  });
+  // --- Master data ---
+  const master: Array<[string, string, string]> = [
+    ["vendors", "listVendors", "Business partners filtered by supplier type."],
+    ["customers", "listCustomers", "Business partners filtered by customer type."],
+    ["products", "listProducts", "Active catalog products."],
+    ["tax-codes", "listTaxCodes", "Configured tax categories."],
+    ["uoms", "listUoms", "Units of measurement."],
+    ["price-lists", "listPriceLists", "Active base price catalogs."],
+    ["warehouses", "listWarehouses", "Active storage warehouses."],
+    ["sales-employees", "listSalesEmployees", "Active sales representatives."],
+    ["chart-of-accounts", "listChartOfAccounts", "Active finance chart accounts."],
+  ];
+  for (const [segment, operationId, description] of master) {
+    registerPath(`/master-data/${segment}`, "get", {
+      security: cookieSecurity,
+      operationId,
+      summary: description,
+      description,
+      tags: ["Master Data"],
+      responses: jsonResponses({ successDescription: description }),
+    });
+  }
 
-  // Reusable Document Modules Paths
-  registerDocumentPaths("purchase-orders", "Purchase order");
-  registerDocumentPaths("purchase-quotations", "Purchase quotation");
-  registerDocumentPaths("grpos", "GRPO");
-  registerDocumentPaths("ap-invoices", "AP Invoice");
-  registerDocumentPaths("ap-credit-memos", "AP Credit memo");
-  registerDocumentPaths("sales-orders", "Sales order");
-  registerDocumentPaths("sales-quotations", "Sales quotation");
-  registerDocumentPaths("ar-invoices", "AR Invoice");
-  registerDocumentPaths("ar-credit-memos", "AR Credit memo");
+  // --- Document modules ---
+  registerAllDocumentModulePaths();
 
-  registerDocumentPaths("goods-receipts", "Goods receipt", false, true);
-  registerDocumentPaths("goods-issues", "Goods issue", false, true);
-
-  registerDocumentPaths("inventory-transfers", "Inventory transfer", false, false);
-  registerDocumentPaths("transfers", "Inventory transfer alternative", false, false);
-
-  registerDocumentPaths("inventory-transfer-requests", "Inventory transfer request");
-  registerDocumentPaths("transfer-requests", "Inventory transfer request alternative");
-
-  registerDocumentPaths("incoming-payments", "Incoming payment", true, false);
-  registerDocumentPaths("outgoing-payments", "Outgoing payment", true, false);
-
-  // Items / Catalog
+  // --- Items ---
   registerPath("/items", "get", {
+    security: cookieSecurity,
+    operationId: "listItems",
     summary: "List catalog items",
     description: "Retrieves items list.",
-    responses: { "200": { description: "Items list" } },
+    tags: ["Items"],
+    responses: jsonResponses({
+      successDescription: "Items list.",
+      successSchema: "PaginatedResponse",
+    }),
   });
   registerPath("/items/{id}", "get", {
+    security: cookieSecurity,
+    operationId: "getItemById",
     summary: "Get catalog item by ID/Code",
     description: "Retrieves a catalog item by its Code/ID.",
-    responses: { "200": { description: "Item details" } },
+    tags: ["Items"],
+    responses: jsonResponses({
+      successDescription: "Item details.",
+      includeNotFound: true,
+    }),
   });
-  registerPath("/items/doc-nums", "get", {
+  // Matches Express: /docnums (not /doc-nums)
+  registerPath("/items/docnums", "get", {
+    security: cookieSecurity,
+    operationId: "listItemCodes",
     summary: "Catalog items code lookup",
     description: "Suggests item codes for input autocomplete fields.",
-    responses: { "200": { description: "Item codes" } },
+    tags: ["Items"],
+    responses: jsonResponses({ successDescription: "Item codes." }),
   });
 
-  // Bank Details
+  // --- Bank details ---
   registerPath("/bank-details", "get", {
+    security: cookieSecurity,
+    operationId: "listBankDetails",
     summary: "List bank details",
-    description: "Retrieves a list of registered bank details.",
-    responses: { "200": { description: "Bank details list" } },
+    description: "Retrieves registered bank details.",
+    tags: ["Bank Details"],
+    responses: jsonResponses({ successDescription: "Bank details list." }),
   });
   registerPath("/bank-details", "post", {
+    security: cookieSecurity,
+    operationId: "createBankDetails",
     summary: "Create bank details",
     description: "Creates a new bank details record.",
-    responses: { "201": { description: "Bank details created" } },
+    tags: ["Bank Details"],
+    responses: jsonResponses({
+      successStatus: "201",
+      successDescription: "Bank details created.",
+    }),
   });
   registerPath("/bank-details/{id}", "get", {
+    security: cookieSecurity,
+    operationId: "getBankDetailsById",
     summary: "Get bank details by ID",
     description: "Retrieves a bank details record by ID.",
-    responses: { "200": { description: "Bank details data" } },
+    tags: ["Bank Details"],
+    responses: jsonResponses({
+      successDescription: "Bank details data.",
+      includeNotFound: true,
+    }),
   });
 
-  // Relationship Map
+  // --- Relationship map ---
   registerPath("/relationship-map", "get", {
+    security: cookieSecurity,
+    operationId: "getRelationshipMap",
     summary: "Get relationship map",
-    description: "Builds a document connection graph showing preceding and succeeding references.",
-    responses: { "200": { description: "Document relationship map data" } },
+    description: "Document connection graph (preceding and succeeding references).",
+    tags: ["Relationship Map"],
+    responses: jsonResponses({ successDescription: "Relationship map data." }),
   });
 
-  // Attachments
+  // --- Attachments ---
   registerPath("/attachments", "post", {
+    security: cookieSecurity,
+    operationId: "uploadAttachment",
     summary: "Upload attachment",
-    description: "Uploads a new file attachment to the system storage.",
-    responses: { "201": { description: "Attachment uploaded" } },
+    description: "Uploads a file attachment to system storage.",
+    tags: ["Attachments"],
+    responses: jsonResponses({
+      successStatus: "201",
+      successDescription: "Attachment uploaded.",
+    }),
   });
   registerPath("/attachments/{id}", "get", {
+    security: cookieSecurity,
+    operationId: "downloadAttachment",
     summary: "Download attachment",
-    description: "Retrieves the binary content of a file attachment by its ID.",
-    responses: { "200": { description: "Attachment binary data" } },
+    description: "Retrieves binary content of a file attachment by ID.",
+    tags: ["Attachments"],
+    responses: jsonResponses({
+      successDescription: "Attachment binary data.",
+      includeNotFound: true,
+    }),
   });
   registerPath("/attachments/{id}", "delete", {
+    security: cookieSecurity,
+    operationId: "deleteAttachment",
     summary: "Delete attachment",
-    description: "Removes an attachment reference and deletes its stored file.",
-    responses: { "200": { description: "Attachment deleted" } },
+    description: "Removes an attachment reference and stored file.",
+    tags: ["Attachments"],
+    responses: jsonResponses({
+      successDescription: "Attachment deleted.",
+      includeNotFound: true,
+    }),
   });
 
-  // Dashboard
+  // --- Dashboard ---
   registerPath("/dashboard/summary", "get", {
+    security: cookieSecurity,
+    operationId: "getDashboardSummary",
     summary: "Dashboard summary",
-    description: "Returns aggregated numbers and metrics for the main screen dashboard.",
-    responses: { "200": { description: "Dashboard data" } },
+    description: "Aggregated numbers and metrics for the main dashboard.",
+    tags: ["Dashboard"],
+    responses: jsonResponses({ successDescription: "Dashboard data." }),
   });
   registerPath("/dashboard/purchase", "get", {
+    security: cookieSecurity,
+    operationId: "getPurchaseDashboard",
     summary: "Purchase dashboard",
-    description: "Returns procurement metrics and charts datasets.",
-    responses: { "200": { description: "Purchase KPIs" } },
+    description: "Procurement metrics and chart datasets.",
+    tags: ["Dashboard"],
+    responses: jsonResponses({ successDescription: "Purchase KPIs." }),
   });
   registerPath("/dashboard/sales", "get", {
+    security: cookieSecurity,
+    operationId: "getSalesDashboard",
     summary: "Sales dashboard",
-    description: "Returns sales metrics and O2C graph datasets.",
-    responses: { "200": { description: "Sales KPIs" } },
+    description: "Sales metrics and O2C graph datasets.",
+    tags: ["Dashboard"],
+    responses: jsonResponses({ successDescription: "Sales KPIs." }),
   });
   registerPath("/dashboard/inventory", "get", {
+    security: cookieSecurity,
+    operationId: "getInventoryDashboard",
     summary: "Inventory dashboard",
-    description: "Returns inventory items and stock value counts.",
-    responses: { "200": { description: "Inventory KPIs" } },
+    description: "Inventory items and stock value counts.",
+    tags: ["Dashboard"],
+    responses: jsonResponses({ successDescription: "Inventory KPIs." }),
+  });
+
+  // --- Health ---
+  registerPath("/health", "get", {
+    security: [],
+    operationId: "healthCheck",
+    summary: "Health check",
+    description: "Liveness probe for load balancers and monitoring.",
+    tags: ["Health"],
+    responses: jsonResponses({
+      successDescription: "Service is up.",
+      publicRoute: true,
+      includeValidationError: false,
+    }),
   });
 };

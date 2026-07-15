@@ -185,7 +185,7 @@ export const getAccounts: RequestHandler = async (_req, res, next) => {
   }
 };
 
-export const quickLookupDal = {
+export const quickLookupController = {
   getAccounts,
   getAvailablePos,
   getOpenLines,

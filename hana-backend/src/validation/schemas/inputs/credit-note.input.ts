@@ -2,7 +2,7 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
-import { AttachmentInputSchema } from "./purchase-quotation.input";
+import { AttachmentInputSchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
 
 extendZodWithOpenApi(z);
 

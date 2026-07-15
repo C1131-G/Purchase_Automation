@@ -2,7 +2,7 @@
 
 import { and, asc, gte, lte } from "drizzle-orm";
 
-import { getCachedData } from "@/core/utils/cache.util";
+import { getCachedData } from "@/core/utils/cache";
 import { getDb } from "@/db/client";
 import { apCreditMemos } from "@/db/schema/ap-credit-memos";
 import { apInvoices } from "@/db/schema/ap-invoices";

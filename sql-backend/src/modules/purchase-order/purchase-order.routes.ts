@@ -1,23 +1,23 @@
 import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
-import { createExportHandler } from "@/shared/route-handlers/export.handler";
+import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
 
-import { purchaseOrderDal } from "./purchase-order.controller";
+import { purchaseOrderController } from "./purchase-order.controller";
 import { purchaseOrderService } from "./purchase-order.service";
 
 const router = Router();
 
 router.use(validateSession);
 
-router.get("/docnums", purchaseOrderDal.getDocNums);
-router.get("/next-docnum", purchaseOrderDal.previewNextDocNum);
-router.get("/by-doc-num/:docNum", purchaseOrderDal.getByDocNum);
-router.get("/:id", purchaseOrderDal.getById);
-router.get("/", purchaseOrderDal.getList);
-router.post("/", purchaseOrderDal.create);
-router.patch("/:id", purchaseOrderDal.update);
-router.post("/:id/cancel", purchaseOrderDal.cancel);
+router.get("/docnums", purchaseOrderController.getDocNums);
+router.get("/next-docnum", purchaseOrderController.previewNextDocNum);
+router.get("/by-doc-num/:docNum", purchaseOrderController.getByDocNum);
+router.get("/:id", purchaseOrderController.getById);
+router.get("/", purchaseOrderController.getList);
+router.post("/", purchaseOrderController.create);
+router.patch("/:id", purchaseOrderController.update);
+router.post("/:id/cancel", purchaseOrderController.cancel);
 
 router.get(
   "/by-doc-num/:docNum/export/:format",

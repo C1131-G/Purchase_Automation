@@ -143,7 +143,7 @@ export const getInventoryExceptions: RequestHandler = async (req, res, next) => 
   }
 };
 
-export const dashboardDal = {
+export const dashboardController = {
   ...analytics,
   getDashboardStats,
   getInventoryExceptions,

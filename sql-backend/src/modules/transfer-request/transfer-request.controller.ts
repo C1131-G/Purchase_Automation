@@ -51,7 +51,7 @@ export const create: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const transferRequestDal = {
+export const transferRequestController = {
   create,
   getDocNums,
   getList,

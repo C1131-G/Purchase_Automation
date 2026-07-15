@@ -2,24 +2,24 @@ import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
 
-import { masterDataDal } from "./master-data.controller";
+import { masterDataController } from "./master-data.controller";
 
 const router = Router();
 router.use(validateSession);
 
-router.get("/vendors", masterDataDal.getVendors);
-router.get("/customers", masterDataDal.getCustomers);
-router.get("/products", masterDataDal.getProducts);
-router.get("/products/:itemCode/stock", masterDataDal.getProductWarehouseStocks);
-router.get("/product-warehouse-stocks", masterDataDal.getProductWarehouseStocks);
-router.get("/tax-codes", masterDataDal.getTaxCodes);
-router.get("/TaxDeclarations", masterDataDal.getTaxCodes);
-router.get("/uoms", masterDataDal.getUOMs);
-router.get("/price-lists", masterDataDal.getPriceLists);
-router.get("/warehouses", masterDataDal.getWarehouses);
-router.get("/sales-employees", masterDataDal.getSalesEmployees);
-router.get("/chart-of-accounts", masterDataDal.getChartOfAccounts);
-router.get("/branches", masterDataDal.getBranches);
-router.get("/inventory-adjustment-reasons", masterDataDal.getInventoryAdjustmentReasons);
+router.get("/vendors", masterDataController.getVendors);
+router.get("/customers", masterDataController.getCustomers);
+router.get("/products", masterDataController.getProducts);
+router.get("/products/:itemCode/stock", masterDataController.getProductWarehouseStocks);
+router.get("/product-warehouse-stocks", masterDataController.getProductWarehouseStocks);
+router.get("/tax-codes", masterDataController.getTaxCodes);
+router.get("/TaxDeclarations", masterDataController.getTaxCodes);
+router.get("/uoms", masterDataController.getUOMs);
+router.get("/price-lists", masterDataController.getPriceLists);
+router.get("/warehouses", masterDataController.getWarehouses);
+router.get("/sales-employees", masterDataController.getSalesEmployees);
+router.get("/chart-of-accounts", masterDataController.getChartOfAccounts);
+router.get("/branches", masterDataController.getBranches);
+router.get("/inventory-adjustment-reasons", masterDataController.getInventoryAdjustmentReasons);
 
 export const masterDataRoutes = router;

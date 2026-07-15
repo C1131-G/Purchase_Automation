@@ -91,7 +91,7 @@ export const reopen: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const arInvoiceDal = {
+export const arInvoiceController = {
   cancel,
   create,
   getById,

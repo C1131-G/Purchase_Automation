@@ -2,44 +2,44 @@ import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
 
-import { dashboardDal } from "./dashboard.controller";
+import { dashboardController } from "./dashboard.controller";
 
 const router = Router();
 router.use(validateSession);
 
 // Original compatibility endpoints
-router.get("/purchase-summary", dashboardDal.getPurchaseSummary);
-router.get("/sales-summary", dashboardDal.getSalesSummary);
-router.get("/stats", dashboardDal.getDashboardStats);
+router.get("/purchase-summary", dashboardController.getPurchaseSummary);
+router.get("/sales-summary", dashboardController.getSalesSummary);
+router.get("/stats", dashboardController.getDashboardStats);
 
 // Purchase segment
-router.get("/purchase/kpi-summary", dashboardDal.getPurchaseKpiSummary);
-router.get("/purchase/module-cards", dashboardDal.getPurchaseModuleCards);
-router.get("/purchase/trend", dashboardDal.getPurchaseTrend);
-router.get("/purchase/funnel", dashboardDal.getPurchaseFunnel);
-router.get("/purchase/top-partners", dashboardDal.getPurchaseTopPartners);
-router.get("/purchase/exceptions", dashboardDal.getPurchaseExceptions);
+router.get("/purchase/kpi-summary", dashboardController.getPurchaseKpiSummary);
+router.get("/purchase/module-cards", dashboardController.getPurchaseModuleCards);
+router.get("/purchase/trend", dashboardController.getPurchaseTrend);
+router.get("/purchase/funnel", dashboardController.getPurchaseFunnel);
+router.get("/purchase/top-partners", dashboardController.getPurchaseTopPartners);
+router.get("/purchase/exceptions", dashboardController.getPurchaseExceptions);
 
 // Sales segment
-router.get("/sales/kpi-summary", dashboardDal.getSalesKpiSummary);
-router.get("/sales/module-cards", dashboardDal.getSalesModuleCards);
-router.get("/sales/trend", dashboardDal.getSalesTrend);
-router.get("/sales/funnel", dashboardDal.getSalesFunnel);
-router.get("/sales/top-partners", dashboardDal.getSalesTopPartners);
-router.get("/sales/exceptions", dashboardDal.getSalesExceptions);
+router.get("/sales/kpi-summary", dashboardController.getSalesKpiSummary);
+router.get("/sales/module-cards", dashboardController.getSalesModuleCards);
+router.get("/sales/trend", dashboardController.getSalesTrend);
+router.get("/sales/funnel", dashboardController.getSalesFunnel);
+router.get("/sales/top-partners", dashboardController.getSalesTopPartners);
+router.get("/sales/exceptions", dashboardController.getSalesExceptions);
 
 // Inventory segment
-router.get("/inventory/kpi-summary", dashboardDal.getInventoryKpiSummary);
-router.get("/inventory/module-cards", dashboardDal.getInventoryModuleCards);
-router.get("/inventory/trend", dashboardDal.getInventoryTrend);
-router.get("/inventory/funnel", dashboardDal.getInventoryFunnel);
-router.get("/inventory/top-partners", dashboardDal.getInventoryTopPartners);
-router.get("/inventory/exceptions", dashboardDal.getInventoryExceptions);
+router.get("/inventory/kpi-summary", dashboardController.getInventoryKpiSummary);
+router.get("/inventory/module-cards", dashboardController.getInventoryModuleCards);
+router.get("/inventory/trend", dashboardController.getInventoryTrend);
+router.get("/inventory/funnel", dashboardController.getInventoryFunnel);
+router.get("/inventory/top-partners", dashboardController.getInventoryTopPartners);
+router.get("/inventory/exceptions", dashboardController.getInventoryExceptions);
 
 // SQL-specific compact endpoints (kept for backward compat)
-router.get("/summary", dashboardDal.getSummary);
-router.get("/purchase", dashboardDal.getPurchaseStats);
-router.get("/sales", dashboardDal.getSalesStats);
-router.get("/inventory", dashboardDal.getInventoryStats);
+router.get("/summary", dashboardController.getSummary);
+router.get("/purchase", dashboardController.getPurchaseStats);
+router.get("/sales", dashboardController.getSalesStats);
+router.get("/inventory", dashboardController.getInventoryStats);
 
 export const dashboardRoutes = router;

@@ -1,248 +1,30 @@
-// Response Transformer: Converts camelCase Drizzle rows to PascalCase SAP-style format
-// that the frontend expects. Also maps status codes ("O"/"C"/"D"/"P") to labels.
+// Converts camelCase Drizzle rows to PascalCase SAP-style format the frontend expects.
 
-export type StatusMap = Record<string, string>;
+import {
+  DOC_FIELD_MAP,
+  DOC_STATUS_FIELDS,
+  ITEM_FIELD_MAP,
+  KEEP_CAMELCASE,
+  LINE_FIELD_MAP,
+  NUMERIC_FIELDS,
+  STATUS_MAP,
+  type StatusMap,
+} from "./sap-response-field-maps";
 
-const STATUS_MAP: StatusMap = {
-  O: "Open",
-  C: "Closed",
-  D: "Draft",
-  P: "Partial",
+export type { StatusMap };
+
+const statusToLabel = (value: string | undefined | null): string => {
+  if (!value) return "Open";
+  return STATUS_MAP[value] ?? value;
 };
 
-const statusToLabel = (val: string | undefined | null): string => {
-  if (!val) return "Open";
-  return STATUS_MAP[val] ?? val;
-};
-
-// Common field maps for document tables
-const DOC_FIELD_MAP: Record<string, string> = {
-  cardCode: "CardCode",
-  cardName: "CardName",
-  docCurrency: "DocCurr",
-  docDate: "DocDate",
-  docDueDate: "DocDueDate",
-  docNum: "DocNum",
-  docTotal: "DocTotal",
-  docStatus: "DocStatus",
-  numAtCard: "NumAtCard",
-  paidToDate: "paidToDate",
-  balanceDue: "BalanceDue",
-  counterRef: "CounterRef",
-  paymentMode: "PaymentMode",
-  comments: "Comments",
-  filler: "Filler",
-  jrnlMemo: "JrnlMemo",
-  toWarehouseCode: "ToWhsCode",
-  taxDate: "TaxDate",
-  docEntry: "DocEntry",
-  address: "Address",
-  address2: "Address2",
-  salesPersonCode: "SalesPersonCode",
-  attachmentEntry: "attachmentEntry",
-  canceled: "canceled",
-  lines: "DocumentLines",
-  createdAt: "createdAt",
-  updatedAt: "updatedAt",
-  docNumStart: "DocNumStart",
-  docNumEnd: "DocNumEnd",
-  priceList: "PriceList",
-  attachments: "Attachments",
-};
-
-// Line item field maps
-const LINE_FIELD_MAP: Record<string, string> = {
-  docEntry: "DocEntry",
-  lineNum: "LineNum",
-  itemCode: "ItemCode",
-  itemDescription: "ItemDescription",
-  quantity: "Quantity",
-  unitPrice: "UnitPrice",
-  price: "Price",
-  discountPercent: "DiscountPercent",
-  vatGroup: "VatGroup",
-  vatPercent: "VatPrcnt",
-  warehouseCode: "WarehouseCode",
-  uomCode: "UoMCode",
-  uomEntry: "UoMEntry",
-  lineTotal: "LineTotal",
-  baseEntry: "BaseEntry",
-  baseLine: "BaseLine",
-  baseType: "BaseType",
-  openQty: "OpenQty",
-  openQuantity: "OpenQuantity",
-  remainingOpenQuantity: "RemainingOpenQuantity",
-  taxCode: "TaxCode",
-  acctCode: "AcctCode",
-  fromWarehouseCode: "FromWarehouseCode",
-  dscription: "Dscription",
-  lineStatus: "LineStatus",
-  requiredDate: "ReqDate",
-  requiredQuantity: "RequiredQuantity",
-  grossTotal: "GrossTotal",
-  netTotal: "NetTotal",
-  taxAmount: "TaxAmount",
-  ocrCode: "OcrCode",
-  costingCode: "CostingCode",
-  unitMsr: "unitMsr",
-  binAllocations: "DocumentLinesBinAllocations",
-};
-
-// Item master field maps
-const ITEM_FIELD_MAP: Record<string, string> = {
-  code: "ItemCode",
-  name: "ItemName",
-  foreignName: "FrgnName",
-  itemGroupCode: "ItmsGrpCod",
-  inventoryUom: "InvntryUom",
-  onHand: "OnHand",
-  isCommitted: "IsCommited",
-  onOrder: "OnOrder",
-  avgPrice: "AvgPrice",
-  lastPurchasePrice: "LastPurPrc",
-  lastPurchaseDate: "LastPurDat",
-  barcode: "CodeBars",
-  frozen: "frozenFor",
-  inventoryItem: "InvntItem",
-  purchaseItem: "purchaseItem",
-  salesItem: "salesItem",
-  defaultWarehouse: "DfltWH",
-};
-
-// Fields that should be parsed to numbers
-const NUMERIC_FIELDS = new Set([
-  "id",
-  "DocNum",
-  "DocEntry",
-  "Quantity",
-  "UnitPrice",
-  "Price",
-  "LineTotal",
-  "DiscountPercent",
-  "VatPrcnt",
-  "OnHand",
-  "IsCommited",
-  "OnOrder",
-  "AvgPrice",
-  "LastPurPrc",
-  "ItmsGrpCod",
-  "LineNum",
-  "BaseEntry",
-  "BaseLine",
-  "BaseType",
-  "OpenQty",
-  "RequiredQuantity",
-  "UoMEntry",
-  "SalesPersonCode",
-  "attachmentEntry",
-  "DocTotal",
-  "paidToDate",
-  "BalanceDue",
-  "PriceList",
-]);
-
-const DOC_STATUS_FIELDS = new Set(["DocStatus", "LineStatus"]);
-
-// Fields that should remain camelCase even in PascalCase responses
-const KEEP_CAMELCASE = new Set([
-  "paidToDate",
-  "attachmentEntry",
-  "canceled",
-  "createdAt",
-  "updatedAt",
-]);
-
-const parseNumber = (val: unknown): number => {
-  if (typeof val === "number") return val;
-  if (typeof val === "string" && val.trim() !== "") {
-    const n = Number(val);
-    return Number.isNaN(n) ? 0 : n;
+const parseNumber = (value: unknown): number => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
   return 0;
-};
-
-const transformRow = (row: Record<string, unknown>): Record<string, unknown> => {
-  if (!row || typeof row !== "object") return row;
-
-  const output: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(row)) {
-    // Lines array → transform each line (must be processed before DOC_FIELD_MAP check)
-    if ((key === "lines" || key === "DocumentLines") && Array.isArray(value)) {
-      output.DocumentLines = value.map((line: Record<string, unknown>) => transformLineItem(line));
-      continue;
-    }
-
-    // Attachments array → format camelCase structure directly
-    if ((key === "attachments" || key === "Attachments") && Array.isArray(value)) {
-      output.Attachments = value.map((att: any) => ({
-        fileName: att.fileName,
-        fileExtension: att.fileExtension,
-        sourcePath: att.sourcePath,
-        attachmentDate: att.attachmentDate,
-        freeText: att.freeText || "",
-      }));
-      continue;
-    }
-
-    // Item master special handling
-    if (key in ITEM_FIELD_MAP) {
-      const mapped = ITEM_FIELD_MAP[key];
-      if (mapped && mapped.length > 0) {
-        if (mapped === "frozenFor") {
-          output[mapped] = value === true || value === 1 || value === "Y" ? "Y" : "N";
-        } else {
-          output[mapped] = value;
-        }
-      }
-      continue;
-    }
-
-    // Document field handling
-    if (key in DOC_FIELD_MAP) {
-      const mapped = DOC_FIELD_MAP[key];
-      if (mapped && mapped.length > 0) {
-        if (DOC_STATUS_FIELDS.has(mapped)) {
-          output[mapped] = statusToLabel(String(value));
-        } else if (NUMERIC_FIELDS.has(mapped) && !KEEP_CAMELCASE.has(mapped)) {
-          output[mapped] = parseNumber(value);
-        } else if (mapped === "DocTotal" && !KEEP_CAMELCASE.has(mapped)) {
-          output[mapped] = parseNumber(value);
-        } else {
-          output[mapped] = value;
-        }
-      }
-      continue;
-    }
-
-    // Passthrough for fields without explicit mapping
-    output[key] = value;
-  }
-
-  // Handle numeric strings in common fields
-  if ("DocTotal" in output && typeof output.DocTotal === "string") {
-    output.DocTotal = parseNumber(output.DocTotal);
-  }
-  if ("id" in output) {
-    output.id = parseNumber(output.id);
-  }
-  // Normalise nullable string fields: SQL nullable columns return null; coerce to ""
-  // so the response shape matches HANA (which always returns strings for these fields).
-  if ("CardName" in output && output.CardName === null) {
-    output.CardName = "";
-  }
-  if ("DocCurr" in output && output.DocCurr === null) {
-    output.DocCurr = "";
-  }
-
-  // Dynamically compute BalanceDue for invoices and credit memos
-  if ("DocTotal" in output && "paidToDate" in output) {
-    const total = Number(output.DocTotal ?? 0);
-    const paid = Number(output.paidToDate ?? 0);
-    output.BalanceDue = Math.round((total - paid) * 100) / 100;
-  }
-
-  return output;
 };
 
 const transformLineItem = (line: Record<string, unknown>): Record<string, unknown> => {
@@ -264,11 +46,9 @@ const transformLineItem = (line: Record<string, unknown>): Record<string, unknow
       }
       continue;
     }
-    // Passthrough
     output[key] = value;
   }
 
-  // Ensure both Price and UnitPrice are populated and identical
   if ("UnitPrice" in output && !("Price" in output)) {
     output.Price = output.UnitPrice;
   } else if ("Price" in output && !("UnitPrice" in output)) {
@@ -278,13 +58,85 @@ const transformLineItem = (line: Record<string, unknown>): Record<string, unknow
   return output;
 };
 
-/** Transform a single document row from camelCase to PascalCase */
+const transformRow = (row: Record<string, unknown>): Record<string, unknown> => {
+  if (!row || typeof row !== "object") return row;
+
+  const output: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(row)) {
+    if ((key === "lines" || key === "DocumentLines") && Array.isArray(value)) {
+      output.DocumentLines = value.map((line: Record<string, unknown>) => transformLineItem(line));
+      continue;
+    }
+
+    if ((key === "attachments" || key === "Attachments") && Array.isArray(value)) {
+      output.Attachments = value.map((attachment: Record<string, unknown>) => ({
+        fileName: attachment.fileName,
+        fileExtension: attachment.fileExtension,
+        sourcePath: attachment.sourcePath,
+        attachmentDate: attachment.attachmentDate,
+        freeText: attachment.freeText || "",
+      }));
+      continue;
+    }
+
+    if (key in ITEM_FIELD_MAP) {
+      const mapped = ITEM_FIELD_MAP[key];
+      if (mapped && mapped.length > 0) {
+        if (mapped === "frozenFor") {
+          output[mapped] = value === true || value === 1 || value === "Y" ? "Y" : "N";
+        } else {
+          output[mapped] = value;
+        }
+      }
+      continue;
+    }
+
+    if (key in DOC_FIELD_MAP) {
+      const mapped = DOC_FIELD_MAP[key];
+      if (mapped && mapped.length > 0) {
+        if (DOC_STATUS_FIELDS.has(mapped)) {
+          output[mapped] = statusToLabel(String(value));
+        } else if (NUMERIC_FIELDS.has(mapped) && !KEEP_CAMELCASE.has(mapped)) {
+          output[mapped] = parseNumber(value);
+        } else {
+          output[mapped] = value;
+        }
+      }
+      continue;
+    }
+
+    output[key] = value;
+  }
+
+  if ("DocTotal" in output && typeof output.DocTotal === "string") {
+    output.DocTotal = parseNumber(output.DocTotal);
+  }
+  if ("id" in output) {
+    output.id = parseNumber(output.id);
+  }
+  // SQL nullables → empty string so response matches HANA string fields.
+  if ("CardName" in output && output.CardName === null) {
+    output.CardName = "";
+  }
+  if ("DocCurr" in output && output.DocCurr === null) {
+    output.DocCurr = "";
+  }
+
+  if ("DocTotal" in output && "paidToDate" in output) {
+    const total = Number(output.DocTotal ?? 0);
+    const paid = Number(output.paidToDate ?? 0);
+    output.BalanceDue = Math.round((total - paid) * 100) / 100;
+  }
+
+  return output;
+};
+
 export const toPascalCase = (row: Record<string, unknown>): Record<string, unknown> => {
   return transformRow(row);
 };
 
-/** Transform a paginated list result from camelCase to PascalCase */
-export const toPascalCaseList = (result: {
+export const toPascalCaseList = (page: {
   data: Record<string, unknown>[];
   total?: number;
   page?: number;
@@ -296,28 +148,24 @@ export const toPascalCaseList = (result: {
   page: number;
   limit: number;
   totalPages: number;
-} => {
-  const transformed = {
-    data: (result.data || []).map((row) => transformRow(row)),
-    total: result.total ?? 0,
-    page: result.page ?? 1,
-    limit: result.limit ?? 20,
-    totalPages: result.totalPages ?? 1,
-  };
-  return transformed;
-};
+} => ({
+  data: (page.data || []).map((row) => transformRow(row)),
+  total: page.total ?? 0,
+  page: page.page ?? 1,
+  limit: page.limit ?? 20,
+  totalPages: page.totalPages ?? 1,
+});
 
-/** Transform a raw docnums array (returns array of docnum values) */
 export const toPascalCaseDocnums = (rows: unknown[]): { code: string; name: string }[] => {
   if (!Array.isArray(rows)) return [];
-  return rows.map((item: unknown) => {
-    if (typeof item === "object" && item !== null) {
-      const obj = item as Record<string, unknown>;
-      const code = String(obj.docNum ?? obj.code ?? "");
-      const name = String(obj.name ?? obj.code ?? obj.docNum ?? "");
+  return rows.map((entry: unknown) => {
+    if (typeof entry === "object" && entry !== null) {
+      const row = entry as Record<string, unknown>;
+      const code = String(row.docNum ?? row.code ?? "");
+      const name = String(row.name ?? row.code ?? row.docNum ?? "");
       return { code, name };
     }
-    const s = String(item);
-    return { code: s, name: s };
+    const text = String(entry);
+    return { code: text, name: text };
   });
 };

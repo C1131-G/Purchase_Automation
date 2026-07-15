@@ -12,4 +12,4 @@ export const getAllOrganizations: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const organizationDal = { getAllOrganizations };
+export const organizationController = { getAllOrganizations };

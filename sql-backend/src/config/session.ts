@@ -62,7 +62,10 @@ class AtomicFileStore extends session.Store {
       }
       logger.info({ count: this.sessions.size }, "Loaded sessions from disk");
     } catch (err) {
-      logger.error({ message: (err as Error).message }, "Failed to load sessions");
+      logger.error(
+        { err: err instanceof Error ? err : new Error(String(err)) },
+        "Failed to load sessions",
+      );
     }
   }
 

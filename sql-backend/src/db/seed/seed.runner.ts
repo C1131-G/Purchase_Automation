@@ -67,7 +67,7 @@ export async function runSeed() {
   ];
 
   for (const tenant of tenantConfigs) {
-    logger.info({ tenantDbName: tenant.dbName }, "Checking if tenant database exists...");
+    logger.debug({ tenantDbName: tenant.dbName }, "Ensuring tenant database exists");
     await ensureDatabaseExists(tenant.dbName, config.postgres.databaseUrl);
 
     const connectionUrl = new URL(config.postgres.databaseUrl);
@@ -78,12 +78,12 @@ export async function runSeed() {
     });
     const db = drizzle(tenantPool);
 
-    logger.info({ tenantDbName: tenant.dbName }, "Running migrations on tenant database...");
+    logger.debug({ tenantDbName: tenant.dbName }, "Running migrations on tenant database");
     await migrate(db, {
       migrationsFolder: "./src/db/migrations",
     });
 
-    logger.info({ tenantDbName: tenant.dbName }, "Cleaning tenant data...");
+    logger.debug({ tenantDbName: tenant.dbName }, "Cleaning tenant data");
     faker.seed(tenant.seed);
 
     // Clean tables
@@ -132,13 +132,13 @@ export async function runSeed() {
     await db.delete(adminSettings);
     await db.delete(users);
 
-    logger.info({ tenantDbName: tenant.dbName }, "Seeding tenant reference data...");
+    logger.debug({ tenantDbName: tenant.dbName }, "Seeding tenant reference data");
     const referenceData = await seedTenantData(db, tenant, seedCurrency, seededRegistryUsers);
 
-    logger.info({ tenantDbName: tenant.dbName }, "Seeding tenant documents...");
+    logger.debug({ tenantDbName: tenant.dbName }, "Seeding tenant documents");
     await seedTenantDocuments(db, tenant, seedCurrency, referenceData);
 
-    logger.info({ tenantDbName: tenant.dbName }, "Finished seeding tenant database.");
+    logger.info({ tenantDbName: tenant.dbName }, "Finished seeding tenant database");
     await tenantPool.end();
   }
 

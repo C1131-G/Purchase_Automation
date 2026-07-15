@@ -8,18 +8,18 @@ import { userDbAccess } from "@/db/schema/user-db-access";
 import { users } from "@/db/schema/users";
 
 export async function seedRegistry() {
-  logger.info("Connecting to the registry database...");
+  logger.debug("Connecting to the registry database");
   const registryPool = new pg.Pool({
     connectionString: config.postgres.databaseUrl,
   });
   const registryDb = drizzle(registryPool);
 
-  logger.info("Cleaning registry tables...");
+  logger.debug("Cleaning registry tables");
   await registryDb.delete(userDbAccess);
   await registryDb.delete(organizations);
   await registryDb.delete(users);
 
-  logger.info("Seeding organizations...");
+  logger.debug("Seeding organizations");
   const seededOrgs = await registryDb
     .insert(organizations)
     .values([
@@ -46,7 +46,7 @@ export async function seedRegistry() {
 
   logger.info({ count: seededOrgs.length }, "Seeded organizations in registry");
 
-  logger.info("Seeding users in registry...");
+  logger.debug("Seeding users in registry");
   const seededUsers = await registryDb
     .insert(users)
     .values([
@@ -77,7 +77,7 @@ export async function seedRegistry() {
 
   const userMap = new Map(seededUsers.map((u) => [u.username, u.id]));
 
-  logger.info("Seeding user DB access records in registry...");
+  logger.debug("Seeding user DB access records in registry");
   await registryDb.insert(userDbAccess).values([
     { dbName: "CIBI_ERP_DB", userId: userMap.get("Cibi")! },
     { dbName: "CIBI_ERP_DB", userId: userMap.get("Chandru")! },

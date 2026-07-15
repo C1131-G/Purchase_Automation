@@ -63,7 +63,7 @@ export const getServiceLayerCredentials = async (
         const caughtError = err instanceof Error ? err : new Error(String(err));
         logger.error({
           dbName,
-          error: caughtError.message,
+          err: caughtError,
           msg: "Failed to fetch Service Layer credentials",
         });
         throw caughtError;

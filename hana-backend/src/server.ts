@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 import { app } from "@/app";
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
+import { stopObservability } from "@/core/observability/otel-sdk";
 import { AppDataSource, initializeDatabase } from "@/db/config/data-source";
 import { closeAllTenantDataSources } from "@/db/config/tenant-data-source";
 import { hanaPool } from "@/services/hana.service";
@@ -34,17 +35,24 @@ const start = async () => {
 
     // HTTP Server initialization.
     const server = app.listen(PORT, () => {
-      const isProduction = process.env.NODE_ENV === "production";
-      logger.info({
-        env: process.env.NODE_ENV || "development",
-        msg: "Server started successfully",
-        port: PORT,
-        ...(isProduction ? {} : { 
-          swagger: `http://localhost:${PORT}/api-docs`,
-          postman: `http://localhost:${PORT}/api-docs.json` 
-        }),
-        url: `http://localhost:${PORT}`,
-      });
+      logger.info(
+        { env: process.env.NODE_ENV || "development", port: PORT, url: `http://localhost:${PORT}` },
+        "Server started successfully",
+      );
+      // Rule 13: only log interactive docs / Postman import links outside production.
+      if (process.env.NODE_ENV !== "production") {
+        logger.info({ url: `http://localhost:${PORT}/api-docs` }, "API docs (web)");
+        logger.info(
+          { url: `http://localhost:${PORT}/api-docs.json` },
+          "Postman collection (OpenAPI spec)",
+        );
+        if (config.observability.metricsEnabled) {
+          logger.info(
+            { url: `http://localhost:${PORT}${config.observability.metricsPath}` },
+            "Prometheus metrics",
+          );
+        }
+      }
     });
 
     server.on("error", (error: NodeJS.ErrnoException) => {
@@ -52,7 +60,7 @@ const start = async () => {
         logger.fatal({ msg: "Port already in use", port: PORT });
         process.exit(1);
       }
-      logger.error({ error: error.message, msg: "HTTP server error" });
+      logger.error({ err: error, msg: "HTTP server error" });
     });
 
     // Graceful Shutdown Logic: Ensures that active database connections and SAP sessions are terminated cleanly.
@@ -62,7 +70,7 @@ const start = async () => {
 
       // Safety: Force exit if cleanup takes longer than the configured timeout.
       const forceShutdownTimeout = setTimeout(() => {
-        logger.error("Shutdown timed out, forcing exit");
+        logger.error({ timeoutMs: SHUTDOWN_TIMEOUT }, "Shutdown timed out, forcing exit");
         process.exit(1);
       }, SHUTDOWN_TIMEOUT);
 
@@ -72,12 +80,13 @@ const start = async () => {
         if (AppDataSource.isInitialized) {
           await AppDataSource.destroy();
         }
+        await stopObservability();
         clearTimeout(forceShutdownTimeout);
         logger.info("Server shutdown completed cleanly");
         process.exit(0);
       } catch (error) {
         logger.error({
-          error: (error as Error).message,
+          err: error instanceof Error ? error : new Error(String(error)),
           msg: "Error during shutdown",
         });
         process.exit(1);
@@ -91,7 +100,7 @@ const start = async () => {
     // Critical Error Management: Non-catchable errors resulting in process termination.
     process.on("uncaughtException", (err) => {
       logger.fatal({
-        error: err.message,
+        err: err,
         msg: "UNCAUGHT EXCEPTION",
         stack: err.stack,
       });
@@ -99,12 +108,15 @@ const start = async () => {
     });
 
     process.on("unhandledRejection", (reason) => {
-      logger.fatal({ msg: "UNHANDLED REJECTION", reason: String(reason) });
+      logger.fatal({
+        err: reason instanceof Error ? reason : new Error(String(reason)),
+        msg: "UNHANDLED REJECTION",
+      });
       process.exit(1);
     });
   } catch (error) {
     logger.fatal({
-      error: (error as Error).message,
+      err: error instanceof Error ? error : new Error(String(error)),
       msg: "Critical failure during server startup",
       stack: (error as Error).stack,
     });

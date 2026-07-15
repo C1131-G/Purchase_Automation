@@ -3,6 +3,8 @@ import type { ZodError } from "zod";
 
 import type { RequestWithSession } from "@/core/errors/types/error.types";
 import { logger } from "@/core/logger/pino-logger";
+import { recordAppError } from "@/core/observability/metrics";
+import { recordExceptionOnActiveSpan } from "@/core/observability/tracing";
 
 // Global Error Handler: Middleware that captures all unhandled exceptions and structured AppErrors from the Express pipeline.
 // It ensures that the client always receives a standardized JSON response and that errors are recorded in the central log.
@@ -14,6 +16,9 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
   const statusCode = (error as Error & { statusCode?: number }).statusCode || 500;
   const message = error.message || "Internal Server Error";
   const errorCode = (error as Error & { errorCode?: string }).errorCode || "UNKNOWN_ERROR";
+
+  recordExceptionOnActiveSpan(error);
+  recordAppError(error.name === "ZodError" ? "VALIDATION_ERROR" : errorCode, statusCode);
 
   // Use the logger attached to the request (if available) for better trace correlation, otherwise fallback to the global pino instance.
   const reqWithSession = req as RequestWithSession;

@@ -140,7 +140,7 @@ export const getInventoryAdjustmentReasons: RequestHandler = (req, res, next) =>
   }
 };
 
-export const masterDataDal = {
+export const masterDataController = {
   getBranches,
   getChartOfAccounts,
   getCustomers,

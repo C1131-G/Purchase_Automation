@@ -1,6 +1,6 @@
 // Dashboard view builders — matching hana + Number(legacy) compat.
 
-import { getCachedData } from "@/core/utils/cache.util";
+import { getCachedData } from "@/core/utils/cache";
 
 import {
   calculateTrend,

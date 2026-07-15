@@ -97,7 +97,7 @@ export const previewNextDocNum: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const purchaseOrderDal = {
+export const purchaseOrderController = {
   cancel,
   create,
   getByDocNum,

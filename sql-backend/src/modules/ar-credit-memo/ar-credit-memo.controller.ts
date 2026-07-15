@@ -78,7 +78,7 @@ export const cancel: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const arCreditMemoDal = {
+export const arCreditMemoController = {
   cancel,
   create,
   getById,

@@ -95,7 +95,7 @@ export const initializeDatabase = async (): Promise<void> => {
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
     logger.error({
-      error: caughtError.message,
+      err: caughtError,
       msg: "TypeORM initialization failed",
     });
     throw caughtError;

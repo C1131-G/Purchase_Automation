@@ -51,4 +51,4 @@ export const create: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const transferDal = { create, getDocNums, getList, getTransfer };
+export const transferController = { create, getDocNums, getList, getTransfer };

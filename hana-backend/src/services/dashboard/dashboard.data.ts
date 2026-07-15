@@ -1,6 +1,6 @@
-import { getTenantRepository } from "@/dal/tenant-dal.helper";
+import { getTenantRepository } from "@/db/tenant-query";
 import { getCachedData } from "@/core/utils/cache";
-import { getDisplayCurrency } from "@/services/currency.util";
+import { getDisplayCurrency } from "@/services/currency-format";
 
 // Purchase schemas
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";

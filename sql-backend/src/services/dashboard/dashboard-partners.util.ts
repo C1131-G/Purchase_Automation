@@ -2,7 +2,7 @@
 
 import { count, desc, sql } from "drizzle-orm";
 
-import { getCachedData } from "@/core/utils/cache.util";
+import { getCachedData } from "@/core/utils/cache";
 import { getDb } from "@/db/client";
 import { purchaseOrders } from "@/db/schema/purchase-orders";
 import { salesOrders } from "@/db/schema/sales-orders";

@@ -25,7 +25,7 @@ try {
     });
   } else {
     logger.fatal({
-      error: (error as Error).message,
+      err: error instanceof Error ? error : new Error(String(error)),
       msg: "An unexpected error occurred during environment validation",
     });
   }
@@ -64,5 +64,16 @@ export const config = {
   },
   currency: {
     defaultCode: validatedEnv.DEFAULT_CURRENCY_CODE,
+  },
+  observability: {
+    otelSdkDisabled: validatedEnv.OTEL_SDK_DISABLED,
+    serviceName: validatedEnv.OTEL_SERVICE_NAME,
+    otlpEndpoint: validatedEnv.OTEL_EXPORTER_OTLP_ENDPOINT,
+    otlpTracesEndpoint: validatedEnv.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    tracesSampler: validatedEnv.OTEL_TRACES_SAMPLER,
+    tracesSamplerArg: validatedEnv.OTEL_TRACES_SAMPLER_ARG,
+    metricsEnabled: validatedEnv.METRICS_ENABLED,
+    metricsPath: validatedEnv.METRICS_PATH,
+    metricsBearerToken: validatedEnv.METRICS_BEARER_TOKEN,
   },
 };

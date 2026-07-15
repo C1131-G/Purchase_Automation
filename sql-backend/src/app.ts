@@ -13,11 +13,25 @@ import { apiRoutes } from "@/routes/api.routes";
 import { AppError } from "@/core/errors/app-error";
 
 import { configureSwagger } from "@/config/swagger";
+import { httpMetricsMiddleware } from "@/core/observability/http-metrics.middleware";
+import { createMetricsHandler } from "@/core/observability/prometheus";
+import { requestLogger } from "@/core/middleware/request-logger.middleware";
 
 const app = express();
 
 app.set("etag", "strong");
 app.set("trust proxy", config.server.trustProxyHops);
+
+// Prometheus scrape (no session/auth unless bearer configured). Mount early.
+if (config.observability.metricsEnabled) {
+  app.get(
+    config.observability.metricsPath,
+    createMetricsHandler({
+      path: config.observability.metricsPath,
+      bearerToken: config.observability.metricsBearerToken,
+    }) as unknown as RequestHandler,
+  );
+}
 
 app.use(
   "/",
@@ -30,6 +44,10 @@ app.use("/", corsConfig as unknown as RequestHandler);
 app.use("/", compression({ level: 6, threshold: 1024 }) as unknown as RequestHandler);
 app.use("/", express.json({ limit: "10mb" }) as unknown as RequestHandler);
 app.use("/", express.urlencoded({ extended: true }) as unknown as RequestHandler);
+
+// Request-scoped child logger (requestId) + one access line per response.
+app.use(requestLogger as unknown as RequestHandler);
+app.use(httpMetricsMiddleware as unknown as RequestHandler);
 
 configureSession(app);
 configureSwagger(app);

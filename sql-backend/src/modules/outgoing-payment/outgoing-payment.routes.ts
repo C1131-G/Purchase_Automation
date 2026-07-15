@@ -2,29 +2,29 @@ import { Router } from "express";
 
 import { validateSession } from "@/core/middleware/auth.middleware";
 import { loginLimiter } from "@/core/middleware/rate-limit.middleware";
-import { createExportHandler } from "@/shared/route-handlers/export.handler";
-import { quickLookupDal } from "@/shared/route-handlers/quick-lookup.handler";
+import { createExportHandler } from "@/shared/route-handlers/create-document-export-handler";
+import { quickLookupController } from "@/shared/route-handlers/quick-lookup.handler";
 
-import { outgoingPaymentDal } from "./outgoing-payment.controller";
+import { outgoingPaymentController } from "./outgoing-payment.controller";
 import { outgoingPaymentService } from "./outgoing-payment.service";
 
 const router = Router();
 router.use(validateSession);
 
-router.get("/", outgoingPaymentDal.getList);
-router.get("/docnums", loginLimiter, outgoingPaymentDal.getDocNums);
+router.get("/", outgoingPaymentController.getList);
+router.get("/docnums", loginLimiter, outgoingPaymentController.getDocNums);
 router.get("/next-docnum", async (_req, res) => {
   res.json({
     data: await outgoingPaymentService.previewNextDocNum(),
     success: true,
   });
 });
-router.get("/by-doc-num/:docNum", outgoingPaymentDal.getByDocNum);
-router.get("/accounts", quickLookupDal.getAccounts);
-router.get("/:id", outgoingPaymentDal.getById);
-router.post("/", outgoingPaymentDal.create);
-router.patch("/:id", outgoingPaymentDal.update);
-router.post("/:id/cancel", outgoingPaymentDal.cancel);
+router.get("/by-doc-num/:docNum", outgoingPaymentController.getByDocNum);
+router.get("/accounts", quickLookupController.getAccounts);
+router.get("/:id", outgoingPaymentController.getById);
+router.post("/", outgoingPaymentController.create);
+router.patch("/:id", outgoingPaymentController.update);
+router.post("/:id/cancel", outgoingPaymentController.cancel);
 
 router.get(
   "/by-doc-num/:docNum/export/:format",

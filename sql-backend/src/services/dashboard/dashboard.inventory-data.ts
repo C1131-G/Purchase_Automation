@@ -1,7 +1,7 @@
 import { sql, desc, eq, and, gte, lte } from "drizzle-orm";
 // Inventory dashboard data — Drizzle port of hana's inventory data layer.
 
-import { getCachedData } from "@/core/utils/cache.util";
+import { getCachedData } from "@/core/utils/cache";
 import { getDb } from "@/db/client";
 import { goodsIssueLines } from "@/db/schema/goods-issue-lines";
 import { goodsIssues } from "@/db/schema/goods-issues";

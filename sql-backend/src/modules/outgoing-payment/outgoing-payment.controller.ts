@@ -86,7 +86,7 @@ export const cancel: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const outgoingPaymentDal = {
+export const outgoingPaymentController = {
   cancel,
   create,
   getByDocNum,

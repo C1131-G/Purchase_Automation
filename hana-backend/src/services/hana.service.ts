@@ -4,6 +4,9 @@ import hanaClient from "@sap/hana-client";
 
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
+import { recordDbOperation, registerPoolGauges } from "@/core/observability/metrics";
+import { truncateSql } from "@/core/observability/attributes";
+import { withSpan } from "@/core/observability/tracing";
 import type { HanaConnection, HanaPool } from "@/services/types/hana.types";
 
 // HANA Connection Pool Manager: Controls the lifecycle of database connections to minimize handshake latency.
@@ -61,6 +64,20 @@ class HanaConnectionPool {
       this.isConnected = true;
       this.connectedAt = Date.now();
 
+      registerPoolGauges(() => {
+        const stats = this.getPoolStats();
+        const available = stats.availableConnections;
+        const size = stats.poolSize;
+        return [
+          {
+            pool: "hana",
+            idle: available,
+            active: Math.max(0, size - available),
+            waiting: 0,
+          },
+        ];
+      });
+
       logger.info({
         database: config.hana.commonDb,
         maxSize: poolOptions.max_pool_size,
@@ -70,7 +87,7 @@ class HanaConnectionPool {
     } catch (err: unknown) {
       const caughtError = err instanceof Error ? err : new Error(String(err));
       logger.error({
-        error: caughtError.message,
+        err: caughtError,
         msg: "HANA pool initialization failed",
         server: `${config.hana.host}:${config.hana.port}`,
       });
@@ -88,66 +105,80 @@ class HanaConnectionPool {
       throw new Error("HANA connection pool not initialized");
     }
 
-    let connection: HanaConnection | null = null;
-    let isSettled: boolean = false;
+    const start = process.hrtime.bigint();
+    return withSpan(
+      "db.hana.query",
+      {
+        "db.system": "hana",
+        "db.operation": "query",
+        // Truncated statement only — never full params (PII / secrets risk).
+        "db.statement": truncateSql(sql),
+      },
+      async () => {
+        let connection: HanaConnection | null = null;
+        let isSettled: boolean = false;
 
-    try {
-      // Acquire connection from pool. Returns to pool automatically on connection.disconnect().
-      connection = await new Promise<HanaConnection>((resolve, reject) => {
-        if (!this.pool) {
-          return reject(new Error("Pool not initialized"));
-        }
-        this.pool.getConnection((err, conn) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(conn);
-          }
-        });
-      });
-
-      // Execute query with a race condition to enforce application-level timeouts.
-      return await Promise.race([
-        new Promise<Record<string, unknown>[]>((resolve, reject) => {
-          if (!connection) {
-            return reject(new Error("Connection lost"));
-          }
-          connection.exec(sql, params, (err, rows) => {
-            if (isSettled) {
-              return;
-            }
-            isSettled = true;
-            if (err) {
-              reject(err);
-            } else {
-              resolve(rows);
-            }
-          });
-        }),
-        new Promise<Record<string, unknown>[]>((_resolve, reject) =>
-          setTimeout(() => {
-            if (isSettled) {
-              return;
-            }
-            isSettled = true;
-            reject(new Error("Query timeout exceeded"));
-          }, timeout),
-        ),
-      ]);
-    } finally {
-      // Return connection to pool. Essential to prevent pool exhaustion.
-      if (connection) {
         try {
-          connection.disconnect();
-        } catch (err: unknown) {
-          const caughtError = err instanceof Error ? err : new Error(String(err));
-          logger.error({
-            error: caughtError.message,
-            msg: "Error returning connection to pool",
+          // Acquire connection from pool. Returns to pool automatically on connection.disconnect().
+          connection = await new Promise<HanaConnection>((resolve, reject) => {
+            if (!this.pool) {
+              return reject(new Error("Pool not initialized"));
+            }
+            this.pool.getConnection((err, conn) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(conn);
+              }
+            });
           });
+
+          // Execute query with a race condition to enforce application-level timeouts.
+          return await Promise.race([
+            new Promise<Record<string, unknown>[]>((resolve, reject) => {
+              if (!connection) {
+                return reject(new Error("Connection lost"));
+              }
+              connection.exec(sql, params, (err, rows) => {
+                if (isSettled) {
+                  return;
+                }
+                isSettled = true;
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(rows);
+                }
+              });
+            }),
+            new Promise<Record<string, unknown>[]>((_resolve, reject) =>
+              setTimeout(() => {
+                if (isSettled) {
+                  return;
+                }
+                isSettled = true;
+                reject(new Error("Query timeout exceeded"));
+              }, timeout),
+            ),
+          ]);
+        } finally {
+          const durationSec = Number(process.hrtime.bigint() - start) / 1e9;
+          recordDbOperation("hana", "query", durationSec);
+          // Return connection to pool. Essential to prevent pool exhaustion.
+          if (connection) {
+            try {
+              connection.disconnect();
+            } catch (err: unknown) {
+              const caughtError = err instanceof Error ? err : new Error(String(err));
+              logger.error({
+                err: caughtError,
+                msg: "Error returning connection to pool",
+              });
+            }
+          }
         }
-      }
-    }
+      },
+    );
   }
 
   // Provides real-time metrics for monitoring the health of the HANA pool.
@@ -169,7 +200,7 @@ class HanaConnectionPool {
         logger.info("HANA connection pool closed");
       } catch (err: unknown) {
         const caughtError = err instanceof Error ? err : new Error(String(err));
-        logger.error({ error: caughtError.message, msg: "HANA pool close failed" });
+        logger.error({ err: caughtError, msg: "HANA pool close failed" });
       }
     }
   }

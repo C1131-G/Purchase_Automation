@@ -4,28 +4,28 @@
 import express from "express";
 
 import { authenticatedApiLimiter } from "@/core/middleware/rate-limit.middleware";
-import { apCreditMemoRoutes } from "@/routes/ap-credit-memo.routes";
-import { apInvoiceRoutes } from "@/routes/ap-invoice.routes";
-import { arCreditMemoRoutes } from "@/routes/ar-credit-memo.routes";
-import { arInvoiceRoutes } from "@/routes/ar-invoice.routes";
-import { authRoutes } from "@/routes/auth.routes";
-import { bankDetailsRoutes } from "@/routes/bank-details.routes";
-import { dashboardRoutes } from "@/routes/dashboard.routes";
-import { grpoRoutes } from "@/routes/grpo.routes";
-import { incomingPaymentRoutes } from "@/routes/incoming-payment.routes";
-import { masterDataRoutes } from "@/routes/master-data.routes";
-import { organizationRoutes } from "@/routes/organization.routes";
-import { outgoingPaymentRoutes } from "@/routes/outgoing-payment.routes";
-import { purchaseOrderRoutes } from "@/routes/purchase-order.routes";
-import { purchaseQuotationRoutes } from "@/routes/purchase-quotation.routes";
-import { salesOrderRoutes } from "@/routes/sales-order.routes";
-import salesRelationshipRoutes from "@/routes/sales-relationship.routes";
-import { salesQuotationRoutes } from "@/routes/sales-quotation.routes";
-import { itemMasterRoutes } from "@/routes/item-master.routes";
-import { goodsReceiptRoutes } from "@/routes/goods-receipt.routes";
-import { goodsIssueRoutes } from "@/routes/goods-issue.routes";
-import { transferRequestRoutes } from "@/routes/transfer-request.routes";
-import { transferRoutes } from "@/routes/transfer.routes";
+import { apCreditMemoRoutes } from "@/modules/ap-credit-memo/ap-credit-memo.routes";
+import { apInvoiceRoutes } from "@/modules/ap-invoice/ap-invoice.routes";
+import { arCreditMemoRoutes } from "@/modules/ar-credit-memo/ar-credit-memo.routes";
+import { arInvoiceRoutes } from "@/modules/ar-invoice/ar-invoice.routes";
+import { authRoutes } from "@/modules/auth/auth.routes";
+import { bankDetailsRoutes } from "@/modules/bank-details/bank-details.routes";
+import { dashboardRoutes } from "@/modules/dashboard/dashboard.routes";
+import { grpoRoutes } from "@/modules/grpo/grpo.routes";
+import { incomingPaymentRoutes } from "@/modules/incoming-payment/incoming-payment.routes";
+import { masterDataRoutes } from "@/modules/master-data/master-data.routes";
+import { organizationRoutes } from "@/modules/organization/organization.routes";
+import { outgoingPaymentRoutes } from "@/modules/outgoing-payment/outgoing-payment.routes";
+import { purchaseOrderRoutes } from "@/modules/purchase-order/purchase-order.routes";
+import { purchaseQuotationRoutes } from "@/modules/purchase-quotation/purchase-quotation.routes";
+import { salesOrderRoutes } from "@/modules/sales-order/sales-order.routes";
+import salesRelationshipRoutes from "@/modules/relationship-map/relationship-map.routes";
+import { salesQuotationRoutes } from "@/modules/sales-quotation/sales-quotation.routes";
+import { itemMasterRoutes } from "@/modules/item-master/item-master.routes";
+import { goodsReceiptRoutes } from "@/modules/goods-receipt/goods-receipt.routes";
+import { goodsIssueRoutes } from "@/modules/goods-issue/goods-issue.routes";
+import { transferRequestRoutes } from "@/modules/transfer-request/transfer-request.routes";
+import { transferRoutes } from "@/modules/transfer/transfer.routes";
 
 const router = express.Router();
 
@@ -67,7 +67,7 @@ router.use("/master-data", masterDataRoutes);
 // Bank Details: Read-only bank master data from ODSC.
 router.use("/bank-details", bankDetailsRoutes);
 
-import { attachmentsRoutes } from "@/routes/attachments.routes";
+import { attachmentsRoutes } from "@/modules/attachments/attachments.routes";
 
 router.use("/attachments", attachmentsRoutes);
 
