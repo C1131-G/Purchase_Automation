@@ -26,8 +26,8 @@ router.post("/:id/cancel", apCreditMemoController.cancel);
 router.get(
   "/by-doc-num/:docNum/export/:format",
   createExportHandler(async (docNum) => {
-    const r = await apCreditMemoService.getByDocNum(docNum);
-    return { attachments: [], doc: r, lines: r.lines ?? [] };
+    const result = await apCreditMemoService.getByDocNum(docNum);
+    return { attachments: [], doc: result, lines: result.lines ?? [] };
   }, "AP Credit Memo"),
 );
 

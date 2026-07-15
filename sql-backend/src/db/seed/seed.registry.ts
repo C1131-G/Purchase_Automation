@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import postgres from "pg";
 
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
@@ -9,7 +9,7 @@ import { users } from "@/db/schema/users";
 
 export async function seedRegistry() {
   logger.debug("Connecting to the registry database");
-  const registryPool = new pg.Pool({
+  const registryPool = new postgres.Pool({
     connectionString: config.postgres.databaseUrl,
   });
   const registryDb = drizzle(registryPool);
@@ -75,7 +75,7 @@ export async function seedRegistry() {
 
   logger.info({ count: seededUsers.length }, "Seeded users in registry");
 
-  const userMap = new Map(seededUsers.map((u) => [u.username, u.id]));
+  const userMap = new Map(seededUsers.map((user) => [user.username, user.id]));
 
   logger.debug("Seeding user DB access records in registry");
   await registryDb.insert(userDbAccess).values([

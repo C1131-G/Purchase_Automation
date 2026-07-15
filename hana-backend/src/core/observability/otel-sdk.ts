@@ -29,11 +29,11 @@ let sdk: NodeSDK | null = null;
 let started = false;
 
 function envFlag(name: string, defaultTrue = false): boolean {
-  const v = process.env[name];
-  if (v === undefined || v === "") {
+  const envValue = process.env[name];
+  if (envValue === undefined || envValue === "") {
     return defaultTrue;
   }
-  return v === "true" || v === "1";
+  return envValue === "true" || envValue === "1";
 }
 
 function shouldDisable(): boolean {

@@ -68,24 +68,24 @@ export const getItems = async (filters: ItemMasterQuery) => {
     offset,
   );
 
-  const data = rows.map((r: DynRow) => ({
-    AvgPrice: r.avgPrice ? Number(r.avgPrice) : null,
-    CodeBars: r.barcode,
-    FrgnName: r.foreignName,
-    InvntItem: r.inventoryItem ? "Y" : "N",
-    InvntryUom: r.inventoryUom,
+  const data = rows.map((row: DynRow) => ({
+    AvgPrice: row.avgPrice ? Number(row.avgPrice) : null,
+    CodeBars: row.barcode,
+    FrgnName: row.foreignName,
+    InvntItem: row.inventoryItem ? "Y" : "N",
+    InvntryUom: row.inventoryUom,
     IsCommited: null,
-    ItemCode: r.code,
-    ItemName: r.name,
-    ItmsGrpCod: r.itemGroupCode,
-    LastPurDat: r.lastPurchaseDate,
-    LastPurPrc: r.lastPurchasePrice ? Number(r.lastPurchasePrice) : null,
+    ItemCode: row.code,
+    ItemName: row.name,
+    ItmsGrpCod: row.itemGroupCode,
+    LastPurDat: row.lastPurchaseDate,
+    LastPurPrc: row.lastPurchasePrice ? Number(row.lastPurchasePrice) : null,
     ManBtchNum: null,
     ManSerNum: null,
     OnHand: null,
     OnOrder: null,
-    frozenFor: r.frozen ? "Y" : "N",
-    id: r.id,
+    frozenFor: row.frozen ? "Y" : "N",
+    id: row.id,
     validFor: null,
   }));
 
@@ -132,7 +132,7 @@ export const getItemCodes = async (search?: string, limit = 10) => {
     ? or(like(items.code, `%${search}%`), like(items.name, `%${search}%`))
     : undefined;
   const rows = await itemMasterRepository.findCodesAndNames(db, where, asc(items.code), limit);
-  return rows.map((r: DynRow) => ({ code: r.code, name: r.name }));
+  return rows.map((row: DynRow) => ({ code: row.code, name: row.name }));
 };
 
 export const getItemNames = async (search?: string, limit = 10) => {
@@ -141,7 +141,7 @@ export const getItemNames = async (search?: string, limit = 10) => {
     ? or(like(items.code, `%${search}%`), like(items.name, `%${search}%`))
     : undefined;
   const rows = await itemMasterRepository.findCodesAndNames(db, where, asc(items.name), limit);
-  return rows.map((r: DynRow) => ({ code: r.code, name: r.name }));
+  return rows.map((row: DynRow) => ({ code: row.code, name: row.name }));
 };
 
 export const getItemGroups = async (search?: string, limit = 10) => {
@@ -152,9 +152,9 @@ export const getItemGroups = async (search?: string, limit = 10) => {
     search ? sql`CAST(${items.itemGroupCode} AS TEXT) LIKE ${`%${search}%`}` : undefined,
   );
   const rows = await itemMasterRepository.findGroups(db, where, limit);
-  return rows.map((r: DynRow) => ({
-    code: String(r.code),
-    name: String(r.code),
+  return rows.map((result: DynRow) => ({
+    code: String(result.code),
+    name: String(result.code),
   }));
 };
 
@@ -166,7 +166,7 @@ export const getInvntryUoms = async (search?: string, limit = 10) => {
     search ? like(items.inventoryUom, `%${search}%`) : undefined,
   );
   const rows = await itemMasterRepository.findUoms(db, where, limit);
-  return rows.map((r: DynRow) => ({ code: r.uom, name: r.uom }));
+  return rows.map((result: DynRow) => ({ code: result.uom, name: result.uom }));
 };
 
 export const getBarCodes = async (search?: string, limit = 10) => {
@@ -177,7 +177,7 @@ export const getBarCodes = async (search?: string, limit = 10) => {
     search ? like(items.barcode, `%${search}%`) : undefined,
   );
   const rows = await itemMasterRepository.findBarcodes(db, where, limit);
-  return rows.map((r: DynRow) => ({ code: r.barcode, name: r.barcode }));
+  return rows.map((result: DynRow) => ({ code: result.barcode, name: result.barcode }));
 };
 
 export const itemMasterService = {

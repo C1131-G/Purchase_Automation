@@ -2,7 +2,7 @@ import type ExcelJS from "exceljs";
 import type { ExportDocumentData } from "./export.types";
 
 export function writeExcelTotalsAndAttachments(
-  ws: ExcelJS.Worksheet,
+  worksheet: ExcelJS.Worksheet,
   data: ExportDocumentData,
   fontName: string,
   borderLightColor: string,
@@ -19,8 +19,8 @@ export function writeExcelTotalsAndAttachments(
   }
 
   // Summary Totals Title
-  ws.getCell(totalsRowIdx, labelCol).value = "SUMMARY TOTALS";
-  ws.getCell(totalsRowIdx, labelCol).font = {
+  worksheet.getCell(totalsRowIdx, labelCol).value = "SUMMARY TOTALS";
+  worksheet.getCell(totalsRowIdx, labelCol).font = {
     name: fontName,
     size: 9,
     bold: true,
@@ -29,21 +29,21 @@ export function writeExcelTotalsAndAttachments(
   totalsRowIdx++;
 
   // Subtotal
-  ws.getCell(totalsRowIdx, labelCol).value = "Subtotal";
-  ws.getCell(totalsRowIdx, labelCol).font = {
+  worksheet.getCell(totalsRowIdx, labelCol).value = "Subtotal";
+  worksheet.getCell(totalsRowIdx, labelCol).font = {
     name: fontName,
     size: 9,
     color: { argb: "FF64748B" },
   };
-  ws.getCell(totalsRowIdx, labelCol).alignment = { horizontal: "right" };
-  ws.getCell(totalsRowIdx, valCol).value = subtotal;
-  ws.getCell(totalsRowIdx, valCol).font = {
+  worksheet.getCell(totalsRowIdx, labelCol).alignment = { horizontal: "right" };
+  worksheet.getCell(totalsRowIdx, valCol).value = subtotal;
+  worksheet.getCell(totalsRowIdx, valCol).font = {
     name: fontName,
     size: 9,
     bold: true,
     color: { argb: "FF0F172A" },
   };
-  ws.getCell(totalsRowIdx, valCol).numFmt = "#,##0.00";
+  worksheet.getCell(totalsRowIdx, valCol).numFmt = "#,##0.00";
   totalsRowIdx++;
 
   // Discount
@@ -52,55 +52,55 @@ export function writeExcelTotalsAndAttachments(
     const discVal =
       data.discountAmount > 0 ? data.discountAmount : (subtotal * data.discountPercent) / 100;
 
-    ws.getCell(totalsRowIdx, labelCol).value = discLabel;
-    ws.getCell(totalsRowIdx, labelCol).font = {
+    worksheet.getCell(totalsRowIdx, labelCol).value = discLabel;
+    worksheet.getCell(totalsRowIdx, labelCol).font = {
       name: fontName,
       size: 9,
       color: { argb: "FF64748B" },
     };
-    ws.getCell(totalsRowIdx, labelCol).alignment = { horizontal: "right" };
-    ws.getCell(totalsRowIdx, valCol).value = -discVal;
-    ws.getCell(totalsRowIdx, valCol).font = {
+    worksheet.getCell(totalsRowIdx, labelCol).alignment = { horizontal: "right" };
+    worksheet.getCell(totalsRowIdx, valCol).value = -discVal;
+    worksheet.getCell(totalsRowIdx, valCol).font = {
       name: fontName,
       size: 9,
       bold: true,
       color: { argb: "FFB91C1C" },
     };
-    ws.getCell(totalsRowIdx, valCol).numFmt = "-#,##0.00";
+    worksheet.getCell(totalsRowIdx, valCol).numFmt = "-#,##0.00";
     totalsRowIdx++;
   }
 
   // Underline separator
-  ws.getCell(totalsRowIdx - 1, valCol).border = {
+  worksheet.getCell(totalsRowIdx - 1, valCol).border = {
     bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
   };
 
   // Grand Total
-  ws.getCell(totalsRowIdx, labelCol).value = "Grand Total";
-  ws.getCell(totalsRowIdx, labelCol).font = {
+  worksheet.getCell(totalsRowIdx, labelCol).value = "Grand Total";
+  worksheet.getCell(totalsRowIdx, labelCol).font = {
     name: fontName,
     size: 10,
     bold: true,
     color: { argb: "FF0F172A" },
   };
-  ws.getCell(totalsRowIdx, labelCol).alignment = { horizontal: "right" };
-  ws.getCell(totalsRowIdx, valCol).value = data.docTotal;
-  ws.getCell(totalsRowIdx, valCol).font = {
+  worksheet.getCell(totalsRowIdx, labelCol).alignment = { horizontal: "right" };
+  worksheet.getCell(totalsRowIdx, valCol).value = data.docTotal;
+  worksheet.getCell(totalsRowIdx, valCol).font = {
     name: fontName,
     size: 11,
     bold: true,
     color: { argb: "FF1E3A8A" },
   };
-  ws.getCell(totalsRowIdx, valCol).numFmt = `"${data.docCurr || ""} " #,##0.00`;
-  ws.getCell(totalsRowIdx, valCol).border = {
+  worksheet.getCell(totalsRowIdx, valCol).numFmt = `"${data.docCurr || ""} " #,##0.00`;
+  worksheet.getCell(totalsRowIdx, valCol).border = {
     bottom: { style: "double", color: { argb: "FF1E3A8A" } }, // Double underline for accounting
   };
 
   // Comments (Left side)
   if (data.comments) {
     const commentStartRow = currentRow + 1;
-    ws.getCell(commentStartRow, 1).value = "COMMENTS & REMARKS";
-    ws.getCell(commentStartRow, 1).font = {
+    worksheet.getCell(commentStartRow, 1).value = "COMMENTS & REMARKS";
+    worksheet.getCell(commentStartRow, 1).font = {
       name: fontName,
       size: 9,
       bold: true,
@@ -108,30 +108,30 @@ export function writeExcelTotalsAndAttachments(
     };
 
     const mergeRange = `A${commentStartRow + 1}:G${totalsRowIdx}`;
-    ws.mergeCells(mergeRange);
-    const commentCell = ws.getCell(`A${commentStartRow + 1}`);
+    worksheet.mergeCells(mergeRange);
+    const commentCell = worksheet.getCell(`A${commentStartRow + 1}`);
     commentCell.value = data.comments;
     commentCell.font = { name: fontName, size: 9, color: { argb: "FF475569" } };
     commentCell.alignment = { vertical: "top", horizontal: "left", wrapText: true };
 
     // Draw borders and background for comments merged region
-    for (let r = commentStartRow + 1; r <= totalsRowIdx; r++) {
-      for (let c = 1; c <= 7; c++) {
-        const cell = ws.getCell(r, c);
+    for (let row = commentStartRow + 1; row <= totalsRowIdx; row++) {
+      for (let column = 1; column <= 7; column++) {
+        const cell = worksheet.getCell(row, column);
         cell.fill = {
           type: "pattern",
           pattern: "solid",
           fgColor: { argb: "FFF8FAFC" },
         };
         cell.border = {
-          left: c === 1 ? { style: "medium", color: { argb: "FF3B82F6" } } : undefined,
+          left: column === 1 ? { style: "medium", color: { argb: "FF3B82F6" } } : undefined,
           top:
-            r === commentStartRow + 1
+            row === commentStartRow + 1
               ? { style: "thin", color: { argb: borderLightColor } }
               : undefined,
           bottom:
-            r === totalsRowIdx ? { style: "thin", color: { argb: borderLightColor } } : undefined,
-          right: c === 7 ? { style: "thin", color: { argb: borderLightColor } } : undefined,
+            row === totalsRowIdx ? { style: "thin", color: { argb: borderLightColor } } : undefined,
+          right: column === 7 ? { style: "thin", color: { argb: borderLightColor } } : undefined,
         };
       }
     }
@@ -141,8 +141,8 @@ export function writeExcelTotalsAndAttachments(
   if (data.attachments && data.attachments.length > 0) {
     let attachStartRow = totalsRowIdx + 3;
 
-    ws.getCell(attachStartRow, 1).value = "ATTACHMENTS";
-    ws.getCell(attachStartRow, 1).font = {
+    worksheet.getCell(attachStartRow, 1).value = "ATTACHMENTS";
+    worksheet.getCell(attachStartRow, 1).font = {
       name: fontName,
       size: 9,
       bold: true,
@@ -151,26 +151,26 @@ export function writeExcelTotalsAndAttachments(
     attachStartRow++;
 
     // Table Header
-    ws.mergeCells(`A${attachStartRow}:D${attachStartRow}`);
-    const fnCell = ws.getCell(`A${attachStartRow}`);
+    worksheet.mergeCells(`A${attachStartRow}:D${attachStartRow}`);
+    const fnCell = worksheet.getCell(`A${attachStartRow}`);
     fnCell.value = "File Name";
 
-    ws.mergeCells(`E${attachStartRow}:I${attachStartRow}`);
-    const remCell = ws.getCell(`E${attachStartRow}`);
+    worksheet.mergeCells(`E${attachStartRow}:I${attachStartRow}`);
+    const remCell = worksheet.getCell(`E${attachStartRow}`);
     remCell.value = "Remarks / Note";
 
-    ws.mergeCells(`J${attachStartRow}:K${attachStartRow}`);
-    const udCell = ws.getCell(`J${attachStartRow}`);
+    worksheet.mergeCells(`J${attachStartRow}:K${attachStartRow}`);
+    const udCell = worksheet.getCell(`J${attachStartRow}`);
     udCell.value = "Uploaded Date";
 
     [`A${attachStartRow}`, `E${attachStartRow}`, `J${attachStartRow}`].forEach((cellRef, idx) => {
-      const cell = ws.getCell(cellRef);
+      const cell = worksheet.getCell(cellRef);
       cell.font = { name: fontName, size: 9, bold: true, color: { argb: "FFFFFFFF" } };
       cell.alignment = { vertical: "middle", horizontal: idx === 2 ? "center" : "left" };
     });
 
-    for (let c = 1; c <= 11; c++) {
-      const cell = ws.getCell(attachStartRow, c);
+    for (let column2 = 1; column2 <= 11; column2++) {
+      const cell = worksheet.getCell(attachStartRow, column2);
       cell.fill = {
         type: "pattern",
         pattern: "solid",
@@ -188,21 +188,21 @@ export function writeExcelTotalsAndAttachments(
       const rawDate = att.attachmentDate || "-";
       const dateText = rawDate.includes("T") ? rawDate.split("T")[0] : rawDate;
 
-      ws.mergeCells(`A${attachStartRow}:D${attachStartRow}`);
-      ws.getCell(`A${attachStartRow}`).value = displayName;
+      worksheet.mergeCells(`A${attachStartRow}:D${attachStartRow}`);
+      worksheet.getCell(`A${attachStartRow}`).value = displayName;
 
-      ws.mergeCells(`E${attachStartRow}:I${attachStartRow}`);
-      ws.getCell(`E${attachStartRow}`).value = remarksText;
+      worksheet.mergeCells(`E${attachStartRow}:I${attachStartRow}`);
+      worksheet.getCell(`E${attachStartRow}`).value = remarksText;
 
-      ws.mergeCells(`J${attachStartRow}:K${attachStartRow}`);
-      ws.getCell(`J${attachStartRow}`).value = dateText;
+      worksheet.mergeCells(`J${attachStartRow}:K${attachStartRow}`);
+      worksheet.getCell(`J${attachStartRow}`).value = dateText;
 
-      for (let c = 1; c <= 11; c++) {
-        const cell = ws.getCell(attachStartRow, c);
+      for (let column3 = 1; column3 <= 11; column3++) {
+        const cell = worksheet.getCell(attachStartRow, column3);
         cell.font = { name: fontName, size: 9, color: { argb: "FF334155" } };
         cell.alignment = {
           vertical: "middle",
-          horizontal: c >= 10 ? "center" : "left",
+          horizontal: column3 >= 10 ? "center" : "left",
         };
 
         if (isAlternateAtt) {

@@ -41,9 +41,9 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
       DocDate: payload.DocDate,
       PaymentInvoices:
         (payload.PaymentInvoices as Record<string, unknown>[])
-          ?.sort((a, b) => {
-            const typeA = a.InvoiceType === "it_PurchaseInvoice" ? 0 : 1;
-            const typeB = b.InvoiceType === "it_PurchaseInvoice" ? 0 : 1;
+          ?.sort((item, item2) => {
+            const typeA = item.InvoiceType === "it_PurchaseInvoice" ? 0 : 1;
+            const typeB = item2.InvoiceType === "it_PurchaseInvoice" ? 0 : 1;
             return typeA - typeB;
           })
           .map((inv) => {
@@ -73,8 +73,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
       const checks = payload.PaymentChecks as Record<string, unknown>[];
-      const hasCash = checks.some((c) => c.BankCode === "CASH");
-      const hasRealCheck = checks.some((c) => c.BankCode !== "CASH");
+      const hasCash = checks.some((check) => check.BankCode === "CASH");
+      const hasRealCheck = checks.some((check) => check.BankCode !== "CASH");
       if (hasCash) {
         modes.push("CASH");
       }
@@ -91,7 +91,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     if (modes.length === 1) {
       sapPayload.U_Mode_Pay = modes[0];
     } else if (modes.length > 1) {
-      sapPayload.U_Mode_Pay = modes.find((m) => m !== "CASH") || "CASH";
+      sapPayload.U_Mode_Pay = modes.find((mode) => mode !== "CASH") || "CASH";
     }
 
     if (payload.CashSum && (payload.CashSum as number) > 0) {

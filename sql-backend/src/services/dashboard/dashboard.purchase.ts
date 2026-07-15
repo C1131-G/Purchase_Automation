@@ -30,25 +30,25 @@ import type {
 import type { AreaDataset } from "./dashboard.types";
 
 const buildPurchaseSummary = (dataset: AreaDataset): DashboardMetric[] => {
-  const pq = getModuleDataset(dataset, "purchaseQuotation");
-  const po = getModuleDataset(dataset, "purchaseOrder");
-  const gr = getModuleDataset(dataset, "grpo");
-  const ap = getModuleDataset(dataset, "apInvoice");
-  const acn = getModuleDataset(dataset, "apCreditNote");
-  const op = getModuleDataset(dataset, "outgoingPayment");
-  const pqTotal = sumTotals(pq.current);
-  const poTotal = sumTotals(po.current);
-  const grpoTotal = sumTotals(gr.current);
-  const apInvoiceTotal = sumTotals(ap.current);
-  const paymentTotal = sumTotals(op.current);
+  const purchaseQuotation = getModuleDataset(dataset, "purchaseQuotation");
+  const purchaseOrder = getModuleDataset(dataset, "purchaseOrder");
+  const goodsReceipt = getModuleDataset(dataset, "grpo");
+  const apInvoice = getModuleDataset(dataset, "apInvoice");
+  const apCreditNote = getModuleDataset(dataset, "apCreditNote");
+  const outgoingPayment = getModuleDataset(dataset, "outgoingPayment");
+  const pqTotal = sumTotals(purchaseQuotation.current);
+  const poTotal = sumTotals(purchaseOrder.current);
+  const grpoTotal = sumTotals(goodsReceipt.current);
+  const apInvoiceTotal = sumTotals(apInvoice.current);
+  const paymentTotal = sumTotals(outgoingPayment.current);
   return [
     buildMetric("pq-total", "Total PQ Value", pqTotal, "currency"),
-    buildMetric("pq-open", "Open PQ Value", sumOpenTotals(pq.current), "currency"),
+    buildMetric("pq-open", "Open PQ Value", sumOpenTotals(purchaseQuotation.current), "currency"),
     buildMetric("po-total", "Total PO Value", poTotal, "currency"),
-    buildMetric("po-open", "Open PO Value", sumOpenTotals(po.current), "currency"),
+    buildMetric("po-open", "Open PO Value", sumOpenTotals(purchaseOrder.current), "currency"),
     buildMetric("grpo-total", "GRPO Value", grpoTotal, "currency"),
     buildMetric("ap-invoice-total", "AP Invoice Value", apInvoiceTotal, "currency"),
-    buildMetric("ap-credit-total", "AP Credit Memo Value", sumTotals(acn.current), "currency"),
+    buildMetric("ap-credit-total", "AP Credit Memo Value", sumTotals(apCreditNote.current), "currency"),
     buildMetric("payment-total", "Outgoing Payment Value", paymentTotal, "currency"),
     buildMetric(
       "pq-po-conversion",
@@ -95,7 +95,7 @@ const buildPurchaseFunnel = (dataset: AreaDataset): DashboardFunnelStep[] => {
       key: module.module,
       label: MODULE_LABELS[module.module],
       module: module.module,
-      openCount: module.current.filter((d) => isOpenDocument(d)).length,
+      openCount: module.current.filter((document) => isOpenDocument(document)).length,
       openValue: sumOpenTotals(module.current),
       totalValue: sumTotals(module.current),
     };
@@ -103,51 +103,56 @@ const buildPurchaseFunnel = (dataset: AreaDataset): DashboardFunnelStep[] => {
 };
 
 const buildPurchaseExceptions = (dataset: AreaDataset): DashboardExceptionGroup[] => {
-  const pq = getModuleDataset(dataset, "purchaseQuotation");
-  const po = getModuleDataset(dataset, "purchaseOrder");
-  const gr = getModuleDataset(dataset, "grpo");
-  const ap = getModuleDataset(dataset, "apInvoice");
-  const acn = getModuleDataset(dataset, "apCreditNote");
-  const oq = pq.current.filter((d) => isOpenDocument(d));
-  const op = po.current.filter((d) => isOpenDocument(d));
-  const og = gr.current.filter((d) => isOpenDocument(d));
-  const ui = ap.current.filter((d) => getOpenValue(d) > 0);
+  const purchaseQuotation = getModuleDataset(dataset, "purchaseQuotation");
+  const purchaseOrder = getModuleDataset(dataset, "purchaseOrder");
+  const goodsReceipt = getModuleDataset(dataset, "grpo");
+  const apInvoice = getModuleDataset(dataset, "apInvoice");
+  const apCreditNote = getModuleDataset(dataset, "apCreditNote");
+  const openQuotations = purchaseQuotation.current.filter((document) => isOpenDocument(document));
+  const openPurchaseOrders = purchaseOrder.current.filter((document) => isOpenDocument(document));
+  const openGoodsReceipt = goodsReceipt.current.filter((document) => isOpenDocument(document));
+  const unpaidInvoices = apInvoice.current.filter((document) => getOpenValue(document) > 0);
   return [
     buildExceptionGroup(
       "open-purchase-quotations",
       "Open Purchase Quotations",
       "purchaseQuotation",
-      sortByOpenValue(oq),
+      sortByOpenValue(openQuotations),
     ),
     buildExceptionGroup(
       "open-purchase-orders",
       "Open Purchase Orders",
       "purchaseOrder",
-      sortByOpenValue(op),
+      sortByOpenValue(openPurchaseOrders),
     ),
     buildExceptionGroup(
       "grpo-awaiting-ap-invoice",
       "GRPO Done but AP Invoice Missing",
       "grpo",
-      sortByOpenValue(og),
+      sortByOpenValue(openGoodsReceipt),
     ),
     buildExceptionGroup(
       "ap-invoice-awaiting-payment",
       "AP Invoices Raised but Payment Missing",
       "apInvoice",
-      sortByOpenValue(ui),
+      sortByOpenValue(unpaidInvoices),
     ),
     buildExceptionGroup(
       "largest-open-value",
       "Largest Open-Value Documents",
       "purchaseOrder",
-      sortByOpenValue([...oq, ...op, ...og, ...ui]),
+      sortByOpenValue([
+        ...openQuotations,
+        ...openPurchaseOrders,
+        ...openGoodsReceipt,
+        ...unpaidInvoices,
+      ]),
     ),
     buildExceptionGroup(
       "recent-credit-notes",
       "Recent Memos",
       "apCreditNote",
-      sortByDateDescending(acn.current),
+      sortByDateDescending(apCreditNote.current),
     ),
   ];
 };
@@ -164,7 +169,7 @@ export const buildPurchaseMain = (dataset: AreaDataset): DashboardMainOutput => 
   currency: dataset.currency,
   exceptions: buildPurchaseExceptions(dataset),
   funnel: buildPurchaseFunnel(dataset),
-  moduleCards: PURCHASE_MODULES.map((m) => buildModuleCard(getModuleDataset(dataset, m))),
+  moduleCards: PURCHASE_MODULES.map((moduleKey) => buildModuleCard(getModuleDataset(dataset, moduleKey))),
   period: dataset.period,
   quickLinks: buildQuickLinks(PURCHASE_MODULES),
   summary: buildPurchaseSummary(dataset),

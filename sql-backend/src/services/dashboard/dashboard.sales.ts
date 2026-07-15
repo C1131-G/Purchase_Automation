@@ -30,20 +30,20 @@ import type {
 import type { AreaDataset } from "./dashboard.types";
 
 const buildSalesSummary = (dataset: AreaDataset): DashboardMetric[] => {
-  const sq = getModuleDataset(dataset, "salesQuotation");
-  const so = getModuleDataset(dataset, "salesOrder");
-  const ar = getModuleDataset(dataset, "arInvoice");
-  const acn = getModuleDataset(dataset, "arCreditNote");
-  const ip = getModuleDataset(dataset, "incomingPayment");
-  const qTotal = sumTotals(sq.current);
-  const sTotal = sumTotals(so.current);
-  const arTotal = sumTotals(ar.current);
-  const pTotal = sumTotals(ip.current);
-  const cTotal = sumTotals(acn.current);
+  const salesQuotation = getModuleDataset(dataset, "salesQuotation");
+  const salesOrder = getModuleDataset(dataset, "salesOrder");
+  const arInvoice = getModuleDataset(dataset, "arInvoice");
+  const arCreditNote = getModuleDataset(dataset, "arCreditNote");
+  const incomingPayment = getModuleDataset(dataset, "incomingPayment");
+  const qTotal = sumTotals(salesQuotation.current);
+  const sTotal = sumTotals(salesOrder.current);
+  const arTotal = sumTotals(arInvoice.current);
+  const pTotal = sumTotals(incomingPayment.current);
+  const cTotal = sumTotals(arCreditNote.current);
   return [
     buildMetric("quotation-total", "Sales Quotation Value", qTotal, "currency"),
     buildMetric("sales-total", "Total Sales Order Value", sTotal, "currency"),
-    buildMetric("sales-open", "Open Sales Order Value", sumOpenTotals(so.current), "currency"),
+    buildMetric("sales-open", "Open Sales Order Value", sumOpenTotals(salesOrder.current), "currency"),
     buildMetric("ar-invoice-total", "AR Invoice Value", arTotal, "currency"),
     buildMetric("ar-credit-total", "AR Credit Memo Value", cTotal, "currency"),
     buildMetric("payment-total", "Incoming Payment Value", pTotal, "currency"),
@@ -76,9 +76,9 @@ const buildSalesFunnel = (dataset: AreaDataset): DashboardFunnelStep[] => {
     "arInvoice",
     "incomingPayment",
   ];
-  return modules.map((mn, idx) => {
-    const mod = getModuleDataset(dataset, mn);
-    const prev = idx > 0 ? getModuleDataset(dataset, modules[idx - 1] ?? mn) : mod;
+  return modules.map((moduleName, idx) => {
+    const mod = getModuleDataset(dataset, moduleName);
+    const prev = idx > 0 ? getModuleDataset(dataset, modules[idx - 1] ?? moduleName) : mod;
     return {
       conversionPct: calculateRatio(sumTotals(mod.current), sumTotals(prev.current)),
       documentCount: mod.current.length,
@@ -86,7 +86,7 @@ const buildSalesFunnel = (dataset: AreaDataset): DashboardFunnelStep[] => {
       key: mod.module,
       label: MODULE_LABELS[mod.module],
       module: mod.module,
-      openCount: mod.current.filter((d) => isOpenDocument(d)).length,
+      openCount: mod.current.filter((document) => isOpenDocument(document)).length,
       openValue: sumOpenTotals(mod.current),
       totalValue: sumTotals(mod.current),
     };
@@ -94,43 +94,43 @@ const buildSalesFunnel = (dataset: AreaDataset): DashboardFunnelStep[] => {
 };
 
 const buildSalesExceptions = (dataset: AreaDataset): DashboardExceptionGroup[] => {
-  const sq = getModuleDataset(dataset, "salesQuotation");
-  const so = getModuleDataset(dataset, "salesOrder");
-  const ar = getModuleDataset(dataset, "arInvoice");
-  const acn = getModuleDataset(dataset, "arCreditNote");
-  const oq = sq.current.filter((d) => isOpenDocument(d));
-  const oso = so.current.filter((d) => isOpenDocument(d));
-  const ui = ar.current.filter((d) => getOpenValue(d) > 0);
+  const salesQuotation = getModuleDataset(dataset, "salesQuotation");
+  const salesOrder = getModuleDataset(dataset, "salesOrder");
+  const arInvoice = getModuleDataset(dataset, "arInvoice");
+  const arCreditNote = getModuleDataset(dataset, "arCreditNote");
+  const openQuotations = salesQuotation.current.filter((document) => isOpenDocument(document));
+  const openSalesOrders = salesOrder.current.filter((document) => isOpenDocument(document));
+  const unpaidInvoices = arInvoice.current.filter((document) => getOpenValue(document) > 0);
   return [
     buildExceptionGroup(
       "open-sales-quotations",
       "Open Sales Quotations Awaiting Conversion",
       "salesQuotation",
-      sortByOpenValue(oq),
+      sortByOpenValue(openQuotations),
     ),
     buildExceptionGroup(
       "open-sales-orders",
       "Open Sales Orders Not Yet Invoiced",
       "salesOrder",
-      sortByOpenValue(oso),
+      sortByOpenValue(openSalesOrders),
     ),
     buildExceptionGroup(
       "ar-invoice-awaiting-collection",
       "AR Invoices Raised but Collection Missing",
       "arInvoice",
-      sortByOpenValue(ui),
+      sortByOpenValue(unpaidInvoices),
     ),
     buildExceptionGroup(
       "recent-credit-notes",
       "Recent Memos",
       "arCreditNote",
-      sortByDateDescending(acn.current),
+      sortByDateDescending(arCreditNote.current),
     ),
     buildExceptionGroup(
       "largest-open-sales",
       "Largest Open-Value Sales Documents",
       "salesQuotation",
-      sortByOpenValue([...oq, ...oso, ...ui]),
+      sortByOpenValue([...openQuotations, ...openSalesOrders, ...unpaidInvoices]),
     ),
   ];
 };
@@ -152,7 +152,7 @@ export const buildSalesMain = (dataset: AreaDataset): DashboardMainOutput => ({
   currency: dataset.currency,
   exceptions: buildSalesExceptions(dataset),
   funnel: buildSalesFunnel(dataset),
-  moduleCards: SALES_MODULES.map((m) => buildModuleCard(getModuleDataset(dataset, m))),
+  moduleCards: SALES_MODULES.map((moduleKey) => buildModuleCard(getModuleDataset(dataset, moduleKey))),
   period: dataset.period,
   quickLinks: buildQuickLinks(SALES_MODULES),
   summary: buildSalesSummary(dataset),

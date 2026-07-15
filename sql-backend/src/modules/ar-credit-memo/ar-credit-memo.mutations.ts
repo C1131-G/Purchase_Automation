@@ -13,12 +13,12 @@ import { arCreditMemoRepository } from "./ar-credit-memo.repository";
 
 export const create = async (payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (transaction) => {
     const isDraft = payload.isDraft === true;
     const { draftDocEntry } = payload;
 
     if (!isDraft) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode);
     }
 
     let headerId: number;
@@ -32,7 +32,7 @@ export const create = async (payload: DynRow) => {
     const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
     if (draftDocEntry && draftDocEntry > 0) {
-      const existing = await arCreditMemoRepository.findById(tx, draftDocEntry);
+      const existing = await arCreditMemoRepository.findById(transaction, draftDocEntry);
 
       if (!existing) {
         throw new AppError("Draft document not found", 404, "NOT_FOUND");
@@ -41,7 +41,7 @@ export const create = async (payload: DynRow) => {
       headerId = draftDocEntry;
       docNum = payload.docNum;
 
-      await arCreditMemoRepository.updateHeader(tx, draftDocEntry, {
+      await arCreditMemoRepository.updateHeader(transaction, draftDocEntry, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -56,12 +56,12 @@ export const create = async (payload: DynRow) => {
         docTotal: String(lineRunningTotal),
       });
 
-      await arCreditMemoRepository.deleteLines(tx, draftDocEntry);
+      await arCreditMemoRepository.deleteLines(transaction, draftDocEntry);
     } else {
       const docStatus = isDraft ? "D" : "O";
       docNum = payload.docNum;
 
-      const header = await arCreditMemoRepository.insertHeader(tx, {
+      const header = await arCreditMemoRepository.insertHeader(transaction, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -80,7 +80,7 @@ export const create = async (payload: DynRow) => {
 
     if (payload.lines?.length) {
       await arCreditMemoRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -111,7 +111,7 @@ export const create = async (payload: DynRow) => {
         }
       }
       if (invoiceEntries.size > 0) {
-        await recalculateParentStatuses(tx, invoiceEntries, 13);
+        await recalculateParentStatuses(transaction, invoiceEntries, 13);
       }
     }
 
@@ -122,8 +122,8 @@ export const create = async (payload: DynRow) => {
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await arCreditMemoRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await arCreditMemoRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
     }
@@ -131,7 +131,7 @@ export const update = async (id: number, payload: DynRow) => {
     const isDraft = payload.isDraft === true || existing.docStatus === "D";
 
     if (!isDraft && payload.lines) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode ?? existing.cardCode, id, 16);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode ?? existing.cardCode, id, 16);
     }
 
     const updatedDocStatus =
@@ -144,7 +144,7 @@ export const update = async (id: number, payload: DynRow) => {
         )
       : Number(existing.docTotal);
 
-    const oldLines = await arCreditMemoRepository.findLineBaseEntries(tx, id);
+    const oldLines = await arCreditMemoRepository.findLineBaseEntries(transaction, id);
 
     const oldInvoiceEntries = new Set<number>();
     for (const line of oldLines) {
@@ -155,7 +155,7 @@ export const update = async (id: number, payload: DynRow) => {
       }
     }
 
-    await arCreditMemoRepository.updateHeader(tx, id, {
+    await arCreditMemoRepository.updateHeader(transaction, id, {
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
       canceled: "N",
@@ -168,9 +168,9 @@ export const update = async (id: number, payload: DynRow) => {
     });
 
     if (payload.lines) {
-      await arCreditMemoRepository.deleteLines(tx, id);
+      await arCreditMemoRepository.deleteLines(transaction, id);
       await arCreditMemoRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -203,7 +203,7 @@ export const update = async (id: number, payload: DynRow) => {
         const allInvoiceEntries = new Set<number>([...oldInvoiceEntries, ...newInvoiceEntries]);
 
         if (allInvoiceEntries.size > 0) {
-          await recalculateParentStatuses(tx, allInvoiceEntries, 13);
+          await recalculateParentStatuses(transaction, allInvoiceEntries, 13);
         }
       }
     }
@@ -214,17 +214,17 @@ export const update = async (id: number, payload: DynRow) => {
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await arCreditMemoRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await arCreditMemoRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AR Credit memo not found", 404, "NOT_FOUND");
     }
-    await arCreditMemoRepository.updateHeader(tx, id, {
+    await arCreditMemoRepository.updateHeader(transaction, id, {
       canceled: "Y",
       docStatus: "C",
     });
 
-    const lines = await arCreditMemoRepository.findLineBaseEntries(tx, id);
+    const lines = await arCreditMemoRepository.findLineBaseEntries(transaction, id);
 
     const invoiceEntries = new Set<number>();
     for (const line of lines) {
@@ -235,7 +235,7 @@ export const cancel = async (id: number) => {
       }
     }
     if (invoiceEntries.size > 0) {
-      await recalculateParentStatuses(tx, invoiceEntries, 13);
+      await recalculateParentStatuses(transaction, invoiceEntries, 13);
     }
 
     logger.info({ docNum: existing.docNum, id }, "AR Credit memo cancelled");

@@ -116,8 +116,8 @@ export async function loadProductsForTenant(
     words.forEach((word, index) => {
       const lowerWord = word.toLowerCase();
       query.andWhere(
-        new Brackets((qb) => {
-          qb.where("LOWER(item.ItemCode) LIKE :word_" + index, {
+        new Brackets((queryBuilder) => {
+          queryBuilder.where("LOWER(item.ItemCode) LIKE :word_" + index, {
             ["word_" + index]: `%${lowerWord}%`,
           }).orWhere("LOWER(item.ItemName) LIKE :word_" + index, {
             ["word_" + index]: `%${lowerWord}%`,

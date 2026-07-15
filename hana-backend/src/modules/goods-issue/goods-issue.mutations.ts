@@ -43,18 +43,18 @@ export const createGoodsIssue = async (sessionId: string, payload: Record<string
         : {}),
       AttachmentEntry: absoluteEntry ?? undefined,
       DocumentLines: ((payload.DocumentLines as Record<string, unknown>[]) || []).map((line) => {
-        const l: Record<string, unknown> = {
+        const documentLine: Record<string, unknown> = {
           ItemCode: line.ItemCode,
           Quantity: Number(line.Quantity) || 1,
           UnitPrice: Number(line.UnitPrice) || 0,
         };
-        if (line.WarehouseCode) l.WarehouseCode = line.WarehouseCode;
-        if (line.UoMCode) l.UoMCode = line.UoMCode;
-        if (line.AccountCode) l.AccountCode = line.AccountCode;
-        if (line.CostingCode) l.CostingCode = line.CostingCode; // This is the "Branch"
-        if (line.InventoryAdjustmentReason) l.U_INVADJMTRES = line.InventoryAdjustmentReason;
+        if (line.WarehouseCode) documentLine.WarehouseCode = line.WarehouseCode;
+        if (line.UoMCode) documentLine.UoMCode = line.UoMCode;
+        if (line.AccountCode) documentLine.AccountCode = line.AccountCode;
+        if (line.CostingCode) documentLine.CostingCode = line.CostingCode; // This is the "Branch"
+        if (line.InventoryAdjustmentReason) documentLine.U_INVADJMTRES = line.InventoryAdjustmentReason;
 
-        return l;
+        return documentLine;
       }),
     };
 

@@ -38,37 +38,37 @@ export const getList = async (filters: Record<string, unknown> = {}) => {
 
 export const getById = async (id: number) => {
   const db = getDb();
-  const h = await transferRequestRepository.findById(db, id);
-  if (!h) {
+  const header = await transferRequestRepository.findById(db, id);
+  if (!header) {
     throw new AppError("Inventory transfer request not found", 404, "NOT_FOUND");
   }
   const lines = await transferRequestRepository.findLines(db, id);
-  const linesWithQty = lines.map((l: DynRow) => ({
-    ...l,
-    openQty: l.quantity,
+  const linesWithQty = lines.map((line: DynRow) => ({
+    ...line,
+    openQty: line.quantity,
   }));
-  return { ...h, lines: linesWithQty };
+  return { ...header, lines: linesWithQty };
 };
 
 export const getByDocNum = async (docNum: number) => {
   const db = getDb();
-  const h = await transferRequestRepository.findByDocNum(db, docNum);
-  if (!h) {
+  const header = await transferRequestRepository.findByDocNum(db, docNum);
+  if (!header) {
     throw new AppError("Inventory transfer request not found", 404, "NOT_FOUND");
   }
-  const lines = await transferRequestRepository.findLines(db, h.id);
-  const linesWithQty = lines.map((l: DynRow) => ({
-    ...l,
-    openQty: l.quantity,
+  const lines = await transferRequestRepository.findLines(db, header.id);
+  const linesWithQty = lines.map((line: DynRow) => ({
+    ...line,
+    openQty: line.quantity,
   }));
-  return { ...h, lines: linesWithQty };
+  return { ...header, lines: linesWithQty };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
   const db = getDb();
   const safeLimit = Math.min(limit ?? 10, 100_000);
   const rows = await transferRequestRepository.findDocNums(db, search, safeLimit);
-  return rows.map((r: DynRow) => ({ code: r.docNum, name: String(r.docNum) }));
+  return rows.map((row: DynRow) => ({ code: row.docNum, name: String(row.docNum) }));
 };
 
 export const create = async (payload: Record<string, unknown>) => {
@@ -76,7 +76,7 @@ export const create = async (payload: Record<string, unknown>) => {
   const { docNum } = payload;
   const lines = Array.isArray(payload.lines) ? (payload.lines as Record<string, unknown>[]) : [];
 
-  const h = await transferRequestRepository.insertHeader(db, {
+  const header = await transferRequestRepository.insertHeader(db, {
     comments: (payload.comments as string | null) ?? null,
     docCurrency: (payload.docCurrency as string | null) ?? null,
     docDate: payload.docDate as string,
@@ -88,21 +88,21 @@ export const create = async (payload: Record<string, unknown>) => {
   if (lines.length > 0) {
     await transferRequestRepository.insertLines(
       db,
-      lines.map((l, idx) => ({
-        docEntry: h.id,
-        dscription: (l.dscription as string | null) ?? null,
-        fromWarehouseCode: (l.fromWarehouseCode as string | null) ?? null,
-        itemCode: l.itemCode as string,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? (l.lineNum as number) : idx,
+      lines.map((line, idx) => ({
+        docEntry: header.id,
+        dscription: (line.dscription as string | null) ?? null,
+        fromWarehouseCode: (line.fromWarehouseCode as string | null) ?? null,
+        itemCode: line.itemCode as string,
+        lineNum: line.lineNum !== undefined && line.lineNum !== null ? (line.lineNum as number) : idx,
         lineStatus: "O",
-        quantity: String(l.quantity),
-        warehouseCode: (l.warehouseCode as string | null) ?? null,
+        quantity: String(line.quantity),
+        warehouseCode: (line.warehouseCode as string | null) ?? null,
       })),
     );
   }
 
   logger.info({ docNum }, "Inventory transfer request created");
-  return getById(h.id);
+  return getById(header.id);
 };
 
 export const previewNextDocNum = () =>

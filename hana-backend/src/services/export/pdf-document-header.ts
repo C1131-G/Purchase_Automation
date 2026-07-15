@@ -118,7 +118,7 @@ export function writePdfDocumentHeader(
   if (data.address) {
     const addrLines = data.address
       .split(/\r?\n|\\n|\\r/)
-      .map((l) => l.trim())
+      .map((line) => line.trim())
       .filter(Boolean);
     for (const line of addrLines) {
       doc.text(line, 40, billToY, { width: 250 });
@@ -144,7 +144,7 @@ export function writePdfDocumentHeader(
   if (data.address2) {
     const addrLines2 = data.address2
       .split(/\r?\n|\\n|\\r/)
-      .map((l) => l.trim())
+      .map((line) => line.trim())
       .filter(Boolean);
     for (const line of addrLines2) {
       doc.text(line, 305, shipToY, { width: 250 });

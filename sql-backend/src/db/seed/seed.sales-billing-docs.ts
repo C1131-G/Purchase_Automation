@@ -18,7 +18,7 @@ export async function seedSalesBillingDocs(
   const arInvoiceHeaders: any[] = [];
   const arInvoiceLinesSpec: any[] = [];
   for (let i = 1; i <= 120; i += 1) {
-    const bp = bpCustomers[i % bpCustomers.length];
+    const businessPartner = bpCustomers[i % bpCustomers.length];
     const docDate = getSeedDocDate(i, 120);
     const selectedItems = pickRandomItems(items, 2);
 
@@ -32,9 +32,9 @@ export async function seedSalesBillingDocs(
     });
 
     arInvoiceHeaders.push({
-      address: bp.billToAddress,
-      cardCode: bp.code,
-      cardName: bp.name,
+      address: businessPartner.billToAddress,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       docCurrency: seedCurrency,
       docDate: formatSeedDate(docDate),
       docDueDate: formatSeedDate(new Date(docDate.getTime() + 30 * 24 * 60 * 60 * 1000)),
@@ -46,16 +46,16 @@ export async function seedSalesBillingDocs(
     arInvoiceLinesSpec.push(lineItems);
   }
   const seededARInvoices = await db.insert(arInvoices).values(arInvoiceHeaders).returning();
-  const arInvoiceEntries = seededARInvoices.map((ar) => ({
-    id: ar.id,
-    total: Number.parseFloat(ar.docTotal || "0"),
+  const arInvoiceEntries = seededARInvoices.map((arInvoice) => ({
+    id: arInvoice.id,
+    total: Number.parseFloat(arInvoice.docTotal || "0"),
   }));
 
   const arLinesToInsert: any[] = [];
-  seededARInvoices.forEach((ar, index) => {
+  seededARInvoices.forEach((arInvoice, index) => {
     arInvoiceLinesSpec[index].forEach((spec: any, lineIndex: number) => {
       arLinesToInsert.push({
-        docEntry: ar.id,
+        docEntry: arInvoice.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,
@@ -75,7 +75,7 @@ export async function seedSalesBillingDocs(
   const arCMHeaders: any[] = [];
   const arCMLinesSpec: any[] = [];
   for (let i = 1; i <= 50; i += 1) {
-    const bp = bpCustomers[i % bpCustomers.length];
+    const businessPartner = bpCustomers[i % bpCustomers.length];
     const docDate = getSeedDocDate(i, 50);
     const selectedItems = pickRandomItems(items, 1);
 
@@ -89,9 +89,9 @@ export async function seedSalesBillingDocs(
     });
 
     arCMHeaders.push({
-      address: bp.billToAddress,
-      cardCode: bp.code,
-      cardName: bp.name,
+      address: businessPartner.billToAddress,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       comments: `Seeded credit memo ${i}`,
       docCurrency: seedCurrency,
       docDate: formatSeedDate(docDate),
@@ -105,10 +105,10 @@ export async function seedSalesBillingDocs(
   const seededARCMs = await db.insert(arCreditMemos).values(arCMHeaders).returning();
 
   const arCMLinesToInsert: any[] = [];
-  seededARCMs.forEach((cm, index) => {
+  seededARCMs.forEach((creditMemo, index) => {
     arCMLinesSpec[index].forEach((spec: any, lineIndex: number) => {
       arCMLinesToInsert.push({
-        docEntry: cm.id,
+        docEntry: creditMemo.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,

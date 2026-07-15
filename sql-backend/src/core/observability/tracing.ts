@@ -9,11 +9,11 @@ export function getTracer() {
 /** Active W3C ids for log correlation (empty when no span / SDK off). */
 export function getActiveTraceFields(): { trace_id?: string; span_id?: string } {
   const span = trace.getSpan(context.active());
-  const sc = span?.spanContext();
-  if (!sc || !sc.traceId || sc.traceId === "00000000000000000000000000000000") {
+  const activeSpanContext = span?.spanContext();
+  if (!activeSpanContext || !activeSpanContext.traceId || activeSpanContext.traceId === "00000000000000000000000000000000") {
     return {};
   }
-  return { trace_id: sc.traceId, span_id: sc.spanId };
+  return { trace_id: activeSpanContext.traceId, span_id: activeSpanContext.spanId };
 }
 
 export function recordExceptionOnActiveSpan(err: unknown): void {
@@ -32,7 +32,7 @@ export function recordExceptionOnActiveSpan(err: unknown): void {
 export async function withSpan<T>(
   name: string,
   attrs: Attributes | undefined,
-  fn: (span: Span) => Promise<T> | T,
+  run: (span: Span) => Promise<T> | T,
 ): Promise<T> {
   const tracer = getTracer();
   return tracer.startActiveSpan(name, async (span) => {
@@ -40,7 +40,7 @@ export async function withSpan<T>(
       span.setAttributes(attrs);
     }
     try {
-      const result = await fn(span);
+      const result = await run(span);
       span.setStatus({ code: SpanStatusCode.OK });
       return result;
     } catch (err) {

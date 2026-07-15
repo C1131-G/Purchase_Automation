@@ -23,17 +23,17 @@ export async function seedPaymentDocs(
   // 10. Outgoing Payments (60 rows) - pays AP Invoices
   const opValues: any[] = [];
   for (let i = 1; i <= 60; i += 1) {
-    const bp = bpVendors[i % bpVendors.length];
+    const businessPartner = bpVendors[i % bpVendors.length];
     const docDate = getDocDate(i, 60);
-    const ap = apInvoiceEntries[i % apInvoiceEntries.length];
+    const apInvoice = apInvoiceEntries[i % apInvoiceEntries.length];
 
     opValues.push({
-      cardCode: bp.code,
-      cardName: bp.name,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       docCurrency: seedCurrency,
       docDate: formatDate(docDate),
       docNum: 30_000 + i,
-      docTotal: ap.total.toString(),
+      docTotal: apInvoice.total.toString(),
       paymentMode: "Cash",
     });
   }
@@ -44,17 +44,17 @@ export async function seedPaymentDocs(
   // 11. Incoming Payments (60 rows) - pays AR Invoices
   const ipValuesList: any[] = [];
   for (let i = 1; i <= 60; i += 1) {
-    const bp = bpCustomers[i % bpCustomers.length];
+    const businessPartner = bpCustomers[i % bpCustomers.length];
     const docDate = getDocDate(i, 60);
-    const ar = arInvoiceEntries[i % arInvoiceEntries.length];
+    const arInvoice = arInvoiceEntries[i % arInvoiceEntries.length];
 
     ipValuesList.push({
-      cardCode: bp.code,
-      cardName: bp.name,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       docCurrency: seedCurrency,
       docDate: formatDate(docDate),
       docNum: 40_000 + i,
-      docTotal: ar.total.toString(),
+      docTotal: arInvoice.total.toString(),
       paymentMode: "Cash",
     });
   }

@@ -31,27 +31,27 @@ import type {
 } from "./dashboard.types";
 
 const buildInventorySummary = (dataset: InventoryDataset): DashboardMetric[] => {
-  const gr = getModuleDataset(dataset, "goodsReceipt");
-  const gi = getModuleDataset(dataset, "goodsIssue");
-  const tr = getModuleDataset(dataset, "transferRequest");
-  const t = getModuleDataset(dataset, "transfer");
+  const goodsReceipt = getModuleDataset(dataset, "goodsReceipt");
+  const goodsIssue = getModuleDataset(dataset, "goodsIssue");
+  const transferRequest = getModuleDataset(dataset, "transferRequest");
+  const transferModule = getModuleDataset(dataset, "transfer");
   return [
     buildMetric("total-items", "Total Items", dataset.itemStats.totalItems, "number"),
     buildMetric("on-hand-items", "On-Hand Items", dataset.itemStats.onHandItems, "number"),
     buildMetric("stock-valuation", "Stock Valuation", dataset.itemStats.stockValue, "currency"),
     buildMetric("on-order-value", "On-Order Value", dataset.itemStats.onOrderValue, "currency"),
-    buildMetric("goods-receipt-val", "Goods Receipt Value", sumTotals(gr.current), "currency"),
-    buildMetric("goods-issue-val", "Goods Issue Value", sumTotals(gi.current), "currency"),
+    buildMetric("goods-receipt-val", "Goods Receipt Value", sumTotals(goodsReceipt.current), "currency"),
+    buildMetric("goods-issue-val", "Goods Issue Value", sumTotals(goodsIssue.current), "currency"),
     buildMetric(
       "inventory-transfer-val",
       "Inventory Transfer Value",
-      sumTotals(t.current),
+      sumTotals(transferModule.current),
       "currency",
     ),
     buildMetric(
       "open-transfer-requests",
       "Open Transfer Requests",
-      countOpenDocuments(tr.current),
+      countOpenDocuments(transferRequest.current),
       "number",
     ),
   ];
@@ -69,18 +69,18 @@ const buildInventoryModuleCards = (dataset: InventoryDataset): DashboardModuleCa
     totalValue: dataset.itemStats.stockValue,
     trendPct: 0,
   };
-  const flowCards = INVENTORY_MODULES.map((m) => {
-    const ds = getModuleDataset(dataset, m);
+  const flowCards = INVENTORY_MODULES.map((moduleKey) => {
+    const moduleDataset = getModuleDataset(dataset, moduleKey);
     return {
-      documentCount: ds.current.length,
-      href: MODULE_HREFS[m],
-      key: m,
-      label: MODULE_LABELS[m],
-      module: m,
-      openCount: countOpenDocuments(ds.current),
-      openValue: sumOpenTotals(ds.current),
-      totalValue: sumTotals(ds.current),
-      trendPct: calculateTrend(sumTotals(ds.current), sumTotals(ds.previous)),
+      documentCount: moduleDataset.current.length,
+      href: MODULE_HREFS[moduleKey],
+      key: moduleKey,
+      label: MODULE_LABELS[moduleKey],
+      module: moduleKey,
+      openCount: countOpenDocuments(moduleDataset.current),
+      openValue: sumOpenTotals(moduleDataset.current),
+      totalValue: sumTotals(moduleDataset.current),
+      trendPct: calculateTrend(sumTotals(moduleDataset.current), sumTotals(moduleDataset.previous)),
     };
   });
   return [itemCard, ...flowCards];
@@ -90,8 +90,9 @@ const buildInventoryFunnel = (dataset: InventoryDataset): DashboardFunnelStep[] 
   const cards = buildInventoryModuleCards(dataset);
   const orderedKeys = ["itemMaster", "goodsReceipt", "goodsIssue", "transferRequest", "transfer"];
   return orderedKeys.map((key, idx) => {
-    const card = cards.find((c) => c.key === key) ?? cards[0];
-    const prevCard = idx > 0 ? cards.find((c) => c.key === orderedKeys[idx - 1]) : card;
+    const card = cards.find((moduleCard) => moduleCard.key === key) ?? cards[0];
+    const prevCard =
+      idx > 0 ? cards.find((moduleCard) => moduleCard.key === orderedKeys[idx - 1]) : card;
     let convPct = 100;
     if (idx > 0 && prevCard && prevCard.totalValue > 0) {
       convPct = calculateRatio(card.totalValue, prevCard.totalValue);
@@ -111,34 +112,34 @@ const buildInventoryFunnel = (dataset: InventoryDataset): DashboardFunnelStep[] 
 };
 
 const buildInventoryExceptions = (dataset: InventoryDataset): DashboardExceptionGroup[] => {
-  const tr = getModuleDataset(dataset, "transferRequest");
-  const gr = getModuleDataset(dataset, "goodsReceipt");
-  const gi = getModuleDataset(dataset, "goodsIssue");
-  const t = getModuleDataset(dataset, "transfer");
+  const transferRequest = getModuleDataset(dataset, "transferRequest");
+  const goodsReceipt = getModuleDataset(dataset, "goodsReceipt");
+  const goodsIssue = getModuleDataset(dataset, "goodsIssue");
+  const transferModule = getModuleDataset(dataset, "transfer");
   return [
     buildExceptionGroup(
       "open-transfer-requests",
       "Open Transfer Requests",
       "transferRequest",
-      sortByOpenValue(tr.current.filter((d) => isOpenDocument(d))),
+      sortByOpenValue(transferRequest.current.filter((document) => isOpenDocument(document))),
     ),
     buildExceptionGroup(
       "recent-goods-receipts",
       "Recent Goods Receipts",
       "goodsReceipt",
-      sortByDateDescending(gr.current),
+      sortByDateDescending(goodsReceipt.current),
     ),
     buildExceptionGroup(
       "recent-goods-issues",
       "Recent Goods Issues",
       "goodsIssue",
-      sortByDateDescending(gi.current),
+      sortByDateDescending(goodsIssue.current),
     ),
     buildExceptionGroup(
       "recent-transfers",
       "Recent Transfers",
       "transfer",
-      sortByDateDescending(t.current),
+      sortByDateDescending(transferModule.current),
     ),
   ];
 };
@@ -165,15 +166,15 @@ export const getInventoryDashboard = () =>
     "dash:inventory",
     async () => {
       const { loadInventoryDataset } = await import("./dashboard.inventory-data");
-      const d = await loadInventoryDataset("month");
-      const o = buildInventoryMain(d);
+      const dataset = await loadInventoryDataset("month");
+      const overview = buildInventoryMain(dataset);
       return {
-        exceptions: o.exceptions,
-        funnel: o.funnel,
-        moduleCards: o.moduleCards,
-        summary: o.summary,
-        topPartners: o.topPartners,
-        trend: o.trend,
+        exceptions: overview.exceptions,
+        funnel: overview.funnel,
+        moduleCards: overview.moduleCards,
+        summary: overview.summary,
+        topPartners: overview.topPartners,
+        trend: overview.trend,
       };
     },
     DASHBOARD_CACHE_TTL,

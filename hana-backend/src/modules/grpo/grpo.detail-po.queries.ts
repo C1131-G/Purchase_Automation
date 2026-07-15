@@ -30,13 +30,13 @@ export const getAvailablePOs = async (sessionId: string, vendorCode: string) => 
     });
 
     // Map SAP fields to internal frontend-friendly property names.
-    const mappedPOs = (result.value || []).map((po: SAPDocumentResponse) => ({
-      id: po.DocEntry,
-      poDate: po.DocDate,
-      purchaseOrderNo: po.DocNum.toString(),
-      total: po.DocTotal,
-      vendorCode: po.CardCode,
-      vendorName: po.CardName,
+    const mappedPOs = (result.value || []).map((purchaseOrder: SAPDocumentResponse) => ({
+      id: purchaseOrder.DocEntry,
+      poDate: purchaseOrder.DocDate,
+      purchaseOrderNo: purchaseOrder.DocNum.toString(),
+      total: purchaseOrder.DocTotal,
+      vendorCode: purchaseOrder.CardCode,
+      vendorName: purchaseOrder.CardName,
       vendorRefNumber: "",
     }));
 

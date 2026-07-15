@@ -68,11 +68,11 @@ export const getTopVendors = (limit = 5) =>
         .groupBy(purchaseOrders.cardCode, purchaseOrders.cardName)
         .orderBy(desc(sql`COALESCE(SUM(${purchaseOrders.docTotal}), 0)`))
         .limit(limit);
-      return rows.map((r: Record<string, unknown>) => ({
-        code: r.code ?? "",
-        docCount: Number(r.docCount),
-        name: r.name ?? "",
-        totalValue: Number(r.totalValue),
+      return rows.map((row: Record<string, unknown>) => ({
+        code: row.code ?? "",
+        docCount: Number(row.docCount),
+        name: row.name ?? "",
+        totalValue: Number(row.totalValue),
       }));
     },
     DASHBOARD_CACHE_TTL,
@@ -93,11 +93,11 @@ export const getTopCustomers = (limit = 5) =>
         .groupBy(salesOrders.cardCode, salesOrders.cardName)
         .orderBy(desc(sql`COALESCE(SUM(${salesOrders.docTotal}), 0)`))
         .limit(limit);
-      return rows.map((r: Record<string, unknown>) => ({
-        code: r.code ?? "",
-        docCount: Number(r.docCount),
-        name: r.name ?? "",
-        totalValue: Number(r.totalValue),
+      return rows.map((row: Record<string, unknown>) => ({
+        code: row.code ?? "",
+        docCount: Number(row.docCount),
+        name: row.name ?? "",
+        totalValue: Number(row.totalValue),
       }));
     },
     DASHBOARD_CACHE_TTL,

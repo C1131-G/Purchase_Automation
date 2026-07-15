@@ -112,15 +112,15 @@ export const createCreditNote = async (sessionId: string, payload: Record<string
       cardCode: sapPayload.CardCode,
       docNum: payload.DocNum,
       lineCount: (sapPayload.DocumentLines as Record<string, unknown>[])?.length,
-      lines: (sapPayload.DocumentLines as Record<string, unknown>[]).map((l, i) => ({
+      lines: (sapPayload.DocumentLines as Record<string, unknown>[]).map((line, i) => ({
         index: i,
-        ItemCode: l.ItemCode,
-        Quantity: l.Quantity,
-        BaseType: l.BaseType,
-        BaseEntry: l.BaseEntry,
-        BaseLine: l.BaseLine,
-        UoMEntry: l.UoMEntry,
-        VatGroup: l.VatGroup,
+        ItemCode: line.ItemCode,
+        Quantity: line.Quantity,
+        BaseType: line.BaseType,
+        BaseEntry: line.BaseEntry,
+        BaseLine: line.BaseLine,
+        UoMEntry: line.UoMEntry,
+        VatGroup: line.VatGroup,
       })),
       msg: isDraft ? "Sending AR Credit Memo Draft to SAP" : "Sending AR Credit Memo to SAP",
     });

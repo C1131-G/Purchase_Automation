@@ -44,11 +44,11 @@ export interface ExportOptions {
   filename?: string;
 }
 
-const safeStr = (v: unknown): string => String(v ?? "");
+const safeStr = (rawValue: unknown): string => String(rawValue ?? "");
 
-const safeNum = (v: unknown): number => {
-  const n = Number(v);
-  return Number.isNaN(n) ? 0 : n;
+const safeNum = (rawValue: unknown): number => {
+  const numeric = Number(rawValue);
+  return Number.isNaN(numeric) ? 0 : numeric;
 };
 
 export const normalizeToExport = (
@@ -57,11 +57,11 @@ export const normalizeToExport = (
   attachments: Record<string, unknown>[],
 ): ExportDocumentData => ({
   address: safeStr(doc.address),
-  attachments: attachments.map((a) => ({
-    attachmentDate: safeStr(a.attachmentDate) || null,
-    fileExtension: safeStr(a.fileExtension),
-    fileName: safeStr(a.fileName),
-    freeText: safeStr(a.freeText) || null,
+  attachments: attachments.map((attachment) => ({
+    attachmentDate: safeStr(attachment.attachmentDate) || null,
+    fileExtension: safeStr(attachment.fileExtension),
+    fileName: safeStr(attachment.fileName),
+    freeText: safeStr(attachment.freeText) || null,
   })),
   cardCode: safeStr(doc.cardCode),
   cardName: safeStr(doc.cardName),
@@ -72,16 +72,16 @@ export const normalizeToExport = (
   docNum: safeNum(doc.docNum),
   docStatus: safeStr(doc.docStatus),
   docTotal: safeNum(doc.docTotal),
-  lines: lines.map((l, i) => ({
-    itemCode: safeStr(l.itemCode),
-    itemDescription: safeStr(l.itemDescription ?? l.dscription),
-    lineNum: safeNum(l.lineNum ?? i + 1),
-    price: safeNum(l.price),
-    quantity: safeNum(l.quantity),
-    taxCode: safeStr(l.taxCode),
-    total: safeNum(l.total),
-    uom: safeStr(l.uom),
-    warehouse: safeStr(l.warehouse),
+  lines: lines.map((line, i) => ({
+    itemCode: safeStr(line.itemCode),
+    itemDescription: safeStr(line.itemDescription ?? line.dscription),
+    lineNum: safeNum(line.lineNum ?? i + 1),
+    price: safeNum(line.price),
+    quantity: safeNum(line.quantity),
+    taxCode: safeStr(line.taxCode),
+    total: safeNum(line.total),
+    uom: safeStr(line.uom),
+    warehouse: safeStr(line.warehouse),
   })),
   title: safeStr(doc.docType) || "Document",
 });

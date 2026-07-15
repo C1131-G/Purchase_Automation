@@ -39,7 +39,9 @@ export const getPayment = async (sessionId: string, id: string) => {
         unknown
       >[]) || [];
     const mappedCreditCards = rawCreditCards.map((card: Record<string, unknown>) => {
-      const ccInfo = creditCardsInfo.find((c) => c.CreditCardCode === card.CreditCard);
+      const ccInfo = creditCardsInfo.find(
+        (creditCardInfo) => creditCardInfo.CreditCardCode === card.CreditCard,
+      );
       return {
         ...card,
         CardName: ccInfo ? ccInfo.CreditCardName : `Card ${card.CreditCard}`,
@@ -79,11 +81,11 @@ export const getPayment = async (sessionId: string, id: string) => {
           >[]) || [];
 
         const invoiceEntries = rawInvoices
-          .filter((i) => i.InvoiceType === "it_Invoice")
-          .map((i) => i.DocEntry as number);
+          .filter((invoice) => invoice.InvoiceType === "it_Invoice")
+          .map((invoice) => invoice.DocEntry as number);
         const creditMemoEntries = rawInvoices
-          .filter((i) => i.InvoiceType === "it_CredItnote")
-          .map((i) => i.DocEntry as number);
+          .filter((invoice) => invoice.InvoiceType === "it_CredItnote")
+          .map((invoice) => invoice.DocEntry as number);
 
         const session = serviceLayerClient.getSession(sessionId);
         const dbName = session?.companyDB;
@@ -114,7 +116,7 @@ export const getPayment = async (sessionId: string, id: string) => {
                 select: ["docEntry", "docNum"],
                 where: { docEntry: In(creditMemoEntries) },
               });
-              cms.forEach((cm) => (creditMemoMap[cm.docEntry] = cm.docNum));
+              cms.forEach((creditMemo) => (creditMemoMap[creditMemo.docEntry] = creditMemo.docNum));
             } catch (error) {
               logger.error({
                 msg: "Failed to fetch DocNums for credit memos",

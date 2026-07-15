@@ -14,12 +14,12 @@ import { grpoRepository } from "./grpo.repository";
 
 export const create = async (payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (transaction) => {
     const isDraft = payload.isDraft === true;
     const { draftDocEntry } = payload;
 
     if (!isDraft) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode);
     }
 
     let headerId: number;
@@ -33,7 +33,7 @@ export const create = async (payload: DynRow) => {
     const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
     if (draftDocEntry && draftDocEntry > 0) {
-      const existing = await grpoRepository.findById(tx, draftDocEntry);
+      const existing = await grpoRepository.findById(transaction, draftDocEntry);
 
       if (!existing) {
         throw new AppError("Draft document not found", 404, "NOT_FOUND");
@@ -42,7 +42,7 @@ export const create = async (payload: DynRow) => {
       headerId = draftDocEntry;
       docNum = await getNextDocNum("grpo", "grpo", 50_000);
 
-      await grpoRepository.updateHeader(tx, draftDocEntry, {
+      await grpoRepository.updateHeader(transaction, draftDocEntry, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -58,12 +58,12 @@ export const create = async (payload: DynRow) => {
         numAtCard: payload.numAtCard ?? null,
       });
 
-      await grpoRepository.deleteLines(tx, draftDocEntry);
+      await grpoRepository.deleteLines(transaction, draftDocEntry);
     } else {
       const docStatus = isDraft ? "D" : "O";
       docNum = await getNextDocNum("grpo", "grpo", 50_000);
 
-      const header = await grpoRepository.insertHeader(tx, {
+      const header = await grpoRepository.insertHeader(transaction, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -83,7 +83,7 @@ export const create = async (payload: DynRow) => {
 
     if (payload.lines?.length) {
       await grpoRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -110,7 +110,7 @@ export const create = async (payload: DynRow) => {
       const parentDocEntries = new Set<number>(
         payload.lines.map((line: DynRow) => line.baseEntry).filter(Boolean),
       );
-      await recalculateParentStatuses(tx, parentDocEntries, 22);
+      await recalculateParentStatuses(transaction, parentDocEntries, 22);
     }
 
     logger.info({ docNum, id: headerId }, "GRPO processed");
@@ -120,8 +120,8 @@ export const create = async (payload: DynRow) => {
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await grpoRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await grpoRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("GRPO not found", 404, "NOT_FOUND");
     }
@@ -129,7 +129,7 @@ export const update = async (id: number, payload: DynRow) => {
     const isDraft = payload.isDraft === true || existing.docStatus === "D";
 
     if (!isDraft && payload.lines) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode ?? existing.cardCode, id, 20);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode ?? existing.cardCode, id, 20);
     }
 
     const updatedDocStatus =
@@ -142,12 +142,12 @@ export const update = async (id: number, payload: DynRow) => {
         )
       : Number(existing.docTotal);
 
-    const oldLines = await grpoRepository.findLineBaseEntries(tx, id);
+    const oldLines = await grpoRepository.findLineBaseEntries(transaction, id);
     const oldParentEntries = new Set<number>(
       oldLines.map((line: DynRow) => line.baseEntry).filter(Boolean),
     );
 
-    await grpoRepository.updateHeader(tx, id, {
+    await grpoRepository.updateHeader(transaction, id, {
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
       canceled: "N",
@@ -161,9 +161,9 @@ export const update = async (id: number, payload: DynRow) => {
     });
 
     if (payload.lines) {
-      await grpoRepository.deleteLines(tx, id);
+      await grpoRepository.deleteLines(transaction, id);
       await grpoRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -190,7 +190,7 @@ export const update = async (id: number, payload: DynRow) => {
           payload.lines.map((line: DynRow) => line.baseEntry).filter(Boolean),
         );
         const allParentEntries = new Set<number>([...oldParentEntries, ...newParentEntries]);
-        await recalculateParentStatuses(tx, allParentEntries, 22);
+        await recalculateParentStatuses(transaction, allParentEntries, 22);
       }
     }
 
@@ -201,21 +201,21 @@ export const update = async (id: number, payload: DynRow) => {
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await grpoRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await grpoRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("GRPO not found", 404, "NOT_FOUND");
     }
-    await grpoRepository.updateHeader(tx, id, {
+    await grpoRepository.updateHeader(transaction, id, {
       canceled: "Y",
       docStatus: "C",
     });
 
-    const lines = await grpoRepository.findLineBaseEntries(tx, id);
+    const lines = await grpoRepository.findLineBaseEntries(transaction, id);
     const parentEntries = new Set<number>(
       lines.map((line: DynRow) => line.baseEntry).filter(Boolean),
     );
-    await recalculateParentStatuses(tx, parentEntries, 22);
+    await recalculateParentStatuses(transaction, parentEntries, 22);
 
     logger.info({ docNum: existing.docNum, id }, "GRPO cancelled");
     return getById(id);

@@ -21,133 +21,139 @@ const toPeriod = (period: string): DashboardPeriod =>
 
 export const getPurchaseKpiSummary = async (period: DashboardPeriod) =>
   timedDashboardSection("purchase.kpi", async () => {
-    const d = await loadAreaDataset("purchase", period);
-    const o = buildPurchaseMain(d);
-    return { currency: d.currency, data: o.summary };
+    const dataset = await loadAreaDataset("purchase", period);
+    const overview = buildPurchaseMain(dataset);
+    return { currency: dataset.currency, data: overview.summary };
   });
 export const getPurchaseModuleCards = async (period: DashboardPeriod) =>
   timedDashboardSection("purchase.module_cards", async () => {
-    const d = await loadAreaDataset("purchase", period);
-    const o = buildPurchaseMain(d);
-    return { currency: d.currency, data: o.moduleCards };
+    const dataset = await loadAreaDataset("purchase", period);
+    const overview = buildPurchaseMain(dataset);
+    return { currency: dataset.currency, data: overview.moduleCards };
   });
 export const getPurchaseTrend = async (period: DashboardPeriod) =>
   timedDashboardSection("purchase.trend", async () => {
-    const d = await loadAreaDataset("purchase", period);
-    const o = buildPurchaseMain(d);
-    return { currency: d.currency, data: o.trend };
+    const dataset = await loadAreaDataset("purchase", period);
+    const overview = buildPurchaseMain(dataset);
+    return { currency: dataset.currency, data: overview.trend };
   });
 export const getPurchaseFunnel = async (period: DashboardPeriod) =>
   timedDashboardSection("purchase.funnel", async () => {
-    const d = await loadAreaDataset("purchase", period);
-    const o = buildPurchaseMain(d);
-    return { currency: d.currency, data: o.funnel };
+    const dataset = await loadAreaDataset("purchase", period);
+    const overview = buildPurchaseMain(dataset);
+    return { currency: dataset.currency, data: overview.funnel };
   });
 export const getPurchaseTopPartners = async (period: DashboardPeriod) =>
   timedDashboardSection("purchase.top_partners", async () => {
-    const d = await loadAreaDataset("purchase", period);
-    const o = buildPurchaseMain(d);
-    return { currency: d.currency, data: o.topPartners };
+    const dataset = await loadAreaDataset("purchase", period);
+    const overview = buildPurchaseMain(dataset);
+    return { currency: dataset.currency, data: overview.topPartners };
   });
 export const getPurchaseExceptions = async (period: DashboardPeriod) =>
   timedDashboardSection("purchase.exceptions", async () => {
-    const d = await loadAreaDataset("purchase", period);
-    const o = buildPurchaseMain(d);
-    return { currency: d.currency, data: o.exceptions };
+    const dataset = await loadAreaDataset("purchase", period);
+    const overview = buildPurchaseMain(dataset);
+    return { currency: dataset.currency, data: overview.exceptions };
   });
 
 export const getSalesKpiSummary = async (period: DashboardPeriod) =>
   timedDashboardSection("sales.kpi", async () => {
-    const d = await loadAreaDataset("sales", period);
-    const o = buildSalesMain(d);
-    return { currency: d.currency, data: o.summary };
+    const dataset = await loadAreaDataset("sales", period);
+    const overview = buildSalesMain(dataset);
+    return { currency: dataset.currency, data: overview.summary };
   });
 export const getSalesModuleCards = async (period: DashboardPeriod) =>
   timedDashboardSection("sales.module_cards", async () => {
-    const d = await loadAreaDataset("sales", period);
-    const o = buildSalesMain(d);
-    return { currency: d.currency, data: o.moduleCards };
+    const dataset = await loadAreaDataset("sales", period);
+    const overview = buildSalesMain(dataset);
+    return { currency: dataset.currency, data: overview.moduleCards };
   });
 export const getSalesTrend = async (period: DashboardPeriod) =>
   timedDashboardSection("sales.trend", async () => {
-    const d = await loadAreaDataset("sales", period);
-    const o = buildSalesMain(d);
-    return { currency: d.currency, data: o.trend };
+    const dataset = await loadAreaDataset("sales", period);
+    const overview = buildSalesMain(dataset);
+    return { currency: dataset.currency, data: overview.trend };
   });
 export const getSalesFunnel = async (period: DashboardPeriod) =>
   timedDashboardSection("sales.funnel", async () => {
-    const d = await loadAreaDataset("sales", period);
-    const o = buildSalesMain(d);
-    return { currency: d.currency, data: o.funnel };
+    const dataset = await loadAreaDataset("sales", period);
+    const overview = buildSalesMain(dataset);
+    return { currency: dataset.currency, data: overview.funnel };
   });
 export const getSalesTopPartners = async (period: DashboardPeriod) =>
   timedDashboardSection("sales.top_partners", async () => {
-    const d = await loadAreaDataset("sales", period);
-    const o = buildSalesMain(d);
-    return { currency: d.currency, data: o.topPartners };
+    const dataset = await loadAreaDataset("sales", period);
+    const overview = buildSalesMain(dataset);
+    return { currency: dataset.currency, data: overview.topPartners };
   });
 export const getSalesExceptions = async (period: DashboardPeriod) =>
   timedDashboardSection("sales.exceptions", async () => {
-    const d = await loadAreaDataset("sales", period);
-    const o = buildSalesMain(d);
-    return { currency: d.currency, data: o.exceptions };
+    const dataset = await loadAreaDataset("sales", period);
+    const overview = buildSalesMain(dataset);
+    return { currency: dataset.currency, data: overview.exceptions };
   });
 
 export const getInventoryKpiSummary = async (period: DashboardPeriod) =>
   timedDashboardSection("inventory.kpi", async () => {
-    const d = await loadInventoryDataset(period);
-    const o = buildInventoryMain(d);
-    return { currency: d.currency, data: o.summary };
+    const dataset = await loadInventoryDataset(period);
+    const overview = buildInventoryMain(dataset);
+    return { currency: dataset.currency, data: overview.summary };
   });
 export const getInventoryModuleCards = async (period: DashboardPeriod) =>
   timedDashboardSection("inventory.module_cards", async () => {
-    const d = await loadInventoryDataset(period);
-    const o = buildInventoryMain(d);
-    return { currency: d.currency, data: o.moduleCards };
+    const dataset = await loadInventoryDataset(period);
+    const overview = buildInventoryMain(dataset);
+    return { currency: dataset.currency, data: overview.moduleCards };
   });
 export const getInventoryTrend = async (period: DashboardPeriod) =>
   timedDashboardSection("inventory.trend", async () => {
-    const d = await loadInventoryDataset(period);
-    const o = buildInventoryMain(d);
-    return { currency: d.currency, data: o.trend };
+    const dataset = await loadInventoryDataset(period);
+    const overview = buildInventoryMain(dataset);
+    return { currency: dataset.currency, data: overview.trend };
   });
 export const getInventoryFunnel = async (period: DashboardPeriod) =>
   timedDashboardSection("inventory.funnel", async () => {
-    const d = await loadInventoryDataset(period);
-    const o = buildInventoryMain(d);
-    return { currency: d.currency, data: o.funnel };
+    const dataset = await loadInventoryDataset(period);
+    const overview = buildInventoryMain(dataset);
+    return { currency: dataset.currency, data: overview.funnel };
   });
 export const getInventoryTopPartners = async (period: DashboardPeriod) =>
   timedDashboardSection("inventory.top_partners", async () => {
-    const d = await loadInventoryDataset(period);
-    const o = buildInventoryMain(d);
-    return { currency: d.currency, data: o.topPartners };
+    const dataset = await loadInventoryDataset(period);
+    const overview = buildInventoryMain(dataset);
+    return { currency: dataset.currency, data: overview.topPartners };
   });
 export const getInventoryExceptions = async (period: DashboardPeriod) =>
   timedDashboardSection("inventory.exceptions", async () => {
-    const d = await loadInventoryDataset(period);
-    const o = buildInventoryMain(d);
-    return { currency: d.currency, data: o.exceptions };
+    const dataset = await loadInventoryDataset(period);
+    const overview = buildInventoryMain(dataset);
+    return { currency: dataset.currency, data: overview.exceptions };
   });
 
 export const getPurchaseSummary = (period = "yearly") => getPurchaseKpiSummary(toPeriod(period));
 export const getSalesSummary = (period = "yearly") => getSalesKpiSummary(toPeriod(period));
 export const getDashboardStats = async (period = "yearly") => {
-  const p = toPeriod(period);
-  const [pu, sa] = await Promise.all([getPurchaseKpiSummary(p), getSalesKpiSummary(p)]);
-  return { currency: pu.currency, data: { purchase: pu.data, sales: sa.data } };
+  const dashboardPeriod = toPeriod(period);
+  const [purchaseSummary, salesSummary] = await Promise.all([
+    getPurchaseKpiSummary(dashboardPeriod),
+    getSalesKpiSummary(dashboardPeriod),
+  ]);
+  return {
+    currency: purchaseSummary.currency,
+    data: { purchase: purchaseSummary.data, sales: salesSummary.data },
+  };
 };
 
 export const getDashboard = (period: DashboardPeriod) => getLegacyDashboard(period);
 
 export const getPurchaseDashboard = async (period: DashboardPeriod) => {
-  const d = await loadAreaDataset("purchase", period);
-  return buildPurchaseMain(d);
+  const dataset = await loadAreaDataset("purchase", period);
+  return buildPurchaseMain(dataset);
 };
 
 export const getSalesDashboard = async (period: DashboardPeriod) => {
-  const d = await loadAreaDataset("sales", period);
-  return buildSalesMain(d);
+  const dataset = await loadAreaDataset("sales", period);
+  return buildSalesMain(dataset);
 };
 
 export { getInventoryDashboard };

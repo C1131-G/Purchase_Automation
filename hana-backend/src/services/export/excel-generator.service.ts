@@ -5,12 +5,12 @@ import { writeExcelLinesTable } from "./excel-lines-table";
 import { writeExcelTotalsAndAttachments } from "./excel-totals-attachments";
 
 export async function generateExcel(data: ExportDocumentData): Promise<Buffer> {
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "Vendor Portal";
-  wb.created = new Date();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Vendor Portal";
+  workbook.created = new Date();
 
-  const ws = wb.addWorksheet(data.entityLabel);
-  ws.views = [{ showGridLines: true }];
+  const worksheet = workbook.addWorksheet(data.entityLabel);
+  worksheet.views = [{ showGridLines: true }];
 
   const columnsDef = [
     { key: "lineNum", width: 6 },
@@ -26,16 +26,16 @@ export async function generateExcel(data: ExportDocumentData): Promise<Buffer> {
     { key: "warehouseCode", width: 14 },
   ];
   columnsDef.forEach((col, idx) => {
-    ws.getColumn(idx + 1).width = col.width;
+    worksheet.getColumn(idx + 1).width = col.width;
   });
 
   const fontName = "Segoe UI";
   const borderLightColor = "FFE2E8F0";
 
-  writeExcelTitleAndAddresses(ws, data, fontName, borderLightColor);
-  const currentRow = writeExcelLinesTable(ws, data, fontName, borderLightColor);
-  writeExcelTotalsAndAttachments(ws, data, fontName, borderLightColor, currentRow);
+  writeExcelTitleAndAddresses(worksheet, data, fontName, borderLightColor);
+  const currentRow = writeExcelLinesTable(worksheet, data, fontName, borderLightColor);
+  writeExcelTotalsAndAttachments(worksheet, data, fontName, borderLightColor, currentRow);
 
-  const buffer = await wb.xlsx.writeBuffer();
+  const buffer = await workbook.xlsx.writeBuffer();
   return buffer instanceof Buffer ? buffer : Buffer.from(buffer);
 }

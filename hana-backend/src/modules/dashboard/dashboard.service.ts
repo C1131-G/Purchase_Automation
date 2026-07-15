@@ -24,9 +24,9 @@ import {
 
 type AnyFn = (...args: never[]) => Promise<unknown> | unknown;
 
-function instrumentSection<T extends AnyFn>(section: string, fn: T): T {
+function instrumentSection<T extends AnyFn>(section: string, run: T): T {
   return ((...args: Parameters<T>) =>
-    timedDashboardSection(section, () => fn(...args) as ReturnType<T>)) as T;
+    timedDashboardSection(section, () => run(...args) as ReturnType<T>)) as T;
 }
 
 export const getPurchaseSummary = instrumentSection("purchase.summary", getPurchaseSummaryRaw);

@@ -71,7 +71,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
     billToLines.push(
       ...data.address
         .split(/\r?\n/)
-        .map((l) => l.trim())
+        .map((line) => line.trim())
         .filter(Boolean),
     );
   }
@@ -84,7 +84,7 @@ export async function generateWord(data: ExportDocumentData): Promise<Buffer> {
     shipToLines.push(
       ...data.address2
         .split(/\r?\n/)
-        .map((l) => l.trim())
+        .map((line) => line.trim())
         .filter(Boolean),
     );
   }

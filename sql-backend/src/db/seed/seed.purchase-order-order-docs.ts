@@ -31,7 +31,7 @@ export async function seedPurchaseQuotationsAndOrders(
   const pqHeaders: any[] = [];
   const pqLinesSpec: any[] = [];
   for (let i = 1; i <= 100; i += 1) {
-    const bp = bpVendors[i % bpVendors.length];
+    const businessPartner = bpVendors[i % bpVendors.length];
     const docDate = getDocDate(i, 100);
     const selectedItems = getRandomItems(items, 2);
 
@@ -45,9 +45,9 @@ export async function seedPurchaseQuotationsAndOrders(
     });
 
     pqHeaders.push({
-      address: bp.billToAddress,
-      cardCode: bp.code,
-      cardName: bp.name,
+      address: businessPartner.billToAddress,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       comments: `Seeded purchase quotation ${i}`,
       docCurrency: seedCurrency,
       docDate: formatDate(docDate),
@@ -61,11 +61,11 @@ export async function seedPurchaseQuotationsAndOrders(
   const seededPQs = await db.insert(purchaseQuotations).values(pqHeaders).returning();
 
   const pqLinesToInsert: any[] = [];
-  seededPQs.forEach((pq, index) => {
+  seededPQs.forEach((purchaseQuotation, index) => {
     const specs = pqLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       pqLinesToInsert.push({
-        docEntry: pq.id,
+        docEntry: purchaseQuotation.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,
@@ -86,7 +86,7 @@ export async function seedPurchaseQuotationsAndOrders(
   const poHeaders: any[] = [];
   const poLinesSpec: any[] = [];
   for (let i = 1; i <= 150; i += 1) {
-    const bp = bpVendors[i % bpVendors.length];
+    const businessPartner = bpVendors[i % bpVendors.length];
     const docDate = getDocDate(i, 150);
     const selectedItems = getRandomItems(items, 2);
 
@@ -100,9 +100,9 @@ export async function seedPurchaseQuotationsAndOrders(
     });
 
     poHeaders.push({
-      address: bp.billToAddress,
-      cardCode: bp.code,
-      cardName: bp.name,
+      address: businessPartner.billToAddress,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       comments: `Seeded purchase order ${i}`,
       docCurrency: seedCurrency,
       docDate: formatDate(docDate),
@@ -114,14 +114,14 @@ export async function seedPurchaseQuotationsAndOrders(
     poLinesSpec.push(lineItems);
   }
   const seededPOs = await db.insert(purchaseOrders).values(poHeaders).returning();
-  const poEntries = seededPOs.map((po) => po.id);
+  const poEntries = seededPOs.map((purchaseOrder) => purchaseOrder.id);
 
   const poLinesToInsert: any[] = [];
-  seededPOs.forEach((po, index) => {
+  seededPOs.forEach((purchaseOrder, index) => {
     const specs = poLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       poLinesToInsert.push({
-        docEntry: po.id,
+        docEntry: purchaseOrder.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,

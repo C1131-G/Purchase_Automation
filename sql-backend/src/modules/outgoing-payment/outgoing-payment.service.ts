@@ -39,20 +39,20 @@ export const getList = async (filters: DynRow = {}) => {
 
 export const getById = async (id: number) => {
   const db = getDb();
-  const h = await outgoingPaymentRepository.findById(db, id);
-  if (!h) {
+  const header = await outgoingPaymentRepository.findById(db, id);
+  if (!header) {
     throw new AppError("Outgoing payment not found", 404, "NOT_FOUND");
   }
-  return { ...h, lines: [] };
+  return { ...header, lines: [] };
 };
 
 export const getByDocNum = async (docNum: number) => {
   const db = getDb();
-  const h = await outgoingPaymentRepository.findByDocNum(db, docNum);
-  if (!h) {
+  const header = await outgoingPaymentRepository.findByDocNum(db, docNum);
+  if (!header) {
     throw new AppError("Outgoing payment not found", 404, "NOT_FOUND");
   }
-  return { ...h, lines: [] };
+  return { ...header, lines: [] };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -65,7 +65,7 @@ export const create = async (payload: DynRow) => {
   const db = getDb();
   const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
-  const h = await outgoingPaymentRepository.insert(db, {
+  const header = await outgoingPaymentRepository.insert(db, {
     cardCode: payload.cardCode,
     cardName,
     docCurrency: payload.docCurrency ?? null,
@@ -76,13 +76,13 @@ export const create = async (payload: DynRow) => {
     paymentMode: payload.paymentMode ?? null,
   });
   logger.info({ docNum: payload.docNum }, "Outgoing payment created");
-  return getById(h.id);
+  return getById(header.id);
 };
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  const ex = await outgoingPaymentRepository.findById(db, id);
-  if (!ex) {
+  const existing = await outgoingPaymentRepository.findById(db, id);
+  if (!existing) {
     throw new AppError("Outgoing payment not found", 404, "NOT_FOUND");
   }
   await outgoingPaymentRepository.update(db, id, { docDate: payload.docDate });
@@ -91,8 +91,8 @@ export const update = async (id: number, payload: DynRow) => {
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  const ex = await outgoingPaymentRepository.findById(db, id);
-  if (!ex) {
+  const existing = await outgoingPaymentRepository.findById(db, id);
+  if (!existing) {
     throw new AppError("Outgoing payment not found", 404, "NOT_FOUND");
   }
   await outgoingPaymentRepository.delete(db, id);

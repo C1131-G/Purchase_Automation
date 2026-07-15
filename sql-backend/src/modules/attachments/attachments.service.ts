@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import nodeFs from "node:fs";
 import path from "node:path";
 
 import { config } from "@/config/env";
@@ -10,8 +10,8 @@ import { attachmentsRepository } from "./attachments.repository";
 
 const ensureUploadDir = () => {
   const dir = path.resolve(config.attachments.basePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  if (!nodeFs.existsSync(dir)) {
+    nodeFs.mkdirSync(dir, { recursive: true });
   }
   return dir;
 };
@@ -23,7 +23,7 @@ export const upload = async (file: Express.Multer.File, freeText?: string) => {
   const fileName = `${Date.now()}-${file.originalname}`;
   const filePath = path.join(uploadDir, fileName);
 
-  fs.writeFileSync(filePath, file.buffer);
+  nodeFs.writeFileSync(filePath, file.buffer);
 
   const ext = path.extname(file.originalname).replace(".", "");
 
@@ -50,10 +50,10 @@ export const getById = async (id: number) => {
 
 export const downloadById = async (id: number) => {
   const record = await getById(id);
-  if (!record.sourcePath || !fs.existsSync(record.sourcePath)) {
+  if (!record.sourcePath || !nodeFs.existsSync(record.sourcePath)) {
     throw new AppError("Attachment file not found on disk", 404, "FILE_NOT_FOUND");
   }
-  return { record, stream: fs.createReadStream(record.sourcePath) };
+  return { record, stream: nodeFs.createReadStream(record.sourcePath) };
 };
 
 export const getList = () => {
@@ -66,8 +66,8 @@ export const remove = async (id: number) => {
   const record = await getById(id);
 
   try {
-    if (fs.existsSync(record.sourcePath ?? "")) {
-      fs.unlinkSync(record.sourcePath!);
+    if (nodeFs.existsSync(record.sourcePath ?? "")) {
+      nodeFs.unlinkSync(record.sourcePath!);
     }
   } catch (err: unknown) {
     logger.warn(

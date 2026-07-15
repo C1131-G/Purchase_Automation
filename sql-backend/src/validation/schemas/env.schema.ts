@@ -29,7 +29,7 @@ export const EnvSchema = z.object({
   OTEL_SDK_DISABLED: z
     .enum(["true", "false"])
     .default("false")
-    .transform((v) => v === "true"),
+    .transform((value) => value === "true"),
   OTEL_SERVICE_NAME: z.string().min(1).optional(),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.string().url().optional(),
@@ -38,7 +38,7 @@ export const EnvSchema = z.object({
   METRICS_ENABLED: z
     .enum(["true", "false"])
     .default("true")
-    .transform((v) => v === "true"),
+    .transform((value) => value === "true"),
   METRICS_PATH: z.string().min(1).default("/metrics"),
   METRICS_BEARER_TOKEN: z.string().min(1).optional(),
 });

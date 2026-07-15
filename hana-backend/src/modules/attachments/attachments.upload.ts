@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import nodeFs from "node:fs";
 import path from "node:path";
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
@@ -19,8 +19,8 @@ export async function saveUploadedFiles(
   const folderPath = path.join(basePath, dbName, moduleName, dateDir);
 
   try {
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath, { recursive: true });
+    if (!nodeFs.existsSync(folderPath)) {
+      nodeFs.mkdirSync(folderPath, { recursive: true });
     }
   } catch (err: any) {
     logger.error({ err: err, folderPath }, "Failed to create directory");
@@ -46,7 +46,7 @@ export async function saveUploadedFiles(
     let counter = 1;
 
     // Check collision and append suffix if needed
-    while (fs.existsSync(path.join(folderPath, `${finalBaseName}.${fileExtension}`))) {
+    while (nodeFs.existsSync(path.join(folderPath, `${finalBaseName}.${fileExtension}`))) {
       finalBaseName = `${idealBaseName}_${counter}`;
       counter++;
     }
@@ -54,10 +54,10 @@ export async function saveUploadedFiles(
     const finalPath = path.join(folderPath, `${finalBaseName}.${fileExtension}`);
 
     try {
-      fs.copyFileSync(file.filepath, finalPath);
+      nodeFs.copyFileSync(file.filepath, finalPath);
       // Clean up temp file
       try {
-        fs.unlinkSync(file.filepath);
+        nodeFs.unlinkSync(file.filepath);
       } catch {
         // Ignore temp cleanup errors
       }
@@ -112,15 +112,15 @@ export async function finalizeAttachments(
 
       const oldFilePath = path.join(att.sourcePath, `${att.fileName}.${att.fileExtension}`);
 
-      if (fs.existsSync(oldFilePath)) {
-        while (fs.existsSync(path.join(att.sourcePath, `${finalNewName}.${att.fileExtension}`))) {
+      if (nodeFs.existsSync(oldFilePath)) {
+        while (nodeFs.existsSync(path.join(att.sourcePath, `${finalNewName}.${att.fileExtension}`))) {
           finalNewName = `${newBaseName}_${counter}`;
           counter++;
         }
 
         const newFilePath = path.join(att.sourcePath, `${finalNewName}.${att.fileExtension}`);
         try {
-          fs.renameSync(oldFilePath, newFilePath);
+          nodeFs.renameSync(oldFilePath, newFilePath);
           logger.info({ oldFilePath, newFilePath }, "Renamed temp attachment file");
 
           finalizedList.push({

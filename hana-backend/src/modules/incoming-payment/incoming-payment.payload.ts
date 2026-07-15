@@ -22,8 +22,8 @@ function collectPaymentModes(payload: Record<string, unknown>): string[] {
 
   if (Array.isArray(payload.PaymentChecks) && payload.PaymentChecks.length > 0) {
     const checks = payload.PaymentChecks as Record<string, unknown>[];
-    if (checks.some((c) => c.BankCode === "CASH")) modes.push("CASH");
-    if (checks.some((c) => c.BankCode !== "CASH")) modes.push("Direct Pay");
+    if (checks.some((check) => check.BankCode === "CASH")) modes.push("CASH");
+    if (checks.some((check) => check.BankCode !== "CASH")) modes.push("Direct Pay");
   }
 
   if (payload.TrsfrSum && (payload.TrsfrSum as number) > 0) {
@@ -36,9 +36,9 @@ function collectPaymentModes(payload: Record<string, unknown>): string[] {
 function mapPaymentInvoices(payload: Record<string, unknown>) {
   return (
     (payload.PaymentInvoices as Record<string, unknown>[])
-      ?.sort((a, b) => {
-        const typeA = a.InvoiceType === "it_Invoice" ? 0 : 1;
-        const typeB = b.InvoiceType === "it_Invoice" ? 0 : 1;
+      ?.sort((item, item2) => {
+        const typeA = item.InvoiceType === "it_Invoice" ? 0 : 1;
+        const typeB = item2.InvoiceType === "it_Invoice" ? 0 : 1;
         return typeA - typeB;
       })
       .map((inv) => {
@@ -190,7 +190,7 @@ export async function buildIncomingPaymentSapPayload(
 
   const modes = collectPaymentModes(payload);
   if (modes.length === 1) sapPayload.U_Mode_Pay = modes[0];
-  else if (modes.length > 1) sapPayload.U_Mode_Pay = modes.find((m) => m !== "CASH") || "CASH";
+  else if (modes.length > 1) sapPayload.U_Mode_Pay = modes.find((mode) => mode !== "CASH") || "CASH";
 
   if (payload.CashSum && (payload.CashSum as number) > 0) {
     sapPayload.CashSum = payload.CashSum;

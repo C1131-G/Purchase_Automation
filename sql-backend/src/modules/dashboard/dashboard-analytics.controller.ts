@@ -4,14 +4,14 @@ import type { DashboardPeriod } from "@/services/dashboard/dashboard.types";
 
 import { dashboardService } from "./dashboard.service";
 
-const periodFromQuery = (p: unknown): DashboardPeriod => {
-  if (p === "week" || p === "month" || p === "year" || p === "all") {
-    return p;
+const periodFromQuery = (period: unknown): DashboardPeriod => {
+  if (period === "week" || period === "month" || period === "year" || period === "all") {
+    return period;
   }
-  if (p === "weekly") {
+  if (period === "weekly") {
     return "week";
   }
-  if (p === "yearly") {
+  if (period === "yearly") {
     return "year";
   }
   return "month";

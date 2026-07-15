@@ -34,7 +34,7 @@ export const getItem: RequestHandler = async (req, res, next) => {
 
 const lookup =
   (
-    fn: (
+    run: (
       search?: string,
       limit?: number,
     ) => Promise<{ code: string | null; name: string | null }[]>,
@@ -46,7 +46,7 @@ const lookup =
   ) => {
     try {
       const { search, limit } = ItemMasterLookupQuerySchema.parse(req.query);
-      const data = await fn(search, limit);
+      const data = await run(search, limit);
       res.status(200).json({ data, success: true });
     } catch (error) {
       return next(error);

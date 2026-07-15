@@ -42,12 +42,12 @@ export const backfillPaymentModes = async (sessionId: string, batchSize = 50) =>
     }
 
     const recordsToUpdate = payments.filter(
-      (p) =>
-        !p.U_Mode_Pay &&
-        ((p.CashSum && Number(p.CashSum) > 0) ||
-          (p.TrsfrSum && Number(p.TrsfrSum) > 0) ||
-          (p.CreditCard && Number(p.CreditCard) > 0) ||
-          (p.CheckNum && Number(p.CheckNum) > 0)),
+      (value) =>
+        !value.U_Mode_Pay &&
+        ((value.CashSum && Number(value.CashSum) > 0) ||
+          (value.TrsfrSum && Number(value.TrsfrSum) > 0) ||
+          (value.CreditCard && Number(value.CreditCard) > 0) ||
+          (value.CheckNum && Number(value.CheckNum) > 0)),
     );
 
     logger.info({
@@ -87,7 +87,7 @@ export const backfillPaymentModes = async (sessionId: string, batchSize = 50) =>
         if (modes.length === 1) {
           paymentMode = modes[0];
         } else if (modes.length > 1) {
-          paymentMode = modes.find((m) => m !== "CASH") || "CASH";
+          paymentMode = modes.find((mode) => mode !== "CASH") || "CASH";
         }
 
         if (paymentMode && allowedModes.has(paymentMode)) {
@@ -131,29 +131,29 @@ export const backfillPaymentModes = async (sessionId: string, batchSize = 50) =>
 export const getAccounts = async (dbName: string, query: AccountQuery) => {
   try {
     const repo = await getTenantRepository(dbName, GlAccountSchema);
-    const qb = repo.createQueryBuilder("a");
+    const queryBuilder = repo.createQueryBuilder("a");
 
-    qb.select(["a.GLAccount", "a.Account"]);
+    queryBuilder.select(["a.GLAccount", "a.Account"]);
 
     if (query.search) {
-      qb.andWhere("LOWER(a.GLAccount) LIKE LOWER(:search)", { search: `%${query.search}%` });
+      queryBuilder.andWhere("LOWER(a.GLAccount) LIKE LOWER(:search)", { search: `%${query.search}%` });
     }
 
-    qb.orderBy("a.GLAccount", "ASC").take(query.limit ?? 20);
+    queryBuilder.orderBy("a.GLAccount", "ASC").take(query.limit ?? 20);
 
-    const rows = await qb.getRawMany<Record<string, unknown>>();
+    const rows = await queryBuilder.getRawMany<Record<string, unknown>>();
 
     logger.info({
       msg: "Fetched DSC1 accounts",
       db: dbName,
       count: rows.length,
-      accounts: rows.map((r) => r["a_GLAccount"]),
+      accounts: rows.map((row) => row["a_GLAccount"]),
     });
 
     return {
-      data: rows.map((r) => ({
-        GLAccount: r["a_GLAccount"] as string,
-        Account: r["a_Account"] as string,
+      data: rows.map((row) => ({
+        GLAccount: row["a_GLAccount"] as string,
+        Account: row["a_Account"] as string,
       })),
       total: rows.length,
     };

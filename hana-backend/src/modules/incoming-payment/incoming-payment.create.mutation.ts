@@ -30,8 +30,8 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
     logger.info({
       msg: "Final Account Resolution Mappings",
       CashAccount: sapPayload.CashAccount,
-      CheckAccounts: (sapPayload.PaymentChecks as any[])?.map((c) => c.CheckAccount),
-      CardAccounts: (sapPayload.PaymentCreditCards as any[])?.map((c) => c.CreditAcct),
+      CheckAccounts: (sapPayload.PaymentChecks as any[])?.map((check) => check.CheckAccount),
+      CardAccounts: (sapPayload.PaymentCreditCards as any[])?.map((card) => card.CreditAcct),
     });
 
     logger.info({ msg: "Sending Payload to SAP Service Layer", sapPayload });
@@ -63,19 +63,19 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
             ((sapPayload.CashSum as number) || 0) +
             ((sapPayload.TransferSum as number) || 0) +
             ((sapPayload.PaymentCreditCards as any[])?.reduce(
-              (sum, c) => sum + (c.CreditSum || 0),
+              (sum, check) => sum + (check.CreditSum || 0),
               0,
             ) || 0) +
-            ((sapPayload.PaymentChecks as any[])?.reduce((sum, c) => sum + (c.CheckSum || 0), 0) ||
+            ((sapPayload.PaymentChecks as any[])?.reduce((sum, check) => sum + (check.CheckSum || 0), 0) ||
               0) +
             ((sapPayload.BankChargeAmount as number) || 0),
           docCurr: result.DocCurrency || (await getDisplayCurrency(dbName)),
           paymentMode: (sapPayload.U_Mode_Pay as string) || "CASH",
         });
-      } catch (e) {
+      } catch (error) {
         logger.warn({
           msg: "Failed to perform real-time insertion of Incoming Payment in HANA",
-          err: e instanceof Error ? e : new Error(String(e)),
+          err: error instanceof Error ? error : new Error(String(error)),
         });
       }
     }

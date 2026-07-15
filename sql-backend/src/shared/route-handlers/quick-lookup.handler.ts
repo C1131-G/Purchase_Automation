@@ -93,18 +93,18 @@ export const getAvailablePos: RequestHandler = async (_req, res, next) => {
       );
 
     const availablePos = [];
-    for (const po of pos) {
+    for (const purchaseOrder of pos) {
       const lines = await db
         .select()
         .from(purchaseOrderLines)
-        .where(eq(purchaseOrderLines.docEntry, po.id));
+        .where(eq(purchaseOrderLines.docEntry, purchaseOrder.id));
 
       let hasOpenLines = false;
       for (const line of lines) {
         const openQty = await calculateOpenQty(
           db,
           22,
-          po.id,
+          purchaseOrder.id,
           line.lineNum,
           Number(line.quantity || 0),
         );
@@ -115,12 +115,12 @@ export const getAvailablePos: RequestHandler = async (_req, res, next) => {
       }
       if (hasOpenLines) {
         availablePos.push({
-          cardCode: po.cardCode,
-          cardName: po.cardName,
-          docDate: po.docDate,
-          docNum: po.docNum,
-          docTotal: po.docTotal,
-          id: po.id,
+          cardCode: purchaseOrder.cardCode,
+          cardName: purchaseOrder.cardName,
+          docDate: purchaseOrder.docDate,
+          docNum: purchaseOrder.docNum,
+          docTotal: purchaseOrder.docTotal,
+          id: purchaseOrder.id,
         });
       }
     }
@@ -139,9 +139,9 @@ export const getPoDetail: RequestHandler = async (req, res, next) => {
 
     const db = getDb();
     const poId = Number(req.params.id);
-    const [po] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, poId)).limit(1);
+    const [purchaseOrder] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, poId)).limit(1);
 
-    if (!po) {
+    if (!purchaseOrder) {
       return res.status(404).json({ message: "PO not found", success: false });
     }
 
@@ -166,7 +166,7 @@ export const getPoDetail: RequestHandler = async (req, res, next) => {
     }
 
     res.status(200).json({
-      data: toPascalCase({ ...po, lines: copyableLines }),
+      data: toPascalCase({ ...purchaseOrder, lines: copyableLines }),
       success: true,
     });
   } catch (error) {

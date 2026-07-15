@@ -6,9 +6,9 @@ import { goodsReceiptService } from "./goods-receipt.service";
 
 export const getList: RequestHandler = async (req, res, next) => {
   try {
-    const r = await goodsReceiptService.getList(req.query);
-    const transformed = r.data
-      ? toPascalCaseList(r as never)
+    const result = await goodsReceiptService.getList(req.query);
+    const transformed = result.data
+      ? toPascalCaseList(result as never)
       : { data: [], limit: 20, page: 1, total: 0, totalPages: 0 };
     res.status(200).json({ ...transformed, success: true });
   } catch (error) {

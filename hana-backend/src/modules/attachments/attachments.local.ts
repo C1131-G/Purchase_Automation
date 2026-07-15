@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import nodeFs from "node:fs";
 import path from "node:path";
 import { logger } from "@/core/logger/pino-logger";
 import { config } from "@/config/env";
@@ -14,12 +14,12 @@ export async function saveLocalAttachments(
   const folderPath = path.join(basePath, dbName, moduleName);
 
   try {
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath, { recursive: true });
+    if (!nodeFs.existsSync(folderPath)) {
+      nodeFs.mkdirSync(folderPath, { recursive: true });
     }
 
     const filePath = path.join(folderPath, `${docEntry}_attachments.json`);
-    fs.writeFileSync(filePath, JSON.stringify(attachments, null, 2), "utf8");
+    nodeFs.writeFileSync(filePath, JSON.stringify(attachments, null, 2), "utf8");
     logger.info({ docEntry, moduleName, dbName }, "Successfully saved local attachments metadata");
   } catch (err: any) {
     logger.error({ err: err, docEntry, moduleName }, "Failed to save local attachments metadata");
@@ -39,8 +39,8 @@ export async function getLocalAttachments(
   const filePath = path.join(basePath, dbName, moduleName, `${docEntry}_attachments.json`);
 
   try {
-    if (fs.existsSync(filePath)) {
-      const raw = fs.readFileSync(filePath, "utf8");
+    if (nodeFs.existsSync(filePath)) {
+      const raw = nodeFs.readFileSync(filePath, "utf8");
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         return parsed.map((item: any) => ({

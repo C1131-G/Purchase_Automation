@@ -44,11 +44,11 @@ export interface ExportOptions {
   filename?: string;
 }
 
-const safeStr = (v: unknown): string => String(v ?? "");
+const safeStr = (rawValue: unknown): string => String(rawValue ?? "");
 
-const safeNum = (v: unknown): number => {
-  const n = Number(v);
-  return Number.isNaN(n) ? 0 : n;
+const safeNum = (rawValue: unknown): number => {
+  const numeric = Number(rawValue);
+  return Number.isNaN(numeric) ? 0 : numeric;
 };
 
 export const normalizeToExport = (
@@ -67,21 +67,21 @@ export const normalizeToExport = (
   docCurrency: safeStr(doc.docCurrency),
   docStatus: safeStr(doc.docStatus),
   comments: safeStr(doc.comments) || null,
-  lines: lines.map((l, i) => ({
-    lineNum: safeNum(l.lineNum ?? i + 1),
-    itemCode: safeStr(l.itemCode),
-    itemDescription: safeStr(l.itemDescription ?? l.dscription),
-    quantity: safeNum(l.quantity),
-    uom: safeStr(l.uom),
-    price: safeNum(l.price),
-    total: safeNum(l.total),
-    warehouse: safeStr(l.warehouse),
-    taxCode: safeStr(l.taxCode),
+  lines: lines.map((line, i) => ({
+    lineNum: safeNum(line.lineNum ?? i + 1),
+    itemCode: safeStr(line.itemCode),
+    itemDescription: safeStr(line.itemDescription ?? line.dscription),
+    quantity: safeNum(line.quantity),
+    uom: safeStr(line.uom),
+    price: safeNum(line.price),
+    total: safeNum(line.total),
+    warehouse: safeStr(line.warehouse),
+    taxCode: safeStr(line.taxCode),
   })),
-  attachments: attachments.map((a) => ({
-    fileName: safeStr(a.fileName),
-    fileExtension: safeStr(a.fileExtension),
-    freeText: safeStr(a.freeText) || null,
-    attachmentDate: safeStr(a.attachmentDate) || null,
+  attachments: attachments.map((attachment) => ({
+    fileName: safeStr(attachment.fileName),
+    fileExtension: safeStr(attachment.fileExtension),
+    freeText: safeStr(attachment.freeText) || null,
+    attachmentDate: safeStr(attachment.attachmentDate) || null,
   })),
 });

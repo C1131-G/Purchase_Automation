@@ -16,23 +16,23 @@ export const getNextDocNum = async (
 ): Promise<number> => {
   const db = getDb();
 
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (transaction) => {
     // 1. Check if the counter row exists
-    const [existing] = await tx
+    const [existing] = await transaction
       .select({ nextNum: documentSeries.nextNum })
       .from(documentSeries)
       .where(eq(documentSeries.documentType, documentType));
 
     if (existing) {
       // 2. Lock the row using FOR UPDATE
-      const lockQuery = await tx.execute(
+      const lockQuery = await transaction.execute(
         sql`SELECT next_num FROM document_series WHERE document_type = ${documentType} FOR UPDATE`,
       );
 
       const nextNum = Number(lockQuery.rows[0].next_num);
 
       // 3. Increment the next number by 1
-      await tx
+      await transaction
         .update(documentSeries)
         .set({ nextNum: nextNum + 1, updatedAt: new Date() })
         .where(eq(documentSeries.documentType, documentType));
@@ -40,7 +40,7 @@ export const getNextDocNum = async (
       return nextNum;
     }
     // 4. Initialize from existing data
-    const maxQuery = await tx.execute(
+    const maxQuery = await transaction.execute(
       sql.raw(
         `SELECT COALESCE(MAX(doc_num), ${defaultStartNum - 1}) as max_val FROM "${tableName}"`,
       ),
@@ -49,7 +49,7 @@ export const getNextDocNum = async (
     const nextNum = maxVal + 1;
 
     // Save the next available sequence (nextNum + 1)
-    await tx.insert(documentSeries).values({
+    await transaction.insert(documentSeries).values({
       documentType,
       nextNum: nextNum + 1,
     });

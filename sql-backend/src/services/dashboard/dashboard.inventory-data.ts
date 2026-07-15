@@ -143,15 +143,15 @@ const fetchWarehouseGroups = async (
         .orderBy(desc(valExpr.mapWith(Number)))
         .limit(5);
 
-      const partnerEntries = rows.map((r: Record<string, unknown>) => {
-        const code = String(r.whsCode || "").trim() || "Unknown";
+      const partnerEntries = rows.map((row: Record<string, unknown>) => {
+        const code = String(row.whsCode || "").trim() || "Unknown";
         const name = whsMap.get(code) || `Warehouse ${code}`;
         return {
           code,
-          documentCount: Number(r.docCount ?? 0),
+          documentCount: Number(row.docCount ?? 0),
           name,
           openValue: 0,
-          totalValue: Number(Number(r.totalVal ?? 0).toFixed(2)),
+          totalValue: Number(Number(row.totalVal ?? 0).toFixed(2)),
         };
       });
 
@@ -196,9 +196,9 @@ export const loadInventoryDataset = async (period: DashboardPeriod): Promise<Inv
       ]);
 
       const whsMap = new Map<string, string>(
-        warehouseRows.map((w: { code: string | null; name: string | null }) => [
-          String(w.code ?? ""),
-          String(w.name ?? ""),
+        warehouseRows.map((warehouse: { code: string | null; name: string | null }) => [
+          String(warehouse.code ?? ""),
+          String(warehouse.name ?? ""),
         ]),
       );
       const warehouseGroups = await fetchWarehouseGroups(period, whsMap);

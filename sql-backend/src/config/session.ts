@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import nodeFs from "node:fs";
 import path from "node:path";
 
 import type { Application, RequestHandler } from "express";
@@ -24,16 +24,16 @@ class AtomicFileStore extends session.Store {
 
   private loadSessionsFromDisk(): void {
     try {
-      if (!fs.existsSync(this.sessionPath)) {
-        fs.mkdirSync(this.sessionPath, { recursive: true });
+      if (!nodeFs.existsSync(this.sessionPath)) {
+        nodeFs.mkdirSync(this.sessionPath, { recursive: true });
         return;
       }
-      const files = fs.readdirSync(this.sessionPath);
+      const files = nodeFs.readdirSync(this.sessionPath);
       for (const file of files) {
         const filePath = path.join(this.sessionPath, file);
         if (file.endsWith(".tmp")) {
           try {
-            fs.unlinkSync(filePath);
+            nodeFs.unlinkSync(filePath);
           } catch {
             /* ignore */
           }
@@ -42,18 +42,18 @@ class AtomicFileStore extends session.Store {
         if (file.endsWith(".json")) {
           const sid = file.slice(0, -5);
           try {
-            const stat = fs.statSync(filePath);
-            const content = fs.readFileSync(filePath, "utf8");
+            const stat = nodeFs.statSync(filePath);
+            const content = nodeFs.readFileSync(filePath, "utf8");
             if (content && !content.includes("\u0000")) {
               JSON.parse(content);
               this.sessions.set(sid, content);
               this.lastAccess.set(sid, stat.mtimeMs);
             } else {
-              fs.unlinkSync(filePath);
+              nodeFs.unlinkSync(filePath);
             }
           } catch {
             try {
-              fs.unlinkSync(filePath);
+              nodeFs.unlinkSync(filePath);
             } catch {
               /* ignore */
             }
@@ -113,7 +113,7 @@ class AtomicFileStore extends session.Store {
       this.sessions.set(sid, content);
       this.lastAccess.set(sid, Date.now());
       const targetPath = path.join(this.sessionPath, `${sid}.json`);
-      fs.writeFile(targetPath, content, "utf8", (err) => {
+      nodeFs.writeFile(targetPath, content, "utf8", (err) => {
         if (callback) callback(err);
       });
     } catch (err) {
@@ -125,7 +125,7 @@ class AtomicFileStore extends session.Store {
     this.sessions.delete(sid);
     this.lastAccess.delete(sid);
     const filePath = path.join(this.sessionPath, `${sid}.json`);
-    fs.unlink(filePath, (err) => {
+    nodeFs.unlink(filePath, (err) => {
       if (callback) callback(err && (err as NodeJS.ErrnoException).code !== "ENOENT" ? err : null);
     });
   }
@@ -137,8 +137,8 @@ class AtomicFileStore extends session.Store {
 
 export function configureSession(app: Application) {
   const sessionPath = path.resolve(process.cwd(), "sessions");
-  if (!fs.existsSync(sessionPath)) {
-    fs.mkdirSync(sessionPath, { recursive: true });
+  if (!nodeFs.existsSync(sessionPath)) {
+    nodeFs.mkdirSync(sessionPath, { recursive: true });
   }
 
   const store = new AtomicFileStore({

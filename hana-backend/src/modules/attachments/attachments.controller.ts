@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import formidable from "formidable";
-import fs from "node:fs";
+import nodeFs from "node:fs";
 import path from "node:path";
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
@@ -13,10 +13,10 @@ import { config } from "@/config/env";
  */
 function findFileRecursive(dir: string, targetName: string): string | null {
   try {
-    const files = fs.readdirSync(dir);
+    const files = nodeFs.readdirSync(dir);
     for (const file of files) {
       const fullPath = path.join(dir, file);
-      const stat = fs.statSync(fullPath);
+      const stat = nodeFs.statSync(fullPath);
       if (stat.isDirectory()) {
         const found = findFileRecursive(fullPath, targetName);
         if (found) return found;
@@ -96,7 +96,7 @@ export const downloadAttachment = async (req: Request, res: Response, next: Next
     // 1. Try absolute resolve from sourcePath
     if (sourcePath) {
       const directPath = path.join(sourcePath, targetFile);
-      if (fs.existsSync(directPath)) {
+      if (nodeFs.existsSync(directPath)) {
         filePath = directPath;
       }
     }
@@ -109,7 +109,7 @@ export const downloadAttachment = async (req: Request, res: Response, next: Next
       }
     }
 
-    if (!filePath || !fs.existsSync(filePath)) {
+    if (!filePath || !nodeFs.existsSync(filePath)) {
       logger.warn({ targetFile, sourcePath }, "Requested file not found on disk");
       throw new AppError("Attachment file not found on disk", 404, "NOT_FOUND");
     }

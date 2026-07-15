@@ -76,16 +76,16 @@ export const dynStr = (value: unknown, fallback = ""): string => {
 };
 
 export const dynNum = (value: unknown, fallback = 0): number => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
 };
 
 export const dynNumOrNull = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") {
     return null;
   }
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
 };
 
 /* oxlint-enable typescript/no-explicit-any */

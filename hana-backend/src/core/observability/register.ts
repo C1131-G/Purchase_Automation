@@ -15,9 +15,9 @@ function readPackageMeta(): { name: string; version: string } {
     const here = dirname(fileURLToPath(import.meta.url));
     // dist/register.js → package root; src/core/observability → ../../../
     const candidates = [join(here, "../../package.json"), join(here, "../../../package.json")];
-    for (const p of candidates) {
+    for (const candidatePath of candidates) {
       try {
-        const raw = readFileSync(p, "utf8");
+        const raw = readFileSync(candidatePath, "utf8");
         const pkg = JSON.parse(raw) as { name?: string; version?: string };
         return { name: pkg.name || "hana-backend", version: pkg.version || "0.0.0" };
       } catch {

@@ -159,7 +159,7 @@ export async function seedTenantPartners(
   }
 
   return {
-    bpCustomers: bpValues.filter((bp) => bp.type === "C"),
-    bpVendors: bpValues.filter((bp) => bp.type === "S"),
+    bpCustomers: bpValues.filter((businessPartner) => businessPartner.type === "C"),
+    bpVendors: bpValues.filter((businessPartner) => businessPartner.type === "S"),
   };
 }

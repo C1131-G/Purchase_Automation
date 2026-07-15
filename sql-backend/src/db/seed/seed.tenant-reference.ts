@@ -28,12 +28,12 @@ export async function seedTenantReference(
   }
 
   const tenantUsersToInsert = seededUsers
-    .filter((u) => allowedUsernames.includes(u.username))
-    .map((u) => ({
-      companyName: u.companyName,
-      id: u.id,
-      password: u.password,
-      username: u.username,
+    .filter((user) => allowedUsernames.includes(user.username))
+    .map((user) => ({
+      companyName: user.companyName,
+      id: user.id,
+      password: user.password,
+      username: user.username,
     }));
 
   if (tenantUsersToInsert.length > 0) {

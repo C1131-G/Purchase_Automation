@@ -13,12 +13,12 @@ import { arInvoiceRepository } from "./ar-invoice.repository";
 
 export const create = async (payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (transaction) => {
     const isDraft = payload.isDraft === true;
     const { draftDocEntry } = payload;
 
     if (!isDraft) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode);
     }
 
     let headerId: number;
@@ -32,7 +32,7 @@ export const create = async (payload: DynRow) => {
     const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
     if (draftDocEntry && draftDocEntry > 0) {
-      const existing = await arInvoiceRepository.findById(tx, draftDocEntry);
+      const existing = await arInvoiceRepository.findById(transaction, draftDocEntry);
 
       if (!existing) {
         throw new AppError("Draft document not found", 404, "NOT_FOUND");
@@ -41,7 +41,7 @@ export const create = async (payload: DynRow) => {
       headerId = draftDocEntry;
       docNum = payload.docNum;
 
-      await arInvoiceRepository.updateHeader(tx, draftDocEntry, {
+      await arInvoiceRepository.updateHeader(transaction, draftDocEntry, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -57,12 +57,12 @@ export const create = async (payload: DynRow) => {
         numAtCard: payload.numAtCard ?? null,
       });
 
-      await arInvoiceRepository.deleteLines(tx, draftDocEntry);
+      await arInvoiceRepository.deleteLines(transaction, draftDocEntry);
     } else {
       const docStatus = isDraft ? "D" : "O";
       docNum = payload.docNum;
 
-      const header = await arInvoiceRepository.insertHeader(tx, {
+      const header = await arInvoiceRepository.insertHeader(transaction, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -82,7 +82,7 @@ export const create = async (payload: DynRow) => {
 
     if (payload.lines?.length) {
       await arInvoiceRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -115,7 +115,7 @@ export const create = async (payload: DynRow) => {
         }
       }
       if (soEntries.size > 0) {
-        await recalculateParentStatuses(tx, soEntries, 17);
+        await recalculateParentStatuses(transaction, soEntries, 17);
       }
     }
 

@@ -2,14 +2,14 @@ import type ExcelJS from "exceljs";
 import type { ExportDocumentData } from "./export.types";
 
 export function writeExcelLinesTable(
-  ws: ExcelJS.Worksheet,
+  worksheet: ExcelJS.Worksheet,
   data: ExportDocumentData,
   fontName: string,
   borderLightColor: string,
 ): number {
   // 3. Table Section
   const tableHeaderRowIdx = 11;
-  const tableHeaderRow = ws.getRow(tableHeaderRowIdx);
+  const tableHeaderRow = worksheet.getRow(tableHeaderRowIdx);
   tableHeaderRow.height = 24;
 
   const headers = [
@@ -47,8 +47,8 @@ export function writeExcelLinesTable(
   let isAlternate = false;
 
   for (const line of data.lines) {
-    const r = ws.getRow(currentRow);
-    r.height = 20;
+    const row = worksheet.getRow(currentRow);
+    row.height = 20;
 
     const cellsData = [
       line.lineNum + 1,
@@ -65,7 +65,7 @@ export function writeExcelLinesTable(
     ];
 
     cellsData.forEach((val, colIdx) => {
-      const cell = r.getCell(colIdx + 1);
+      const cell = row.getCell(colIdx + 1);
       cell.value = val;
       cell.font = { name: fontName, size: 9, color: { argb: "FF334155" } };
 
@@ -103,8 +103,8 @@ export function writeExcelLinesTable(
   }
 
   // Draw end-of-table bottom border
-  for (let c = 1; c <= 11; c++) {
-    const cell = ws.getCell(currentRow - 1, c);
+  for (let column = 1; column <= 11; column++) {
+    const cell = worksheet.getCell(currentRow - 1, column);
     cell.border = {
       ...cell.border,
       bottom: { style: "medium", color: { argb: "FFCBD5E1" } },

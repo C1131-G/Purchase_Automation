@@ -66,9 +66,9 @@ const toExceptionItem = (doc: RawDashboardDocument): DashboardExceptionItem => {
 };
 
 export const sortByOpenValue = (docs: RawDashboardDocument[]): RawDashboardDocument[] =>
-  [...docs].toSorted((l, r) => getOpenValue(r) - getOpenValue(l));
+  [...docs].toSorted((left, right) => getOpenValue(right) - getOpenValue(left));
 export const sortByDateDescending = (docs: RawDashboardDocument[]): RawDashboardDocument[] =>
-  [...docs].toSorted((l, r) => r.docDate.localeCompare(l.docDate));
+  [...docs].toSorted((left, right) => right.docDate.localeCompare(left.docDate));
 export const buildExceptionGroup = (
   key: string,
   title: string,
@@ -81,11 +81,11 @@ export const buildExceptionGroup = (
   title,
 });
 export const buildQuickLinks = (modules: DocumentModule[]): DashboardQuickLink[] =>
-  modules.map((m) => ({
-    description: `Open ${MODULE_LABELS[m]} details`,
-    href: MODULE_HREFS[m],
-    label: MODULE_LABELS[m],
-    module: m,
+  modules.map((moduleKey) => ({
+    description: `Open ${MODULE_LABELS[moduleKey]} details`,
+    href: MODULE_HREFS[moduleKey],
+    label: MODULE_LABELS[moduleKey],
+    module: moduleKey,
   }));
 
 // Legacy compat
@@ -95,7 +95,15 @@ export const getDashboard = async (
   getCachedData(
     `dash:full:${period}`,
     async () => {
-      const [ps, ss, inv, pt, st, tv, tc] = await Promise.all([
+      const [
+        purchaseSummary,
+        salesSummary,
+        inventorySummary,
+        purchaseTrend,
+        salesTrend,
+        topVendors,
+        topCustomers,
+      ] = await Promise.all([
         getPurchaseSummary(period),
         getSalesSummary(period),
         getInventorySummary(),
@@ -105,12 +113,12 @@ export const getDashboard = async (
         getTopCustomers(),
       ]);
       return {
-        inventory: inv,
-        purchaseTrend: pt,
-        salesTrend: st,
-        summary: { ...ps, ...ss },
-        topCustomers: tc,
-        topVendors: tv,
+        inventory: inventorySummary,
+        purchaseTrend,
+        salesTrend,
+        summary: { ...purchaseSummary, ...salesSummary },
+        topCustomers,
+        topVendors,
       } as DashboardData;
     },
     DASHBOARD_CACHE_TTL,

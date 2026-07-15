@@ -29,7 +29,7 @@ export const getInventoryRelationshipMap = async (
       if (!validEntries || validEntries.length === 0) return [];
       const query = `SELECT "DocEntry", "DocNum" FROM "${table}" WHERE "DocEntry" IN (${validEntries.join(",")})`;
       const rows = await manager.query(query);
-      return rows.map((r: any) => ({ docEntry: r.DocEntry, docNum: r.DocNum }));
+      return rows.map((result: any) => ({ docEntry: result.DocEntry, docNum: result.DocNum }));
     };
 
     if (docType === "goods-receipt") {
@@ -39,18 +39,22 @@ export const getInventoryRelationshipMap = async (
     } else if (docType === "transfer-request") {
       result.transferRequest = await getDocNums("OWTQ", [docEntry]);
 
-      const q = `SELECT DISTINCT "DocEntry" FROM "WTR1" WHERE "BaseType" = 1250000001 AND "BaseEntry" = ${docEntry}`;
-      const rows = await manager.query(q);
-      const transferEntries = rows.map((r: any) => r.DocEntry as number).filter(Boolean);
+      const transferSql = `SELECT DISTINCT "DocEntry" FROM "WTR1" WHERE "BaseType" = 1250000001 AND "BaseEntry" = ${docEntry}`;
+      const transferRows = await manager.query(transferSql);
+      const transferEntries = transferRows
+        .map((row: { DocEntry: number }) => row.DocEntry as number)
+        .filter(Boolean);
       if (transferEntries.length > 0) {
         result.transfer = await getDocNums("OWTR", transferEntries);
       }
     } else if (docType === "transfer") {
       result.transfer = await getDocNums("OWTR", [docEntry]);
 
-      const q = `SELECT DISTINCT "BaseEntry" FROM "WTR1" WHERE "BaseType" = 1250000001 AND "DocEntry" = ${docEntry}`;
-      const rows = await manager.query(q);
-      const requestEntries = rows.map((r: any) => r.BaseEntry as number).filter(Boolean);
+      const requestSql = `SELECT DISTINCT "BaseEntry" FROM "WTR1" WHERE "BaseType" = 1250000001 AND "DocEntry" = ${docEntry}`;
+      const requestRows = await manager.query(requestSql);
+      const requestEntries = requestRows
+        .map((row: { BaseEntry: number }) => row.BaseEntry as number)
+        .filter(Boolean);
       if (requestEntries.length > 0) {
         result.transferRequest = await getDocNums("OWTQ", requestEntries);
       }

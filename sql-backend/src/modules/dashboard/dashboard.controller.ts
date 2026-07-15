@@ -5,19 +5,19 @@ import type { DashboardPeriod } from "@/services/dashboard/dashboard.types";
 import * as analytics from "./dashboard-analytics.controller";
 import { dashboardService } from "./dashboard.service";
 
-const periodFromQuery = (p: unknown): DashboardPeriod => {
-  if (p === "week" || p === "month" || p === "year" || p === "all") {
-    return p;
+const periodFromQuery = (period: unknown): DashboardPeriod => {
+  if (period === "week" || period === "month" || period === "year" || period === "all") {
+    return period;
   }
-  if (p === "weekly") {
+  if (period === "weekly") {
     return "week";
   }
-  if (p === "yearly") {
+  if (period === "yearly") {
     return "year";
   }
   return "month";
 };
-const rangeFromQuery = (r: unknown): string => (typeof r === "string" ? r : "yearly");
+const rangeFromQuery = (range: unknown): string => (typeof range === "string" ? range : "yearly");
 
 export const getPurchaseSummary: RequestHandler = async (req, res, next) => {
   try {
@@ -48,8 +48,8 @@ export const getDashboardStats: RequestHandler = async (req, res, next) => {
 
 export const getSummary: RequestHandler = async (req, res, next) => {
   try {
-    const p = periodFromQuery(req.query.period);
-    const result = await dashboardService.getDashboard(p);
+    const period = periodFromQuery(req.query.period);
+    const result = await dashboardService.getDashboard(period);
     res.status(200).json({ data: result, success: true });
   } catch (error) {
     return next(error);
@@ -58,8 +58,8 @@ export const getSummary: RequestHandler = async (req, res, next) => {
 
 export const getPurchaseStats: RequestHandler = async (req, res, next) => {
   try {
-    const p = periodFromQuery(req.query.period);
-    const result = await dashboardService.getPurchaseDashboard(p);
+    const period = periodFromQuery(req.query.period);
+    const result = await dashboardService.getPurchaseDashboard(period);
     res.status(200).json({ data: result, success: true });
   } catch (error) {
     return next(error);
@@ -68,8 +68,8 @@ export const getPurchaseStats: RequestHandler = async (req, res, next) => {
 
 export const getSalesStats: RequestHandler = async (req, res, next) => {
   try {
-    const p = periodFromQuery(req.query.period);
-    const result = await dashboardService.getSalesDashboard(p);
+    const period = periodFromQuery(req.query.period);
+    const result = await dashboardService.getSalesDashboard(period);
     res.status(200).json({ data: result, success: true });
   } catch (error) {
     return next(error);

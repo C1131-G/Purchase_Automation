@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import pg from "pg";
+import postgres from "pg";
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
 import { ensureDatabaseExists } from "@/db/client";
@@ -9,7 +9,7 @@ import { ensureDatabaseExists } from "@/db/client";
 async function runMigrations() {
   logger.info("Starting registry database migrations...");
 
-  const registryPool = new pg.Pool({
+  const registryPool = new postgres.Pool({
     connectionString: config.postgres.databaseUrl,
   });
 
@@ -41,7 +41,7 @@ async function runMigrations() {
     const url = new URL(config.postgres.databaseUrl);
     url.pathname = `/${tenantDbName}`;
 
-    const tenantPool = new pg.Pool({
+    const tenantPool = new postgres.Pool({
       connectionString: url.toString(),
     });
 

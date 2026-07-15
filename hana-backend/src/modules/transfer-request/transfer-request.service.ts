@@ -135,16 +135,16 @@ export const getTransferRequestByDocNum = async (dbName: string, docNum: number 
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
     Filler: header.filler,
     ToWhsCode: header.toWhsCode,
-    DocumentLines: lines.map((l) => ({
-      DocEntry: l.docEntry,
-      LineNum: l.lineNum,
-      ItemCode: l.itemCode,
-      Dscription: l.dscription,
-      Quantity: Number(l.quantity || 0),
-      FromWhsCod: l.fromWhsCod,
-      WhsCode: l.whsCode,
-      OpenQty: Number(l.openQty || 0),
-      LineStatus: l.lineStatus === "O" ? "Open" : "Closed",
+    DocumentLines: lines.map((line) => ({
+      DocEntry: line.docEntry,
+      LineNum: line.lineNum,
+      ItemCode: line.itemCode,
+      Dscription: line.dscription,
+      Quantity: Number(line.quantity || 0),
+      FromWhsCod: line.fromWhsCod,
+      WhsCode: line.whsCode,
+      OpenQty: Number(line.openQty || 0),
+      LineStatus: line.lineStatus === "O" ? "Open" : "Closed",
     })),
   };
 };

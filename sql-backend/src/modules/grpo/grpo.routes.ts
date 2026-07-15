@@ -26,8 +26,8 @@ router.post("/:id/cancel", grpoController.cancel);
 router.get(
   "/by-doc-num/:docNum/export/:format",
   createExportHandler(async (docNum) => {
-    const r = await grpoService.getByDocNum(docNum);
-    return { attachments: [], doc: r, lines: r.lines ?? [] };
+    const result = await grpoService.getByDocNum(docNum);
+    return { attachments: [], doc: result, lines: result.lines ?? [] };
   }, "GRPO"),
 );
 

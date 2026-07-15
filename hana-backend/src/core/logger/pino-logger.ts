@@ -41,8 +41,8 @@ const formatStack = (stack: unknown) => {
 
   const lines = stack.split("\n");
   const fileLine =
-    lines.find((l) => l.trim().startsWith("at ") && !l.includes("node_modules")) ||
-    lines.find((l) => l.trim().startsWith("at "));
+    lines.find((line) => line.trim().startsWith("at ") && !line.includes("node_modules")) ||
+    lines.find((line) => line.trim().startsWith("at "));
 
   if (!fileLine) {
     return stack;
@@ -110,8 +110,8 @@ function createRequestAwareLogger(root: Logger): Logger {
 export const logger = createRequestAwareLogger(rootLogger);
 
 /** Run the rest of the request pipeline with `child` as the active logger. */
-export function runWithRequestLogger<T>(child: Logger, fn: () => T): T {
-  return loggerStorage.run(child, fn);
+export function runWithRequestLogger<T>(child: Logger, callback: () => T): T {
+  return loggerStorage.run(child, callback);
 }
 
 /**

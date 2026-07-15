@@ -68,7 +68,7 @@ export const fetchModuleDocuments = async (
   }
 
   const repo = await getTenantRepository(dbName, schema);
-  const qb = repo.createQueryBuilder("doc");
+  const queryBuilder = repo.createQueryBuilder("doc");
 
   // Optimize: query only mapped fields needed for dashboard metrics to speed up query execution
   const possibleColumns = [
@@ -85,18 +85,18 @@ export const fetchModuleDocuments = async (
   const selectColumns = possibleColumns
     .filter((prop) => repo.metadata.findColumnWithPropertyName(prop))
     .map((prop) => `doc.${prop}`);
-  qb.select(selectColumns);
+  queryBuilder.select(selectColumns);
 
   if (range.start) {
-    qb.andWhere("doc.docDate >= :start", { start: range.start });
+    queryBuilder.andWhere("doc.docDate >= :start", { start: range.start });
   }
   if (range.end) {
-    qb.andWhere("doc.docDate <= :end", { end: range.end });
+    queryBuilder.andWhere("doc.docDate <= :end", { end: range.end });
   }
 
-  qb.orderBy("doc.docDate", "ASC");
+  queryBuilder.orderBy("doc.docDate", "ASC");
 
-  const rows = await qb.getMany();
+  const rows = await queryBuilder.getMany();
 
   return rows.map((doc: any) => {
     // Determine paidToDate

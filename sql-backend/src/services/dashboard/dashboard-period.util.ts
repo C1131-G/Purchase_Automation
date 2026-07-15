@@ -14,8 +14,8 @@ const monthLabelFormatter = new Intl.DateTimeFormat("en-US", {
 export const toDateOnly = (value: Date): string => value.toISOString().slice(0, 10);
 
 export const fromDateOnly = (value: string): Date => {
-  const [y, m, d] = value.split("-");
-  return new Date(Date.UTC(Number(y ?? "1970"), Number(m ?? "1") - 1, Number(d ?? "1")));
+  const [y, item, data] = value.split("-");
+  return new Date(Date.UTC(Number(y ?? "1970"), Number(item ?? "1") - 1, Number(data ?? "1")));
 };
 
 const shiftDays = (value: string, days: number): string => {
@@ -36,8 +36,8 @@ const startOfIsoWeek = (value: Date): Date => {
 };
 
 const daysBetweenInclusive = (start: string, end: string): number => {
-  const ms = fromDateOnly(end).getTime() - fromDateOnly(start).getTime();
-  return Math.floor(ms / 86_400_000) + 1;
+  const milliseconds = fromDateOnly(end).getTime() - fromDateOnly(start).getTime();
+  return Math.floor(milliseconds / 86_400_000) + 1;
 };
 
 export const getPeriodWindow = (period: DashboardPeriod): PeriodWindow => {
@@ -77,8 +77,8 @@ export const createBucketLabel = (bucket: string, granularity: DashboardGranular
   if (granularity === "day") {
     return dayLabelFormatter.format(fromDateOnly(bucket));
   }
-  const [y, m] = bucket.split("-");
+  const [y, item] = bucket.split("-");
   return monthLabelFormatter.format(
-    new Date(Date.UTC(Number(y ?? "1970"), Number(m ?? "1") - 1, 1)),
+    new Date(Date.UTC(Number(y ?? "1970"), Number(item ?? "1") - 1, 1)),
   );
 };

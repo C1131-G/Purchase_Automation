@@ -34,7 +34,7 @@ export async function seedPurchaseBillingDocs(
   const grpoHeaders: any[] = [];
   const grpoLinesSpec: any[] = [];
   for (let i = 1; i <= 100; i += 1) {
-    const bp = bpVendors[i % bpVendors.length];
+    const businessPartner = bpVendors[i % bpVendors.length];
     const docDate = getDocDate(i, 100);
     const selectedItems = getRandomItems(items, 2);
 
@@ -48,9 +48,9 @@ export async function seedPurchaseBillingDocs(
     });
 
     grpoHeaders.push({
-      address: bp.billToAddress,
-      cardCode: bp.code,
-      cardName: bp.name,
+      address: businessPartner.billToAddress,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       comments: `Seeded GRPO ${i}`,
       docCurrency: seedCurrency,
       docDate: formatDate(docDate),
@@ -64,14 +64,14 @@ export async function seedPurchaseBillingDocs(
   const seededGRPOs = await db.insert(grpo).values(grpoHeaders).returning();
 
   const grpoLinesToInsert: any[] = [];
-  seededGRPOs.forEach((gr, index) => {
+  seededGRPOs.forEach((goodsReceipt, index) => {
     const specs = grpoLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       grpoLinesToInsert.push({
         baseEntry: poEntries[index % poEntries.length],
         baseLine: lineIndex,
         baseType: 22,
-        docEntry: gr.id,
+        docEntry: goodsReceipt.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,
@@ -92,7 +92,7 @@ export async function seedPurchaseBillingDocs(
   const apInvoiceHeaders: any[] = [];
   const apInvoiceLinesSpec: any[] = [];
   for (let i = 1; i <= 120; i += 1) {
-    const bp = bpVendors[i % bpVendors.length];
+    const businessPartner = bpVendors[i % bpVendors.length];
     const docDate = getDocDate(i, 120);
     const selectedItems = getRandomItems(items, 2);
 
@@ -106,9 +106,9 @@ export async function seedPurchaseBillingDocs(
     });
 
     apInvoiceHeaders.push({
-      address: bp.billToAddress,
-      cardCode: bp.code,
-      cardName: bp.name,
+      address: businessPartner.billToAddress,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       docCurrency: seedCurrency,
       docDate: formatDate(docDate),
       docDueDate: formatDate(new Date(docDate.getTime() + 30 * 24 * 60 * 60 * 1000)),
@@ -120,17 +120,17 @@ export async function seedPurchaseBillingDocs(
     apInvoiceLinesSpec.push(lineItems);
   }
   const seededAPInvoices = await db.insert(apInvoices).values(apInvoiceHeaders).returning();
-  const apInvoiceEntries = seededAPInvoices.map((ap) => ({
-    id: ap.id,
-    total: Number.parseFloat(ap.docTotal || "0"),
+  const apInvoiceEntries = seededAPInvoices.map((apInvoice) => ({
+    id: apInvoice.id,
+    total: Number.parseFloat(apInvoice.docTotal || "0"),
   }));
 
   const apLinesToInsert: any[] = [];
-  seededAPInvoices.forEach((ap, index) => {
+  seededAPInvoices.forEach((apInvoice, index) => {
     const specs = apInvoiceLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       apLinesToInsert.push({
-        docEntry: ap.id,
+        docEntry: apInvoice.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,
@@ -151,7 +151,7 @@ export async function seedPurchaseBillingDocs(
   const apCMHeaders: any[] = [];
   const apCMLinesSpec: any[] = [];
   for (let i = 1; i <= 50; i += 1) {
-    const bp = bpVendors[i % bpVendors.length];
+    const businessPartner = bpVendors[i % bpVendors.length];
     const docDate = getDocDate(i, 50);
     const selectedItems = getRandomItems(items, 1);
 
@@ -165,9 +165,9 @@ export async function seedPurchaseBillingDocs(
     });
 
     apCMHeaders.push({
-      address: bp.billToAddress,
-      cardCode: bp.code,
-      cardName: bp.name,
+      address: businessPartner.billToAddress,
+      cardCode: businessPartner.code,
+      cardName: businessPartner.name,
       comments: `Seeded credit memo ${i}`,
       docCurrency: seedCurrency,
       docDate: formatDate(docDate),
@@ -181,11 +181,11 @@ export async function seedPurchaseBillingDocs(
   const seededAPCMs = await db.insert(apCreditMemos).values(apCMHeaders).returning();
 
   const apCMLinesToInsert: any[] = [];
-  seededAPCMs.forEach((cm, index) => {
+  seededAPCMs.forEach((creditMemo, index) => {
     const specs = apCMLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       apCMLinesToInsert.push({
-        docEntry: cm.id,
+        docEntry: creditMemo.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,

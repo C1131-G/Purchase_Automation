@@ -101,12 +101,12 @@ export const generateWord = async (data: ExportDocumentData): Promise<Buffer> =>
   const headerRow = new TableRow({
     tableHeader: true,
     children: ["#", "Item Code", "Description", "Qty", "UOM", "Price", "Total", "Whs"].map(
-      (h) =>
+      (item) =>
         new TableCell({
           shading: { fill: ACCENT, type: "clear" },
           children: [
             new Paragraph({
-              children: [new TextRun({ bold: true, color: "FFFFFF", size: 18, text: h })],
+              children: [new TextRun({ bold: true, color: "FFFFFF", size: 18, text: item })],
             }),
           ],
         }),
@@ -127,10 +127,10 @@ export const generateWord = async (data: ExportDocumentData): Promise<Buffer> =>
           String(line.total),
           line.warehouse,
         ].map(
-          (v) =>
+          (value) =>
             new TableCell({
               shading: i % 2 === 1 ? { fill: "F2F7FB", type: "clear" } : undefined,
-              children: [new Paragraph({ children: [new TextRun({ size: 18, text: v })] })],
+              children: [new Paragraph({ children: [new TextRun({ size: 18, text: value })] })],
             }),
         ),
       }),
@@ -172,13 +172,13 @@ export const generateWord = async (data: ExportDocumentData): Promise<Buffer> =>
       new Paragraph({ spacing: { before: 200 }, children: [] }),
       new Paragraph({ children: [new TextRun({ bold: true, size: 18, text: "Attachments:" })] }),
       ...data.attachments.map(
-        (a) =>
+        (attachment) =>
           new Paragraph({
             indent: { left: 400 },
             children: [
               new TextRun({
                 size: 18,
-                text: `• ${a.fileName}.${a.fileExtension}${a.freeText ? ` — ${a.freeText}` : ""}`,
+                text: `• ${attachment.fileName}.${attachment.fileExtension}${attachment.freeText ? ` — ${attachment.freeText}` : ""}`,
               }),
             ],
           }),

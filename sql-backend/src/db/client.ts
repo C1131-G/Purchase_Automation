@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import postgres from "pg";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
@@ -13,9 +13,9 @@ export interface TenantContext {
 export const dbContext = new AsyncLocalStorage<TenantContext>();
 
 let registryDb: ReturnType<typeof drizzle> | null = null;
-let registryPool: pg.Pool | null = null;
+let registryPool: postgres.Pool | null = null;
 
-const pools = new Map<string, pg.Pool>();
+const pools = new Map<string, postgres.Pool>();
 const dbInstances = new Map<string, ReturnType<typeof drizzle>>();
 
 function getConnectionStringForDb(dbName: string): string {
@@ -24,7 +24,7 @@ function getConnectionStringForDb(dbName: string): string {
   return url.toString();
 }
 
-async function ensureColumnsExist(pool: pg.Pool, dbName: string) {
+async function ensureColumnsExist(pool: postgres.Pool, dbName: string) {
   const client = await pool.connect();
   try {
     await client.query(`
@@ -58,7 +58,7 @@ async function ensureColumnsExist(pool: pg.Pool, dbName: string) {
 }
 
 export async function initializeDatabase() {
-  registryPool = new pg.Pool({
+  registryPool = new postgres.Pool({
     connectionString: config.postgres.databaseUrl,
     max: 20,
     idleTimeoutMillis: 30000,
@@ -100,7 +100,7 @@ export function getDbForTenant(dbName: string) {
   if (!tenantPool) {
     const connectionString = getConnectionStringForDb(dbName);
     logger.info({ dbName }, "Initializing connection pool for tenant database");
-    tenantPool = new pg.Pool({
+    tenantPool = new postgres.Pool({
       connectionString,
       max: 10,
       idleTimeoutMillis: 30000,
@@ -139,7 +139,7 @@ export function getRegistryDb() {
 export async function ensureDatabaseExists(dbName: string, connectionString: string) {
   const url = new URL(connectionString);
   url.pathname = "/postgres";
-  const adminPool = new pg.Pool({
+  const adminPool = new postgres.Pool({
     connectionString: url.toString(),
   });
 

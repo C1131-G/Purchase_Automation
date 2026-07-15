@@ -134,17 +134,17 @@ export const getTransferByDocNum = async (dbName: string, docNum: number | strin
     DocTotal: Number(header.docTotal || 0),
     DocCurr: header.docCurr || (await getDisplayCurrency(dbName)),
     DocStatus: header.docStatus === "O" ? "Open" : "Closed",
-    DocumentLines: lines.map((l) => ({
-      DocEntry: l.docEntry,
-      LineNum: l.lineNum,
-      ItemCode: l.itemCode,
-      Dscription: l.dscription,
-      Quantity: Number(l.quantity || 0),
-      FromWhsCod: l.fromWhsCod,
-      WhsCode: l.whsCode,
-      BaseType: l.baseType,
-      BaseEntry: l.baseEntry,
-      BaseLine: l.baseLine,
+    DocumentLines: lines.map((line) => ({
+      DocEntry: line.docEntry,
+      LineNum: line.lineNum,
+      ItemCode: line.itemCode,
+      Dscription: line.dscription,
+      Quantity: Number(line.quantity || 0),
+      FromWhsCod: line.fromWhsCod,
+      WhsCode: line.whsCode,
+      BaseType: line.baseType,
+      BaseEntry: line.baseEntry,
+      BaseLine: line.baseLine,
     })),
   };
 };

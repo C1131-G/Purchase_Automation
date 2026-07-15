@@ -58,9 +58,9 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
 
       if (filters.DocTotalOperator && filters.DocTotal !== undefined) {
         const opMap = { eq: "=", lt: "<", gt: ">" };
-        const op = opMap[filters.DocTotalOperator as keyof typeof opMap];
-        if (op) {
-          whereClauses.push(`"DocTotal" ${op} ?`);
+        const totalOperator = opMap[filters.DocTotalOperator as keyof typeof opMap];
+        if (totalOperator) {
+          whereClauses.push(`"DocTotal" ${totalOperator} ?`);
           params.push(filters.DocTotal);
         }
       }

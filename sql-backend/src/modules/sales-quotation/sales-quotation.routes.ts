@@ -30,8 +30,8 @@ router.post("/:id/cancel", salesQuotationController.cancel);
 router.get(
   "/by-doc-num/:docNum/export/:format",
   createExportHandler(async (docNum) => {
-    const r = await salesQuotationService.getByDocNum(docNum);
-    return { attachments: [], doc: r, lines: r.lines ?? [] };
+    const result = await salesQuotationService.getByDocNum(docNum);
+    return { attachments: [], doc: result, lines: result.lines ?? [] };
   }, "Sales Quotation"),
 );
 

@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import pg from "pg";
+import postgres from "pg";
 
 import { config } from "@/config/env";
 import { logger } from "@/core/logger/pino-logger";
@@ -73,7 +73,7 @@ export async function runSeed() {
     const connectionUrl = new URL(config.postgres.databaseUrl);
     connectionUrl.pathname = `/${tenant.dbName}`;
 
-    const tenantPool = new pg.Pool({
+    const tenantPool = new postgres.Pool({
       connectionString: connectionUrl.toString(),
     });
     const db = drizzle(tenantPool);

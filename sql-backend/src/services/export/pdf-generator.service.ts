@@ -65,8 +65,8 @@ export const generatePdf = async (data: ExportDocumentData): Promise<Buffer> => 
     let x = 50;
     doc.rect(50, tableTop, 495, 20).fill(ACCENT);
     doc.fillColor("#FFFFFF").fontSize(9).font("Helvetica-Bold");
-    headers.forEach((h, i) => {
-      doc.text(h, x + 2, tableTop + 4, {
+    headers.forEach((header, i) => {
+      doc.text(header, x + 2, tableTop + 4, {
         width: colWidths[i] - 4,
         align: i >= 3 ? "right" : "left",
       });
@@ -84,8 +84,8 @@ export const generatePdf = async (data: ExportDocumentData): Promise<Buffer> => 
         doc.rect(50, y, 495, 20).fill(ACCENT);
         doc.fillColor("#FFFFFF").fontSize(9).font("Helvetica-Bold");
         x = 50;
-        headers.forEach((h, j) => {
-          doc.text(h, x + 2, y + 4, { width: colWidths[j] - 4, align: j >= 3 ? "right" : "left" });
+        headers.forEach((header, j) => {
+          doc.text(header, x + 2, y + 4, { width: colWidths[j] - 4, align: j >= 3 ? "right" : "left" });
           x += colWidths[j];
         });
         y += 20;
@@ -104,8 +104,8 @@ export const generatePdf = async (data: ExportDocumentData): Promise<Buffer> => 
         line.warehouse,
       ];
       x = 50;
-      vals.forEach((v, j) => {
-        doc.text(String(v), x + 2, y + 3, {
+      vals.forEach((value, j) => {
+        doc.text(String(value), x + 2, y + 3, {
           width: colWidths[j] - 4,
           align: j >= 3 ? "right" : "left",
         });
@@ -138,13 +138,13 @@ export const generatePdf = async (data: ExportDocumentData): Promise<Buffer> => 
       y += 6;
       doc.fontSize(10).font("Helvetica-Bold").fillColor(DARK).text("Attachments:", 50, y);
       y += 14;
-      data.attachments.forEach((a) => {
+      data.attachments.forEach((attachment) => {
         doc
           .fontSize(9)
           .font("Helvetica")
           .fillColor("#333333")
           .text(
-            `  • ${a.fileName}.${a.fileExtension}${a.freeText ? ` — ${a.freeText}` : ""}`,
+            `  • ${attachment.fileName}.${attachment.fileExtension}${attachment.freeText ? ` — ${attachment.freeText}` : ""}`,
             50,
             y,
           );

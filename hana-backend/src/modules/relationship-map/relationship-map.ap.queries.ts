@@ -44,20 +44,20 @@ export const getAPRelationshipMap = async (
       if (!validEntries || validEntries.length === 0) return [];
       const query = `SELECT "DocEntry", "DocNum" FROM "${table}" WHERE "DocEntry" IN (${validEntries.join(",")})`;
       const rows = await manager.query(query);
-      return rows.map((r: any) => ({ docEntry: r.DocEntry, docNum: r.DocNum }));
+      return rows.map((result: any) => ({ docEntry: result.DocEntry, docNum: result.DocNum }));
     };
 
     const extractIds = (rows: any[], field: string): number[] => {
       return [
-        ...new Set(rows.map((r) => r[field]).filter((id) => id && !Number.isNaN(id) && id > 0)),
+        ...new Set(rows.map((row) => row[field]).filter((id) => id && !Number.isNaN(id) && id > 0)),
       ];
     };
 
     if (docType === "purchase-quotation") {
       currentPQs = [docEntry];
       // Down to PO
-      const q = `SELECT DISTINCT "DocEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "BaseEntry" IN (${docEntry})`;
-      const rows = await manager.query(q);
+      const sqlQuery = `SELECT DISTINCT "DocEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "BaseEntry" IN (${docEntry})`;
+      const rows = await manager.query(sqlQuery);
       currentPOs = extractIds(rows, "DocEntry");
 
       if (currentPOs.length > 0) {
@@ -111,11 +111,11 @@ export const getAPRelationshipMap = async (
       const bases = await manager.query(qUp);
 
       const poBases = extractIds(
-        bases.filter((r: any) => r.BaseType === 22),
+        bases.filter((result: any) => result.BaseType === 22),
         "BaseEntry",
       );
       const grpoBases = extractIds(
-        bases.filter((r: any) => r.BaseType === 20),
+        bases.filter((result: any) => result.BaseType === 20),
         "BaseEntry",
       );
 
@@ -145,11 +145,11 @@ export const getAPRelationshipMap = async (
         const bases = await manager.query(qUpBases);
 
         currentPOs = extractIds(
-          bases.filter((r: any) => r.BaseType === 22),
+          bases.filter((result: any) => result.BaseType === 22),
           "BaseEntry",
         );
         currentGRPOs = extractIds(
-          bases.filter((r: any) => r.BaseType === 20),
+          bases.filter((result: any) => result.BaseType === 20),
           "BaseEntry",
         );
 
@@ -177,11 +177,11 @@ export const getAPRelationshipMap = async (
         const bases = await manager.query(qUpBases);
 
         currentPOs = extractIds(
-          bases.filter((r: any) => r.BaseType === 22),
+          bases.filter((result: any) => result.BaseType === 22),
           "BaseEntry",
         );
         currentGRPOs = extractIds(
-          bases.filter((r: any) => r.BaseType === 20),
+          bases.filter((result: any) => result.BaseType === 20),
           "BaseEntry",
         );
 
@@ -218,21 +218,22 @@ export const getAPRelationshipMap = async (
       currentOPs = extractIds(ops, "DocNum");
     }
 
-    const [pq, po, grpo, inv, cm, op] = await Promise.all([
-      getDocNums("OPQT", currentPQs),
-      getDocNums("OPOR", currentPOs),
-      getDocNums("OPDN", currentGRPOs),
-      getDocNums("OPCH", currentInvs),
-      getDocNums("ORPC", currentCMs),
-      getDocNums("OVPM", currentOPs),
-    ]);
+    const [purchaseQuotation, purchaseOrder, grpo, apInvoice, creditMemo, outgoingPayment] =
+      await Promise.all([
+        getDocNums("OPQT", currentPQs),
+        getDocNums("OPOR", currentPOs),
+        getDocNums("OPDN", currentGRPOs),
+        getDocNums("OPCH", currentInvs),
+        getDocNums("ORPC", currentCMs),
+        getDocNums("OVPM", currentOPs),
+      ]);
 
-    result.purchaseQuotation = pq;
-    result.purchaseOrder = po;
+    result.purchaseQuotation = purchaseQuotation;
+    result.purchaseOrder = purchaseOrder;
     result.grpo = grpo;
-    result.apInvoice = inv;
-    result.apCreditMemo = cm;
-    result.outgoingPayment = op;
+    result.apInvoice = apInvoice;
+    result.apCreditMemo = creditMemo;
+    result.outgoingPayment = outgoingPayment;
 
     return result;
   } catch (error) {

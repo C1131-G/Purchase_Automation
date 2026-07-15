@@ -91,19 +91,19 @@ async function closePOIfFullyConsumed(
 ): Promise<void> {
   try {
     // Fetch the PO from Service Layer to check open quantities
-    const po = (await serviceLayerClient.request(
+    const purchaseOrder = (await serviceLayerClient.request(
       sessionId,
       "GET",
       `/PurchaseOrders(${poDocEntry})`,
     )) as SAPDocumentResponse;
 
-    if (!po?.DocumentLines?.length) {
+    if (!purchaseOrder?.DocumentLines?.length) {
       return;
     }
 
     // Check if all lines have OpenQty <= 0
     let allLinesClosed = true;
-    for (const line of po.DocumentLines) {
+    for (const line of purchaseOrder.DocumentLines) {
       const lineData = line as unknown as Record<string, unknown>;
       const openQty = Number(
         lineData.OpenQty ??
@@ -125,18 +125,21 @@ async function closePOIfFullyConsumed(
     }
 
     // PO docStatus check
-    if (po.DocumentStatus === "bost_Close" || po.DocumentStatus === "C") {
+    if (purchaseOrder.DocumentStatus === "bost_Close" || purchaseOrder.DocumentStatus === "C") {
       logger.info({
         msg: "PO already closed, skipping reconciliation",
         poDocEntry,
-        poDocNum: po.DocNum,
+        poDocNum: purchaseOrder.DocNum,
       });
       return;
     }
 
     // Also verify via PDN1 that total delivered >= total ordered
     const pdn1Repo = await getTenantRepository(dbName, GRPOHeaderSchema);
-    const totalOrdered = po.DocumentLines.reduce((sum, l) => sum + Number(l.Quantity ?? 0), 0);
+    const totalOrdered = purchaseOrder.DocumentLines.reduce(
+      (sum, line) => sum + Number(line.Quantity ?? 0),
+      0,
+    );
     const deliveredLines = await pdn1Repo
       .createQueryBuilder("pdn1")
       .select("SUM(pdn1.quantity)", "totalDelivered")
@@ -151,7 +154,7 @@ async function closePOIfFullyConsumed(
       logger.info({
         msg: "PO not yet fully delivered, skipping close",
         poDocEntry,
-        poDocNum: po.DocNum,
+        poDocNum: purchaseOrder.DocNum,
         totalDelivered,
         totalOrdered,
       });
@@ -164,7 +167,7 @@ async function closePOIfFullyConsumed(
     logger.info({
       msg: "PO closed after copy-to quantity reconciliation",
       poDocEntry,
-      poDocNum: po.DocNum,
+      poDocNum: purchaseOrder.DocNum,
       totalDelivered,
       totalOrdered,
     });

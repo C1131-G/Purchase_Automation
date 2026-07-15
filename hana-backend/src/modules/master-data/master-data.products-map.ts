@@ -87,7 +87,7 @@ export function mapProductResults(args: {
     const uomEntry = toNullableInt(ugpLine.UomEntry);
     if (!uomCode) continue;
     const list = ugpUomMap.get(ugpEntry) ?? [];
-    if (!list.some((u) => u.code === uomCode)) {
+    if (!list.some((uom) => uom.code === uomCode)) {
       list.push({ code: uomCode, name: uomName, entry: uomEntry });
     }
     ugpUomMap.set(ugpEntry, list);
@@ -146,7 +146,7 @@ export function mapProductResults(args: {
       TaxRate: resolvedTaxRate,
       UoMCode: resolvedSalesUomCode,
       UoMEntry: resolvedSalesUomEntry,
-      UoMName: uomList.find((u) => u.code === resolvedSalesUomCode)?.name ?? resolvedSalesUomCode,
+      UoMName: uomList.find((uom) => uom.code === resolvedSalesUomCode)?.name ?? resolvedSalesUomCode,
       Uom: salesUomText,
       UomList: uomList,
       Warehouse: normalizedWarehouseCode || item.DfltWH || "",

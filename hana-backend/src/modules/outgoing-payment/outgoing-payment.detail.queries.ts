@@ -39,7 +39,9 @@ export const getPayment = async (sessionId: string, id: string) => {
         unknown
       >[]) || [];
     const mappedCreditCards = rawCreditCards.map((card: Record<string, unknown>) => {
-      const ccInfo = creditCardsInfo.find((c) => c.CreditCardCode === card.CreditCard);
+      const ccInfo = creditCardsInfo.find(
+        (creditCardInfo) => creditCardInfo.CreditCardCode === card.CreditCard,
+      );
       return {
         ...card,
         CardName: ccInfo ? ccInfo.CreditCardName : `Card ${card.CreditCard}`,
@@ -71,11 +73,11 @@ export const getPayment = async (sessionId: string, id: string) => {
           >[]) || [];
 
         const invoiceEntries = rawInvoices
-          .filter((i) => i.InvoiceType === "it_PurchaseInvoice")
-          .map((i) => i.DocEntry as number);
+          .filter((invoice) => invoice.InvoiceType === "it_PurchaseInvoice")
+          .map((invoice) => invoice.DocEntry as number);
         const creditMemoEntries = rawInvoices
-          .filter((i) => i.InvoiceType === "it_PurchCredItnote")
-          .map((i) => i.DocEntry as number);
+          .filter((invoice) => invoice.InvoiceType === "it_PurchCredItnote")
+          .map((invoice) => invoice.DocEntry as number);
 
         const session = serviceLayerClient.getSession(sessionId);
         const dbName = session?.companyDB;
@@ -92,10 +94,10 @@ export const getPayment = async (sessionId: string, id: string) => {
                 select: ["docEntry", "docNum"],
               });
               invoices.forEach((inv) => (invoiceMap[inv.docEntry] = inv.docNum));
-            } catch (e) {
+            } catch (entry) {
               logger.error({
                 msg: "Failed to fetch DocNums for AP invoices",
-                err: e instanceof Error ? e : new Error(String(e)),
+                err: entry instanceof Error ? entry : new Error(String(entry)),
               });
             }
           }
@@ -106,11 +108,11 @@ export const getPayment = async (sessionId: string, id: string) => {
                 where: { docEntry: In(creditMemoEntries) },
                 select: ["docEntry", "docNum"],
               });
-              cms.forEach((cm) => (creditMemoMap[cm.docEntry] = cm.docNum));
-            } catch (e) {
+              cms.forEach((creditMemo) => (creditMemoMap[creditMemo.docEntry] = creditMemo.docNum));
+            } catch (entry2) {
               logger.error({
                 msg: "Failed to fetch DocNums for AP credit memos",
-                err: e instanceof Error ? e : new Error(String(e)),
+                err: entry2 instanceof Error ? entry2 : new Error(String(entry2)),
               });
             }
           }

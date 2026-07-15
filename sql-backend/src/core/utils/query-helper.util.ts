@@ -16,13 +16,13 @@ const pushDateRange = (
   conditions: SQL[],
   column: LooseColumn | undefined,
   from: unknown,
-  to: unknown,
+  toDate: unknown,
 ) => {
   if (from && column) {
     conditions.push(sql`${column} >= ${from}`);
   }
-  if (to && column) {
-    conditions.push(sql`${column} <= ${to}`);
+  if (toDate && column) {
+    conditions.push(sql`${column} <= ${toDate}`);
   }
 };
 

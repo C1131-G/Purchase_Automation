@@ -29,8 +29,8 @@ router.post("/:id/cancel", incomingPaymentController.cancel);
 router.get(
   "/by-doc-num/:docNum/export/:format",
   createExportHandler(async (docNum) => {
-    const r = await incomingPaymentService.getByDocNum(docNum);
-    return { attachments: [], doc: r, lines: [] };
+    const result = await incomingPaymentService.getByDocNum(docNum);
+    return { attachments: [], doc: result, lines: [] };
   }, "Incoming Payment"),
 );
 

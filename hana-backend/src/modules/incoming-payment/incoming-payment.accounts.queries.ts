@@ -11,8 +11,8 @@ export const getAccounts = async (dbName: string, query: { search?: string; limi
 
     let sql = `SELECT "AcctCode", "AcctName" FROM "OACT" WHERE "Postable" = 'Y'`;
     if (query.search) {
-      const s = query.search.toLowerCase().replace(/'/g, "''");
-      sql += ` AND (LOWER("AcctCode") LIKE '%${s}%' OR LOWER("AcctName") LIKE '%${s}%')`;
+      const search = query.search.toLowerCase().replace(/'/g, "''");
+      sql += ` AND (LOWER("AcctCode") LIKE '%${search}%' OR LOWER("AcctName") LIKE '%${search}%')`;
     }
     sql += ` ORDER BY "AcctCode" ASC LIMIT ${query.limit ?? 500}`;
 
@@ -27,9 +27,9 @@ export const getAccounts = async (dbName: string, query: { search?: string; limi
     });
 
     return {
-      data: (rows || []).map((r: any) => ({
-        GLAccount: r.AcctCode || r.ACCTCODE || r.acctcode || r.a_AcctCode,
-        Account: r.AcctName || r.ACCTNAME || r.acctname || r.a_AcctName,
+      data: (rows || []).map((row: any) => ({
+        GLAccount: row.AcctCode || row.ACCTCODE || row.acctcode || row.a_AcctCode,
+        Account: row.AcctName || row.ACCTNAME || row.acctname || row.a_AcctName,
       })),
       total: rows?.length || 0,
     };

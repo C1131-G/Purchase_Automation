@@ -123,19 +123,19 @@ const fetchWarehouseGroups = async (
     LINE_SCHEMA_ENTRIES.map(
       async ({ headerSchema, lineSchema, moduleKey, title, href, useLinePrice }) => {
         const lineRepo = await getTenantRepository(dbName, lineSchema);
-        const qb = lineRepo
+        const queryBuilder = lineRepo
           .createQueryBuilder("line")
           .innerJoin(headerSchema, "header", "line.docEntry = header.docEntry");
 
-        if (start) qb.andWhere("header.docDate >= :start", { start });
-        if (end) qb.andWhere("header.docDate <= :end", { end });
+        if (start) queryBuilder.andWhere("header.docDate >= :start", { start });
+        if (end) queryBuilder.andWhere("header.docDate <= :end", { end });
 
         const valExpr = useLinePrice
           ? "SUM(line.quantity * line.price)"
           : "SUM(line.quantity * COALESCE(item.AvgPrice, 0))";
 
         // TypeORM join overloads accept Function|string but not EntitySchema; cast for compile-time.
-        qb.leftJoin(ItemSchema as unknown as Function, "item", "line.itemCode = item.ItemCode")
+        queryBuilder.leftJoin(ItemSchema as unknown as Function, "item", "line.itemCode = item.ItemCode")
           .select("line.whsCode", "whsCode")
           .addSelect("COUNT(DISTINCT line.docEntry)", "docCount")
           .addSelect(valExpr, "val")
@@ -143,16 +143,16 @@ const fetchWarehouseGroups = async (
           .orderBy(valExpr, "DESC")
           .limit(5);
 
-        const results = await qb.getRawMany();
+        const results = await queryBuilder.getRawMany();
 
-        const entries = results.map((r: any) => {
-          const code = String(r.whsCode || "").trim() || "Unknown";
+        const entries = results.map((result: any) => {
+          const code = String(result.whsCode || "").trim() || "Unknown";
           const name = whsMap.get(code) || `Warehouse ${code}`;
           return {
             code,
             name,
-            totalValue: Number(parseFloat(r.val || "0").toFixed(2)),
-            documentCount: parseInt(r.docCount || "0", 10),
+            totalValue: Number(parseFloat(result.val || "0").toFixed(2)),
+            documentCount: parseInt(result.docCount || "0", 10),
             openValue: 0,
           };
         });
@@ -202,7 +202,7 @@ export const loadInventoryDataset = async (
         getTenantRepository(dbName, WarehouseSchema).then((repo) => repo.find()),
       ]);
 
-      const whsMap = new Map(warehousesRaw.map((w) => [w.WhsCode, w.WhsName]));
+      const whsMap = new Map(warehousesRaw.map((warehouse) => [warehouse.WhsCode, warehouse.WhsName]));
 
       // Phase 2: Warehouse group queries (4 line-table JOINs in parallel).
       // Runs after phase 1 only because it needs the whsMap for name resolution.

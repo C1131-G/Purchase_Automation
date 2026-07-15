@@ -15,12 +15,12 @@ import { salesOrderRepository } from "./sales-order.repository";
 
 export const create = async (payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (transaction) => {
     const isDraft = payload.isDraft === true;
     const { draftDocEntry } = payload;
 
     if (!isDraft) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode);
     }
 
     let headerId: number;
@@ -35,7 +35,7 @@ export const create = async (payload: DynRow) => {
     const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
     if (draftDocEntry && draftDocEntry > 0) {
-      const existing = await salesOrderRepository.findById(tx, draftDocEntry);
+      const existing = await salesOrderRepository.findById(transaction, draftDocEntry);
 
       if (!existing) {
         throw new AppError("Draft document not found", 404, "NOT_FOUND");
@@ -44,7 +44,7 @@ export const create = async (payload: DynRow) => {
       headerId = draftDocEntry;
       docNum = payload.docNum ?? (await getNextDocNum("sales_orders", "sales_orders", 30_000));
 
-      await salesOrderRepository.updateHeader(tx, draftDocEntry, {
+      await salesOrderRepository.updateHeader(transaction, draftDocEntry, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -62,12 +62,12 @@ export const create = async (payload: DynRow) => {
         salesPersonCode: payload.salesPersonCode ?? null,
       });
 
-      await salesOrderRepository.deleteLines(tx, draftDocEntry);
+      await salesOrderRepository.deleteLines(transaction, draftDocEntry);
     } else {
       const docStatus = isDraft ? "D" : "O";
       docNum = payload.docNum ?? (await getNextDocNum("sales_orders", "sales_orders", 30_000));
 
-      const header = await salesOrderRepository.insertHeader(tx, {
+      const header = await salesOrderRepository.insertHeader(transaction, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -89,7 +89,7 @@ export const create = async (payload: DynRow) => {
 
     if (payload.lines?.length) {
       await salesOrderRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) =>
           mapLineForInsert(line, headerId, lineIndex),
         ),
@@ -100,7 +100,7 @@ export const create = async (payload: DynRow) => {
       const parentDocEntries = new Set<number>(
         payload.lines.map((line: DynRow) => line.baseEntry).filter(Boolean),
       );
-      await recalculateParentStatuses(tx, parentDocEntries, 23);
+      await recalculateParentStatuses(transaction, parentDocEntries, 23);
     }
 
     logger.info({ docNum }, "Sales Order created");

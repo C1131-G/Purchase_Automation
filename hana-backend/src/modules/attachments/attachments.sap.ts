@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import nodeFs from "node:fs";
 import path from "node:path";
 import AppError from "@/core/errors/app-error";
 import { logger } from "@/core/logger/pino-logger";
@@ -15,7 +15,7 @@ export async function createSAPAttachment(
   // Pre-check: Verify that each file actually exists on the disk.
   for (const att of attachments) {
     const filePath = path.join(att.sourcePath, `${att.fileName}.${att.fileExtension}`);
-    if (!fs.existsSync(filePath)) {
+    if (!nodeFs.existsSync(filePath)) {
       logger.error(
         {
           fileName: att.fileName,

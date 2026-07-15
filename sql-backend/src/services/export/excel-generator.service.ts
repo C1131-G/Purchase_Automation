@@ -16,11 +16,11 @@ const addBorder = (cell: Excel.Cell) => {
 };
 
 export const generateExcel = async (data: ExportDocumentData): Promise<Buffer> => {
-  const wb = new Excel.Workbook();
-  const ws = wb.addWorksheet(`${data.title}_${data.docNum}`);
+  const workbook = new Excel.Workbook();
+  const worksheet = workbook.addWorksheet(`${data.title}_${data.docNum}`);
 
   // Column widths
-  ws.columns = [
+  worksheet.columns = [
     { key: "lineNum", width: 8 },
     { key: "itemCode", width: 18 },
     { key: "description", width: 30 },
@@ -33,47 +33,47 @@ export const generateExcel = async (data: ExportDocumentData): Promise<Buffer> =
   ];
 
   // Brand header
-  ws.mergeCells("A1:I1");
-  const brand = ws.getCell("A1");
+  worksheet.mergeCells("A1:I1");
+  const brand = worksheet.getCell("A1");
   brand.value = "VENDOR PORTAL";
   brand.font = { ...FONT_BOLD, size: 16, color: { argb: HEADER_FG } };
   brand.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACCENT_COLOR } };
   brand.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(1).height = 36;
+  worksheet.getRow(1).height = 36;
 
   // Title
-  ws.mergeCells("A2:I2");
-  const title = ws.getCell("A2");
+  worksheet.mergeCells("A2:I2");
+  const title = worksheet.getCell("A2");
   title.value = `${data.title} #${data.docNum}`;
   title.font = { ...FONT_BOLD, size: 14 };
   title.alignment = { horizontal: "center" };
-  ws.getRow(2).height = 28;
+  worksheet.getRow(2).height = 28;
 
   // Address block
-  ws.mergeCells("A3:C3");
-  ws.mergeCells("D3:F3");
-  ws.mergeCells("G3:I3");
-  ws.getCell("A3").value = `Vendor: ${data.cardCode} - ${data.cardName}`;
-  ws.getCell("D3").value = `Date: ${data.docDate}`;
-  ws.getCell("G3").value = `Status: ${data.docStatus}`;
-  ws.getRow(3).font = FONT;
-  ws.getRow(3).height = 20;
+  worksheet.mergeCells("A3:C3");
+  worksheet.mergeCells("D3:F3");
+  worksheet.mergeCells("G3:I3");
+  worksheet.getCell("A3").value = `Vendor: ${data.cardCode} - ${data.cardName}`;
+  worksheet.getCell("D3").value = `Date: ${data.docDate}`;
+  worksheet.getCell("G3").value = `Status: ${data.docStatus}`;
+  worksheet.getRow(3).font = FONT;
+  worksheet.getRow(3).height = 20;
 
   if (data.address) {
-    ws.mergeCells("A4:I4");
-    ws.getCell("A4").value = `Address: ${data.address}`;
-    ws.getRow(4).font = FONT;
+    worksheet.mergeCells("A4:I4");
+    worksheet.getCell("A4").value = `Address: ${data.address}`;
+    worksheet.getRow(4).font = FONT;
   }
 
   // Blank row before table
   const headerRowNum = data.address ? 6 : 5;
-  const headerRow = ws.getRow(headerRowNum);
+  const headerRow = worksheet.getRow(headerRowNum);
 
   // Table headers
   const headers = ["#", "Item Code", "Description", "Qty", "UOM", "Price", "Total", "Whs", "Tax"];
-  headers.forEach((h, i) => {
+  headers.forEach((header, i) => {
     const cell = headerRow.getCell(i + 1);
-    cell.value = h;
+    cell.value = header;
     cell.font = { ...FONT_BOLD, color: { argb: HEADER_FG } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BG } };
     cell.alignment = { horizontal: "center" };
@@ -84,7 +84,7 @@ export const generateExcel = async (data: ExportDocumentData): Promise<Buffer> =
   // Data rows with zebra striping
   data.lines.forEach((line, i) => {
     const rowNum = headerRowNum + 1 + i;
-    const row = ws.getRow(rowNum);
+    const row = worksheet.getRow(rowNum);
     row.values = [
       line.lineNum,
       line.itemCode,
@@ -110,8 +110,8 @@ export const generateExcel = async (data: ExportDocumentData): Promise<Buffer> =
 
   // Totals row
   const totalRowNum = headerRowNum + 1 + data.lines.length;
-  const totalRow = ws.getRow(totalRowNum);
-  ws.mergeCells(totalRowNum, 1, totalRowNum, 6);
+  const totalRow = worksheet.getRow(totalRowNum);
+  worksheet.mergeCells(totalRowNum, 1, totalRowNum, 6);
   totalRow.getCell(1).value = `Total (${data.docCurrency})`;
   totalRow.getCell(1).font = FONT_BOLD;
   totalRow.getCell(1).alignment = { horizontal: "right" };
@@ -127,29 +127,29 @@ export const generateExcel = async (data: ExportDocumentData): Promise<Buffer> =
   // Comments
   let currentRow = totalRowNum + 1;
   if (data.comments) {
-    ws.mergeCells(currentRow, 1, currentRow, 9);
-    ws.getCell(currentRow, 1).value = `Comments: ${data.comments}`;
-    ws.getRow(currentRow).font = { ...FONT, italic: true };
+    worksheet.mergeCells(currentRow, 1, currentRow, 9);
+    worksheet.getCell(currentRow, 1).value = `Comments: ${data.comments}`;
+    worksheet.getRow(currentRow).font = { ...FONT, italic: true };
     currentRow++;
   }
 
   // Attachments section
   if (data.attachments.length > 0) {
     currentRow++;
-    ws.mergeCells(currentRow, 1, currentRow, 9);
-    ws.getCell(currentRow, 1).value = "Attachments:";
-    ws.getCell(currentRow, 1).font = FONT_BOLD;
+    worksheet.mergeCells(currentRow, 1, currentRow, 9);
+    worksheet.getCell(currentRow, 1).value = "Attachments:";
+    worksheet.getCell(currentRow, 1).font = FONT_BOLD;
     currentRow++;
 
-    data.attachments.forEach((a) => {
-      ws.mergeCells(currentRow, 1, currentRow, 9);
-      ws.getCell(currentRow, 1).value =
-        `  ${a.fileName}.${a.fileExtension}${a.freeText ? ` — ${a.freeText}` : ""}`;
-      ws.getRow(currentRow).font = FONT;
+    data.attachments.forEach((attachment) => {
+      worksheet.mergeCells(currentRow, 1, currentRow, 9);
+      worksheet.getCell(currentRow, 1).value =
+        `  ${attachment.fileName}.${attachment.fileExtension}${attachment.freeText ? ` — ${attachment.freeText}` : ""}`;
+      worksheet.getRow(currentRow).font = FONT;
       currentRow++;
     });
   }
 
-  const buffer = await wb.xlsx.writeBuffer();
+  const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 };

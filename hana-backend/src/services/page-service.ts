@@ -32,18 +32,18 @@ export const getPagedData = async <T extends ObjectLiteral>({
     const isQueryBuilder = typeof (query as SelectQueryBuilder<T>).getQuery === "function";
 
     if (isQueryBuilder) {
-      const qb = query as SelectQueryBuilder<T>;
+      const queryBuilder = query as SelectQueryBuilder<T>;
 
       // Applies dynamic sorting directions to the query builder.
       Object.entries(sort).forEach(([field, direction]) => {
-        qb.addOrderBy(field, direction);
+        queryBuilder.addOrderBy(field, direction);
       });
 
       // skip() and take() leverage the database platform's native OFFSET/FETCH syntax (e.g., HANA's LIMIT).
-      qb.skip(offset).take(Number(limit));
+      queryBuilder.skip(offset).take(Number(limit));
 
       // Executes a single transaction that retrieves both the data window and the total record count.
-      [data, total] = await qb.getManyAndCount();
+      [data, total] = await queryBuilder.getManyAndCount();
     } else {
       const repo = query as Repository<T>;
       // For basic repository-based find operations.

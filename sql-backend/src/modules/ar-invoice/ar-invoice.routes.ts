@@ -24,8 +24,8 @@ router.post("/:id/reopen", arInvoiceController.reopen);
 router.get(
   "/by-doc-num/:docNum/export/:format",
   createExportHandler(async (docNum) => {
-    const r = await arInvoiceService.getByDocNum(docNum);
-    return { attachments: [], doc: r, lines: r.lines ?? [] };
+    const result = await arInvoiceService.getByDocNum(docNum);
+    return { attachments: [], doc: result, lines: result.lines ?? [] };
   }, "AR Invoice"),
 );
 

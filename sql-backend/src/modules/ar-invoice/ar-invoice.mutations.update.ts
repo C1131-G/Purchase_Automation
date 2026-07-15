@@ -12,8 +12,8 @@ import { arInvoiceRepository } from "./ar-invoice.repository";
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await arInvoiceRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await arInvoiceRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AR Invoice not found", 404, "NOT_FOUND");
     }
@@ -21,7 +21,7 @@ export const update = async (id: number, payload: DynRow) => {
     const isDraft = payload.isDraft === true || existing.docStatus === "D";
 
     if (!isDraft && payload.lines) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode ?? existing.cardCode, id, 13);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode ?? existing.cardCode, id, 13);
     }
 
     const updatedDocStatus =
@@ -34,7 +34,7 @@ export const update = async (id: number, payload: DynRow) => {
         )
       : Number(existing.docTotal);
 
-    const oldLines = await arInvoiceRepository.findLineBaseEntries(tx, id);
+    const oldLines = await arInvoiceRepository.findLineBaseEntries(transaction, id);
 
     const oldSoEntries = new Set<number>();
     for (const line of oldLines) {
@@ -45,7 +45,7 @@ export const update = async (id: number, payload: DynRow) => {
       }
     }
 
-    await arInvoiceRepository.updateHeader(tx, id, {
+    await arInvoiceRepository.updateHeader(transaction, id, {
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
       canceled: "N",
@@ -59,9 +59,9 @@ export const update = async (id: number, payload: DynRow) => {
     });
 
     if (payload.lines) {
-      await arInvoiceRepository.deleteLines(tx, id);
+      await arInvoiceRepository.deleteLines(transaction, id);
       await arInvoiceRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -96,7 +96,7 @@ export const update = async (id: number, payload: DynRow) => {
         const allSoEntries = new Set<number>([...oldSoEntries, ...newSoEntries]);
 
         if (allSoEntries.size > 0) {
-          await recalculateParentStatuses(tx, allSoEntries, 17);
+          await recalculateParentStatuses(transaction, allSoEntries, 17);
         }
       }
     }
@@ -107,17 +107,17 @@ export const update = async (id: number, payload: DynRow) => {
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await arInvoiceRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await arInvoiceRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AR Invoice not found", 404, "NOT_FOUND");
     }
-    await arInvoiceRepository.updateHeader(tx, id, {
+    await arInvoiceRepository.updateHeader(transaction, id, {
       canceled: "Y",
       docStatus: "C",
     });
 
-    const lines = await arInvoiceRepository.findLineBaseEntries(tx, id);
+    const lines = await arInvoiceRepository.findLineBaseEntries(transaction, id);
 
     const soEntries = new Set<number>();
     for (const line of lines) {
@@ -128,7 +128,7 @@ export const cancel = async (id: number) => {
       }
     }
     if (soEntries.size > 0) {
-      await recalculateParentStatuses(tx, soEntries, 17);
+      await recalculateParentStatuses(transaction, soEntries, 17);
     }
 
     logger.info({ docNum: existing.docNum, id }, "AR Invoice cancelled");
@@ -138,17 +138,17 @@ export const cancel = async (id: number) => {
 
 export const reopen = async (id: number) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await arInvoiceRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await arInvoiceRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AR Invoice not found", 404, "NOT_FOUND");
     }
-    await arInvoiceRepository.updateHeader(tx, id, {
+    await arInvoiceRepository.updateHeader(transaction, id, {
       canceled: "N",
       docStatus: "O",
     });
 
-    const lines = await arInvoiceRepository.findLineBaseEntries(tx, id);
+    const lines = await arInvoiceRepository.findLineBaseEntries(transaction, id);
 
     const soEntries = new Set<number>();
     for (const line of lines) {
@@ -159,7 +159,7 @@ export const reopen = async (id: number) => {
       }
     }
     if (soEntries.size > 0) {
-      await recalculateParentStatuses(tx, soEntries, 17);
+      await recalculateParentStatuses(transaction, soEntries, 17);
     }
 
     logger.info({ docNum: existing.docNum, id }, "AR Invoice reopened");

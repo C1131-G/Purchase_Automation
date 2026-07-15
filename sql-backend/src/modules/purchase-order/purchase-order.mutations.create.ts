@@ -15,12 +15,12 @@ import { purchaseOrderRepository } from "./purchase-order.repository";
 
 export const create = async (payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (transaction) => {
     const isDraft = payload.isDraft === true;
     const { draftDocEntry } = payload;
 
     if (!isDraft) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode);
     }
 
     let headerId: number;
@@ -35,7 +35,7 @@ export const create = async (payload: DynRow) => {
     const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
     if (draftDocEntry && draftDocEntry > 0) {
-      const existing = await purchaseOrderRepository.findById(tx, draftDocEntry);
+      const existing = await purchaseOrderRepository.findById(transaction, draftDocEntry);
 
       if (!existing) {
         throw new AppError("Draft document not found", 404, "NOT_FOUND");
@@ -45,7 +45,7 @@ export const create = async (payload: DynRow) => {
       docNum =
         payload.docNum ?? (await getNextDocNum("purchase_orders", "purchase_orders", 20_000));
 
-      await purchaseOrderRepository.updateHeader(tx, draftDocEntry, {
+      await purchaseOrderRepository.updateHeader(transaction, draftDocEntry, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -63,13 +63,13 @@ export const create = async (payload: DynRow) => {
         salesPersonCode: payload.salesPersonCode ?? null,
       });
 
-      await purchaseOrderRepository.deleteLines(tx, draftDocEntry);
+      await purchaseOrderRepository.deleteLines(transaction, draftDocEntry);
     } else {
       const docStatus = isDraft ? "D" : "O";
       docNum =
         payload.docNum ?? (await getNextDocNum("purchase_orders", "purchase_orders", 20_000));
 
-      const header = await purchaseOrderRepository.insertHeader(tx, {
+      const header = await purchaseOrderRepository.insertHeader(transaction, {
         address: payload.address ?? null,
         address2: payload.address2 ?? null,
         canceled: "N",
@@ -91,7 +91,7 @@ export const create = async (payload: DynRow) => {
 
     if (payload.lines.length > 0) {
       await purchaseOrderRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -125,7 +125,7 @@ export const create = async (payload: DynRow) => {
       const parentDocEntries = new Set<number>(
         payload.lines.map((line: DynRow) => line.baseEntry).filter(Boolean),
       );
-      await recalculateParentStatuses(tx, parentDocEntries, 540_000_006);
+      await recalculateParentStatuses(transaction, parentDocEntries, 540_000_006);
     }
 
     logger.info({ docNum }, "Purchase order created");

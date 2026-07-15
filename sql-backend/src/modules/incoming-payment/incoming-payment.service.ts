@@ -39,20 +39,20 @@ export const getList = async (filters: DynRow = {}) => {
 
 export const getById = async (id: number) => {
   const db = getDb();
-  const h = await incomingPaymentRepository.findById(db, id);
-  if (!h) {
+  const header = await incomingPaymentRepository.findById(db, id);
+  if (!header) {
     throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
   }
-  return { ...h, lines: [] };
+  return { ...header, lines: [] };
 };
 
 export const getByDocNum = async (docNum: number) => {
   const db = getDb();
-  const h = await incomingPaymentRepository.findByDocNum(db, docNum);
-  if (!h) {
+  const header = await incomingPaymentRepository.findByDocNum(db, docNum);
+  if (!header) {
     throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
   }
-  return { ...h, lines: [] };
+  return { ...header, lines: [] };
 };
 
 export const getDocNums = async (search?: string, limit?: number) => {
@@ -65,7 +65,7 @@ export const create = async (payload: DynRow) => {
   const db = getDb();
   const cardName = await resolveCardName(payload.cardCode, payload.cardName);
 
-  const h = await incomingPaymentRepository.insert(db, {
+  const header = await incomingPaymentRepository.insert(db, {
     cardCode: payload.cardCode,
     cardName,
     counterRef: payload.counterRef ?? null,
@@ -78,18 +78,18 @@ export const create = async (payload: DynRow) => {
   });
 
   logger.info({ docNum: payload.docNum }, "Incoming payment created");
-  return getById(h.id);
+  return getById(header.id);
 };
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  const ex = await incomingPaymentRepository.findById(db, id);
-  if (!ex) {
+  const existing = await incomingPaymentRepository.findById(db, id);
+  if (!existing) {
     throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
   }
   const cardName = await resolveCardName(
-    payload.cardCode ?? ex.cardCode,
-    payload.cardName === undefined ? ex.cardName : payload.cardName,
+    payload.cardCode ?? existing.cardCode,
+    payload.cardName === undefined ? existing.cardName : payload.cardName,
   );
 
   await incomingPaymentRepository.update(db, id, {
@@ -104,8 +104,8 @@ export const update = async (id: number, payload: DynRow) => {
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  const ex = await incomingPaymentRepository.findById(db, id);
-  if (!ex) {
+  const existing = await incomingPaymentRepository.findById(db, id);
+  if (!existing) {
     throw new AppError("Incoming payment not found", 404, "NOT_FOUND");
   }
   await incomingPaymentRepository.delete(db, id);

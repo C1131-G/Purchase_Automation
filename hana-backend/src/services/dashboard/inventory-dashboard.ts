@@ -34,9 +34,9 @@ import {
 // ---------------------------------------------------------------------------
 
 const buildInventorySummary = (dataset: InventoryDataset): DashboardMetric[] => {
-  const gr = getModuleDataset(dataset, "goodsReceipt");
-  const gi = getModuleDataset(dataset, "goodsIssue");
-  const tr = getModuleDataset(dataset, "transferRequest");
+  const goodsReceipt = getModuleDataset(dataset, "goodsReceipt");
+  const goodsIssue = getModuleDataset(dataset, "goodsIssue");
+  const transferRequest = getModuleDataset(dataset, "transferRequest");
   const transfer = getModuleDataset(dataset, "transfer");
 
   return [
@@ -44,8 +44,8 @@ const buildInventorySummary = (dataset: InventoryDataset): DashboardMetric[] => 
     buildMetric("on-hand-items", "On-Hand Items", dataset.itemStats.onHandItems, "number"),
     buildMetric("stock-valuation", "Stock Valuation", dataset.itemStats.stockValue, "currency"),
     buildMetric("on-order-value", "On-Order Value", dataset.itemStats.onOrderValue, "currency"),
-    buildMetric("goods-receipt-val", "Goods Receipt Value", sumTotals(gr.current), "currency"),
-    buildMetric("goods-issue-val", "Goods Issue Value", sumTotals(gi.current), "currency"),
+    buildMetric("goods-receipt-val", "Goods Receipt Value", sumTotals(goodsReceipt.current), "currency"),
+    buildMetric("goods-issue-val", "Goods Issue Value", sumTotals(goodsIssue.current), "currency"),
     buildMetric(
       "inventory-transfer-val",
       "Inventory Transfer Value",
@@ -55,7 +55,7 @@ const buildInventorySummary = (dataset: InventoryDataset): DashboardMetric[] => 
     buildMetric(
       "open-transfer-requests",
       "Open Transfer Requests",
-      countOpenDocuments(tr.current),
+      countOpenDocuments(transferRequest.current),
       "number",
     ),
   ];
@@ -79,17 +79,17 @@ const buildInventoryModuleCards = (dataset: InventoryDataset): DashboardModuleCa
   };
 
   const flowCards: DashboardModuleCard[] = INVENTORY_MODULES.map((module) => {
-    const ds = getModuleDataset(dataset, module);
+    const moduleDataset = getModuleDataset(dataset, module);
     return {
       key: module,
       label: MODULE_LABELS[module],
       module,
       href: MODULE_HREFS[module],
-      documentCount: ds.current.length,
-      totalValue: sumTotals(ds.current),
-      openCount: countOpenDocuments(ds.current),
-      openValue: sumOpenTotals(ds.current),
-      trendPct: calculateTrend(sumTotals(ds.current), sumTotals(ds.previous)),
+      documentCount: moduleDataset.current.length,
+      totalValue: sumTotals(moduleDataset.current),
+      openCount: countOpenDocuments(moduleDataset.current),
+      openValue: sumOpenTotals(moduleDataset.current),
+      trendPct: calculateTrend(sumTotals(moduleDataset.current), sumTotals(moduleDataset.previous)),
     };
   });
 
@@ -105,8 +105,9 @@ const buildInventoryFunnel = (dataset: InventoryDataset): DashboardFunnelStep[] 
   const orderedKeys = ["itemMaster", "goodsReceipt", "goodsIssue", "transferRequest", "transfer"];
 
   return orderedKeys.map((key, index) => {
-    const card = cards.find((c) => c.key === key) ?? cards[0];
-    const prevCard = index > 0 ? cards.find((c) => c.key === orderedKeys[index - 1]) : card;
+    const card = cards.find((moduleCard) => moduleCard.key === key) ?? cards[0];
+    const prevCard =
+      index > 0 ? cards.find((moduleCard) => moduleCard.key === orderedKeys[index - 1]) : card;
 
     let conversionPct = 100;
     if (index > 0 && prevCard && prevCard.totalValue > 0) {
@@ -132,15 +133,17 @@ const buildInventoryFunnel = (dataset: InventoryDataset): DashboardFunnelStep[] 
 // ---------------------------------------------------------------------------
 
 const buildInventoryExceptions = (dataset: InventoryDataset): DashboardExceptionGroup[] => {
-  const tr = getModuleDataset(dataset, "transferRequest");
-  const gr = getModuleDataset(dataset, "goodsReceipt");
-  const gi = getModuleDataset(dataset, "goodsIssue");
-  const t = getModuleDataset(dataset, "transfer");
+  const transferRequest = getModuleDataset(dataset, "transferRequest");
+  const goodsReceipt = getModuleDataset(dataset, "goodsReceipt");
+  const goodsIssue = getModuleDataset(dataset, "goodsIssue");
+  const transferModule = getModuleDataset(dataset, "transfer");
 
-  const openTRs = sortByOpenValue(tr.current.filter((d) => isOpenDocument(d)));
-  const recentGRs = sortByDateDescending(gr.current);
-  const recentGIs = sortByDateDescending(gi.current);
-  const recentTs = sortByDateDescending(t.current);
+  const openTRs = sortByOpenValue(
+    transferRequest.current.filter((document) => isOpenDocument(document)),
+  );
+  const recentGRs = sortByDateDescending(goodsReceipt.current);
+  const recentGIs = sortByDateDescending(goodsIssue.current);
+  const recentTs = sortByDateDescending(transferModule.current);
 
   return [
     buildExceptionGroup(

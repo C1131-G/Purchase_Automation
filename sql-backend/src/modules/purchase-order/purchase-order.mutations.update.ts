@@ -14,8 +14,8 @@ import { purchaseOrderRepository } from "./purchase-order.repository";
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await purchaseOrderRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await purchaseOrderRepository.findById(transaction, id);
 
     if (!existing) {
       throw new AppError("Purchase order not found", 404, "NOT_FOUND");
@@ -24,7 +24,7 @@ export const update = async (id: number, payload: DynRow) => {
     const isDraft = payload.isDraft === true || existing.docStatus === "D";
 
     if (!isDraft && payload.lines) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode ?? existing.cardCode, id, 22);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode ?? existing.cardCode, id, 22);
     }
 
     const updatedDocStatus =
@@ -35,7 +35,7 @@ export const update = async (id: number, payload: DynRow) => {
       payload.cardName === undefined ? existing.cardName : payload.cardName,
     );
 
-    const oldLines = await purchaseOrderRepository.findLineBaseEntries(tx, id);
+    const oldLines = await purchaseOrderRepository.findLineBaseEntries(transaction, id);
     const oldParentEntries = new Set<number>(
       oldLines.map((line: DynRow) => line.baseEntry).filter(Boolean),
     );
@@ -49,7 +49,7 @@ export const update = async (id: number, payload: DynRow) => {
         )
       : Number(existing.docTotal);
 
-    await purchaseOrderRepository.updateHeader(tx, id, {
+    await purchaseOrderRepository.updateHeader(transaction, id, {
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
       canceled: "N",
@@ -70,10 +70,10 @@ export const update = async (id: number, payload: DynRow) => {
     });
 
     if (payload.lines) {
-      await purchaseOrderRepository.deleteLines(tx, id);
+      await purchaseOrderRepository.deleteLines(transaction, id);
 
       await purchaseOrderRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -107,7 +107,7 @@ export const update = async (id: number, payload: DynRow) => {
           payload.lines.map((line: DynRow) => line.baseEntry).filter(Boolean),
         );
         const allParentEntries = new Set<number>([...oldParentEntries, ...newParentEntries]);
-        await recalculateParentStatuses(tx, allParentEntries, 540_000_006);
+        await recalculateParentStatuses(transaction, allParentEntries, 540_000_006);
       }
     }
 
@@ -118,23 +118,23 @@ export const update = async (id: number, payload: DynRow) => {
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await purchaseOrderRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await purchaseOrderRepository.findById(transaction, id);
 
     if (!existing) {
       throw new AppError("Purchase order not found", 404, "NOT_FOUND");
     }
 
-    await purchaseOrderRepository.updateHeader(tx, id, {
+    await purchaseOrderRepository.updateHeader(transaction, id, {
       canceled: "Y",
       docStatus: "C",
     });
 
-    const lines = await purchaseOrderRepository.findLineBaseEntries(tx, id);
+    const lines = await purchaseOrderRepository.findLineBaseEntries(transaction, id);
     const parentEntries = new Set<number>(
       lines.map((line: DynRow) => line.baseEntry).filter(Boolean),
     );
-    await recalculateParentStatuses(tx, parentEntries, 540_000_006);
+    await recalculateParentStatuses(transaction, parentEntries, 540_000_006);
 
     logger.info({ docNum: existing.docNum, id }, "Purchase order cancelled");
     return getById(id);

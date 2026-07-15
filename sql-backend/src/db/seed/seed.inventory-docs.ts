@@ -57,11 +57,11 @@ export async function seedInventoryDocs(
   const seededGRs = await db.insert(goodsReceipts).values(grHeaders).returning();
 
   const grLinesToInsert: any[] = [];
-  seededGRs.forEach((gr, index) => {
+  seededGRs.forEach((goodsReceipt, index) => {
     const specs = grLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       grLinesToInsert.push({
-        docEntry: gr.id,
+        docEntry: goodsReceipt.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,
@@ -104,11 +104,11 @@ export async function seedInventoryDocs(
   const seededGIs = await db.insert(goodsIssues).values(giHeaders).returning();
 
   const giLinesToInsert: any[] = [];
-  seededGIs.forEach((gi, index) => {
+  seededGIs.forEach((goodsIssue, index) => {
     const specs = giLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       giLinesToInsert.push({
-        docEntry: gi.id,
+        docEntry: goodsIssue.id,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,
         lineNum: lineIndex,
@@ -152,11 +152,11 @@ export async function seedInventoryDocs(
   const seededITs = await db.insert(inventoryTransfers).values(itHeaders).returning();
 
   const itLinesToInsert: any[] = [];
-  seededITs.forEach((it, index) => {
+  seededITs.forEach((itemRow, index) => {
     const specs = itLinesSpec[index];
     specs.forEach((spec: any, lineIndex: number) => {
       itLinesToInsert.push({
-        docEntry: it.id,
+        docEntry: itemRow.id,
         fromWarehouse: `${tenant.prefix}WH-01`,
         itemCode: spec.item.code,
         itemDescription: spec.item.name,

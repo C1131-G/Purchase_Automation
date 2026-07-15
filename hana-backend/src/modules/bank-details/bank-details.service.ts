@@ -8,23 +8,23 @@ import type { MasterDataQuery } from "./bank-details.schema";
 export const getBankDetails = async (dbName: string, query: MasterDataQuery) => {
   try {
     const repo = await getTenantRepository(dbName, BankDetailsSchema);
-    const qb = repo.createQueryBuilder("b");
+    const queryBuilder = repo.createQueryBuilder("b");
 
-    qb.select(["b.Country", "b.BankCode", "b.BankName"]);
+    queryBuilder.select(["b.Country", "b.BankCode", "b.BankName"]);
 
     if (query.search) {
-      qb.andWhere(
+      queryBuilder.andWhere(
         "(LOWER(b.Country) LIKE LOWER(:search) OR LOWER(b.BankName) LIKE LOWER(:search))",
         { search: `%${query.search}%` },
       );
     }
     if (query.country) {
-      qb.andWhere("b.Country = :country", { country: query.country });
+      queryBuilder.andWhere("b.Country = :country", { country: query.country });
     }
 
-    qb.orderBy("b.BankName", "ASC").take(query.limit ?? 50);
+    queryBuilder.orderBy("b.BankName", "ASC").take(query.limit ?? 50);
 
-    const rows = await qb.getRawMany<Record<string, unknown>>();
+    const rows = await queryBuilder.getRawMany<Record<string, unknown>>();
 
     logger.info({
       msg: "Fetched ODSC bank details",
@@ -33,10 +33,10 @@ export const getBankDetails = async (dbName: string, query: MasterDataQuery) => 
     });
 
     return {
-      data: rows.map((r) => ({
-        CountryCod: r["b_CountryCod"] as string,
-        BankCode: r["b_BankCode"] as string,
-        BankName: r["b_BankName"] as string,
+      data: rows.map((row) => ({
+        CountryCod: row["b_CountryCod"] as string,
+        BankCode: row["b_BankCode"] as string,
+        BankName: row["b_BankName"] as string,
       })),
       total: rows.length,
     };

@@ -93,16 +93,16 @@ export const masterDataRepository = {
       return [];
     }
 
-    const codes = partners.map((p: DynRow) => p.code);
+    const codes = partners.map((value: DynRow) => value.code);
     const addresses = await db
       .select()
       .from(businessPartnerAddresses)
       .where(
-        sql`${businessPartnerAddresses.cardCode} = ANY(${sql.raw(`ARRAY[${codes.map((c: string) => `'${c.replaceAll("'", "''")}'`).join(",")}]`)})`,
+        sql`${businessPartnerAddresses.cardCode} = ANY(${sql.raw(`ARRAY[${codes.map((card: string) => `'${card.replaceAll("'", "''")}'`).join(",")}]`)})`,
       );
 
     const slpCodes = partners
-      .map((p: DynRow) => p.salesEmployeeCode)
+      .map((value: DynRow) => value.salesEmployeeCode)
       .filter(
         (code: number | null | undefined): code is number => code !== null && code !== undefined,
       );
@@ -140,7 +140,7 @@ export const masterDataRepository = {
       const entry = addressMap.get(cardCode)!;
 
       const parts = [addr.street, addr.block, addr.city, addr.state, addr.zipCode, addr.country]
-        .map((s) => String(s || "").trim())
+        .map((status) => String(status || "").trim())
         .filter(Boolean);
       const formattedAddress =
         parts.length > 0 ? parts.join(", ") : String(addr.address || "").trim();
@@ -154,53 +154,53 @@ export const masterDataRepository = {
       }
     }
 
-    return partners.map((p: DynRow) => {
-      const entry = addressMap.get(p.code) || { addresses: [] };
-      const billToDef = p.billToDef?.trim().toLowerCase() || "";
-      const shipToDef = p.shipToDef?.trim().toLowerCase() || "";
+    return partners.map((value: DynRow) => {
+      const entry = addressMap.get(value.code) || { addresses: [] };
+      const billToDef = value.billToDef?.trim().toLowerCase() || "";
+      const shipToDef = value.shipToDef?.trim().toLowerCase() || "";
 
-      const bAddresses = entry.addresses.filter((a) => a.addressType === "B");
-      const sAddresses = entry.addresses.filter((a) => a.addressType === "S");
+      const bAddresses = entry.addresses.filter((address) => address.addressType === "B");
+      const sAddresses = entry.addresses.filter((address) => address.addressType === "S");
 
       let defaultBillTo = billToDef
-        ? bAddresses.find((a) => a.addressName.toLowerCase() === billToDef)
+        ? bAddresses.find((address) => address.addressName.toLowerCase() === billToDef)
         : undefined;
       if (!defaultBillTo && bAddresses.length > 0) {
         defaultBillTo = bAddresses[0];
       }
 
       let defaultShipTo = shipToDef
-        ? sAddresses.find((a) => a.addressName.toLowerCase() === shipToDef)
+        ? sAddresses.find((address) => address.addressName.toLowerCase() === shipToDef)
         : undefined;
       if (!defaultShipTo && sAddresses.length > 0) {
         defaultShipTo = sAddresses[0];
       }
 
       const salesEmployeeName =
-        p.salesEmployeeCode !== null && p.salesEmployeeCode !== undefined
-          ? (salesEmployeeMap.get(p.salesEmployeeCode) ?? "")
+        value.salesEmployeeCode !== null && value.salesEmployeeCode !== undefined
+          ? (salesEmployeeMap.get(value.salesEmployeeCode) ?? "")
           : "";
 
       return {
-        Address: p.billToAddress || "",
-        CardCode: p.code,
-        CardName: p.name,
-        Currency: p.currency,
-        SalesEmployeeCode: p.salesEmployeeCode,
+        Address: value.billToAddress || "",
+        CardCode: value.code,
+        CardName: value.name,
+        Currency: value.currency,
+        SalesEmployeeCode: value.salesEmployeeCode,
         SalesEmployeeName: salesEmployeeName,
-        SlpCode: p.salesEmployeeCode,
+        SlpCode: value.salesEmployeeCode,
         addresses: entry.addresses,
-        billToAddress: defaultBillTo?.addressText || p.billToAddress || "",
-        code: p.code,
-        currency: p.currency,
-        email: p.email,
-        id: p.code,
-        name: p.name,
-        phone: p.phone,
-        salesEmployeeCode: p.salesEmployeeCode,
+        billToAddress: defaultBillTo?.addressText || value.billToAddress || "",
+        code: value.code,
+        currency: value.currency,
+        email: value.email,
+        id: value.code,
+        name: value.name,
+        phone: value.phone,
+        salesEmployeeCode: value.salesEmployeeCode,
         salesEmployeeName,
         shipToAddress:
-          defaultShipTo?.addressText || defaultBillTo?.addressText || p.shipToAddress || "",
+          defaultShipTo?.addressText || defaultBillTo?.addressText || value.shipToAddress || "",
       };
     });
   },

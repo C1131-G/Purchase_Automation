@@ -12,8 +12,8 @@ import { apInvoiceRepository } from "./ap-invoice.repository";
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await apInvoiceRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await apInvoiceRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AP Invoice not found", 404, "NOT_FOUND");
     }
@@ -21,7 +21,7 @@ export const update = async (id: number, payload: DynRow) => {
     const isDraft = payload.isDraft === true || existing.docStatus === "D";
 
     if (!isDraft && payload.lines) {
-      await validateBaseLinks(tx, payload.lines, payload.cardCode ?? existing.cardCode, id, 18);
+      await validateBaseLinks(transaction, payload.lines, payload.cardCode ?? existing.cardCode, id, 18);
     }
 
     const updatedDocStatus =
@@ -34,7 +34,7 @@ export const update = async (id: number, payload: DynRow) => {
         )
       : Number(existing.docTotal);
 
-    const oldLines = await apInvoiceRepository.findLineBaseEntries(tx, id);
+    const oldLines = await apInvoiceRepository.findLineBaseEntries(transaction, id);
 
     const oldPoEntries = new Set<number>();
     const oldGrpoEntries = new Set<number>();
@@ -49,7 +49,7 @@ export const update = async (id: number, payload: DynRow) => {
       }
     }
 
-    await apInvoiceRepository.updateHeader(tx, id, {
+    await apInvoiceRepository.updateHeader(transaction, id, {
       address: payload.address ?? undefined,
       address2: payload.address2 ?? undefined,
       canceled: "N",
@@ -63,9 +63,9 @@ export const update = async (id: number, payload: DynRow) => {
     });
 
     if (payload.lines) {
-      await apInvoiceRepository.deleteLines(tx, id);
+      await apInvoiceRepository.deleteLines(transaction, id);
       await apInvoiceRepository.insertLines(
-        tx,
+        transaction,
         payload.lines.map((line: DynRow, lineIndex: number) => ({
           baseEntry: line.baseEntry ?? null,
           baseLine: line.baseLine ?? null,
@@ -105,10 +105,10 @@ export const update = async (id: number, payload: DynRow) => {
         const allGrpoEntries = new Set<number>([...oldGrpoEntries, ...newGrpoEntries]);
 
         if (allPoEntries.size > 0) {
-          await recalculateParentStatuses(tx, allPoEntries, 22);
+          await recalculateParentStatuses(transaction, allPoEntries, 22);
         }
         if (allGrpoEntries.size > 0) {
-          await recalculateParentStatuses(tx, allGrpoEntries, 20);
+          await recalculateParentStatuses(transaction, allGrpoEntries, 20);
         }
       }
     }
@@ -119,17 +119,17 @@ export const update = async (id: number, payload: DynRow) => {
 
 export const cancel = async (id: number) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await apInvoiceRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await apInvoiceRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AP Invoice not found", 404, "NOT_FOUND");
     }
-    await apInvoiceRepository.updateHeader(tx, id, {
+    await apInvoiceRepository.updateHeader(transaction, id, {
       canceled: "Y",
       docStatus: "C",
     });
 
-    const lines = await apInvoiceRepository.findLineBaseEntries(tx, id);
+    const lines = await apInvoiceRepository.findLineBaseEntries(transaction, id);
 
     const poEntries = new Set<number>();
     const grpoEntries = new Set<number>();
@@ -144,10 +144,10 @@ export const cancel = async (id: number) => {
       }
     }
     if (poEntries.size > 0) {
-      await recalculateParentStatuses(tx, poEntries, 22);
+      await recalculateParentStatuses(transaction, poEntries, 22);
     }
     if (grpoEntries.size > 0) {
-      await recalculateParentStatuses(tx, grpoEntries, 20);
+      await recalculateParentStatuses(transaction, grpoEntries, 20);
     }
 
     logger.info({ docNum: existing.docNum, id }, "AP Invoice cancelled");
@@ -157,17 +157,17 @@ export const cancel = async (id: number) => {
 
 export const reopen = async (id: number) => {
   const db = getDb();
-  return await db.transaction(async (tx) => {
-    const existing = await apInvoiceRepository.findById(tx, id);
+  return await db.transaction(async (transaction) => {
+    const existing = await apInvoiceRepository.findById(transaction, id);
     if (!existing) {
       throw new AppError("AP Invoice not found", 404, "NOT_FOUND");
     }
-    await apInvoiceRepository.updateHeader(tx, id, {
+    await apInvoiceRepository.updateHeader(transaction, id, {
       canceled: "N",
       docStatus: "O",
     });
 
-    const lines = await apInvoiceRepository.findLineBaseEntries(tx, id);
+    const lines = await apInvoiceRepository.findLineBaseEntries(transaction, id);
 
     const poEntries = new Set<number>();
     const grpoEntries = new Set<number>();
@@ -182,10 +182,10 @@ export const reopen = async (id: number) => {
       }
     }
     if (poEntries.size > 0) {
-      await recalculateParentStatuses(tx, poEntries, 22);
+      await recalculateParentStatuses(transaction, poEntries, 22);
     }
     if (grpoEntries.size > 0) {
-      await recalculateParentStatuses(tx, grpoEntries, 20);
+      await recalculateParentStatuses(transaction, grpoEntries, 20);
     }
 
     logger.info({ docNum: existing.docNum, id }, "AP Invoice reopened");

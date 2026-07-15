@@ -32,13 +32,13 @@ export const getARRelationshipMap = async (
       if (!validEntries || validEntries.length === 0) return [];
       const query = `SELECT "DocEntry", "DocNum" FROM "${table}" WHERE "DocEntry" IN (${validEntries.join(",")})`;
       const rows = await manager.query(query);
-      return rows.map((r: any) => ({ docEntry: r.DocEntry, docNum: r.DocNum }));
+      return rows.map((result: any) => ({ docEntry: result.DocEntry, docNum: result.DocNum }));
     };
 
     // Helper to safely extract IDs and filter
     const extractIds = (rows: any[], field: string): number[] => {
       return [
-        ...new Set(rows.map((r) => r[field]).filter((id) => id && !Number.isNaN(id) && id > 0)),
+        ...new Set(rows.map((row) => row[field]).filter((id) => id && !Number.isNaN(id) && id > 0)),
       ];
     };
 
@@ -46,13 +46,13 @@ export const getARRelationshipMap = async (
     if (docType === "sales-quotation") {
       currentSQs = [docEntry];
       // Down to SO
-      const q = `SELECT DISTINCT "DocEntry" FROM "RDR1" WHERE "BaseType" = 23 AND "BaseEntry" IN (${docEntry})`;
-      const rows = await manager.query(q);
+      const sqlQuery = `SELECT DISTINCT "DocEntry" FROM "RDR1" WHERE "BaseType" = 23 AND "BaseEntry" IN (${docEntry})`;
+      const rows = await manager.query(sqlQuery);
       currentSOs = extractIds(rows, "DocEntry");
 
       if (currentSOs.length > 0) {
-        const q2 = `SELECT DISTINCT "DocEntry" FROM "INV1" WHERE "BaseType" = 17 AND "BaseEntry" IN (${currentSOs.join(",")})`;
-        const invs = await manager.query(q2);
+        const invoiceSql = `SELECT DISTINCT "DocEntry" FROM "INV1" WHERE "BaseType" = 17 AND "BaseEntry" IN (${currentSOs.join(",")})`;
+        const invs = await manager.query(invoiceSql);
         currentInvs = extractIds(invs, "DocEntry");
       }
     } else if (docType === "sales-order") {
@@ -140,7 +140,7 @@ export const getARRelationshipMap = async (
     }
 
     // Populate actual details concurrently
-    const [sq, so, inv, cm, ip] = await Promise.all([
+    const [salesQuotation, salesOrder, inv, creditMemo, incomingPayment] = await Promise.all([
       getDocNums("OQUT", currentSQs),
       getDocNums("ORDR", currentSOs),
       getDocNums("OINV", currentInvs),
@@ -148,11 +148,11 @@ export const getARRelationshipMap = async (
       getDocNums("ORCT", currentIPs),
     ]);
 
-    result.salesQuotation = sq;
-    result.salesOrder = so;
+    result.salesQuotation = salesQuotation;
+    result.salesOrder = salesOrder;
     result.arInvoice = inv;
-    result.arCreditMemo = cm;
-    result.incomingPayment = ip;
+    result.arCreditMemo = creditMemo;
+    result.incomingPayment = incomingPayment;
 
     return result;
   } catch (error) {

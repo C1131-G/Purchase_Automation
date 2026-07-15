@@ -165,9 +165,9 @@ export const getBranches = async (req: Request, res: Response, next: NextFunctio
     const distributionRulesResponse = await serviceLayerClient.request<{
       value: Array<{ FactorCode: string; FactorDescription: string }>;
     }>(sessionId, "GET", "/DistributionRules?$select=FactorCode,FactorDescription");
-    const branchOptions = distributionRulesResponse.value.map((r) => ({
-      Code: r.FactorCode,
-      Name: r.FactorDescription,
+    const branchOptions = distributionRulesResponse.value.map((row) => ({
+      Code: row.FactorCode,
+      Name: row.FactorDescription,
     }));
     res.status(200).json({ data: branchOptions, success: true });
   } catch (error) {

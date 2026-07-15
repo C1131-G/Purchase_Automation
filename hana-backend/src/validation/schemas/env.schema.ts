@@ -30,12 +30,12 @@ export const EnvSchema = z.object({
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   HANA_POOLING: z
     .enum(["true", "false"])
-    .transform((v) => v === "true")
+    .transform((value) => value === "true")
     .optional()
     .default("false"),
   SERVICE_LAYER_HTTPS_VERIFY: z
     .enum(["true", "false"])
-    .transform((v) => v === "true")
+    .transform((rawValue) => rawValue === "true")
     .optional()
     .default("false"),
   SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(10_000),
@@ -47,7 +47,7 @@ export const EnvSchema = z.object({
   OTEL_SDK_DISABLED: z
     .enum(["true", "false"])
     .default("false")
-    .transform((v) => v === "true"),
+    .transform((value) => value === "true"),
   OTEL_SERVICE_NAME: z.string().min(1).optional(),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.string().url().optional(),
@@ -56,7 +56,7 @@ export const EnvSchema = z.object({
   METRICS_ENABLED: z
     .enum(["true", "false"])
     .default("true")
-    .transform((v) => v === "true"),
+    .transform((value) => value === "true"),
   METRICS_PATH: z.string().min(1).default("/metrics"),
   METRICS_BEARER_TOKEN: z.string().min(1).optional(),
 });

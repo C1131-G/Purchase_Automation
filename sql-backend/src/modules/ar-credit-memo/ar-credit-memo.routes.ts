@@ -26,8 +26,8 @@ router.post("/:id/cancel", arCreditMemoController.cancel);
 router.get(
   "/by-doc-num/:docNum/export/:format",
   createExportHandler(async (docNum) => {
-    const r = await arCreditMemoService.getByDocNum(docNum);
-    return { attachments: [], doc: r, lines: r.lines ?? [] };
+    const result = await arCreditMemoService.getByDocNum(docNum);
+    return { attachments: [], doc: result, lines: result.lines ?? [] };
   }, "AR Credit Memo"),
 );
 

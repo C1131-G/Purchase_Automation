@@ -35,50 +35,50 @@ export const getList = async (filters: DynRow = {}) => {
 
 export const getById = async (id: number) => {
   const db = getDb();
-  const h = await goodsIssueRepository.findById(db, id);
-  if (!h) {
+  const header = await goodsIssueRepository.findById(db, id);
+  if (!header) {
     throw new AppError("Goods issue not found", 404, "NOT_FOUND");
   }
   const lines = await goodsIssueRepository.findLines(db, id);
 
-  const attachmentsList = h.attachmentEntry
-    ? await goodsIssueRepository.findAttachments(db, h.attachmentEntry)
+  const attachmentsList = header.attachmentEntry
+    ? await goodsIssueRepository.findAttachments(db, header.attachmentEntry)
     : [];
 
   return {
-    ...h,
+    ...header,
     attachments: attachmentsList,
-    lines: lines.map((l: DynRow) => ({
-      ...l,
-      InventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
-      U_INVADJMTRES: l.inventoryAdjustmentReason || "",
-      binAllocations: l.binAllocations || [],
-      inventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
+    lines: lines.map((line: DynRow) => ({
+      ...line,
+      InventoryAdjustmentReason: line.inventoryAdjustmentReason || "",
+      U_INVADJMTRES: line.inventoryAdjustmentReason || "",
+      binAllocations: line.binAllocations || [],
+      inventoryAdjustmentReason: line.inventoryAdjustmentReason || "",
     })),
   };
 };
 
 export const getByDocNum = async (docNum: number) => {
   const db = getDb();
-  const h = await goodsIssueRepository.findByDocNum(db, docNum);
-  if (!h) {
+  const header = await goodsIssueRepository.findByDocNum(db, docNum);
+  if (!header) {
     throw new AppError("Goods issue not found", 404, "NOT_FOUND");
   }
-  const lines = await goodsIssueRepository.findLines(db, h.id);
+  const lines = await goodsIssueRepository.findLines(db, header.id);
 
-  const attachmentsList = h.attachmentEntry
-    ? await goodsIssueRepository.findAttachments(db, h.attachmentEntry)
+  const attachmentsList = header.attachmentEntry
+    ? await goodsIssueRepository.findAttachments(db, header.attachmentEntry)
     : [];
 
   return {
-    ...h,
+    ...header,
     attachments: attachmentsList,
-    lines: lines.map((l: DynRow) => ({
-      ...l,
-      InventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
-      U_INVADJMTRES: l.inventoryAdjustmentReason || "",
-      binAllocations: l.binAllocations || [],
-      inventoryAdjustmentReason: l.inventoryAdjustmentReason || "",
+    lines: lines.map((line: DynRow) => ({
+      ...line,
+      InventoryAdjustmentReason: line.inventoryAdjustmentReason || "",
+      U_INVADJMTRES: line.inventoryAdjustmentReason || "",
+      binAllocations: line.binAllocations || [],
+      inventoryAdjustmentReason: line.inventoryAdjustmentReason || "",
     })),
   };
 };
@@ -87,7 +87,7 @@ export const getDocNums = async (search?: string, limit?: number) => {
   const db = getDb();
   const safeLimit = Math.min(limit ?? 10, 100_000);
   const rows = await goodsIssueRepository.findDocNums(db, search, safeLimit);
-  return rows.map((r: DynRow) => r.docNum);
+  return rows.map((row: DynRow) => row.docNum);
 };
 
 export const create = async (payload: DynRow) => {
@@ -111,7 +111,7 @@ export const create = async (payload: DynRow) => {
     );
   }
 
-  const h = await goodsIssueRepository.insertHeader(db, {
+  const header = await goodsIssueRepository.insertHeader(db, {
     attachmentEntry,
     comments: payload.comments ?? null,
     docCurrency: payload.docCurrency ?? null,
@@ -128,36 +128,36 @@ export const create = async (payload: DynRow) => {
   if (payload.lines?.length) {
     await goodsIssueRepository.insertLines(
       db,
-      payload.lines.map((l: DynRow, idx: number) => ({
-        acctCode: l.acctCode ?? null,
-        binAllocations: l.documentLinesBinAllocations ?? null,
-        docEntry: h.id,
-        dscription: l.dscription ?? null,
-        inventoryAdjustmentReason: l.inventoryAdjustmentReason ?? null,
-        itemCode: l.itemCode,
-        lineNum: l.lineNum !== undefined && l.lineNum !== null ? l.lineNum : idx,
-        ocrCode: l.ocrCode ?? l.costingCode ?? null,
-        price: l.price === null || l.price === undefined ? null : String(l.price),
-        quantity: String(l.quantity),
-        unitMsr: l.unitMsr ?? null,
-        uomCode: l.uomCode ?? null,
-        warehouseCode: l.warehouseCode ?? null,
+      payload.lines.map((line: DynRow, idx: number) => ({
+        acctCode: line.acctCode ?? null,
+        binAllocations: line.documentLinesBinAllocations ?? null,
+        docEntry: header.id,
+        dscription: line.dscription ?? null,
+        inventoryAdjustmentReason: line.inventoryAdjustmentReason ?? null,
+        itemCode: line.itemCode,
+        lineNum: line.lineNum !== undefined && line.lineNum !== null ? line.lineNum : idx,
+        ocrCode: line.ocrCode ?? line.costingCode ?? null,
+        price: line.price === null || line.price === undefined ? null : String(line.price),
+        quantity: String(line.quantity),
+        unitMsr: line.unitMsr ?? null,
+        uomCode: line.uomCode ?? null,
+        warehouseCode: line.warehouseCode ?? null,
       })),
     );
   }
 
   logger.info({ docNum: payload.docNum }, "Goods issue created");
-  return getById(h.id);
+  return getById(header.id);
 };
 
 export const update = async (id: number, payload: DynRow) => {
   const db = getDb();
-  const ex = await goodsIssueRepository.findById(db, id);
-  if (!ex) {
+  const existing = await goodsIssueRepository.findById(db, id);
+  if (!existing) {
     throw new AppError("Goods issue not found", 404, "NOT_FOUND");
   }
 
-  let { attachmentEntry } = ex;
+  let { attachmentEntry } = existing;
   if (payload.attachments !== undefined) {
     if (
       payload.attachments &&
@@ -192,9 +192,9 @@ export const update = async (id: number, payload: DynRow) => {
 
   await goodsIssueRepository.updateHeader(db, id, {
     attachmentEntry,
-    comments: payload.comments === undefined ? ex.comments : payload.comments,
-    jrnlMemo: payload.jrnlMemo === undefined ? ex.jrnlMemo : payload.jrnlMemo,
-    ref2: payload.ref2 === undefined ? ex.ref2 : payload.ref2,
+    comments: payload.comments === undefined ? existing.comments : payload.comments,
+    jrnlMemo: payload.jrnlMemo === undefined ? existing.jrnlMemo : payload.jrnlMemo,
+    ref2: payload.ref2 === undefined ? existing.ref2 : payload.ref2,
   });
 
   return getById(id);

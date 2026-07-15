@@ -11,45 +11,45 @@ import { salesOrders } from "@/db/schema/sales-orders";
 // Legacy compat for dashboard.view.ts
 export const getPurchaseSummary = async (_period: "week" | "month" | "year" | "all") => {
   const db = getDb();
-  const [po] = await db
+  const [purchaseOrder] = await db
     .select({
       total: count(),
       value: sql`COALESCE(SUM(${purchaseOrders.docTotal}), 0)`.mapWith(Number),
     })
     .from(purchaseOrders);
-  const [gr] = await db
+  const [goodsReceipt] = await db
     .select({
       total: count(),
       value: sql`COALESCE(SUM(${grpo.docTotal}), 0)`.mapWith(Number),
     })
     .from(grpo);
-  const [ap] = await db
+  const [apInvoice] = await db
     .select({
       total: count(),
       value: sql`COALESCE(SUM(${apInvoices.docTotal}), 0)`.mapWith(Number),
     })
     .from(apInvoices);
   return {
-    totalAPInvoices: Number(ap.total),
-    totalAPValue: Number(ap.value),
-    totalGRPOValue: Number(gr.value),
-    totalGRPOs: Number(gr.total),
-    totalPOValue: Number(po.value),
-    totalPOs: Number(po.total),
+    totalAPInvoices: Number(apInvoice.total),
+    totalAPValue: Number(apInvoice.value),
+    totalGRPOValue: Number(goodsReceipt.value),
+    totalGRPOs: Number(goodsReceipt.total),
+    totalPOValue: Number(purchaseOrder.value),
+    totalPOs: Number(purchaseOrder.total),
   };
 };
 
 export const getSalesSummary = async (_period: "week" | "month" | "year" | "all") => {
   const db = getDb();
-  const [so] = await db
+  const [salesOrder] = await db
     .select({
       total: count(),
       value: sql`COALESCE(SUM(${salesOrders.docTotal}), 0)`.mapWith(Number),
     })
     .from(salesOrders);
   return {
-    totalSalesOrders: Number(so.total),
-    totalSalesValue: Number(so.value),
+    totalSalesOrders: Number(salesOrder.total),
+    totalSalesValue: Number(salesOrder.value),
   };
 };
 
