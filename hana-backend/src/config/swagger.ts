@@ -1,7 +1,7 @@
 // Swagger Configuration: Orchestrates the generation of the OpenAPI v3 specification.
 // It acts as a central registry where all request/response schemas are declared for the docs.
 
-import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
+import { OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 
 import { registry } from "@/config/swagger-registry";
 import { LoginInputSchema } from "@/validation/schemas/inputs/auth.input";
@@ -69,12 +69,20 @@ registry.register("MasterDataQuery", MasterDataQuerySchema);
 registry.register("DashboardSummaryQuery", DashboardSummaryQuerySchema);
 registry.register("OrganizationsQuery", OrganizationQuerySchema);
 
+// Register cookie authentication security scheme
+registry.registerComponent("securitySchemes", "CookieAuth", {
+  type: "apiKey",
+  in: "cookie",
+  name: "vendorportal.sid",
+  description: "Session cookie authentication",
+});
+
 // Side Effect: Importing this file triggers the registration of all API endpoints (paths).
 import "@/config/swagger-paths";
 
 // generateOpenApiSpec: High-level function called by app.ts to produce the final JSON document.
 export const generateOpenApiSpec = () => {
-  const generator = new OpenApiGeneratorV3(registry.definitions);
+  const generator = new OpenApiGeneratorV31(registry.definitions);
 
   return generator.generateDocument({
     info: {
@@ -82,12 +90,13 @@ export const generateOpenApiSpec = () => {
       title: "Vendor Portal API",
       version: "1.0.0",
     },
-    openapi: "3.0.0",
+    openapi: "3.1.0",
     servers: [
       {
         description: "API Base URL",
         url: "/api/v1",
       },
     ],
+    security: [{ CookieAuth: [] }],
   });
 };

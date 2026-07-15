@@ -1,0 +1,7 @@
+export default {
+  // TypeScript / JavaScript — lint then format staged files
+  "**/*.{ts,tsx,js,jsx,mjs,cjs}": ["oxlint --fix --deny-warnings", "oxfmt"],
+
+  // JSON / YAML / Markdown / CSS — format only
+  "**/*.{json,jsonc,yaml,yml,md,css}": ["oxfmt"],
+};

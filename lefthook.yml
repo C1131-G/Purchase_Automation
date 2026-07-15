@@ -1,0 +1,42 @@
+# ────────────────────────────────────────────────────────────────────────────
+# Lefthook — Git Hooks Manager
+# https://lefthook.dev
+# ────────────────────────────────────────────────────────────────────────────
+#
+# Hook strategy (production-level):
+#
+#  pre-commit  → lint-staged (fast — only staged files)
+#                 • oxlint  --fix --deny-warnings
+#                 • oxfmt
+#
+#  pre-push    → full typecheck + build
+#                 • tsc --noEmit  (hana-backend)
+#                 • tsc --noEmit  (sql-backend)
+#                 • tsc -b --noEmit (frontend)
+#                 • pnpm build    (full production build gate)
+#
+# Why split pre-commit / pre-push?
+#   • pre-commit must be FAST (< 2s) so devs never bypass with --no-verify
+#   • pre-push runs less often and can afford the full typecheck + build
+# ────────────────────────────────────────────────────────────────────────────
+
+pre-commit:
+  parallel: false
+  commands:
+    lint-staged:
+      run: pnpm exec lint-staged --config lint-staged.config.mjs
+
+pre-push:
+  parallel: false
+  commands:
+    typecheck-hana-backend:
+      root: hana-backend/
+      run: pnpm typecheck
+    typecheck-sql-backend:
+      root: sql-backend/
+      run: pnpm typecheck
+    typecheck-frontend:
+      root: frontend/
+      run: pnpm exec tsc -b --noEmit
+    build:
+      run: pnpm build

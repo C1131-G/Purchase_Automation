@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getVendors, getCustomers, getProducts } from "@/services/master-data.service";
+import { getVendors, getCustomers, getProducts } from "@/modules/master-data/master-data.service";
 import { businessPartners } from "@/db/schema/business-partners";
 import { businessPartnerAddresses } from "@/db/schema/business-partner-addresses";
 import { salesEmployees } from "@/db/schema/sales-employees";

@@ -19,16 +19,16 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
   const reqWithSession = req as RequestWithSession;
   const log = reqWithSession.log || logger;
 
-  log.error({
-    msg: "Error handled",
-    error: message,
-    // stack traces are sensitive and only included in the log (not the response) when in development mode.
-    stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    statusCode,
-    path: req.path,
-    method: req.method,
-    userId: reqWithSession.session?.user?.id,
-  });
+  log.error(
+    {
+      err: error,
+      method: req.method,
+      path: req.path,
+      statusCode,
+      userId: reqWithSession.session?.user?.id,
+    },
+    "Error handled",
+  );
 
   const isMissingSessionFile =
     message.includes("ENOENT") &&

@@ -34,11 +34,15 @@ const start = async () => {
 
     // HTTP Server initialization.
     const server = app.listen(PORT, () => {
+      const isProduction = process.env.NODE_ENV === "production";
       logger.info({
         env: process.env.NODE_ENV || "development",
         msg: "Server started successfully",
         port: PORT,
-        swagger: `http://localhost:${PORT}/api-docs`,
+        ...(isProduction ? {} : { 
+          swagger: `http://localhost:${PORT}/api-docs`,
+          postman: `http://localhost:${PORT}/api-docs.json` 
+        }),
         url: `http://localhost:${PORT}`,
       });
     });

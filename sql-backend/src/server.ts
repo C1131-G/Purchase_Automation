@@ -12,6 +12,10 @@ async function start() {
 
   const server = app.listen(config.server.port, () => {
     logger.info({ port: config.server.port }, "SQL backend listening");
+    if (process.env.NODE_ENV !== "production") {
+      logger.info({ url: `http://localhost:${config.server.port}/api-docs` }, "API docs (web)");
+      logger.info({ url: `http://localhost:${config.server.port}/api-docs.json` }, "Postman collection (OpenAPI spec)");
+    }
   });
 
   const shutdown = async (signal: string) => {

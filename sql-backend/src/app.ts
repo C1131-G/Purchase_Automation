@@ -12,6 +12,8 @@ import { healthRoutes } from "@/routes/health.routes";
 import { apiRoutes } from "@/routes/api.routes";
 import { AppError } from "@/core/errors/app-error";
 
+import { configureSwagger } from "@/config/swagger";
+
 const app = express();
 
 app.set("etag", "strong");
@@ -30,6 +32,7 @@ app.use("/", express.json({ limit: "10mb" }) as unknown as RequestHandler);
 app.use("/", express.urlencoded({ extended: true }) as unknown as RequestHandler);
 
 configureSession(app);
+configureSwagger(app);
 
 app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1", apiRoutes);
