@@ -35,18 +35,6 @@ call_lefthook()
     elif test -f "$dir/node_modules/lefthook/bin/index.js"
     then
       "$dir/node_modules/lefthook/bin/index.js" "$@"
-    elif test -f "$dir/hana-backend/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook.exe"
-    then
-      "$dir/hana-backend/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook.exe" "$@"
-    elif test -f "$dir/hana-backend/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook.exe"
-    then
-      "$dir/hana-backend/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook.exe" "$@"
-    elif test -f "$dir/hana-backend/node_modules/@evilmartians/lefthook-installer/bin/lefthook.exe"
-    then
-      "$dir/hana-backend/node_modules/@evilmartians/lefthook-installer/bin/lefthook.exe" "$@"
-    elif test -f "$dir/hana-backend/node_modules/lefthook/bin/index.js"
-    then
-      "$dir/hana-backend/node_modules/lefthook/bin/index.js" "$@"
     elif test -f "$dir/sql-backend/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook.exe"
     then
       "$dir/sql-backend/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook.exe" "$@"
@@ -71,6 +59,18 @@ call_lefthook()
     elif test -f "$dir/frontend/node_modules/lefthook/bin/index.js"
     then
       "$dir/frontend/node_modules/lefthook/bin/index.js" "$@"
+    elif test -f "$dir/hana-backend/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook.exe"
+    then
+      "$dir/hana-backend/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook.exe" "$@"
+    elif test -f "$dir/hana-backend/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook.exe"
+    then
+      "$dir/hana-backend/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook.exe" "$@"
+    elif test -f "$dir/hana-backend/node_modules/@evilmartians/lefthook-installer/bin/lefthook.exe"
+    then
+      "$dir/hana-backend/node_modules/@evilmartians/lefthook-installer/bin/lefthook.exe" "$@"
+    elif test -f "$dir/hana-backend/node_modules/lefthook/bin/index.js"
+    then
+      "$dir/hana-backend/node_modules/lefthook/bin/index.js" "$@"
     
     elif go tool lefthook -h >/dev/null 2>&1
     then

@@ -13,7 +13,7 @@
     "build": "pnpm fix && pnpm -r build",
     "test": "pnpm -r test",
     "fix": "pnpm dlx ultracite fix",
-    "prepare": "lefthook install"
+    "prepare": "pnpm exec lefthook install"
   },
   "devDependencies": {
     "drizzle-orm": "^0.45.2",
