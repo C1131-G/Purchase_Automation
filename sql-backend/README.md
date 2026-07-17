@@ -88,11 +88,44 @@ http://localhost:4000/api-docs
 The SQL backend follows a layered structure similar to the HANA backend:
 
 - `routes/` - HTTP route registration
-- `services/` - business logic and orchestration
+- `services/` - shared helpers (export, document-link, dashboard)
 - `db/` - Drizzle client, migrations, and seed scripts
+- `modules/` - one folder per business feature (auth, purchase-order, …)
 - `validation/` - Zod schemas for request and response contracts
 - `shared/` - reusable route handlers and helpers
-- `core/` - logging, errors, middleware, and observability
+- `core/` - logging, errors, middleware (including tenant context), and observability
+
+### Request path (short)
+
+```text
+HTTP → app.ts → routes/ → (session + tenant context) → modules/<feature>
+  → controller → service → queries|mutations → repository → Postgres
+```
+
+## Folder guide
+
+Use these package-local READMEs to navigate folders and see how they connect. They are written for developers and for anyone learning the project.
+
+| Guide | What it covers |
+| --- | --- |
+| [src/README.md](./src/README.md) | Full `src/` map and request flow |
+| [src/config/README.md](./src/config/README.md) | Env, CORS, session, Swagger setup |
+| [src/core/README.md](./src/core/README.md) | Auth, tenant context, errors, logs, metrics |
+| [src/db/README.md](./src/db/README.md) | Drizzle schema, migrations, seed, pools |
+| [src/modules/README.md](./src/modules/README.md) | Feature modules and file pattern |
+| [src/routes/README.md](./src/routes/README.md) | How `/api/v1` mounts modules |
+| [src/services/README.md](./src/services/README.md) | Document-link, export, dashboard helpers |
+| [src/shared/README.md](./src/shared/README.md) | Shared route handlers |
+| [src/types/README.md](./src/types/README.md) | DB, Drizzle, Express, session types |
+| [src/validation/README.md](./src/validation/README.md) | Env and API Zod schemas |
+| [tests/README.md](./tests/README.md) | Unit, integration, and smoke tests |
+
+**How to navigate**
+
+1. Read this package README for setup, env, scripts, and `db:migrate` / `db:seed`.
+2. Open [src/README.md](./src/README.md) for the folder map.
+3. Open the folder README for the area you need (for example modules or db).
+4. Use purchase-order under `modules/` as the concrete example of a full feature (includes `*.repository.ts`).
 
 ## Build And Deploy
 
