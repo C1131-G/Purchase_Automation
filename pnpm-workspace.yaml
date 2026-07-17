@@ -1,4 +1,12 @@
+packages:
+  - frontend
+  - hana-backend
+  - sql-backend
+
 allowBuilds:
+  "@sap/hana-client": true
+  "@scarf/scarf": true
+  esbuild: true
   lefthook: true
   protobufjs: true
 minimumReleaseAgeExclude:
@@ -23,7 +31,3 @@ minimumReleaseAgeExclude:
   - "@typescript/typescript-win32-arm64@7.0.2"
   - "@typescript/typescript-win32-x64@7.0.2"
   - typescript@7.0.2
-onlyBuiltDependencies:
-  - "@sap/hana-client"
-  - "@scarf/scarf"
-  - esbuild
