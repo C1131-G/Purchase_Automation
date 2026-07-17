@@ -1,7 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useSearch } from "@tanstack/react-router";import { useEffect, useMemo, useState, type MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
@@ -23,9 +21,7 @@ import { RelationshipMapTracker } from "@/features/create-shared/components/layo
 import {
   CopyFromDialog,
   type SourceDocType,
-} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import { salesQuotationAPI } from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
+} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";import { salesQuotationAPI } from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
 import { SalesOrderModals } from "@/features/create-pages/sales-order-create/components/sales-order-modals";
 import { SalesOrderProductSection } from "@/features/create-pages/sales-order-create/components/sales-order-product-section";
 import { useSalesOrderCreate } from "@/features/create-pages/sales-order-create/hooks/use-sales-order-create";
@@ -105,10 +101,7 @@ export function SalesOrderCreate({
 
   const handleCopyFromSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
     state.setPullFromSQModalOpen(false);
-    if (selected.length === 0) return;
-
-    const loadingToast = pageLoadingToast("Sales Order", "create");
-    try {
+    if (selected.length === 0) return;    try {
       const details = await Promise.all(
         selected.map(async (doc) => {
           const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.docNum);
@@ -156,15 +149,8 @@ export function SalesOrderCreate({
           vendorCode: String(firstDetail.CardCode ?? "").trim(),
           vendorName: String(firstDetail.CardName ?? "").trim(),
         });
-      }
-
-      loadingToast.dismiss();
-      goeyToast.success("Products added successfully");
-    } catch (err) {
-      console.error(err);
-      loadingToast.dismiss();
-      goeyToast.error("Failed to pull products");
-    }
+      }    } catch (err) {
+      console.error(err);    }
   };
 
   const pageTitle = state.isEditMode

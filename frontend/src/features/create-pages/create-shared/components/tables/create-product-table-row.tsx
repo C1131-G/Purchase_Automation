@@ -1,6 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { ChevronDown, Search, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";import { ChevronDown, Search, Trash2 } from "lucide-react";
 import React from "react";
 import ReactDOM from "react-dom";
 
@@ -889,11 +887,7 @@ export function CreateProductTableRow({
                 const rawValue = event.target.value.trim();
 
                 if (rawValue === "") {
-                  if (effectiveLinkedRow) {
-                    goeyToast.error("0 not allowed", {
-                      id: "min-quantity-error",
-                    });
-                    updateProductRow(row.id, { quantity: 1 });
+                  if (effectiveLinkedRow) {                    updateProductRow(row.id, { quantity: 1 });
                     clearProductRowDraft(row.id, "quantity");
                     return;
                   }
@@ -906,11 +900,7 @@ export function CreateProductTableRow({
                 if (
                   effectiveLinkedRow &&
                   (typedQuantity === 0 || !Number.isFinite(typedQuantity))
-                ) {
-                  goeyToast.error("0 not allowed", {
-                    id: "min-quantity-error",
-                  });
-                  updateProductRow(row.id, { quantity: 1 });
+                ) {                  updateProductRow(row.id, { quantity: 1 });
                   clearProductRowDraft(row.id, "quantity");
                   return;
                 }
@@ -920,11 +910,7 @@ export function CreateProductTableRow({
                   ? Math.min(maxAllowed, typedQuantityVal)
                   : typedQuantityVal;
 
-                if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
-                  goeyToast.error("Quantity cannot exceed base quantity", {
-                    id: "max-quantity-error",
-                  });
-                  updateProductRow(row.id, { quantity: effectiveMaxQuantity });
+                if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {                  updateProductRow(row.id, { quantity: effectiveMaxQuantity });
                   clearProductRowDraft(row.id, "quantity");
                   return;
                 }
@@ -964,11 +950,7 @@ export function CreateProductTableRow({
               const rawValue = event.target.value.trim();
 
               if (rawValue === "") {
-                if (effectiveLinkedRow) {
-                  goeyToast.error("0 not allowed", {
-                    id: "min-quantity-error",
-                  });
-                  updateProductRow(row.id, { quantity: 1 });
+                if (effectiveLinkedRow) {                  updateProductRow(row.id, { quantity: 1 });
                   clearProductRowDraft(row.id, "quantity");
                   return;
                 }
@@ -978,20 +960,14 @@ export function CreateProductTableRow({
               }
 
               const typedQuantity = Number(rawValue);
-              if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {
-                goeyToast.error("0 not allowed", { id: "min-quantity-error" });
-                updateProductRow(row.id, { quantity: 1 });
+              if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {                updateProductRow(row.id, { quantity: 1 });
                 clearProductRowDraft(row.id, "quantity");
                 return;
               }
 
               const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
 
-              if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {
-                goeyToast.error("Quantity cannot exceed base quantity", {
-                  id: "max-quantity-error",
-                });
-                updateProductRow(row.id, { quantity: effectiveMaxQuantity });
+              if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {                updateProductRow(row.id, { quantity: effectiveMaxQuantity });
                 clearProductRowDraft(row.id, "quantity");
                 return;
               }

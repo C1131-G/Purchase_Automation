@@ -1,6 +1,4 @@
-import { useRouter } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
-import { useMemo, useState } from "react";
+import { useRouter } from "@tanstack/react-router";import { useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
@@ -97,12 +95,7 @@ export function APInvoiceCreate({
     return null;
   }, [state.rows]);
 
-  const handleLockedFamilyClick = () => {
-    goeyToast.warning(
-      "SAP does not allow mixing Purchase Order, GRPO, and Purchase Quotation documents in one A/P Invoice.",
-      { duration: 4000 },
-    );
-  };
+  const handleLockedFamilyClick = () => {  };
 
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>

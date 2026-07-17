@@ -1,12 +1,9 @@
-import "goey-toast/styles.css";
 import { dehydrate, hydrate, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import { GoeyToaster } from "goey-toast";
 import { useEffect, useRef } from "react";
 
 import { GlobalErrorBoundary } from "@/components/error-boundary";
-import { GOEY_TOASTER_CONFIG } from "@/components/goey-toast.config";
 import { routeTree } from "@/routeTree.gen";
 import {
   CLEAR_QUERY_CACHE_EVENT,
@@ -145,7 +142,6 @@ function App() {
       <GlobalErrorBoundary>
         <RouterProvider router={router} />
       </GlobalErrorBoundary>
-      <GoeyToaster {...GOEY_TOASTER_CONFIG} />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

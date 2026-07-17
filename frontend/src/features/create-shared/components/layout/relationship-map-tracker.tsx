@@ -81,7 +81,7 @@ const NodeIcon = ({
               <Link
                 key={item.docEntry}
                 to={
-                  isInventory ? (linkPrefix as any) : (`${linkPrefix}/${item.docNum}/edit` as any)
+                  isInventory ? (linkPrefix as any) : (`${linkPrefix}/${item.docNum}/update` as any)
                 }
                 search={isInventory ? ({ DocNum: String(item.docNum) } as any) : undefined}
                 className="px-4 py-2 text-xs hover:bg-slate-50 text-slate-700 font-medium whitespace-nowrap text-center block"
@@ -98,7 +98,7 @@ const NodeIcon = ({
   if (isSingle && items) {
     return (
       <Link
-        to={isInventory ? (linkPrefix as any) : (`${linkPrefix}/${items[0]?.docNum}/edit` as any)}
+        to={isInventory ? (linkPrefix as any) : (`${linkPrefix}/${items[0]?.docNum}/update` as any)}
         search={isInventory ? ({ DocNum: String(items[0]?.docNum) } as any) : undefined}
         className="block hover:opacity-90 transition-opacity"
       >

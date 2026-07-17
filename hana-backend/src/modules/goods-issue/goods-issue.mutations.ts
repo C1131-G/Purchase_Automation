@@ -52,7 +52,8 @@ export const createGoodsIssue = async (sessionId: string, payload: Record<string
         if (line.UoMCode) documentLine.UoMCode = line.UoMCode;
         if (line.AccountCode) documentLine.AccountCode = line.AccountCode;
         if (line.CostingCode) documentLine.CostingCode = line.CostingCode; // This is the "Branch"
-        if (line.InventoryAdjustmentReason) documentLine.U_INVADJMTRES = line.InventoryAdjustmentReason;
+        if (line.InventoryAdjustmentReason)
+          documentLine.U_INVADJMTRES = line.InventoryAdjustmentReason;
 
         return documentLine;
       }),

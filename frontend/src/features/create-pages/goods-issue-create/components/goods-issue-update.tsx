@@ -1,10 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { ArrowLeft, ChevronDown, LayoutDashboard, Table } from "lucide-react";
-import { useState, useEffect } from "react";
-import { goeyToast } from "goey-toast";
-
-import { ActionsPopoverContent } from "@/features/create-pages/create-shared/components/sections/base-product-section";
+import { useState, useEffect } from "react";import { ActionsPopoverContent } from "@/features/create-pages/create-shared/components/sections/base-product-section";
 
 import { Button } from "@/components/button";
 import { Popover } from "@/components/popover";
@@ -325,20 +322,11 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
                           },
                         },
                         {
-                          onSuccess: () => {
-                            goeyToast.success("Goods Issue updated successfully.");
-                          },
-                          onError: (err: any) => {
-                            goeyToast.error(
-                              err?.response?.data?.message || "Failed to update Goods Issue.",
-                            );
-                          },
+                          onSuccess: () => {}, onError: () => {},
                         },
                       );
                     }}
-                    onDownload={(type) => {
-                      goeyToast.info(`Downloading Goods Issue as ${type.toUpperCase()}...`);
-                    }}
+                    onDownload={() => {}}
                     isSubmitting={updateMutation.isPending}
                     submitDisabled={false}
                   />

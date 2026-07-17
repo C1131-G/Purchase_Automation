@@ -1,6 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
@@ -23,9 +21,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import {
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
@@ -128,24 +124,15 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
-  const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
-  const editDocNum = (options?.docNum ?? "").trim();
+    const editDocNum = (options?.docNum ?? "").trim();
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
   const modals = useSqModals();
 
-  const notifyRestricted = (fieldName: string) => {
-    const now = Date.now();
-    if (now - lastRestrictedToastAtRef.current < 2500) {
-      return;
-    }
-    lastRestrictedToastAtRef.current = now;
-    goeyToast.error(`${fieldName} is locked for edit`, {
-      id: "restricted-edit-toast",
-    });
+  const notifyRestricted = (_fieldName?: string) => {
+    // Edit-restricted fields: toast removed.
   };
 
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
@@ -306,11 +293,6 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     if (!detail) {
       return;
     }
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("Sales Quotation", "edit");
-    }
-
     const vendorCode = String(detail.CardCode ?? "").trim();
     const vendorName = String(detail.CardName ?? "").trim();
     const matchedVendor = lookups.vendors.find((vendor) => String(vendor.code) === vendorCode);
@@ -526,10 +508,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
 
         hydratedDocNumRef.current = hydrationKey;
         setHydratedDocNum(hydrationKey);
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     queryClient,
@@ -790,9 +769,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
 
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);
-        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-        return;
+        setCreateError(noChangeMessage);        return;
       }
 
       setCreateError(null);
@@ -855,9 +832,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         ? "update"
         : action;
 
-    saveActions.startSaveTracking(trackingAction);
-    saveActions.actionToast.startLoading("Sales Quotation", trackingAction);
-    try {
+    saveActions.startSaveTracking(trackingAction);    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const detail = editDetailQuery.data?.data;
@@ -867,9 +842,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             ? Number(draftDocEntry)
             : undefined;
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update sales quotation. Document id is missing.");
-          saveActions.actionToast.showError("Sales Quotation", "update", "Document ID is missing.");
-          return;
+          setCreateError("Unable to update sales quotation. Document id is missing.");          return;
         }
         const finalPayload = isDraftAction
           ? { ...payload, isDraft: true, draftDocEntry: Number(draftDocEntry) }
@@ -1035,13 +1008,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} sales quotation. Try again.`,
-      );
-      saveActions.actionToast.showError(
-        "Sales Quotation",
-        isEditMode ? "update" : action,
-        errorMessage,
-      );
-      setCreateError(errorMessage);
+      );      setCreateError(errorMessage);
     }
   };
 

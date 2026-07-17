@@ -44,7 +44,12 @@ const buildInventorySummary = (dataset: InventoryDataset): DashboardMetric[] => 
     buildMetric("on-hand-items", "On-Hand Items", dataset.itemStats.onHandItems, "number"),
     buildMetric("stock-valuation", "Stock Valuation", dataset.itemStats.stockValue, "currency"),
     buildMetric("on-order-value", "On-Order Value", dataset.itemStats.onOrderValue, "currency"),
-    buildMetric("goods-receipt-val", "Goods Receipt Value", sumTotals(goodsReceipt.current), "currency"),
+    buildMetric(
+      "goods-receipt-val",
+      "Goods Receipt Value",
+      sumTotals(goodsReceipt.current),
+      "currency",
+    ),
     buildMetric("goods-issue-val", "Goods Issue Value", sumTotals(goodsIssue.current), "currency"),
     buildMetric(
       "inventory-transfer-val",

@@ -2,7 +2,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
 import type { ComponentProps } from "react";
 
-import { useLookupToast } from "@/components/lookup/hooks/use-lookup-toast";
 import { LookupErrorState } from "@/components/lookup/lookup-error-state";
 import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { AnimatedModalShell } from "@/features/create-pages/create-shared/components/core/animated-modal-shell";
@@ -98,7 +97,7 @@ const LOOKUP_SKELETON_KEYS = ["slot-1", "slot-2", "slot-3", "slot-4", "slot-5", 
 
 /**
  * LookupPopup: High-utility modal for entity selection.
- * UX: Supports code/name search with real-time feedback via `useLookupToast`.
+ * UX: Supports code/name search with virtualized results and loading states.
  * DESIGN: Integrated with `AnimatedModalShell` for premium transitions.
  */
 export function LookupPopup({
@@ -205,13 +204,6 @@ export function LookupPopup({
     getScrollElement: () => listRef.current,
     estimateSize: () => 36,
     overscan: 5,
-  });
-
-  useLookupToast({
-    hasData: filteredResults.length > 0,
-    loading,
-    message: search.trim() ? "Searching…" : "Loading…",
-    open,
   });
 
   const cellWidthClass = showNameOnly || showCodeOnly ? "w-full" : "w-1/2";

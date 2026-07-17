@@ -190,7 +190,8 @@ export async function buildIncomingPaymentSapPayload(
 
   const modes = collectPaymentModes(payload);
   if (modes.length === 1) sapPayload.U_Mode_Pay = modes[0];
-  else if (modes.length > 1) sapPayload.U_Mode_Pay = modes.find((mode) => mode !== "CASH") || "CASH";
+  else if (modes.length > 1)
+    sapPayload.U_Mode_Pay = modes.find((mode) => mode !== "CASH") || "CASH";
 
   if (payload.CashSum && (payload.CashSum as number) > 0) {
     sapPayload.CashSum = payload.CashSum;

@@ -81,7 +81,11 @@ export function writeExcelTitleAndAddresses(
     addrLines.forEach((line) => {
       if (billToIdx <= startRow + 5) {
         worksheet.getCell(`D${billToIdx}`).value = line;
-        worksheet.getCell(`D${billToIdx}`).font = { name: fontName, size: 9, color: { argb: "FF334155" } };
+        worksheet.getCell(`D${billToIdx}`).font = {
+          name: fontName,
+          size: 9,
+          color: { argb: "FF334155" },
+        };
         billToIdx++;
       }
     });
@@ -114,7 +118,11 @@ export function writeExcelTitleAndAddresses(
     addrLines2.forEach((line) => {
       if (shipToIdx <= startRow + 5) {
         worksheet.getCell(`H${shipToIdx}`).value = line;
-        worksheet.getCell(`H${shipToIdx}`).font = { name: fontName, size: 9, color: { argb: "FF334155" } };
+        worksheet.getCell(`H${shipToIdx}`).font = {
+          name: fontName,
+          size: 9,
+          color: { argb: "FF334155" },
+        };
         shipToIdx++;
       }
     });

@@ -1,7 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
-
-import { goeyToast } from "goey-toast";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
 
@@ -20,9 +17,7 @@ import { RelationshipMapTracker } from "@/features/create-shared/components/layo
 import {
   CopyFromDialog,
   type SourceDocType,
-} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import { SharedCreateModals } from "@/features/create-pages/create-shared/components/modals/shared-create-modals";
+} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";import { SharedCreateModals } from "@/features/create-pages/create-shared/components/modals/shared-create-modals";
 import {
   formatWarehouseDisplay,
   parseISODate,
@@ -109,10 +104,7 @@ export function ArCreditMemoCreate({
 
   const handleCopyFromSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
     setCopyFromDialogOpen(false);
-    if (selected.length === 0) return;
-
-    const loadingToast = pageLoadingToast("A/R Credit Memo", "create");
-    try {
+    if (selected.length === 0) return;    try {
       const details = await Promise.all(
         selected.map(async (doc) => {
           const list = await arInvoiceAPI.getARInvoices({
@@ -254,14 +246,8 @@ export function ArCreditMemoCreate({
       });
 
       state.productsHook.setProductRows(mappedRows);
-      state.productsHook.setProductRowDrafts({});
-      loadingToast.dismiss();
-      goeyToast.success("Products pulled successfully");
-    } catch (err) {
-      console.error(err);
-      loadingToast.dismiss();
-      goeyToast.error("Failed to pull products");
-    }
+      state.productsHook.setProductRowDrafts({});    } catch (err) {
+      console.error(err);    }
   };
 
   const {

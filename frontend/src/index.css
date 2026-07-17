@@ -1,7 +1,2 @@
 @import "tailwindcss";
 @import "./transitions.css";
-
-/* Hide goey-toast's built-in timestamp next to the toast title. */
-.goey-timestamp {
-  display: none !important;
-}

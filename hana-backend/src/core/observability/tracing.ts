@@ -10,7 +10,11 @@ export function getTracer() {
 export function getActiveTraceFields(): { trace_id?: string; span_id?: string } {
   const span = trace.getSpan(context.active());
   const activeSpanContext = span?.spanContext();
-  if (!activeSpanContext || !activeSpanContext.traceId || activeSpanContext.traceId === "00000000000000000000000000000000") {
+  if (
+    !activeSpanContext ||
+    !activeSpanContext.traceId ||
+    activeSpanContext.traceId === "00000000000000000000000000000000"
+  ) {
     return {};
   }
   return { trace_id: activeSpanContext.traceId, span_id: activeSpanContext.spanId };

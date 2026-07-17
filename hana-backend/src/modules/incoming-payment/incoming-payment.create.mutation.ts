@@ -66,8 +66,10 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
               (sum, check) => sum + (check.CreditSum || 0),
               0,
             ) || 0) +
-            ((sapPayload.PaymentChecks as any[])?.reduce((sum, check) => sum + (check.CheckSum || 0), 0) ||
-              0) +
+            ((sapPayload.PaymentChecks as any[])?.reduce(
+              (sum, check) => sum + (check.CheckSum || 0),
+              0,
+            ) || 0) +
             ((sapPayload.BankChargeAmount as number) || 0),
           docCurr: result.DocCurrency || (await getDisplayCurrency(dbName)),
           paymentMode: (sapPayload.U_Mode_Pay as string) || "CASH",

@@ -1,7 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
-import { Check, HandCoins, Search } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";import { Check, HandCoins, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
@@ -94,13 +92,8 @@ export function CreateIncomingPaymentForm() {
 
   const createPaymentMutation = useMutation({
     mutationFn: incomingPaymentAPI.createIncomingPayment,
-    onError: (error) => {
-      goeyToast.error(error instanceof Error ? error.message : "Failed to create payment");
-    },
-    onSuccess: (data) => {
-      const docNum = data.data?.DocNum || data.data?.DocEntry || "successfully";
-      goeyToast.success(`Incoming Payment ${docNum} created successfully!`);
-
+    onError: () => {},
+    onSuccess: () => {
       // Invalidate related queries to refresh balances
       queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: ArCreditMemoKeys.all });
@@ -284,15 +277,10 @@ export function CreateIncomingPaymentForm() {
       amountToDistribute -= toApply;
     }
 
-    if (!isPaymentOnAccount && paymentInvoices.length === 0) {
-      goeyToast.error("Please select at least one document to pay");
-      return;
+    if (!isPaymentOnAccount && paymentInvoices.length === 0) {      return;
     }
 
-    const surchargeTotal = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));
-    goeyToast.info(`Captured surcharge: ${surchargeTotal}`);
-
-    const cashSum = totalCash;
+    const surchargeTotal = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));    const cashSum = totalCash;
     const checkSum = totalChecks;
     const trsfrSum = paymentDetails.TransferSum || 0;
     createPaymentMutation.mutate({

@@ -1,12 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
 import { Building2 } from "lucide-react";
 import { useEffect } from "react";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
-import { GOEY_LOGIN_TOAST_DURATION } from "@/components/goey-toast.config";
 import { authKeys } from "@/features/auth/api/auth.queries";
 import { authAPI } from "@/features/auth/api/auth.service";
 import type { User } from "@/features/auth/api/auth.service";
@@ -48,20 +46,6 @@ function LoginComponent() {
   useDocumentTitle("Access Gateway | ERP Portal");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const SESSION_WARNING_TOAST_ID = "auth-session-ended";
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const reason = params.get("reason");
-    if (reason !== "session_ended") {
-      return;
-    }
-
-    goeyToast.warning("Session ended", {
-      duration: GOEY_LOGIN_TOAST_DURATION,
-      id: SESSION_WARNING_TOAST_ID,
-    });
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -166,7 +150,7 @@ function LoginComponent() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 shadow-lg shadow-blue-500/25 ring-1 ring-white/20">
             <Building2 className="h-6 w-6 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-white uppercase tracking-wider">
+          <span className="text-xl font-bold tracking-wider text-white uppercase ">
             ERP Portal
           </span>
         </div>

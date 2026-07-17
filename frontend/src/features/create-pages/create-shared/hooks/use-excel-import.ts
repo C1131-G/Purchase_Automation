@@ -1,8 +1,5 @@
 import { useState } from "react";
-import type { ChangeEvent, RefObject } from "react";
-import { goeyToast } from "goey-toast";
-
-import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
+import type { ChangeEvent, RefObject } from "react";import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
@@ -101,28 +98,17 @@ export function useExcelImport({
       link.setAttribute("download", "erp_portal_product_template.csv");
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-
-      goeyToast.success("Product template downloaded!");
-      closeMenu();
+      document.body.removeChild(link);      closeMenu();
     } catch (error) {
-      console.error(error);
-      goeyToast.error("Failed to download template.");
-    }
+      console.error(error);    }
   };
 
   const handleUploadClick = (fileInputRef: RefObject<HTMLInputElement | null>) => {
-    // Check if partner is selected
-    const isPurchase = transactionType === "purchase";
-    const partnerName = vendorName.trim();
+    // Check if partner is selected    const partnerName = vendorName.trim();
     const partnerCode = vendorCode.trim();
 
     if (!partnerName || !partnerCode) {
-      onSearchProducts(); // Trigger native validation popup
-      goeyToast.error(
-        `Please select a ${isPurchase ? "Vendor" : "Customer"} first before uploading products.`,
-      );
-      closeMenu();
+      onSearchProducts(); // Trigger native validation popup      closeMenu();
       return;
     }
 
@@ -135,11 +121,7 @@ export function useExcelImport({
 
     // Check extension
     const extension = file.name.split(".").pop()?.toLowerCase();
-    if (extension !== "xls" && extension !== "xlsx" && extension !== "csv" && extension !== "xml") {
-      goeyToast.error(
-        "Invalid file format. Please upload an Excel (.xls, .xlsx, .xml) or CSV (.csv) file.",
-      );
-      e.target.value = "";
+    if (extension !== "xls" && extension !== "xlsx" && extension !== "csv" && extension !== "xml") {      e.target.value = "";
       return;
     }
 
@@ -467,19 +449,14 @@ export function useExcelImport({
         });
 
         // Append rows to current document
-        setProductRows((prev) => [...prev, ...finalNewRows]);
-        goeyToast.success(`Successfully imported and appended ${finalNewRows.length} item(s)!`);
-      } catch (err: any) {
-        goeyToast.error(err?.message || "An unexpected error occurred parsing the file.");
-      } finally {
+        setProductRows((prev) => [...prev, ...finalNewRows]);      } catch {
+    } finally {
         setIsSimulatingUpload(false);
         e.target.value = "";
       }
     };
 
-    reader.onerror = () => {
-      goeyToast.error("Failed to read the uploaded file.");
-      setIsSimulatingUpload(false);
+    reader.onerror = () => {      setIsSimulatingUpload(false);
       e.target.value = "";
     };
 

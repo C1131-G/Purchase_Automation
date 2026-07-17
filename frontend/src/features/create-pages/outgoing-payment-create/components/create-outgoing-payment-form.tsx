@@ -1,6 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { Calendar as CalendarIcon, Check, HandCoins, Minus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";import { Calendar as CalendarIcon, Check, HandCoins, Minus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
 
@@ -117,13 +115,8 @@ export function CreateOutgoingPaymentForm() {
 
   const createPaymentMutation = useMutation({
     mutationFn: outgoingPaymentAPI.createOutgoingPayment,
-    onError: (error) => {
-      goeyToast.error(error instanceof Error ? error.message : "Failed to create payment");
-    },
-    onSuccess: (data) => {
-      const docNum = data.data?.DocNum || data.data?.DocEntry || "successfully";
-      goeyToast.success(`Outgoing Payment ${docNum} created successfully!`);
-
+    onError: () => {},
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: apInvoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: apCreditMemoKeys.all });
       queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.all });
@@ -315,27 +308,19 @@ export function CreateOutgoingPaymentForm() {
       totalCash === 0 &&
       totalChecks === 0 &&
       (paymentDetails.TransferSum || 0) === 0
-    ) {
-      goeyToast.error("Please select at least one document to pay");
-      return;
+    ) {      return;
     }
 
     const currentDocIds = new Set(allDocuments.map((d) => `${d.type}-${d.id}`));
     const staleKeys = Object.keys(selectedDocs).filter((k) => !currentDocIds.has(k));
-    if (staleKeys.length > 0) {
-      goeyToast.error(
-        "Some selected documents no longer belong to the current vendor. Please re-select.",
-      );
-      return;
+    if (staleKeys.length > 0) {      return;
     }
 
     const cashSum = totalCash;
     const checkSum = totalChecks;
     const transferSum = paymentDetails.TransferSum || 0;
 
-    if (transferSum > 0 && !paymentDetails.TransferReference?.trim()) {
-      goeyToast.error("Transfer reference is required for bank transfer");
-      return;
+    if (transferSum > 0 && !paymentDetails.TransferReference?.trim()) {      return;
     }
 
     const payload = {

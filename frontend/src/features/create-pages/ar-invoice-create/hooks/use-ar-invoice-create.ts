@@ -1,6 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -37,9 +35,7 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import {
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
@@ -139,24 +135,15 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
-  const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
-  const editDocNum = (options?.docNum ?? "").trim();
+    const editDocNum = (options?.docNum ?? "").trim();
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
   const modals = useArModals();
 
-  const notifyRestricted = (fieldName: string) => {
-    const now = Date.now();
-    if (now - lastRestrictedToastAtRef.current < 2500) {
-      return;
-    }
-    lastRestrictedToastAtRef.current = now;
-    goeyToast.error(`${fieldName} is locked for edit`, {
-      id: "restricted-edit-toast",
-    });
+  const notifyRestricted = (_fieldName?: string) => {
+    // Edit-restricted fields: toast removed.
   };
 
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
@@ -250,10 +237,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     if (!detail) {
       return;
     }
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/R Invoice", "edit");
-    }
-
     const customerCode = String(detail.CardCode ?? "").trim();
     const customerName = String(detail.CardName ?? "").trim();
     const matchedCustomer = lookups.vendors.find((item) => String(item.code) === customerCode);
@@ -503,10 +486,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
         hydratedDocNumRef.current = currentDocNum;
         setHydratedDocNum(currentDocNum);
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     editDetailQuery.data,
@@ -547,11 +527,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       return;
     }
     hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`;
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/R Invoice", "create");
-    }
-
     const customerCode = String(detail.CardCode ?? "").trim();
     const customerName = String(detail.CardName ?? "").trim();
     const matchedCustomer = lookups.vendors.find((item) => String(item.code) === customerCode);
@@ -742,10 +717,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         setAttachments(sourceAttachments);
 
         hydratedDocNumRef.current = `${currentSourceDocType}-${currentSourceDocNum}`;
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     sourceDetailQuerySQ.data,
@@ -1116,9 +1088,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
 
     if (isEditMode && !isDirty) {
       const noChangeMessage = "Change at least one field before update.";
-      setCreateError(noChangeMessage);
-      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-      return;
+      setCreateError(noChangeMessage);      return;
     }
 
     setCreateError(null);
@@ -1185,17 +1155,13 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
         ? "update"
         : action;
 
-    saveActions.startSaveTracking(trackingAction);
-    saveActions.actionToast.startLoading("AR Invoice", trackingAction);
-    try {
+    saveActions.startSaveTracking(trackingAction);    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const detail = editDetailQuery.data?.data;
         const docEntry = isEditMode ? (detail?.DocEntry ?? detail?.id) : Number(draftDocEntry);
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update AR invoice. Document id is missing.");
-          saveActions.actionToast.showError("AR Invoice", "update", "Document ID is missing.");
-          return;
+          setCreateError("Unable to update AR invoice. Document id is missing.");          return;
         }
         await updateARInvoiceMutation.mutateAsync({ id: docEntry, payload });
         createdDocNum = detail?.DocNum;
@@ -1312,9 +1278,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isUpdating ? "update" : "create"} AR Invoice. Try again.`,
-      );
-      saveActions.actionToast.showError("AR Invoice", isUpdating ? "update" : action, errorMessage);
-      setCreateError(errorMessage);
+      );      setCreateError(errorMessage);
     }
   };
 

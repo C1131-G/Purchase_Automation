@@ -117,11 +117,13 @@ export async function loadProductsForTenant(
       const lowerWord = word.toLowerCase();
       query.andWhere(
         new Brackets((queryBuilder) => {
-          queryBuilder.where("LOWER(item.ItemCode) LIKE :word_" + index, {
-            ["word_" + index]: `%${lowerWord}%`,
-          }).orWhere("LOWER(item.ItemName) LIKE :word_" + index, {
-            ["word_" + index]: `%${lowerWord}%`,
-          });
+          queryBuilder
+            .where("LOWER(item.ItemCode) LIKE :word_" + index, {
+              ["word_" + index]: `%${lowerWord}%`,
+            })
+            .orWhere("LOWER(item.ItemName) LIKE :word_" + index, {
+              ["word_" + index]: `%${lowerWord}%`,
+            });
         }),
       );
     });

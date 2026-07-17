@@ -1,7 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
-import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "@tanstack/react-router";import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
@@ -10,9 +8,7 @@ import { ARInvoiceProductSection } from "@/features/create-pages/ar-invoice-crea
 import {
   CopyFromDialog,
   type SourceDocType,
-} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import { salesOrderAPI } from "@/features/table-pages/sales-orders/api/sales-order.service";
+} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";import { salesOrderAPI } from "@/features/table-pages/sales-orders/api/sales-order.service";
 import { salesQuotationAPI } from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
 import { useARInvoiceCreate } from "@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
@@ -150,10 +146,7 @@ export function ARInvoiceCreate({
 
   const handleCopyFromSOSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
     state.setPullFromSOModalOpen(false);
-    if (selected.length === 0) return;
-
-    const loadingToast = pageLoadingToast("A/R Invoice", "create");
-    try {
+    if (selected.length === 0) return;    try {
       const details = await Promise.all(
         selected.map(async (doc) => {
           const res = await salesOrderAPI.getSalesOrderByDocNum(doc.docNum);
@@ -201,23 +194,13 @@ export function ARInvoiceCreate({
           vendorCode: String(firstDetail.CardCode ?? "").trim(),
           vendorName: String(firstDetail.CardName ?? "").trim(),
         });
-      }
-
-      loadingToast.dismiss();
-      goeyToast.success("Products added successfully");
-    } catch (err) {
-      console.error(err);
-      loadingToast.dismiss();
-      goeyToast.error("Failed to pull products");
-    }
+      }    } catch (err) {
+      console.error(err);    }
   };
 
   const handleCopyFromSQSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
     state.setPullFromSQModalOpen(false);
-    if (selected.length === 0) return;
-
-    const loadingToast = pageLoadingToast("A/R Invoice", "create");
-    try {
+    if (selected.length === 0) return;    try {
       const details = await Promise.all(
         selected.map(async (doc) => {
           const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.docNum);
@@ -265,15 +248,8 @@ export function ARInvoiceCreate({
           vendorCode: String(firstDetail.CardCode ?? "").trim(),
           vendorName: String(firstDetail.CardName ?? "").trim(),
         });
-      }
-
-      loadingToast.dismiss();
-      goeyToast.success("Products added successfully");
-    } catch (err) {
-      console.error(err);
-      loadingToast.dismiss();
-      goeyToast.error("Failed to pull products");
-    }
+      }    } catch (err) {
+      console.error(err);    }
   };
 
   const pageTitle = state.isEditMode

@@ -1,6 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -49,9 +47,7 @@ import { useDocumentSaveActions } from "@/features/create-pages/create-shared/ho
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
-} from "@/features/create-pages/create-shared/utils/lookup-search-sync";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+} from "@/features/create-pages/create-shared/utils/lookup-search-sync";import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
@@ -156,10 +152,7 @@ export function useAPCreditMemoCreate({
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<any>(null);
-  const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
-
-  const [vendorNameInput, setVendorNameInput] = useState("");
+    const [vendorNameInput, setVendorNameInput] = useState("");
   const [vendorCodeInput, setVendorCodeInput] = useState("");
   const [vendorNameFocused, setVendorNameFocused] = useState(false);
   const [vendorCodeFocused, setVendorCodeFocused] = useState(false);
@@ -260,15 +253,8 @@ export function useAPCreditMemoCreate({
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
-  const notifyRestricted = (fieldName: string) => {
-    const now = Date.now();
-    if (now - lastRestrictedToastAtRef.current < 2500) {
-      return;
-    }
-    lastRestrictedToastAtRef.current = now;
-    goeyToast.error(`${fieldName} is locked for edit`, {
-      id: "restricted-edit-toast",
-    });
+  const notifyRestricted = (_fieldName?: string) => {
+    // Edit-restricted fields: toast removed.
   };
 
   const vendorsQuery = useQuery(createSharedQueries.vendors());
@@ -453,11 +439,6 @@ export function useAPCreditMemoCreate({
     if (hydratedDocNumRef.current === currentDocNum) {
       return;
     }
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/P Credit Memo", "edit");
-    }
-
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -654,10 +635,7 @@ export function useAPCreditMemoCreate({
             })),
         });
         setHydratedDocNum(currentDocNum);
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     editDocNum,
@@ -690,11 +668,6 @@ export function useAPCreditMemoCreate({
     if (hydratedDocNumRef.current === hydrationKey) {
       return;
     }
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/P Credit Memo", "create");
-    }
-
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -879,10 +852,7 @@ export function useAPCreditMemoCreate({
               uomEntry: row.uomEntry,
             })),
         });
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     draftDocNum,
@@ -925,11 +895,6 @@ export function useAPCreditMemoCreate({
     if (isMetadataLoaded) {
       hydratedDocNumRef.current = hydrationKey;
     }
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/P Credit Memo", "create");
-    }
-
     const fetchAllSources = async () => {
       try {
         interface APInvoiceDetailType {
@@ -1160,10 +1125,7 @@ export function useAPCreditMemoCreate({
         }
       } catch {
         // Error resilience – ensure toast is dismissed even on failure
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     };
 
     void fetchAllSources();
@@ -1818,19 +1780,14 @@ export function useAPCreditMemoCreate({
         ? "update"
         : action;
 
-    saveActions.startSaveTracking(trackingAction);
-    saveActions.actionToast.startLoading("AP Credit Memo", trackingAction);
-
-    try {
+    saveActions.startSaveTracking(trackingAction);    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const currentSalesPersonCode = resolvedBuyerCode;
 
         if (isEditMode && !isDirty) {
           const noChangeMessage = "Change at least one field before update.";
-          setCreateError(noChangeMessage);
-          goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-          return;
+          setCreateError(noChangeMessage);          return;
         }
 
         const id =
@@ -2009,9 +1966,7 @@ export function useAPCreditMemoCreate({
         error,
         `Failed to ${trackingAction} A/P Credit Memo.`,
       );
-      setCreateError(errorMsg);
-      saveActions.actionToast.showError("AP Credit Memo", trackingAction, errorMsg);
-    }
+      setCreateError(errorMsg);    }
   };
 
   const missingMandatoryFields = useMemo(() => {

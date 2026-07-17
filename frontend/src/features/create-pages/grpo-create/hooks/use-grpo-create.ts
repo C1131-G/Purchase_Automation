@@ -1,6 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -27,9 +25,7 @@ import { useDocumentSaveActions } from "@/features/create-pages/create-shared/ho
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
-} from "@/features/create-pages/create-shared/utils/lookup-search-sync";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+} from "@/features/create-pages/create-shared/utils/lookup-search-sync";import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import {
   useCreateGRPO,
@@ -172,10 +168,7 @@ export function useGRPOCreate({
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false);
-  const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
-
-  const [vendorNameInput, setVendorNameInput] = useState("");
+    const [vendorNameInput, setVendorNameInput] = useState("");
   const [vendorCodeInput, setVendorCodeInput] = useState("");
   const [vendorNameFocused, setVendorNameFocused] = useState(false);
   const [vendorCodeFocused, setVendorCodeFocused] = useState(false);
@@ -260,15 +253,8 @@ export function useGRPOCreate({
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
-  const notifyRestricted = (fieldName: string) => {
-    const now = Date.now();
-    if (now - lastRestrictedToastAtRef.current < 2500) {
-      return;
-    }
-    lastRestrictedToastAtRef.current = now;
-    goeyToast.error(`${fieldName} is locked for edit`, {
-      id: "restricted-edit-toast",
-    });
+  const notifyRestricted = (_fieldName?: string) => {
+    // Edit-restricted fields: toast removed.
   };
 
   const vendorsQuery = useQuery(createSharedQueries.vendors());
@@ -446,9 +432,6 @@ export function useGRPOCreate({
     }
 
     // Show loading toast when starting edit hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("GRPO", "edit");
-    }
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -674,10 +657,7 @@ export function useGRPOCreate({
         });
         setHydratedDocNum(currentDocNum);
       } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+        // Dismiss loading toast when edit hydration is complete (success or error)      }
     })();
   }, [
     editDocNum,
@@ -713,10 +693,6 @@ export function useGRPOCreate({
     }
 
     // Show loading toast when starting draft hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("GRPO", "edit");
-    }
-
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -939,10 +915,7 @@ export function useGRPOCreate({
           hydratedDocNumRef.current = hydrationKey;
         }
         setHydratedDocNum(hydrationKey);
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     draftDocNum,
@@ -996,10 +969,6 @@ export function useGRPOCreate({
     }
 
     // Show loading toast when starting copy-from hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("GRPO", "create");
-    }
-
     // Fetch all source documents in parallel
     const fetchAllSources = async () => {
       const details = await Promise.all(
@@ -1261,10 +1230,7 @@ export function useGRPOCreate({
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = hydrKey;
       }
-      setSourceHydrationComplete(true);
-      loadingToastRef.current?.dismiss();
-      loadingToastRef.current = null;
-    };
+      setSourceHydrationComplete(true);    };
 
     void fetchAllSources();
   }, [
@@ -2142,9 +2108,7 @@ export function useGRPOCreate({
 
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);
-        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-        return;
+        setCreateError(noChangeMessage);        return;
       }
     }
 
@@ -2195,17 +2159,13 @@ export function useGRPOCreate({
     const isUpdating = isEditMode || isDraftUpdate;
     const trackingAction = isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
 
-    saveActions.startSaveTracking(trackingAction);
-    saveActions.actionToast.startLoading("GRPO", trackingAction);
-    try {
+    saveActions.startSaveTracking(trackingAction);    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const detail = isEditMode ? editDetailQuery.data?.data : editDetailQuery.data?.data;
         const id = detail?.id ?? detail?.DocEntry;
         if (id === undefined || id === null) {
-          setCreateError("Unable to update GRPO. Document id is missing.");
-          saveActions.actionToast.showError("GRPO", trackingAction, "Document ID is missing.");
-          return;
+          setCreateError("Unable to update GRPO. Document id is missing.");          return;
         }
         await updateMutation.mutateAsync({
           id,
@@ -2332,9 +2292,7 @@ export function useGRPOCreate({
       const errorMsg = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${trackingAction} GRPO. Try again.`,
-      );
-      saveActions.actionToast.showError("GRPO", trackingAction, errorMsg);
-      setCreateError(errorMsg);
+      );      setCreateError(errorMsg);
     }
   };
 

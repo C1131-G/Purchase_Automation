@@ -1,6 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
 import { Building2, ChevronRight, Eye, EyeOff, Lock, LogIn, User } from "lucide-react";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -8,7 +7,6 @@ import { Controller, useForm } from "react-hook-form";
 import { Button } from "@/components/button";
 import { Field } from "@/components/field/field";
 import { Form } from "@/components/form";
-import { GOEY_LOGIN_TOAST_DURATION } from "@/components/goey-toast.config";
 import { Input } from "@/components/input/input";
 import { Select } from "@/components/select/select";
 import { authQueries } from "@/features/auth/api/auth.queries";
@@ -36,7 +34,6 @@ function useDebounce<T>(value: T, delay: number): T {
 // LoginForm: Authenticated entryway utilizing standardized Sapphire and Industrial design patterns.
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false);
-  const ORG_ERROR_TOAST_ID = "auth-org-load-error";
 
   const {
     register,
@@ -62,7 +59,6 @@ export function LoginForm() {
   const {
     data: organizations,
     isLoading: isLoadingOrgs,
-    isError: isOrganizationsError,
     isFetching: isOrganizationsFetching,
   } = useQuery(authQueries.organization(debouncedUsername));
   const { mutate: loginMutation, isPending: isLoggingIn } = useLogin();
@@ -77,22 +73,6 @@ export function LoginForm() {
       {} as Record<string, string>,
     );
   }, [organizations]);
-
-  React.useEffect(() => {
-    if (isLoadingOrgs || isOrganizationsFetching) {
-      return;
-    }
-
-    if (!isOrganizationsError) {
-      goeyToast.dismiss(ORG_ERROR_TOAST_ID);
-      return;
-    }
-
-    goeyToast.error("Unable to load databases", {
-      duration: GOEY_LOGIN_TOAST_DURATION,
-      id: ORG_ERROR_TOAST_ID,
-    });
-  }, [isLoadingOrgs, isOrganizationsFetching, isOrganizationsError]);
 
   // Auto-select DB if exactly 1 DB is returned
   React.useEffect(() => {

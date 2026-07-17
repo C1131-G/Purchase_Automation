@@ -18,7 +18,7 @@ Entry: `frontend/src/main.tsx`. Routes auto-generated in `frontend/src/routeTree
 | Root         | —          | —                    | `pnpm build`                  | `pnpm test` |
 | HANA Backend | `pnpm dev` | `pnpm typecheck`     | `pnpm build` (tsc + tsup)     | `pnpm test` |
 | SQL Backend  | `pnpm dev` | `pnpm typecheck`     | `pnpm build` (tsc + tsup)     | `pnpm test` |
-| Frontend     | `pnpm dev` | `tsc -b` (via build) | `pnpm build` (tsc + vite)     | —           |
+| Frontend     | `pnpm dev` | `tsc -b` / `pnpm typecheck` | `pnpm build` (tsc + vite) | `pnpm test` (vitest) |
 
 ## Quirks & Conventions
 
@@ -28,9 +28,17 @@ Entry: `frontend/src/main.tsx`. Routes auto-generated in `frontend/src/routeTree
 - HANA Backend `tsconfig.json`: `noImplicitAny: false` (intentional).
 - SAP init order in `server.ts`: HANA pool → TypeORM `initializeDatabase()` → Service Layer client.
 - Frontend `.env`: `VITE_API_URL=http://localhost:4000` (backend dev server).
-- Vitest pattern: all tests under `tests/` (`unit/`, `integration/`, `smoke/`).
+- Vitest pattern: tests under package `tests/` (`unit/`, `integration/`, `smoke/`). Frontend: `frontend/tests/` (see `frontend/src/store/README.md`).
 - `pnpm` lockfile enforced; `onlyBuiltDependencies`: `@sap/hana-client`, `esbuild`.
 - HANA Backend builds with `tsup` (ESM, Node 20 target); runtime requires `dist/` output.
+
+### Frontend Zustand (client state)
+
+- Zustand = **client-only** UI/session/drafts. TanStack Query = server data. Do not copy fetched lists into Zustand.
+- Create stores with `createAppStore` from `frontend/src/store/lib/create-store.ts` (curried create, DEV-only devtools, optional immer).
+- Prefer named action methods + narrow selectors; use `useShallow` for multi-value object selects.
+- Table UI state is one multi-table registry (`table/table.store.ts`) keyed by `tableId`; public hooks re-exported from legacy paths.
+- Create-document drafts: factory in `store/create/document-draft.factory.ts`. Pattern A = header-only store; Pattern B = header + lines. Export store creators for isolated tests.
 
 
 # Oxlint + Oxfmt Standards

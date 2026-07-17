@@ -52,7 +52,8 @@ export const createGoodsReceipt = async (sessionId: string, payload: Record<stri
         if (line.UoMCode) documentLine.UoMCode = line.UoMCode;
         if (line.AccountCode) documentLine.AccountCode = line.AccountCode;
         if (line.CostingCode) documentLine.CostingCode = line.CostingCode; // Maps the selected Branch (Distribution Rule)
-        if (line.InventoryAdjustmentReason) documentLine.U_INVADJMTRES = line.InventoryAdjustmentReason;
+        if (line.InventoryAdjustmentReason)
+          documentLine.U_INVADJMTRES = line.InventoryAdjustmentReason;
         return documentLine;
       }),
     };

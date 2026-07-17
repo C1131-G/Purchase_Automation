@@ -12,10 +12,7 @@ import {
   File,
   Eye,
 } from "lucide-react";
-import { apiClient } from "@/shared/api/client";
-import { goeyToast } from "goey-toast";
-
-export interface AttachmentItem {
+import { apiClient } from "@/shared/api/client";export interface AttachmentItem {
   id: string;
   targetPath: string;
   fileName: string;
@@ -62,10 +59,7 @@ export function UploadGrid({
     }
     formData.append("moduleName", moduleName);
 
-    setIsUploading(true);
-    const toastId = goeyToast.info("Uploading files...", { id: "uploading-toast" });
-
-    try {
+    setIsUploading(true);    try {
       const response = await apiClient<{ success: boolean; files: any[] }>(
         "/api/v1/attachments/upload",
         {
@@ -85,11 +79,8 @@ export function UploadGrid({
           freeText: "",
         }));
 
-        onAttachmentsChange([...attachments, ...newAttachments]);
-        goeyToast.success("Files uploaded successfully", { id: toastId });
-      }
-    } catch (err: any) {
-      goeyToast.error(err.message || "Failed to upload files", { id: toastId });
+        onAttachmentsChange([...attachments, ...newAttachments]);      }
+    } catch {
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -108,9 +99,7 @@ export function UploadGrid({
     );
   };
 
-  const handleDownload = async (item: AttachmentItem) => {
-    const toastId = goeyToast.info("Starting download...");
-    try {
+  const handleDownload = async (item: AttachmentItem) => {    try {
       const url = `/api/v1/attachments/download?fileName=${encodeURIComponent(
         item.fileName,
       )}&fileExtension=${encodeURIComponent(item.fileExtension || "")}&sourcePath=${encodeURIComponent(
@@ -136,10 +125,7 @@ export function UploadGrid({
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(blobUrl);
-      goeyToast.success("Downloaded successfully", { id: toastId });
-    } catch (err: any) {
-      goeyToast.error(err.message || "Download failed", { id: toastId });
+      window.URL.revokeObjectURL(blobUrl);    } catch {
     }
   };
 
@@ -202,9 +188,7 @@ export function UploadGrid({
     } catch (err: any) {
       if (previewTab) {
         previewTab.close();
-      }
-      goeyToast.error(err.message || "Preview failed");
-    }
+      }    }
   };
 
   function getFileIconInfo(ext?: string) {

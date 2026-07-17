@@ -1,6 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { Check, RefreshCw } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";import { Check, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/button";
@@ -32,14 +30,10 @@ export function IncomingPaymentEdit({ docNum }: { docNum: string }) {
 
   const updateMutation = useMutation({
     mutationFn: () => incomingPaymentAPI.updatePayment(paymentDetail!.id, { Remarks: remarks }),
-    onSuccess: () => {
-      goeyToast.success("Payment updated successfully");
-      queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.detail(docNum) });
+    onSuccess: () => {      queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.detail(docNum) });
       queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.all });
     },
-    onError: (err) => {
-      goeyToast.error(err instanceof Error ? err.message : "Failed to update payment");
-    },
+    onError: () => {},
   });
 
   if (isLoading) {

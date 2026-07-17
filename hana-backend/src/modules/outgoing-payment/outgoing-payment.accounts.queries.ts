@@ -136,7 +136,9 @@ export const getAccounts = async (dbName: string, query: AccountQuery) => {
     queryBuilder.select(["a.GLAccount", "a.Account"]);
 
     if (query.search) {
-      queryBuilder.andWhere("LOWER(a.GLAccount) LIKE LOWER(:search)", { search: `%${query.search}%` });
+      queryBuilder.andWhere("LOWER(a.GLAccount) LIKE LOWER(:search)", {
+        search: `%${query.search}%`,
+      });
     }
 
     queryBuilder.orderBy("a.GLAccount", "ASC").take(query.limit ?? 20);

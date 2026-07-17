@@ -174,7 +174,9 @@ export const getGoodsIssueByDocNum = async (
     Series: header.series,
     PriceList: slDoc?.PriceList,
     DocumentLines: lines.map((line) => {
-      const slLine = slDoc?.DocumentLines?.find((serviceLayerLine: any) => serviceLayerLine.LineNum === line.lineNum);
+      const slLine = slDoc?.DocumentLines?.find(
+        (serviceLayerLine: any) => serviceLayerLine.LineNum === line.lineNum,
+      );
       const lineBinAllocations = slLine?.DocumentLinesBinAllocations || [];
       return {
         LineNum: line.lineNum,

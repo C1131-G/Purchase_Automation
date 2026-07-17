@@ -1,4 +1,3 @@
-import { goeyToast } from "goey-toast";
 import { CheckCircle2, Delete, Plus, Trash2, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatCurrency } from "@/features/dashboard/utils/formatters";
@@ -346,13 +345,9 @@ export function PaymentModal({
 
   const handleAddCard = () => {
     const amount = Number(cardAmount) || 0;
-    if (amount <= 0) {
-      goeyToast.error("Please enter a valid amount");
-      return;
+    if (amount <= 0) {      return;
     }
-    if (!cardRef.trim()) {
-      goeyToast.error("Reference# is required");
-      return;
+    if (!cardRef.trim()) {      return;
     }
 
     const totalPaidSoFar =
@@ -360,9 +355,7 @@ export function PaymentModal({
       (Number(chequeAmount) || 0) +
       (Number(transferAmount) || 0) +
       addedCards.reduce((sum, c) => sum + c.amount, 0);
-    if (!isPaymentOnAccount && totalPaidSoFar + amount > balanceDue + 0.01) {
-      goeyToast.error("Total payment cannot exceed Balance Due");
-      return;
+    if (!isPaymentOnAccount && totalPaidSoFar + amount > balanceDue + 0.01) {      return;
     }
 
     const cardIdMap: Record<string, number> = {
@@ -388,9 +381,7 @@ export function PaymentModal({
 
     setAddedCards([...addedCards, newCard]);
     setCardAmount("0");
-    setCardRef("");
-    goeyToast.success("Card payment added");
-  };
+    setCardRef("");  };
 
   const handleRemoveCard = (id: string) => {
     setAddedCards(addedCards.filter((c) => c.id !== id));

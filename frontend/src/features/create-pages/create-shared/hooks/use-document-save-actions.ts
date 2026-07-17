@@ -3,8 +3,6 @@ import { useRouter } from "@tanstack/react-router";
 
 import { scrollToTop } from "@/shared/utils/scroll";
 
-import { useDocumentActionToast } from "./use-document-action-toast";
-
 interface UseDocumentSaveActionsOptions {
   documentName: string;
   moduleType: "purchase" | "sales";
@@ -28,7 +26,6 @@ export function useDocumentSaveActions({
   const [isSaved, setIsSaved] = useState(false);
   const [savedDocNum, setSavedDocNum] = useState<string | number | null>(null);
   const lastSavedStateRef = useRef<string>("");
-  const actionToast = useDocumentActionToast();
 
   // ── Lightweight performance timing markers ────────────────────────────────
   // Fire-and-forget console.info calls so devtools can confirm speedup.
@@ -84,8 +81,6 @@ export function useDocumentSaveActions({
       action: "save-new" | "view" | "close" | "draft" | "update" | "draft-update",
       createdDocNum?: string | number,
     ) => {
-      actionToast.showSuccess(documentName, action === "update" ? "update" : action, createdDocNum);
-
       if (action === "draft" || action === "draft-update") {
         resetForm();
         setIsSaved(false);
@@ -141,17 +136,7 @@ export function useDocumentSaveActions({
         lastSavedStateRef.current = getPayloadString();
       }
     },
-    [
-      documentName,
-      isEditMode,
-      resetForm,
-      moduleType,
-      router,
-      actionToast,
-      getPayloadString,
-      defaultUrl,
-      tableUrl,
-    ],
+    [isEditMode, resetForm, moduleType, router, getPayloadString, defaultUrl, tableUrl],
   );
 
   const isFormModifiedSinceSave = useMemo(() => {
@@ -168,7 +153,6 @@ export function useDocumentSaveActions({
     setSavedDocNum,
     handleReset,
     handleActionSuccess,
-    actionToast,
     startSaveTracking,
     trackMutationSuccess,
     trackPostSaveRefresh,

@@ -1,7 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
-import { goeyToast } from "goey-toast";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearch } from "@tanstack/react-router";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
@@ -24,9 +22,7 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import {
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
@@ -138,24 +134,15 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
-  const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
-  const editDocNum = (options?.docNum ?? "").trim();
+    const editDocNum = (options?.docNum ?? "").trim();
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
   const modals = useSoModals();
 
-  const notifyRestricted = (fieldName: string) => {
-    const now = Date.now();
-    if (now - lastRestrictedToastAtRef.current < 2500) {
-      return;
-    }
-    lastRestrictedToastAtRef.current = now;
-    goeyToast.error(`${fieldName} is locked for edit`, {
-      id: "restricted-edit-toast",
-    });
+  const notifyRestricted = (_fieldName?: string) => {
+    // Edit-restricted fields: toast removed.
   };
 
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
@@ -247,11 +234,6 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       return;
     }
     hydratedDocNumRef.current = `SQ-${currentSourceDocNum}`;
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("Sales Order", "create");
-    }
-
     const vendorCode = String(detail.CardCode ?? "").trim();
     const vendorName = String(detail.CardName ?? "").trim();
     const matchedVendor = lookups.vendors.find((vendor) => String(vendor.code) === vendorCode);
@@ -438,10 +420,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         hydratedDocNumRef.current = `SQ-${currentSourceDocNum}`;
         setHydratedDocNum(`SQ-${currentSourceDocNum}`);
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     sourceDetailQuerySQ.data,
@@ -473,10 +452,6 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
     if (!detail) {
       return;
     }
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("Sales Order", "edit");
-    }
-
     const vendorCode = String(detail.CardCode ?? "").trim();
     const vendorName = String(detail.CardName ?? "").trim();
     const matchedVendor = lookups.vendors.find((vendor) => String(vendor.code) === vendorCode);
@@ -691,10 +666,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         hydratedDocNumRef.current = cacheKey;
         setHydratedDocNum(cacheKey);
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } finally {      }
     })();
   }, [
     queryClient,
@@ -1097,9 +1069,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
     if (isEditMode && !isDirty) {
       const noChangeMessage = "Change at least one field before update.";
-      setCreateError(noChangeMessage);
-      goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-      return;
+      setCreateError(noChangeMessage);      return;
     }
 
     setCreateError(null);
@@ -1191,9 +1161,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         ? "update"
         : action;
 
-    saveActions.startSaveTracking(trackingAction);
-    saveActions.actionToast.startLoading("Sales Order", trackingAction);
-    try {
+    saveActions.startSaveTracking(trackingAction);    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const docEntry = isEditMode
@@ -1201,13 +1169,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           : Number(draftDocEntry);
 
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update sales order. Document id is missing.");
-          saveActions.actionToast.showError(
-            "Sales Order",
-            trackingAction,
-            "Document ID is missing.",
-          );
-          return;
+          setCreateError("Unable to update sales order. Document id is missing.");          return;
         }
 
         const updatePayload = {
@@ -1368,9 +1330,7 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isUpdating ? "update" : "create"} sales order. Try again.`,
-      );
-      saveActions.actionToast.showError("Sales Order", trackingAction, errorMessage);
-      setCreateError(errorMessage);
+      );      setCreateError(errorMessage);
     }
   };
 

@@ -135,7 +135,8 @@ const fetchWarehouseGroups = async (
           : "SUM(line.quantity * COALESCE(item.AvgPrice, 0))";
 
         // TypeORM join overloads accept Function|string but not EntitySchema; cast for compile-time.
-        queryBuilder.leftJoin(ItemSchema as unknown as Function, "item", "line.itemCode = item.ItemCode")
+        queryBuilder
+          .leftJoin(ItemSchema as unknown as Function, "item", "line.itemCode = item.ItemCode")
           .select("line.whsCode", "whsCode")
           .addSelect("COUNT(DISTINCT line.docEntry)", "docCount")
           .addSelect(valExpr, "val")
@@ -202,7 +203,9 @@ export const loadInventoryDataset = async (
         getTenantRepository(dbName, WarehouseSchema).then((repo) => repo.find()),
       ]);
 
-      const whsMap = new Map(warehousesRaw.map((warehouse) => [warehouse.WhsCode, warehouse.WhsName]));
+      const whsMap = new Map(
+        warehousesRaw.map((warehouse) => [warehouse.WhsCode, warehouse.WhsName]),
+      );
 
       // Phase 2: Warehouse group queries (4 line-table JOINs in parallel).
       // Runs after phase 1 only because it needs the whsMap for name resolution.

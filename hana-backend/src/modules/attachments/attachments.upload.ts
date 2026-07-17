@@ -113,7 +113,9 @@ export async function finalizeAttachments(
       const oldFilePath = path.join(att.sourcePath, `${att.fileName}.${att.fileExtension}`);
 
       if (nodeFs.existsSync(oldFilePath)) {
-        while (nodeFs.existsSync(path.join(att.sourcePath, `${finalNewName}.${att.fileExtension}`))) {
+        while (
+          nodeFs.existsSync(path.join(att.sourcePath, `${finalNewName}.${att.fileExtension}`))
+        ) {
           finalNewName = `${newBaseName}_${counter}`;
           counter++;
         }

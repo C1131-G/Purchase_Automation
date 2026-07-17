@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
@@ -39,7 +38,6 @@ import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
 import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
@@ -158,9 +156,6 @@ export function useAPInvoiceCreate({
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<any>(null);
-  const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
-
   const [vendorNameInput, setVendorNameInput] = useState("");
   const [vendorCodeInput, setVendorCodeInput] = useState("");
   const [vendorNameFocused, setVendorNameFocused] = useState(false);
@@ -234,15 +229,8 @@ export function useAPInvoiceCreate({
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
-  const notifyRestricted = (fieldName: string) => {
-    const now = Date.now();
-    if (now - lastRestrictedToastAtRef.current < 2500) {
-      return;
-    }
-    lastRestrictedToastAtRef.current = now;
-    goeyToast.error(`${fieldName} is locked for edit`, {
-      id: "restricted-edit-toast",
-    });
+  const notifyRestricted = (_fieldName?: string) => {
+    // Edit-restricted fields: no-op feedback (toast removed).
   };
 
   const vendorsQuery = useQuery(createSharedQueries.vendors());
@@ -422,11 +410,6 @@ export function useAPInvoiceCreate({
 
     if (hydratedDocNumRef.current === currentDocNum) {
       return;
-    }
-
-    // Show loading toast when starting edit hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/P Invoice", "edit");
     }
 
     void (async () => {
@@ -618,9 +601,7 @@ export function useAPInvoiceCreate({
         });
         setHydratedDocNum(currentDocNum);
       } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
+        // no-op
       }
     })();
   }, [
@@ -653,11 +634,6 @@ export function useAPInvoiceCreate({
     const hydrationKey = `${draftDocNum}_${draftDocEntry ?? ""}`;
     if (hydratedDocNumRef.current === hydrationKey) {
       return;
-    }
-
-    // Show loading toast when starting draft hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/P Invoice", "edit");
     }
 
     void (async () => {
@@ -864,8 +840,7 @@ export function useAPInvoiceCreate({
         hydratedDocNumRef.current = hydrationKey;
         setHydratedDocNum(hydrationKey);
       } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
+        // no-op
       }
     })();
   }, [
@@ -909,10 +884,6 @@ export function useAPInvoiceCreate({
     }
     if (isMetadataLoaded) {
       hydratedDocNumRef.current = hydrationKey;
-    }
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("A/P Invoice", "create");
     }
 
     const fetchAllSources = async () => {
@@ -1154,8 +1125,6 @@ export function useAPInvoiceCreate({
       if (isMetadataLoaded) {
         hydratedDocNumRef.current = hydrationKey;
       }
-      loadingToastRef.current?.dismiss();
-      loadingToastRef.current = null;
     };
 
     void fetchAllSources();
@@ -1783,8 +1752,6 @@ export function useAPInvoiceCreate({
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
-        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-        saveActions.actionToast.showError("AP Invoice", "update", noChangeMessage);
         return;
       }
     }
@@ -1854,7 +1821,6 @@ export function useAPInvoiceCreate({
     };
 
     saveActions.startSaveTracking(trackingAction);
-    saveActions.actionToast.startLoading("AP Invoice", trackingAction);
     try {
       let createdDocNum: number | undefined;
       const loadedDraftDocEntry = isDraftUpdate ? draftDocEntry : undefined;
@@ -1866,11 +1832,6 @@ export function useAPInvoiceCreate({
           (loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined);
         if (id === undefined || id === null) {
           setCreateError("Unable to update A/P Invoice. Document id is missing.");
-          saveActions.actionToast.showError(
-            "AP Invoice",
-            trackingAction,
-            "Document ID is missing.",
-          );
           return;
         }
 
@@ -2055,11 +2016,6 @@ export function useAPInvoiceCreate({
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         "Failed to process A/P Invoice.",
-      );
-      saveActions.actionToast.showError(
-        "AP Invoice",
-        isEditMode ? "update" : trackingAction,
-        errorMessage,
       );
       setCreateError(errorMessage);
     }

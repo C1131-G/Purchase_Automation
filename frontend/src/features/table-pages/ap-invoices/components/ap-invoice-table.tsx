@@ -27,10 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
-import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
-import { useTableToast } from "@/features/table-pages/table-shared/hooks/use-table-toast";
-import type { TableFetchAction } from "@/features/table-pages/table-shared/hooks/use-table-toast";
-import {
+import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";import {
   cloneFilters,
   cloneOrder,
   cloneSorting,
@@ -75,9 +72,7 @@ export function APInvoiceTable() {
   const clearAllFilters = useClearAllFiltersAction();
   const queryClient = useQueryClient();
 
-  /** Tracks which user action last triggered a fetch for action-specific toasts. */
-  const lastActionRef = useRef<TableFetchAction>("fetching");
-  const docNumPrefetchRef = useRef<Set<string>>(new Set());
+  /** Tracks which user action last triggered a fetch for action-specific toasts. */  const docNumPrefetchRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
@@ -105,7 +100,7 @@ export function APInvoiceTable() {
         .then((response) => {
           void router.preloadRoute({
             params: { docNum: normalizedDocNum },
-            to: "/purchase/ap-invoice/$docNum/edit",
+            to: "/purchase/ap-invoice/$docNum/update",
           } as never);
 
           const detail = response?.data;
@@ -158,7 +153,7 @@ export function APInvoiceTable() {
           prefetchEditRouteData(normalized);
           void navigate({
             params: { docNum: normalized },
-            to: "/purchase/ap-invoice/$docNum/edit",
+            to: "/purchase/ap-invoice/$docNum/update",
             viewTransition: true,
           } as never);
         },
@@ -197,7 +192,7 @@ export function APInvoiceTable() {
       searchParams.columnOrder?.length && searchParams.columnOrder.some(Boolean)
         ? searchParams.columnOrder
         : DEFAULT_COLUMN_ORDER;
-    const filtered = base.filter((id) => columnIds.includes(id));
+    const filtered = base.filter((id: string) => columnIds.includes(id));
     return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER);
   }, [searchParams.columnOrder, columnIds]);
 
@@ -250,7 +245,6 @@ export function APInvoiceTable() {
   const {
     data: apInvoiceList,
     isLoading,
-    isFetching,
     isError,
     error,
     refetch,
@@ -274,9 +268,7 @@ export function APInvoiceTable() {
     manualPagination: true,
     manualSorting: true,
     meta: { tableId: TABLE_ID },
-    onColumnFiltersChange: (updater) => {
-      lastActionRef.current = "filtering";
-      const next = typeof updater === "function" ? updater(columnFilters) : updater;
+    onColumnFiltersChange: (updater) => {      const next = typeof updater === "function" ? updater(columnFilters) : updater;
       const normalized = normalizeColumnFilters(next);
       const nextFilters = cloneFilters(normalized);
       setColumnFilters(TABLE_ID, nextFilters);
@@ -330,9 +322,7 @@ export function APInvoiceTable() {
         }),
       });
     },
-    onPaginationChange: (updater) => {
-      lastActionRef.current = "paginating";
-      const next = typeof updater === "function" ? updater(pagination) : updater;
+    onPaginationChange: (updater) => {      const next = typeof updater === "function" ? updater(pagination) : updater;
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
         pageSize: Math.max(next.pageSize, 1),
@@ -347,9 +337,7 @@ export function APInvoiceTable() {
         }),
       });
     },
-    onSortingChange: (updater) => {
-      lastActionRef.current = "sorting";
-      const next = typeof updater === "function" ? updater(sorting) : updater;
+    onSortingChange: (updater) => {      const next = typeof updater === "function" ? updater(sorting) : updater;
       const nextSorting = cloneSorting(next);
       setSorting(TABLE_ID, nextSorting);
       navigate({
@@ -419,16 +407,6 @@ export function APInvoiceTable() {
     pagination,
     queryClient,
   });
-
-  useTableToast({
-    action: lastActionRef.current,
-    hasData: !!apInvoiceList,
-    isFetching,
-    onSettled: () => {
-      lastActionRef.current = "fetching";
-    },
-  });
-
   const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, []);
     setVisibility(TABLE_ID, {});

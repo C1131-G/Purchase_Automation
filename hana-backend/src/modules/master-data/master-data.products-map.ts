@@ -146,7 +146,8 @@ export function mapProductResults(args: {
       TaxRate: resolvedTaxRate,
       UoMCode: resolvedSalesUomCode,
       UoMEntry: resolvedSalesUomEntry,
-      UoMName: uomList.find((uom) => uom.code === resolvedSalesUomCode)?.name ?? resolvedSalesUomCode,
+      UoMName:
+        uomList.find((uom) => uom.code === resolvedSalesUomCode)?.name ?? resolvedSalesUomCode,
       Uom: salesUomText,
       UomList: uomList,
       Warehouse: normalizedWarehouseCode || item.DfltWH || "",

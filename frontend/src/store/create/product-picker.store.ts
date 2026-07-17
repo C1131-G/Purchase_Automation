@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createAppStore } from "@/store/lib/create-store";
 
 /**
  * Atomic Zustand store for product picker selection state.
@@ -6,11 +6,6 @@ import { create } from "zustand";
  * Selection is split into minimal fields:
  * - activePickerKey: which picker context is currently open
  * - selectedCodesByKey: map of picker key -> Set of selected product codes
- *
- * Actions are narrowly scoped:
- * - openPicker(key, initialCodes): open a picker and seed its selection
- * - toggleCode(key, code): toggle a single product code
- * - closePicker(key): close the current picker
  */
 
 interface ProductPickerStore {
@@ -52,92 +47,107 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
 /** Reusable empty set singleton — avoids creating new Set() on every selector call */
 export const EMPTY_SET = new Set<string>();
 
-export const useProductPickerStore = create<ProductPickerStore>((set) => ({
-  activePickerKey: null,
-  closePicker: (key) =>
-    set((prev) => {
-      if (prev.activePickerKey !== key) {
-        return prev;
-      }
-      return { activePickerKey: null };
-    }),
-  openPicker: (key, initialCodes) =>
-    set((prev) => {
-      const existing = prev.selectedCodesByKey[key];
-
-      // If we already have this key active and codes haven't changed, skip entirely
-      if (prev.activePickerKey === key && initialCodes) {
-        if (existing && setsEqual(existing, initialCodes)) {
-          return prev;
-        }
-      }
-
-      // If no initialCodes and key already exists, just activate it without mutation
-      if (!initialCodes && existing && prev.activePickerKey === key) {
-        return prev;
-      }
-
-      const targetCodes = initialCodes ?? existing ?? EMPTY_SET;
-
-      // If the resulting codes are the same reference or equal content AND key is already active, skip
-      if (prev.activePickerKey === key && existing && setsEqual(existing, targetCodes)) {
-        return prev;
-      }
-
-      return {
-        activePickerKey: key,
-        selectedCodesByKey: {
-          ...prev.selectedCodesByKey,
-          [key]: targetCodes,
+export function createProductPickerStore() {
+  return createAppStore<ProductPickerStore>({ name: "product-picker-store" }, (set) => ({
+    activePickerKey: null,
+    closePicker: (key) =>
+      set(
+        (prev) => {
+          if (prev.activePickerKey !== key) {
+            return prev;
+          }
+          return { activePickerKey: null };
         },
-      };
-    }),
-  selectSingle: (key, code) =>
-    set((prev) => {
-      const singleCodeSet = new Set([code]);
-      const existing = prev.selectedCodesByKey[key];
+        false,
+        "product-picker/closePicker",
+      ),
+    openPicker: (key, initialCodes) =>
+      set(
+        (prev) => {
+          const existing = prev.selectedCodesByKey[key];
 
-      // Guard: already has exactly this code, skip
-      if (existing && existing.size === 1 && existing.has(code)) {
-        return prev;
-      }
+          if (prev.activePickerKey === key && initialCodes) {
+            if (existing && setsEqual(existing, initialCodes)) {
+              return prev;
+            }
+          }
 
-      return {
-        activePickerKey: key,
-        selectedCodesByKey: {
-          ...prev.selectedCodesByKey,
-          [key]: singleCodeSet,
+          if (!initialCodes && existing && prev.activePickerKey === key) {
+            return prev;
+          }
+
+          const targetCodes = initialCodes ?? existing ?? EMPTY_SET;
+
+          if (prev.activePickerKey === key && existing && setsEqual(existing, targetCodes)) {
+            return prev;
+          }
+
+          return {
+            activePickerKey: key,
+            selectedCodesByKey: {
+              ...prev.selectedCodesByKey,
+              [key]: targetCodes,
+            },
+          };
         },
-      };
-    }),
-  selectedCodesByKey: {},
-  toggleCode: (key, code) =>
-    set((prev) => {
-      const existing = prev.selectedCodesByKey[key] ?? EMPTY_SET;
-      const hasCode = existing.has(code);
+        false,
+        "product-picker/openPicker",
+      ),
+    selectSingle: (key, code) =>
+      set(
+        (prev) => {
+          const singleCodeSet = new Set([code]);
+          const existing = prev.selectedCodesByKey[key];
 
-      // If toggling off but code isn't there, or toggling on and it's already there — no-op
-      // (This component only uses toggle for toggle-off in single-select context)
-      const next = new Set(existing);
-      if (hasCode) {
-        next.delete(code);
-      } else {
-        next.add(code);
-      }
+          if (existing && existing.size === 1 && existing.has(code)) {
+            return prev;
+          }
 
-      return {
-        selectedCodesByKey: {
-          ...prev.selectedCodesByKey,
-          [key]: next,
+          return {
+            activePickerKey: key,
+            selectedCodesByKey: {
+              ...prev.selectedCodesByKey,
+              [key]: singleCodeSet,
+            },
+          };
         },
-      };
-    }),
-}));
+        false,
+        "product-picker/selectSingle",
+      ),
+    selectedCodesByKey: {},
+    toggleCode: (key, code) =>
+      set(
+        (prev) => {
+          const existing = prev.selectedCodesByKey[key] ?? EMPTY_SET;
+          const hasCode = existing.has(code);
 
-/** Selector: get the active picker key */
+          const next = new Set(existing);
+          if (hasCode) {
+            next.delete(code);
+          } else {
+            next.add(code);
+          }
+
+          return {
+            selectedCodesByKey: {
+              ...prev.selectedCodesByKey,
+              [key]: next,
+            },
+          };
+        },
+        false,
+        "product-picker/toggleCode",
+      ),
+  }));
+}
+
+const productPickerStoreApi = createProductPickerStore();
+
+export const useProductPickerStore = productPickerStoreApi.useStore;
+export const createProductPickerStoreInstance = productPickerStoreApi.createStore;
+
 export const useActivePickerKey = () => useProductPickerStore((state) => state.activePickerKey);
 
-/** Selector: get selected codes for a specific picker key */
 export const useSelectedCodesForKey = (key: string | null): Set<string> =>
   useProductPickerStore((state) => {
     if (!key) {
@@ -147,14 +157,7 @@ export const useSelectedCodesForKey = (key: string | null): Set<string> =>
     return codes ?? EMPTY_SET;
   });
 
-/** Selector: get the openPicker action */
 export const useOpenPickerAction = () => useProductPickerStore((state) => state.openPicker);
-
-/** Selector: get the toggleCode action */
 export const useToggleCodeAction = () => useProductPickerStore((state) => state.toggleCode);
-
-/** Selector: get the selectSingle action */
 export const useSelectSingleAction = () => useProductPickerStore((state) => state.selectSingle);
-
-/** Selector: get the closePicker action */
 export const useClosePickerAction = () => useProductPickerStore((state) => state.closePicker);

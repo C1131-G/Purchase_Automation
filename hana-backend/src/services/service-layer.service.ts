@@ -12,6 +12,7 @@ import type { SLError, SLSessionInfo } from "@/services/types/service-layer.type
 import {
   executeServiceLayerRequest,
   loginToSap,
+  serviceLayerAbsoluteUrl,
   type ServiceLayerHost,
 } from "./service-layer-request";
 
@@ -138,12 +139,31 @@ class ServiceLayerClient implements ServiceLayerHost {
       return;
     }
 
+    const logoutPath = "/Logout";
+    const absoluteUrl = serviceLayerAbsoluteUrl(this.client.defaults.baseURL, logoutPath);
+    const start = process.hrtime.bigint();
+
     try {
-      await this.client
-        .post("/Logout", null, {
+      const response = await this.client
+        .post(logoutPath, null, {
           headers: { Cookie: sessionInfo.cookieString },
         })
-        .catch(() => {});
+        .catch(() => null);
+
+      const durationMs = Math.round(Number(process.hrtime.bigint() - start) / 1e6);
+      logger.info(
+        {
+          direction: "outbound",
+          target: "service_layer",
+          method: "POST",
+          url: absoluteUrl,
+          path: logoutPath,
+          status: response?.status ?? 0,
+          durationMs,
+          endpointGroup: "Logout",
+        },
+        `SL POST ${logoutPath} ${response?.status ?? "error"}`,
+      );
 
       this.destroyLocalSession(sessionId, "Explicit Logout");
     } catch (err: unknown) {

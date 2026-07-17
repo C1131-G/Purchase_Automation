@@ -1,6 +1,9 @@
-import { create } from "zustand";
-
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
+import {
+  createLineDraftStore,
+  getAutoDocDueDate,
+  getTodayISO,
+} from "@/store/create/document-draft.factory";
 
 export type APInvoiceLineItemState = ProductRow & {
   baseQuantity?: number | undefined;
@@ -17,45 +20,9 @@ export interface APInvoiceHeaderState {
   referenceAutoFilled: boolean;
 }
 
-interface APInvoiceCreateState {
-  header: APInvoiceHeaderState;
-  lines: APInvoiceLineItemState[];
-  setHeader: (patch: Partial<APInvoiceHeaderState>) => void;
-  setLines: (
-    lines:
-      | APInvoiceLineItemState[]
-      | ((prev: APInvoiceLineItemState[]) => APInvoiceLineItemState[]),
-  ) => void;
-  addLine: (line: APInvoiceLineItemState) => void;
-  updateLine: (id: string, patch: Partial<APInvoiceLineItemState>) => void;
-  removeLine: (id: string) => void;
-  reset: () => void;
-}
-
-const getToday = () => new Date().toISOString().slice(0, 10);
-const toISODate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-const getAutoDocDueDate = (docDate: string) => {
-  if (!docDate) {
-    return "";
-  }
-  const base = new Date(`${docDate}T00:00:00`);
-  if (Number.isNaN(base.getTime())) {
-    return "";
-  }
-  // 32-day offset for invoices as seen in other invoice logic
-  base.setMonth(base.getMonth() + 1);
-  base.setDate(base.getDate() + 2);
-  return toISODate(base);
-};
-
 const getDefaultHeader = (): APInvoiceHeaderState => ({
-  docDate: getToday(),
-  docDueDate: getAutoDocDueDate(getToday()),
+  docDate: getTodayISO(),
+  docDueDate: getAutoDocDueDate(getTodayISO()),
   referenceAutoFilled: false,
   referenceNo: "",
   remarks: "",
@@ -64,52 +31,13 @@ const getDefaultHeader = (): APInvoiceHeaderState => ({
   warehouseCode: "",
 });
 
-export const useAPInvoiceCreateStore = create<APInvoiceCreateState>((set) => ({
-  addLine: (line) =>
-    set((prev) => ({
-      ...prev,
-      lines: [...prev.lines, line],
-    })),
-  header: getDefaultHeader(),
-  lines: [],
-  removeLine: (id) =>
-    set((prev) => ({
-      ...prev,
-      lines: prev.lines.filter((line) => line.id !== id),
-    })),
-  reset: () =>
-    set({
-      header: getDefaultHeader(),
-      lines: [],
-    }),
-  setHeader: (patch) =>
-    set((prev) => {
-      const nextHeader = { ...prev.header, ...patch };
-      const docDueDateValue = patch.docDueDate;
-      if (
-        patch.docDate !== undefined &&
-        (docDueDateValue === undefined ||
-          docDueDateValue === null ||
-          (typeof docDueDateValue === "string" && docDueDateValue.trim() === ""))
-      ) {
-        nextHeader.docDueDate = getAutoDocDueDate(String(patch.docDate));
-      }
-      return {
-        ...prev,
-        header: nextHeader,
-      };
-    }),
-  setLines: (lines) =>
-    set((prev) => ({
-      ...prev,
-      lines: typeof lines === "function" ? lines(prev.lines) : lines,
-    })),
-  updateLine: (id, patch) =>
-    set((prev) => ({
-      ...prev,
-      lines: prev.lines.map((line) => (line.id === id ? { ...line, ...patch } : line)),
-    })),
-}));
+const storeApi = createLineDraftStore<APInvoiceHeaderState, APInvoiceLineItemState>({
+  getDefaultHeader,
+  name: "ap-invoice-create-store",
+});
+
+export const useAPInvoiceCreateStore = storeApi.useStore;
+export const createAPInvoiceCreateStoreInstance = storeApi.createStore;
 
 export const useAPInvoiceHeader = () => useAPInvoiceCreateStore((state) => state.header);
 export const useAPInvoiceLines = () => useAPInvoiceCreateStore((state) => state.lines);

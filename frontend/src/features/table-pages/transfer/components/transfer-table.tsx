@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { normalizeColumnFilters } from "@/components/types/filter-utils";
@@ -22,10 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
-import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
-import { useTableToast } from "@/features/table-pages/table-shared/hooks/use-table-toast";
-import type { TableFetchAction } from "@/features/table-pages/table-shared/hooks/use-table-toast";
-import {
+import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";import {
   cloneFilters,
   cloneOrder,
   cloneSorting,
@@ -53,11 +50,7 @@ export function TransferTable() {
   const setPagination = useSetPaginationAction();
   const setColumnFilters = useSetColumnFiltersAction();
   const clearAllFilters = useClearAllFiltersAction();
-  const queryClient = useQueryClient();
-
-  const lastActionRef = useRef<TableFetchAction>("fetching");
-
-  useEffect(() => {
+  const queryClient = useQueryClient();  useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
@@ -87,7 +80,7 @@ export function TransferTable() {
       searchParams.columnOrder?.length && searchParams.columnOrder.some(Boolean)
         ? searchParams.columnOrder
         : DEFAULT_COLUMN_ORDER;
-    const filtered = base.filter((id) => columnIds.includes(id));
+    const filtered = base.filter((id: string) => columnIds.includes(id));
     return cloneOrder(filtered.length ? filtered : DEFAULT_COLUMN_ORDER);
   }, [searchParams.columnOrder, columnIds]);
 
@@ -142,7 +135,6 @@ export function TransferTable() {
   const {
     data: tList,
     isLoading,
-    isFetching,
     isError,
     error,
     refetch,
@@ -166,9 +158,7 @@ export function TransferTable() {
     manualPagination: true,
     manualSorting: true,
     meta: { tableId: TABLE_ID },
-    onColumnFiltersChange: (updater) => {
-      lastActionRef.current = "filtering";
-      const next = typeof updater === "function" ? updater(columnFilters) : updater;
+    onColumnFiltersChange: (updater) => {      const next = typeof updater === "function" ? updater(columnFilters) : updater;
       const normalized = normalizeColumnFilters(next);
       const nextFilters = cloneFilters(normalized);
       setColumnFilters(TABLE_ID, nextFilters);
@@ -221,9 +211,7 @@ export function TransferTable() {
         }),
       });
     },
-    onPaginationChange: (updater) => {
-      lastActionRef.current = "paginating";
-      const next = typeof updater === "function" ? updater(pagination) : updater;
+    onPaginationChange: (updater) => {      const next = typeof updater === "function" ? updater(pagination) : updater;
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
         pageSize: Math.max(next.pageSize, 1),
@@ -238,9 +226,7 @@ export function TransferTable() {
         }),
       });
     },
-    onSortingChange: (updater) => {
-      lastActionRef.current = "sorting";
-      const next = typeof updater === "function" ? updater(sorting) : updater;
+    onSortingChange: (updater) => {      const next = typeof updater === "function" ? updater(sorting) : updater;
       const nextSorting = cloneSorting(next);
       setSorting(TABLE_ID, nextSorting);
       navigate({
@@ -304,16 +290,6 @@ export function TransferTable() {
     pagination,
     queryClient,
   });
-
-  useTableToast({
-    action: lastActionRef.current,
-    hasData: !!tList,
-    isFetching,
-    onSettled: () => {
-      lastActionRef.current = "fetching";
-    },
-  });
-
   const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, []);
     setVisibility(TABLE_ID, {});

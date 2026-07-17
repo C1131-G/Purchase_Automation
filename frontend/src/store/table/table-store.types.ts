@@ -1,2 +1,2 @@
-/** Updater: Utility type for functional state updates. */
-export type Updater<T> = T | ((prev: T) => T);
+/** @deprecated Import from `@/store/lib/updater` — kept for path stability. */
+export type { Updater } from "@/store/lib/updater";

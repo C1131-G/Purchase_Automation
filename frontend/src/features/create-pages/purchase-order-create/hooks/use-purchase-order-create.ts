@@ -1,7 +1,5 @@
 /** usePurchaseOrderCreate: State and logic for creating/updating purchase orders. */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { goeyToast } from "goey-toast";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -26,9 +24,7 @@ import { useDocumentSaveActions } from "@/features/create-pages/create-shared/ho
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
-} from "@/features/create-pages/create-shared/utils/lookup-search-sync";
-import { pageLoadingToast } from "@/features/create-pages/create-shared/utils/page-loading-toast";
-import {
+} from "@/features/create-pages/create-shared/utils/lookup-search-sync";import {
   useCreatePurchaseOrder,
   useUpdatePurchaseOrder,
 } from "@/features/create-pages/purchase-order-create/api/purchase-order-create.mutations";
@@ -137,9 +133,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
-  const lastRestrictedToastAtRef = useRef(0);
-  const loadingToastRef = useRef<ReturnType<typeof pageLoadingToast> | null>(null);
-  const editDocNum = (options?.docNum ?? "").trim();
+    const editDocNum = (options?.docNum ?? "").trim();
   const draftDocNum = (options?.draftDocNum ?? "").trim();
   const draftDocEntry = (options?.draftDocEntry ?? "").trim();
   const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
@@ -149,15 +143,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
   const modals = usePoModals();
 
-  const notifyRestricted = (fieldName: string) => {
-    const now = Date.now();
-    if (now - lastRestrictedToastAtRef.current < 2500) {
-      return;
-    }
-    lastRestrictedToastAtRef.current = now;
-    goeyToast.error(`${fieldName} is locked for edit`, {
-      id: "restricted-edit-toast",
-    });
+  const notifyRestricted = (_fieldName?: string) => {
+    // Edit-restricted fields: toast removed.
   };
 
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
@@ -300,10 +287,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     const shipToAddress = String((detail as Record<string, unknown>).Address2 ?? "").trim();
 
     // Show loading toast when starting edit hydration
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("Purchase Order", "edit");
-    }
-
     void (async () => {
       try {
         const detailLines = detail.DocumentLines ?? [];
@@ -481,10 +464,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         hydratedDocNumRef.current = hydrationKey;
         setHydratedDocNum(hydrationKey);
       } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+        // Dismiss loading toast when edit hydration is complete (success or error)      }
     })();
   }, [
     queryClient,
@@ -522,11 +502,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     if (hydratedDocNumRef.current === hydrationKey && isMetadataLoaded) {
       return;
     }
-
-    if (!loadingToastRef.current) {
-      loadingToastRef.current = pageLoadingToast("Purchase Order", "create");
-    }
-
     const fetchAllSources = async () => {
       try {
         const details = await Promise.all(
@@ -760,17 +735,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           hydratedDocNumRef.current = hydrationKey;
         }
         setSourceHydrationComplete(true);
-      } catch (error) {
-        goeyToast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load Purchase Quotation for copying. Try again.",
-          { id: "copy-from-fetch-error-toast" },
-        );
-      } finally {
-        loadingToastRef.current?.dismiss();
-        loadingToastRef.current = null;
-      }
+      } catch {
+    } finally {      }
     };
 
     void fetchAllSources();
@@ -1215,9 +1181,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);
-        goeyToast.error(noChangeMessage, { id: "no-change-update-toast" });
-        return;
+        setCreateError(noChangeMessage);        return;
       }
     }
 
@@ -1366,23 +1330,14 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     const isUpdating = isEditMode || isDraftUpdate;
     const trackingAction = isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
 
-    saveActions.startSaveTracking(trackingAction);
-    saveActions.actionToast.startLoading("Purchase Order", trackingAction);
-
-    try {
+    saveActions.startSaveTracking(trackingAction);    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const docEntry = isEditMode
           ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
           : loadedDraftDocEntry;
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update purchase order. Document id is missing.");
-          saveActions.actionToast.showError(
-            "Purchase Order",
-            trackingAction,
-            "Document id is missing.",
-          );
-          return;
+          setCreateError("Unable to update purchase order. Document id is missing.");          return;
         }
         await updatePurchaseOrderMutation.mutateAsync({
           id: docEntry,
@@ -1564,13 +1519,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} purchase order. Try again.`,
-      );
-      saveActions.actionToast.showError(
-        "Purchase Order",
-        isEditMode ? "update" : action,
-        errorMessage,
-      );
-      setCreateError(errorMessage);
+      );      setCreateError(errorMessage);
     }
   };
 

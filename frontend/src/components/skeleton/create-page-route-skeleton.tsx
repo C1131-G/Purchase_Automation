@@ -99,7 +99,7 @@ function SectionShell({
 export function CreatePageRouteSkeleton() {
   const location = useLocation();
   const pathname = location.pathname.toLowerCase();
-  const isEdit = pathname.includes("/edit");
+  const isEdit = pathname.includes("/edit") || pathname.includes("/update");
   const isQuotation = pathname.includes("quotation");
   const hasCopyFrom = !isEdit && !isQuotation;
 

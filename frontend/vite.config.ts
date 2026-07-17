@@ -70,7 +70,6 @@ export default defineConfig({
       "lucide-react",
       "recharts",
       "motion",
-      "goey-toast",
       "clsx",
       "dayjs",
       "tailwind-merge",

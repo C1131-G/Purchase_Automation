@@ -46,8 +46,7 @@ async function fetchBaseLineOpenQty(
     )) as SAPDocumentResponse;
 
     let line = (doc.DocumentLines || []).find(
-      (documentLine) =>
-        (documentLine as unknown as Record<string, unknown>).LineNum === baseLine,
+      (documentLine) => (documentLine as unknown as Record<string, unknown>).LineNum === baseLine,
     );
     if (!line && baseLine < doc.DocumentLines.length) {
       line = doc.DocumentLines[baseLine];

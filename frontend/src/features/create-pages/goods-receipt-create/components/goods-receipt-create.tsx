@@ -1,8 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
-import { goeyToast } from "goey-toast";
-import {
+import { useState, useRef, useEffect } from "react";import {
   ArrowLeft,
   LayoutDashboard,
   Table,
@@ -293,14 +291,10 @@ export function GoodsReceiptCreate() {
   };
 
   const handleAdd = (mode: "save-new" | "view" | "close" | "draft" = "save-new") => {
-    if (rows.length === 0) {
-      goeyToast.error("Please add at least one line item.");
-      return;
+    if (rows.length === 0) {      return;
     }
     const validRows = rows.filter((r) => r.itemNo.trim());
-    if (validRows.length === 0) {
-      goeyToast.error("Please fill in at least one item.");
-      return;
+    if (validRows.length === 0) {      return;
     }
 
     const payload: CreateGoodsReceiptPayload = {
@@ -332,9 +326,7 @@ export function GoodsReceiptCreate() {
     };
 
     createMutation.mutate(payload, {
-      onSuccess: (data) => {
-        goeyToast.success(`Goods Receipt ${data.DocNum} created successfully!`);
-        queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.all });
+      onSuccess: (data) => {        queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.all });
         // Handle modes
         if (mode === "save-new") {
           setRows([]);
@@ -344,7 +336,7 @@ export function GoodsReceiptCreate() {
           setDocumentDate(getTodayISO());
         } else if (mode === "view") {
           void router.navigate({
-            to: "/inventory/goods-receipt/$docNum/edit",
+            to: "/inventory/goods-receipt/$docNum/update",
             params: { docNum: String(data.DocNum) },
             search: { limit: 10, page: 1 } as any,
             viewTransition: true,
@@ -362,10 +354,7 @@ export function GoodsReceiptCreate() {
           setRef2("");
         }
       },
-      onError: (err) => {
-        const msg = err instanceof Error ? err.message : "Failed to create Goods Receipt.";
-        goeyToast.error(msg);
-      },
+      onError: () => {},
     });
   };
 

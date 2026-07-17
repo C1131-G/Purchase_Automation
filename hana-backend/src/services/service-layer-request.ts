@@ -28,6 +28,56 @@ export type ServiceLayerHost = {
   ) => Promise<T>;
 };
 
+/** Join Service Layer baseURL + relative endpoint into an absolute URL for access logs. */
+export function serviceLayerAbsoluteUrl(baseURL: string | undefined, endpoint: string): string {
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  if (!baseURL) {
+    return path;
+  }
+  const base = baseURL.replace(/\/+$/, "");
+  return `${base}${path}`;
+}
+
+function logServiceLayerAccess(params: {
+  method: string;
+  endpoint: string;
+  absoluteUrl: string;
+  status: number;
+  durationMs: number;
+  endpointGroup: string;
+  level?: "info" | "warn";
+  err?: string;
+}): void {
+  const {
+    method,
+    endpoint,
+    absoluteUrl,
+    status,
+    durationMs,
+    endpointGroup,
+    level = "info",
+    err,
+  } = params;
+  const statusLabel = status > 0 ? String(status) : "error";
+  const fields = {
+    direction: "outbound" as const,
+    target: "service_layer" as const,
+    method,
+    url: absoluteUrl,
+    path: endpoint,
+    status,
+    durationMs,
+    endpointGroup,
+    ...(err ? { err } : {}),
+  };
+  const message = `SL ${method} ${endpoint} ${statusLabel}`;
+  if (level === "warn") {
+    logger.warn(fields, message);
+  } else {
+    logger.info(fields, message);
+  }
+}
+
 export async function loginToSap(
   host: ServiceLayerHost,
   companyDB: string,
@@ -38,10 +88,12 @@ export async function loginToSap(
     throw new Error("Service Layer client not initialized");
   }
 
+  const loginPath = "/Login";
+  const absoluteUrl = serviceLayerAbsoluteUrl(host.client.defaults.baseURL, loginPath);
   const start = process.hrtime.bigint();
   return withSpan("sap.sl.login", { "sap.endpoint_group": "Login" }, async () => {
     try {
-      const response = await host.client!.post("/Login", {
+      const response = await host.client!.post(loginPath, {
         CompanyDB: companyDB,
         Password: password,
         UserName: username,
@@ -56,7 +108,16 @@ export async function loginToSap(
 
       const cookieString = cookies.map((cookie) => cookie.split(";")[0]).join("; ");
       const durationSec = Number(process.hrtime.bigint() - start) / 1e9;
-      recordSapSlRequest("POST", "Login", String(response.status || 200), durationSec);
+      const statusCode = response.status || 200;
+      recordSapSlRequest("POST", "Login", String(statusCode), durationSec);
+      logServiceLayerAccess({
+        method: "POST",
+        endpoint: loginPath,
+        absoluteUrl,
+        status: statusCode,
+        durationMs: Math.round(durationSec * 1000),
+        endpointGroup: "Login",
+      });
 
       return {
         cookieString,
@@ -69,6 +130,22 @@ export async function loginToSap(
       const durationSec = Number(process.hrtime.bigint() - start) / 1e9;
       recordSapSlRequest("POST", "Login", "error", durationSec);
       recordSapSlError("Login", "login_failed");
+      const statusCode = axios.isAxiosError(err) ? (err.response?.status ?? 0) : 0;
+      const errMessage = axios.isAxiosError(err)
+        ? err.response?.data?.error?.message?.value || err.message
+        : err instanceof Error
+          ? err.message
+          : String(err);
+      logServiceLayerAccess({
+        method: "POST",
+        endpoint: loginPath,
+        absoluteUrl,
+        status: statusCode,
+        durationMs: Math.round(durationSec * 1000),
+        endpointGroup: "Login",
+        level: "warn",
+        err: errMessage,
+      });
       throw err;
     }
   });
@@ -144,6 +221,7 @@ export async function executeServiceLayerRequest<T>(
 
   sessionInfo.lastSapCall = Date.now();
   const endpointGroup = normalizeEndpointGroup(endpoint);
+  const absoluteUrl = serviceLayerAbsoluteUrl(host.client.defaults.baseURL, endpoint);
   const start = process.hrtime.bigint();
 
   return withSpan(
@@ -185,9 +263,17 @@ export async function executeServiceLayerRequest<T>(
       try {
         const response = await host.client!(requestConfig);
         const durationSec = Number(process.hrtime.bigint() - start) / 1e9;
-        const status = String(response.status || 200);
-        span.setAttribute("http.status_code", response.status || 200);
-        recordSapSlRequest(method, endpointGroup, status, durationSec);
+        const statusCode = response.status || 200;
+        span.setAttribute("http.status_code", statusCode);
+        recordSapSlRequest(method, endpointGroup, String(statusCode), durationSec);
+        logServiceLayerAccess({
+          method,
+          endpoint,
+          absoluteUrl,
+          status: statusCode,
+          durationMs: Math.round(durationSec * 1000),
+          endpointGroup,
+        });
         return response.data as T;
       } catch (err: unknown) {
         const durationSec = Number(process.hrtime.bigint() - start) / 1e9;
@@ -197,6 +283,16 @@ export async function executeServiceLayerRequest<T>(
           recordSapSlRequest(method, endpointGroup, String(statusCode || "error"), durationSec);
           recordSapSlError(endpointGroup, statusCode === 401 ? "unauthorized" : "http_error");
           span.setAttribute("http.status_code", statusCode || 0);
+          logServiceLayerAccess({
+            method,
+            endpoint,
+            absoluteUrl,
+            status: statusCode ?? 0,
+            durationMs: Math.round(durationSec * 1000),
+            endpointGroup,
+            level: "warn",
+            err: message,
+          });
 
           const buildSessionExpiredError = () => {
             const sessionError = new Error("SAP session expired") as SLError;
@@ -255,6 +351,16 @@ export async function executeServiceLayerRequest<T>(
         }
         recordSapSlRequest(method, endpointGroup, "error", durationSec);
         recordSapSlError(endpointGroup, "unknown");
+        logServiceLayerAccess({
+          method,
+          endpoint,
+          absoluteUrl,
+          status: 0,
+          durationMs: Math.round(durationSec * 1000),
+          endpointGroup,
+          level: "warn",
+          err: err instanceof Error ? err.message : String(err),
+        });
         throw err instanceof Error ? err : new Error(String(err));
       }
     },

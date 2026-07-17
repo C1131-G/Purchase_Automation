@@ -1,26 +1,10 @@
-import { create } from "zustand";
+import {
+  createHeaderOnlyDraftStore,
+  getAutoDocDueDate,
+  getTodayISO,
+} from "@/store/create/document-draft.factory";
 
-/** SQLineItemState: Local state representation of a single sales document line. */
-export interface SQLineItemState {
-  id: string;
-  itemCode: string;
-  itemName: string;
-  quantity: number;
-  unitPrice: number;
-  vatGroup: string;
-  taxRate: number;
-  warehouseCode: string;
-  discountPercent: number;
-  productCode: string;
-  productName: string;
-  price: number;
-  currency: string;
-  stock: number;
-  discountAmount: number;
-  comment: string;
-}
-
-/** SQHeaderState: Top-level sales document metadata (Customer, Dates, Warehouse). */
+/** SQHeaderState: Top-level sales quotation metadata. */
 export interface SQHeaderState {
   vendorCode: string;
   vendorName: string;
@@ -31,88 +15,28 @@ export interface SQHeaderState {
   comments: string;
 }
 
-/** SQCreateState: Orchestrates the draft Sales Quotation state and mutation actions. */
-interface SQCreateState {
-  header: SQHeaderState;
-  lines: SQLineItemState[];
-  setHeader: (patch: Partial<SQHeaderState>) => void;
-  addLine: (line: SQLineItemState) => void;
-  updateLine: (id: string, patch: Partial<SQLineItemState>) => void;
-  removeLine: (id: string) => void;
-  reset: () => void;
-}
-
-const getToday = () => new Date().toISOString().slice(0, 10);
-const toISODate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-const getAutoDocDueDate = (docDate: string) => {
-  if (!docDate) {
-    return "";
-  }
-  const base = new Date(`${docDate}T00:00:00`);
-  if (Number.isNaN(base.getTime())) {
-    return "";
-  }
-  base.setMonth(base.getMonth() + 1);
-  base.setDate(base.getDate() + 2);
-  return toISODate(base);
-};
-
+/**
+ * Pattern A: lines live in React state in create hooks.
+ * Store owns header only — no dead lines APIs.
+ */
 const getDefaultHeader = (): SQHeaderState => ({
   comments: "",
-  docDate: getToday(),
-  docDueDate: getAutoDocDueDate(getToday()),
+  docDate: getTodayISO(),
+  docDueDate: getAutoDocDueDate(getTodayISO()),
   referenceNo: "",
   vendorCode: "",
   vendorName: "",
   warehouseCode: "",
 });
 
-/**
- * useSQCreateStore: Global store for managing the creation lifecycle of Sales Quotations.
- * Centralizes header data and line items before persistence.
- */
-export const useSQCreateStore = create<SQCreateState>((set) => ({
-  addLine: (line) =>
-    set((prev) => ({
-      ...prev,
-      lines: [...prev.lines, line],
-    })),
-  header: getDefaultHeader(),
-  lines: [],
-  removeLine: (id) =>
-    set((prev) => ({
-      ...prev,
-      lines: prev.lines.filter((line) => line.id !== id),
-    })),
-  reset: () =>
-    set({
-      header: getDefaultHeader(),
-      lines: [],
-    }),
-  setHeader: (patch) =>
-    set((prev) => {
-      const nextHeader = { ...prev.header, ...patch };
-      if (patch.docDate !== undefined && patch.docDueDate === undefined) {
-        nextHeader.docDueDate = getAutoDocDueDate(String(patch.docDate));
-      }
-      return {
-        ...prev,
-        header: nextHeader,
-      };
-    }),
-  updateLine: (id, patch) =>
-    set((prev) => ({
-      ...prev,
-      lines: prev.lines.map((line) => (line.id === id ? { ...line, ...patch } : line)),
-    })),
-}));
+const storeApi = createHeaderOnlyDraftStore<SQHeaderState>({
+  getDefaultHeader,
+  name: "sq-create-store",
+});
+
+export const useSQCreateStore = storeApi.useStore;
+export const createSQCreateStoreInstance = storeApi.createStore;
 
 export const useSQHeader = () => useSQCreateStore((state) => state.header);
-
 export const useSetSQHeaderAction = () => useSQCreateStore((state) => state.setHeader);
 export const useResetSQCreateAction = () => useSQCreateStore((state) => state.reset);
