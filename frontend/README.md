@@ -14,6 +14,7 @@ This package contains the browser application for Vendor Portal. It owns:
 ## Entry Points
 
 - Main bootstrap: `src/main.tsx`
+- App shell: `src/App.tsx`
 - Generated route tree: `src/routeTree.gen.ts`
 
 ## Stack
@@ -28,11 +29,14 @@ This package contains the browser application for Vendor Portal. It owns:
 
 ## Scripts
 
-| Command        | Purpose                                            |
-| -------------- | -------------------------------------------------- |
-| `pnpm dev`     | Start the Vite dev server                          |
-| `pnpm build`   | Type-check and build production assets             |
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the Vite dev server |
+| `pnpm build` | Type-check and build production assets |
 | `pnpm preview` | Serve the built app with Vite preview on port 5173 |
+| `pnpm test` | Run the Vitest suite once |
+| `pnpm test:watch` | Run Vitest in watch mode |
+| `pnpm typecheck` | Run the TypeScript project build check |
 
 ## Environment Variables
 
@@ -62,11 +66,13 @@ http://localhost:5173
 ## Project Structure
 
 - `src/features/` - feature-oriented UI modules
-- `src/routes/` - file-based route modules
+- `src/routes/` - file-based route modules, including nested route folders under `_layout/`
 - `src/components/` - shared UI building blocks
-- `src/stores/` - Zustand stores
-- `src/lib/` - shared client utilities
-- `src/queries/` - React Query data access
+- `src/shared/` - shared client utilities, auth helpers, and types
+- `src/store/` - Zustand stores and store helpers
+- `src/hooks/` - shared React hooks
+- `src/assets/` - static assets
+- `src/shared/utils/` - shared client utilities when needed
 
 ## Build And Deploy
 

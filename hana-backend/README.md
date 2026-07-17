@@ -32,10 +32,15 @@ This package owns:
 | Command | Purpose |
 | --- | --- |
 | `pnpm dev` | Start the backend in watch mode |
-| `pnpm build` | Compile the backend to `dist/` with tsup |
+| `pnpm build` | Type-check and compile the backend to `dist/` with tsup |
 | `pnpm start` | Run the compiled server from `dist/server.js` |
-| `pnpm test` | Run the Vitest suite |
-| `pnpm clean` | Free port 4000 and restart dev mode |
+| `pnpm test` | Run the Vitest suite in watch mode |
+| `pnpm test:run` | Run the Vitest suite once |
+| `pnpm test:unit` | Run unit tests only |
+| `pnpm test:integration` | Run integration tests only |
+| `pnpm test:smoke` | Run smoke tests only |
+| `pnpm test:coverage` | Run tests with coverage |
+| `pnpm openapi:lint` | Check the OpenAPI contract smoke test |
 
 ## Environment Variables
 
@@ -113,7 +118,7 @@ Startup order matters:
 
 - Keep session handling enabled because routes rely on authenticated SAP sessions
 - Keep Swagger enabled for contract visibility and manual verification
-- Keep `routeTree.gen.ts` out of this package; that file belongs to the frontend
+- Keep generated frontend files such as `routeTree.gen.ts` out of this package
 - Avoid changing generated OpenAPI plumbing by hand unless the schema source changes
 
 ## Troubleshooting
@@ -121,4 +126,3 @@ Startup order matters:
 - Environment validation failures happen before the server starts and usually indicate a missing or malformed env var
 - If SAP requests fail, verify the Service Layer session and credentials first
 - If HANA queries fail, confirm the tenant database and connection pool settings
-

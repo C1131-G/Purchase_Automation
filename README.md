@@ -1,12 +1,12 @@
 # Vendor Portal Monorepo
 
-Vendor Portal is a pnpm workspace monorepo with one React frontend and two backend services:
+Vendor Portal is a `pnpm` workspace monorepo with three packages:
 
-- `frontend/` for the customer-facing web app
-- `hana-backend/` for SAP HANA-connected APIs and SAP Service Layer integrations
-- `sql-backend/` for SQL Server-backed APIs and migration workflows
+- `frontend/` for the browser app
+- `hana-backend/` for SAP HANA and SAP Service Layer workflows
+- `sql-backend/` for PostgreSQL-backed APIs, exports, and local seed data
 
-The repository is organized so each package can be developed independently while the root coordinates common tasks such as build, format, lint, and port cleanup.
+The root package coordinates common development tasks, cleanup helpers, and repo-wide builds.
 
 ## Repository Layout
 
@@ -15,6 +15,7 @@ vendor-portal/
   README.md
   AGENTS.md
   package.json
+  pnpm-workspace.yaml
   pnpm-lock.yaml
   frontend/
   hana-backend/
@@ -23,16 +24,17 @@ vendor-portal/
 
 ## Stack Overview
 
-- **Package manager:** pnpm workspaces
-- **Frontend:** React 19, Vite, TanStack Router, React Query, Zustand, Tailwind CSS v4
+- **Package manager:** `pnpm`
+- **Frontend:** React 19, Vite, TanStack Router, React Query, Zustand, Tailwind CSS v4, Zod v4
 - **HANA backend:** Express, TypeORM, SAP HANA client, SAP Service Layer, Swagger
-- **SQL backend:** Express, TypeORM, SQL Server, migrations, Swagger
+- **SQL backend:** Express, PostgreSQL, Drizzle ORM, Swagger, seed and migration tooling
 
 ## Prerequisites
 
 - Node.js 20+
 - pnpm 11+
-- Access to the SAP HANA and SQL Server environments required by the backends
+- Access to SAP HANA for the HANA backend
+- Access to PostgreSQL for the SQL backend
 - Valid SAP Service Layer credentials for HANA-backed transactional flows
 
 ## Quick Start
@@ -43,7 +45,7 @@ Install dependencies from the repository root:
 pnpm install
 ```
 
-Run the frontend and both backends separately as needed:
+Start the package you want to work on:
 
 ```bash
 pnpm dev:frontend
@@ -51,37 +53,28 @@ pnpm dev:hana-backend
 pnpm dev:sql-backend
 ```
 
-## Common Root Commands
+## Root Commands
 
-| Command                 | Purpose                                     |
-| ----------------------- | ------------------------------------------- |
-| `pnpm dev:frontend`     | Start the Vite frontend on port 5173        |
-| `pnpm dev:hana-backend` | Start the HANA backend on port 4000         |
-| `pnpm dev:sql-backend`  | Start the SQL backend on port 4001          |
-| `pnpm build`            | Clean, lint, format, and build all packages |
-| `pnpm test`             | Run the HANA backend test suite             |
-| `pnpm lint`             | Run Oxlint                                  |
-| `pnpm lint:fix`         | Auto-fix lint issues                        |
-| `pnpm format`           | Run Oxfmt                                   |
-| `pnpm format:check`     | Check formatting only                       |
-| `pnpm check`            | Run lint fix + format                       |
-| `pnpm fix`              | Same as `check`                             |
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev:frontend` | Stop anything on the frontend port and start the frontend dev server |
+| `pnpm dev:hana-backend` | Stop anything on the backend port and start the HANA backend dev server |
+| `pnpm dev:sql-backend` | Stop anything on the backend port and start the SQL backend dev server |
+| `pnpm check:frontend` | Capture frontend runtime errors |
+| `pnpm check:hana` | Capture HANA backend runtime errors |
+| `pnpm check:sql` | Capture SQL backend runtime errors |
+| `pnpm build` | Run `pnpm fix` and then build all workspace packages |
+| `pnpm test` | Run all workspace tests |
+| `pnpm fix` | Run Ultracite fix across the repo |
+| `pnpm prepare` | Install Lefthook hooks |
 
 ## Local Development Ports
 
 - Frontend: `http://localhost:5173`
 - HANA backend: `http://localhost:4000`
-- SQL backend: `http://localhost:4001`
+- SQL backend: `http://localhost:4000` by default, unless you override `PORT`
 
-## Production Notes
-
-- Frontend builds to `frontend/dist`
-- HANA backend builds to `hana-backend/dist/server.js`
-- SQL backend builds to `sql-backend/dist/server.js`
-- The frontend preview server uses Vite preview on port 5173 in this repository
-- Backend services are started from their compiled `dist/` output in production
-
-## Documentation
+## Package Docs
 
 - [Frontend README](./frontend/README.md)
 - [HANA Backend README](./hana-backend/README.md)
@@ -90,5 +83,5 @@ pnpm dev:sql-backend
 ## Conventions
 
 - Do not edit generated router output such as `frontend/src/routeTree.gen.ts`
-- Keep `.gitignore` free of generated outputs, dependency caches, and build artifacts
+- Keep `.gitignore` focused on generated output, dependency caches, and build artifacts
 - Prefer workspace-level scripts for orchestration and package-level scripts for package-specific tasks
