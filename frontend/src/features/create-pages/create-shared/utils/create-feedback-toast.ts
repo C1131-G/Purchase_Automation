@@ -79,18 +79,25 @@ export const notifyIntercompanyResult = (
   }
 
   if (result.created) {
-    const target = result.targetDb ? ` in ${result.targetDb}` : "";
-    const draft = result.targetDraftEntry != null ? ` (draft #${result.targetDraftEntry})` : "";
-    toast.success(`Intercompany AR draft created${target}${draft}`, {
+    const parts: string[] = [];
+    if (result.targetDb) {
+      parts.push(result.targetDb);
+    }
+    if (result.targetDraftEntry != null) {
+      parts.push(`Draft #${result.targetDraftEntry}`);
+    }
+    toast.success("Intercompany AR draft created", {
       id: "intercompany-sync",
+      description: parts.length > 0 ? parts.join(" · ") : undefined,
     });
     return;
   }
 
   if (result.status === "FAILED") {
     const detail = result.errorMessage?.trim() || "Unknown error";
-    toast.error(`PO saved; intercompany failed: ${detail}`, {
+    toast.error("PO saved — intercompany failed", {
       id: "intercompany-sync",
+      description: detail,
       duration: 6000,
     });
   }

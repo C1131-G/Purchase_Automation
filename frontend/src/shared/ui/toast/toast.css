@@ -1,0 +1,35 @@
+/**
+ * Sonner shell vs Motion card:
+ * Outer li only handles stack/swipe offsets. Enter/exit polish lives on AppToastItem.
+ */
+[data-sonner-toast][data-styled="false"] {
+  --y: translateY(0);
+  opacity: 1;
+  /* Stack reflow only — no competing enter fade/slide */
+  transition:
+    transform 320ms cubic-bezier(0.23, 1, 0.32, 1),
+    height 320ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+[data-sonner-toast][data-styled="false"][data-removed="true"] {
+  opacity: 0;
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.23, 1, 0.32, 1),
+    height 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toast][data-styled="false"] {
+    transition:
+      transform 120ms ease,
+      height 120ms ease;
+  }
+
+  [data-sonner-toast][data-styled="false"][data-removed="true"] {
+    transition:
+      opacity 100ms ease,
+      transform 120ms ease,
+      height 120ms ease;
+  }
+}

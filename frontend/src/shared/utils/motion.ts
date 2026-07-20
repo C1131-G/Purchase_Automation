@@ -10,6 +10,10 @@ export const MOTION_MS = {
   sidebarBackdrop: 200,
   sidebarContentFade: 150,
   sidebarOpenClose: 200,
+  /** Toast enter (Motion spring settles near this). */
+  toastEnter: 280,
+  toastIconPop: 220,
+  toastCopy: 200,
 } as const;
 
 /** MOTION_EASING: Standardized CSS transition functions for smooth animations. */
