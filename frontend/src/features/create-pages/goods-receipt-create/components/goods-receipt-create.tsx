@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";import {
+import { useState, useRef, useEffect } from "react";
+import {
   ArrowLeft,
   LayoutDashboard,
   Table,
@@ -26,6 +27,10 @@ import {
 } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
 import { GoodsReceiptTable } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-table";
 import { ProductPopupModal } from "@/features/create-pages/create-shared/components/modals/product-popup-modal";
@@ -291,10 +296,12 @@ export function GoodsReceiptCreate() {
   };
 
   const handleAdd = (mode: "save-new" | "view" | "close" | "draft" = "save-new") => {
-    if (rows.length === 0) {      return;
+    if (rows.length === 0) {
+      return;
     }
     const validRows = rows.filter((r) => r.itemNo.trim());
-    if (validRows.length === 0) {      return;
+    if (validRows.length === 0) {
+      return;
     }
 
     const payload: CreateGoodsReceiptPayload = {
@@ -326,7 +333,12 @@ export function GoodsReceiptCreate() {
     };
 
     createMutation.mutate(payload, {
-      onSuccess: (data) => {        queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.all });
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.all });
+        notifyActionSuccess(
+          data.DocNum != null ? `Goods receipt #${data.DocNum} created` : "Goods receipt created",
+          "goods-receipt-create",
+        );
         // Handle modes
         if (mode === "save-new") {
           setRows([]);
@@ -354,7 +366,9 @@ export function GoodsReceiptCreate() {
           setRef2("");
         }
       },
-      onError: () => {},
+      onError: (error: unknown) => {
+        notifyActionError(error, "Failed to create goods receipt.", "goods-receipt-create");
+      },
     });
   };
 

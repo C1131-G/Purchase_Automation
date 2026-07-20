@@ -1,8 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";import { Check, RefreshCw } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/button";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import {
   incomingPaymentKeys,
   incomingPaymentQueries,
@@ -30,10 +35,14 @@ export function IncomingPaymentEdit({ docNum }: { docNum: string }) {
 
   const updateMutation = useMutation({
     mutationFn: () => incomingPaymentAPI.updatePayment(paymentDetail!.id, { Remarks: remarks }),
-    onSuccess: () => {      queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.detail(docNum) });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.detail(docNum) });
       queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.all });
+      notifyActionSuccess(`Incoming payment #${docNum} updated`, "incoming-payment-update");
     },
-    onError: () => {},
+    onError: (error: unknown) => {
+      notifyActionError(error, "Failed to update incoming payment.", "incoming-payment-update");
+    },
   });
 
   if (isLoading) {

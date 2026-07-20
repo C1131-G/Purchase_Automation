@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { ArrowLeft, ChevronDown, LayoutDashboard, Table } from "lucide-react";
-import { useState, useEffect } from "react";import { ActionsPopoverContent } from "@/features/create-pages/create-shared/components/sections/base-product-section";
+import { useState, useEffect } from "react";
+import { ActionsPopoverContent } from "@/features/create-pages/create-shared/components/sections/base-product-section";
 
 import { Button } from "@/components/button";
 import { Popover } from "@/components/popover";
@@ -13,6 +14,10 @@ import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/c
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { GoodsIssueRow } from "@/features/create-pages/goods-issue-create/types/goods-issue.types";
 import { GoodsIssueTable } from "@/features/create-pages/goods-issue-create/components/goods-issue-table";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { goodsIssueQueries } from "@/features/table-pages/goods-issue/api/goods-issue.queries";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { apiClient } from "@/shared/api/client";
@@ -322,7 +327,19 @@ export function GoodsIssueUpdate({ docNum }: GoodsIssueUpdateProps) {
                           },
                         },
                         {
-                          onSuccess: () => {}, onError: () => {},
+                          onSuccess: () => {
+                            notifyActionSuccess(
+                              `Goods issue #${docNum} updated`,
+                              "goods-issue-update",
+                            );
+                          },
+                          onError: (error: unknown) => {
+                            notifyActionError(
+                              error,
+                              "Failed to update goods issue.",
+                              "goods-issue-update",
+                            );
+                          },
                         },
                       );
                     }}

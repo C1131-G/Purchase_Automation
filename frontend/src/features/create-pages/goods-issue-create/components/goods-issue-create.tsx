@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";import {
+import { useState, useRef, useEffect } from "react";
+import {
   ArrowLeft,
   LayoutDashboard,
   Table,
@@ -26,6 +27,10 @@ import {
 } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import type { GoodsIssueRow } from "@/features/create-pages/goods-issue-create/types/goods-issue.types";
 import { GoodsIssueTable } from "@/features/create-pages/goods-issue-create/components/goods-issue-table";
 import { ProductPopupModal } from "@/features/create-pages/create-shared/components/modals/product-popup-modal";
@@ -288,10 +293,12 @@ export function GoodsIssueCreate() {
   };
 
   const handleAdd = (mode: "save-new" | "view" | "close" | "draft" = "save-new") => {
-    if (rows.length === 0) {      return;
+    if (rows.length === 0) {
+      return;
     }
     const validRows = rows.filter((r) => r.itemNo.trim());
-    if (validRows.length === 0) {      return;
+    if (validRows.length === 0) {
+      return;
     }
 
     const payload: CreateGoodsIssuePayload = {
@@ -327,7 +334,12 @@ export function GoodsIssueCreate() {
     };
 
     createMutation.mutate(payload, {
-      onSuccess: (data) => {        queryClient.invalidateQueries({ queryKey: goodsIssueKeys.all });
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: goodsIssueKeys.all });
+        notifyActionSuccess(
+          data.DocNum != null ? `Goods issue #${data.DocNum} created` : "Goods issue created",
+          "goods-issue-create",
+        );
         // Handle modes
         if (mode === "save-new") {
           setRows([]);
@@ -355,7 +367,9 @@ export function GoodsIssueCreate() {
           setRef2("");
         }
       },
-      onError: () => {},
+      onError: (error: unknown) => {
+        notifyActionError(error, "Failed to create goods issue.", "goods-issue-create");
+      },
     });
   };
 

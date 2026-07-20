@@ -33,8 +33,9 @@ This package contains the browser application for Vendor Portal. It owns:
 Use **`@/shared/ui/toast/toast`** (not raw `sonner` in features).
 
 - Single `<AppToaster />` is mounted in `src/routes/__root.tsx`.
-- **Toast:** save success, API failures, edit-restricted fields, hydrate loading, intercompany result, session ended.
-- **Do not toast:** form validation / required-field errors (keep inline `createError`).
+- **Toast:** document save success/update, API failures, payments, goods receipt/issue, downloads, edit-restricted fields, hydrate loading, intercompany, session ended.
+- Mock-only screens (transfer, item master) toast **“not available yet”** on save until API is wired.
+- **Do not toast:** form validation / required-field errors (keep inline `createError`); table list load errors stay in section error UI.
 - Create-page helpers: `src/features/create-pages/create-shared/utils/create-feedback-toast.ts`.
 
 ## Scripts

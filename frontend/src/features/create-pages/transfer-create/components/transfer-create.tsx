@@ -172,7 +172,10 @@ export function TransferCreate({
         />
 
         {/* Action buttons */}
-        <InventoryDocumentActions idPrefix={idPrefix} />
+        <InventoryDocumentActions
+          idPrefix={idPrefix}
+          featureLabel={isRequest ? "Transfer request save" : "Inventory transfer save"}
+        />
       </div>
     </CreatePageWrapper>
   );

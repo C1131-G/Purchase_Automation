@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";import { Calendar as CalendarIcon, Check, HandCoins, Minus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Calendar as CalendarIcon, Check, HandCoins, Minus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
 
@@ -6,6 +7,10 @@ import { Calendar } from "@/components/calendar/calendar";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { LookupPopupModal } from "@/features/create-pages/create-shared/components/modals/lookup-popup-modal";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import {
   parseISODate,
   toDisplayDate,
@@ -115,11 +120,21 @@ export function CreateOutgoingPaymentForm() {
 
   const createPaymentMutation = useMutation({
     mutationFn: outgoingPaymentAPI.createOutgoingPayment,
-    onError: () => {},
-    onSuccess: () => {
+    onError: (error: unknown) => {
+      notifyActionError(error, "Failed to create outgoing payment.", "outgoing-payment-create");
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: apInvoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: apCreditMemoKeys.all });
       queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.all });
+
+      const docNum =
+        (result as { data?: { DocNum?: number | string }; DocNum?: number | string })?.data
+          ?.DocNum ?? (result as { DocNum?: number | string })?.DocNum;
+      notifyActionSuccess(
+        docNum != null ? `Outgoing payment #${docNum} created` : "Outgoing payment created",
+        "outgoing-payment-create",
+      );
 
       setSelectedDocs({});
       setRemarks("");
@@ -308,19 +323,22 @@ export function CreateOutgoingPaymentForm() {
       totalCash === 0 &&
       totalChecks === 0 &&
       (paymentDetails.TransferSum || 0) === 0
-    ) {      return;
+    ) {
+      return;
     }
 
     const currentDocIds = new Set(allDocuments.map((d) => `${d.type}-${d.id}`));
     const staleKeys = Object.keys(selectedDocs).filter((k) => !currentDocIds.has(k));
-    if (staleKeys.length > 0) {      return;
+    if (staleKeys.length > 0) {
+      return;
     }
 
     const cashSum = totalCash;
     const checkSum = totalChecks;
     const transferSum = paymentDetails.TransferSum || 0;
 
-    if (transferSum > 0 && !paymentDetails.TransferReference?.trim()) {      return;
+    if (transferSum > 0 && !paymentDetails.TransferReference?.trim()) {
+      return;
     }
 
     const payload = {

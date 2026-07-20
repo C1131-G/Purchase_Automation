@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import { notifyFeatureUnavailable } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 
 export function ItemMasterCreate() {
   const [itemCode, setItemCode] = useState("");
@@ -12,7 +13,7 @@ export function ItemMasterCreate() {
   const [codeBars, setCodeBars] = useState("");
 
   const handleAdd = () => {
-    // Mock action
+    notifyFeatureUnavailable("Item master create");
   };
 
   return (

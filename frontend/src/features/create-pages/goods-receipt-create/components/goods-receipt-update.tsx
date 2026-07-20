@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { ArrowLeft, ChevronDown, LayoutDashboard, Table } from "lucide-react";
-import { useState, useEffect } from "react";import { ActionsPopoverContent } from "@/features/create-pages/create-shared/components/sections/base-product-section";
+import { useState, useEffect } from "react";
+import { ActionsPopoverContent } from "@/features/create-pages/create-shared/components/sections/base-product-section";
 
 import { Button } from "@/components/button";
 import { Popover } from "@/components/popover";
@@ -11,6 +12,10 @@ import { InventoryDocumentFooter } from "@/features/create-pages/create-shared/c
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { InventoryDocumentHeader } from "@/features/create-pages/create-shared/components/inventory/inventory-document-header";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import type { GoodsReceiptRow } from "@/features/create-pages/goods-receipt-create/types/goods-receipt.types";
 import { GoodsReceiptTable } from "@/features/create-pages/goods-receipt-create/components/goods-receipt-table";
 import {
@@ -299,7 +304,19 @@ export function GoodsReceiptUpdate({ docNum }: GoodsReceiptUpdateProps) {
                           },
                         },
                         {
-                          onSuccess: () => {}, onError: () => {},
+                          onSuccess: () => {
+                            notifyActionSuccess(
+                              `Goods receipt #${docNum} updated`,
+                              "goods-receipt-update",
+                            );
+                          },
+                          onError: (error: unknown) => {
+                            notifyActionError(
+                              error,
+                              "Failed to update goods receipt.",
+                              "goods-receipt-update",
+                            );
+                          },
                         },
                       );
                     }}

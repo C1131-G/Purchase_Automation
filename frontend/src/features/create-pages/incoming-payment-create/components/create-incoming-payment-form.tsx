@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";import { Check, HandCoins, Search } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Check, HandCoins, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { LookupPopupModal } from "@/features/create-pages/create-shared/components/modals/lookup-popup-modal";
 import { CopyFromDateFilter } from "@/features/create-pages/create-shared/components/modals/copy-from-date-filter";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { toISODate } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { formatDateDisplay } from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
 import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
@@ -92,12 +97,22 @@ export function CreateIncomingPaymentForm() {
 
   const createPaymentMutation = useMutation({
     mutationFn: incomingPaymentAPI.createIncomingPayment,
-    onError: () => {},
-    onSuccess: () => {
+    onError: (error: unknown) => {
+      notifyActionError(error, "Failed to create incoming payment.", "incoming-payment-create");
+    },
+    onSuccess: (result) => {
       // Invalidate related queries to refresh balances
       queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all });
       queryClient.invalidateQueries({ queryKey: ArCreditMemoKeys.all });
       queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.all });
+
+      const docNum =
+        (result as { data?: { DocNum?: number | string }; DocNum?: number | string })?.data
+          ?.DocNum ?? (result as { DocNum?: number | string })?.DocNum;
+      notifyActionSuccess(
+        docNum != null ? `Incoming payment #${docNum} created` : "Incoming payment created",
+        "incoming-payment-create",
+      );
 
       navigate({
         search: { columnVisibility: {}, limit: 10, page: 1, sorting: [] },
@@ -277,10 +292,12 @@ export function CreateIncomingPaymentForm() {
       amountToDistribute -= toApply;
     }
 
-    if (!isPaymentOnAccount && paymentInvoices.length === 0) {      return;
+    if (!isPaymentOnAccount && paymentInvoices.length === 0) {
+      return;
     }
 
-    const surchargeTotal = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));    const cashSum = totalCash;
+    const surchargeTotal = Number((paymentDetails.SurchargeTotal || 0).toFixed(2));
+    const cashSum = totalCash;
     const checkSum = totalChecks;
     const trsfrSum = paymentDetails.TransferSum || 0;
     createPaymentMutation.mutate({

@@ -1,10 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";import { Check, RefreshCw } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatCurrency } from "@/features/dashboard/utils/formatters";
 
 import { Button } from "@/components/button";
 import { OutgoingPaymentEditSkeleton } from "@/components/skeleton/outgoing-payment-edit-skeleton";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import {
   outgoingPaymentKeys,
   outgoingPaymentQueries,
@@ -33,10 +38,14 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
 
   const updateMutation = useMutation({
     mutationFn: () => outgoingPaymentAPI.updatePayment(paymentDetail!.id, { Remarks: remarks }),
-    onSuccess: () => {      queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.detailByDocNum(docNum) });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.detailByDocNum(docNum) });
       queryClient.invalidateQueries({ queryKey: outgoingPaymentKeys.all });
+      notifyActionSuccess(`Outgoing payment #${docNum} updated`, "outgoing-payment-update");
     },
-    onError: () => {},
+    onError: (error: unknown) => {
+      notifyActionError(error, "Failed to update outgoing payment.", "outgoing-payment-update");
+    },
   });
 
   if (isLoading) {
