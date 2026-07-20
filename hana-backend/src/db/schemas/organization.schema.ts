@@ -1,5 +1,6 @@
-// Organization Schema: Maps to the central 'ORGANIZATION' table in the common/discovery database.
-// This schema is the source of truth for all active tenants and holds the keys (Service Layer credentials) required to unlock tenant data.
+// Organization Schema: Maps to the central organization registry in the common DB
+// (typically SBOCOMMON.VST_COMMON). Holds tenant discovery fields plus intercompany
+// partner codes and Service Layer credentials.
 
 import { EntitySchema } from "typeorm";
 
@@ -7,11 +8,18 @@ import { config } from "@/config/env";
 import type { HANAColumnType } from "@/db/schemas/types/base.types";
 
 export interface Organization {
-  id: string; // The physical HANA database name (e.g., 'SBODEMOIN').
+  id: string; // Physical HANA database name (e.g. 'AJAX_POS_DB').
   companyName: string;
   dbServer: string;
+  dbType?: string;
+  dbUsername?: string;
+  dbPassword?: string;
   serviceLayerUsername?: string;
   serviceLayerPassword?: string;
+  /** Intercompany vendor code this company represents in partner companies. */
+  vendorCode?: string;
+  /** Intercompany customer code for this company when selling into partner companies. */
+  customerCode?: string;
 }
 
 export const OrganizationSchema = new EntitySchema<Organization>({
@@ -21,9 +29,33 @@ export const OrganizationSchema = new EntitySchema<Organization>({
       name: "COMPANY_NAME",
       type: "nvarchar" as HANAColumnType,
     },
+    customerCode: {
+      length: 50,
+      name: "CUSTOMER_CODE",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    dbPassword: {
+      length: 255,
+      name: "DB_PASSWORD",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
     dbServer: {
       length: 255,
       name: "DB_SERVER",
+      type: "nvarchar" as HANAColumnType,
+    },
+    dbType: {
+      length: 50,
+      name: "DB_TYPE",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    dbUsername: {
+      length: 100,
+      name: "DB_USERNAME",
+      nullable: true,
       type: "nvarchar" as HANAColumnType,
     },
     id: {
@@ -35,11 +67,19 @@ export const OrganizationSchema = new EntitySchema<Organization>({
     serviceLayerPassword: {
       length: 100,
       name: "SERVICE_LAYER_PASSWORD",
+      nullable: true,
       type: "nvarchar" as HANAColumnType,
     },
     serviceLayerUsername: {
       length: 100,
       name: "SERVICE_LAYER_USERNAME",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
+    vendorCode: {
+      length: 50,
+      name: "VENDOR_CODE",
+      nullable: true,
       type: "nvarchar" as HANAColumnType,
     },
   },
