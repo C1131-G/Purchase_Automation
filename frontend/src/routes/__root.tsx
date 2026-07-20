@@ -3,12 +3,14 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { NotFound } from "@/components/not-found";
+import { AppToaster } from "@/shared/ui/toast/toaster";
 
 /**
  * Root: Global application container.
  * THEME: Rigid Light-mode foundation (zinc-900 on white).
  * ARCHITECTURE: Context provider for QueryClient and TanStack Router Outlet.
  * TYPOGRAPHY: Enforces `font-outfit` as the industrial sans-serif baseline.
+ * Toasts: single Sonner host for the whole app (see shared/ui/toast).
  */
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -23,6 +25,7 @@ function RootComponent() {
       <main className="relative z-10 flex-1 flex flex-col min-h-0 h-full w-full">
         <Outlet />
       </main>
+      <AppToaster />
       <TanStackRouterDevtools position="bottom-left" />
     </div>
   );

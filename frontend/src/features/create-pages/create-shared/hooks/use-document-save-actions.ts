@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "@tanstack/react-router";
 
+import { toast } from "@/shared/ui/toast/toast";
 import { scrollToTop } from "@/shared/utils/scroll";
 
 interface UseDocumentSaveActionsOptions {
@@ -81,7 +82,14 @@ export function useDocumentSaveActions({
       action: "save-new" | "view" | "close" | "draft" | "update" | "draft-update",
       createdDocNum?: string | number,
     ) => {
+      const toastId = `save-${documentName}`;
+      const docLabel =
+        createdDocNum != null && String(createdDocNum).trim()
+          ? `${documentName} #${createdDocNum}`
+          : documentName;
+
       if (action === "draft" || action === "draft-update") {
+        toast.success("Draft saved", { id: toastId });
         resetForm();
         setIsSaved(false);
         setSavedDocNum(null);
@@ -96,7 +104,8 @@ export function useDocumentSaveActions({
         return;
       }
 
-      if (isEditMode) {
+      if (isEditMode || action === "update") {
+        toast.success(`${documentName} updated`, { id: toastId });
         scrollToTop();
         return;
       }
@@ -104,6 +113,7 @@ export function useDocumentSaveActions({
       const isDraftConversion = Boolean((router.state.location.search as any)?.draftDocNum);
 
       if (action === "save-new" || (isDraftConversion && action === "view")) {
+        toast.success(`${docLabel} created`, { id: toastId });
         resetForm();
         setIsSaved(false);
         setSavedDocNum(null);
@@ -116,6 +126,7 @@ export function useDocumentSaveActions({
           viewTransition: true,
         });
       } else if (action === "close") {
+        toast.success(`${docLabel} created`, { id: toastId });
         resetForm();
         setIsSaved(false);
         setSavedDocNum(null);
@@ -131,12 +142,22 @@ export function useDocumentSaveActions({
           viewTransition: true,
         });
       } else if (action === "view") {
+        toast.success(`${docLabel} saved`, { id: toastId });
         setIsSaved(true);
         setSavedDocNum(createdDocNum ?? null);
         lastSavedStateRef.current = getPayloadString();
       }
     },
-    [isEditMode, resetForm, moduleType, router, getPayloadString, defaultUrl, tableUrl],
+    [
+      documentName,
+      isEditMode,
+      resetForm,
+      moduleType,
+      router,
+      getPayloadString,
+      defaultUrl,
+      tableUrl,
+    ],
   );
 
   const isFormModifiedSinceSave = useMemo(() => {

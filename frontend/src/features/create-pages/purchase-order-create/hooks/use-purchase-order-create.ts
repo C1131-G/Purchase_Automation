@@ -1,5 +1,6 @@
 /** usePurchaseOrderCreate: State and logic for creating/updating purchase orders. */
-import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -18,13 +19,23 @@ import type {
   PopupMode,
   ProductRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  dismissDocumentHydrating,
+  notifyCreateApiError,
+  notifyDocumentHydrating,
+  notifyEditRestrictedField,
+  notifyIntercompanyResult,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
-} from "@/features/create-pages/create-shared/utils/lookup-search-sync";import {
+} from "@/features/create-pages/create-shared/utils/lookup-search-sync";
+import {
   useCreatePurchaseOrder,
   useUpdatePurchaseOrder,
 } from "@/features/create-pages/purchase-order-create/api/purchase-order-create.mutations";
@@ -133,7 +144,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
-    const editDocNum = (options?.docNum ?? "").trim();
+
+  const editDocNum = (options?.docNum ?? "").trim();
   const draftDocNum = (options?.draftDocNum ?? "").trim();
   const draftDocEntry = (options?.draftDocEntry ?? "").trim();
   const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
@@ -143,8 +155,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
   const modals = usePoModals();
 
-  const notifyRestricted = (_fieldName?: string) => {
-    // Edit-restricted fields: toast removed.
+  const notifyRestricted = (fieldName = "Field") => {
+    notifyEditRestrictedField(fieldName);
   };
 
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
@@ -286,7 +298,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     const billToAddress = String(detail.Address ?? "").trim();
     const shipToAddress = String((detail as Record<string, unknown>).Address2 ?? "").trim();
 
-    // Show loading toast when starting edit hydration
+    notifyDocumentHydrating("purchase-order", "Loading purchase order…");
     void (async () => {
       try {
         const detailLines = detail.DocumentLines ?? [];
@@ -464,7 +476,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         hydratedDocNumRef.current = hydrationKey;
         setHydratedDocNum(hydrationKey);
       } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)      }
+        dismissDocumentHydrating("purchase-order");
+      }
     })();
   }, [
     queryClient,
@@ -736,7 +749,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         }
         setSourceHydrationComplete(true);
       } catch {
-    } finally {      }
+      } finally {
+      }
     };
 
     void fetchAllSources();
@@ -1181,7 +1195,8 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
 
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);        return;
+        setCreateError(noChangeMessage);
+        return;
       }
     }
 
@@ -1330,14 +1345,16 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     const isUpdating = isEditMode || isDraftUpdate;
     const trackingAction = isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
 
-    saveActions.startSaveTracking(trackingAction);    try {
+    saveActions.startSaveTracking(trackingAction);
+    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const docEntry = isEditMode
           ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
           : loadedDraftDocEntry;
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update purchase order. Document id is missing.");          return;
+          setCreateError("Unable to update purchase order. Document id is missing.");
+          return;
         }
         await updatePurchaseOrderMutation.mutateAsync({
           id: docEntry,
@@ -1473,6 +1490,12 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           payload,
         });
         createdDocNum = result?.data?.DocNum;
+        const intercompany = (
+          result?.data as
+            | { intercompany?: Parameters<typeof notifyIntercompanyResult>[0] }
+            | undefined
+        )?.intercompany;
+        notifyIntercompanyResult(intercompany);
       }
 
       saveActions.trackMutationSuccess();
@@ -1519,7 +1542,9 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isEditMode ? "update" : "create"} purchase order. Try again.`,
-      );      setCreateError(errorMessage);
+      );
+      setCreateError(errorMessage);
+      notifyCreateApiError(errorMessage, "purchase-order");
     }
   };
 

@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -21,11 +22,18 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  dismissDocumentHydrating,
+  notifyCreateApiError,
+  notifyDocumentHydrating,
+  notifyEditRestrictedField,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
-} from "@/features/create-pages/create-shared/utils/lookup-search-sync";import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+} from "@/features/create-pages/create-shared/utils/lookup-search-sync";
+import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import {
   useCreateGRPO,
@@ -168,7 +176,8 @@ export function useGRPOCreate({
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<any>(null);
   const [sourceHydrationComplete, setSourceHydrationComplete] = useState(false);
-    const [vendorNameInput, setVendorNameInput] = useState("");
+
+  const [vendorNameInput, setVendorNameInput] = useState("");
   const [vendorCodeInput, setVendorCodeInput] = useState("");
   const [vendorNameFocused, setVendorNameFocused] = useState(false);
   const [vendorCodeFocused, setVendorCodeFocused] = useState(false);
@@ -253,8 +262,8 @@ export function useGRPOCreate({
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
-  const notifyRestricted = (_fieldName?: string) => {
-    // Edit-restricted fields: toast removed.
+  const notifyRestricted = (fieldName = "Field") => {
+    notifyEditRestrictedField(fieldName);
   };
 
   const vendorsQuery = useQuery(createSharedQueries.vendors());
@@ -431,7 +440,7 @@ export function useGRPOCreate({
       return;
     }
 
-    // Show loading toast when starting edit hydration
+    notifyDocumentHydrating("grpo", "Loading GRPO…");
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -657,7 +666,8 @@ export function useGRPOCreate({
         });
         setHydratedDocNum(currentDocNum);
       } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)      }
+        dismissDocumentHydrating("grpo");
+      }
     })();
   }, [
     editDocNum,
@@ -692,7 +702,7 @@ export function useGRPOCreate({
       return;
     }
 
-    // Show loading toast when starting draft hydration
+    notifyDocumentHydrating("grpo", "Loading GRPO draft…");
     void (async () => {
       try {
         setVendorCodeInput(String(detail.CardCode ?? "").trim());
@@ -915,7 +925,9 @@ export function useGRPOCreate({
           hydratedDocNumRef.current = hydrationKey;
         }
         setHydratedDocNum(hydrationKey);
-      } finally {      }
+      } finally {
+        dismissDocumentHydrating("grpo");
+      }
     })();
   }, [
     draftDocNum,
@@ -968,269 +980,278 @@ export function useGRPOCreate({
       hydratedDocNumRef.current = hydrKey;
     }
 
-    // Show loading toast when starting copy-from hydration
+    notifyDocumentHydrating("grpo", "Loading source documents…");
     // Fetch all source documents in parallel
     const fetchAllSources = async () => {
-      const details = await Promise.all(
-        sourceDocNums.map(async (num) => {
-          if (currentSourceDocType === "PurchaseQuotation") {
-            const res = await queryClient.fetchQuery(purchaseQuotationQueries.detailByDocNum(num));
-            return res.data;
-          }
-          const res = await queryClient.fetchQuery(purchaseOrderQueries.detailByDocNum(num));
-          return res.data;
-        }),
-      );
-
-      // Use first source for header fields (vendor, buyer, addresses)
-      const primaryDetail = details[0]!;
-      const vendorCode = String(primaryDetail.CardCode ?? "").trim();
-      const vendorName = String(primaryDetail.CardName ?? "").trim();
-      const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode);
-
-      const buyerFromDocCode =
-        primaryDetail.SalesPersonCode !== undefined && primaryDetail.SalesPersonCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(primaryDetail.SalesPersonCode),
-            )?.name
-          : "";
-      const buyerFromVendorCode =
-        matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
-          ? salesEmployees.find(
-              (item) =>
-                normalizeCodeForCompare(item.code) ===
-                normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
-            )?.name
-          : "";
-      const buyerName =
-        buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || "";
-
-      const warehouseCode = String(primaryDetail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-      const sourceComments = String(primaryDetail.Comments ?? "").trim();
-
-      // Build multi-source reference — put into remarks, not referenceNo
-      const refs = sourceDocNums.map((num) =>
-        generateSingleSourceReference(currentSourceDocType, num),
-      );
-      const autoReference = refs.length === 1 ? refs[0]! : refs.join("\n");
-
-      // Extract existing "Based on" chain from source comments
-      const commentLines = sourceComments
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean);
-      const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line));
-
-      // Build remarks: existing ref chain + new auto-ref + user remarks from source
-      const userRemarks = commentLines
-        .filter((line) => !/^based on /i.test(line))
-        .join("\n")
-        .trim();
-      const remarksParts = [refLinesFromComments.join("\n"), autoReference, userRemarks]
-        .filter(Boolean)
-        .join("\n")
-        .trim();
-
-      const referenceWasAutoFilled = true;
-      const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
-
-      // Merge all lines from all source documents
-      const allDetailLines = details.flatMap((detail) => detail.DocumentLines ?? []);
-      const productsForWarehouse =
-        effectiveWarehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-              .catch((): ProductLookupItem[] => [])
-          : [];
-
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
-      const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
-      const uniqueItemCodes = [
-        ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
-      ].filter(Boolean);
-
-      // Recover missing product metadata
-      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-      if (missingItemCodes.length > 0) {
-        await Promise.all(
-          missingItemCodes.map(async (itemCode) => {
-            const res = await queryClient
-              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-              .catch((): ProductLookupItem[] => []);
-            const matched = res.find((p) => String(p.code).trim() === itemCode);
-            if (matched) {
-              productByCode.set(itemCode, matched);
+      try {
+        const details = await Promise.all(
+          sourceDocNums.map(async (num) => {
+            if (currentSourceDocType === "PurchaseQuotation") {
+              const res = await queryClient.fetchQuery(
+                purchaseQuotationQueries.detailByDocNum(num),
+              );
+              return res.data;
             }
+            const res = await queryClient.fetchQuery(purchaseOrderQueries.detailByDocNum(num));
+            return res.data;
           }),
         );
-      }
 
-      await Promise.all(
-        uniqueItemCodes.map(async (itemCode) => {
-          const warehouseStocks = (await queryClient
-            .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-            .catch(() => [])) as { code: string; stock: number }[];
-          stockByItemCode.set(
-            itemCode,
-            warehouseStocks.map((stock) => ({
-              code: String(stock.code ?? "").trim(),
-              stock: Number(stock.stock ?? 0),
-            })),
+        // Use first source for header fields (vendor, buyer, addresses)
+        const primaryDetail = details[0]!;
+        const vendorCode = String(primaryDetail.CardCode ?? "").trim();
+        const vendorName = String(primaryDetail.CardName ?? "").trim();
+        const matchedVendor = vendors.find((v) => String(v.code).trim() === vendorCode);
+
+        const buyerFromDocCode =
+          primaryDetail.SalesPersonCode !== undefined && primaryDetail.SalesPersonCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(primaryDetail.SalesPersonCode),
+              )?.name
+            : "";
+        const buyerFromVendorCode =
+          matchedVendor?.salesEmployeeCode !== undefined && matchedVendor.salesEmployeeCode !== null
+            ? salesEmployees.find(
+                (item) =>
+                  normalizeCodeForCompare(item.code) ===
+                  normalizeCodeForCompare(matchedVendor.salesEmployeeCode),
+              )?.name
+            : "";
+        const buyerName =
+          buyerFromDocCode || buyerFromVendorCode || matchedVendor?.salesEmployeeName?.trim() || "";
+
+        const warehouseCode = String(primaryDetail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
+        const sourceComments = String(primaryDetail.Comments ?? "").trim();
+
+        // Build multi-source reference — put into remarks, not referenceNo
+        const refs = sourceDocNums.map((num) =>
+          generateSingleSourceReference(currentSourceDocType, num),
+        );
+        const autoReference = refs.length === 1 ? refs[0]! : refs.join("\n");
+
+        // Extract existing "Based on" chain from source comments
+        const commentLines = sourceComments
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+        const refLinesFromComments = commentLines.filter((line) => /^based on /i.test(line));
+
+        // Build remarks: existing ref chain + new auto-ref + user remarks from source
+        const userRemarks = commentLines
+          .filter((line) => !/^based on /i.test(line))
+          .join("\n")
+          .trim();
+        const remarksParts = [refLinesFromComments.join("\n"), autoReference, userRemarks]
+          .filter(Boolean)
+          .join("\n")
+          .trim();
+
+        const referenceWasAutoFilled = true;
+        const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
+
+        // Merge all lines from all source documents
+        const allDetailLines = details.flatMap((detail) => detail.DocumentLines ?? []);
+        const productsForWarehouse =
+          effectiveWarehouseCode.trim().length > 0
+            ? await queryClient
+                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
+                .catch((): ProductLookupItem[] => [])
+            : [];
+
+        const productByCode = new Map<string, ProductLookupItem>(
+          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
+        );
+        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
+        const uniqueItemCodes = [
+          ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
+        ].filter(Boolean);
+
+        // Recover missing product metadata
+        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
+        if (missingItemCodes.length > 0) {
+          await Promise.all(
+            missingItemCodes.map(async (itemCode) => {
+              const res = await queryClient
+                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
+                .catch((): ProductLookupItem[] => []);
+              const matched = res.find((p) => String(p.code).trim() === itemCode);
+              if (matched) {
+                productByCode.set(itemCode, matched);
+              }
+            }),
           );
-        }),
-      );
+        }
 
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
-        "purchase",
-      );
-      const resolvedHeaderDiscountPercent = Number(
-        (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
-      );
-      setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
+        await Promise.all(
+          uniqueItemCodes.map(async (itemCode) => {
+            const warehouseStocks = (await queryClient
+              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
+              .catch(() => [])) as { code: string; stock: number }[];
+            stockByItemCode.set(
+              itemCode,
+              warehouseStocks.map((stock) => ({
+                code: String(stock.code ?? "").trim(),
+                stock: Number(stock.stock ?? 0),
+              })),
+            );
+          }),
+        );
 
-      let lineIndex = 0;
-      const baseType = currentSourceDocType === "PurchaseQuotation" ? 540000006 : 22;
-      const mappedLines = details.flatMap((detail, docIdx) => {
-        const detailLines = detail.DocumentLines ?? [];
-        return detailLines.map((line) => {
-          const idx = lineIndex++;
-          const itemCode = String(line.ItemCode ?? "").trim();
-          const productMeta = productByCode.get(itemCode);
-          const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
-          const warehouseStocks = stockByItemCode.get(itemCode) ?? [];
-          const lineStock = lineWarehouseCode
-            ? Number(warehouseStocks.find((s) => s.code === lineWarehouseCode)?.stock ?? 0)
-            : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+        const taxRateByItemCode = await resolveProductTaxRates(
+          queryClient,
+          allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          "purchase",
+        );
+        const resolvedHeaderDiscountPercent = Number(
+          (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
+        );
+        setHeaderDiscountPercent(resolvedHeaderDiscountPercent);
 
-          const lineData = line as Record<string, unknown>;
-          // For Purchase Quotation sources (baseType 540000006), the user-entered
-          // quantity lives in PQT1.PQTReqQty (Service Layer: RequiredQuantity),
-          // while PQT1.Quantity stays 0. Prefer RequiredQuantity as a fallback
-          // so the copied-to GRPO receives the same quantity the user requested.
-          const openQty = Number(
-            lineData.OpenQty ??
-              lineData.OpenQuantity ??
-              lineData.RequiredQuantity ??
-              lineData.requiredQuantity ??
-              line.Quantity ??
-              1,
-          );
-          const quantity = openQty;
-          const price = Number(line.Price ?? line.UnitPrice ?? 0);
-          const grossAmount = Math.max(0, price * quantity);
-          const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
-            grossAmount,
-            headerDiscountPercent: resolvedHeaderDiscountPercent,
-            line: line as unknown as Record<string, unknown>,
+        let lineIndex = 0;
+        const baseType = currentSourceDocType === "PurchaseQuotation" ? 540000006 : 22;
+        const mappedLines = details.flatMap((detail, docIdx) => {
+          const detailLines = detail.DocumentLines ?? [];
+          return detailLines.map((line) => {
+            const idx = lineIndex++;
+            const itemCode = String(line.ItemCode ?? "").trim();
+            const productMeta = productByCode.get(itemCode);
+            const lineWarehouseCode = String(line.WarehouseCode ?? "").trim();
+            const warehouseStocks = stockByItemCode.get(itemCode) ?? [];
+            const lineStock = lineWarehouseCode
+              ? Number(warehouseStocks.find((s) => s.code === lineWarehouseCode)?.stock ?? 0)
+              : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
+
+            const lineData = line as Record<string, unknown>;
+            // For Purchase Quotation sources (baseType 540000006), the user-entered
+            // quantity lives in PQT1.PQTReqQty (Service Layer: RequiredQuantity),
+            // while PQT1.Quantity stays 0. Prefer RequiredQuantity as a fallback
+            // so the copied-to GRPO receives the same quantity the user requested.
+            const openQty = Number(
+              lineData.OpenQty ??
+                lineData.OpenQuantity ??
+                lineData.RequiredQuantity ??
+                lineData.requiredQuantity ??
+                line.Quantity ??
+                1,
+            );
+            const quantity = openQty;
+            const price = Number(line.Price ?? line.UnitPrice ?? 0);
+            const grossAmount = Math.max(0, price * quantity);
+            const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
+              grossAmount,
+              headerDiscountPercent: resolvedHeaderDiscountPercent,
+              line: line as unknown as Record<string, unknown>,
+            });
+
+            return {
+              id: `row-copy-${sourceDocNums[docIdx] ?? "unknown"}-${idx}`,
+              productCode: itemCode,
+              productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
+              stock: lineStock,
+              currency: "",
+              vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
+              // SAP line tax is authoritative; fall back to product master only when missing
+              taxRate:
+                (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
+                taxRateByItemCode.get(itemCode) ||
+                0,
+              uomCode: (() => {
+                const code = String(
+                  lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+                ).trim();
+                if (code) return code;
+                const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+                if (Number.isFinite(entry) && entry > 0) {
+                  const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
+                  if (match?.code) return match.code;
+                }
+                return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
+              })(),
+              uomEntry: (() => {
+                const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
+                if (Number.isFinite(entry) && entry > 0) return entry;
+                const code = String(
+                  lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
+                ).trim();
+                if (code) {
+                  const match = productMeta?.uomList?.find((u) => u.code === code);
+                  if (match?.uomEntry !== undefined) return match.uomEntry;
+                }
+                return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
+              })(),
+              purchaseUomCode: productMeta?.purchaseUomCode,
+              purchaseUomEntry: productMeta?.purchaseUomEntry,
+              salesUomCode: productMeta?.uomCode,
+              salesUomEntry: productMeta?.uomEntry,
+              uomList: productMeta?.uomList,
+              baseQuantity: quantity,
+              quantity,
+              discountPercent,
+              discountAmount,
+              comment: "",
+              price,
+              warehouseCode: lineWarehouseCode,
+              baseEntry: detail.DocEntry ?? detail.id,
+              baseLine: line.LineNum ?? idx,
+              baseType,
+              selected: false,
+            };
           });
-
-          return {
-            id: `row-copy-${sourceDocNums[docIdx] ?? "unknown"}-${idx}`,
-            productCode: itemCode,
-            productName: String(line.ItemDescription ?? line.ItemCode ?? "").trim(),
-            stock: lineStock,
-            currency: "",
-            vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
-            // SAP line tax is authoritative; fall back to product master only when missing
-            taxRate:
-              (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
-              taxRateByItemCode.get(itemCode) ||
-              0,
-            uomCode: (() => {
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) return code;
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) {
-                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
-                if (match?.code) return match.code;
-              }
-              return String(productMeta?.purchaseUomCode ?? productMeta?.uomCode ?? "").trim();
-            })(),
-            uomEntry: (() => {
-              const entry = Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) return entry;
-              const code = String(
-                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
-              ).trim();
-              if (code) {
-                const match = productMeta?.uomList?.find((u) => u.code === code);
-                if (match?.uomEntry !== undefined) return match.uomEntry;
-              }
-              return productMeta?.purchaseUomEntry ?? productMeta?.uomEntry;
-            })(),
-            purchaseUomCode: productMeta?.purchaseUomCode,
-            purchaseUomEntry: productMeta?.purchaseUomEntry,
-            salesUomCode: productMeta?.uomCode,
-            salesUomEntry: productMeta?.uomEntry,
-            uomList: productMeta?.uomList,
-            baseQuantity: quantity,
-            quantity,
-            discountPercent,
-            discountAmount,
-            comment: "",
-            price,
-            warehouseCode: lineWarehouseCode,
-            baseEntry: detail.DocEntry ?? detail.id,
-            baseLine: line.LineNum ?? idx,
-            baseType,
-            selected: false,
-          };
         });
-      });
 
-      const sourceNumAtCard = String(
-        (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
-      ).trim();
-      setVendorCodeInput(vendorCode);
-      setVendorNameInput(vendorName);
-      setBuyerInput(buyerName);
-      const matchedWarehouseCopy = warehouses.find((w) => String(w.code).trim() === warehouseCode);
-      setWarehouseInput(
-        formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
-      );
-      setBillToAddress(
-        String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
-      );
-      setShipToAddress(
-        String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim() ||
-          matchedVendor?.shipToAddress ||
-          matchedVendor?.billToAddress ||
-          "",
-      );
-      setHeader({
-        docDate: getTodayISO(),
-        docDueDate,
-        referenceAutoFilled: referenceWasAutoFilled,
-        referenceNo: sourceNumAtCard,
-        remarks: remarksParts,
-      });
-      setLines(mappedLines);
+        const sourceNumAtCard = String(
+          (primaryDetail as { NumAtCard?: string }).NumAtCard ?? "",
+        ).trim();
+        setVendorCodeInput(vendorCode);
+        setVendorNameInput(vendorName);
+        setBuyerInput(buyerName);
+        const matchedWarehouseCopy = warehouses.find(
+          (w) => String(w.code).trim() === warehouseCode,
+        );
+        setWarehouseInput(
+          formatWarehouseDisplay(matchedWarehouseCopy?.name ?? warehouseCode, warehouseCode),
+        );
+        setBillToAddress(
+          String(primaryDetail.Address ?? "").trim() || matchedVendor?.billToAddress || "",
+        );
+        setShipToAddress(
+          String((primaryDetail as Record<string, unknown>).Address2 ?? "").trim() ||
+            matchedVendor?.shipToAddress ||
+            matchedVendor?.billToAddress ||
+            "",
+        );
+        setHeader({
+          docDate: getTodayISO(),
+          docDueDate,
+          referenceAutoFilled: referenceWasAutoFilled,
+          referenceNo: sourceNumAtCard,
+          remarks: remarksParts,
+        });
+        setLines(mappedLines);
 
-      const sourceAttachments = primaryDetail.attachments || [];
-      setAttachments(
-        sourceAttachments.map((item: any, idx: number) => ({
-          id: `copy-${idx}-${item.fileName}`,
-          fileName: item.fileName,
-          fileExtension: item.fileExtension,
-          sourcePath: item.sourcePath,
-          attachmentDate: item.attachmentDate,
-          freeText: item.freeText || "",
-          targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
-        })),
-      );
+        const sourceAttachments = primaryDetail.attachments || [];
+        setAttachments(
+          sourceAttachments.map((item: any, idx: number) => ({
+            id: `copy-${idx}-${item.fileName}`,
+            fileName: item.fileName,
+            fileExtension: item.fileExtension,
+            sourcePath: item.sourcePath,
+            attachmentDate: item.attachmentDate,
+            freeText: item.freeText || "",
+            targetPath: `${item.sourcePath}\\${item.fileName}.${item.fileExtension}`,
+          })),
+        );
 
-      if (isMetadataLoaded) {
-        hydratedDocNumRef.current = hydrKey;
+        if (isMetadataLoaded) {
+          hydratedDocNumRef.current = hydrKey;
+        }
+        setSourceHydrationComplete(true);
+      } finally {
+        dismissDocumentHydrating("grpo");
       }
-      setSourceHydrationComplete(true);    };
+    };
 
     void fetchAllSources();
   }, [
@@ -2108,7 +2129,8 @@ export function useGRPOCreate({
 
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);        return;
+        setCreateError(noChangeMessage);
+        return;
       }
     }
 
@@ -2159,13 +2181,15 @@ export function useGRPOCreate({
     const isUpdating = isEditMode || isDraftUpdate;
     const trackingAction = isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
 
-    saveActions.startSaveTracking(trackingAction);    try {
+    saveActions.startSaveTracking(trackingAction);
+    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const detail = isEditMode ? editDetailQuery.data?.data : editDetailQuery.data?.data;
         const id = detail?.id ?? detail?.DocEntry;
         if (id === undefined || id === null) {
-          setCreateError("Unable to update GRPO. Document id is missing.");          return;
+          setCreateError("Unable to update GRPO. Document id is missing.");
+          return;
         }
         await updateMutation.mutateAsync({
           id,
@@ -2292,7 +2316,9 @@ export function useGRPOCreate({
       const errorMsg = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${trackingAction} GRPO. Try again.`,
-      );      setCreateError(errorMsg);
+      );
+      setCreateError(errorMsg);
+      notifyCreateApiError(errorMsg, "grpo");
     }
   };
 

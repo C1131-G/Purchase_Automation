@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -16,10 +17,19 @@ import type {
   ActiveDatePicker,
   PopupMode,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  dismissDocumentHydrating,
+  notifyCreateApiError,
+  notifyDocumentHydrating,
+  notifyEditRestrictedField,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
-import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
+import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";
+import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -133,7 +143,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
-    const editDocNum = (options?.docNum ?? "").trim();
+
+  const editDocNum = (options?.docNum ?? "").trim();
   const draftDocNum = (options?.draftDocNum ?? "").trim();
   const draftDocEntry = (options?.draftDocEntry ?? "").trim();
   const fetchDocNum = isEditMode ? editDocNum : draftDocNum;
@@ -143,8 +154,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
   const modals = usePqModals();
 
-  const notifyRestricted = (_fieldName?: string) => {
-    // Edit-restricted fields: toast removed.
+  const notifyRestricted = (fieldName = "Field") => {
+    notifyEditRestrictedField(fieldName);
   };
 
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
@@ -214,7 +225,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
     hydratedDocNumRef.current = hydrationKey;
 
-    // Show loading toast when starting edit hydration
+    notifyDocumentHydrating("purchase-quotation", "Loading purchase quotation…");
     void (async () => {
       try {
         const vendorCode = String(detail.CardCode ?? "").trim();
@@ -448,7 +459,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         hydratedDocNumRef.current = hydrationKey;
         setHydratedDocNum(hydrationKey);
       } finally {
-        // Dismiss loading toast when edit hydration is complete (success or error)      }
+        dismissDocumentHydrating("purchase-quotation");
+      }
     })();
   }, [
     queryClient,
@@ -835,7 +847,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
-        setCreateError(noChangeMessage);        return;
+        setCreateError(noChangeMessage);
+        return;
       }
     }
 
@@ -967,7 +980,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     const isUpdating = isEditMode || isDraftUpdate;
     const trackingAction = isDraftUpdate ? "draft-update" : isEditMode ? "update" : action;
 
-    saveActions.startSaveTracking(trackingAction);    try {
+    saveActions.startSaveTracking(trackingAction);
+    try {
       let createdDocNum: string | number | undefined;
 
       if (isUpdating) {
@@ -975,7 +989,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
           : loadedDraftDocEntry;
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update Purchase Quotation. Document id is missing.");          return;
+          setCreateError("Unable to update Purchase Quotation. Document id is missing.");
+          return;
         }
         await updatePurchaseQuotationMutation.mutateAsync({
           id: docEntry,
@@ -1156,7 +1171,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isUpdating ? "update" : "create"} Purchase Quotation. Try again.`,
-      );      setCreateError(errorMessage);
+      );
+      setCreateError(errorMessage);
+      notifyCreateApiError(errorMessage, "purchase-quotation");
     }
   };
 

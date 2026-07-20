@@ -26,17 +26,27 @@ This package contains the browser application for Vendor Portal. It owns:
 - Zustand
 - Tailwind CSS v4
 - Zod v4
+- Sonner (toasts)
+
+## Toasts
+
+Use **`@/shared/ui/toast/toast`** (not raw `sonner` in features).
+
+- Single `<AppToaster />` is mounted in `src/routes/__root.tsx`.
+- **Toast:** save success, API failures, edit-restricted fields, hydrate loading, intercompany result, session ended.
+- **Do not toast:** form validation / required-field errors (keep inline `createError`).
+- Create-page helpers: `src/features/create-pages/create-shared/utils/create-feedback-toast.ts`.
 
 ## Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the Vite dev server |
-| `pnpm build` | Type-check and build production assets |
-| `pnpm preview` | Serve the built app with Vite preview on port 5173 |
-| `pnpm test` | Run the Vitest suite once |
-| `pnpm test:watch` | Run Vitest in watch mode |
-| `pnpm typecheck` | Run the TypeScript project build check |
+| Command           | Purpose                                            |
+| ----------------- | -------------------------------------------------- |
+| `pnpm dev`        | Start the Vite dev server                          |
+| `pnpm build`      | Type-check and build production assets             |
+| `pnpm preview`    | Serve the built app with Vite preview on port 5173 |
+| `pnpm test`       | Run the Vitest suite once                          |
+| `pnpm test:watch` | Run Vitest in watch mode                           |
+| `pnpm typecheck`  | Run the TypeScript project build check             |
 
 ## Environment Variables
 

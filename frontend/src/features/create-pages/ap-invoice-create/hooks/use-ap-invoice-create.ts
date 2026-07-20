@@ -33,6 +33,10 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  notifyCreateApiError,
+  notifyEditRestrictedField,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
@@ -229,8 +233,8 @@ export function useAPInvoiceCreate({
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
-  const notifyRestricted = (_fieldName?: string) => {
-    // Edit-restricted fields: no-op feedback (toast removed).
+  const notifyRestricted = (fieldName = "Field") => {
+    notifyEditRestrictedField(fieldName);
   };
 
   const vendorsQuery = useQuery(createSharedQueries.vendors());
@@ -2018,6 +2022,7 @@ export function useAPInvoiceCreate({
         "Failed to process A/P Invoice.",
       );
       setCreateError(errorMessage);
+      notifyCreateApiError(errorMessage, "ap-invoice");
     }
   };
 

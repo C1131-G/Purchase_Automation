@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -19,10 +20,13 @@ import { createSharedQueries } from "@/features/create-pages/create-shared/api/c
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { notifyCreateApiError } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import type {
   CreateLookupOption,
   PopupMode,
-} from "@/features/create-pages/create-shared/utils/create-order.types";import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
+} from "@/features/create-pages/create-shared/utils/create-order.types";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
 import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
 import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
 import { useMutation } from "@tanstack/react-query";
@@ -142,7 +146,8 @@ export function useArCreditMemoCreate({
     return () => {
       resetWarehouse();
     };
-  }, [resetWarehouse]);  // Lookup data queries
+  }, [resetWarehouse]);
+  // Lookup data queries
   const vendorsQuery = useQuery(createSharedQueries.customers());
   const warehousesQuery = useQuery(createSharedQueries.warehouses());
   const salesEmployeesQuery = useQuery(createSharedQueries.salesEmployees());
@@ -776,7 +781,8 @@ export function useArCreditMemoCreate({
         );
         hydratedDocNumRef.current = hydrationKey;
         setHydratedDocNum(hydrationKey);
-      } finally {      }
+      } finally {
+      }
     })();
   }, [
     editDetailQuery.data,
@@ -822,9 +828,11 @@ export function useArCreditMemoCreate({
       if (!entry) throw new Error("No source invoice ID found");
       return arInvoiceAPI.reopenARInvoice(entry);
     },
-    onSuccess: () => {      void queryClient.invalidateQueries({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
         queryKey: arInvoiceQueries.detailByDocNum(sourceDocNum || "").queryKey,
-      });    },
+      });
+    },
     onError: (err) => {
       console.error("Failed to reopen base invoice", (err as Error).message);
     },
@@ -969,7 +977,8 @@ export function useArCreditMemoCreate({
 
     if (isEditMode && !isDirty) {
       const noChangeMessage = "Change at least one field before update.";
-      setCreateError(noChangeMessage);      return;
+      setCreateError(noChangeMessage);
+      return;
     }
 
     setCreateError(null);
@@ -1031,7 +1040,8 @@ export function useArCreditMemoCreate({
         ? "update"
         : action;
 
-    saveActions.startSaveTracking(trackingAction);    try {
+    saveActions.startSaveTracking(trackingAction);
+    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const docEntry = isEditMode ? (detail?.DocEntry ?? detail?.id) : Number(draftDocEntry);
@@ -1152,7 +1162,9 @@ export function useArCreditMemoCreate({
         await saveActions.handleActionSuccess(action, createdDocNum);
       }
     } catch (_error) {
-      const errorMessage = (_error as Error).message || "Failed to update AR Credit Memo";      setCreateError(errorMessage);
+      const errorMessage = (_error as Error).message || "Failed to update AR Credit Memo";
+      setCreateError(errorMessage);
+      notifyCreateApiError(errorMessage, "ar-credit-memo");
     }
   };
 

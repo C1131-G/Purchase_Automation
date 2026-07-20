@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearch } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
@@ -20,9 +21,16 @@ import type {
   ProductGridRow,
   ProductRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
-import { normalizeCreateOrderErrorMessage } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";import {
+import {
+  formatWarehouseDisplay,
+  normalizeCreateOrderErrorMessage,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  notifyCreateApiError,
+  notifyEditRestrictedField,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
+import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
@@ -134,15 +142,16 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
-    const editDocNum = (options?.docNum ?? "").trim();
+
+  const editDocNum = (options?.docNum ?? "").trim();
 
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
   const modals = useSoModals();
 
-  const notifyRestricted = (_fieldName?: string) => {
-    // Edit-restricted fields: toast removed.
+  const notifyRestricted = (fieldName = "Field") => {
+    notifyEditRestrictedField(fieldName);
   };
 
   const clearFieldError = useCallback((field: keyof ProductSearchFieldError) => {
@@ -420,7 +429,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         hydratedDocNumRef.current = `SQ-${currentSourceDocNum}`;
         setHydratedDocNum(`SQ-${currentSourceDocNum}`);
-      } finally {      }
+      } finally {
+      }
     })();
   }, [
     sourceDetailQuerySQ.data,
@@ -666,7 +676,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
         hydratedDocNumRef.current = cacheKey;
         setHydratedDocNum(cacheKey);
-      } finally {      }
+      } finally {
+      }
     })();
   }, [
     queryClient,
@@ -1069,7 +1080,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
 
     if (isEditMode && !isDirty) {
       const noChangeMessage = "Change at least one field before update.";
-      setCreateError(noChangeMessage);      return;
+      setCreateError(noChangeMessage);
+      return;
     }
 
     setCreateError(null);
@@ -1161,7 +1173,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
         ? "update"
         : action;
 
-    saveActions.startSaveTracking(trackingAction);    try {
+    saveActions.startSaveTracking(trackingAction);
+    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const docEntry = isEditMode
@@ -1169,7 +1182,8 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
           : Number(draftDocEntry);
 
         if (docEntry === undefined || docEntry === null) {
-          setCreateError("Unable to update sales order. Document id is missing.");          return;
+          setCreateError("Unable to update sales order. Document id is missing.");
+          return;
         }
 
         const updatePayload = {
@@ -1330,7 +1344,9 @@ export function useSalesOrderCreate(options?: UseSalesOrderCreateOptions) {
       const errorMessage = normalizeCreateOrderErrorMessage(
         error,
         `Failed to ${isUpdating ? "update" : "create"} sales order. Try again.`,
-      );      setCreateError(errorMessage);
+      );
+      setCreateError(errorMessage);
+      notifyCreateApiError(errorMessage, "sales-order");
     }
   };
 

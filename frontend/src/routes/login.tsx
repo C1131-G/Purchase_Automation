@@ -9,6 +9,7 @@ import { authKeys } from "@/features/auth/api/auth.queries";
 import { authAPI } from "@/features/auth/api/auth.service";
 import type { User } from "@/features/auth/api/auth.service";
 import { LoginForm } from "@/features/auth/components/LoginForm";
+import { toast } from "@/shared/ui/toast/toast";
 import { useAuthStore } from "@/store/auth/auth.store";
 
 const USER_CHECK_SKIP_MS = 15_000;
@@ -46,6 +47,16 @@ function LoginComponent() {
   useDocumentTitle("Access Gateway | ERP Portal");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get("reason");
+    if (reason === "session_ended") {
+      toast.info("Your session ended. Please sign in again.", {
+        id: "session-logout",
+      });
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -150,9 +161,7 @@ function LoginComponent() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 shadow-lg shadow-blue-500/25 ring-1 ring-white/20">
             <Building2 className="h-6 w-6 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-wider text-white uppercase ">
-            ERP Portal
-          </span>
+          <span className="text-xl font-bold tracking-wider text-white uppercase ">ERP Portal</span>
         </div>
 
         {/* Hero copy */}

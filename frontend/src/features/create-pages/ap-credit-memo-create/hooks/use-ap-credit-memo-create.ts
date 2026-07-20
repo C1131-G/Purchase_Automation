@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
 import {
@@ -43,11 +44,16 @@ import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import {
+  notifyCreateApiError,
+  notifyEditRestrictedField,
+} from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
-} from "@/features/create-pages/create-shared/utils/lookup-search-sync";import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+} from "@/features/create-pages/create-shared/utils/lookup-search-sync";
+import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
@@ -152,7 +158,8 @@ export function useAPCreditMemoCreate({
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<any>(null);
-    const [vendorNameInput, setVendorNameInput] = useState("");
+
+  const [vendorNameInput, setVendorNameInput] = useState("");
   const [vendorCodeInput, setVendorCodeInput] = useState("");
   const [vendorNameFocused, setVendorNameFocused] = useState(false);
   const [vendorCodeFocused, setVendorCodeFocused] = useState(false);
@@ -253,8 +260,8 @@ export function useAPCreditMemoCreate({
   const docDateContainerRef = useRef<HTMLDivElement>(null);
   const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
 
-  const notifyRestricted = (_fieldName?: string) => {
-    // Edit-restricted fields: toast removed.
+  const notifyRestricted = (fieldName = "Field") => {
+    notifyEditRestrictedField(fieldName);
   };
 
   const vendorsQuery = useQuery(createSharedQueries.vendors());
@@ -635,7 +642,8 @@ export function useAPCreditMemoCreate({
             })),
         });
         setHydratedDocNum(currentDocNum);
-      } finally {      }
+      } finally {
+      }
     })();
   }, [
     editDocNum,
@@ -852,7 +860,8 @@ export function useAPCreditMemoCreate({
               uomEntry: row.uomEntry,
             })),
         });
-      } finally {      }
+      } finally {
+      }
     })();
   }, [
     draftDocNum,
@@ -1125,7 +1134,8 @@ export function useAPCreditMemoCreate({
         }
       } catch {
         // Error resilience – ensure toast is dismissed even on failure
-      } finally {      }
+      } finally {
+      }
     };
 
     void fetchAllSources();
@@ -1780,14 +1790,16 @@ export function useAPCreditMemoCreate({
         ? "update"
         : action;
 
-    saveActions.startSaveTracking(trackingAction);    try {
+    saveActions.startSaveTracking(trackingAction);
+    try {
       let createdDocNum: string | number | undefined;
       if (isUpdating) {
         const currentSalesPersonCode = resolvedBuyerCode;
 
         if (isEditMode && !isDirty) {
           const noChangeMessage = "Change at least one field before update.";
-          setCreateError(noChangeMessage);          return;
+          setCreateError(noChangeMessage);
+          return;
         }
 
         const id =
@@ -1966,7 +1978,9 @@ export function useAPCreditMemoCreate({
         error,
         `Failed to ${trackingAction} A/P Credit Memo.`,
       );
-      setCreateError(errorMsg);    }
+      setCreateError(errorMsg);
+      notifyCreateApiError(errorMsg, "ap-credit-memo");
+    }
   };
 
   const missingMandatoryFields = useMemo(() => {
