@@ -45,7 +45,7 @@ export const icHookResultSchema = z.discriminatedUnion("status", [
 
 export type IcHookResult = z.infer<typeof icHookResultSchema>;
 
-/** Notification list item (P8 API contract draft — mirrors backend domain). */
+/** Notification list item — mirrors hana-backend `IcNotification`. */
 export const icNotificationSchema = z.object({
   companyId: z.number(),
   createdAt: z.string().nullable().optional(),
@@ -61,6 +61,20 @@ export const icNotificationSchema = z.object({
 
 export type IcNotification = z.infer<typeof icNotificationSchema>;
 
+/** GET /api/v1/ic/notifications?unreadOnly= */
+export const icNotificationsListParamsSchema = z.object({
+  unreadOnly: z.boolean().optional(),
+});
+
+export type IcNotificationsListParams = z.infer<typeof icNotificationsListParamsSchema>;
+
+export const icNotificationsListResponseSchema = z.object({
+  data: z.array(icNotificationSchema),
+  success: z.literal(true),
+});
+
+export type IcNotificationsListResponse = z.infer<typeof icNotificationsListResponseSchema>;
+
 export const icUnreadCountResponseSchema = z.object({
   data: z.object({
     count: z.number().int().nonnegative(),
@@ -69,6 +83,93 @@ export const icUnreadCountResponseSchema = z.object({
 });
 
 export type IcUnreadCountResponse = z.infer<typeof icUnreadCountResponseSchema>;
+
+/** PATCH /api/v1/ic/notifications/:id/read */
+export const icMarkNotificationReadResponseSchema = z.object({
+  data: icNotificationSchema,
+  success: z.literal(true),
+});
+
+export type IcMarkNotificationReadResponse = z.infer<typeof icMarkNotificationReadResponseSchema>;
+
+/** POST /api/v1/ic/notifications/mark-all-read */
+export const icMarkAllNotificationsReadResponseSchema = z.object({
+  data: z.object({
+    marked: z.number().int().nonnegative(),
+  }),
+  success: z.literal(true),
+});
+
+export type IcMarkAllNotificationsReadResponse = z.infer<
+  typeof icMarkAllNotificationsReadResponseSchema
+>;
+
+/** Retry queue row — mirrors hana-backend `IcRetryQueueItem`. */
+export const icRetryStatusSchema = z.enum(["WAITING", "PROCESSING", "SUCCESS", "DEAD"]);
+
+export type IcRetryStatus = z.infer<typeof icRetryStatusSchema>;
+
+export const icRetryQueueItemSchema = z.object({
+  actionCode: z.string(),
+  companyId: z.number(),
+  docMappingId: z.number().nullable(),
+  errorMessage: z.string().nullable(),
+  maxRetry: z.number(),
+  nextRetryAt: z.string().nullable(),
+  payloadJson: z.string().nullable(),
+  retryCount: z.number(),
+  retryId: z.number(),
+  sourceDocument: z.string(),
+  status: z.union([icRetryStatusSchema, z.string()]),
+  targetDocument: z.string().nullable(),
+});
+
+export type IcRetryQueueItem = z.infer<typeof icRetryQueueItemSchema>;
+
+/** GET /api/v1/ic/retries?status=WAITING,DEAD */
+export const icRetriesListParamsSchema = z.object({
+  /** Comma-separated statuses, or omit for backend default (WAITING,DEAD,PROCESSING). */
+  status: z.string().optional(),
+});
+
+export type IcRetriesListParams = z.infer<typeof icRetriesListParamsSchema>;
+
+export const icRetriesListResponseSchema = z.object({
+  data: z.array(icRetryQueueItemSchema),
+  success: z.literal(true),
+});
+
+export type IcRetriesListResponse = z.infer<typeof icRetriesListResponseSchema>;
+
+/**
+ * POST /api/v1/ic/retries/:id/run
+ * Discriminated on `status` from process-retry-queue `runOne`.
+ */
+export const icRunRetryResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    item: icRetryQueueItemSchema,
+    status: z.literal("success"),
+  }),
+  z.object({
+    errorMessage: z.string(),
+    item: icRetryQueueItemSchema,
+    status: z.literal("failed"),
+  }),
+  z.object({
+    errorMessage: z.string(),
+    item: icRetryQueueItemSchema,
+    status: z.literal("dead"),
+  }),
+]);
+
+export type IcRunRetryResult = z.infer<typeof icRunRetryResultSchema>;
+
+export const icRunRetryResponseSchema = z.object({
+  data: icRunRetryResultSchema,
+  success: z.literal(true),
+});
+
+export type IcRunRetryResponse = z.infer<typeof icRunRetryResponseSchema>;
 
 export const icRfqStatusSchema = z.enum(["DRAFT", "SUBMITTED", "COMPLETED", "CANCELLED"]);
 
