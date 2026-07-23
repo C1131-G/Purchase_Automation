@@ -22,7 +22,7 @@ describe("IC hooks + health", () => {
     expect(result).toMatchObject({ reason: "draft_po" });
   });
 
-  it("health returns ok with P6 phase", () => {
+  it("health returns ok with P7 phase", () => {
     const res = {
       statusCode: 200,
       body: undefined as unknown,
@@ -38,7 +38,7 @@ describe("IC hooks + health", () => {
     getIcHealth({} as Request, res as unknown as Response);
     expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({
-      data: { module: "intercompany", ok: true, phase: "P6" },
+      data: { module: "intercompany", ok: true, phase: "P7" },
       success: true,
     });
   });

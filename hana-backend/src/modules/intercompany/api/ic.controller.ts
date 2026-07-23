@@ -45,7 +45,7 @@ export const getIcHealth = (_req: Request, res: Response): void => {
     data: {
       module: "intercompany",
       ok: true,
-      phase: "P6",
+      phase: "P7",
     },
     success: true,
   });

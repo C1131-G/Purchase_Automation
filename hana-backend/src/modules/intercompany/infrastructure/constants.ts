@@ -45,5 +45,12 @@ export const IC_ACTION = {
   FLOW2_MAP_NOTIFY: "FLOW2_MAP_NOTIFY",
 } as const;
 
+/** Background worker job names (IC_SCHEDULER_JOB.JOB_NAME). */
+export const IC_JOB_NAME = {
+  DETECT_PQ_DRAFT: "DETECT_PQ_DRAFT",
+  PROCESS_RETRY: "PROCESS_RETRY",
+  SESSION_CLEANUP: "SESSION_CLEANUP",
+} as const;
+
 /** Default remarks prefix when IC_CONFIGURATION.REMARKS_PREFIX is unset. */
 export const DEFAULT_REMARKS_PREFIX = "IC-PO";

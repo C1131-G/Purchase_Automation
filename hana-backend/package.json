@@ -8,6 +8,8 @@
   "scripts": {
     "start": "node --import ./dist/core/observability/register.js dist/server.js",
     "dev": "tsx watch --import ./src/core/observability/register.ts src/server.ts",
+    "worker:ic": "tsx --import ./src/core/observability/register.ts src/modules/intercompany/background/worker.entry.ts",
+    "worker:ic:once": "tsx --import ./src/core/observability/register.ts src/modules/intercompany/background/worker.entry.ts --once",
     "typecheck": "tsc --noEmit",
     "build": "pnpm typecheck && tsup",
     "test": "vitest",

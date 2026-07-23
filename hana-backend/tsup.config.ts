@@ -1,7 +1,11 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/server.ts", "src/core/observability/register.ts"],
+  entry: [
+    "src/server.ts",
+    "src/core/observability/register.ts",
+    "src/modules/intercompany/background/worker.entry.ts",
+  ],
   format: ["esm"],
   target: "node20",
   clean: true,

@@ -29,6 +29,7 @@ export const createMemoryDb = (): MemoryDb => ({
     IC_RFQ_HEADER: [],
     IC_RFQ_LINE: [],
     IC_SAP_CONNECTION: [],
+    IC_SCHEDULER_JOB: [],
     IC_SL_SESSION: [],
     IC_SYNC_HISTORY: [],
     IC_TAX_MAPPING: [],
@@ -373,9 +374,91 @@ export const createMemorySqlClient = (
       return [] as T[];
     }
 
+    if (
+      statement.includes('FROM "IC_RETRY_QUEUE"') &&
+      statement.includes("WAITING") &&
+      statement.includes("NEXT_RETRY_AT")
+    ) {
+      const now = Date.now();
+      return db.tables.IC_RETRY_QUEUE.filter((row) => {
+        if (row.STATUS !== "WAITING") {
+          return false;
+        }
+        if (row.NEXT_RETRY_AT === null || row.NEXT_RETRY_AT === undefined) {
+          return true;
+        }
+        const nextAt = Date.parse(String(row.NEXT_RETRY_AT));
+        return Number.isFinite(nextAt) ? nextAt <= now : true;
+      })
+        .sort((left, right) => Number(left.RETRY_ID) - Number(right.RETRY_ID))
+        .map(clone) as T[];
+    }
+
     if (statement.includes('FROM "IC_RETRY_QUEUE" WHERE "RETRY_ID"')) {
       const id = Number(params[0]);
       return db.tables.IC_RETRY_QUEUE.filter((row) => row.RETRY_ID === id).map(clone) as T[];
+    }
+
+    if (statement.startsWith('UPDATE "IC_RETRY_QUEUE"')) {
+      if (statement.includes('"RETRY_COUNT"')) {
+        const [retryCount, errorMessage, status, deadFlag, retryId] = params;
+        const row = db.tables.IC_RETRY_QUEUE.find((item) => item.RETRY_ID === Number(retryId));
+        if (row) {
+          row.RETRY_COUNT = retryCount;
+          row.ERROR_MESSAGE = errorMessage;
+          row.STATUS = status;
+          row.NEXT_RETRY_AT =
+            Number(deadFlag) === 1 ? null : new Date(Date.now() + 300_000).toISOString();
+        }
+        return [] as T[];
+      }
+
+      if (statement.includes('AND "STATUS"')) {
+        const [status, retryId, expectedStatus] = params;
+        const row = db.tables.IC_RETRY_QUEUE.find((item) => item.RETRY_ID === Number(retryId));
+        if (row && row.STATUS === expectedStatus) {
+          row.STATUS = status;
+        }
+        return [] as T[];
+      }
+
+      const [status, retryId] = params;
+      const row = db.tables.IC_RETRY_QUEUE.find((item) => item.RETRY_ID === Number(retryId));
+      if (row) {
+        row.STATUS = status;
+      }
+      return [] as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_SCHEDULER_JOB"')) {
+      const id = nextId(db, "IC_SCHEDULER_JOB");
+      db.tables.IC_SCHEDULER_JOB.push({
+        COMPANY_ID: params[1] ?? null,
+        JOB_ID: id,
+        JOB_NAME: params[0],
+        LAST_ERROR: null,
+        LAST_RUN: null,
+        NEXT_RUN: null,
+        STATUS: params[2] ?? "IDLE",
+      });
+      return [] as T[];
+    }
+
+    if (statement.includes('FROM "IC_SCHEDULER_JOB"') && statement.includes("JOB_NAME")) {
+      const jobName = String(params[0]);
+      return db.tables.IC_SCHEDULER_JOB.filter((row) => row.JOB_NAME === jobName).map(clone) as T[];
+    }
+
+    if (statement.startsWith('UPDATE "IC_SCHEDULER_JOB"')) {
+      const [nextRun, status, lastError, jobName] = params;
+      const row = db.tables.IC_SCHEDULER_JOB.find((item) => item.JOB_NAME === jobName);
+      if (row) {
+        row.LAST_RUN = new Date().toISOString();
+        row.NEXT_RUN = nextRun ?? null;
+        row.STATUS = status;
+        row.LAST_ERROR = lastError ?? null;
+      }
+      return [] as T[];
     }
 
     if (statement.startsWith('INSERT INTO "IC_API_LOG"')) {
@@ -422,6 +505,29 @@ export const createMemorySqlClient = (
         SESSION_TOKEN: params[2],
       });
       return [] as T[];
+    }
+
+    if (statement.startsWith('DELETE FROM "IC_SL_SESSION"')) {
+      const now = Date.now();
+      db.tables.IC_SL_SESSION = db.tables.IC_SL_SESSION.filter((row) => {
+        const expiry = Date.parse(String(row.EXPIRY_TIME ?? ""));
+        return Number.isFinite(expiry) ? expiry > now : true;
+      });
+      return [] as T[];
+    }
+
+    if (
+      statement.startsWith("SELECT") &&
+      statement.includes('FROM "IC_SL_SESSION"') &&
+      statement.includes("EXPIRY_TIME") &&
+      statement.includes("CURRENT_TIMESTAMP") &&
+      !statement.includes("COMPANY_ID")
+    ) {
+      const now = Date.now();
+      return db.tables.IC_SL_SESSION.filter((row) => {
+        const expiry = Date.parse(String(row.EXPIRY_TIME ?? ""));
+        return Number.isFinite(expiry) ? expiry <= now : false;
+      }).map(clone) as T[];
     }
 
     if (statement.startsWith('UPDATE "IC_SL_SESSION"')) {
