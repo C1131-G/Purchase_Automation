@@ -73,13 +73,13 @@ function RequestForQuotationDetailStubRoute() {
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Purchase Quotation Draft No.
+                PQ Draft No.
               </dt>
               <dd className="mt-0.5 font-medium text-zinc-900">{header.pqDraftDocNum ?? "—"}</dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Purchase Quotation Draft Entry
+                PQ Draft Entry
               </dt>
               <dd className="mt-0.5 font-medium text-zinc-900">{header.pqDraftDocEntry}</dd>
             </div>
