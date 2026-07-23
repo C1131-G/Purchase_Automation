@@ -148,13 +148,13 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
       <TableColumnSort
         column={column}
         sortingState={table.getState().sorting}
-        title="Purchase Quotation Draft No."
+        title="PQ Draft No."
       />
     ),
     id: "pqDraftDocNum",
     meta: { filterType: "text" },
-    minSize: 14,
-    size: 16,
+    minSize: 12,
+    size: 14,
   }),
   columnHelper.accessor("pqDraftDocEntry", {
     cell: (info) => info.getValue() || "—",
@@ -174,7 +174,7 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
       <TableColumnSort
         column={column}
         sortingState={table.getState().sorting}
-        title="Purchase Quotation Draft Entry"
+        title="PQ Draft Entry"
       />
     ),
     id: "pqDraftDocEntry",
