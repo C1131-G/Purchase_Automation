@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 /**
- * Intercompany layout shell — child routes: notifications (P8A), RFQ later (P8B).
+ * Intercompany layout shell — notifications + retries (P8A); RFQ later (P8B).
  */
 export const Route = createFileRoute("/_layout/intercompany")({
   component: IntercompanyLayoutRoute,

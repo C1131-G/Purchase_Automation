@@ -1,5 +1,5 @@
 import React from "react";
-import { BadgePercent, LayoutDashboard, ShoppingCart } from "lucide-react";
+import { ArrowLeftRight, BadgePercent, LayoutDashboard, ShoppingCart } from "lucide-react";
 
 import {
   SidebarContent,
@@ -10,6 +10,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/sidebar";
+import { IcUnreadCountPill } from "@/features/intercompany/components/ic-unread-badge";
 import type { TableRoutePath } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
 import { markSidebarNavigation } from "@/shared/utils/route-transition";
 
@@ -185,6 +186,39 @@ export function ShellLayoutNavigation({
                   }
                 >
                   Sales Quotations
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            </SidebarMenuCollapsible>
+
+            <SidebarMenuCollapsible
+              title="Intercompany"
+              icon={ArrowLeftRight}
+              isOpen={isSectionOpen("intercompany")}
+              onToggle={() => onToggleSection("intercompany")}
+              isActive={pathname.startsWith("/intercompany")}
+            >
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/intercompany/notifications"
+                  search={{ isRead: "all", limit: 10, page: 1 } as any}
+                  isActive={
+                    pathname === "/intercompany/notifications" ||
+                    pathname === "/intercompany" ||
+                    pathname === "/intercompany/"
+                  }
+                  className="justify-between gap-2 pr-1"
+                >
+                  <span>Notifications</span>
+                  <IcUnreadCountPill />
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
+                  to="/intercompany/retries"
+                  search={{ limit: 10, page: 1, status: "all" } as any}
+                  isActive={pathname === "/intercompany/retries"}
+                >
+                  Retries
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             </SidebarMenuCollapsible>

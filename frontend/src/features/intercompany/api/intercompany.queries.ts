@@ -46,6 +46,8 @@ export function useIcUnreadCount(enabled = true) {
     enabled,
     queryFn: () => intercompanyAPI.getUnreadCount(),
     queryKey: intercompanyKeys.unreadCount(),
+    /** Override app-wide focus-off so the shell badge stays current. */
+    refetchOnWindowFocus: true,
     refetchInterval: 60_000,
     staleTime: 15_000,
   });

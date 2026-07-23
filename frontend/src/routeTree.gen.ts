@@ -18,6 +18,7 @@ import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout/da
 import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout/dashboard/sales'
 import { Route as LayoutIntercompanyIndexRouteImport } from './routes/_layout/intercompany/index'
 import { Route as LayoutIntercompanyNotificationsRouteImport } from './routes/_layout/intercompany/notifications'
+import { Route as LayoutIntercompanyRetriesRouteImport } from './routes/_layout/intercompany/retries'
 import { Route as LayoutPurchaseApCreditMemoRouteRouteImport } from './routes/_layout/purchase/ap-credit-memo/route'
 import { Route as LayoutPurchaseApInvoiceRouteRouteImport } from './routes/_layout/purchase/ap-invoice/route'
 import { Route as LayoutPurchaseCreateApCreditMemoRouteImport } from './routes/_layout/purchase/create-ap-credit-memo'
@@ -83,6 +84,12 @@ const LayoutIntercompanyNotificationsRoute =
   LayoutIntercompanyNotificationsRouteImport.update({
     id: '/notifications',
     path: '/notifications',
+    getParentRoute: () => LayoutIntercompanyRouteRoute,
+  } as any)
+const LayoutIntercompanyRetriesRoute =
+  LayoutIntercompanyRetriesRouteImport.update({
+    id: '/retries',
+    path: '/retries',
     getParentRoute: () => LayoutIntercompanyRouteRoute,
   } as any)
 const LayoutPurchaseApCreditMemoRouteRoute =
@@ -226,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
+  '/intercompany/retries': typeof LayoutIntercompanyRetriesRoute
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -256,6 +264,7 @@ export interface FileRoutesByTo {
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
+  '/intercompany/retries': typeof LayoutIntercompanyRetriesRoute
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -289,6 +298,7 @@ export interface FileRoutesById {
   '/_layout/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
   '/_layout/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
+  '/_layout/intercompany/retries': typeof LayoutIntercompanyRetriesRoute
   '/_layout/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/_layout/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/_layout/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/dashboard/purchase'
     | '/dashboard/sales'
     | '/intercompany/notifications'
+    | '/intercompany/retries'
     | '/purchase/create-ap-credit-memo'
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/dashboard/purchase'
     | '/dashboard/sales'
     | '/intercompany/notifications'
+    | '/intercompany/retries'
     | '/purchase/create-ap-credit-memo'
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
@@ -384,6 +396,7 @@ export interface FileRouteTypes {
     | '/_layout/dashboard/purchase'
     | '/_layout/dashboard/sales'
     | '/_layout/intercompany/notifications'
+    | '/_layout/intercompany/retries'
     | '/_layout/purchase/create-ap-credit-memo'
     | '/_layout/purchase/create-ap-invoice'
     | '/_layout/purchase/create-grpo'
@@ -470,6 +483,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/intercompany/notifications'
       preLoaderRoute: typeof LayoutIntercompanyNotificationsRouteImport
+      parentRoute: typeof LayoutIntercompanyRouteRoute
+    }
+    '/_layout/intercompany/retries': {
+      id: '/_layout/intercompany/retries'
+      path: '/retries'
+      fullPath: '/intercompany/retries'
+      preLoaderRoute: typeof LayoutIntercompanyRetriesRouteImport
       parentRoute: typeof LayoutIntercompanyRouteRoute
     }
     '/_layout/purchase/ap-credit-memo': {
@@ -637,12 +657,14 @@ const LayoutDashboardRouteRouteWithChildren =
 
 interface LayoutIntercompanyRouteRouteChildren {
   LayoutIntercompanyNotificationsRoute: typeof LayoutIntercompanyNotificationsRoute
+  LayoutIntercompanyRetriesRoute: typeof LayoutIntercompanyRetriesRoute
   LayoutIntercompanyIndexRoute: typeof LayoutIntercompanyIndexRoute
 }
 
 const LayoutIntercompanyRouteRouteChildren: LayoutIntercompanyRouteRouteChildren =
   {
     LayoutIntercompanyNotificationsRoute: LayoutIntercompanyNotificationsRoute,
+    LayoutIntercompanyRetriesRoute: LayoutIntercompanyRetriesRoute,
     LayoutIntercompanyIndexRoute: LayoutIntercompanyIndexRoute,
   }
 

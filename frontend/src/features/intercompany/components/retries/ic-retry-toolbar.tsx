@@ -1,11 +1,9 @@
 import type { Table } from "@tanstack/react-table";
-import { CheckCheck } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 
-import { Button } from "@/components/button";
 import { Separator } from "@/components/separator";
 import { IcSectionNav } from "@/features/intercompany/components/ic-section-nav";
-import type { IcNotification } from "@/features/intercompany/schemas/intercompany-api.schema";
+import type { IcRetryQueueItem } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { TableViewOptions } from "@/features/table-pages/table-shared/components/controls/view-options";
 import { TableFilterOptions } from "@/features/table-pages/table-shared/components/filters/filter-options";
 import { TableSearch } from "@/features/table-pages/table-shared/components/filters/table-search";
@@ -14,23 +12,14 @@ import { useSetActiveFilterAction, useTableActiveFilter } from "@/store/table/ta
 
 const EMPTY_SUGGESTIONS: never[] = [];
 
-export interface IcNotificationToolbarProps {
+export interface IcRetryToolbarProps {
   tableId: string;
-  table: Table<IcNotification>;
+  table: Table<IcRetryQueueItem>;
   onReset: () => void;
-  onMarkAllRead: () => void;
-  markAllPending: boolean;
-  unreadCount: number;
+  actionableCount: number;
 }
 
-export function IcNotificationToolbar({
-  tableId,
-  table,
-  onReset,
-  onMarkAllRead,
-  markAllPending,
-  unreadCount,
-}: IcNotificationToolbarProps) {
+export function IcRetryToolbar({ tableId, table, onReset, actionableCount }: IcRetryToolbarProps) {
   const activeFilterId = useTableActiveFilter(tableId);
   const setActiveFilter = useSetActiveFilterAction();
   const hasRestoredInitialFilter = useRef(false);
@@ -74,17 +63,15 @@ export function IcNotificationToolbar({
     }
   }, [tableId, activeFilterId, filterableColumnIds, setActiveFilter]);
 
-  const markAllDisabled = unreadCount === 0 || markAllPending;
-
   return (
     <div className="border-b border-zinc-100 bg-white">
       <div className="flex items-center justify-between gap-4 px-6 py-3">
         <IcSectionNav
-          active="notifications"
+          active="retries"
           trailing={
-            unreadCount > 0 ? (
-              <span className="tabular-nums text-blue-700" aria-live="polite">
-                {unreadCount} unread
+            actionableCount > 0 ? (
+              <span className="tabular-nums text-amber-800" aria-live="polite">
+                {actionableCount} runnable
               </span>
             ) : null
           }
@@ -104,25 +91,6 @@ export function IcNotificationToolbar({
           <TableFilterOptions tableId={tableId} table={table} />
           <Separator orientation="vertical" className="mx-1 h-6" />
           <TableViewOptions tableId={tableId} table={table} onReset={onReset} />
-          <Separator orientation="vertical" className="mx-1 h-6" />
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="h-11 gap-2 normal-case tracking-normal"
-            disabled={markAllDisabled}
-            isLoading={markAllPending}
-            loadingText="Marking…"
-            aria-label={
-              unreadCount > 0
-                ? `Mark all ${unreadCount} notifications as read`
-                : "No unread notifications"
-            }
-            onClick={onMarkAllRead}
-          >
-            <CheckCheck className="size-4" aria-hidden />
-            Mark all read
-          </Button>
         </div>
       </div>
     </div>

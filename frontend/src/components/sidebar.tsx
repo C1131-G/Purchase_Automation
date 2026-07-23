@@ -402,9 +402,9 @@ export function SidebarMenuSubButton({
       )}
       {...props}
     >
-      {isActive && (
+      {isActive ? (
         <div className="absolute -left-4.25 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-full" />
-      )}
+      ) : null}
       {children}
     </Link>
   );

@@ -26,8 +26,8 @@ export function IcComingSoonPage() {
         </div>
         <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Intercompany</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          Coming soon. Notification inbox and RFQ screens will ship in a later phase. Purchase and
-          sales document create flows are unchanged.
+          RFQ inbox will ship in a later phase. Notifications and the retry queue are available
+          under Intercompany. Purchase and sales document create flows are unchanged.
         </p>
         {phaseLabel ? (
           <p className="mt-4 text-xs font-medium uppercase tracking-wide text-zinc-400">

@@ -3,6 +3,7 @@ import React from "react";
 
 import { SidebarHeader } from "@/components/sidebar";
 import { Tooltip } from "@/components/tooltip";
+import { IcUnreadBadge } from "@/features/intercompany/components/ic-unread-badge";
 import { useAuthStore } from "@/store/auth/auth.store";
 import {
   useDeferredPrompt,
@@ -11,6 +12,7 @@ import {
   usePwaStore,
 } from "@/store/pwa/pwa.store";
 import { useSetSidebarAction, useSidebarOpen } from "@/store/sidebar/sidebar.store";
+import { cn } from "@/shared/utils/cn";
 
 export function ShellLayoutBrandHeader() {
   const user = useAuthStore((state) => state.user);
@@ -42,8 +44,13 @@ export function ShellLayoutBrandHeader() {
   };
 
   return (
-    <SidebarHeader className="border-b border-zinc-50 p-0 pt-[13px] pb-[11px] px-[26px] flex flex-row items-center justify-between">
-      <div className="flex items-center gap-3">
+    <SidebarHeader
+      className={cn(
+        "relative border-b border-zinc-50 p-0 pt-[13px] pb-[11px] px-[26px] flex flex-row items-center justify-between",
+        !isOpen && "px-2 justify-center",
+      )}
+    >
+      <div className={cn("flex items-center gap-3 min-w-0", !isOpen && "flex-col gap-2")}>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -53,28 +60,36 @@ export function ShellLayoutBrandHeader() {
         >
           {isOpen ? <Building2 className="size-5" /> : <Menu className="size-5" />}
         </button>
-        <div className="flex flex-col group-data-[collapsible=icon]:hidden animate-in fade-in duration-300">
-          <span className="text-sm font-black uppercase tracking-tight text-blue-600 leading-tight">
-            {user?.companyName ?? "Vendor Portal"}
-          </span>
-        </div>
+        {isOpen ? (
+          <div className="flex flex-col animate-in fade-in duration-300 min-w-0">
+            <span className="text-sm font-black uppercase tracking-tight text-blue-600 leading-tight truncate">
+              {user?.companyName ?? "Vendor Portal"}
+            </span>
+          </div>
+        ) : null}
+        {!isOpen ? <IcUnreadBadge compact /> : null}
       </div>
 
-      {showInstall && isOpen && (
-        <Tooltip content="Install desktop app" className="w-auto block shrink-0">
-          <button
-            onClick={handleInstall}
-            className="size-8 rounded-lg flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200/60 bg-blue-50/20 shadow-[0_2px_8px_rgba(37,99,235,0.08)] cursor-pointer transition-all duration-200 relative group animate-in fade-in zoom-in duration-300 outline-none shrink-0"
-            aria-label="Install App"
-          >
-            <Download className="size-4 animate-bounce" style={{ animationDuration: "2s" }} />
-            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </span>
-          </button>
-        </Tooltip>
-      )}
+      {isOpen ? (
+        <div className="flex items-center gap-2 shrink-0">
+          <IcUnreadBadge compact />
+          {showInstall ? (
+            <Tooltip content="Install desktop app" className="w-auto block shrink-0">
+              <button
+                onClick={handleInstall}
+                className="size-8 rounded-lg flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200/60 bg-blue-50/20 shadow-[0_2px_8px_rgba(37,99,235,0.08)] cursor-pointer transition-all duration-200 relative group animate-in fade-in zoom-in duration-300 outline-none shrink-0"
+                aria-label="Install App"
+              >
+                <Download className="size-4 animate-bounce" style={{ animationDuration: "2s" }} />
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+              </button>
+            </Tooltip>
+          ) : null}
+        </div>
+      ) : null}
     </SidebarHeader>
   );
 }
