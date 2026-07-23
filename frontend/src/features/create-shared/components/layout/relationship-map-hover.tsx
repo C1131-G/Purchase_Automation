@@ -19,11 +19,7 @@ export function RelationshipMapHover({
     | "ap-invoice"
     | "ap-credit-memo"
     | "incoming-payment"
-    | "outgoing-payment"
-    | "goods-receipt"
-    | "goods-issue"
-    | "transfer-request"
-    | "transfer";
+    | "outgoing-payment";
   docEntry: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);

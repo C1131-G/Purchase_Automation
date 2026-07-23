@@ -112,28 +112,6 @@ export const registerAllDocumentModulePaths = () => {
     },
   });
   registerDocumentPaths({
-    entityPath: "goods-receipts",
-    entityLabel: "Goods receipt",
-    supportsCancel: false,
-    supportsUpdate: true,
-  });
-  registerDocumentPaths({
-    entityPath: "goods-issues",
-    entityLabel: "Goods issue",
-    supportsCancel: false,
-    supportsUpdate: true,
-  });
-  registerDocumentPaths({
-    entityPath: "inventory-transfers",
-    entityLabel: "Inventory transfer",
-    supportsCancel: false,
-    supportsUpdate: false,
-  });
-  registerDocumentPaths({
-    entityPath: "inventory-transfer-requests",
-    entityLabel: "Inventory transfer request",
-  });
-  registerDocumentPaths({
     entityPath: "incoming-payments",
     entityLabel: "Incoming payment",
     supportsCancel: true,

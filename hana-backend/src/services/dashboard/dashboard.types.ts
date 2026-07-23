@@ -9,16 +9,11 @@ export type DocumentModule =
   | "salesOrder"
   | "arInvoice"
   | "arCreditNote"
-  | "incomingPayment"
-  | "itemMaster"
-  | "goodsReceipt"
-  | "goodsIssue"
-  | "transferRequest"
-  | "transfer";
+  | "incomingPayment";
 
 export type DashboardPeriod = "week" | "month" | "year" | "all";
 
-export type DashboardArea = "purchase" | "sales" | "inventory";
+export type DashboardArea = "purchase" | "sales";
 
 export type DashboardGranularity = "day" | "month";
 

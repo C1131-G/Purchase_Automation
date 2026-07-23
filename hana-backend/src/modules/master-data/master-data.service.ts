@@ -12,7 +12,6 @@ import {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
-  getInventoryAdjustmentReasons,
 } from "./master-data.queries";
 
 export {
@@ -29,7 +28,6 @@ export {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
-  getInventoryAdjustmentReasons,
 };
 
 export const masterDataService = {
@@ -46,5 +44,4 @@ export const masterDataService = {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
-  getInventoryAdjustmentReasons,
 };

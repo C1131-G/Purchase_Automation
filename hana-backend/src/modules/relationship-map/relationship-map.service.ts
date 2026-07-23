@@ -1,13 +1,8 @@
-import {
-  getARRelationshipMap,
-  getAPRelationshipMap,
-  getInventoryRelationshipMap,
-} from "./relationship-map.queries";
+import { getARRelationshipMap, getAPRelationshipMap } from "./relationship-map.queries";
 
-export { getARRelationshipMap, getAPRelationshipMap, getInventoryRelationshipMap };
+export { getARRelationshipMap, getAPRelationshipMap };
 
 export const relationshipMapService = {
   getARRelationshipMap,
   getAPRelationshipMap,
-  getInventoryRelationshipMap,
 };

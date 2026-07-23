@@ -14,4 +14,3 @@ export {
   getWarehouseBranch,
   getDefaultBranch,
 } from "./master-data.warehouses-series.queries";
-export { getInventoryAdjustmentReasons } from "./master-data.adjustment-reasons.queries";

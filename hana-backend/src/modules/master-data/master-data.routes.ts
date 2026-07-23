@@ -49,7 +49,4 @@ router.get("/warehouses/:code/bins", masterDataController.getWarehouseBins);
 // GET /branches: List of branches (DistributionRules) from Service Layer
 router.get("/branches", masterDataController.getBranches);
 
-// GET /inventory-adjustment-reasons: List of reasons for inventory adjustment
-router.get("/inventory-adjustment-reasons", masterDataController.getInventoryAdjustmentReasons);
-
 export const masterDataRoutes = router;

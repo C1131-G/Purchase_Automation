@@ -11,7 +11,6 @@ import { ModuleTiles } from "./ModuleTiles";
 import { ModuleCards } from "./ModuleCards";
 import { TrendChart } from "./TrendChart";
 import { FunnelChart } from "./FunnelChart";
-import { InventoryTrendCharts } from "./InventoryTrendCharts";
 import { PartnerTable } from "./PartnerTable";
 import { ExceptionsTable } from "./ExceptionsTable";
 import {
@@ -33,7 +32,7 @@ interface DashboardCanvasProps {
 }
 
 export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
-  const color = area === "purchase" || area === "inventory" ? "blue" : "indigo";
+  const color = area === "purchase" ? "blue" : "indigo";
 
   // One-shot: measure login-submit → dashboard-visible latency.
   useEffect(() => {
@@ -113,42 +112,23 @@ export function DashboardCanvas({ area, period }: DashboardCanvasProps) {
       )}
 
       {/* Trend Chart + Process Flow side by side */}
-      {area === "inventory" ? (
-        trendQuery.isLoading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-stretch animate-pulse">
-            <div className="bg-white border border-zinc-200/60 rounded-2xl p-6 min-h-[380px] flex flex-col gap-4">
-              <div className="h-4 w-40 bg-zinc-200 rounded-md" />
-              <div className="h-3 w-64 bg-zinc-200 rounded-md" />
-              <div className="flex-1 bg-zinc-50 rounded-xl animate-pulse" />
-            </div>
-            <div className="bg-white border border-zinc-200/60 rounded-2xl p-6 min-h-[380px] flex flex-col gap-4">
-              <div className="h-4 w-40 bg-zinc-200 rounded-md" />
-              <div className="h-3 w-64 bg-zinc-200 rounded-md" />
-              <div className="flex-1 bg-zinc-50 rounded-xl animate-pulse" />
-            </div>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-6 items-stretch">
+        {trendQuery.isLoading ? (
+          <TrendChartSkeleton area={area} period={period} />
         ) : (
-          <InventoryTrendCharts trend={trendQuery.data?.data} currency={currency} />
-        )
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-6 items-stretch">
-          {trendQuery.isLoading ? (
-            <TrendChartSkeleton area={area} period={period} />
-          ) : (
-            <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />
-          )}
-          {funnelQuery.isLoading ? (
-            <FunnelChartSkeleton area={area} period={period} />
-          ) : (
-            <FunnelChart
-              steps={funnelQuery.data?.data}
-              currency={currency}
-              color={color}
-              period={period}
-            />
-          )}
-        </div>
-      )}
+          <TrendChart trend={trendQuery.data?.data} currency={currency} color={color} />
+        )}
+        {funnelQuery.isLoading ? (
+          <FunnelChartSkeleton area={area} period={period} />
+        ) : (
+          <FunnelChart
+            steps={funnelQuery.data?.data}
+            currency={currency}
+            color={color}
+            period={period}
+          />
+        )}
+      </div>
 
       {/* Pareto top partners (Pareto Analytics Redesigned) */}
       {partnersQuery.isLoading ? (

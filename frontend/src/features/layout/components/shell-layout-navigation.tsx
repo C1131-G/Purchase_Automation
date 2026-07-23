@@ -1,5 +1,5 @@
 import React from "react";
-import { BadgePercent, Boxes, LayoutDashboard, ShoppingCart } from "lucide-react";
+import { BadgePercent, LayoutDashboard, ShoppingCart } from "lucide-react";
 
 import {
   SidebarContent,
@@ -63,15 +63,6 @@ export function ShellLayoutNavigation({
                   isActive={pathname === "/dashboard/sales"}
                 >
                   Sales
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/dashboard/inventory"
-                  search={{ period: "week" } as any}
-                  isActive={pathname === "/dashboard/inventory"}
-                >
-                  Inventory
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
@@ -255,90 +246,6 @@ export function ShellLayoutNavigation({
                   }
                 >
                   Incoming Payment
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            </SidebarMenuCollapsible>
-
-            <SidebarMenuCollapsible
-              title="Inventory"
-              icon={Boxes}
-              isOpen={isSectionOpen("inventory")}
-              onToggle={() => onToggleSection("inventory")}
-              isActive={pathname.startsWith("/inventory")}
-            >
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/inventory/item-master/create"
-                  onMouseEnter={() => onTableNavIntent("/inventory/item-master")}
-                  onFocus={() => onTableNavIntent("/inventory/item-master")}
-                  onTouchStart={() => onTableNavIntent("/inventory/item-master")}
-                  isActive={
-                    pathname === "/inventory/item-master/create" ||
-                    pathname === "/inventory/item-master" ||
-                    pathname.startsWith("/inventory/item-master/")
-                  }
-                >
-                  Item Master
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/inventory/goods-receipt/create"
-                  onMouseEnter={() => onTableNavIntent("/inventory/goods-receipt")}
-                  onFocus={() => onTableNavIntent("/inventory/goods-receipt")}
-                  onTouchStart={() => onTableNavIntent("/inventory/goods-receipt")}
-                  isActive={
-                    pathname === "/inventory/goods-receipt/create" ||
-                    pathname === "/inventory/goods-receipt" ||
-                    pathname.startsWith("/inventory/goods-receipt/")
-                  }
-                >
-                  Goods Receipt
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/inventory/goods-issue/create"
-                  onMouseEnter={() => onTableNavIntent("/inventory/goods-issue")}
-                  onFocus={() => onTableNavIntent("/inventory/goods-issue")}
-                  onTouchStart={() => onTableNavIntent("/inventory/goods-issue")}
-                  isActive={
-                    pathname === "/inventory/goods-issue/create" ||
-                    pathname === "/inventory/goods-issue" ||
-                    pathname.startsWith("/inventory/goods-issue/")
-                  }
-                >
-                  Goods Issue
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/inventory/transfer-request/create"
-                  onMouseEnter={() => onTableNavIntent("/inventory/transfer-request")}
-                  onFocus={() => onTableNavIntent("/inventory/transfer-request")}
-                  onTouchStart={() => onTableNavIntent("/inventory/transfer-request")}
-                  isActive={
-                    pathname === "/inventory/transfer-request/create" ||
-                    pathname === "/inventory/transfer-request" ||
-                    pathname.startsWith("/inventory/transfer-request/")
-                  }
-                >
-                  Inventory Transfer Request
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/inventory/transfer/create"
-                  onMouseEnter={() => onTableNavIntent("/inventory/transfer")}
-                  onFocus={() => onTableNavIntent("/inventory/transfer")}
-                  onTouchStart={() => onTableNavIntent("/inventory/transfer")}
-                  isActive={
-                    pathname === "/inventory/transfer/create" ||
-                    pathname === "/inventory/transfer" ||
-                    pathname.startsWith("/inventory/transfer/")
-                  }
-                >
-                  Inventory Transfer
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             </SidebarMenuCollapsible>

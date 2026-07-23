@@ -134,9 +134,7 @@ export function ShellLayout() {
     if (location.pathname.startsWith("/sales")) {
       return "sales";
     }
-    if (location.pathname.startsWith("/inventory")) {
-      return "inventory";
-    }
+
     return "dashboard";
   }, [location.pathname]);
 

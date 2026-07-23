@@ -175,25 +175,6 @@ export const getBranches = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const getInventoryAdjustmentReasons = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const authReq = req as unknown as AuthenticatedRequest;
-  try {
-    const { dbName } = authReq.user;
-    const { type } = req.query;
-    const inventoryAdjustmentReasonsResult = await masterDataService.getInventoryAdjustmentReasons(
-      dbName,
-      (type as "receipt" | "issue") || "receipt",
-    );
-    res.status(200).json({ data: inventoryAdjustmentReasonsResult, success: true });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const masterDataController = {
   getCustomers,
   getPriceLists,
@@ -206,5 +187,4 @@ export const masterDataController = {
   getSeries,
   getWarehouseBins,
   getBranches,
-  getInventoryAdjustmentReasons,
 };

@@ -11,11 +11,6 @@ import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import { salesOrderQueries } from "@/features/table-pages/sales-orders/api/sales-order.queries";
 import { salesQuotationQueries } from "@/features/table-pages/sales-quotations/api/sales-quotation.queries";
-import { itemMasterQueries } from "@/features/table-pages/item-master/api/item-master.queries";
-import { goodsReceiptQueries } from "@/features/table-pages/goods-receipt/api/goods-receipt.queries";
-import { goodsIssueQueries } from "@/features/table-pages/goods-issue/api/goods-issue.queries";
-import { transferRequestQueries } from "@/features/table-pages/transfer-request/api/transfer-request.queries";
-import { transferQueries } from "@/features/table-pages/transfer/api/transfer.queries";
 import { runSmartPrefetch } from "@/features/table-pages/table-shared/hooks/prefetch-orchestrator";
 
 export type TableRoutePath =
@@ -29,12 +24,7 @@ export type TableRoutePath =
   | "/sales/orders"
   | "/sales/ar-invoice"
   | "/sales/ar-credit-memo"
-  | "/sales/incoming-payment"
-  | "/inventory/item-master"
-  | "/inventory/goods-receipt"
-  | "/inventory/goods-issue"
-  | "/inventory/transfer-request"
-  | "/inventory/transfer";
+  | "/sales/incoming-payment";
 
 const DEFAULT_TABLE_PARAMS = {
   limit: 10,
@@ -54,11 +44,6 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     "/sales/incoming-payment": incomingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/orders": salesOrderQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/quotations": salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),
-    "/inventory/item-master": itemMasterQueries.list(DEFAULT_TABLE_PARAMS),
-    "/inventory/goods-receipt": goodsReceiptQueries.list(DEFAULT_TABLE_PARAMS),
-    "/inventory/goods-issue": goodsIssueQueries.list(DEFAULT_TABLE_PARAMS),
-    "/inventory/transfer-request": transferRequestQueries.list(DEFAULT_TABLE_PARAMS),
-    "/inventory/transfer": transferQueries.list(DEFAULT_TABLE_PARAMS),
   };
 
   void runSmartPrefetch(

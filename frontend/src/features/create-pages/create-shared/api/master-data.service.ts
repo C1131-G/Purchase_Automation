@@ -116,8 +116,4 @@ export const masterDataAPI = {
     apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/branches`,
     ),
-  getInventoryAdjustmentReasons: async (type: "receipt" | "issue" = "receipt") =>
-    apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
-      `/api/v1/master-data/inventory-adjustment-reasons?type=${type}`,
-    ),
 };

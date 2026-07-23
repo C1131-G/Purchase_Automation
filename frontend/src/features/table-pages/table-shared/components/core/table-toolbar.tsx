@@ -123,9 +123,7 @@ export function TableToolbar<TData>({
                 to={
                   (breadcrumb.section.toLowerCase() === "sales"
                     ? "/dashboard/sales"
-                    : breadcrumb.section.toLowerCase() === "inventory"
-                      ? "/dashboard/inventory"
-                      : "/dashboard/purchase") as any
+                    : "/dashboard/purchase") as any
                 }
                 search={{ period: "week" } as any}
                 preload="intent"

@@ -106,10 +106,4 @@ export const dashboardController = {
   getSalesTopPartners: analytics.getSalesTopPartners,
   getPurchaseExceptions: analytics.getPurchaseExceptions,
   getSalesExceptions: analytics.getSalesExceptions,
-  getInventoryKpiSummary: analytics.getInventoryKpiSummary,
-  getInventoryModuleCards: analytics.getInventoryModuleCards,
-  getInventoryTrend: analytics.getInventoryTrend,
-  getInventoryFunnel: analytics.getInventoryFunnel,
-  getInventoryTopPartners: analytics.getInventoryTopPartners,
-  getInventoryExceptions: analytics.getInventoryExceptions,
 };

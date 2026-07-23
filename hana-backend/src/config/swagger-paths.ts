@@ -76,11 +76,6 @@ export const registerAllPaths = () => {
     ["warehouses", "listWarehouses", "Warehouse master."],
     ["series", "listDocumentSeries", "Document numbering series."],
     ["branches", "listBranches", "Branches / distribution rules."],
-    [
-      "inventory-adjustment-reasons",
-      "listInventoryAdjustmentReasons",
-      "Reasons for inventory adjustments.",
-    ],
   ];
   for (const [segment, operationId, description] of masterGets) {
     registerPath(`/master-data/${segment}`, "get", {
@@ -111,30 +106,6 @@ export const registerAllPaths = () => {
 
   // --- Documents (sql-style bulk helper) ---
   registerAllDocumentModulePaths();
-
-  // --- Items ---
-  registerPath("/items", "get", {
-    security: cookieSecurity,
-    operationId: "listItems",
-    summary: "List catalog items",
-    description: "Item catalog list for inventory modules.",
-    tags: ["Items"],
-    responses: jsonResponses({
-      successDescription: "Items list.",
-      successSchema: "PaginatedResponse",
-    }),
-  });
-  registerPath("/items/{id}", "get", {
-    security: cookieSecurity,
-    operationId: "getItemById",
-    summary: "Get item by code",
-    description: "Item detail by ItemCode.",
-    tags: ["Items"],
-    responses: jsonResponses({
-      successDescription: "Item details.",
-      includeNotFound: true,
-    }),
-  });
 
   // --- Bank / relationship / attachments ---
   registerPath("/bank-details", "get", {
@@ -204,7 +175,7 @@ export const registerAllPaths = () => {
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Sales summary." }),
   });
-  for (const area of ["purchase", "sales", "inventory"] as const) {
+  for (const area of ["purchase", "sales"] as const) {
     for (const segment of [
       "kpi-summary",
       "module-cards",

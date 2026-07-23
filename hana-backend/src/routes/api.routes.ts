@@ -21,11 +21,6 @@ import { purchaseQuotationRoutes } from "@/modules/purchase-quotation/purchase-q
 import { salesOrderRoutes } from "@/modules/sales-order/sales-order.routes";
 import salesRelationshipRoutes from "@/modules/relationship-map/relationship-map.routes";
 import { salesQuotationRoutes } from "@/modules/sales-quotation/sales-quotation.routes";
-import { itemMasterRoutes } from "@/modules/item-master/item-master.routes";
-import { goodsReceiptRoutes } from "@/modules/goods-receipt/goods-receipt.routes";
-import { goodsIssueRoutes } from "@/modules/goods-issue/goods-issue.routes";
-import { transferRequestRoutes } from "@/modules/transfer-request/transfer-request.routes";
-import { transferRoutes } from "@/modules/transfer/transfer.routes";
 
 const router = express.Router();
 
@@ -53,13 +48,6 @@ router.use("/ar-invoices", arInvoiceRoutes);
 router.use("/ar-credit-memos", arCreditMemoRoutes);
 router.use("/incoming-payments", incomingPaymentRoutes);
 router.use("/relationship-map", salesRelationshipRoutes);
-
-// Inventory Modules
-router.use("/items", itemMasterRoutes);
-router.use("/goods-receipts", goodsReceiptRoutes);
-router.use("/goods-issues", goodsIssueRoutes);
-router.use("/inventory-transfer-requests", transferRequestRoutes);
-router.use("/inventory-transfers", transferRoutes);
 
 // Utility: Read-only master data lookups for dropdowns and UI auto-completion.
 router.use("/master-data", masterDataRoutes);

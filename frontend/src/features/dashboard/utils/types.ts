@@ -85,7 +85,7 @@ export interface DashboardQuickLink {
   description: string;
 }
 
-export type DashboardArea = "purchase" | "sales" | "inventory";
+export type DashboardArea = "purchase" | "sales";
 
 export interface DashboardAreaConfig {
   area: DashboardArea;
@@ -107,10 +107,5 @@ export const DASHBOARD_CONFIG: Record<DashboardArea, DashboardAreaConfig> = {
     area: "sales",
     title: "Sales Dashboard",
     accentColor: "indigo",
-  },
-  inventory: {
-    area: "inventory",
-    title: "Inventory Dashboard",
-    accentColor: "blue",
   },
 };

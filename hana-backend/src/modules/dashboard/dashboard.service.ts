@@ -14,12 +14,6 @@ import {
   getSalesTopPartners as getSalesTopPartnersRaw,
   getPurchaseExceptions as getPurchaseExceptionsRaw,
   getSalesExceptions as getSalesExceptionsRaw,
-  getInventoryKpiSummary as getInventoryKpiSummaryRaw,
-  getInventoryModuleCards as getInventoryModuleCardsRaw,
-  getInventoryTrend as getInventoryTrendRaw,
-  getInventoryFunnel as getInventoryFunnelRaw,
-  getInventoryTopPartners as getInventoryTopPartnersRaw,
-  getInventoryExceptions as getInventoryExceptionsRaw,
 } from "./dashboard.queries";
 
 type AnyFn = (...args: never[]) => Promise<unknown> | unknown;
@@ -52,21 +46,6 @@ export const getPurchaseExceptions = instrumentSection(
   getPurchaseExceptionsRaw,
 );
 export const getSalesExceptions = instrumentSection("sales.exceptions", getSalesExceptionsRaw);
-export const getInventoryKpiSummary = instrumentSection("inventory.kpi", getInventoryKpiSummaryRaw);
-export const getInventoryModuleCards = instrumentSection(
-  "inventory.module_cards",
-  getInventoryModuleCardsRaw,
-);
-export const getInventoryTrend = instrumentSection("inventory.trend", getInventoryTrendRaw);
-export const getInventoryFunnel = instrumentSection("inventory.funnel", getInventoryFunnelRaw);
-export const getInventoryTopPartners = instrumentSection(
-  "inventory.top_partners",
-  getInventoryTopPartnersRaw,
-);
-export const getInventoryExceptions = instrumentSection(
-  "inventory.exceptions",
-  getInventoryExceptionsRaw,
-);
 
 export const dashboardService = {
   getPurchaseSummary,
@@ -83,10 +62,4 @@ export const dashboardService = {
   getSalesTopPartners,
   getPurchaseExceptions,
   getSalesExceptions,
-  getInventoryKpiSummary,
-  getInventoryModuleCards,
-  getInventoryTrend,
-  getInventoryFunnel,
-  getInventoryTopPartners,
-  getInventoryExceptions,
 };

@@ -15,10 +15,4 @@ export {
   getSalesTopPartners,
   getPurchaseExceptions,
   getSalesExceptions,
-  getInventoryKpiSummary,
-  getInventoryModuleCards,
-  getInventoryTrend,
-  getInventoryFunnel,
-  getInventoryTopPartners,
-  getInventoryExceptions,
-} from "./dashboard.funnel-inventory.queries";
+} from "./dashboard.funnel-partners.queries";
