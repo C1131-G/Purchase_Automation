@@ -28,7 +28,6 @@ import {
   notifyCreateApiError,
   notifyDocumentHydrating,
   notifyEditRestrictedField,
-  notifyIntercompanyResult,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import {
@@ -1490,12 +1489,6 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           payload,
         });
         createdDocNum = result?.data?.DocNum;
-        const intercompany = (
-          result?.data as
-            | { intercompany?: Parameters<typeof notifyIntercompanyResult>[0] }
-            | undefined
-        )?.intercompany;
-        notifyIntercompanyResult(intercompany);
       }
 
       saveActions.trackMutationSuccess();

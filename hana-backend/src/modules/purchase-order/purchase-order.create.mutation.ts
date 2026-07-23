@@ -6,7 +6,6 @@ import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 // Data Access & Schemas
 import { config } from "@/config/env";
-import { intercompanyController } from "@/modules/intercompany/intercompany.controller";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
@@ -206,40 +205,6 @@ export const createPurchaseOrder = async (
       }
     }
 
-    // Phase 1 intercompany: non-draft PO → partner AR Invoice Draft (never fails PO create).
-    let intercompany: Awaited<
-      ReturnType<typeof intercompanyController.syncAfterPurchaseOrderCreate>
-    > | null = null;
-    if (!isDraft && result.DocEntry) {
-      intercompany = await intercompanyController.syncAfterPurchaseOrderCreate({
-        sourceDb: resolvedDbNameFromRes || resolvedDbName,
-        poDocEntry: Number(result.DocEntry),
-        poDocNum: result.DocNum != null ? Number(result.DocNum) : undefined,
-        poPayload: {
-          CardCode: sapPayload.CardCode,
-          DocDate: sapPayload.DocDate,
-          DocDueDate: sapPayload.DocDueDate,
-          Comments: sapPayload.Comments,
-          NumAtCard: sapPayload.NumAtCard,
-          DocumentLines: sapPayload.DocumentLines as
-            | {
-                ItemCode?: unknown;
-                Quantity?: unknown;
-                UnitPrice?: unknown;
-                Price?: unknown;
-                DiscountPercent?: unknown;
-                UoMEntry?: unknown;
-                UomEntry?: unknown;
-                UoMCode?: unknown;
-                UomCode?: unknown;
-                VatGroup?: unknown;
-                WarehouseCode?: unknown;
-              }[]
-            | undefined,
-        },
-      });
-    }
-
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
@@ -247,7 +212,6 @@ export const createPurchaseOrder = async (
         ? "Purchase Order Draft saved successfully"
         : "Purchase Order created successfully",
       success: true,
-      ...(intercompany ? { intercompany } : {}),
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
