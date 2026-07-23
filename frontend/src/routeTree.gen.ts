@@ -13,9 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutDashboardRouteRouteImport } from './routes/_layout/dashboard/route'
-import { Route as LayoutIntercompanyRouteImport } from './routes/_layout/intercompany'
+import { Route as LayoutIntercompanyRouteRouteImport } from './routes/_layout/intercompany/route'
 import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout/dashboard/purchase'
 import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout/dashboard/sales'
+import { Route as LayoutIntercompanyIndexRouteImport } from './routes/_layout/intercompany/index'
+import { Route as LayoutIntercompanyNotificationsRouteImport } from './routes/_layout/intercompany/notifications'
 import { Route as LayoutPurchaseApCreditMemoRouteRouteImport } from './routes/_layout/purchase/ap-credit-memo/route'
 import { Route as LayoutPurchaseApInvoiceRouteRouteImport } from './routes/_layout/purchase/ap-invoice/route'
 import { Route as LayoutPurchaseCreateApCreditMemoRouteImport } from './routes/_layout/purchase/create-ap-credit-memo'
@@ -57,7 +59,7 @@ const LayoutDashboardRouteRoute = LayoutDashboardRouteRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutIntercompanyRoute = LayoutIntercompanyRouteImport.update({
+const LayoutIntercompanyRouteRoute = LayoutIntercompanyRouteRouteImport.update({
   id: '/intercompany',
   path: '/intercompany',
   getParentRoute: () => LayoutRoute,
@@ -72,6 +74,17 @@ const LayoutDashboardSalesRoute = LayoutDashboardSalesRouteImport.update({
   path: '/sales',
   getParentRoute: () => LayoutDashboardRouteRoute,
 } as any)
+const LayoutIntercompanyIndexRoute = LayoutIntercompanyIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LayoutIntercompanyRouteRoute,
+} as any)
+const LayoutIntercompanyNotificationsRoute =
+  LayoutIntercompanyNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => LayoutIntercompanyRouteRoute,
+  } as any)
 const LayoutPurchaseApCreditMemoRouteRoute =
   LayoutPurchaseApCreditMemoRouteRouteImport.update({
     id: '/purchase/ap-credit-memo',
@@ -202,7 +215,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof LayoutDashboardRouteRouteWithChildren
-  '/intercompany': typeof LayoutIntercompanyRoute
+  '/intercompany': typeof LayoutIntercompanyRouteRouteWithChildren
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -212,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
+  '/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -219,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
+  '/intercompany/': typeof LayoutIntercompanyIndexRoute
   '/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
   '/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
   '/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
@@ -231,7 +246,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof LayoutDashboardRouteRouteWithChildren
-  '/intercompany': typeof LayoutIntercompanyRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -241,6 +255,7 @@ export interface FileRoutesByTo {
   '/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
   '/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/dashboard/sales': typeof LayoutDashboardSalesRoute
+  '/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
   '/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -248,6 +263,7 @@ export interface FileRoutesByTo {
   '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
+  '/intercompany': typeof LayoutIntercompanyIndexRoute
   '/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
   '/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
   '/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
@@ -262,7 +278,7 @@ export interface FileRoutesById {
   '/_layout': typeof LayoutRouteWithChildren
   '/login': typeof LoginRoute
   '/_layout/dashboard': typeof LayoutDashboardRouteRouteWithChildren
-  '/_layout/intercompany': typeof LayoutIntercompanyRoute
+  '/_layout/intercompany': typeof LayoutIntercompanyRouteRouteWithChildren
   '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/_layout/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -272,6 +288,7 @@ export interface FileRoutesById {
   '/_layout/sales/quotations': typeof LayoutSalesQuotationsRouteRouteWithChildren
   '/_layout/dashboard/purchase': typeof LayoutDashboardPurchaseRoute
   '/_layout/dashboard/sales': typeof LayoutDashboardSalesRoute
+  '/_layout/intercompany/notifications': typeof LayoutIntercompanyNotificationsRoute
   '/_layout/purchase/create-ap-credit-memo': typeof LayoutPurchaseCreateApCreditMemoRoute
   '/_layout/purchase/create-ap-invoice': typeof LayoutPurchaseCreateApInvoiceRoute
   '/_layout/purchase/create-grpo': typeof LayoutPurchaseCreateGrpoRoute
@@ -279,6 +296,7 @@ export interface FileRoutesById {
   '/_layout/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/_layout/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/_layout/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
+  '/_layout/intercompany/': typeof LayoutIntercompanyIndexRoute
   '/_layout/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
   '/_layout/purchase/ap-invoice/$docNum/update': typeof LayoutPurchaseApInvoiceDocNumUpdateRoute
   '/_layout/purchase/grpo/$docNum/update': typeof LayoutPurchaseGrpoDocNumUpdateRoute
@@ -303,6 +321,7 @@ export interface FileRouteTypes {
     | '/sales/quotations'
     | '/dashboard/purchase'
     | '/dashboard/sales'
+    | '/intercompany/notifications'
     | '/purchase/create-ap-credit-memo'
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
@@ -310,6 +329,7 @@ export interface FileRouteTypes {
     | '/purchase/create-outgoing-payment'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
+    | '/intercompany/'
     | '/purchase/ap-credit-memo/$docNum/update'
     | '/purchase/ap-invoice/$docNum/update'
     | '/purchase/grpo/$docNum/update'
@@ -322,7 +342,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard'
-    | '/intercompany'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
@@ -332,6 +351,7 @@ export interface FileRouteTypes {
     | '/sales/quotations'
     | '/dashboard/purchase'
     | '/dashboard/sales'
+    | '/intercompany/notifications'
     | '/purchase/create-ap-credit-memo'
     | '/purchase/create-ap-invoice'
     | '/purchase/create-grpo'
@@ -339,6 +359,7 @@ export interface FileRouteTypes {
     | '/purchase/create-outgoing-payment'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
+    | '/intercompany'
     | '/purchase/ap-credit-memo/$docNum/update'
     | '/purchase/ap-invoice/$docNum/update'
     | '/purchase/grpo/$docNum/update'
@@ -362,6 +383,7 @@ export interface FileRouteTypes {
     | '/_layout/sales/quotations'
     | '/_layout/dashboard/purchase'
     | '/_layout/dashboard/sales'
+    | '/_layout/intercompany/notifications'
     | '/_layout/purchase/create-ap-credit-memo'
     | '/_layout/purchase/create-ap-invoice'
     | '/_layout/purchase/create-grpo'
@@ -369,6 +391,7 @@ export interface FileRouteTypes {
     | '/_layout/purchase/create-outgoing-payment'
     | '/_layout/purchase/create-quotation'
     | '/_layout/sales/create-quotation'
+    | '/_layout/intercompany/'
     | '/_layout/purchase/ap-credit-memo/$docNum/update'
     | '/_layout/purchase/ap-invoice/$docNum/update'
     | '/_layout/purchase/grpo/$docNum/update'
@@ -418,7 +441,7 @@ declare module '@tanstack/react-router' {
       id: '/_layout/intercompany'
       path: '/intercompany'
       fullPath: '/intercompany'
-      preLoaderRoute: typeof LayoutIntercompanyRouteImport
+      preLoaderRoute: typeof LayoutIntercompanyRouteRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/dashboard/purchase': {
@@ -434,6 +457,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/sales'
       preLoaderRoute: typeof LayoutDashboardSalesRouteImport
       parentRoute: typeof LayoutDashboardRouteRoute
+    }
+    '/_layout/intercompany/': {
+      id: '/_layout/intercompany/'
+      path: '/'
+      fullPath: '/intercompany/'
+      preLoaderRoute: typeof LayoutIntercompanyIndexRouteImport
+      parentRoute: typeof LayoutIntercompanyRouteRoute
+    }
+    '/_layout/intercompany/notifications': {
+      id: '/_layout/intercompany/notifications'
+      path: '/notifications'
+      fullPath: '/intercompany/notifications'
+      preLoaderRoute: typeof LayoutIntercompanyNotificationsRouteImport
+      parentRoute: typeof LayoutIntercompanyRouteRoute
     }
     '/_layout/purchase/ap-credit-memo': {
       id: '/_layout/purchase/ap-credit-memo'
@@ -598,6 +635,22 @@ const LayoutDashboardRouteRouteChildren: LayoutDashboardRouteRouteChildren = {
 const LayoutDashboardRouteRouteWithChildren =
   LayoutDashboardRouteRoute._addFileChildren(LayoutDashboardRouteRouteChildren)
 
+interface LayoutIntercompanyRouteRouteChildren {
+  LayoutIntercompanyNotificationsRoute: typeof LayoutIntercompanyNotificationsRoute
+  LayoutIntercompanyIndexRoute: typeof LayoutIntercompanyIndexRoute
+}
+
+const LayoutIntercompanyRouteRouteChildren: LayoutIntercompanyRouteRouteChildren =
+  {
+    LayoutIntercompanyNotificationsRoute: LayoutIntercompanyNotificationsRoute,
+    LayoutIntercompanyIndexRoute: LayoutIntercompanyIndexRoute,
+  }
+
+const LayoutIntercompanyRouteRouteWithChildren =
+  LayoutIntercompanyRouteRoute._addFileChildren(
+    LayoutIntercompanyRouteRouteChildren,
+  )
+
 interface LayoutPurchaseApCreditMemoRouteRouteChildren {
   LayoutPurchaseApCreditMemoDocNumUpdateRoute: typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
 }
@@ -704,7 +757,7 @@ const LayoutSalesQuotationsRouteRouteWithChildren =
 
 interface LayoutRouteChildren {
   LayoutDashboardRouteRoute: typeof LayoutDashboardRouteRouteWithChildren
-  LayoutIntercompanyRoute: typeof LayoutIntercompanyRoute
+  LayoutIntercompanyRouteRoute: typeof LayoutIntercompanyRouteRouteWithChildren
   LayoutPurchaseApCreditMemoRouteRoute: typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   LayoutPurchaseApInvoiceRouteRoute: typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   LayoutPurchaseGrpoRouteRoute: typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -723,7 +776,7 @@ interface LayoutRouteChildren {
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardRouteRoute: LayoutDashboardRouteRouteWithChildren,
-  LayoutIntercompanyRoute: LayoutIntercompanyRoute,
+  LayoutIntercompanyRouteRoute: LayoutIntercompanyRouteRouteWithChildren,
   LayoutPurchaseApCreditMemoRouteRoute:
     LayoutPurchaseApCreditMemoRouteRouteWithChildren,
   LayoutPurchaseApInvoiceRouteRoute:

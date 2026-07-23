@@ -1,0 +1,19 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+import { IcNotificationTable } from "@/features/intercompany/components/notifications/ic-notification-table";
+import { icNotificationSearchSchema } from "@/features/intercompany/schemas/ic-notification-search.schema";
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
+export const Route = createFileRoute("/_layout/intercompany/notifications")({
+  component: IntercompanyNotificationsRoute,
+  validateSearch: (search) => icNotificationSearchSchema.parse(search),
+});
+
+function IntercompanyNotificationsRoute() {
+  useDocumentTitle("IC Notifications | ERP Portal");
+  return (
+    <div className="h-full w-full">
+      <IcNotificationTable />
+    </div>
+  );
+}

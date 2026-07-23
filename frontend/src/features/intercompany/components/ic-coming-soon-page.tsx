@@ -3,8 +3,8 @@ import { Building2 } from "lucide-react";
 import { useIcHealth } from "@/features/intercompany/api/intercompany.queries";
 
 /**
- * Hidden shell placeholder for `/intercompany`.
- * P4: no RFQ inbox, no notification list, no nav badge (those land in P8).
+ * Reserved placeholder (e.g. RFQ inbox landing).
+ * Notifications live at `/intercompany/notifications` (P8A).
  */
 export function IcComingSoonPage() {
   const healthQuery = useIcHealth(true);
