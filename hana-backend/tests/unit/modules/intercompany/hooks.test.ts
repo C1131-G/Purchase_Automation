@@ -6,10 +6,9 @@ import { getIcHealth } from "@/modules/intercompany/api/ic.controller";
 import type { Request, Response } from "express";
 
 describe("IC hooks + health", () => {
-  it("afterPqDraftSaved returns skipped not_implemented without throwing", async () => {
-    await expect(
-      afterPqDraftSaved({ cardCode: "V", dbName: "DB_A", docEntry: 1 }),
-    ).resolves.toMatchObject({ status: "skipped" });
+  it("afterPqDraftSaved never throws (may skip or fail without DB)", async () => {
+    const result = await afterPqDraftSaved({ cardCode: "V", dbName: "DB_A", docEntry: 1 });
+    expect(["skipped", "failed", "success"]).toContain(result.status);
   });
 
   it("afterPoCreated never throws (may skip or fail without DB)", async () => {
@@ -23,7 +22,7 @@ describe("IC hooks + health", () => {
     expect(result).toMatchObject({ reason: "draft_po" });
   });
 
-  it("health returns ok with P5 phase", () => {
+  it("health returns ok with P6 phase", () => {
     const res = {
       statusCode: 200,
       body: undefined as unknown,
@@ -39,7 +38,7 @@ describe("IC hooks + health", () => {
     getIcHealth({} as Request, res as unknown as Response);
     expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({
-      data: { module: "intercompany", ok: true, phase: "P5" },
+      data: { module: "intercompany", ok: true, phase: "P6" },
       success: true,
     });
   });

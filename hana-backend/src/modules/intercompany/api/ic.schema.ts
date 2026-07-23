@@ -10,3 +10,30 @@ export const IcHealthResponseSchema = z.object({
 });
 
 export type IcHealthResponse = z.infer<typeof IcHealthResponseSchema>;
+
+export const UpdateRfqBodySchema = z.object({
+  lines: z
+    .array(
+      z
+        .object({
+          deliveryDate: z.string().nullable().optional(),
+          discount: z.number().nullable().optional(),
+          itemCode: z.unknown().optional(),
+          lineNum: z.number().int(),
+          quantity: z.unknown().optional(),
+          unitPrice: z.number(),
+        })
+        .strict(),
+    )
+    .min(1),
+});
+
+export type UpdateRfqBody = z.infer<typeof UpdateRfqBodySchema>;
+
+export const RfqIdParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+export const NotificationIdParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});

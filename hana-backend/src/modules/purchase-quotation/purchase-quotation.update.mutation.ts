@@ -6,6 +6,8 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { afterPqDraftSaved } from "@/modules/intercompany";
+import type { IcHookResult } from "@/modules/intercompany";
 const normalizeSapDateValue = (value: unknown) => {
   const raw = String(value ?? "").trim();
   if (!raw) {
@@ -184,11 +186,39 @@ export const updatePurchaseQuotation = async (
     );
 
     const session = serviceLayerClient.getSession(sessionId);
-    if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+    const companyDB = session?.companyDB || "";
+    if (companyDB) {
+      purgeCache(`dash:purchase:${companyDB}:`);
+    }
+
+    // Flow 1 IC automation on draft update: never fails the PQ draft response.
+    let intercompany: IcHookResult | undefined;
+    if (isDraft) {
+      try {
+        const lines = Array.isArray(payload.DocumentLines)
+          ? (payload.DocumentLines as Record<string, unknown>[])
+          : [];
+        intercompany = await afterPqDraftSaved({
+          cardCode: String(payload.CardCode ?? sapPayload.CardCode ?? ""),
+          dbName: companyDB,
+          docEntry: Number(id),
+          docNum: null,
+          lines,
+        });
+      } catch (icErr: unknown) {
+        logger.error({
+          err: icErr instanceof Error ? icErr : new Error(String(icErr)),
+          msg: "afterPqDraftSaved threw unexpectedly; PQ draft remains updated",
+        });
+        intercompany = {
+          message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),
+          status: "failed",
+        };
+      }
     }
 
     return {
+      intercompany,
       message: isDraft
         ? "Purchase Quotation Draft updated successfully"
         : "Purchase Quotation updated successfully",

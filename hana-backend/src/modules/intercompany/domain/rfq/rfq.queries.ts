@@ -48,6 +48,7 @@ export type RfqQueries = {
     sourceCompanyId: number,
     pqDraftDocEntry: number,
   ) => Promise<IcRfqHeader | null>;
+  listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
 };
 
 export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQueries => ({
@@ -74,6 +75,16 @@ export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQuerie
       header.lines = lineRows.map(mapRfqLineRow);
     }
     return header;
+  },
+
+  listForCompany: async (companyId) => {
+    const rows = await sql.query(
+      `SELECT * FROM "IC_RFQ_HEADER"
+        WHERE "SOURCE_COMPANY_ID" = ? OR "TARGET_COMPANY_ID" = ?
+        ORDER BY "RFQ_ID" DESC`,
+      [companyId, companyId],
+    );
+    return rows.map(mapRfqHeaderRow);
   },
 });
 

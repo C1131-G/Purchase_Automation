@@ -78,6 +78,9 @@ const createFlow2TestStack = (opts?: {
   });
 
   const documents = {
+    applyPricesToDraft: async () => {
+      throw new Error("not used");
+    },
     convertDraftToDocument: async () => {
       throw new Error("not used");
     },

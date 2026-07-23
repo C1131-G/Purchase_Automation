@@ -286,6 +286,19 @@ export const createMemorySqlClient = (
       ).map(clone) as T[];
     }
 
+    if (
+      statement.includes('FROM "IC_RFQ_HEADER"') &&
+      statement.includes("SOURCE_COMPANY_ID") &&
+      statement.includes("TARGET_COMPANY_ID")
+    ) {
+      const companyId = Number(params[0]);
+      return db.tables.IC_RFQ_HEADER.filter(
+        (row) => row.SOURCE_COMPANY_ID === companyId || row.TARGET_COMPANY_ID === companyId,
+      )
+        .sort((left, right) => Number(right.RFQ_ID) - Number(left.RFQ_ID))
+        .map(clone) as T[];
+    }
+
     if (statement.includes('FROM "IC_RFQ_HEADER"') && statement.includes("RFQ_ID")) {
       const rfqId = Number(params[0]);
       return db.tables.IC_RFQ_HEADER.filter((row) => row.RFQ_ID === rfqId).map(clone) as T[];

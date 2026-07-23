@@ -5,6 +5,8 @@ import { purgeCache } from "@/core/utils/cache";
 import { getDisplayCurrency } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { afterPqDraftSaved } from "@/modules/intercompany";
+import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 const normalizeSapDateValue = (value: unknown) => {
   const raw = String(value ?? "").trim();
@@ -178,9 +180,33 @@ export const createPurchaseQuotation = async (
       }
     }
 
+    // Flow 1 IC automation on draft save: never fails the PQ draft response.
+    let intercompany: IcHookResult | undefined;
+    if (isDraft && result.DocEntry) {
+      try {
+        intercompany = await afterPqDraftSaved({
+          cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
+          dbName: resolvedDbName,
+          docEntry: Number(result.DocEntry),
+          docNum: result.DocNum != null ? Number(result.DocNum) : null,
+          lines: Array.isArray(lines) ? lines : [],
+        });
+      } catch (icErr: unknown) {
+        logger.error({
+          err: icErr instanceof Error ? icErr : new Error(String(icErr)),
+          msg: "afterPqDraftSaved threw unexpectedly; PQ draft remains saved",
+        });
+        intercompany = {
+          message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),
+          status: "failed",
+        };
+      }
+    }
+
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      intercompany,
       message: isDraft
         ? "Purchase Quotation Draft saved successfully"
         : "Purchase Quotation created successfully",

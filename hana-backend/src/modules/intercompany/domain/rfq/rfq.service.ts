@@ -7,6 +7,11 @@ import type { CreateRfqFromDraftInput, IcRfqHeader, UpdateRfqLineInput } from ".
 export type RfqService = {
   createFromDraft: (input: CreateRfqFromDraftInput) => Promise<IcRfqHeader>;
   getById: (rfqId: number) => Promise<IcRfqHeader | null>;
+  findBySourceDraft: (
+    sourceCompanyId: number,
+    pqDraftDocEntry: number,
+  ) => Promise<IcRfqHeader | null>;
+  listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
   updateLines: (rfqId: number, lines: UpdateRfqLineInput[]) => Promise<IcRfqHeader | null>;
   submit: (rfqId: number) => Promise<IcRfqHeader | null>;
   complete: (rfqId: number) => Promise<IcRfqHeader | null>;
@@ -33,7 +38,12 @@ export const createRfqService = (deps?: {
       return mutations.insertFromDraft(input);
     },
 
+    findBySourceDraft: (sourceCompanyId, pqDraftDocEntry) =>
+      queries.findBySourceDraft(sourceCompanyId, pqDraftDocEntry),
+
     getById: (rfqId) => queries.getById(rfqId, true),
+
+    listForCompany: (companyId) => queries.listForCompany(companyId),
 
     submit: (rfqId) => mutations.setStatus(rfqId, IC_RFQ_STATUS.SUBMITTED),
 
