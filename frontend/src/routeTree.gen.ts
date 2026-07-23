@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutDashboardRouteRouteImport } from './routes/_layout/dashboard/route'
+import { Route as LayoutIntercompanyRouteImport } from './routes/_layout/intercompany'
 import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout/dashboard/purchase'
 import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout/dashboard/sales'
 import { Route as LayoutPurchaseApCreditMemoRouteRouteImport } from './routes/_layout/purchase/ap-credit-memo/route'
@@ -54,6 +55,11 @@ const LoginRoute = LoginRouteImport.update({
 const LayoutDashboardRouteRoute = LayoutDashboardRouteRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutIntercompanyRoute = LayoutIntercompanyRouteImport.update({
+  id: '/intercompany',
+  path: '/intercompany',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutDashboardPurchaseRoute = LayoutDashboardPurchaseRouteImport.update({
@@ -196,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof LayoutDashboardRouteRouteWithChildren
+  '/intercompany': typeof LayoutIntercompanyRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof LayoutDashboardRouteRouteWithChildren
+  '/intercompany': typeof LayoutIntercompanyRoute
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/_layout': typeof LayoutRouteWithChildren
   '/login': typeof LoginRoute
   '/_layout/dashboard': typeof LayoutDashboardRouteRouteWithChildren
+  '/_layout/intercompany': typeof LayoutIntercompanyRoute
   '/_layout/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/_layout/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/_layout/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard'
+    | '/intercompany'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard'
+    | '/intercompany'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/_layout'
     | '/login'
     | '/_layout/dashboard'
+    | '/_layout/intercompany'
     | '/_layout/purchase/ap-credit-memo'
     | '/_layout/purchase/ap-invoice'
     | '/_layout/purchase/grpo'
@@ -400,6 +412,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof LayoutDashboardRouteRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/intercompany': {
+      id: '/_layout/intercompany'
+      path: '/intercompany'
+      fullPath: '/intercompany'
+      preLoaderRoute: typeof LayoutIntercompanyRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/dashboard/purchase': {
@@ -685,6 +704,7 @@ const LayoutSalesQuotationsRouteRouteWithChildren =
 
 interface LayoutRouteChildren {
   LayoutDashboardRouteRoute: typeof LayoutDashboardRouteRouteWithChildren
+  LayoutIntercompanyRoute: typeof LayoutIntercompanyRoute
   LayoutPurchaseApCreditMemoRouteRoute: typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   LayoutPurchaseApInvoiceRouteRoute: typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   LayoutPurchaseGrpoRouteRoute: typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -703,6 +723,7 @@ interface LayoutRouteChildren {
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDashboardRouteRoute: LayoutDashboardRouteRouteWithChildren,
+  LayoutIntercompanyRoute: LayoutIntercompanyRoute,
   LayoutPurchaseApCreditMemoRouteRoute:
     LayoutPurchaseApCreditMemoRouteRouteWithChildren,
   LayoutPurchaseApInvoiceRouteRoute:
