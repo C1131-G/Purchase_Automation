@@ -82,13 +82,13 @@ export function LogisticsGrid({
   warehouseCode: _warehouseCode,
 }: LogisticsGridProps) {
   return (
-    <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1 min-h-[220px]">
+    <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1">
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {error}
         </div>
       ) : null}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="flex flex-col gap-4">
         {showWarehouseInsteadOfDocNum ? (
           <div className="relative">
             <FieldBlock

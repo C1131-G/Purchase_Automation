@@ -131,6 +131,8 @@ export function PurchaseQuotationProductSection({
       savedDocNum={savedDocNum}
       onDownload={onDownload}
       onReset={onReset}
+      // PQ: Save & New / View / Close disabled (Save & Draft remains).
+      disabledSaveModes={["save-new", "view", "close"]}
       disabledReason={createDisabledReason}
       missingMandatoryFields={missingMandatoryFields}
       mandatoryCompletionPercent={requiredCompletionPercent}
@@ -162,6 +164,7 @@ export function PurchaseQuotationProductSection({
         warehouseErrors={warehouseErrors}
         showUom={true}
         uoms={uoms}
+        showPqLineDatesAndQtys
       />
     </BaseProductSection>
   );

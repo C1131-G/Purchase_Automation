@@ -9,7 +9,14 @@ export interface PurchaseQuotationLine {
   lineNum: number;
   itemCode: string;
   dscription: string;
+  /** Quoted qty — PQT1.Quantity */
   quantity: number;
+  /** Required qty — PQT1.PQTReqQty (Service Layer RequiredQuantity) */
+  pqtReqQty?: number | null;
+  /** Required date — PQT1.PQTReqDate (Service Layer ReqDate) */
+  pqtReqDate?: Date | string | null;
+  /** Quoted / ship date — PQT1.ShipDate */
+  shipDate?: Date | string | null;
   openQty: number;
   price: number;
   priceBefDi: number;
@@ -49,6 +56,23 @@ export const PurchaseQuotationLineSchema = new EntitySchema<PurchaseQuotationLin
       precision: 19,
       scale: 6,
       type: "decimal" as HANAColumnType,
+    },
+    pqtReqQty: {
+      name: "PQTReqQty",
+      nullable: true,
+      precision: 19,
+      scale: 6,
+      type: "decimal" as HANAColumnType,
+    },
+    pqtReqDate: {
+      name: "PQTReqDate",
+      nullable: true,
+      type: "date" as HANAColumnType,
+    },
+    shipDate: {
+      name: "ShipDate",
+      nullable: true,
+      type: "date" as HANAColumnType,
     },
     openQty: {
       name: "OpenQty",

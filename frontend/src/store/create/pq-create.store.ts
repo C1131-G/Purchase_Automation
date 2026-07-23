@@ -10,6 +10,8 @@ export interface PQHeaderState {
   vendorName: string;
   docDate: string;
   docDueDate: string;
+  /** Header Required Date (SAP RequriedDate) + line ReqDate source. Future dates only in UI. */
+  requiredDate: string;
   warehouseCode: string;
   referenceNo: string;
   comments: string;
@@ -19,15 +21,20 @@ export interface PQHeaderState {
  * Pattern A: lines live in React state in create hooks.
  * Store owns header only — no dead lines APIs.
  */
-const getDefaultHeader = (): PQHeaderState => ({
-  comments: "",
-  docDate: getTodayISO(),
-  docDueDate: getAutoDocDueDate(getTodayISO()),
-  referenceNo: "",
-  vendorCode: "",
-  vendorName: "",
-  warehouseCode: "",
-});
+const getDefaultHeader = (): PQHeaderState => {
+  const today = getTodayISO();
+  const autoDue = getAutoDocDueDate(today);
+  return {
+    comments: "",
+    docDate: today,
+    docDueDate: autoDue,
+    requiredDate: autoDue,
+    referenceNo: "",
+    vendorCode: "",
+    vendorName: "",
+    warehouseCode: "",
+  };
+};
 
 const storeApi = createHeaderOnlyDraftStore<PQHeaderState>({
   getDefaultHeader,

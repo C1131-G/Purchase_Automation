@@ -38,6 +38,11 @@ interface CreateProductTableProps {
   uoms?: CreateLookupOption[];
   showBinLocation?: boolean;
   showGLAccount?: boolean;
+  /**
+   * Purchase Quotation only: after UoM show Required Date, Quoted Date,
+   * Required Qty, Quoted Qty (replaces single Quantity column).
+   */
+  showPqLineDatesAndQtys?: boolean;
 }
 
 export function CreateProductTable({
@@ -68,18 +73,33 @@ export function CreateProductTable({
   uoms = [],
   showBinLocation = false,
   showGLAccount = false,
+  showPqLineDatesAndQtys = false,
 }: CreateProductTableProps) {
+  const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   return (
     <div className="overflow-x-auto px-2 py-2">
-      <table className="w-full table-fixed text-left text-sm text-zinc-700 min-w-[1400px]">
+      <table
+        className={`w-full table-fixed text-left text-sm text-zinc-700 ${
+          showPqLineDatesAndQtys ? "min-w-[1680px]" : "min-w-[1400px]"
+        }`}
+      >
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
           <tr>
             {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
-            <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Product</th>
-            <th className={`${showUom ? "w-[12%]" : "w-[15%]"} px-2 py-2`}>Warehouse</th>
+            <th className={`${showUom ? "w-[12%]" : "w-[16%]"} px-2 py-2`}>Product</th>
+            <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Warehouse</th>
             {showBinLocation && <th className="w-[10%] px-2 py-2 text-left">Bin Location</th>}
-            {showUom && <th className="w-[8%] px-2 py-2 text-left">UoM</th>}
-            <th className="w-[7%] px-2 py-2 text-left">Quantity</th>
+            {showUom && <th className="w-[7%] px-2 py-2 text-left">UoM</th>}
+            {showPqLineDatesAndQtys ? (
+              <>
+                <th className="w-[8%] px-2 py-2 text-left">Required Date</th>
+                <th className="w-[8%] px-2 py-2 text-left">Quoted Date</th>
+                <th className="w-[7%] px-2 py-2 text-left">Required Qty</th>
+                <th className="w-[7%] px-2 py-2 text-left">Quoted Qty</th>
+              </>
+            ) : (
+              <th className="w-[7%] px-2 py-2 text-left">Quantity</th>
+            )}
             <th className="w-[7%] px-2 py-2 text-left">Price</th>
             <th className="w-[7%] px-2 py-2 text-left">Disc %</th>
             <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
@@ -98,6 +118,7 @@ export function CreateProductTable({
                 className="px-3 py-8"
                 colSpan={
                   9 +
+                  pqExtraCols +
                   (showSelection ? 1 : 0) +
                   (showReturnReason ? 1 : 0) +
                   (showTaxCode ? 1 : 0) +
@@ -146,6 +167,7 @@ export function CreateProductTable({
               uoms={uoms}
               showBinLocation={showBinLocation}
               showGLAccount={showGLAccount}
+              showPqLineDatesAndQtys={showPqLineDatesAndQtys}
             />
           ))}
         </tbody>

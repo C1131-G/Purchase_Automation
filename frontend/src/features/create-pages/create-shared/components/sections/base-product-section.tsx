@@ -254,6 +254,8 @@ export function ActionsPopoverContent({
   );
 }
 
+type SubmitSaveMode = "save-new" | "view" | "close" | "draft";
+
 function AddPopoverContent({
   onSubmitMode,
   isSaved,
@@ -262,19 +264,23 @@ function AddPopoverContent({
   isSubmitting,
   onSelectAction,
   isDirty,
+  disabledSaveModes = [],
 }: {
-  onSubmitMode?: ((mode: "save-new" | "view" | "close" | "draft") => void) | undefined;
+  onSubmitMode?: ((mode: SubmitSaveMode) => void) | undefined;
   isSaved: boolean;
   onDownload?: ((type: "pdf" | "excel" | "word") => void) | undefined;
   onReset?: (() => void) | undefined;
   isSubmitting?: boolean | undefined;
-  onSelectAction?: ((action: "save-new" | "view" | "close" | "draft") => void) | undefined;
+  onSelectAction?: ((action: SubmitSaveMode) => void) | undefined;
   isDirty?: boolean | undefined;
+  /** Modes that stay visible but cannot be clicked (e.g. PQ). */
+  disabledSaveModes?: SubmitSaveMode[] | undefined;
 }) {
   const { setOpen } = Popover.usePopoverContext();
   const [menuView, setMenuView] = useState<"main" | "download">("main");
   const router = useRouter();
   const isDraftConversion = Boolean((router.state.location.search as any)?.draftDocNum);
+  const isModeDisabled = (mode: SubmitSaveMode) => disabledSaveModes.includes(mode);
 
   // Reset menuView when popover closes/unmounts
   useEffect(() => {
@@ -346,14 +352,17 @@ function AddPopoverContent({
           <button
             type="button"
             onClick={() => {
+              if (isModeDisabled("save-new")) {
+                return;
+              }
               onSelectAction?.("save-new");
               onSubmitMode?.("save-new");
               setOpen(false);
             }}
-            disabled={isSubmitting}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            disabled={isSubmitting || isModeDisabled("save-new")}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-zinc-700 border-none"
           >
-            <Plus className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <Plus className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 group-disabled:group-hover:text-zinc-400" />
             <span>Save & New</span>
           </button>
 
@@ -361,14 +370,17 @@ function AddPopoverContent({
           <button
             type="button"
             onClick={() => {
+              if (isModeDisabled("view")) {
+                return;
+              }
               onSelectAction?.("view");
               onSubmitMode?.("view");
               setOpen(false);
             }}
-            disabled={isSubmitting}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            disabled={isSubmitting || isModeDisabled("view")}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-zinc-700 border-none"
           >
-            <Eye className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <Eye className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 group-disabled:group-hover:text-zinc-400" />
             <span>Save & View</span>
           </button>
 
@@ -376,14 +388,17 @@ function AddPopoverContent({
           <button
             type="button"
             onClick={() => {
+              if (isModeDisabled("close")) {
+                return;
+              }
               onSelectAction?.("close");
               onSubmitMode?.("close");
               setOpen(false);
             }}
-            disabled={isSubmitting}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+            disabled={isSubmitting || isModeDisabled("close")}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-zinc-700 border-none"
           >
-            <CheckSquare className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <CheckSquare className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 group-disabled:group-hover:text-zinc-400" />
             <span>Save & Close</span>
           </button>
 
@@ -391,11 +406,14 @@ function AddPopoverContent({
           <button
             type="button"
             onClick={() => {
+              if (isModeDisabled("draft")) {
+                return;
+              }
               onSelectAction?.("draft");
               onSubmitMode?.("draft");
               setOpen(false);
             }}
-            disabled={isSubmitting || (isDraftConversion && !isDirty)}
+            disabled={isSubmitting || isModeDisabled("draft") || (isDraftConversion && !isDirty)}
             className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
           >
             <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
@@ -481,11 +499,13 @@ interface BaseProductSectionProps {
   submitLoadingText: string;
   isSubmitting: boolean;
   onSubmit: () => void;
-  onSubmitMode?: ((mode: "save-new" | "view" | "close" | "draft") => void) | undefined;
+  onSubmitMode?: ((mode: SubmitSaveMode) => void) | undefined;
   isSaved?: boolean | undefined;
   savedDocNum?: string | number | null | undefined;
   onDownload?: ((type: "pdf" | "excel" | "word") => void) | undefined;
   onReset?: (() => void) | undefined;
+  /** Save menu modes that remain visible but disabled (PQ: new/view/close). */
+  disabledSaveModes?: SubmitSaveMode[] | undefined;
 
   // Validation Hints (Submit)
   disabledReason?: string | null | undefined;
@@ -538,6 +558,7 @@ export function BaseProductSection({
   isSaved = false,
   onDownload,
   onReset,
+  disabledSaveModes = [],
   disabledReason,
   missingMandatoryFields = [],
   mandatoryCompletionPercent = 0,
@@ -1032,6 +1053,7 @@ export function BaseProductSection({
                           isSubmitting={isSubmitting}
                           onSelectAction={setActiveAction}
                           isDirty={isDirty}
+                          disabledSaveModes={disabledSaveModes}
                         />
                       </div>
                     </Popover.Content>

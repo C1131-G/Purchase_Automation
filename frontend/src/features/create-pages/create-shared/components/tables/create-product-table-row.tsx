@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Search, Trash2 } from "lucide-react";
-import React from "react";
+import { Calendar as CalendarIcon, ChevronDown, Search, Trash2 } from "lucide-react";
+import React, { type ComponentProps, type ReactElement } from "react";
 import ReactDOM from "react-dom";
 
+import { Calendar } from "@/components/calendar/calendar";
 import { LookupPopup } from "@/components/lookup/lookup-popup";
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 
@@ -17,6 +18,17 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
+import {
+  parseISODate,
+  toDisplayDate,
+  toISODate,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+
+type CalendarWithBoundsProps = ComponentProps<typeof Calendar> & {
+  minDate?: Date | undefined;
+  maxDate?: Date | undefined;
+};
+const CalendarWithBounds = Calendar as unknown as (props: CalendarWithBoundsProps) => ReactElement;
 
 const RETURN_REASON_PRESETS = [
   "Item Damaged",
@@ -176,6 +188,8 @@ interface CreateProductTableRowProps {
   uoms?: CreateLookupOption[];
   showBinLocation?: boolean;
   showGLAccount?: boolean;
+  /** PQ only: Required Date, Quoted Date, Required Qty, Quoted Qty after UoM. */
+  showPqLineDatesAndQtys?: boolean;
 }
 
 export function CreateProductTableRow({
@@ -206,6 +220,7 @@ export function CreateProductTableRow({
   uoms = [],
   showBinLocation = false,
   showGLAccount = false,
+  showPqLineDatesAndQtys = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState("");
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState("");
@@ -279,6 +294,79 @@ export function CreateProductTableRow({
   const [uomInput, setUomInput] = React.useState("");
   const [uomLookupOpen, setUomLookupOpen] = React.useState(false);
   const [uomLookupInitialSearch, setUomLookupInitialSearch] = React.useState("");
+
+  /** PQ Required Date picker — portaled to document.body so table overflow never clips it. */
+  const [lineDatePicker, setLineDatePicker] = React.useState<"required" | null>(null);
+  const requiredDateCellRef = React.useRef<HTMLDivElement>(null);
+  const lineCalendarPortalRef = React.useRef<HTMLDivElement>(null);
+  const [lineCalendarStyle, setLineCalendarStyle] = React.useState<React.CSSProperties>({
+    position: "fixed",
+    zIndex: 999_999,
+  });
+  const today = React.useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+
+  const updateLineCalendarPosition = React.useCallback(() => {
+    if (lineDatePicker !== "required" || !requiredDateCellRef.current) {
+      return;
+    }
+    const rect = requiredDateCellRef.current.getBoundingClientRect();
+    const calendarHeight = 320;
+    const calendarWidth = 280;
+    const margin = 6;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < calendarHeight && rect.top > calendarHeight;
+    const top = openUpward
+      ? Math.max(margin, rect.top - calendarHeight - margin)
+      : rect.bottom + margin;
+    const left = Math.max(margin, Math.min(rect.left, window.innerWidth - calendarWidth - margin));
+    setLineCalendarStyle({
+      position: "fixed",
+      top,
+      left,
+      zIndex: 999_999,
+    });
+  }, [lineDatePicker]);
+
+  React.useLayoutEffect(() => {
+    if (lineDatePicker !== "required") {
+      return;
+    }
+    updateLineCalendarPosition();
+  }, [lineDatePicker, row.requiredDate, updateLineCalendarPosition]);
+
+  React.useEffect(() => {
+    if (lineDatePicker !== "required") {
+      return;
+    }
+    // Reposition on scroll (do not close — overflow containers fire scroll often).
+    const handleScrollOrResize = () => updateLineCalendarPosition();
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const insideRequired = requiredDateCellRef.current?.contains(target);
+      const insidePortal = lineCalendarPortalRef.current?.contains(target);
+      if (!insideRequired && !insidePortal) {
+        setLineDatePicker(null);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLineDatePicker(null);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [lineDatePicker, updateLineCalendarPosition]);
 
   const effectiveMaxQuantity = React.useMemo(() => {
     if (typeof maxQuantity === "function") {
@@ -568,7 +656,6 @@ export function CreateProductTableRow({
         ? "0.00"
         : ""
       : clampedDiscountAmount.toFixed(2));
-
   const isRowActive = !showSelection || row.selected === true;
   const effectiveDisableInputs = disableInputs || !isRowActive;
 
@@ -633,30 +720,12 @@ export function CreateProductTableRow({
             }}
             disabled={warehousesLoading || effectiveDisableInputs}
             placeholder="Select Warehouse"
-            className={`h-9 w-full rounded-lg border px-2 text-xs text-zinc-800 outline-none ${
+            className={`h-9 w-full rounded-lg border px-2 pr-10 text-xs text-zinc-800 outline-none ${
               warehouseError
                 ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
                 : "border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
-            } ${
-              disableInputs ? "cursor-not-allowed opacity-70" : "cursor-text"
-            } ${row.warehouseCode ? "pr-[7.5rem]" : "pr-10"}`}
+            } ${disableInputs ? "cursor-not-allowed opacity-70" : "cursor-text"}`}
           />
-          {row.warehouseCode && (
-            <div className="pointer-events-none absolute right-9 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              <span className="flex h-5 items-center justify-center rounded bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20 px-1.5 text-[10px] font-bold uppercase">
-                {row.warehouseCode}
-              </span>
-              <span
-                className={`flex h-5 items-center justify-center rounded px-1.5 text-[10px] font-bold ${
-                  row.stock > 0
-                    ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20"
-                    : "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20"
-                }`}
-              >
-                {row.stock}
-              </span>
-            </div>
-          )}
           <button
             type="button"
             disabled={effectiveDisableInputs}
@@ -859,9 +928,214 @@ export function CreateProductTableRow({
           />
         </td>
       )}
-      <td className="min-w-0 px-2 py-2">
-        {enforceStockLimit ? (
-          <Tooltip content={quantityMessage} className="block w-auto max-w-none">
+      {showPqLineDatesAndQtys ? (
+        <>
+          {/* Required Date — same Calendar control as document dates. */}
+          <td className="relative min-w-0 px-2 py-2">
+            <div ref={requiredDateCellRef} className="relative">
+              <button
+                type="button"
+                disabled={effectiveDisableInputs}
+                onClick={() => {
+                  if (effectiveDisableInputs) {
+                    onInputRestrictedClick?.();
+                    return;
+                  }
+                  setLineDatePicker((prev) => (prev === "required" ? null : "required"));
+                }}
+                className={`relative flex h-9 w-full items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs outline-none transition ${
+                  effectiveDisableInputs
+                    ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-500 opacity-70"
+                    : "cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                }`}
+              >
+                <span className={row.requiredDate ? "text-zinc-800" : "text-zinc-400"}>
+                  {row.requiredDate ? toDisplayDate(row.requiredDate) : "Select date"}
+                </span>
+                <span
+                  className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 ${
+                    effectiveDisableInputs ? "opacity-50" : ""
+                  }`}
+                >
+                  <CalendarIcon className="h-3 w-3" aria-hidden />
+                </span>
+              </button>
+              {lineDatePicker === "required" &&
+              !effectiveDisableInputs &&
+              typeof document !== "undefined"
+                ? ReactDOM.createPortal(
+                    <div
+                      ref={lineCalendarPortalRef}
+                      style={lineCalendarStyle}
+                      className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"
+                      onMouseDown={(event) => {
+                        // Keep focus/click inside portal from bubbling to table handlers.
+                        event.stopPropagation();
+                      }}
+                    >
+                      <CalendarWithBounds
+                        mode="single"
+                        minDate={today}
+                        {...(row.requiredDate ? { selected: parseISODate(row.requiredDate) } : {})}
+                        onSelect={(value) => {
+                          if (!(value instanceof Date)) {
+                            return;
+                          }
+                          updateProductRow(row.id, { requiredDate: toISODate(value) });
+                          setLineDatePicker(null);
+                        }}
+                      />
+                    </div>,
+                    document.body,
+                  )
+                : null}
+            </div>
+          </td>
+          {/* Quoted Date — display only (blocked; no edit / no auto-fill). */}
+          <td className="relative min-w-0 px-2 py-2">
+            <div className="relative">
+              <button
+                type="button"
+                disabled
+                tabIndex={-1}
+                title="Quoted date is not editable"
+                className="relative flex h-9 w-full cursor-not-allowed items-center justify-start rounded-lg border border-zinc-200 bg-zinc-100 pl-2 pr-8 text-left text-xs text-zinc-500 outline-none opacity-80"
+              >
+                <span className={row.quotedDate ? "text-zinc-600" : "text-zinc-400"}>
+                  {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
+                </span>
+                <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 opacity-60">
+                  <CalendarIcon className="h-3 w-3" aria-hidden />
+                </span>
+              </button>
+            </div>
+          </td>
+          <td className="min-w-0 px-2 py-2">
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={
+                rowDraft?.requiredQuantity !== undefined
+                  ? rowDraft.requiredQuantity
+                  : String(row.requiredQuantity ?? 0)
+              }
+              readOnly={effectiveDisableInputs}
+              onClick={() => {
+                if (effectiveDisableInputs) {
+                  onInputRestrictedClick?.();
+                }
+              }}
+              onChange={(event) => {
+                if (effectiveDisableInputs) {
+                  return;
+                }
+                setProductRowDraft(row.id, "requiredQuantity", event.target.value);
+              }}
+              onBlur={(event) => {
+                if (effectiveDisableInputs) {
+                  return;
+                }
+                const rawValue = event.target.value.trim();
+                const next = rawValue === "" ? 0 : Math.max(0, Math.trunc(Number(rawValue) || 0));
+                updateProductRow(row.id, { requiredQuantity: next });
+                clearProductRowDraft(row.id, "requiredQuantity");
+              }}
+              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+            />
+          </td>
+          {/* Quoted Qty — blocked; placeholder shows 0. */}
+          <td className="min-w-0 px-2 py-2">
+            <input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="0"
+              value={row.quantity > 0 ? String(row.quantity) : ""}
+              disabled
+              readOnly
+              tabIndex={-1}
+              aria-readonly="true"
+              title="Quoted quantity is not editable"
+              className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80 placeholder:text-zinc-400"
+            />
+          </td>
+        </>
+      ) : (
+        <td className="min-w-0 px-2 py-2">
+          {enforceStockLimit ? (
+            <Tooltip content={quantityMessage} className="block w-auto max-w-none">
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={
+                  rowDraft?.quantity !== undefined ? rowDraft.quantity : String(row.quantity ?? 0)
+                }
+                readOnly={effectiveDisableInputs}
+                onClick={() => {
+                  if (effectiveDisableInputs) {
+                    onInputRestrictedClick?.();
+                  }
+                }}
+                onChange={(event) => {
+                  if (effectiveDisableInputs) {
+                    return;
+                  }
+                  setProductRowDraft(row.id, "quantity", event.target.value);
+                }}
+                onBlur={(event) => {
+                  if (effectiveDisableInputs) {
+                    return;
+                  }
+                  const rawValue = event.target.value.trim();
+
+                  if (rawValue === "") {
+                    if (effectiveLinkedRow) {
+                      updateProductRow(row.id, { quantity: 1 });
+                      clearProductRowDraft(row.id, "quantity");
+                      return;
+                    }
+                    updateProductRow(row.id, { quantity: 0 });
+                    clearProductRowDraft(row.id, "quantity");
+                    return;
+                  }
+
+                  const typedQuantity = Number(rawValue);
+                  if (
+                    effectiveLinkedRow &&
+                    (typedQuantity === 0 || !Number.isFinite(typedQuantity))
+                  ) {
+                    updateProductRow(row.id, { quantity: 1 });
+                    clearProductRowDraft(row.id, "quantity");
+                    return;
+                  }
+
+                  const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
+                  const clamped = row.warehouseCode
+                    ? Math.min(maxAllowed, typedQuantityVal)
+                    : typedQuantityVal;
+
+                  if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
+                    updateProductRow(row.id, { quantity: effectiveMaxQuantity });
+                    clearProductRowDraft(row.id, "quantity");
+                    return;
+                  }
+
+                  // Preserve existing discount percent and recompute discount amount based on new quantity
+                  const newGross = row.price * clamped;
+                  const newDiscountAmount =
+                    Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+                  updateProductRow(row.id, {
+                    quantity: clamped,
+                    discountAmount: newDiscountAmount,
+                  });
+                  clearProductRowDraft(row.id, "quantity");
+                }}
+                className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+              />
+            </Tooltip>
+          ) : (
             <input
               type="number"
               min={1}
@@ -909,32 +1183,69 @@ export function CreateProductTableRow({
                 }
 
                 const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
-                const clamped = row.warehouseCode
-                  ? Math.min(maxAllowed, typedQuantityVal)
-                  : typedQuantityVal;
 
-                if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
+                if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {
                   updateProductRow(row.id, { quantity: effectiveMaxQuantity });
                   clearProductRowDraft(row.id, "quantity");
                   return;
                 }
 
-                // Preserve existing discount percent and recompute discount amount based on new quantity
-                const newGross = row.price * clamped;
+                // Preserve discount percent and recalc discount amount
+                const newGross = row.price * typedQuantityVal;
                 const newDiscountAmount =
                   Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
-                updateProductRow(row.id, { quantity: clamped, discountAmount: newDiscountAmount });
-                clearProductRowDraft(row.id, "quantity");
+                updateProductRow(row.id, {
+                  quantity: typedQuantityVal,
+                  discountAmount: newDiscountAmount,
+                });
               }}
               className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
             />
-          </Tooltip>
+          )}
+        </td>
+      )}
+      <td className="min-w-0 px-2 py-2">
+        {showPqLineDatesAndQtys ? (
+          // PQ: same blocked style as Quoted Qty; always show 0.00 when empty.
+          <input
+            type="text"
+            inputMode="decimal"
+            value={Number(row.price || 0).toFixed(2)}
+            disabled
+            readOnly
+            tabIndex={-1}
+            aria-readonly="true"
+            title="Price is not editable"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80"
+          />
+        ) : (
+          <span className="whitespace-nowrap text-left text-sm text-zinc-700">
+            {Number(row.price).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 6,
+            })}
+          </span>
+        )}
+      </td>
+      <td className="min-w-0 px-2 py-2">
+        {showPqLineDatesAndQtys ? (
+          <input
+            type="text"
+            inputMode="decimal"
+            value={Number(row.discountPercent || 0).toFixed(2)}
+            disabled
+            readOnly
+            tabIndex={-1}
+            aria-readonly="true"
+            title="Discount % is not editable"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80"
+          />
         ) : (
           <input
             type="number"
-            min={1}
-            step={1}
-            value={rowDraft?.quantity !== undefined ? rowDraft.quantity : String(row.quantity ?? 0)}
+            step="0.001"
+            inputMode="decimal"
+            value={discountPercentInputValue}
             readOnly={effectiveDisableInputs}
             onClick={() => {
               if (effectiveDisableInputs) {
@@ -945,172 +1256,119 @@ export function CreateProductTableRow({
               if (effectiveDisableInputs) {
                 return;
               }
-              setProductRowDraft(row.id, "quantity", event.target.value);
+              const rawValue = event.target.value;
+              setProductRowDraft(row.id, "discountPercent", rawValue);
+
+              const trimmedValue = rawValue.trim();
+              if (trimmedValue === "") {
+                updateProductRow(row.id, {
+                  discountAmount: 0,
+                  discountPercent: 0,
+                });
+                return;
+              }
+
+              const rawPercent = Math.round((Number(trimmedValue) || 0) * 1000) / 1000;
+              const nextPercent = Math.min(100, rawPercent);
+              const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
+              updateProductRow(row.id, {
+                discountAmount: nextAmount,
+                discountPercent: nextPercent,
+              });
             }}
             onBlur={(event) => {
               if (effectiveDisableInputs) {
                 return;
               }
               const rawValue = event.target.value.trim();
-
-              if (rawValue === "") {
-                if (effectiveLinkedRow) {
-                  updateProductRow(row.id, { quantity: 1 });
-                  clearProductRowDraft(row.id, "quantity");
-                  return;
-                }
-                updateProductRow(row.id, { quantity: 0 });
-                clearProductRowDraft(row.id, "quantity");
-                return;
-              }
-
-              const typedQuantity = Number(rawValue);
-              if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {
-                updateProductRow(row.id, { quantity: 1 });
-                clearProductRowDraft(row.id, "quantity");
-                return;
-              }
-
-              const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
-
-              if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {
-                updateProductRow(row.id, { quantity: effectiveMaxQuantity });
-                clearProductRowDraft(row.id, "quantity");
-                return;
-              }
-
-              // Preserve discount percent and recalc discount amount
-              const newGross = row.price * typedQuantityVal;
-              const newDiscountAmount =
-                Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+              const rawPercent =
+                rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 1000) / 1000;
+              const nextPercent = Math.min(100, rawPercent);
+              const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
               updateProductRow(row.id, {
-                quantity: typedQuantityVal,
-                discountAmount: newDiscountAmount,
+                discountAmount: nextAmount,
+                discountPercent: nextPercent,
               });
+              clearProductRowDraft(row.id, "discountPercent");
             }}
-            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
           />
         )}
       </td>
-      <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
-        {Number(row.price).toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 6,
-        })}
-      </td>
       <td className="min-w-0 px-2 py-2">
-        <input
-          type="number"
-          step="0.001"
-          inputMode="decimal"
-          value={discountPercentInputValue}
-          readOnly={effectiveDisableInputs}
-          onClick={() => {
-            if (effectiveDisableInputs) {
-              onInputRestrictedClick?.();
-            }
-          }}
-          onChange={(event) => {
-            if (effectiveDisableInputs) {
-              return;
-            }
-            const rawValue = event.target.value;
-            setProductRowDraft(row.id, "discountPercent", rawValue);
+        {showPqLineDatesAndQtys ? (
+          <input
+            type="text"
+            inputMode="decimal"
+            value={Number(clampedDiscountAmount || 0).toFixed(2)}
+            disabled
+            readOnly
+            tabIndex={-1}
+            aria-readonly="true"
+            title="Discount amount is not editable"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80"
+          />
+        ) : (
+          <input
+            type="number"
+            step="0.01"
+            inputMode="decimal"
+            title=""
+            value={discountAmountInputValue}
+            readOnly={effectiveDisableInputs}
+            onClick={() => {
+              if (effectiveDisableInputs) {
+                onInputRestrictedClick?.();
+              }
+            }}
+            onChange={(event) => {
+              if (effectiveDisableInputs) {
+                return;
+              }
+              const rawValue = event.target.value;
+              setProductRowDraft(row.id, "discountAmount", rawValue);
 
-            const trimmedValue = rawValue.trim();
-            if (trimmedValue === "") {
+              const trimmedValue = rawValue.trim();
+              if (trimmedValue === "") {
+                updateProductRow(row.id, {
+                  discountAmount: 0,
+                  discountPercent: 0,
+                });
+                return;
+              }
+
+              const rawAmount = Math.round((Number(trimmedValue) || 0) * 100) / 100;
+              const nextAmount = Math.min(grossAmount, rawAmount);
+              const nextPercent =
+                grossAmount > 0
+                  ? Math.round((nextAmount / grossAmount) * 100 * 1000000) / 1000000
+                  : 0;
               updateProductRow(row.id, {
-                discountAmount: 0,
-                discountPercent: 0,
+                discountAmount: nextAmount,
+                discountPercent: nextPercent,
               });
-              return;
-            }
-
-            const rawPercent = Math.round((Number(trimmedValue) || 0) * 1000) / 1000;
-            const nextPercent = Math.min(100, rawPercent);
-            const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
-            updateProductRow(row.id, {
-              discountAmount: nextAmount,
-              discountPercent: nextPercent,
-            });
-          }}
-          onBlur={(event) => {
-            if (effectiveDisableInputs) {
-              return;
-            }
-            const rawValue = event.target.value.trim();
-            const rawPercent =
-              rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 1000) / 1000;
-            const nextPercent = Math.min(100, rawPercent);
-            const nextAmount = Math.round(((grossAmount * nextPercent) / 100) * 100) / 100;
-            updateProductRow(row.id, {
-              discountAmount: nextAmount,
-              discountPercent: nextPercent,
-            });
-            clearProductRowDraft(row.id, "discountPercent");
-          }}
-          className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
-        />
-      </td>
-      <td className="min-w-0 px-2 py-2">
-        <input
-          type="number"
-          step="0.01"
-          inputMode="decimal"
-          title=""
-          value={discountAmountInputValue}
-          readOnly={effectiveDisableInputs}
-          onClick={() => {
-            if (effectiveDisableInputs) {
-              onInputRestrictedClick?.();
-            }
-          }}
-          onChange={(event) => {
-            if (effectiveDisableInputs) {
-              return;
-            }
-            const rawValue = event.target.value;
-            setProductRowDraft(row.id, "discountAmount", rawValue);
-
-            const trimmedValue = rawValue.trim();
-            if (trimmedValue === "") {
+            }}
+            onBlur={(event) => {
+              if (effectiveDisableInputs) {
+                return;
+              }
+              const rawValue = event.target.value.trim();
+              const rawAmount =
+                rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
+              const nextAmount = Math.min(grossAmount, rawAmount);
+              const nextPercent =
+                grossAmount > 0
+                  ? Math.round((nextAmount / grossAmount) * 100 * 1000000) / 1000000
+                  : 0;
               updateProductRow(row.id, {
-                discountAmount: 0,
-                discountPercent: 0,
+                discountAmount: nextAmount,
+                discountPercent: nextPercent,
               });
-              return;
-            }
-
-            const rawAmount = Math.round((Number(trimmedValue) || 0) * 100) / 100;
-            const nextAmount = Math.min(grossAmount, rawAmount);
-            const nextPercent =
-              grossAmount > 0
-                ? Math.round((nextAmount / grossAmount) * 100 * 1000000) / 1000000
-                : 0;
-            updateProductRow(row.id, {
-              discountAmount: nextAmount,
-              discountPercent: nextPercent,
-            });
-          }}
-          onBlur={(event) => {
-            if (effectiveDisableInputs) {
-              return;
-            }
-            const rawValue = event.target.value.trim();
-            const rawAmount = rawValue === "" ? 0 : Math.round((Number(rawValue) || 0) * 100) / 100;
-            const nextAmount = Math.min(grossAmount, rawAmount);
-            const nextPercent =
-              grossAmount > 0
-                ? Math.round((nextAmount / grossAmount) * 100 * 1000000) / 1000000
-                : 0;
-            updateProductRow(row.id, {
-              discountAmount: nextAmount,
-              discountPercent: nextPercent,
-            });
-            clearProductRowDraft(row.id, "discountAmount");
-          }}
-          className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
-        />
+              clearProductRowDraft(row.id, "discountAmount");
+            }}
+            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+          />
+        )}
       </td>
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
         {unitNetPrice.toFixed(2)}

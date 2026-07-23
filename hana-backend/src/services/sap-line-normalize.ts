@@ -53,10 +53,35 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
     }
   }
 
+  const reqDate = String(
+    line.ReqDate ??
+      line.reqDate ??
+      line.RequiredDate ??
+      line.requiredDate ??
+      line.PQTReqDate ??
+      line.pqtReqDate ??
+      "",
+  )
+    .trim()
+    .slice(0, 10);
+
+  // PQ split fields: keep as true SAP values (do not merge Quantity ↔ RequiredQuantity).
+  // Quantity = quoted qty; RequiredQuantity = PQT1.PQTReqQty (required qty).
+  // ShipDate = quoted date; ReqDate = required date.
+  const requiredQuantity = Number(
+    line.RequiredQuantity ?? line.requiredQuantity ?? line.PQTReqQty ?? line.pqtReqQty ?? 0,
+  );
+  const shipDateRaw = line.ShipDate ?? line.shipDate ?? line.QuotedDate ?? line.quotedDate;
+  const shipDate =
+    shipDateRaw !== undefined && shipDateRaw !== null && String(shipDateRaw).trim()
+      ? String(shipDateRaw).trim().slice(0, 10)
+      : "";
+
   return {
     ItemCode: String(line.ItemCode ?? line.itemCode ?? ""),
     ItemDescription: String(line.ItemDescription ?? line.itemDescription ?? ""),
     Quantity: quantity,
+    RequiredQuantity: Number.isFinite(requiredQuantity) ? requiredQuantity : 0,
     OpenQty: Number(
       line.RemainingOpenQuantity ??
         line.remainingOpenQuantity ??
@@ -91,28 +116,9 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
         ? Number(line.UoMEntry ?? line.uomEntry ?? line.UomEntry)
         : undefined,
     WarehouseCode: String(line.WarehouseCode ?? line.warehouseCode ?? ""),
-    ReqDate: String(
-      line.ReqDate ??
-        line.reqDate ??
-        line.RequiredDate ??
-        line.requiredDate ??
-        line.PQTReqDate ??
-        line.pqtReqDate ??
-        "",
-    )
-      .trim()
-      .slice(0, 10),
-    RequiredDate: String(
-      line.ReqDate ??
-        line.reqDate ??
-        line.RequiredDate ??
-        line.requiredDate ??
-        line.PQTReqDate ??
-        line.pqtReqDate ??
-        "",
-    )
-      .trim()
-      .slice(0, 10),
+    ReqDate: reqDate,
+    RequiredDate: reqDate,
+    ShipDate: shipDate,
     LineNum: Number(line.LineNum ?? line.lineNum ?? 0) || 0,
     RemainingOpenQuantity: Number(
       line.RemainingOpenQuantity ??

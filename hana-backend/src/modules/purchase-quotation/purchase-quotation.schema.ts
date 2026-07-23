@@ -85,8 +85,16 @@ export const PurchaseQuotationDocNumLookupQuerySchema = z.object({
 const PurchaseQuotationLineItemSchema = z.object({
   DiscountPercent: z.number().optional(),
   ItemCode: z.string().min(1),
-  Quantity: z.number().positive(),
+  /** Quoted quantity — PQT1.Quantity / DocTotal (0 when not yet quoted). */
+  Quantity: z.number().nonnegative(),
+  /** Required quantity — PQT1.PQTReqQty (Service Layer RequiredQuantity). */
+  RequiredQuantity: z.number().nonnegative().optional(),
   ReqDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
+    .optional(),
+  /** Quoted / shipping date — PQT1.ShipDate. */
+  ShipDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),

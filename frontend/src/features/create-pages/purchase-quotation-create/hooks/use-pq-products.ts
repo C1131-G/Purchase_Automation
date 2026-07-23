@@ -25,6 +25,9 @@ interface usePqProductsProps {
   setProductSearch: (search: string) => void;
   stockPreviewProductCode: string | undefined;
   vendorSelected: boolean;
+  /** Default line Required Date / Quoted Date when adding products (from header). */
+  defaultLineRequiredDate?: string;
+  defaultLineQuotedDate?: string;
 }
 
 export function usePqProducts({
@@ -36,6 +39,8 @@ export function usePqProducts({
   setProductSearch,
   stockPreviewProductCode,
   vendorSelected,
+  defaultLineRequiredDate = "",
+  defaultLineQuotedDate: _defaultLineQuotedDate = "",
 }: usePqProductsProps) {
   const queryClient = useQueryClient();
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
@@ -225,10 +230,15 @@ export function usePqProducts({
           currency: product.currency,
           discountAmount: 0,
           discountPercent: 0,
-          price: product.price,
+          // PQ: always start at 0; user can edit when line inputs are enabled.
+          price: 0,
           productCode: product.code,
           productName: product.name,
-          quantity: 1,
+          // Quoted qty/date stay empty until the vendor fills them.
+          quantity: 0,
+          quotedDate: "",
+          requiredQuantity: 1,
+          requiredDate: defaultLineRequiredDate || activeRow?.requiredDate || "",
           stock: resolvedStock,
           taxRate: product.taxRate,
           uomCode: product.purchaseUomCode || product.uomCode,
@@ -260,10 +270,15 @@ export function usePqProducts({
           discountAmount: 0,
           discountPercent: 0,
           id: `row-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-          price: product.price,
+          // PQ: always start at 0; user can edit when line inputs are enabled.
+          price: 0,
           productCode: product.code,
           productName: product.name,
-          quantity: 1,
+          // Quoted qty/date stay empty until the vendor fills them.
+          quantity: 0,
+          quotedDate: "",
+          requiredQuantity: 1,
+          requiredDate: defaultLineRequiredDate || "",
           selected: false,
           stock: resolvedStock,
           taxRate: product.taxRate,

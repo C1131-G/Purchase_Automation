@@ -44,6 +44,11 @@ export const getPurchaseQuotation = async (sessionId: string, id: string, isDraf
       SalesPersonCode: (result as unknown as Record<string, unknown>).SalesPersonCode,
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
+      // SAP Service Layer uses the misspelled header property name.
+      RequriedDate:
+        (result as unknown as Record<string, unknown>).RequriedDate ??
+        (result as unknown as Record<string, unknown>).RequiredDate ??
+        result.DocDueDate,
       CardCode: result.CardCode,
       CardName: result.CardName,
       Address: result.Address,
@@ -59,21 +64,15 @@ export const getPurchaseQuotation = async (sessionId: string, id: string, isDraf
       attachments,
       DocumentLines: (result.DocumentLines || []).map((line: SAPDocumentLine) => {
         const lineData = line as unknown as Record<string, unknown>;
-        const normalized = normalizeSAPLineData(lineData);
-        // PQT1.PQTReqQty is the user-entered quantity on a Purchase Quotation,
-        // while PQT1.Quantity stays 0 by design. Surface RequiredQuantity as
-        // Quantity in the API response so the vendor portal edit/copy-from
-        // hydration reads the same value the user originally entered.
-        // Do not overwrite OpenQty here: SAP's real OpenQty must flow through
-        // unchanged so that downstream copy-to cascades (PO/GRPO/AP Invoice)
-        // can use the actual remaining quantity for partial-fulfillment checks.
-        const requiredQuantity = Number(
-          lineData.RequiredQuantity ?? lineData.requiredQuantity ?? 0,
-        );
-        if (requiredQuantity > 0) {
-          normalized.Quantity = requiredQuantity;
-        }
-        return normalized;
+        // Single source of truth for PQ line split (do not merge fields):
+        //   Quantity          → quoted qty  (may be 0 until vendor quotes)
+        //   RequiredQuantity  → required qty (PQT1.PQTReqQty)
+        //   ReqDate           → required date
+        //   ShipDate          → quoted date (may be empty)
+        // normalizeSAPLineData already maps these without cross-copying.
+        // Do not overwrite OpenQty: SAP's real OpenQty must flow through for
+        // copy-to cascades (PO/GRPO/AP Invoice).
+        return normalizeSAPLineData(lineData);
       }),
     };
   } catch (err: unknown) {
@@ -153,7 +152,13 @@ export const getOpenPurchaseQuotationLines = async (dbName: string, cardCode: st
         '"l"."LineNum"    AS "LineNum"',
         '"l"."ItemCode"   AS "ItemCode"',
         '"l"."Dscription" AS "ItemDescription"',
+        // PQ split: Quantity = quoted; PQTReqQty = required; ShipDate = quoted date; PQTReqDate = required date
         '"l"."Quantity"   AS "Quantity"',
+        '"l"."PQTReqQty"  AS "RequiredQuantity"',
+        '"l"."PQTReqQty"  AS "PQTReqQty"',
+        '"l"."ShipDate"   AS "ShipDate"',
+        '"l"."PQTReqDate" AS "ReqDate"',
+        '"l"."PQTReqDate" AS "PQTReqDate"',
         '"l"."OpenQty"    AS "OpenQty"',
         '"l"."Price"      AS "Price"',
         '"l"."PriceBefDi" AS "PriceBefDi"',
@@ -167,7 +172,8 @@ export const getOpenPurchaseQuotationLines = async (dbName: string, cardCode: st
       ])
       .where('"h"."CardCode" = :cardCode', { cardCode })
       .andWhere('"h"."DocStatus" = :docStatus', { docStatus: "O" })
-      .andWhere('"l"."OpenQty" > 0')
+      // Open remaining OR still has required qty (quoted Quantity may stay 0 on PQ)
+      .andWhere('("l"."OpenQty" > 0 OR "l"."PQTReqQty" > 0)')
       .orderBy('"h"."DocNum"', "DESC")
       .addOrderBy('"l"."LineNum"', "ASC")
       .getRawMany()) as Record<string, unknown>[];
@@ -175,6 +181,13 @@ export const getOpenPurchaseQuotationLines = async (dbName: string, cardCode: st
     const openLines = rows.map((row) => {
       const normalized = normalizeSAPLineData(row);
       const headerDiscountPercent = Number(row["HeaderDiscountPercent"] ?? 0);
+      // Prefer SAP OpenQty; when quoted qty is 0, remaining open often tracks required qty.
+      const openQty =
+        Number(normalized.OpenQty) > 0
+          ? Number(normalized.OpenQty)
+          : Number(normalized.RequiredQuantity) > 0
+            ? Number(normalized.RequiredQuantity)
+            : Number(normalized.Quantity);
       return {
         DiscountPercent: normalized.DiscountPercent || headerDiscountPercent,
         DocCurr: String(row["DocCurr"] ?? ""),
@@ -185,9 +198,12 @@ export const getOpenPurchaseQuotationLines = async (dbName: string, cardCode: st
         ItemDescription: normalized.ItemDescription,
         LineNum: normalized.LineNum,
         LineTotal: normalized.LineTotal,
-        OpenQty: normalized.OpenQty,
+        OpenQty: openQty,
         Price: normalized.Price,
         Quantity: normalized.Quantity,
+        RequiredQuantity: normalized.RequiredQuantity,
+        ReqDate: normalized.ReqDate,
+        ShipDate: normalized.ShipDate,
         UoMCode: normalized.UoMCode,
         UoMEntry: normalized.UoMEntry,
         VatGroup: normalized.VatGroup,

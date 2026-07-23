@@ -119,6 +119,109 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     return docDate.trim();
   };
 
+  /** Header Required Date (SAP RequriedDate) with fallbacks for older docs. */
+  const getEffectivePurchaseQuotationRequiredDate = (
+    requiredDate: string,
+    docDueDate: string,
+    docDate: string,
+  ) => {
+    const trimmedRequiredDate = requiredDate.trim();
+    if (trimmedRequiredDate) {
+      return trimmedRequiredDate;
+    }
+    return getEffectivePurchaseQuotationDueDate(docDueDate, docDate);
+  };
+
+  /**
+   * Map a product row → SAP PQ DocumentLine (strict split, no cross-copy):
+   *   quantity         → Quantity          (quoted qty; 0 until vendor quotes)
+   *   requiredQuantity → RequiredQuantity  (PQTReqQty; enabled on create)
+   *   requiredDate     → ReqDate           (enabled; falls back to header)
+   *   quotedDate       → ShipDate          (disabled on create; omit when empty)
+   */
+  const mapPqDocumentLine = (
+    row: {
+      lineNum?: number | undefined;
+      discountPercent: number;
+      productCode: string;
+      quantity: number;
+      requiredQuantity?: number | undefined;
+      requiredDate?: string | undefined;
+      quotedDate?: string | undefined;
+      price: number;
+      uomCode?: string | undefined;
+      uomEntry?: number | undefined;
+      vatGroup: string;
+      warehouseCode: string;
+    },
+    fallbackRequiredDate: string,
+    fallbackWarehouse: string,
+  ) => {
+    const quotedQty = Number(row.quantity ?? 0);
+    const requiredQty = Number(
+      row.requiredQuantity !== undefined && row.requiredQuantity !== null
+        ? row.requiredQuantity
+        : 0,
+    );
+    const lineReqDate = String(row.requiredDate || fallbackRequiredDate || "")
+      .trim()
+      .slice(0, 10);
+    // Do not copy required date into quoted date.
+    const lineQuotedDate = String(row.quotedDate || "")
+      .trim()
+      .slice(0, 10);
+    return {
+      LineNum: row.lineNum,
+      DiscountPercent: row.discountPercent,
+      ItemCode: row.productCode,
+      Quantity: Number.isFinite(quotedQty) ? quotedQty : 0,
+      RequiredQuantity: Number.isFinite(requiredQty) ? requiredQty : 0,
+      ...(lineReqDate ? { ReqDate: lineReqDate } : {}),
+      ...(lineQuotedDate ? { ShipDate: lineQuotedDate } : {}),
+      UnitPrice: row.price,
+      UoMCode: row.uomCode || undefined,
+      UoMEntry: row.uomEntry ?? undefined,
+      VatGroup: row.vatGroup || undefined,
+      WarehouseCode: row.warehouseCode || fallbackWarehouse || undefined,
+    };
+  };
+
+  /** Hydrate PQ product row qty/dates from SAP line — keep fields independent. */
+  const mapSapLineQtyAndDates = (
+    line: PurchaseQuotationDetailLine,
+    fallbackRequiredDate: string,
+  ) => {
+    const lineData = line as Record<string, unknown>;
+    // Quoted qty = Quantity only (never invent from required qty).
+    const sapQuotedQty = Number(line.Quantity ?? lineData.Quantity ?? 0);
+    const sapRequiredQty = Number(
+      line.RequiredQuantity ??
+        lineData.RequiredQuantity ??
+        lineData.requiredQuantity ??
+        lineData.PQTReqQty ??
+        0,
+    );
+    const quantity = Number.isFinite(sapQuotedQty) && sapQuotedQty > 0 ? sapQuotedQty : 0;
+    // Required qty prefers SAP RequiredQuantity; only fall back to quoted for
+    // legacy single-qty docs that never wrote PQTReqQty.
+    const requiredQuantity =
+      Number.isFinite(sapRequiredQty) && sapRequiredQty > 0
+        ? sapRequiredQty
+        : quantity > 0
+          ? quantity
+          : 0;
+    const requiredDate = String(
+      line.ReqDate ?? line.RequiredDate ?? lineData.ReqDate ?? fallbackRequiredDate ?? "",
+    )
+      .trim()
+      .slice(0, 10);
+    // Quoted date = ShipDate only (never invent from required date).
+    const quotedDate = String(line.ShipDate ?? lineData.ShipDate ?? "")
+      .trim()
+      .slice(0, 10);
+    return { quantity, requiredQuantity, requiredDate, quotedDate };
+  };
+
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";
   const header = usePqHeader();
@@ -143,6 +246,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
   const hydratedDocNumRef = useRef<string | null>(null);
   const [hydratedDocNum, setHydratedDocNum] = useState<string | null>(null);
+  const requiredDateContainerRef = useRef<HTMLDivElement>(null);
 
   const editDocNum = (options?.docNum ?? "").trim();
   const draftDocNum = (options?.draftDocNum ?? "").trim();
@@ -178,6 +282,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
   });
 
   const productsHook = usePqProducts({
+    // Quoted date is left empty on new lines; only required date seeds from header.
+    defaultLineQuotedDate: "",
+    defaultLineRequiredDate: header.requiredDate || header.docDueDate || "",
     effectiveWarehouseCode: lookups.effectiveWarehouseCode,
     productPopupOpen: modals.productPopupOpen,
     productSearch: modals.productSearch,
@@ -187,6 +294,39 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     vendorLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
   });
+
+  // Keep line Required Date in sync with header Required Date when the line is
+  // empty or still matching the previous header value. User can override per row;
+  // changing the header again re-syncs only non-overridden rows.
+  const prevHeaderRequiredDateRef = useRef<string | null>(null);
+  useEffect(() => {
+    const nextHeaderRequired = (header.requiredDate || "").trim().slice(0, 10);
+    const prevHeaderRequired = prevHeaderRequiredDateRef.current;
+    prevHeaderRequiredDateRef.current = nextHeaderRequired;
+
+    if (!nextHeaderRequired) {
+      return;
+    }
+    // Skip first paint after hydrate so we don't stomp loaded SAP line dates.
+    if (prevHeaderRequired === null) {
+      return;
+    }
+    if (prevHeaderRequired === nextHeaderRequired) {
+      return;
+    }
+
+    productsHook.setProductRows((prev) =>
+      prev.map((row) => {
+        const lineReq = (row.requiredDate || "").trim().slice(0, 10);
+        const stillMatchesPrevious =
+          !lineReq || (prevHeaderRequired !== null && lineReq === prevHeaderRequired);
+        if (!stillMatchesPrevious) {
+          return row;
+        }
+        return { ...row, requiredDate: nextHeaderRequired };
+      }),
+    );
+  }, [header.requiredDate, productsHook.setProductRows]);
 
   useEffect(() => {
     if (!isEditMode && !draftDocNum) {
@@ -260,6 +400,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         const docDate = String(detail.DocDate ?? "").slice(0, 10);
         const docDueDate = String(detail.DocDueDate ?? "").slice(0, 10);
         const effectiveDocDueDate = getEffectivePurchaseQuotationDueDate(docDueDate, docDate);
+        const headerRequiredDate = String(
+          detail.RequriedDate ?? detail.RequiredDate ?? effectiveDocDueDate,
+        )
+          .trim()
+          .slice(0, 10);
         const address = String(detail.Address ?? "").trim();
         const address2 = String((detail as Record<string, unknown>).Address2 ?? "").trim();
         const shipToAddress = address2 ? reconcileAddresses(address, address2) : address;
@@ -319,29 +464,30 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         const mappedRows = detailLines.map((line: PurchaseQuotationDetailLine, index) => {
           const itemCode = String(line.ItemCode ?? "").trim();
           const productMeta = productByCode.get(itemCode);
-          // Purchase Quotation stores the user-entered quantity in PQT1.PQTReqQty
-          // (Service Layer: RequiredQuantity). The backend surfaces this as
-          // line.Quantity on read, so prefer RequiredQuantity as a defensive
-          // fallback for older payloads.
           const lineData = line as Record<string, unknown>;
-          const quantity = Number(
-            lineData.RequiredQuantity ?? lineData.requiredQuantity ?? line.Quantity ?? 1,
+          const { quantity, requiredQuantity, requiredDate, quotedDate } = mapSapLineQtyAndDates(
+            line,
+            headerRequiredDate || effectiveDocDueDate,
           );
           // OpenQty is the real remaining-fulfillable quantity. Surface it on the
           // row so downstream CopyTo cascades (PO/GRPO/AP Invoice) and any
-          // partial-fulfillment UI can consume it.
-          const openQty = Number(
-            lineData.OpenQty ?? lineData.OpenQuantity ?? lineData.RemainingOpenQuantity ?? quantity,
+          // partial-fulfillment UI can consume it. When quoted qty is still 0,
+          // fall back to required qty so open qty is not wiped on PQ edit hydrate.
+          const sapOpenQty = Number(
+            lineData.OpenQty ?? lineData.OpenQuantity ?? lineData.RemainingOpenQuantity ?? 0,
           );
+          const openQty =
+            Number.isFinite(sapOpenQty) && sapOpenQty > 0
+              ? sapOpenQty
+              : requiredQuantity > 0
+                ? requiredQuantity
+                : quantity;
           const price = Number(line.Price ?? line.UnitPrice ?? productMeta?.price ?? 0);
           const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
             grossAmount: price * quantity,
             headerDiscountPercent: Number((detail as Record<string, unknown>).DiscountPercent ?? 0),
             line: line as Record<string, unknown>,
           });
-          const requiredDate = String(line.ReqDate ?? line.RequiredDate ?? effectiveDocDueDate)
-            .trim()
-            .slice(0, 10);
           return {
             id: `row-${hydrationKey}-${index}`,
             lineNum: typeof line.LineNum === "number" ? line.LineNum : index,
@@ -387,11 +533,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             salesUomEntry: productMeta?.uomEntry,
             uomList: productMeta?.uomList,
             quantity,
+            requiredQuantity,
             discountPercent,
             discountAmount,
             comment: "",
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
             requiredDate,
+            quotedDate,
             openQty,
             selected: false,
           };
@@ -401,6 +549,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           comments,
           docDate: docDate || header.docDate,
           docDueDate,
+          requiredDate: headerRequiredDate || effectiveDocDueDate,
           referenceNo,
           vendorCode,
           vendorName,
@@ -435,6 +584,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           referenceNo: referenceNo.trim(),
           docDate: docDate,
           docDueDate: docDueDate,
+          requiredDate: (headerRequiredDate || effectiveDocDueDate).trim(),
           salesEmployee: associatedSalesEmployeeName.trim(),
           warehouseCode: warehouseCode.trim(),
           billToAddress: address.trim(),
@@ -444,10 +594,17 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             freeText: item.freeText || item.remarks || "",
           })),
           productRows: mappedRows
-            .filter((row) => row.productCode.trim() && row.quantity > 0)
+            .filter(
+              (row) =>
+                row.productCode.trim() &&
+                (Number(row.requiredQuantity ?? 0) > 0 || row.quantity > 0),
+            )
             .map((row) => ({
               productCode: row.productCode,
               quantity: row.quantity,
+              requiredQuantity: row.requiredQuantity ?? 0,
+              requiredDate: row.requiredDate ?? "",
+              quotedDate: row.quotedDate ?? "",
               price: row.price,
               discountPercent: row.discountPercent,
               warehouseCode: row.warehouseCode,
@@ -565,7 +722,8 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       const target = event.target as Node;
       const insideDoc = docDateContainerRef.current?.contains(target);
       const insideDelivery = deliveryDateContainerRef.current?.contains(target);
-      if (!insideDoc && !insideDelivery) {
+      const insideRequired = requiredDateContainerRef.current?.contains(target);
+      if (!insideDoc && !insideDelivery && !insideRequired) {
         setActiveDatePicker(null);
       }
     };
@@ -661,8 +819,16 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     ((searchMandatoryFields.length - missingSearchMandatoryFields.length) /
       searchMandatoryFields.length) *
     100;
+  // Quoted qty is blocked/empty on PQ create UI — validate on required qty instead.
   const validRows = useMemo(
-    () => productsHook.productRows.filter((row) => row.productCode.trim() && row.quantity > 0),
+    () =>
+      productsHook.productRows.filter((row) => {
+        if (!row.productCode.trim()) {
+          return false;
+        }
+        const requiredQty = Number(row.requiredQuantity ?? 0);
+        return requiredQty > 0 || row.quantity > 0;
+      }),
     [productsHook.productRows],
   );
 
@@ -680,6 +846,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         referenceNo: header.referenceNo.trim(),
         docDate: header.docDate,
         docDueDate: header.docDueDate,
+        requiredDate: header.requiredDate,
         salesEmployee: lookups.salesEmployeeInput.trim(),
         warehouseCode: lookups.effectiveWarehouseCode.trim(),
         billToAddress: lookups.billToAddress.trim(),
@@ -691,6 +858,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         productRows: validRows.map((row) => ({
           productCode: row.productCode,
           quantity: row.quantity,
+          requiredQuantity: row.requiredQuantity ?? 0,
+          requiredDate: row.requiredDate ?? "",
+          quotedDate: row.quotedDate ?? "",
           price: row.price,
           discountPercent: row.discountPercent,
           warehouseCode: row.warehouseCode,
@@ -703,6 +873,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         header.referenceNo,
         header.docDate,
         header.docDueDate,
+        header.requiredDate,
         lookups.salesEmployeeInput,
         lookups.effectiveWarehouseCode,
         lookups.billToAddress,
@@ -775,6 +946,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     tableUrl: "/purchase/quotations",
     resetForm,
     getPayloadString: () => {
+      const effectiveRequiredDate = getEffectivePurchaseQuotationRequiredDate(
+        header.requiredDate,
+        header.docDueDate,
+        header.docDate,
+      );
       const payload = {
         Address: lookups.billToAddress.trim() || undefined,
         Address2: lookups.shipToAddress.trim() || undefined,
@@ -783,18 +959,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         NumAtCard: header.referenceNo.trim() || undefined,
         DocDate: header.docDate,
         DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-        DocumentLines: productsHook.productRows.map((row) => ({
-          LineNum: row.lineNum,
-          DiscountPercent: row.discountPercent,
-          ItemCode: row.productCode,
-          ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-          Quantity: row.quantity,
-          UnitPrice: row.price,
-          UoMCode: row.uomCode || undefined,
-          UoMEntry: row.uomEntry ?? undefined,
-          VatGroup: row.vatGroup || undefined,
-          WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-        })),
+        RequriedDate: effectiveRequiredDate,
+        DocumentLines: productsHook.productRows.map((row) =>
+          mapPqDocumentLine(row, effectiveRequiredDate, lookups.effectiveWarehouseCode.trim()),
+        ),
         SalesPersonCode: resolvedSalesEmployeeCode,
       };
       return JSON.stringify(payload);
@@ -857,6 +1025,16 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     const loadedDraftDocEntry =
       editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id;
 
+    const effectiveDocDueDate = getEffectivePurchaseQuotationDueDate(
+      header.docDueDate,
+      header.docDate,
+    );
+    const effectiveRequiredDate = getEffectivePurchaseQuotationRequiredDate(
+      header.requiredDate,
+      header.docDueDate,
+      header.docDate,
+    );
+
     const payload = isDraftAction
       ? {
           Address: lookups.billToAddress.trim() || undefined,
@@ -870,19 +1048,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
-          DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-          DocumentLines: validRows.map((row) => ({
-            LineNum: row.lineNum,
-            DiscountPercent: row.discountPercent,
-            ItemCode: row.productCode,
-            ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-            Quantity: row.quantity,
-            UnitPrice: row.price,
-            UoMCode: row.uomCode || undefined,
-            UoMEntry: row.uomEntry ?? undefined,
-            VatGroup: row.vatGroup || undefined,
-            WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-          })),
+          DocDueDate: effectiveDocDueDate,
+          RequriedDate: effectiveRequiredDate,
+          DocumentLines: validRows.map((row) =>
+            mapPqDocumentLine(row, effectiveRequiredDate, lookups.effectiveWarehouseCode.trim()),
+          ),
           SalesPersonCode: resolvedSalesEmployeeCode,
           attachments: attachments.map((att) => ({
             sourcePath: att.sourcePath || "",
@@ -900,32 +1070,20 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             Comments: header.comments.trim() || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             DocDate: header.docDate,
-            DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
+            DocDueDate: effectiveDocDueDate,
             // When closed, SAP blocks line-level field updates (ShipDate/ReqDate → ODBC -1029).
             // Only send DocumentLines for open documents.
             ...(isClosed
               ? {}
               : {
-                  RequriedDate: getEffectivePurchaseQuotationDueDate(
-                    header.docDueDate,
-                    header.docDate,
-                  ),
-                  DocumentLines: validRows.map((row) => ({
-                    LineNum: row.lineNum,
-                    DiscountPercent: row.discountPercent,
-                    ItemCode: row.productCode,
-                    ReqDate: getEffectivePurchaseQuotationDueDate(
-                      header.docDueDate,
-                      header.docDate,
+                  RequriedDate: effectiveRequiredDate,
+                  DocumentLines: validRows.map((row) =>
+                    mapPqDocumentLine(
+                      row,
+                      effectiveRequiredDate,
+                      lookups.effectiveWarehouseCode.trim(),
                     ),
-                    Quantity: row.quantity,
-                    UnitPrice: row.price,
-                    UoMCode: row.uomCode || undefined,
-                    UoMEntry: row.uomEntry ?? undefined,
-                    VatGroup: row.vatGroup || undefined,
-                    WarehouseCode:
-                      row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-                  })),
+                  ),
                 }),
             SalesPersonCode: resolvedSalesEmployeeCode,
             attachments: attachments.map((att) => ({
@@ -951,20 +1109,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             Comments: header.comments.trim() || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             DocDate: header.docDate,
-            DocDueDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-            DocumentLines: validRows.map((row) => ({
-              LineNum: row.lineNum,
-              DiscountPercent: row.discountPercent,
-              ItemCode: row.productCode,
-              ReqDate: getEffectivePurchaseQuotationDueDate(header.docDueDate, header.docDate),
-              Quantity: row.quantity,
-              UnitPrice: row.price,
-              UoMCode: row.uomCode || undefined,
-              UoMEntry: row.uomEntry ?? undefined,
-              VatGroup: row.vatGroup || undefined,
-              WarehouseCode:
-                row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
-            })),
+            DocDueDate: effectiveDocDueDate,
+            RequriedDate: effectiveRequiredDate,
+            DocumentLines: validRows.map((row) =>
+              mapPqDocumentLine(row, effectiveRequiredDate, lookups.effectiveWarehouseCode.trim()),
+            ),
             SalesPersonCode: resolvedSalesEmployeeCode,
             attachments: attachments.map((att) => ({
               sourcePath: att.sourcePath || "",
@@ -1000,9 +1149,13 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           ? editDetailQuery.data?.data?.DocNum
           : (editDetailQuery.data?.data?.DocNum ?? draftDocNum);
 
-        // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh
+        // Fetch the updated detail from the API/cache to sync the local states (like attachments) immediately without page refresh.
+        // For draft updates, pass DocEntry so ODRF is resolved reliably (not OPQT DocNum collisions).
         const updatedDetailRes = await queryClient.fetchQuery(
-          purchaseQuotationQueries.detailByDocNum(String(createdDocNum)),
+          purchaseQuotationQueries.detailByDocNum(
+            String(createdDocNum),
+            isDraftUpdate ? String(docEntry) : undefined,
+          ),
         );
         const updatedDetail = updatedDetailRes?.data;
         if (updatedDetail) {
@@ -1049,6 +1202,11 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           const { comments, referenceNo } = parsePurchaseQuotationHeaderNotes(updatedDetail);
           const docDate = String(updatedDetail.DocDate ?? "").slice(0, 10);
           const docDueDate = String(updatedDetail.DocDueDate ?? "").slice(0, 10);
+          const headerRequiredDate = String(
+            updatedDetail.RequriedDate ?? updatedDetail.RequiredDate ?? docDueDate,
+          )
+            .trim()
+            .slice(0, 10);
           const address = String(updatedDetail.Address ?? "").trim();
           const address2 = String((updatedDetail as Record<string, unknown>).Address2 ?? "").trim();
           const shipToAddress = address2 ? reconcileAddresses(address, address2) : address;
@@ -1056,29 +1214,28 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           const detailLines = updatedDetail.DocumentLines ?? [];
           const mappedRows = detailLines.map((line: PurchaseQuotationDetailLine, index) => {
             const itemCode = String(line.ItemCode ?? "").trim();
-            const quantity = Number(
-              (line as Record<string, unknown>).RequiredQuantity ??
-                (line as Record<string, unknown>).requiredQuantity ??
-                line.Quantity ??
-                1,
+            const lineData = line as Record<string, unknown>;
+            const { quantity, requiredQuantity, requiredDate, quotedDate } = mapSapLineQtyAndDates(
+              line,
+              headerRequiredDate || docDueDate,
             );
-            const openQty = Number(
-              (line as Record<string, unknown>).OpenQty ??
-                (line as Record<string, unknown>).OpenQuantity ??
-                (line as Record<string, unknown>).RemainingOpenQuantity ??
-                quantity,
+            const sapOpenQty = Number(
+              lineData.OpenQty ?? lineData.OpenQuantity ?? lineData.RemainingOpenQuantity ?? 0,
             );
+            const openQty =
+              Number.isFinite(sapOpenQty) && sapOpenQty > 0
+                ? sapOpenQty
+                : requiredQuantity > 0
+                  ? requiredQuantity
+                  : quantity;
             const price = Number(line.Price ?? line.UnitPrice ?? 0);
             const { discountPercent, discountAmount } = resolveDocumentLineDiscount({
-              grossAmount: price * quantity,
+              grossAmount: price * Math.max(quantity, 0),
               headerDiscountPercent: Number(
                 (updatedDetail as Record<string, unknown>).DiscountPercent ?? 0,
               ),
-              line: line as Record<string, unknown>,
+              line: lineData,
             });
-            const requiredDate = String(line.ReqDate ?? line.RequiredDate ?? docDueDate)
-              .trim()
-              .slice(0, 10);
             return {
               id: `row-${createdDocNum}-${index}`,
               lineNum: typeof line.LineNum === "number" ? line.LineNum : index,
@@ -1089,37 +1246,37 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
               currency: String(updatedDetail.DocCurr ?? ""),
               vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
               taxRate:
-                (line as Record<string, unknown>).VatPrcnt !== undefined &&
-                (line as Record<string, unknown>).VatPrcnt !== null
-                  ? Number((line as Record<string, unknown>).VatPrcnt)
+                lineData.VatPrcnt !== undefined && lineData.VatPrcnt !== null
+                  ? Number(lineData.VatPrcnt)
                   : 0,
               uomCode: String(
-                (line as Record<string, unknown>).UoMCode ??
-                  (line as Record<string, unknown>).uomCode ??
-                  (line as Record<string, unknown>).UomCode ??
-                  "",
+                lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
               ).trim(),
-              uomEntry: Number(
-                (line as Record<string, unknown>).UoMEntry ??
-                  (line as Record<string, unknown>).uomEntry ??
-                  (line as Record<string, unknown>).UomEntry,
-              ),
+              uomEntry: Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry),
               quantity,
+              requiredQuantity,
               discountPercent,
               discountAmount,
               comment: "",
               warehouseCode: String(line.WarehouseCode ?? "").trim(),
               requiredDate,
+              quotedDate,
               openQty,
               selected: false,
             };
           });
 
+          setHeader({
+            docDate: docDate || header.docDate,
+            docDueDate,
+            requiredDate: headerRequiredDate || docDueDate,
+          });
           setFormSnapshot({
             comments: comments.trim(),
             referenceNo: referenceNo.trim(),
             docDate: docDate,
             docDueDate: docDueDate,
+            requiredDate: (headerRequiredDate || docDueDate).trim(),
             salesEmployee: associatedSalesEmployeeName.trim(),
             warehouseCode: warehouseCode.trim(),
             billToAddress: address.trim(),
@@ -1129,10 +1286,17 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
               freeText: item.freeText || item.remarks || "",
             })),
             productRows: mappedRows
-              .filter((row) => row.productCode.trim() && row.quantity > 0)
+              .filter(
+                (row) =>
+                  row.productCode.trim() &&
+                  (Number(row.requiredQuantity ?? 0) > 0 || row.quantity > 0),
+              )
               .map((row) => ({
                 productCode: row.productCode,
                 quantity: row.quantity,
+                requiredQuantity: row.requiredQuantity ?? 0,
+                requiredDate: row.requiredDate ?? "",
+                quotedDate: row.quotedDate ?? "",
                 price: row.price,
                 discountPercent: row.discountPercent,
                 warehouseCode: row.warehouseCode,
@@ -1216,6 +1380,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     createPurchaseQuotationMutation: submitPurchaseQuotationMutation,
     deliveryDateContainerRef,
     docDateContainerRef,
+    requiredDateContainerRef,
     editDetailQuery,
     handleCreateOrder: handleCreateOrderAction,
     handleLookupModalSearchSync,

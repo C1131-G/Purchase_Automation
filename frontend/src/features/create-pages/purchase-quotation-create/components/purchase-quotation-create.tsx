@@ -244,6 +244,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
             activeDatePicker={state.activeDatePicker}
             docDateContainerRef={state.docDateContainerRef}
             deliveryDateContainerRef={state.deliveryDateContainerRef}
+            requiredDateContainerRef={state.requiredDateContainerRef}
             toDisplayDate={toDisplayDate}
             parseISODate={parseISODate}
             toISODate={toISODate}
@@ -263,6 +264,13 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
             }}
             docDueDateLabel="VALID UNTIL"
             docDueDatePlaceholder="Select validity date"
+            showRequiredDate
+            requiredDate={state.header.requiredDate}
+            requiredDateReadOnly={state.isClosed}
+            requiredDateFutureOnly
+            onRequiredDateChange={(value) => {
+              state.setHeader({ requiredDate: value });
+            }}
           />
         </div>
 

@@ -38,6 +38,7 @@ export interface PurchaseQuotationDetailLine {
   DiscountPercent?: number;
   ReqDate?: string;
   RequiredDate?: string;
+  ShipDate?: string;
   UoMCode?: string | number;
   UoMEntry?: number;
   VatGroup?: string;
@@ -58,6 +59,9 @@ export interface PurchaseQuotationDetail {
   SalesPersonCode?: number | string;
   DocDate?: string;
   DocDueDate?: string;
+  /** SAP Service Layer header field (spelling as returned by B1). */
+  RequriedDate?: string;
+  RequiredDate?: string;
   CardCode?: string;
   CardName?: string;
   Address?: string;
@@ -82,7 +86,14 @@ export interface OpenPurchaseQuotationLine {
   LineNum: number;
   ItemCode: string;
   ItemDescription: string;
+  /** Quoted qty — PQT1.Quantity */
   Quantity: number;
+  /** Required qty — PQT1.PQTReqQty */
+  RequiredQuantity?: number;
+  /** Required date — PQT1.PQTReqDate / SL ReqDate */
+  ReqDate?: string;
+  /** Quoted date — PQT1.ShipDate */
+  ShipDate?: string;
   OpenQty: number;
   Price: number;
   VatGroup?: string;

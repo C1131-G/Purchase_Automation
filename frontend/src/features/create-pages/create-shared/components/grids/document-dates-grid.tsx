@@ -4,8 +4,7 @@ import type { ComponentProps, ReactElement, RefObject } from "react";
 import { Calendar } from "@/components/calendar/calendar";
 // DocumentDatesGrid: Manages core document metadata (DocNum, Dates, Reference).
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
-
-type ActiveDatePicker = "doc" | "delivery" | null;
+import type { ActiveDatePicker } from "@/features/create-pages/create-shared/utils/create-order.types";
 
 type CalendarWithBoundsProps = ComponentProps<typeof Calendar> & {
   minDate?: Date | undefined;
@@ -38,6 +37,18 @@ interface DocumentDatesGridProps {
   uniformReadOnlyAppearance?: boolean;
   docDueDateLabel?: string;
   docDueDatePlaceholder?: string;
+  /** Optional third date (e.g. PQ Required Date). Same control size; denser stack when shown. */
+  showRequiredDate?: boolean;
+  requiredDate?: string;
+  requiredDateContainerRef?: RefObject<HTMLDivElement | null>;
+  onRequiredDateChange?: (value: string) => void;
+  requiredDateReadOnly?: boolean;
+  requiredDateInvalid?: boolean;
+  requiredDateErrorText?: string | undefined;
+  requiredDateLabel?: string;
+  requiredDatePlaceholder?: string;
+  /** When true, calendar only allows dates after `today` (strict future). */
+  requiredDateFutureOnly?: boolean;
 }
 
 export function DocumentDatesGrid({
@@ -62,7 +73,26 @@ export function DocumentDatesGrid({
   uniformReadOnlyAppearance = false,
   docDueDateLabel = "DELIVERY DATE",
   docDueDatePlaceholder = "Select delivery date",
+  showRequiredDate = false,
+  requiredDate = "",
+  requiredDateContainerRef,
+  onRequiredDateChange,
+  requiredDateReadOnly = false,
+  requiredDateInvalid = false,
+  requiredDateErrorText,
+  requiredDateLabel = "REQUIRED DATE",
+  requiredDatePlaceholder = "Select required date",
+  requiredDateFutureOnly = true,
 }: DocumentDatesGridProps) {
+  const requiredMinDate = (() => {
+    if (!requiredDateFutureOnly) {
+      return today;
+    }
+    const min = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    min.setDate(min.getDate() + 1);
+    return min;
+  })();
+
   return (
     <SectionCard title="DOCUMENT DATES" className="lg:col-span-1">
       {error ? (
@@ -70,7 +100,7 @@ export function DocumentDatesGrid({
           {error}
         </div>
       ) : null}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="flex flex-col gap-4">
         <div ref={docDateContainerRef} className="relative">
           <label
             htmlFor="po-doc-date"
@@ -191,6 +221,73 @@ export function DocumentDatesGrid({
             <p className="mt-1 text-xs text-red-600">{docDueDateErrorText}</p>
           ) : null}
         </div>
+
+        {showRequiredDate ? (
+          <div ref={requiredDateContainerRef} className="relative">
+            <label
+              htmlFor="pq-required-date"
+              className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <span>{requiredDateLabel}</span>
+                {requiredDateReadOnly ? (
+                  <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+                ) : null}
+              </span>
+            </label>
+            {loading ? (
+              <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+            ) : (
+              <button
+                id="pq-required-date"
+                type="button"
+                disabled={requiredDateReadOnly}
+                onClick={() =>
+                  onSetActiveDatePicker((prev) => (prev === "required" ? null : "required"))
+                }
+                className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
+                  requiredDateInvalid
+                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+                    : requiredDateReadOnly
+                      ? uniformReadOnlyAppearance
+                        ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800 opacity-100"
+                        : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100"
+                      : "cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                }`}
+              >
+                <span className={requiredDate ? "text-zinc-800" : "text-zinc-400"}>
+                  {requiredDate ? toDisplayDate(requiredDate) : requiredDatePlaceholder}
+                </span>
+                <div
+                  className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+                    requiredDateReadOnly ? "opacity-60" : "hover:bg-zinc-100"
+                  }`}
+                >
+                  <CalendarIcon className="h-3 w-3" />
+                </div>
+              </button>
+            )}
+            {activeDatePicker === "required" ? (
+              <div className="absolute left-0 top-full z-40 mt-2">
+                <CalendarWithBounds
+                  mode="single"
+                  minDate={requiredMinDate}
+                  {...(requiredDate ? { selected: parseISODate(requiredDate) } : {})}
+                  onSelect={(value) => {
+                    if (!(value instanceof Date)) {
+                      return;
+                    }
+                    onRequiredDateChange?.(toISODate(value));
+                    onSetActiveDatePicker(null);
+                  }}
+                />
+              </div>
+            ) : null}
+            {requiredDateInvalid && requiredDateErrorText ? (
+              <p className="mt-1 text-xs text-red-600">{requiredDateErrorText}</p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </SectionCard>
   );

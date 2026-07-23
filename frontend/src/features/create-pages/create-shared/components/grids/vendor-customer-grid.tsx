@@ -86,60 +86,62 @@ export function VendorCustomerGrid({
           {error}
         </div>
       ) : null}
-      <div className="relative">
-        <FieldBlock
-          ref={nameInputRef}
-          label={nameLabel}
-          placeholder={namePlaceholder}
-          value={nameInput}
-          onChange={onNameChange}
-          onFocus={onNameFocus}
-          onBlur={onNameBlur}
-          onOpenPopup={onOpenNamePopup}
-          loading={loading}
-          invalid={vendorNameInvalid}
-          errorText={vendorNameErrorText}
-          disabled={nameDisabled}
-          editableHighlight={nameEditableHighlight}
-          uniformReadOnlyAppearance={uniformReadOnlyAppearance}
-        />
-        {nameFocused ? (
-          <SuggestionList
-            items={nameSuggestions}
-            onSelect={onSelectVendorByName ?? onSelectVendor}
-            floating
-            query={nameInput}
+      <div className="flex flex-col gap-4">
+        <div className="relative">
+          <FieldBlock
+            ref={nameInputRef}
+            label={nameLabel}
+            placeholder={namePlaceholder}
+            value={nameInput}
+            onChange={onNameChange}
+            onFocus={onNameFocus}
+            onBlur={onNameBlur}
+            onOpenPopup={onOpenNamePopup}
+            loading={loading}
+            invalid={vendorNameInvalid}
+            errorText={vendorNameErrorText}
+            disabled={nameDisabled}
+            editableHighlight={nameEditableHighlight}
+            uniformReadOnlyAppearance={uniformReadOnlyAppearance}
           />
-        ) : null}
-      </div>
+          {nameFocused ? (
+            <SuggestionList
+              items={nameSuggestions}
+              onSelect={onSelectVendorByName ?? onSelectVendor}
+              floating
+              query={nameInput}
+            />
+          ) : null}
+        </div>
 
-      <div className="relative">
-        <FieldBlock
-          ref={codeInputRef}
-          label={codeLabel}
-          placeholder={codePlaceholder}
-          value={codeInput}
-          onChange={onCodeChange}
-          onFocus={onCodeFocus}
-          onBlur={onCodeBlur}
-          onOpenPopup={onOpenCodePopup}
-          loading={loading}
-          invalid={vendorCodeInvalid}
-          errorText={vendorCodeErrorText}
-          disabled={codeDisabled}
-          editableHighlight={codeEditableHighlight}
-          uniformReadOnlyAppearance={uniformReadOnlyAppearance}
-        />
-        {codeFocused ? (
-          <SuggestionList
-            items={codeSuggestions}
-            onSelect={onSelectVendor}
-            floating
-            query={codeInput}
-            codeOnly={true}
-            codeLabel={codeLabel.replace(/\s*\*$/, "")}
+        <div className="relative">
+          <FieldBlock
+            ref={codeInputRef}
+            label={codeLabel}
+            placeholder={codePlaceholder}
+            value={codeInput}
+            onChange={onCodeChange}
+            onFocus={onCodeFocus}
+            onBlur={onCodeBlur}
+            onOpenPopup={onOpenCodePopup}
+            loading={loading}
+            invalid={vendorCodeInvalid}
+            errorText={vendorCodeErrorText}
+            disabled={codeDisabled}
+            editableHighlight={codeEditableHighlight}
+            uniformReadOnlyAppearance={uniformReadOnlyAppearance}
           />
-        ) : null}
+          {codeFocused ? (
+            <SuggestionList
+              items={codeSuggestions}
+              onSelect={onSelectVendor}
+              floating
+              query={codeInput}
+              codeOnly={true}
+              codeLabel={codeLabel.replace(/\s*\*$/, "")}
+            />
+          ) : null}
+        </div>
       </div>
     </SectionCard>
   );

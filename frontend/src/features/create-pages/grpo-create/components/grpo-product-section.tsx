@@ -35,12 +35,12 @@ interface GRPOProductSectionProps {
   onRemoveProductRow: (rowId: string) => void;
   onSetProductRowDraft: (
     rowId: string,
-    field: "quantity" | "discountPercent" | "discountAmount",
+    field: keyof import("@/features/create-pages/create-shared/utils/create-order.types").ProductRowDraft,
     value: string,
   ) => void;
   onClearProductRowDraft: (
     rowId: string,
-    field: "quantity" | "discountPercent" | "discountAmount",
+    field: keyof import("@/features/create-pages/create-shared/utils/create-order.types").ProductRowDraft,
   ) => void;
   onSubmit: (action?: "save-new" | "view" | "close" | "draft") => void;
   warehouses: CreateLookupOption[];

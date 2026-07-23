@@ -63,30 +63,48 @@ export const createPurchaseQuotation = async (
         (payload as Record<string, unknown>).RequriedDate ?? payload.DocDueDate ?? payload.DocDate,
       AttachmentEntry: absoluteEntry ?? undefined,
       DocumentLines: lines.map((line) => {
-        // PQT1.Quantity drives LineTotal / DocTotal computation in SAP.
-        // PQT1.PQTReqQty carries the user-entered required quantity semantic
-        // requested by the vendor portal flow.
-        // PQT1.ShipDate mirrors PQT1.ReqDate so the quoted shipping date
-        // matches the user-entered required date in the vendor portal flow.
+        // PQ line split — write each field independently (no cross-copy):
+        //   Quantity          → quoted qty (0 until vendor quotes; drives totals)
+        //   RequiredQuantity  → required qty (PQT1.PQTReqQty)
+        //   ReqDate           → required date
+        //   ShipDate          → quoted date (omit when empty)
         const reqDate = normalizeSapDateValue(
           line.ReqDate ??
             line.RequiredDate ??
             line.requiredDate ??
+            (payload as Record<string, unknown>).RequriedDate ??
             payload.DocDueDate ??
             payload.DocDate,
         );
+        const shipDateRaw = line.ShipDate ?? line.QuotedDate ?? line.quotedDate;
+        const shipDate = shipDateRaw ? normalizeSapDateValue(shipDateRaw) : "";
+        const quotedQty = Number(line.Quantity ?? 0);
+        // Prefer explicit RequiredQuantity (including 0). Only fall back when absent.
+        const hasRequiredQty =
+          line.RequiredQuantity !== undefined && line.RequiredQuantity !== null;
+        const hasRequiredQtyAlt =
+          line.requiredQuantity !== undefined && line.requiredQuantity !== null;
+        const requiredQty = hasRequiredQty
+          ? Number(line.RequiredQuantity)
+          : hasRequiredQtyAlt
+            ? Number(line.requiredQuantity)
+            : 0;
         const docLine: Record<string, unknown> = {
           ItemCode: line.ItemCode as string,
-          Quantity: Number(line.Quantity ?? 0),
-          RequiredQuantity: Number(line.Quantity ?? 0),
+          Quantity: Number.isFinite(quotedQty) ? quotedQty : 0,
+          RequiredQuantity: Number.isFinite(requiredQty) ? requiredQty : 0,
           UnitPrice: (line.UnitPrice || line.Price) as number,
           DiscountPercent: Number(line.DiscountPercent ?? 0),
-          ReqDate: reqDate,
-          ShipDate: reqDate,
           UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
           VatGroup: line.VatGroup as string,
           WarehouseCode: line.WarehouseCode as string,
         };
+        if (reqDate) {
+          docLine.ReqDate = reqDate;
+        }
+        if (shipDate) {
+          docLine.ShipDate = shipDate;
+        }
         const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
         if (Number.isFinite(uomEntry) && uomEntry > 0) {
           docLine.UoMEntry = Math.trunc(uomEntry);
