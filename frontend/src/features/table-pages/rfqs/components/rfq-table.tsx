@@ -1,7 +1,7 @@
 /**
- * RFQ data table — same layout as PurchaseQuotationTable (toolbar, grid, pagination).
+ * Request For Quotation data table — same layout as PurchaseQuotationTable.
  * Data: IC RFQ headers via GET /api/v1/ic/rfqs; filter/sort/page are client-side.
- * No Create — open existing RFQ by Doc Number (Phase 2 form).
+ * No Create — open existing document by Doc Number (Phase 2 form).
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
@@ -57,8 +57,8 @@ import { useSetPaginationAction } from "@/store/table/table-pagination.store";
 import { useSetSortingAction } from "@/store/table/table-sorting.store";
 import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 
-const routeApi = getRouteApi("/_layout/sales/rfqs");
-const TABLE_ID = "ic-rfqs";
+const routeApi = getRouteApi("/_layout/sales/request-for-quotations");
+const TABLE_ID = "request-for-quotations";
 const DEFAULT_COLUMN_ORDER = [...RFQ_DEFAULT_COLUMN_ORDER];
 
 const toRfqColumnFilters = (filters: ColumnFiltersState): RfqColumnFilter[] => {
@@ -108,7 +108,7 @@ export function RfqTable() {
       });
       void router.preloadRoute({
         params: { rfqId: String(rfq.rfqId) },
-        to: "/sales/rfqs/$rfqId",
+        to: "/sales/request-for-quotations/$rfqId",
       } as never);
     },
     [queryClient, router],
@@ -124,7 +124,7 @@ export function RfqTable() {
           prefetchDetail(rfq);
           void navigate({
             params: { rfqId: String(rfq.rfqId) },
-            to: "/sales/rfqs/$rfqId",
+            to: "/sales/request-for-quotations/$rfqId",
             viewTransition: true,
           } as never);
         },
@@ -371,7 +371,7 @@ export function RfqTable() {
   if (listQuery.isError && !listQuery.data) {
     return (
       <TableErrorState
-        title="RFQs unavailable"
+        title="Request For Quotations unavailable"
         message={
           listQuery.error instanceof Error ? toSafeErrorMessage(listQuery.error.message) : undefined
         }

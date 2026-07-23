@@ -19,7 +19,7 @@ export const rfqColumnFilterSchema = z.object({
 });
 
 /**
- * URL search for `/sales/rfqs`.
+ * URL search for `/sales/request-for-quotations`.
  * Mirrors purchase-quotation table chrome; filtering is client-side over GET /ic/rfqs.
  */
 export const rfqSearchSchema = z.object({

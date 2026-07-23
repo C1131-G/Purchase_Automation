@@ -1,6 +1,7 @@
 /**
- * RFQ table columns — same chrome as purchase quotations (DocNumCell, sorts, status chips).
- * Row shape is IC RFQ header; labels mirror PQ where fields align (Doc Number, Vendor, Status).
+ * Request For Quotation table columns — same chrome as purchase quotations
+ * (DocNumCell, sorts, status chips). Row shape is IC RFQ header; labels mirror PQ
+ * where fields align (Doc Number, Vendor, Status).
  */
 import { createColumnHelper } from "@tanstack/react-table";
 
@@ -147,13 +148,13 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
       <TableColumnSort
         column={column}
         sortingState={table.getState().sorting}
-        title="PQ Draft No."
+        title="Purchase Quotation Draft No."
       />
     ),
     id: "pqDraftDocNum",
     meta: { filterType: "text" },
-    minSize: 12,
-    size: 14,
+    minSize: 14,
+    size: 16,
   }),
   columnHelper.accessor("pqDraftDocEntry", {
     cell: (info) => info.getValue() || "—",
@@ -173,7 +174,7 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
       <TableColumnSort
         column={column}
         sortingState={table.getState().sorting}
-        title="PQ Draft Entry"
+        title="Purchase Quotation Draft Entry"
       />
     ),
     id: "pqDraftDocEntry",

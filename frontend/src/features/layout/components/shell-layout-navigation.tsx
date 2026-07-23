@@ -175,11 +175,14 @@ export function ShellLayoutNavigation({
             >
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/rfqs"
+                  to="/sales/request-for-quotations"
                   search={{ limit: 10, page: 1 } as never}
-                  isActive={pathname === "/sales/rfqs" || pathname.startsWith("/sales/rfqs/")}
+                  isActive={
+                    pathname === "/sales/request-for-quotations" ||
+                    pathname.startsWith("/sales/request-for-quotations/")
+                  }
                 >
-                  RFQs
+                  Request For Quotation
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>

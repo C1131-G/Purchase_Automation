@@ -1,6 +1,6 @@
 /**
- * RFQ lookup layer — same TableToolbar + LookupPopup pattern as purchase quotations.
- * No Create button (RFQs are created from IC PQ draft Flow 1).
+ * Request For Quotation lookup layer — same TableToolbar + LookupPopup pattern as
+ * purchase quotations. No Create button (documents are created from IC PQ draft Flow 1).
  */
 import { useQuery } from "@tanstack/react-query";
 import type { useReactTable } from "@tanstack/react-table";
@@ -14,9 +14,9 @@ import { TableToolbar } from "@/features/table-pages/table-shared/components/cor
 import { useTableLookupPopupSync } from "@/features/table-pages/table-shared/hooks/use-table-lookup-popup-sync";
 import { useSetActiveFilterAction } from "@/store/table/table-filter.store";
 
-const RFQ_BREADCRUMB = {
-  href: "/sales/rfqs",
-  page: "RFQs Data Table",
+const REQUEST_FOR_QUOTATION_BREADCRUMB = {
+  href: "/sales/request-for-quotations",
+  page: "Request For Quotations Data Table",
   section: "Sales",
 } as const;
 
@@ -103,7 +103,7 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
         table={table}
         onReset={onReset}
         hideCreate
-        breadcrumb={RFQ_BREADCRUMB}
+        breadcrumb={REQUEST_FOR_QUOTATION_BREADCRUMB}
         lookupSuggestions={vendors}
         docNumSuggestions={docNumSuggestions}
         enableDocNumPopup
