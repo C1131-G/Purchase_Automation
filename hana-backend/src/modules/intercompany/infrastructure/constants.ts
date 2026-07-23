@@ -32,3 +32,15 @@ export const IC_RETRY_STATUS = {
 } as const;
 
 export const DEFAULT_MAX_RETRY = 2;
+
+/** SAP B1 object type for A/R Invoice (also used on AR invoice drafts via DocObjectCode). */
+export const SAP_OBJECT_TYPE_AR_INVOICE = "13";
+
+/** Retry / history action codes. */
+export const IC_ACTION = {
+  FLOW2_CREATE_AR_DRAFT: "FLOW2_CREATE_AR_DRAFT",
+  FLOW2_MAP_NOTIFY: "FLOW2_MAP_NOTIFY",
+} as const;
+
+/** Default remarks prefix when IC_CONFIGURATION.REMARKS_PREFIX is unset. */
+export const DEFAULT_REMARKS_PREFIX = "IC-PO";

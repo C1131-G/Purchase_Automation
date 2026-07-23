@@ -5,17 +5,25 @@ import { afterPqDraftSaved } from "@/modules/intercompany/api/hooks/after-pq-dra
 import { getIcHealth } from "@/modules/intercompany/api/ic.controller";
 import type { Request, Response } from "express";
 
-describe("IC hooks + health (P2/P3 shell)", () => {
-  it("hooks return skipped not_implemented without throwing", async () => {
+describe("IC hooks + health", () => {
+  it("afterPqDraftSaved returns skipped not_implemented without throwing", async () => {
     await expect(
       afterPqDraftSaved({ cardCode: "V", dbName: "DB_A", docEntry: 1 }),
     ).resolves.toMatchObject({ status: "skipped" });
-    await expect(
-      afterPoCreated({ cardCode: "V", dbName: "DB_A", docEntry: 1 }),
-    ).resolves.toMatchObject({ status: "skipped" });
   });
 
-  it("health returns ok", () => {
+  it("afterPoCreated never throws (may skip or fail without DB)", async () => {
+    const result = await afterPoCreated({
+      cardCode: "V",
+      dbName: "DB_A",
+      docEntry: 1,
+      isDraft: true,
+    });
+    expect(result.status).toBe("skipped");
+    expect(result).toMatchObject({ reason: "draft_po" });
+  });
+
+  it("health returns ok with P5 phase", () => {
     const res = {
       statusCode: 200,
       body: undefined as unknown,
@@ -31,7 +39,7 @@ describe("IC hooks + health (P2/P3 shell)", () => {
     getIcHealth({} as Request, res as unknown as Response);
     expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({
-      data: { ok: true, module: "intercompany" },
+      data: { module: "intercompany", ok: true, phase: "P5" },
       success: true,
     });
   });

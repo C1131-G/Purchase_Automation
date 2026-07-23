@@ -1,11 +1,26 @@
-// Shared flow input shapes (expanded in P5/P6).
+// Shared flow input shapes.
+
+export type IcDocumentLineInput = {
+  ItemCode?: unknown;
+  Quantity?: unknown;
+  UnitPrice?: unknown;
+  Price?: unknown;
+  DiscountPercent?: unknown;
+  UoMEntry?: unknown;
+  UomEntry?: unknown;
+  UoMCode?: unknown;
+  UomCode?: unknown;
+  VatGroup?: unknown;
+  WarehouseCode?: unknown;
+  LineNum?: unknown;
+};
 
 export type IcPqDraftHookInput = {
   dbName: string;
   docEntry: number;
   docNum?: number | null;
   cardCode: string;
-  lines?: unknown[];
+  lines?: IcDocumentLineInput[];
 };
 
 export type IcPoHookInput = {
@@ -13,7 +28,12 @@ export type IcPoHookInput = {
   docEntry: number;
   docNum?: number | null;
   cardCode: string;
-  lines?: unknown[];
+  /** When true, Flow 2 must skip (draft PO is not automation-eligible). */
+  isDraft?: boolean;
+  docDate?: unknown;
+  docDueDate?: unknown;
+  numAtCard?: unknown;
+  lines?: IcDocumentLineInput[];
   totals?: unknown;
   currency?: string;
   remarks?: string;

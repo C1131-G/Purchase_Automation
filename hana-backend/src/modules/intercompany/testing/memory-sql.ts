@@ -341,6 +341,86 @@ export const createMemorySqlClient = (
       return [] as T[];
     }
 
+    if (statement.startsWith('INSERT INTO "IC_RETRY_QUEUE"')) {
+      const id = nextId(db, "IC_RETRY_QUEUE");
+      db.tables.IC_RETRY_QUEUE.push({
+        ACTION_CODE: params[4],
+        COMPANY_ID: params[0],
+        DOC_MAPPING_ID: params[1] ?? null,
+        ERROR_MESSAGE: params[6] ?? null,
+        MAX_RETRY: params[7] ?? 2,
+        NEXT_RETRY_AT: params[8] ?? null,
+        PAYLOAD_JSON: params[5] ?? null,
+        RETRY_COUNT: 0,
+        RETRY_ID: id,
+        SOURCE_DOCUMENT: params[2],
+        STATUS: "WAITING",
+        TARGET_DOCUMENT: params[3] ?? null,
+      });
+      return [] as T[];
+    }
+
+    if (statement.includes('FROM "IC_RETRY_QUEUE" WHERE "RETRY_ID"')) {
+      const id = Number(params[0]);
+      return db.tables.IC_RETRY_QUEUE.filter((row) => row.RETRY_ID === id).map(clone) as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_API_LOG"')) {
+      const id = nextId(db, "IC_API_LOG");
+      db.tables.IC_API_LOG.push({
+        COMPANY_ID: params[0] ?? null,
+        ENDPOINT: params[2],
+        LOG_ID: id,
+        METHOD: params[1],
+        REQUEST_JSON: params[3] ?? null,
+        RESPONSE_JSON: params[4] ?? null,
+        STATUS_CODE: params[5] ?? null,
+      });
+      return [] as T[];
+    }
+
+    if (
+      statement.includes('FROM "IC_SL_SESSION"') &&
+      statement.includes("COMPANY_ID") &&
+      statement.includes("EXPIRY_TIME")
+    ) {
+      const companyId = Number(params[0]);
+      const now = Date.now();
+      return db.tables.IC_SL_SESSION.filter((row) => {
+        if (row.COMPANY_ID !== companyId) {
+          return false;
+        }
+        const expiry = Date.parse(String(row.EXPIRY_TIME ?? ""));
+        return Number.isFinite(expiry) ? expiry > now : true;
+      })
+        .sort((left, right) => Number(right.SESSION_ID) - Number(left.SESSION_ID))
+        .map(clone) as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_SL_SESSION"')) {
+      const id = nextId(db, "IC_SL_SESSION");
+      db.tables.IC_SL_SESSION.push({
+        COMPANY_ID: params[0],
+        CONNECTION_ID: params[1],
+        EXPIRY_TIME: params[5],
+        LOGIN_TIME: params[4],
+        ROUTE_ID: params[3] ?? null,
+        SESSION_ID: id,
+        SESSION_TOKEN: params[2],
+      });
+      return [] as T[];
+    }
+
+    if (statement.startsWith('UPDATE "IC_SL_SESSION"')) {
+      const companyId = Number(params[0]);
+      for (const row of db.tables.IC_SL_SESSION) {
+        if (row.COMPANY_ID === companyId) {
+          row.EXPIRY_TIME = new Date(0).toISOString();
+        }
+      }
+      return [] as T[];
+    }
+
     throw new Error(`memory-sql: unsupported statement: ${statement.slice(0, 160)}`);
   },
 });

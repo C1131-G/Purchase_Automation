@@ -1,4 +1,9 @@
+import https from "node:https";
+
+import axios from "axios";
+
 import type { IcSapConnection } from "@/modules/intercompany/config/sap-connection/sap-connection.types";
+import { extractSessionId } from "@/core/utils/cookie-parser";
 import {
   getIcSqlClient,
   toNullableNumber,
@@ -83,9 +88,70 @@ export const createSqlSessionStore = (sql: IcSqlClient = getIcSqlClient()): IcSl
 
 export type IcSlLoginFn = (connection: IcSapConnection) => Promise<IcSlLoginResult>;
 
+const extractRouteId = (cookies: string[]): string | null => {
+  for (const cookie of cookies) {
+    const match = cookie.match(/ROUTEID=([^;]+)/i);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+  return null;
+};
+
+/** Default SL login against connection.serviceLayerUrl (no shared portal session). */
+export const defaultIcSlLogin: IcSlLoginFn = async (connection) => {
+  const baseURL = connection.serviceLayerUrl.replace(/\/+$/, "");
+  const response = await axios.post(
+    `${baseURL}/Login`,
+    {
+      CompanyDB: connection.databaseName,
+      Password: connection.password,
+      UserName: connection.username,
+    },
+    {
+      headers: { "Content-Type": "application/json" },
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      timeout: 30_000,
+      validateStatus: () => true,
+    },
+  );
+
+  if (response.status < 200 || response.status >= 300) {
+    const data = response.data as { error?: { message?: { value?: string } | string } };
+    const sapMessage =
+      typeof data?.error?.message === "object"
+        ? data.error.message?.value
+        : typeof data?.error?.message === "string"
+          ? data.error.message
+          : undefined;
+    throw new Error(
+      sapMessage
+        ? `IC SL login failed (${response.status}): ${sapMessage}`
+        : `IC SL login failed with status ${response.status}`,
+    );
+  }
+
+  const cookies: string[] = response.headers["set-cookie"] || [];
+  const sessionToken = extractSessionId(cookies);
+  if (!sessionToken) {
+    throw new Error("IC SL login: no B1SESSION cookie received");
+  }
+
+  const timeoutMinutes = Number(
+    (response.data as { SessionTimeout?: number })?.SessionTimeout ?? 30,
+  );
+  const ttlMinutes = Number.isFinite(timeoutMinutes) && timeoutMinutes > 0 ? timeoutMinutes : 30;
+  const now = new Date();
+
+  return {
+    expiryTime: new Date(now.getTime() + ttlMinutes * 60_000),
+    routeId: extractRouteId(cookies),
+    sessionToken,
+  };
+};
+
 /**
- * Session manager: reuse valid IC_SL_SESSION or login via injected loginFn.
- * Document create helpers remain stubs until P5/P6.
+ * Session manager: reuse valid IC_SL_SESSION or login via injected/default loginFn.
  */
 export const createIcSlSessionService = (deps?: {
   store?: IcSlSessionStore;
@@ -94,11 +160,7 @@ export const createIcSlSessionService = (deps?: {
 }) => {
   const store = deps?.store ?? createSqlSessionStore();
   const ttl = deps?.sessionTtlMinutes ?? 30;
-
-  const defaultLogin: IcSlLoginFn = async () => {
-    throw new Error("Not implemented: IC Service Layer login (wire axios in P5)");
-  };
-  const loginFn = deps?.loginFn ?? defaultLogin;
+  const loginFn = deps?.loginFn ?? defaultIcSlLogin;
 
   return {
     getOrLogin: async (connection: IcSapConnection): Promise<IcSlSessionRecord> => {
@@ -122,5 +184,7 @@ export const createIcSlSessionService = (deps?: {
     invalidate: (companyId: number) => store.invalidate(companyId),
   };
 };
+
+export type IcSlSessionService = ReturnType<typeof createIcSlSessionService>;
 
 export const icSlSessionService = createIcSlSessionService();

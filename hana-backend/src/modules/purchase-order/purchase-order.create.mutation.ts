@@ -8,6 +8,8 @@ import { purgeCache } from "@/core/utils/cache";
 import { config } from "@/config/env";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { afterPoCreated } from "@/modules/intercompany";
+import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
@@ -205,9 +207,39 @@ export const createPurchaseOrder = async (
       }
     }
 
+    // Flow 2 IC automation: never fails the PO response.
+    let intercompany: IcHookResult | undefined;
+    if (!isDraft && result.DocEntry) {
+      try {
+        intercompany = await afterPoCreated({
+          cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
+          currency: result.DocCurrency != null ? String(result.DocCurrency) : undefined,
+          dbName: resolvedDbNameFromRes || resolvedDbName,
+          docDate: sapPayload.DocDate,
+          docDueDate: sapPayload.DocDueDate,
+          docEntry: Number(result.DocEntry),
+          docNum: result.DocNum != null ? Number(result.DocNum) : null,
+          isDraft: false,
+          lines: Array.isArray(lines) ? lines : [],
+          numAtCard: sapPayload.NumAtCard,
+          remarks: sapPayload.Comments == null ? undefined : String(sapPayload.Comments),
+        });
+      } catch (icErr: unknown) {
+        logger.error({
+          err: icErr instanceof Error ? icErr : new Error(String(icErr)),
+          msg: "afterPoCreated threw unexpectedly; PO remains created",
+        });
+        intercompany = {
+          message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),
+          status: "failed",
+        };
+      }
+    }
+
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,
+      intercompany,
       message: isDraft
         ? "Purchase Order Draft saved successfully"
         : "Purchase Order created successfully",

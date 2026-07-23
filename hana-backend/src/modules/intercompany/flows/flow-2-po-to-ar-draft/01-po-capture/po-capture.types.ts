@@ -1,2 +1,1 @@
-/** Process stub — fill in P5/P6/P7. */
-export {};
+export type { Flow2CaptureResult, Flow2SkipReason } from "../flow-2.types";
