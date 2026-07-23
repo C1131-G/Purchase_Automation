@@ -48,7 +48,11 @@ router.use("/master-data", masterDataRoutes);
 router.use("/bank-details", bankDetailsRoutes);
 
 import { attachmentsRoutes } from "@/modules/attachments/attachments.routes";
+import { icRoutes } from "@/modules/intercompany";
 
 router.use("/attachments", attachmentsRoutes);
+
+// Intercompany (IC) — modular monolith under /api/ic/*
+router.use("/ic", icRoutes);
 
 export const apiRoutes = router;

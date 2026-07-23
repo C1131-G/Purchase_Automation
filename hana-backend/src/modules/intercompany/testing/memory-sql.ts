@@ -1,0 +1,396 @@
+/**
+ * In-memory SQL-ish client for offline unit tests (no HANA).
+ * Supports the subset of statements used by IC domain/config modules.
+ */
+
+import type { IcSqlClient } from "@/modules/intercompany/infrastructure/ic-sql";
+
+type Row = Record<string, unknown>;
+
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+export type MemoryDb = {
+  tables: Record<string, Row[]>;
+  identities: Record<string, number>;
+  lastIdentityTable: string | null;
+};
+
+export const createMemoryDb = (): MemoryDb => ({
+  identities: {},
+  lastIdentityTable: null,
+  tables: {
+    IC_API_LOG: [],
+    IC_BP_MAPPING: [],
+    IC_COMPANY: [],
+    IC_CONFIGURATION: [],
+    IC_DOCUMENT_MAPPING: [],
+    IC_NOTIFICATION: [],
+    IC_RETRY_QUEUE: [],
+    IC_RFQ_HEADER: [],
+    IC_RFQ_LINE: [],
+    IC_SAP_CONNECTION: [],
+    IC_SL_SESSION: [],
+    IC_SYNC_HISTORY: [],
+    IC_TAX_MAPPING: [],
+  },
+});
+
+const nextId = (db: MemoryDb, table: string): number => {
+  db.identities[table] = (db.identities[table] ?? 0) + 1;
+  db.lastIdentityTable = table;
+  return db.identities[table];
+};
+
+const normalizeSql = (sql: string) => sql.replace(/\s+/g, " ").trim();
+
+export const createMemorySqlClient = (
+  db: MemoryDb = createMemoryDb(),
+): IcSqlClient & {
+  db: MemoryDb;
+} => ({
+  db,
+  query: async <T extends Record<string, unknown> = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = [],
+  ): Promise<T[]> => {
+    const statement = normalizeSql(sql);
+
+    if (statement.includes("SELECT CURRENT_IDENTITY_VALUE()")) {
+      const table = db.lastIdentityTable;
+      const id = table ? (db.identities[table] ?? 0) : 0;
+      return [{ ID: id } as unknown as T];
+    }
+
+    if (statement.startsWith('SELECT * FROM "IC_DOCUMENT_MAPPING" WHERE "MAPPING_ID"')) {
+      const id = Number(params[0]);
+      return db.tables.IC_DOCUMENT_MAPPING.filter((row) => row.MAPPING_ID === id).map(clone) as T[];
+    }
+
+    if (
+      statement.includes('FROM "IC_DOCUMENT_MAPPING"') &&
+      statement.includes("SOURCE_COMPANY_ID") &&
+      statement.includes("TARGET_OBJECT")
+    ) {
+      const [sourceCompanyId, sourceObject, sourceDocEntry, targetObject] = params;
+      return db.tables.IC_DOCUMENT_MAPPING.filter(
+        (row) =>
+          row.SOURCE_COMPANY_ID === sourceCompanyId &&
+          row.SOURCE_OBJECT === sourceObject &&
+          row.SOURCE_DOC_ENTRY === String(sourceDocEntry) &&
+          row.TARGET_OBJECT === targetObject,
+      ).map(clone) as T[];
+    }
+
+    if (
+      statement.includes('FROM "IC_DOCUMENT_MAPPING"') &&
+      statement.includes("SOURCE_COMPANY_ID")
+    ) {
+      const [sourceCompanyId, sourceObject, sourceDocEntry] = params;
+      return db.tables.IC_DOCUMENT_MAPPING.filter(
+        (row) =>
+          row.SOURCE_COMPANY_ID === sourceCompanyId &&
+          row.SOURCE_OBJECT === sourceObject &&
+          row.SOURCE_DOC_ENTRY === String(sourceDocEntry),
+      )
+        .sort((left, right) => Number(right.MAPPING_ID) - Number(left.MAPPING_ID))
+        .map(clone) as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_DOCUMENT_MAPPING"')) {
+      const id = nextId(db, "IC_DOCUMENT_MAPPING");
+      db.tables.IC_DOCUMENT_MAPPING.push({
+        ERROR_MESSAGE: params[9] ?? null,
+        MAPPING_ID: id,
+        SOURCE_COMPANY_ID: params[0],
+        SOURCE_DOC_ENTRY: String(params[3]),
+        SOURCE_DOC_NUM: params[4] ?? null,
+        SOURCE_OBJECT: params[2],
+        SOURCE_REMARKS_TAG: params[10] ?? null,
+        STATUS: params[8] ?? "PENDING",
+        TARGET_COMPANY_ID: params[1] ?? null,
+        TARGET_DOC_ENTRY: params[6] ?? null,
+        TARGET_DOC_NUM: params[7] ?? null,
+        TARGET_OBJECT: params[5] ?? null,
+      });
+      return [] as T[];
+    }
+
+    if (statement.startsWith('UPDATE "IC_DOCUMENT_MAPPING"')) {
+      const mappingId = Number(params[5]);
+      const row = db.tables.IC_DOCUMENT_MAPPING.find((row) => row.MAPPING_ID === mappingId);
+      if (row) {
+        row.STATUS = params[0];
+        if (params[1] !== null && params[1] !== undefined) {
+          row.ERROR_MESSAGE = params[1];
+        }
+        if (params[2] !== null && params[2] !== undefined) {
+          row.TARGET_DOC_ENTRY = params[2];
+        }
+        if (params[3] !== null && params[3] !== undefined) {
+          row.TARGET_DOC_NUM = params[3];
+        }
+        if (params[4] !== null && params[4] !== undefined) {
+          row.TARGET_OBJECT = params[4];
+        }
+      }
+      return [] as T[];
+    }
+
+    if (statement.includes('FROM "IC_COMPANY"') && statement.includes('WHERE "SAP_DB_NAME" = ?')) {
+      const sapDbName = String(params[0]);
+      return db.tables.IC_COMPANY.filter((row) => row.SAP_DB_NAME === sapDbName).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_COMPANY"') && statement.includes('WHERE "COMPANY_ID" = ?')) {
+      const companyId = Number(params[0]);
+      return db.tables.IC_COMPANY.filter((row) => row.COMPANY_ID === companyId).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_COMPANY"') && statement.includes('WHERE "IS_ACTIVE" = 1')) {
+      return db.tables.IC_COMPANY.filter((row) => row.IS_ACTIVE === 1).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_BP_MAPPING"')) {
+      const [buyerCompanyId, vendorCode] = params;
+      return db.tables.IC_BP_MAPPING.filter(
+        (row) =>
+          row.BUYER_COMPANY_ID === buyerCompanyId &&
+          row.VENDOR_CODE === vendorCode &&
+          row.IS_ACTIVE === 1,
+      ).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_TAX_MAPPING"')) {
+      const [sourceCompanyId, targetCompanyId, sourceTaxCode] = params;
+      return db.tables.IC_TAX_MAPPING.filter(
+        (row) =>
+          row.SOURCE_COMPANY_ID === sourceCompanyId &&
+          row.TARGET_COMPANY_ID === targetCompanyId &&
+          row.SOURCE_TAX_CODE === sourceTaxCode &&
+          row.IS_ACTIVE === 1,
+      ).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_CONFIGURATION"')) {
+      const key = String(params[0]);
+      return db.tables.IC_CONFIGURATION.filter((row) => row.CONFIG_KEY === key).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_SAP_CONNECTION"')) {
+      const companyId = Number(params[0]);
+      return db.tables.IC_SAP_CONNECTION.filter(
+        (row) => row.COMPANY_ID === companyId && row.IS_ACTIVE === 1,
+      )
+        .sort((left, right) => Number(right.IS_DEFAULT) - Number(left.IS_DEFAULT))
+        .map(clone) as T[];
+    }
+
+    if (statement.includes("COUNT(*)") && statement.includes("IC_NOTIFICATION")) {
+      const companyId = Number(params[0]);
+      const cnt = db.tables.IC_NOTIFICATION.filter(
+        (row) => row.COMPANY_ID === companyId && row.IS_READ === 0,
+      ).length;
+      return [{ CNT: cnt } as unknown as T];
+    }
+
+    if (statement.includes('FROM "IC_NOTIFICATION" WHERE "NOTIFICATION_ID"')) {
+      const id = Number(params[0]);
+      return db.tables.IC_NOTIFICATION.filter((row) => row.NOTIFICATION_ID === id).map(
+        clone,
+      ) as T[];
+    }
+
+    if (statement.includes('FROM "IC_NOTIFICATION"') && statement.includes('IS_READ" = 0')) {
+      const companyId = Number(params[0]);
+      return db.tables.IC_NOTIFICATION.filter(
+        (row) => row.COMPANY_ID === companyId && row.IS_READ === 0,
+      )
+        .sort((left, right) => Number(right.NOTIFICATION_ID) - Number(left.NOTIFICATION_ID))
+        .map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_NOTIFICATION"') && statement.includes("COMPANY_ID")) {
+      const companyId = Number(params[0]);
+      return db.tables.IC_NOTIFICATION.filter((row) => row.COMPANY_ID === companyId)
+        .sort((left, right) => Number(right.NOTIFICATION_ID) - Number(left.NOTIFICATION_ID))
+        .map(clone) as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_NOTIFICATION"')) {
+      const id = nextId(db, "IC_NOTIFICATION");
+      db.tables.IC_NOTIFICATION.push({
+        COMPANY_ID: params[0],
+        DOCUMENT_ID: params[2] ?? null,
+        DOCUMENT_TYPE: params[1],
+        FLOW_STEP: params[6] ?? null,
+        IS_READ: 0,
+        MESSAGE: params[4] ?? null,
+        NOTIFICATION_ID: id,
+        PRIORITY: params[5] ?? "MEDIUM",
+        TITLE: params[3],
+      });
+      return [] as T[];
+    }
+
+    if (statement.startsWith('UPDATE "IC_NOTIFICATION"')) {
+      const id = Number(params[0]);
+      const row = db.tables.IC_NOTIFICATION.find((row) => row.NOTIFICATION_ID === id);
+      if (row) {
+        row.IS_READ = 1;
+      }
+      return [] as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_RFQ_HEADER"')) {
+      const id = nextId(db, "IC_RFQ_HEADER");
+      db.tables.IC_RFQ_HEADER.push({
+        CREATED_BY: params[7] ?? null,
+        PQ_DRAFT_DOC_ENTRY: params[3],
+        PQ_DRAFT_DOC_NUM: params[4] ?? null,
+        REMARKS: params[6] ?? null,
+        RFQ_ID: id,
+        RFQ_NUMBER: params[0],
+        SOURCE_COMPANY_ID: params[1],
+        STATUS: "DRAFT",
+        TARGET_COMPANY_ID: params[2],
+        VENDOR_CODE: params[5],
+      });
+      return [] as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_RFQ_LINE"')) {
+      const id = nextId(db, "IC_RFQ_LINE");
+      db.tables.IC_RFQ_LINE.push({
+        DELIVERY_DATE: params[8] ?? null,
+        DESCRIPTION: params[3] ?? null,
+        DISCOUNT: params[6] ?? 0,
+        ITEM_CODE: params[2],
+        LINE_NUM: params[1],
+        QUANTITY: params[4],
+        REMARKS: params[11] ?? null,
+        RFQ_ID: params[0],
+        RFQ_LINE_ID: id,
+        TAX_CODE: params[7] ?? null,
+        UNIT_PRICE: params[5] ?? null,
+        UOM_CODE: params[10] ?? null,
+        WAREHOUSE: params[9] ?? null,
+      });
+      return [] as T[];
+    }
+
+    if (statement.includes('FROM "IC_RFQ_HEADER"') && statement.includes("PQ_DRAFT_DOC_ENTRY")) {
+      const [sourceCompanyId, pqDraftDocEntry] = params;
+      return db.tables.IC_RFQ_HEADER.filter(
+        (row) =>
+          row.SOURCE_COMPANY_ID === sourceCompanyId && row.PQ_DRAFT_DOC_ENTRY === pqDraftDocEntry,
+      ).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_RFQ_HEADER"') && statement.includes("RFQ_ID")) {
+      const rfqId = Number(params[0]);
+      return db.tables.IC_RFQ_HEADER.filter((row) => row.RFQ_ID === rfqId).map(clone) as T[];
+    }
+
+    if (statement.includes('FROM "IC_RFQ_LINE"')) {
+      const rfqId = Number(params[0]);
+      return db.tables.IC_RFQ_LINE.filter((row) => row.RFQ_ID === rfqId)
+        .sort((left, right) => Number(left.LINE_NUM) - Number(right.LINE_NUM))
+        .map(clone) as T[];
+    }
+
+    if (statement.startsWith('UPDATE "IC_RFQ_HEADER"')) {
+      const status = String(params[0]);
+      const rfqId = Number(params[1]);
+      const row = db.tables.IC_RFQ_HEADER.find((row) => row.RFQ_ID === rfqId);
+      if (row) {
+        row.STATUS = status;
+      }
+      return [] as T[];
+    }
+
+    if (statement.startsWith('UPDATE "IC_RFQ_LINE"')) {
+      const rfqId = Number(params[3]);
+      const lineNum = Number(params[4]);
+      const row = db.tables.IC_RFQ_LINE.find(
+        (row) => row.RFQ_ID === rfqId && row.LINE_NUM === lineNum,
+      );
+      if (row) {
+        row.UNIT_PRICE = params[0];
+        if (params[1] !== null && params[1] !== undefined) {
+          row.DELIVERY_DATE = params[1];
+        }
+        if (params[2] !== null && params[2] !== undefined) {
+          row.DISCOUNT = params[2];
+        }
+      }
+      return [] as T[];
+    }
+
+    if (statement.startsWith('INSERT INTO "IC_SYNC_HISTORY"')) {
+      const id = nextId(db, "IC_SYNC_HISTORY");
+      db.tables.IC_SYNC_HISTORY.push({
+        ACTION: params[1],
+        COMPANY_ID: params[0],
+        DOCUMENT_ENTRY: params[3] ?? null,
+        DOCUMENT_TYPE: params[2] ?? null,
+        DURATION_MS: params[5] ?? null,
+        RESPONSE_JSON: params[6] ?? null,
+        STATUS: params[4],
+        SYNC_ID: id,
+      });
+      return [] as T[];
+    }
+
+    throw new Error(`memory-sql: unsupported statement: ${statement.slice(0, 160)}`);
+  },
+});
+
+export const seedMemoryCompanyGraph = (db: MemoryDb): void => {
+  db.tables.IC_COMPANY.push(
+    {
+      COMPANY_CODE: "A",
+      COMPANY_ID: 1,
+      COMPANY_NAME: "Company A",
+      DEFAULT_BRANCH_ID: 1,
+      IS_ACTIVE: 1,
+      SAP_DB_NAME: "DB_A",
+    },
+    {
+      COMPANY_CODE: "B",
+      COMPANY_ID: 2,
+      COMPANY_NAME: "Company B",
+      DEFAULT_BRANCH_ID: 1,
+      IS_ACTIVE: 1,
+      SAP_DB_NAME: "DB_B",
+    },
+  );
+  db.tables.IC_BP_MAPPING.push({
+    BUYER_COMPANY_ID: 1,
+    BUYER_CUSTOMER_CODE: "C-A-ON-B",
+    IS_ACTIVE: 1,
+    MAPPING_ID: 10,
+    REMARKS: "A→B",
+    VENDOR_CODE: "V-B",
+    VENDOR_COMPANY_ID: 2,
+  });
+  db.tables.IC_TAX_MAPPING.push({
+    IS_ACTIVE: 1,
+    SOURCE_COMPANY_ID: 1,
+    SOURCE_TAX_CODE: "IN-12.5",
+    TARGET_COMPANY_ID: 2,
+    TARGET_TAX_CODE: "GSTO",
+    TAX_MAP_ID: 1,
+  });
+  db.tables.IC_SAP_CONNECTION.push({
+    COMPANY_ID: 2,
+    CONNECTION_ID: 1,
+    DATABASE_NAME: "DB_B",
+    IS_ACTIVE: 1,
+    IS_DEFAULT: 1,
+    LICENSE_SERVER: null,
+    PASSWORD: "secret",
+    SERVER: null,
+    SERVICE_LAYER_URL: "https://sl.example/b1s/v1",
+    USERNAME: "ic_user",
+  });
+};
