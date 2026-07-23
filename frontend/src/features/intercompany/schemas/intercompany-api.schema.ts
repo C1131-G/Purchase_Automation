@@ -224,3 +224,33 @@ export const icRfqDetailResponseSchema = z.object({
 });
 
 export type IcRfqDetailResponse = z.infer<typeof icRfqDetailResponseSchema>;
+
+/**
+ * PUT /api/v1/ic/rfqs/:id — seller fill (unit price / delivery / discount only).
+ * Backend rejects itemCode/quantity; omit them from the client payload.
+ */
+export const icUpdateRfqLineBodySchema = z.object({
+  deliveryDate: z.string().nullable().optional(),
+  discount: z.number().nullable().optional(),
+  lineNum: z.number().int(),
+  unitPrice: z.number(),
+});
+
+export const icUpdateRfqBodySchema = z.object({
+  lines: z.array(icUpdateRfqLineBodySchema).min(1),
+});
+
+export type IcUpdateRfqLineBody = z.infer<typeof icUpdateRfqLineBodySchema>;
+export type IcUpdateRfqBody = z.infer<typeof icUpdateRfqBodySchema>;
+
+/** PUT /rfqs/:id and POST /rfqs/:id/submit return the header with lines. */
+export const icUpdateRfqResponseSchema = icRfqDetailResponseSchema;
+export type IcUpdateRfqResponse = z.infer<typeof icUpdateRfqResponseSchema>;
+
+/** POST /api/v1/ic/rfqs/:id/convert — buyer converts submitted RFQ → PQ + SQ. */
+export const icConvertRfqResponseSchema = z.object({
+  data: icHookResultSchema,
+  success: z.literal(true),
+});
+
+export type IcConvertRfqResponse = z.infer<typeof icConvertRfqResponseSchema>;

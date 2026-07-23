@@ -28,6 +28,9 @@ describe("IC API paths (P8A)", () => {
     expect(IC_API_PATHS.retries).toBe("/api/v1/ic/retries");
     expect(IC_API_PATHS.retryRun(9)).toBe("/api/v1/ic/retries/9/run");
     expect(IC_API_PATHS.rfqs).toBe("/api/v1/ic/rfqs");
+    expect(IC_API_PATHS.rfqById(7)).toBe("/api/v1/ic/rfqs/7");
+    expect(IC_API_PATHS.rfqSubmit(7)).toBe("/api/v1/ic/rfqs/7/submit");
+    expect(IC_API_PATHS.rfqConvert(7)).toBe("/api/v1/ic/rfqs/7/convert");
   });
 });
 

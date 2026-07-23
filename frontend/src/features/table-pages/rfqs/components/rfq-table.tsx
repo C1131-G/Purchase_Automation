@@ -1,7 +1,7 @@
 /**
  * Request For Quotation data table — same layout as PurchaseQuotationTable.
  * Data: IC RFQ headers via GET /api/v1/ic/rfqs; filter/sort/page are client-side.
- * No Create — open existing document by Doc Number (Phase 2 form).
+ * No Create — open existing document by Doc Number (fill form).
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";

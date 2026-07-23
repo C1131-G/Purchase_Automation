@@ -2,6 +2,7 @@
 import type { z } from "zod";
 
 import type {
+  icConvertRfqResponseSchema,
   icHealthResponseSchema,
   icMarkAllNotificationsReadResponseSchema,
   icMarkNotificationReadResponseSchema,
@@ -13,6 +14,8 @@ import type {
   icRfqsListResponseSchema,
   icRunRetryResponseSchema,
   icUnreadCountResponseSchema,
+  icUpdateRfqBodySchema,
+  icUpdateRfqResponseSchema,
 } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { apiClient } from "@/shared/api/client";
 import { toQueryString } from "@/shared/api/query-string";
@@ -32,6 +35,9 @@ export type IcRetriesListResponse = z.infer<typeof icRetriesListResponseSchema>;
 export type IcRunRetryResponse = z.infer<typeof icRunRetryResponseSchema>;
 export type IcRfqsListResponse = z.infer<typeof icRfqsListResponseSchema>;
 export type IcRfqDetailResponse = z.infer<typeof icRfqDetailResponseSchema>;
+export type IcUpdateRfqBody = z.infer<typeof icUpdateRfqBodySchema>;
+export type IcUpdateRfqResponse = z.infer<typeof icUpdateRfqResponseSchema>;
+export type IcConvertRfqResponse = z.infer<typeof icConvertRfqResponseSchema>;
 
 export const intercompanyAPI = {
   /**
@@ -106,6 +112,34 @@ export const intercompanyAPI = {
    * `GET /api/v1/ic/rfqs/:id`
    */
   getRfq: (rfqId: number) => apiClient<IcRfqDetailResponse>(IC_API_PATHS.rfqById(rfqId)),
+
+  /**
+   * Seller fill — unit price / delivery / discount on DRAFT RFQ (target company).
+   * `PUT /api/v1/ic/rfqs/:id`
+   */
+  updateRfq: (rfqId: number, body: IcUpdateRfqBody) =>
+    apiClient<IcUpdateRfqResponse>(IC_API_PATHS.rfqById(rfqId), {
+      body: JSON.stringify(body),
+      method: "PUT",
+    }),
+
+  /**
+   * Seller submit DRAFT → SUBMITTED (all lines must have unit price).
+   * `POST /api/v1/ic/rfqs/:id/submit`
+   */
+  submitRfq: (rfqId: number) =>
+    apiClient<IcUpdateRfqResponse>(IC_API_PATHS.rfqSubmit(rfqId), {
+      method: "POST",
+    }),
+
+  /**
+   * Buyer convert SUBMITTED RFQ → PQ + seller SQ.
+   * `POST /api/v1/ic/rfqs/:id/convert`
+   */
+  convertRfq: (rfqId: number) =>
+    apiClient<IcConvertRfqResponse>(IC_API_PATHS.rfqConvert(rfqId), {
+      method: "POST",
+    }),
 };
 
 /** Named export for plan T4.3 / docs. */

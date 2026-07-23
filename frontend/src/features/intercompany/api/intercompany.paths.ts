@@ -10,9 +10,11 @@ export const IC_API_PATHS = {
   notificationRead: (id: number | string) => `/api/v1/ic/notifications/${id}/read`,
   retries: "/api/v1/ic/retries",
   retryRun: (id: number | string) => `/api/v1/ic/retries/${id}/run`,
-  /** P8B RFQ list + detail. */
+  /** P8B RFQ list + detail + seller fill + buyer convert. */
   rfqs: "/api/v1/ic/rfqs",
   rfqById: (id: number | string) => `/api/v1/ic/rfqs/${id}`,
+  rfqSubmit: (id: number | string) => `/api/v1/ic/rfqs/${id}/submit`,
+  rfqConvert: (id: number | string) => `/api/v1/ic/rfqs/${id}/convert`,
 } as const;
 
 export type IcApiPathKey = keyof typeof IC_API_PATHS;
