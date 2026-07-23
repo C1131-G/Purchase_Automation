@@ -2,7 +2,6 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
-import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
@@ -17,8 +16,7 @@ export type TableRoutePath =
   | "/purchase/ap-invoice"
   | "/purchase/ap-credit-memo"
   | "/purchase/outgoing-payment"
-  | "/sales/quotations"
-  | "/sales/ar-invoice";
+  | "/sales/quotations";
 
 const DEFAULT_TABLE_PARAMS = {
   limit: 10,
@@ -33,7 +31,6 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     "/purchase/orders": purchaseOrderQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/quotations": purchaseQuotationQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/outgoing-payment": outgoingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
-    "/sales/ar-invoice": arInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/quotations": salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),
   };
 

@@ -58,10 +58,8 @@ const getTargetRoute = (target: string) => {
       return "/purchase/create-ap-invoice";
     case "AP Credit Memo":
       return "/purchase/create-ap-credit-memo";
-    case "A/R Invoice":
-      return "/sales/create-ar-invoice";
     default:
-      return "/sales/create-ar-invoice";
+      return "/sales/create-quotation";
   }
 };
 

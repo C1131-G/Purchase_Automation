@@ -187,21 +187,6 @@ export function ShellLayoutNavigation({
                   Sales Quotations
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/sales/create-ar-invoice"
-                  onMouseEnter={() => onTableNavIntent("/sales/ar-invoice")}
-                  onFocus={() => onTableNavIntent("/sales/ar-invoice")}
-                  onTouchStart={() => onTableNavIntent("/sales/ar-invoice")}
-                  isActive={
-                    pathname === "/sales/create-ar-invoice" ||
-                    pathname === "/sales/ar-invoice" ||
-                    pathname.startsWith("/sales/ar-invoice/")
-                  }
-                >
-                  A/R Invoice
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
           </SidebarMenu>
         </SidebarGroupContent>

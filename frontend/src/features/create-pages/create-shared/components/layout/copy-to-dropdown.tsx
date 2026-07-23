@@ -19,8 +19,7 @@ type SourceDocType =
   | "APInvoice"
   | "PurchaseQuotation"
   | "SalesQuotation"
-  | "SalesOrder"
-  | "ARInvoice";
+  | "SalesOrder";
 
 type TargetType =
   | "PO"
@@ -264,7 +263,7 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
             ? "/purchase/create-ap-invoice"
             : target === "AP Credit Memo"
               ? "/purchase/create-ap-credit-memo"
-              : "/sales/create-ar-invoice",
+              : "/sales/create-quotation",
   }));
 
   return (

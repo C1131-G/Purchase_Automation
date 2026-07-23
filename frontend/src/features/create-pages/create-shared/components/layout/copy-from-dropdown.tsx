@@ -11,14 +11,8 @@ export type SourceDocType =
   | "APInvoice"
   | "APCreditMemo"
   | "PurchaseQuotation"
-  | "SalesQuotation"
-  | "ARInvoice";
-type SourceFamily =
-  | "PurchaseOrder"
-  | "GoodsReceiptPO"
-  | "PurchaseQuotation"
-  | "SalesQuotation"
-  | "ARInvoice";
+  | "SalesQuotation";
+type SourceFamily = "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation" | "SalesQuotation";
 
 interface CopyFromSourceOption {
   label: string;
@@ -62,9 +56,6 @@ const sourceIcon = (code: string) => {
     case "SalesQuotation": {
       return <ClipboardList className="h-4 w-4" />;
     }
-    case "ARInvoice": {
-      return <FileText className="h-4 w-4" />;
-    }
     default: {
       return <ClipboardList className="h-4 w-4" />;
     }
@@ -90,9 +81,6 @@ const sourceMeta = (code: string) => {
     }
     case "SalesQuotation": {
       return "Copy from Sales Quotation";
-    }
-    case "ARInvoice": {
-      return "Copy from A/R Invoice";
     }
     default: {
       return "";
@@ -238,9 +226,7 @@ function CopyFromDropdownInner({
                     ? "A/P Credit Memo"
                     : code === "PurchaseQuotation"
                       ? "Purchase Quotation"
-                      : code === "SalesQuotation"
-                        ? "Sales Quotation"
-                        : "A/R Invoice",
+                      : "Sales Quotation",
           meta: sourceMeta(code),
         };
         if (isLocked) {

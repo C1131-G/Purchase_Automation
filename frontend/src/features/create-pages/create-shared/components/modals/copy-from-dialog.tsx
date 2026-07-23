@@ -15,8 +15,6 @@ import {
   salesQuotationAPI,
   type SalesQuotationDetail,
 } from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
-import { arInvoiceAPI } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
-import type { ARInvoiceDetail } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
 import { formatDateDisplay } from "@/features/table-pages/table-shared/components/filters/search/table-search.utils";
 import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import type { DateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
@@ -27,8 +25,7 @@ export type SourceDocType =
   | "GoodsReceiptPO"
   | "APInvoice"
   | "PurchaseQuotation"
-  | "SalesQuotation"
-  | "ARInvoice";
+  | "SalesQuotation";
 
 const VISIBLE_LINES = 6;
 
@@ -82,7 +79,6 @@ const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
   PurchaseOrder: "PO",
   PurchaseQuotation: "Quotation",
   SalesQuotation: "Quotation",
-  ARInvoice: "A/R Invoice",
 };
 
 const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
@@ -91,7 +87,6 @@ const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
   PurchaseOrder: <FileText className="h-4 w-4" />,
   PurchaseQuotation: <FileText className="h-4 w-4" />,
   SalesQuotation: <ClipboardList className="h-4 w-4" />,
-  ARInvoice: <FileText className="h-4 w-4" />,
 };
 
 function detailCacheKey(docType: SourceDocType, docCode: string): string {
@@ -105,8 +100,7 @@ function computeDetail(
     | GRPODetail
     | APInvoiceDetail
     | PurchaseQuotationDetail
-    | SalesQuotationDetail
-    | ARInvoiceDetail,
+    | SalesQuotationDetail,
 ): DocDetailCache {
   const lines = data.DocumentLines ?? [];
   const result: DocDetailCache = {
@@ -327,24 +321,6 @@ export function CopyFromDialog({
             params.DocDateEnd = dateRange.to;
           }
           result = await salesQuotationAPI.getSalesQuotations(params);
-        } else if (sourceDocType === "ARInvoice") {
-          const params: Record<string, unknown> = {
-            CardCode: vendorCode,
-            limit,
-          };
-          if (query) {
-            params.DocNum = query;
-          }
-          if (!query && isLoadMore) {
-            params.page = page;
-          }
-          if (dateRange.from) {
-            params.DocDateStart = dateRange.from;
-          }
-          if (dateRange.to) {
-            params.DocDateEnd = dateRange.to;
-          }
-          result = await arInvoiceAPI.getARInvoices(params);
         } else {
           const params: Record<string, unknown> = {
             CardCode: vendorCode,
@@ -512,19 +488,6 @@ export function CopyFromDialog({
       } else if (doc.docType === "SalesQuotation") {
         const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.code);
         ({ data } = res);
-      } else if (doc.docType === "ARInvoice") {
-        const list = await arInvoiceAPI.getARInvoices({
-          page: 1,
-          limit: 10,
-          DocNum: doc.code,
-        });
-        const exact = (list.data ?? []).find((item) => String(item.DocNum).trim() === doc.code);
-        const fallback = list.data?.[0];
-        const target = exact ?? fallback;
-        if (target?.id || target?.id === 0) {
-          const res = await arInvoiceAPI.getARInvoiceById(target.id);
-          ({ data } = res);
-        }
       } else {
         const res = await apInvoiceAPI.getAPInvoice(doc.code);
         ({ data } = res);

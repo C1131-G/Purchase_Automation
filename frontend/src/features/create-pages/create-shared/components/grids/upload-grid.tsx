@@ -12,7 +12,8 @@ import {
   File,
   Eye,
 } from "lucide-react";
-import { apiClient } from "@/shared/api/client";export interface AttachmentItem {
+import { apiClient } from "@/shared/api/client";
+export interface AttachmentItem {
   id: string;
   targetPath: string;
   fileName: string;
@@ -59,7 +60,8 @@ export function UploadGrid({
     }
     formData.append("moduleName", moduleName);
 
-    setIsUploading(true);    try {
+    setIsUploading(true);
+    try {
       const response = await apiClient<{ success: boolean; files: any[] }>(
         "/api/v1/attachments/upload",
         {
@@ -79,7 +81,8 @@ export function UploadGrid({
           freeText: "",
         }));
 
-        onAttachmentsChange([...attachments, ...newAttachments]);      }
+        onAttachmentsChange([...attachments, ...newAttachments]);
+      }
     } catch {
     } finally {
       setIsUploading(false);
@@ -99,7 +102,8 @@ export function UploadGrid({
     );
   };
 
-  const handleDownload = async (item: AttachmentItem) => {    try {
+  const handleDownload = async (item: AttachmentItem) => {
+    try {
       const url = `/api/v1/attachments/download?fileName=${encodeURIComponent(
         item.fileName,
       )}&fileExtension=${encodeURIComponent(item.fileExtension || "")}&sourcePath=${encodeURIComponent(
@@ -125,8 +129,8 @@ export function UploadGrid({
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(blobUrl);    } catch {
-    }
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {}
   };
 
   const canPreview = (ext?: string) => {
@@ -185,10 +189,11 @@ export function UploadGrid({
       if (previewTab) {
         previewTab.location.href = blobUrl;
       }
-    } catch (err: any) {
+    } catch {
       if (previewTab) {
         previewTab.close();
-      }    }
+      }
+    }
   };
 
   function getFileIconInfo(ext?: string) {

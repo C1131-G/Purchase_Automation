@@ -14,7 +14,6 @@ const REQUIRED_PATH_PREFIXES = [
   "/ap-invoices",
   "/ap-credit-memos",
   "/sales-quotations",
-  "/ar-invoices",
   "/outgoing-payments",
   "/bank-details",
   "/relationship-map/{docType}/{docEntry}",

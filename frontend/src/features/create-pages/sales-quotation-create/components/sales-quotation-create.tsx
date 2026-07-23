@@ -333,11 +333,7 @@ export function SalesQuotationCreate({
           submitLoadingText={state.isEditMode ? "Updating..." : "Adding..."}
           secondaryActions={
             state.isEditMode && !state.isClosed && docNum ? (
-              <CopyToDropdown
-                docNum={docNum}
-                sourceDocType="SalesQuotation"
-                targets={["A/R Invoice"]}
-              />
+              <CopyToDropdown docNum={docNum} sourceDocType="SalesQuotation" targets={[]} />
             ) : null
           }
         />
