@@ -61,7 +61,7 @@ const getTargetRoute = (target: string) => {
     case "A/R Invoice":
       return "/sales/create-ar-invoice";
     default:
-      return "/sales/ar-credit-memo/create";
+      return "/sales/create-ar-invoice";
   }
 };
 

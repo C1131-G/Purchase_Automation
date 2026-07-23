@@ -204,22 +204,6 @@ export function ShellLayoutNavigation({
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/ar-credit-memo/select-invoice"
-                  onMouseEnter={() => onTableNavIntent("/sales/ar-credit-memo")}
-                  onFocus={() => onTableNavIntent("/sales/ar-credit-memo")}
-                  onTouchStart={() => onTableNavIntent("/sales/ar-credit-memo")}
-                  isActive={
-                    pathname === "/sales/ar-credit-memo/select-invoice" ||
-                    pathname === "/sales/ar-credit-memo/create" ||
-                    pathname === "/sales/ar-credit-memo" ||
-                    pathname.startsWith("/sales/ar-credit-memo/")
-                  }
-                >
-                  A/R Credit Memo
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
                   to="/sales/create-incoming-payment"
                   onMouseEnter={() => onTableNavIntent("/sales/incoming-payment")}
                   onFocus={() => onTableNavIntent("/sales/incoming-payment")}

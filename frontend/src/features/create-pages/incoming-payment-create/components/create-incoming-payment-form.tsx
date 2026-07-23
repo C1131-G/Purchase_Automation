@@ -16,10 +16,6 @@ import { formatDateDisplay } from "@/features/table-pages/table-shared/component
 import { isDateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import type { DateRangeFilter } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import {
-  ArCreditMemoKeys,
-  arCreditMemoQueries,
-} from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
-import {
   arInvoiceKeys,
   arInvoiceQueries,
 } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
@@ -85,16 +81,6 @@ export function CreateIncomingPaymentForm() {
     staleTime: 0,
   });
 
-  const { data: creditMemosData, isLoading: isLoadingCreditMemos } = useQuery({
-    ...arCreditMemoQueries.list({
-      CardCode: lookups.codeInput,
-      DocStatus: "Open",
-      limit: 100,
-    }),
-    enabled: !!lookups.codeInput,
-    staleTime: 0,
-  });
-
   const createPaymentMutation = useMutation({
     mutationFn: incomingPaymentAPI.createIncomingPayment,
     onError: (error: unknown) => {
@@ -103,7 +89,6 @@ export function CreateIncomingPaymentForm() {
     onSuccess: (result) => {
       // Invalidate related queries to refresh balances
       queryClient.invalidateQueries({ queryKey: arInvoiceKeys.all });
-      queryClient.invalidateQueries({ queryKey: ArCreditMemoKeys.all });
       queryClient.invalidateQueries({ queryKey: incomingPaymentKeys.all });
 
       const docNum =
@@ -133,18 +118,7 @@ export function CreateIncomingPaymentForm() {
       type: "it_Invoice" as const,
     })) || [];
 
-  const creditMemos =
-    creditMemosData?.data?.map((cm) => ({
-      balanceDue: Number(cm.BalanceDue) || 0,
-      date: cm.DocDate,
-      docNum: cm.DocNum,
-      docTotal: Number(cm.DocTotal) || 0,
-      id: cm.id,
-      label: "A/R Credit Memo",
-      type: "it_CredItnote" as const,
-    })) || [];
-
-  const allDocuments = [...invoices, ...creditMemos].toSorted(
+  const allDocuments = [...invoices].toSorted(
     (a, b) => new Date(a.date || "").getTime() - new Date(b.date || "").getTime(),
   );
 
@@ -408,9 +382,7 @@ export function CreateIncomingPaymentForm() {
                     selectedRange={selectedRange}
                     onDateSelect={(range) => setDateRange(range ?? {})}
                   />
-                  {(isLoadingInvoices || isLoadingCreditMemos) && (
-                    <span className="text-xs text-zinc-500">Loading...</span>
-                  )}
+                  {isLoadingInvoices && <span className="text-xs text-zinc-500">Loading...</span>}
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <Search className="h-4 w-4 text-zinc-400" />
@@ -442,9 +414,7 @@ export function CreateIncomingPaymentForm() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-50">
-                    {filteredDocuments.length === 0 &&
-                    !isLoadingInvoices &&
-                    !isLoadingCreditMemos ? (
+                    {filteredDocuments.length === 0 && !isLoadingInvoices ? (
                       <tr>
                         <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
                           No open documents found.

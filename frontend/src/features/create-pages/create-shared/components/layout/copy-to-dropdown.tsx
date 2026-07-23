@@ -264,9 +264,7 @@ export function CopyToDropdown({ docNum, sourceDocType, targets, className }: Co
             ? "/purchase/create-ap-invoice"
             : target === "AP Credit Memo"
               ? "/purchase/create-ap-credit-memo"
-              : target === "A/R Invoice"
-                ? "/sales/create-ar-invoice"
-                : "/sales/ar-credit-memo/create",
+              : "/sales/create-ar-invoice",
   }));
 
   return (

@@ -3,7 +3,6 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
-import { arCreditMemoQueries } from "@/features/table-pages/ar-credit-memo/api/ar-credit-memo.queries";
 import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
 import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
@@ -90,8 +89,6 @@ const backgroundPrefetches = [
   apCreditMemoQueries.docNumSuggestions(undefined, docNumQuickLimit),
   apInvoiceQueries.list(defaultTableParams),
   apInvoiceQueries.docNumSuggestions(undefined, docNumQuickLimit),
-  arCreditMemoQueries.list(defaultTableParams),
-  arCreditMemoQueries.docNumSuggestions(undefined, docNumQuickLimit),
   arInvoiceQueries.list(defaultTableParams),
   arInvoiceQueries.docNumSuggestions(undefined, docNumQuickLimit),
   grpoQueries.list(defaultTableParams),

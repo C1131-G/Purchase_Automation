@@ -6,7 +6,6 @@ import express from "express";
 import { authenticatedApiLimiter } from "@/core/middleware/rate-limit.middleware";
 import { apCreditMemoRoutes } from "@/modules/ap-credit-memo/ap-credit-memo.routes";
 import { apInvoiceRoutes } from "@/modules/ap-invoice/ap-invoice.routes";
-import { arCreditMemoRoutes } from "@/modules/ar-credit-memo/ar-credit-memo.routes";
 import { arInvoiceRoutes } from "@/modules/ar-invoice/ar-invoice.routes";
 import { authRoutes } from "@/modules/auth/auth.routes";
 import { bankDetailsRoutes } from "@/modules/bank-details/bank-details.routes";
@@ -43,7 +42,6 @@ router.use("/outgoing-payments", outgoingPaymentRoutes);
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
 router.use("/sales-quotations", salesQuotationRoutes);
 router.use("/ar-invoices", arInvoiceRoutes);
-router.use("/ar-credit-memos", arCreditMemoRoutes);
 router.use("/incoming-payments", incomingPaymentRoutes);
 router.use("/relationship-map", salesRelationshipRoutes);
 
