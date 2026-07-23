@@ -202,21 +202,6 @@ export function ShellLayoutNavigation({
                   A/R Invoice
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/sales/create-incoming-payment"
-                  onMouseEnter={() => onTableNavIntent("/sales/incoming-payment")}
-                  onFocus={() => onTableNavIntent("/sales/incoming-payment")}
-                  onTouchStart={() => onTableNavIntent("/sales/incoming-payment")}
-                  isActive={
-                    pathname === "/sales/create-incoming-payment" ||
-                    pathname === "/sales/incoming-payment" ||
-                    pathname.startsWith("/sales/incoming-payment/")
-                  }
-                >
-                  Incoming Payment
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
             </SidebarMenuCollapsible>
           </SidebarMenu>
         </SidebarGroupContent>

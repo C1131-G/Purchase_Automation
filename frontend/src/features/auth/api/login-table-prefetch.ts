@@ -5,7 +5,6 @@ import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/a
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import { arInvoiceQueries } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
-import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
@@ -93,8 +92,6 @@ const backgroundPrefetches = [
   arInvoiceQueries.docNumSuggestions(undefined, docNumQuickLimit),
   grpoQueries.list(defaultTableParams),
   grpoQueries.docNumSuggestions(undefined, docNumQuickLimit),
-  incomingPaymentQueries.list(defaultTableParams),
-  incomingPaymentQueries.docNumSuggestions(undefined, docNumQuickLimit),
   outgoingPaymentQueries.list(defaultTableParams),
   outgoingPaymentQueries.docNumSuggestions(undefined, docNumQuickLimit),
   salesQuotationQueries.list(defaultTableParams),

@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";import { ChevronDown, Search, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, Search, Trash2 } from "lucide-react";
 import React from "react";
 import ReactDOM from "react-dom";
 
 import { LookupPopup } from "@/components/lookup/lookup-popup";
-import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/api/incoming-payment.queries";
+import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 
 import { Tooltip } from "@/components/tooltip";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -525,7 +526,7 @@ export function CreateProductTableRow({
   }, [row.binLocationAllocation]);
 
   const accountQuery = useQuery({
-    ...incomingPaymentQueries.accountSuggestions(accountInput || undefined, 100),
+    ...outgoingPaymentQueries.accountSuggestions(accountInput || undefined, 100),
     enabled: accountFocused || accountLookupOpen,
   });
   const accountSuggestions = React.useMemo(() => {
@@ -887,7 +888,8 @@ export function CreateProductTableRow({
                 const rawValue = event.target.value.trim();
 
                 if (rawValue === "") {
-                  if (effectiveLinkedRow) {                    updateProductRow(row.id, { quantity: 1 });
+                  if (effectiveLinkedRow) {
+                    updateProductRow(row.id, { quantity: 1 });
                     clearProductRowDraft(row.id, "quantity");
                     return;
                   }
@@ -900,7 +902,8 @@ export function CreateProductTableRow({
                 if (
                   effectiveLinkedRow &&
                   (typedQuantity === 0 || !Number.isFinite(typedQuantity))
-                ) {                  updateProductRow(row.id, { quantity: 1 });
+                ) {
+                  updateProductRow(row.id, { quantity: 1 });
                   clearProductRowDraft(row.id, "quantity");
                   return;
                 }
@@ -910,7 +913,8 @@ export function CreateProductTableRow({
                   ? Math.min(maxAllowed, typedQuantityVal)
                   : typedQuantityVal;
 
-                if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {                  updateProductRow(row.id, { quantity: effectiveMaxQuantity });
+                if (effectiveMaxQuantity !== undefined && clamped > effectiveMaxQuantity) {
+                  updateProductRow(row.id, { quantity: effectiveMaxQuantity });
                   clearProductRowDraft(row.id, "quantity");
                   return;
                 }
@@ -950,7 +954,8 @@ export function CreateProductTableRow({
               const rawValue = event.target.value.trim();
 
               if (rawValue === "") {
-                if (effectiveLinkedRow) {                  updateProductRow(row.id, { quantity: 1 });
+                if (effectiveLinkedRow) {
+                  updateProductRow(row.id, { quantity: 1 });
                   clearProductRowDraft(row.id, "quantity");
                   return;
                 }
@@ -960,14 +965,16 @@ export function CreateProductTableRow({
               }
 
               const typedQuantity = Number(rawValue);
-              if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {                updateProductRow(row.id, { quantity: 1 });
+              if (effectiveLinkedRow && (typedQuantity === 0 || !Number.isFinite(typedQuantity))) {
+                updateProductRow(row.id, { quantity: 1 });
                 clearProductRowDraft(row.id, "quantity");
                 return;
               }
 
               const typedQuantityVal = Math.max(1, Number(rawValue) || 1);
 
-              if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {                updateProductRow(row.id, { quantity: effectiveMaxQuantity });
+              if (effectiveMaxQuantity !== undefined && typedQuantityVal > effectiveMaxQuantity) {
+                updateProductRow(row.id, { quantity: effectiveMaxQuantity });
                 clearProductRowDraft(row.id, "quantity");
                 return;
               }

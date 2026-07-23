@@ -91,14 +91,6 @@ export const registerAllDocumentModulePaths = () => {
     schemaNames: { create: "CreateArInvoiceInput", update: "UpdateArInvoiceInput" },
   });
   registerDocumentPaths({
-    entityPath: "incoming-payments",
-    entityLabel: "Incoming payment",
-    supportsCancel: true,
-    supportsUpdate: true,
-    createSchema: CreatePaymentInputSchema,
-    schemaNames: { create: "CreateIncomingPaymentInput" },
-  });
-  registerDocumentPaths({
     entityPath: "outgoing-payments",
     entityLabel: "Outgoing payment",
     supportsCancel: true,

@@ -11,7 +11,6 @@ import { authRoutes } from "@/modules/auth/auth.routes";
 import { bankDetailsRoutes } from "@/modules/bank-details/bank-details.routes";
 import { dashboardRoutes } from "@/modules/dashboard/dashboard.routes";
 import { grpoRoutes } from "@/modules/grpo/grpo.routes";
-import { incomingPaymentRoutes } from "@/modules/incoming-payment/incoming-payment.routes";
 import { masterDataRoutes } from "@/modules/master-data/master-data.routes";
 import { organizationRoutes } from "@/modules/organization/organization.routes";
 import { outgoingPaymentRoutes } from "@/modules/outgoing-payment/outgoing-payment.routes";
@@ -42,7 +41,6 @@ router.use("/outgoing-payments", outgoingPaymentRoutes);
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
 router.use("/sales-quotations", salesQuotationRoutes);
 router.use("/ar-invoices", arInvoiceRoutes);
-router.use("/incoming-payments", incomingPaymentRoutes);
 router.use("/relationship-map", salesRelationshipRoutes);
 
 // Utility: Read-only master data lookups for dropdowns and UI auto-completion.
