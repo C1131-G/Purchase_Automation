@@ -6,17 +6,14 @@
   "scripts": {
     "dev:frontend": "node scripts/kill-port.js frontend && cd frontend && pnpm dev",
     "dev:hana-backend": "node scripts/kill-port.js backend && cd hana-backend && pnpm dev",
-    "dev:sql-backend": "node scripts/kill-port.js backend && cd sql-backend && pnpm dev",
     "check:frontend": "node scripts/capture-errors.js frontend",
     "check:hana": "node scripts/capture-errors.js hana-backend",
-    "check:sql": "node scripts/capture-errors.js sql-backend",
     "build": "pnpm fix && pnpm -r build",
     "test": "pnpm -r test",
     "fix": "pnpm dlx ultracite fix",
     "prepare": "pnpm exec lefthook install"
   },
   "devDependencies": {
-    "drizzle-orm": "^0.45.2",
     "eslint-plugin-github": "6.0.0",
     "lefthook": "^1.13.6",
     "lint-staged": "^15.5.2",

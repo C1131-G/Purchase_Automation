@@ -4,34 +4,14 @@ on:
   pull_request:
     paths:
       - "hana-backend/**"
-      - "sql-backend/**"
       - ".github/workflows/openapi-lint.yml"
   push:
     branches: [main, master]
     paths:
       - "hana-backend/**"
-      - "sql-backend/**"
       - ".github/workflows/openapi-lint.yml"
 
 jobs:
-  sql-openapi:
-    name: SQL OpenAPI contract
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: sql-backend
-    steps:
-      - uses: actions/checkout@v4
-      # version comes from root package.json "packageManager" (pnpm@11.13.0)
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-          cache-dependency-path: sql-backend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm openapi:lint
-
   hana-openapi:
     name: HANA OpenAPI contract
     runs-on: ubuntu-latest
@@ -46,6 +26,7 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-          cache-dependency-path: hana-backend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        working-directory: .
       - run: pnpm openapi:lint

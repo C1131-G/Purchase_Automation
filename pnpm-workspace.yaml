@@ -1,7 +1,6 @@
 packages:
   - frontend
   - hana-backend
-  - sql-backend
 
 allowBuilds:
   "@sap/hana-client": true

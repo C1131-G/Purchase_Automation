@@ -2,7 +2,7 @@
 
 ## Stack & Architecture
 
-pnpm monorepo: root (orchestrator) + `hana-backend/` + `sql-backend/` + `frontend/`.
+pnpm monorepo: root (orchestrator) + `hana-backend/` + `frontend/`.
 
 **HANA Backend:** Express + TypeORM + SAP HANA (`@sap/hana-client`) + file-session auth + Swagger docs.
 Entry: `hana-backend/src/server.ts` → `hana-backend/src/app.ts`.
@@ -13,11 +13,10 @@ Entry: `frontend/src/main.tsx`. Routes auto-generated in `frontend/src/routeTree
 
 ## Developer Commands
 
-| Scope        | Dev        | Typecheck            | Build                         | Test        |
-|--------------|------------|----------------------|-------------------------------|-------------|
-| Root         | —          | —                    | `pnpm build`                  | `pnpm test` |
-| HANA Backend | `pnpm dev` | `pnpm typecheck`     | `pnpm build` (tsc + tsup)     | `pnpm test` |
-| SQL Backend  | `pnpm dev` | `pnpm typecheck`     | `pnpm build` (tsc + tsup)     | `pnpm test` |
+| Scope        | Dev        | Typecheck                   | Build                     | Test                 |
+| ------------ | ---------- | --------------------------- | ------------------------- | -------------------- |
+| Root         | —          | —                           | `pnpm build`              | `pnpm test`          |
+| HANA Backend | `pnpm dev` | `pnpm typecheck`            | `pnpm build` (tsc + tsup) | `pnpm test`          |
 | Frontend     | `pnpm dev` | `tsc -b` / `pnpm typecheck` | `pnpm build` (tsc + vite) | `pnpm test` (vitest) |
 
 ## Quirks & Conventions
@@ -39,7 +38,6 @@ Entry: `frontend/src/main.tsx`. Routes auto-generated in `frontend/src/routeTree
 - Prefer named action methods + narrow selectors; use `useShallow` for multi-value object selects.
 - Table UI state is one multi-table registry (`table/table.store.ts`) keyed by `tableId`; public hooks re-exported from legacy paths.
 - Create-document drafts: factory in `store/create/document-draft.factory.ts`. Pattern A = header-only store; Pattern B = header + lines. Export store creators for isolated tests.
-
 
 # Oxlint + Oxfmt Standards
 
@@ -134,14 +132,17 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 ### Framework-Specific Guidance
 
 **Next.js:**
+
 - Use Next.js `<Image>` component for images
 - Use `next/head` or App Router metadata API for head elements
 - Use Server Components for async data fetching instead of async Client Components
 
 **React 19+:**
+
 - Use ref as a prop instead of `React.forwardRef`
 
 **Solid/Svelte/Vue/Qwik:**
+
 - Use `class` and `for` attributes (not `className` or `htmlFor`)
 
 ---
@@ -167,7 +168,6 @@ Oxlint + Oxfmt's linter will catch most issues automatically. Focus your attenti
 ---
 
 Most formatting and common issues are automatically fixed by Oxlint + Oxfmt. Run `pnpm fix` before committing to ensure compliance.
-
 
 # Ultracite Code Standards
 
@@ -259,14 +259,17 @@ Write code that is **accessible, performant, type-safe, and maintainable**. Focu
 ### Framework-Specific Guidance
 
 **Next.js:**
+
 - Use Next.js `<Image>` component for images
 - Use `next/head` or App Router metadata API for head elements
 - Use Server Components for async data fetching instead of async Client Components
 
 **React 19+:**
+
 - Use ref as a prop instead of `React.forwardRef`
 
 **Solid/Svelte/Vue/Qwik:**
+
 - Use `class` and `for` attributes (not `className` or `htmlFor`)
 
 ---

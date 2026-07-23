@@ -6,7 +6,6 @@ export default defineConfig({
     ".pnpm-store/**",
     "frontend/dist/**",
     "hana-backend/dist/**",
-    "sql-backend/dist/**",
     "frontend/src/routeTree.gen.ts",
   ],
 });

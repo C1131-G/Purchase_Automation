@@ -1,4 +1,4 @@
-// Full API surface registration (sql-backend registerAllPaths pattern).
+// Full API surface registration (registerAllPaths pattern).
 
 import {
   cookieSecurity,

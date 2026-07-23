@@ -11,7 +11,6 @@
 #
 #  pre-push    → full typecheck + build
 #                 • tsc --noEmit  (hana-backend)
-#                 • tsc --noEmit  (sql-backend)
 #                 • tsc -b --noEmit (frontend)
 #                 • pnpm build    (full production build gate)
 #
@@ -31,9 +30,6 @@ pre-push:
   commands:
     typecheck-hana-backend:
       root: hana-backend/
-      run: pnpm typecheck
-    typecheck-sql-backend:
-      root: sql-backend/
       run: pnpm typecheck
     typecheck-frontend:
       root: frontend/
