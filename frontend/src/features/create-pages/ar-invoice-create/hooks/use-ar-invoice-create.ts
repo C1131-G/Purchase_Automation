@@ -50,7 +50,6 @@ import {
   arInvoiceQueries,
 } from "@/features/table-pages/ar-invoices/api/ar-invoice.queries";
 import type { ARInvoiceDetailLine } from "@/features/table-pages/ar-invoices/api/ar-invoice.service";
-import { salesOrderQueries } from "@/features/table-pages/sales-orders/api/sales-order.queries";
 import { salesQuotationQueries } from "@/features/table-pages/sales-quotations/api/sales-quotation.queries";
 import {
   useARInvoiceHeader,
@@ -69,7 +68,7 @@ interface UseARInvoiceCreateOptions {
   mode?: ARInvoiceCreateMode;
   docNum?: string;
   sourceDocNum?: string | undefined;
-  sourceDocType?: "SalesQuotation" | "SalesOrder" | undefined;
+  sourceDocType?: "SalesQuotation" | undefined;
   draftDocNum?: string | undefined;
   draftDocEntry?: string | undefined;
 }
@@ -221,14 +220,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     enabled:
       mode === "create" &&
       options?.sourceDocType === "SalesQuotation" &&
-      Boolean(options?.sourceDocNum),
-  });
-
-  const sourceDetailQuerySO = useQuery({
-    ...salesOrderQueries.detailByDocNum(options?.sourceDocNum ?? ""),
-    enabled:
-      mode === "create" &&
-      options?.sourceDocType === "SalesOrder" &&
       Boolean(options?.sourceDocNum),
   });
 
@@ -524,9 +515,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     }
 
     const detail =
-      currentSourceDocType === "SalesQuotation"
-        ? sourceDetailQuerySQ.data?.data
-        : sourceDetailQuerySO.data?.data;
+      currentSourceDocType === "SalesQuotation" ? sourceDetailQuerySQ.data?.data : undefined;
 
     if (!detail) {
       return;
@@ -615,7 +604,7 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
           }),
         );
 
-        const baseType = currentSourceDocType === "SalesQuotation" ? 23 : 17;
+        const baseType = 23;
 
         const mappedRows = detailLines.map((line, index: number) => {
           const itemCode = String(line.ItemCode ?? "").trim();
@@ -730,7 +719,6 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     })();
   }, [
     sourceDetailQuerySQ.data,
-    sourceDetailQuerySO.data,
     isEditMode,
     draftDocNum,
     options?.sourceDocNum,
@@ -1375,138 +1363,11 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
   const summaryCurrencyLabel = summaryCurrency === "MULTI" ? "MULTI" : summaryCurrency;
   const isEditHydrated = (!isEditMode && !draftDocNum) || hydratedDocNum === cacheKey;
 
+  /** Sales Order module removed — SO pull is a no-op. */
   const addProductsFromSOs = async (
-    selectedLines: {
-      ItemCode: string;
-      ItemDescription?: string;
-      Quantity?: number;
-      Price?: number;
-      DocCurr?: string;
-      TaxCode?: string;
-      VatGroup?: string;
-      VatPrcnt?: number;
-      UoMCode?: string | number;
-      UoMEntry?: number;
-      WarehouseCode?: string;
-      LineNum?: number;
-      DocNum?: number;
-      DocEntry?: number;
-      OpenQty?: number;
-      DiscountPercent?: number;
-    }[],
-    allSelectedDocNums?: number[],
-  ) => {
-    const uniqueItemCodes = [...new Set(selectedLines.map((l) => String(l.ItemCode).trim()))];
-    const stocksByItemCode = new Map<string, { code: string; stock: number }[]>();
-
-    await Promise.all(
-      uniqueItemCodes.map(async (code) => {
-        const stocks = await queryClient
-          .fetchQuery(createSharedQueries.productWarehouseStocks(code))
-          .catch(() => []);
-        stocksByItemCode.set(code, stocks);
-      }),
-    );
-
-    const newRows = selectedLines.map((line, index) => {
-      const itemCode = String(line.ItemCode).trim();
-      const lineWarehouse = String(line.WarehouseCode ?? "").trim();
-      const warehouseStocks = stocksByItemCode.get(itemCode) ?? [];
-
-      const lineStock = lineWarehouse
-        ? Number(warehouseStocks.find((s) => String(s.code).trim() === lineWarehouse)?.stock ?? 0)
-        : warehouseStocks.reduce((sum, s) => sum + Number(s.stock ?? 0), 0);
-
-      const price = Number(line.Price ?? 0);
-      const openQty = Number(line.OpenQty ?? line.Quantity ?? 1);
-      const discPct = Number(line.DiscountPercent ?? 0);
-
-      return {
-        baseEntry: line.DocEntry,
-        baseLine: line.LineNum,
-        baseType: 17, // Sales Order
-        comment: `Based on SO ${line.DocNum}`,
-        currency: line.DocCurr,
-        discountAmount: (price * openQty * discPct) / 100,
-        discountPercent: discPct,
-        id: `so-pull-${line.DocNum}-${line.LineNum}-${Date.now()}-${index}`,
-        price,
-        productCode: itemCode,
-        productName: line.ItemDescription,
-        quantity: openQty,
-        selected: false,
-        stock: lineStock,
-        taxRate: line.VatPrcnt || 0,
-        uomCode: line.UoMCode,
-        uomEntry: line.UoMEntry,
-        vatGroup: line.TaxCode || line.VatGroup,
-        warehouseCode: lineWarehouse,
-      } as ProductRow;
-    });
-
-    productsHook.setProductRows((prev) => {
-      // 1. Keep non-SO rows OR SO rows whose SO number is in allSelectedDocNums
-      const filteredExisting = prev.filter((r) => {
-        if (allSelectedDocNums && r.baseType === 17) {
-          const match = /Based on SO (\d+)/.exec(r.comment ?? "");
-          if (match?.[1]) {
-            const docNum = Number(match[1]);
-            return allSelectedDocNums.includes(docNum);
-          }
-          // Fallback if comment is empty (URL param case)
-          const urlDocNum = Number(options?.sourceDocNum);
-          if (urlDocNum && !isNaN(urlDocNum) && options?.sourceDocType === "SalesOrder") {
-            return allSelectedDocNums.includes(urlDocNum);
-          }
-        }
-        return true;
-      });
-
-      // 2. Derive which SO numbers are already in filteredExisting
-      const existingSODocNums = new Set(
-        filteredExisting
-          .filter((r) => r.baseType === 17)
-          .map((r) => {
-            const match = /Based on SO (\d+)/.exec(r.comment ?? "");
-            if (match?.[1]) {
-              return Number(match[1]);
-            }
-            const urlDocNum = Number(options?.sourceDocNum);
-            if (urlDocNum && !isNaN(urlDocNum) && options?.sourceDocType === "SalesOrder") {
-              return urlDocNum;
-            }
-            return null;
-          })
-          .filter(Boolean) as number[],
-      );
-
-      // 3. Filter newRows to only include rows from SO numbers that are NOT already in filteredExisting
-      const uniqueNewRows = newRows.filter((row) => {
-        const match = /Based on SO (\d+)/.exec(row.comment ?? "");
-        if (match?.[1]) {
-          const docNum = Number(match[1]);
-          return !existingSODocNums.has(docNum);
-        }
-        return true;
-      });
-
-      const existingNonEmpty = filteredExisting.filter((r) => r.productCode.trim());
-      return [...existingNonEmpty, ...uniqueNewRows];
-    });
-
-    // Populate header warehouse from the first pulled line — mirrors how the URL-based
-    // "copy from" (SalesOrder / SalesQuotation route param) sets the warehouse header.
-    const firstWarehouseCode = newRows[0]?.warehouseCode ?? "";
-    if (firstWarehouseCode) {
-      const matchedWarehouse = lookups.warehouses.find(
-        (w) => String(w.code).trim() === firstWarehouseCode,
-      );
-      setHeader({ warehouseCode: firstWarehouseCode });
-      lookups.setWarehouseInput(
-        formatWarehouseDisplay(matchedWarehouse?.name ?? firstWarehouseCode, firstWarehouseCode),
-      );
-    }
-
+    _selectedLines: unknown[],
+    _allSelectedDocNums?: number[],
+  ): Promise<void> => {
     setPullFromSOModalOpen(false);
   };
 
@@ -1793,16 +1654,12 @@ export function useARInvoiceCreate(options?: UseARInvoiceCreateOptions) {
     totals,
     trackerDocType: isEditMode
       ? "ar-invoice"
-      : sourceDocType === "SalesOrder"
-        ? "sales-order"
-        : sourceDocType === "SalesQuotation"
-          ? "sales-quotation"
-          : null,
+      : sourceDocType === "SalesQuotation"
+        ? "sales-quotation"
+        : null,
     trackerDocEntry: isEditMode
       ? (editDetailQuery.data?.data?.DocEntry ?? editDetailQuery.data?.data?.id)
-      : sourceDocType === "SalesOrder"
-        ? (sourceDetailQuerySO.data?.data?.DocEntry ?? sourceDetailQuerySO.data?.data?.id)
-        : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
+      : (sourceDetailQuerySQ.data?.data?.DocEntry ?? sourceDetailQuerySQ.data?.data?.id),
     updateARInvoiceMutation,
     isClosed,
     isDirty,

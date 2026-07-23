@@ -5,7 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { AuthenticatedRequest } from "@/types/express.types";
 import type { PurchaseQuotationQuery } from "./purchase-quotation.types";
 import { purchaseQuotationService } from "./purchase-quotation.service";
-import { salesOrderService } from "@/modules/sales-order/sales-order.service";
+import { masterDataService } from "@/modules/master-data/master-data.service";
 import {
   CreatePurchaseQuotationInputSchema,
   UpdatePurchaseQuotationInputSchema,
@@ -161,7 +161,7 @@ export const getSalesEmployees = async (req: Request, res: Response, next: NextF
   const authReq = req as unknown as AuthenticatedRequest;
   try {
     const { dbName } = authReq.user;
-    const data = await salesOrderService.getSalesEmployees(dbName);
+    const data = await masterDataService.getSalesEmployees(dbName);
     res.status(200).json({ data, success: true });
   } catch (error) {
     next(error);

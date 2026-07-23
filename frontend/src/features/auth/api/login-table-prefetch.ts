@@ -10,7 +10,6 @@ import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
-import { salesOrderQueries } from "@/features/table-pages/sales-orders/api/sales-order.queries";
 import { salesQuotationQueries } from "@/features/table-pages/sales-quotations/api/sales-quotation.queries";
 
 // ---------------------------------------------------------------------------
@@ -101,8 +100,6 @@ const backgroundPrefetches = [
   incomingPaymentQueries.docNumSuggestions(undefined, docNumQuickLimit),
   outgoingPaymentQueries.list(defaultTableParams),
   outgoingPaymentQueries.docNumSuggestions(undefined, docNumQuickLimit),
-  salesOrderQueries.list(defaultTableParams),
-  salesOrderQueries.docNumSuggestions(undefined, docNumQuickLimit),
   salesQuotationQueries.list(defaultTableParams),
   salesQuotationQueries.docNumSuggestions(undefined, docNumQuickLimit),
 ];

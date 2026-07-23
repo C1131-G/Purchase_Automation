@@ -25,7 +25,7 @@ const fetchCustomersFromMasterDataRoute = async () =>
   apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/master-data/customers");
 
 const fetchSalesEmployees = async () =>
-  apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/sales-orders/SalesEmployee");
+  apiClient<MasterDataResponse<Record<string, unknown>>>("/api/v1/sales-quotations/SalesEmployee");
 
 export const createSharedKeys = {
   all: ["create-shared"] as const,

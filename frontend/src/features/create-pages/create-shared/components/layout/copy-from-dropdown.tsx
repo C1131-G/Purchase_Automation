@@ -11,14 +11,12 @@ export type SourceDocType =
   | "APInvoice"
   | "APCreditMemo"
   | "PurchaseQuotation"
-  | "SalesOrder"
   | "SalesQuotation"
   | "ARInvoice";
 type SourceFamily =
   | "PurchaseOrder"
   | "GoodsReceiptPO"
   | "PurchaseQuotation"
-  | "SalesOrder"
   | "SalesQuotation"
   | "ARInvoice";
 
@@ -61,9 +59,6 @@ const sourceIcon = (code: string) => {
     case "PurchaseQuotation": {
       return <FileText className="h-4 w-4" />;
     }
-    case "SalesOrder": {
-      return <FileText className="h-4 w-4" />;
-    }
     case "SalesQuotation": {
       return <ClipboardList className="h-4 w-4" />;
     }
@@ -92,9 +87,6 @@ const sourceMeta = (code: string) => {
     }
     case "PurchaseQuotation": {
       return "Copy from Purchase Quotation";
-    }
-    case "SalesOrder": {
-      return "Copy from Sales Order";
     }
     case "SalesQuotation": {
       return "Copy from Sales Quotation";
@@ -246,11 +238,9 @@ function CopyFromDropdownInner({
                     ? "A/P Credit Memo"
                     : code === "PurchaseQuotation"
                       ? "Purchase Quotation"
-                      : code === "SalesOrder"
-                        ? "Sales Order"
-                        : code === "SalesQuotation"
-                          ? "Sales Quotation"
-                          : "A/R Invoice",
+                      : code === "SalesQuotation"
+                        ? "Sales Quotation"
+                        : "A/R Invoice",
           meta: sourceMeta(code),
         };
         if (isLocked) {

@@ -18,7 +18,6 @@ import { organizationRoutes } from "@/modules/organization/organization.routes";
 import { outgoingPaymentRoutes } from "@/modules/outgoing-payment/outgoing-payment.routes";
 import { purchaseOrderRoutes } from "@/modules/purchase-order/purchase-order.routes";
 import { purchaseQuotationRoutes } from "@/modules/purchase-quotation/purchase-quotation.routes";
-import { salesOrderRoutes } from "@/modules/sales-order/sales-order.routes";
 import salesRelationshipRoutes from "@/modules/relationship-map/relationship-map.routes";
 import { salesQuotationRoutes } from "@/modules/sales-quotation/sales-quotation.routes";
 
@@ -43,7 +42,6 @@ router.use("/outgoing-payments", outgoingPaymentRoutes);
 
 // Order-to-Cash (O2C): Routes primarily used by Customers to view sales orders, invoices, and settle payments.
 router.use("/sales-quotations", salesQuotationRoutes);
-router.use("/sales-orders", salesOrderRoutes);
 router.use("/ar-invoices", arInvoiceRoutes);
 router.use("/ar-credit-memos", arCreditMemoRoutes);
 router.use("/incoming-payments", incomingPaymentRoutes);

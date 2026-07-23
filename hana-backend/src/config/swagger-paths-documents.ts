@@ -10,10 +10,6 @@ import {
   UpdatePurchaseQuotationInputSchema,
 } from "@/modules/purchase-quotation/purchase-quotation.schema";
 import {
-  CreateSalesOrderInputSchema,
-  UpdateSalesOrderInputSchema,
-} from "@/modules/sales-order/sales-order.schema";
-import {
   CreateSalesQuotationInputSchema,
   UpdateSalesQuotationInputSchema,
 } from "@/modules/sales-quotation/sales-quotation.schema";
@@ -76,13 +72,6 @@ export const registerAllDocumentModulePaths = () => {
       create: "CreateApCreditMemoInput",
       update: "UpdateApCreditMemoInput",
     },
-  });
-  registerDocumentPaths({
-    entityPath: "sales-orders",
-    entityLabel: "Sales order",
-    createSchema: CreateSalesOrderInputSchema,
-    updateSchema: UpdateSalesOrderInputSchema,
-    schemaNames: { create: "CreateSalesOrderInput", update: "UpdateSalesOrderInput" },
   });
   registerDocumentPaths({
     entityPath: "sales-quotations",

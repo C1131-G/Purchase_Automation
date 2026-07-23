@@ -189,21 +189,6 @@ export function ShellLayoutNavigation({
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
-                  to="/sales/create-order"
-                  onMouseEnter={() => onTableNavIntent("/sales/orders")}
-                  onFocus={() => onTableNavIntent("/sales/orders")}
-                  onTouchStart={() => onTableNavIntent("/sales/orders")}
-                  isActive={
-                    pathname === "/sales/create-order" ||
-                    pathname === "/sales/orders" ||
-                    pathname.startsWith("/sales/orders/")
-                  }
-                >
-                  Sales Orders
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
                   to="/sales/create-ar-invoice"
                   onMouseEnter={() => onTableNavIntent("/sales/ar-invoice")}
                   onFocus={() => onTableNavIntent("/sales/ar-invoice")}

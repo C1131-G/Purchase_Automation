@@ -9,7 +9,6 @@ import { incomingPaymentQueries } from "@/features/table-pages/incoming-payment/
 import { outgoingPaymentQueries } from "@/features/table-pages/outgoing-payment/api/outgoing-payment.queries";
 import { purchaseOrderQueries } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
 import { purchaseQuotationQueries } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
-import { salesOrderQueries } from "@/features/table-pages/sales-orders/api/sales-order.queries";
 import { salesQuotationQueries } from "@/features/table-pages/sales-quotations/api/sales-quotation.queries";
 import { runSmartPrefetch } from "@/features/table-pages/table-shared/hooks/prefetch-orchestrator";
 
@@ -21,7 +20,6 @@ export type TableRoutePath =
   | "/purchase/ap-credit-memo"
   | "/purchase/outgoing-payment"
   | "/sales/quotations"
-  | "/sales/orders"
   | "/sales/ar-invoice"
   | "/sales/ar-credit-memo"
   | "/sales/incoming-payment";
@@ -42,7 +40,6 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     "/sales/ar-credit-memo": arCreditMemoQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/ar-invoice": arInvoiceQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/incoming-payment": incomingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
-    "/sales/orders": salesOrderQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/quotations": salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),
   };
 

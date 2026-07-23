@@ -11,8 +11,6 @@ import {
   purchaseQuotationAPI,
   type PurchaseQuotationDetail,
 } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.service";
-import { salesOrderAPI } from "@/features/table-pages/sales-orders/api/sales-order.service";
-import type { SalesOrderDetail } from "@/features/table-pages/sales-orders/api/sales-order.service";
 import {
   salesQuotationAPI,
   type SalesQuotationDetail,
@@ -29,7 +27,6 @@ export type SourceDocType =
   | "GoodsReceiptPO"
   | "APInvoice"
   | "PurchaseQuotation"
-  | "SalesOrder"
   | "SalesQuotation"
   | "ARInvoice";
 
@@ -48,7 +45,7 @@ interface CopyFromDialogProps {
   onSelectDocuments: (selected: { docNum: string; docType: SourceDocType }[]) => void;
   includeClosed?: boolean;
   /** Doc numbers already committed from a previous copy session. These are shown pre-checked
-   * and cannot be deselected — prevents duplicates across re-opens of the dialog. */
+   * and cannot be deselected ΓÇö prevents duplicates across re-opens of the dialog. */
   committedDocNums?: string[];
 }
 
@@ -84,7 +81,6 @@ const DOC_TYPE_LABELS: Record<SourceDocType, string> = {
   GoodsReceiptPO: "GRPO",
   PurchaseOrder: "PO",
   PurchaseQuotation: "Quotation",
-  SalesOrder: "Sales Order",
   SalesQuotation: "Quotation",
   ARInvoice: "A/R Invoice",
 };
@@ -94,7 +90,6 @@ const DOC_TYPE_ICONS: Record<SourceDocType, React.ReactNode> = {
   GoodsReceiptPO: <StickyNote className="h-4 w-4" />,
   PurchaseOrder: <FileText className="h-4 w-4" />,
   PurchaseQuotation: <FileText className="h-4 w-4" />,
-  SalesOrder: <FileText className="h-4 w-4" />,
   SalesQuotation: <ClipboardList className="h-4 w-4" />,
   ARInvoice: <FileText className="h-4 w-4" />,
 };
@@ -110,7 +105,6 @@ function computeDetail(
     | GRPODetail
     | APInvoiceDetail
     | PurchaseQuotationDetail
-    | SalesOrderDetail
     | SalesQuotationDetail
     | ARInvoiceDetail,
 ): DocDetailCache {
@@ -183,7 +177,7 @@ export function CopyFromDialog({
   const label = DOC_TYPE_LABELS[sourceDocType] ?? "Document";
   const isSearching = search.trim().length > 0;
 
-  // Reset state when dialog opens — seed with already-committed docs so they appear pre-checked.
+  // Reset state when dialog opens ΓÇö seed with already-committed docs so they appear pre-checked.
   useEffect(() => {
     if (open) {
       setSearch("");
@@ -200,7 +194,7 @@ export function CopyFromDialog({
       setHoverDetail(null);
       setHoverDetailLoading(false);
     }
-    // committedDocNums intentionally excluded — we only seed on open, not on every prop change
+    // committedDocNums intentionally excluded ΓÇö we only seed on open, not on every prop change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, sourceDocType]);
 
@@ -315,24 +309,6 @@ export function CopyFromDialog({
             params.DocDateEnd = dateRange.to;
           }
           result = await purchaseQuotationAPI.getPurchaseQuotations(params);
-        } else if (sourceDocType === "SalesOrder") {
-          const params: Record<string, unknown> = {
-            CardCode: vendorCode,
-            limit,
-          };
-          if (query) {
-            params.DocNum = query;
-          }
-          if (!query && isLoadMore) {
-            params.page = page;
-          }
-          if (dateRange.from) {
-            params.DocDateStart = dateRange.from;
-          }
-          if (dateRange.to) {
-            params.DocDateEnd = dateRange.to;
-          }
-          result = await salesOrderAPI.getSalesOrders(params);
         } else if (sourceDocType === "SalesQuotation") {
           const params: Record<string, unknown> = {
             CardCode: vendorCode,
@@ -520,7 +496,6 @@ export function CopyFromDialog({
         | GRPODetail
         | APInvoiceDetail
         | PurchaseQuotationDetail
-        | SalesOrderDetail
         | SalesQuotationDetail
         | null = null;
       if (doc.docType === "PurchaseOrder") {
@@ -533,9 +508,6 @@ export function CopyFromDialog({
         }
       } else if (doc.docType === "PurchaseQuotation") {
         const res = await purchaseQuotationAPI.getPurchaseQuotationByDocNum(doc.code);
-        ({ data } = res);
-      } else if (doc.docType === "SalesOrder") {
-        const res = await salesOrderAPI.getSalesOrderByDocNum(doc.code);
         ({ data } = res);
       } else if (doc.docType === "SalesQuotation") {
         const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.code);
@@ -721,7 +693,7 @@ export function CopyFromDialog({
                           </span>
                         </span>
                         <span className="w-28 shrink-0 pl-3 text-sm text-zinc-500 tabular-nums">
-                          {doc.docDate || "—"}
+                          {doc.docDate || "ΓÇö"}
                         </span>
                         {isCommitted && isSelected && (
                           <span className="ml-auto shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -785,7 +757,7 @@ export function CopyFromDialog({
                             year: "2-digit",
                           })}
                         </span>
-                        <span>·</span>
+                        <span>┬╖</span>
                         <span className="font-semibold text-blue-700">
                           {hoverDetail.docTotal?.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
@@ -837,7 +809,7 @@ export function CopyFromDialog({
             of {documents.length} document
             {documents.length !== 1 ? "s" : ""} selected
             {committedSet.size > 0 && (
-              <span className="ml-1.5 text-zinc-400">· {committedSet.size} already added</span>
+              <span className="ml-1.5 text-zinc-400">┬╖ {committedSet.size} already added</span>
             )}
           </span>
         </div>

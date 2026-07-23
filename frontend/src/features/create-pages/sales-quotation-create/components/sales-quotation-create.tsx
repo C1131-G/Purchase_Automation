@@ -336,7 +336,7 @@ export function SalesQuotationCreate({
               <CopyToDropdown
                 docNum={docNum}
                 sourceDocType="SalesQuotation"
-                targets={["Sales Order", "A/R Invoice"]}
+                targets={["A/R Invoice"]}
               />
             ) : null
           }

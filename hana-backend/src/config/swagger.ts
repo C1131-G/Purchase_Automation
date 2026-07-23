@@ -16,8 +16,6 @@ import { GRPOQuerySchema } from "@/modules/grpo/grpo.schema";
 import { InvoiceQuerySchema } from "@/validation/schemas/inputs/invoice.input";
 import { CreditNoteQuerySchema } from "@/validation/schemas/inputs/credit-note.input";
 import { PaymentQuerySchema } from "@/validation/schemas/inputs/payments.input";
-import { SalesOrderQuerySchema } from "@/modules/sales-order/sales-order.schema";
-
 let pathsRegistered = false;
 
 export const generateOpenApiSpec = () => {
@@ -35,7 +33,6 @@ export const generateOpenApiSpec = () => {
   registry.register("InvoiceQuery", InvoiceQuerySchema);
   registry.register("CreditNoteQuery", CreditNoteQuerySchema);
   registry.register("PaymentQuery", PaymentQuerySchema);
-  registry.register("SalesOrderQuery", SalesOrderQuerySchema);
   registry.register("MasterDataQuery", MasterDataQuerySchema);
   registry.register("DashboardSummaryQuery", DashboardSummaryQuerySchema);
   registry.register("OrganizationsQuery", OrganizationQuerySchema);

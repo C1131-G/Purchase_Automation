@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
@@ -8,7 +9,7 @@ import { ARInvoiceProductSection } from "@/features/create-pages/ar-invoice-crea
 import {
   CopyFromDialog,
   type SourceDocType,
-} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";import { salesOrderAPI } from "@/features/table-pages/sales-orders/api/sales-order.service";
+} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
 import { salesQuotationAPI } from "@/features/table-pages/sales-quotations/api/sales-quotation.service";
 import { useARInvoiceCreate } from "@/features/create-pages/ar-invoice-create/hooks/use-ar-invoice-create";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
@@ -52,10 +53,7 @@ export function ARInvoiceCreate({
   const search = useSearch({ strict: false });
   const sourceDocNum = mode === "create" ? search.sourceDocNum : undefined;
   const rawSourceDocType = mode === "create" ? search.sourceDocType : undefined;
-  const sourceDocType =
-    rawSourceDocType === "SalesQuotation" || rawSourceDocType === "SalesOrder"
-      ? rawSourceDocType
-      : undefined;
+  const sourceDocType = rawSourceDocType === "SalesQuotation" ? rawSourceDocType : undefined;
 
   const [sourceCleared, setSourceCleared] = useState(false);
 
@@ -87,18 +85,8 @@ export function ARInvoiceCreate({
         }
       }
     }
-    if (
-      !sourceCleared &&
-      state.productRows.some((r) => r.baseType === 17) &&
-      sourceDocType === "SalesOrder"
-    ) {
-      const urlDocNum = Number(sourceDocNum);
-      if (urlDocNum && !isNaN(urlDocNum)) {
-        nums.add(urlDocNum);
-      }
-    }
     return [...nums];
-  }, [state.productRows, sourceDocNum, sourceDocType, sourceCleared]);
+  }, [state.productRows]);
 
   const committedSQDocNums = useMemo(() => {
     const nums = new Set<number>();
@@ -123,10 +111,8 @@ export function ARInvoiceCreate({
     return [...nums];
   }, [state.productRows, sourceDocNum, sourceDocType, sourceCleared]);
 
-  const activeSourceType = useMemo<"SalesQuotation" | "SalesOrder" | null>(() => {
-    const hasSORows = state.productRows.some((r) => r.baseType === 17);
+  const activeSourceType = useMemo<"SalesQuotation" | null>(() => {
     const hasSQRows = state.productRows.some((r) => r.baseType === 23);
-    if (hasSORows) return "SalesOrder";
     if (hasSQRows) return "SalesQuotation";
     if (!sourceCleared && sourceDocType) {
       return sourceDocType;
@@ -144,63 +130,10 @@ export function ARInvoiceCreate({
     setSourceCleared(true);
   };
 
-  const handleCopyFromSOSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
-    state.setPullFromSOModalOpen(false);
-    if (selected.length === 0) return;    try {
-      const details = await Promise.all(
-        selected.map(async (doc) => {
-          const res = await salesOrderAPI.getSalesOrderByDocNum(doc.docNum);
-          return res.data;
-        }),
-      );
-
-      const lines = details.flatMap((d) => {
-        const docLines = d.DocumentLines ?? [];
-        return docLines
-          .filter((line) => {
-            const openQty = line.RemainingOpenQuantity ?? line.Quantity ?? 0;
-            return openQty > 0;
-          })
-          .map((line) => ({
-            ...line,
-            DocEntry: d.DocEntry ?? d.id,
-            DocNum: d.DocNum,
-            DocDate: d.DocDate,
-            DocCurr: d.DocCurr,
-            OpenQty: line.RemainingOpenQuantity ?? line.Quantity ?? 0,
-          }));
-      });
-
-      const allSelectedDocNums = selected.map((s) => Number(s.docNum));
-      await state.addProductsFromSOs(lines as any, allSelectedDocNums);
-
-      if (details.length > 0) {
-        const firstDetail = details[0]!;
-        const address = String(firstDetail.Address ?? "").trim();
-        const address2 = String((firstDetail as any).Address2 ?? "").trim();
-        const rawComments = String(firstDetail.Comments ?? "").trim();
-        const referenceNo = String((firstDetail as any).NumAtCard ?? "").trim();
-        const comments = rawComments || `Based on Sales Order ${firstDetail.DocNum}`;
-
-        if (address) {
-          state.setBillToAddress(address);
-        }
-        if (address2) {
-          state.setShipToAddress(address2);
-        }
-        state.setHeader({
-          comments,
-          referenceNo,
-          vendorCode: String(firstDetail.CardCode ?? "").trim(),
-          vendorName: String(firstDetail.CardName ?? "").trim(),
-        });
-      }    } catch (err) {
-      console.error(err);    }
-  };
-
   const handleCopyFromSQSelect = async (selected: { docNum: string; docType: SourceDocType }[]) => {
     state.setPullFromSQModalOpen(false);
-    if (selected.length === 0) return;    try {
+    if (selected.length === 0) return;
+    try {
       const details = await Promise.all(
         selected.map(async (doc) => {
           const res = await salesQuotationAPI.getSalesQuotationByDocNum(doc.docNum);
@@ -248,8 +181,10 @@ export function ARInvoiceCreate({
           vendorCode: String(firstDetail.CardCode ?? "").trim(),
           vendorName: String(firstDetail.CardName ?? "").trim(),
         });
-      }    } catch (err) {
-      console.error(err);    }
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const pageTitle = state.isEditMode
@@ -320,13 +255,9 @@ export function ARInvoiceCreate({
             <CopyFromDropdown
               vendorCode={state.codeInput}
               vendorName={state.nameInput}
-              sourceDocTypes={
-                activeSourceType ? [activeSourceType] : ["SalesQuotation", "SalesOrder"]
-              }
+              sourceDocTypes={activeSourceType ? [activeSourceType] : ["SalesQuotation"]}
               onSelectSource={(source) => {
-                if (source === "SalesOrder") {
-                  state.setPullFromSOModalOpen(true);
-                } else if (source === "SalesQuotation") {
+                if (source === "SalesQuotation") {
                   state.setPullFromSQModalOpen(true);
                 }
               }}
@@ -571,15 +502,6 @@ export function ARInvoiceCreate({
 
         {!state.isEditMode && !draftDocNum && (
           <>
-            <CopyFromDialog
-              open={state.pullFromSOModalOpen}
-              onClose={() => state.setPullFromSOModalOpen(false)}
-              vendorCode={state.codeInput}
-              vendorName={state.nameInput}
-              sourceDocType="SalesOrder"
-              onSelectDocuments={handleCopyFromSOSelect}
-              committedDocNums={committedSODocNums.map(String)}
-            />
             <CopyFromDialog
               open={state.pullFromSQModalOpen}
               onClose={() => state.setPullFromSQModalOpen(false)}

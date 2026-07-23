@@ -13,7 +13,6 @@ const REQUIRED_PATH_PREFIXES = [
   "/grpos",
   "/ap-invoices",
   "/ap-credit-memos",
-  "/sales-orders",
   "/sales-quotations",
   "/ar-invoices",
   "/ar-credit-memos",
