@@ -7,6 +7,7 @@ export type NotificationService = {
   listForCompany: (companyId: number, opts?: { unreadOnly?: boolean }) => Promise<IcNotification[]>;
   countUnreadForCompany: (companyId: number) => Promise<number>;
   markRead: (notificationId: number) => Promise<IcNotification | null>;
+  markAllReadForCompany: (companyId: number) => Promise<number>;
 };
 
 export const createNotificationService = (deps?: {
@@ -20,6 +21,7 @@ export const createNotificationService = (deps?: {
     countUnreadForCompany: (companyId) => queries.countUnreadForCompany(companyId),
     create: (input) => mutations.insert(input),
     listForCompany: (companyId, opts) => queries.listForCompany(companyId, opts),
+    markAllReadForCompany: (companyId) => mutations.markAllReadForCompany(companyId),
     markRead: (notificationId) => mutations.markRead(notificationId),
   };
 };

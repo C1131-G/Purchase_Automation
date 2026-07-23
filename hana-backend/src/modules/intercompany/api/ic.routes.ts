@@ -5,8 +5,11 @@ import {
   getIcHealth,
   getRfq,
   listNotifications,
+  listRetries,
   listRfqs,
+  markAllNotificationsRead,
   markNotificationRead,
+  runRetry,
   submitRfq,
   unreadNotificationCount,
   updateRfq,
@@ -24,6 +27,10 @@ router.post("/rfqs/:id/convert", convertRfq);
 
 router.get("/notifications", listNotifications);
 router.get("/notifications/unread-count", unreadNotificationCount);
+router.post("/notifications/mark-all-read", markAllNotificationsRead);
 router.patch("/notifications/:id/read", markNotificationRead);
+
+router.get("/retries", listRetries);
+router.post("/retries/:id/run", runRetry);
 
 export const icRoutes = router;

@@ -37,8 +37,15 @@ export type ProcessRetryQueueResult = {
   dead: number;
 };
 
+export type ProcessOneRetryResult =
+  | { status: "success"; item: IcRetryQueueItem }
+  | { status: "failed"; item: IcRetryQueueItem; errorMessage: string }
+  | { status: "dead"; item: IcRetryQueueItem; errorMessage: string };
+
 export type ProcessRetryQueueJob = {
   run: (limit?: number) => Promise<ProcessRetryQueueResult>;
+  /** Manual UI path: force WAITING, claim one row, run handler. */
+  runOne: (retryId: number) => Promise<ProcessOneRetryResult>;
 };
 
 const parsePayload = (raw: string | null): Record<string, unknown> => {
@@ -253,6 +260,61 @@ export const createProcessRetryQueueJob = (deps?: {
     }
   }
 
+  const executeClaimed = async (item: IcRetryQueueItem): Promise<ProcessOneRetryResult> => {
+    const handler = handlers[item.actionCode];
+    try {
+      if (!handler) {
+        throw new Error(`No retry handler for actionCode=${item.actionCode}`);
+      }
+      await handler(item);
+      const successItem = await retry.markSuccess(item.retryId);
+      return {
+        item: successItem ?? { ...item, status: IC_RETRY_STATUS.SUCCESS },
+        status: "success",
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      const updated = await retry.markFailedOrDead(item.retryId, message.slice(0, 2000));
+      if (updated?.status === IC_RETRY_STATUS.DEAD) {
+        try {
+          await notifications.create({
+            companyId: item.companyId,
+            documentId: String(item.retryId),
+            documentType: "RETRY",
+            flowStep: "RETRY_DEAD",
+            message: `Retry ${item.retryId} (${item.actionCode}) exhausted after ${updated.retryCount}/${updated.maxRetry}: ${message.slice(0, 500)}`,
+            priority: "HIGH",
+            title: `IC retry DEAD — ${item.actionCode}`,
+          });
+        } catch {
+          // best-effort notify
+        }
+        logger.warn({
+          actionCode: item.actionCode,
+          err: err instanceof Error ? err : new Error(message),
+          msg: "IC retry action failed",
+          retryId: item.retryId,
+          scope: "ic.job.process_retry",
+          status: updated.status,
+        });
+        return { errorMessage: message, item: updated, status: "dead" };
+      }
+      logger.warn({
+        actionCode: item.actionCode,
+        err: err instanceof Error ? err : new Error(message),
+        msg: "IC retry action failed",
+        retryId: item.retryId,
+        scope: "ic.job.process_retry",
+        status: updated?.status,
+      });
+      return {
+        errorMessage: message,
+        item: updated ?? item,
+        status: "failed",
+      };
+    }
+  };
+
   return {
     run: async (limit = 50) => {
       await scheduler.ensureJob(IC_JOB_NAME.PROCESS_RETRY);
@@ -273,43 +335,13 @@ export const createProcessRetryQueueJob = (deps?: {
         result.claimed = claimed.length;
 
         for (const item of claimed) {
-          const handler = handlers[item.actionCode];
-          try {
-            if (!handler) {
-              throw new Error(`No retry handler for actionCode=${item.actionCode}`);
-            }
-            await handler(item);
-            await retry.markSuccess(item.retryId);
+          const one = await executeClaimed(item);
+          if (one.status === "success") {
             result.success += 1;
-          } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            const updated = await retry.markFailedOrDead(item.retryId, message.slice(0, 2000));
-            if (updated?.status === IC_RETRY_STATUS.DEAD) {
-              result.dead += 1;
-              try {
-                await notifications.create({
-                  companyId: item.companyId,
-                  documentId: String(item.retryId),
-                  documentType: "RETRY",
-                  flowStep: "RETRY_DEAD",
-                  message: `Retry ${item.retryId} (${item.actionCode}) exhausted after ${updated.retryCount}/${updated.maxRetry}: ${message.slice(0, 500)}`,
-                  priority: "HIGH",
-                  title: `IC retry DEAD — ${item.actionCode}`,
-                });
-              } catch {
-                // best-effort notify
-              }
-            } else {
-              result.failed += 1;
-            }
-            logger.warn({
-              actionCode: item.actionCode,
-              err: err instanceof Error ? err : new Error(message),
-              msg: "IC retry action failed",
-              retryId: item.retryId,
-              scope: "ic.job.process_retry",
-              status: updated?.status,
-            });
+          } else if (one.status === "dead") {
+            result.dead += 1;
+          } else {
+            result.failed += 1;
           }
         }
 
@@ -334,6 +366,31 @@ export const createProcessRetryQueueJob = (deps?: {
         });
         throw err instanceof Error ? err : new Error(message);
       }
+    },
+
+    runOne: async (retryId) => {
+      const existing = await retry.findById(retryId);
+      if (!existing) {
+        throw new Error(`IC_RETRY_QUEUE row not found id=${retryId}`);
+      }
+      if (existing.status === IC_RETRY_STATUS.SUCCESS) {
+        throw new Error(`Retry ${retryId} already SUCCESS`);
+      }
+      if (existing.status === IC_RETRY_STATUS.PROCESSING) {
+        throw new Error(`Retry ${retryId} is already PROCESSING`);
+      }
+
+      const forced = await retry.forceWaiting(retryId);
+      if (!forced || forced.status !== IC_RETRY_STATUS.WAITING) {
+        throw new Error(`Retry ${retryId} cannot be re-queued (status=${existing.status})`);
+      }
+
+      const claimed = await retry.claim(retryId);
+      if (!claimed || claimed.status !== IC_RETRY_STATUS.PROCESSING) {
+        throw new Error(`Retry ${retryId} claim failed`);
+      }
+
+      return executeClaimed(claimed);
     },
   };
 };

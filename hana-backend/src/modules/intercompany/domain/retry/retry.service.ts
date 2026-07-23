@@ -7,6 +7,13 @@ export type RetryService = {
   claimDue: (limit?: number) => Promise<IcRetryQueueItem[]>;
   markSuccess: (retryId: number) => Promise<IcRetryQueueItem | null>;
   markFailedOrDead: (retryId: number, errorMessage: string) => Promise<IcRetryQueueItem | null>;
+  listForCompany: (
+    companyId: number,
+    opts?: { statuses?: string[] },
+  ) => Promise<IcRetryQueueItem[]>;
+  findById: (retryId: number) => Promise<IcRetryQueueItem | null>;
+  forceWaiting: (retryId: number) => Promise<IcRetryQueueItem | null>;
+  claim: (retryId: number) => Promise<IcRetryQueueItem | null>;
 };
 
 export const createRetryService = (deps?: {
@@ -17,6 +24,7 @@ export const createRetryService = (deps?: {
   const mutations = deps?.mutations ?? createRetryMutations();
 
   return {
+    claim: (retryId) => mutations.claim(retryId),
     claimDue: async (limit = 50) => {
       const due = await queries.findDue(limit);
       const claimed: IcRetryQueueItem[] = [];
@@ -29,6 +37,9 @@ export const createRetryService = (deps?: {
       return claimed;
     },
     enqueue: (input) => mutations.insert(input),
+    findById: (retryId) => queries.findById(retryId),
+    forceWaiting: (retryId) => mutations.forceWaiting(retryId),
+    listForCompany: (companyId, opts) => queries.listForCompany(companyId, opts),
     markFailedOrDead: (retryId, errorMessage) => mutations.markFailedOrDead(retryId, errorMessage),
     markSuccess: (retryId) => mutations.markSuccess(retryId),
   };

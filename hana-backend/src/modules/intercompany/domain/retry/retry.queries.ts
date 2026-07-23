@@ -36,6 +36,10 @@ export const mapRetryRow = (row: Record<string, unknown>): IcRetryQueueItem => (
 export type RetryQueries = {
   findDue: (limit?: number) => Promise<IcRetryQueueItem[]>;
   findById: (retryId: number) => Promise<IcRetryQueueItem | null>;
+  listForCompany: (
+    companyId: number,
+    opts?: { statuses?: string[] },
+  ) => Promise<IcRetryQueueItem[]>;
 };
 
 export const createRetryQueries = (sql: IcSqlClient = getIcSqlClient()): RetryQueries => ({
@@ -52,6 +56,22 @@ export const createRetryQueries = (sql: IcSqlClient = getIcSqlClient()): RetryQu
         ORDER BY "RETRY_ID" ASC`,
     );
     return rows.slice(0, limit).map(mapRetryRow);
+  },
+
+  listForCompany: async (companyId, opts) => {
+    const rows = await sql.query(
+      `SELECT * FROM "IC_RETRY_QUEUE"
+        WHERE "COMPANY_ID" = ?
+        ORDER BY "RETRY_ID" DESC`,
+      [companyId],
+    );
+    const mapped = rows.map(mapRetryRow);
+    const statuses = opts?.statuses?.map((status) => status.trim().toUpperCase()).filter(Boolean);
+    if (!statuses?.length) {
+      return mapped;
+    }
+    const allowed = new Set(statuses);
+    return mapped.filter((row) => allowed.has(String(row.status).toUpperCase()));
   },
 });
 

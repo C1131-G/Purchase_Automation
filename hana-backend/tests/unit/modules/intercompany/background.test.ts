@@ -320,4 +320,73 @@ describe("P7 background worker jobs", () => {
     expect(loop.retry.success).toBe(1);
     expect(loop.session.removed).toBe(1);
   });
+
+  it("P8A listForCompany retries filters by company + status", async () => {
+    const stack = createBackgroundStack();
+    await stack.retry.enqueue({
+      actionCode: "A",
+      companyId: 1,
+      sourceDocument: IC_OBJECT.PO,
+    });
+    await stack.retry.enqueue({
+      actionCode: "B",
+      companyId: 2,
+      sourceDocument: IC_OBJECT.PO,
+    });
+    const dead = await stack.retry.enqueue({
+      actionCode: "C",
+      companyId: 1,
+      maxRetry: 1,
+      sourceDocument: IC_OBJECT.PO,
+    });
+    await stack.retry.claim(dead.retryId);
+    await stack.retry.markFailedOrDead(dead.retryId, "boom");
+
+    const forCompany1 = await stack.retry.listForCompany(1);
+    expect(forCompany1).toHaveLength(2);
+    expect(forCompany1.every((row) => row.companyId === 1)).toBe(true);
+
+    const waitingOnly = await stack.retry.listForCompany(1, {
+      statuses: [IC_RETRY_STATUS.WAITING],
+    });
+    expect(waitingOnly).toHaveLength(1);
+    expect(waitingOnly[0]?.actionCode).toBe("A");
+
+    const deadOnly = await stack.retry.listForCompany(1, { statuses: [IC_RETRY_STATUS.DEAD] });
+    expect(deadOnly).toHaveLength(1);
+    expect(deadOnly[0]?.retryId).toBe(dead.retryId);
+  });
+
+  it("P8A runOne requeues DEAD and processes success", async () => {
+    const stack = createBackgroundStack();
+    const enqueued = await stack.retry.enqueue({
+      actionCode: "MANUAL_RUN",
+      companyId: 1,
+      maxRetry: 1,
+      sourceDocument: IC_OBJECT.PO,
+    });
+    await stack.retry.claim(enqueued.retryId);
+    await stack.retry.markFailedOrDead(enqueued.retryId, "first fail");
+    const afterDead = await stack.retry.findById(enqueued.retryId);
+    expect(afterDead?.status).toBe(IC_RETRY_STATUS.DEAD);
+
+    let handled = 0;
+    const job = createProcessRetryQueueJob({
+      handlers: {
+        MANUAL_RUN: async () => {
+          handled += 1;
+        },
+      },
+      notifications: stack.notifications,
+      retry: stack.retry,
+      scheduler: stack.scheduler,
+      sql: stack.sql,
+    });
+
+    const result = await job.runOne(enqueued.retryId);
+    expect(result.status).toBe("success");
+    expect(handled).toBe(1);
+    const stored = await stack.retry.findById(enqueued.retryId);
+    expect(stored?.status).toBe(IC_RETRY_STATUS.SUCCESS);
+  });
 });

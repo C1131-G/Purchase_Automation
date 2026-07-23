@@ -16,6 +16,11 @@ export type RetryMutations = {
   claim: (retryId: number) => Promise<IcRetryQueueItem | null>;
   markSuccess: (retryId: number) => Promise<IcRetryQueueItem | null>;
   markFailedOrDead: (retryId: number, errorMessage: string) => Promise<IcRetryQueueItem | null>;
+  /**
+   * Manual UI retry: move WAITING or DEAD → WAITING with nextRetryAt cleared.
+   * Does not touch SUCCESS or PROCESSING.
+   */
+  forceWaiting: (retryId: number) => Promise<IcRetryQueueItem | null>;
 };
 
 const fetch = async (sql: IcSqlClient, retryId: number) => {
@@ -84,6 +89,19 @@ export const createRetryMutations = (sql: IcSqlClient = getIcSqlClient()): Retry
         dead ? 1 : 0,
         retryId,
       ],
+    );
+    return fetch(sql, retryId);
+  },
+
+  forceWaiting: async (retryId) => {
+    await sql.query(
+      `UPDATE "IC_RETRY_QUEUE"
+          SET "STATUS" = ?,
+              "NEXT_RETRY_AT" = NULL,
+              "UPDATED_AT" = CURRENT_TIMESTAMP
+        WHERE "RETRY_ID" = ?
+          AND "STATUS" IN (?, ?)`,
+      [IC_RETRY_STATUS.WAITING, retryId, IC_RETRY_STATUS.WAITING, IC_RETRY_STATUS.DEAD],
     );
     return fetch(sql, retryId);
   },

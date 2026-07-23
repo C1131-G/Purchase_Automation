@@ -234,6 +234,16 @@ export const createMemorySqlClient = (
     }
 
     if (statement.startsWith('UPDATE "IC_NOTIFICATION"')) {
+      // mark-all-read: WHERE COMPANY_ID = ? AND IS_READ = 0
+      if (statement.includes("COMPANY_ID")) {
+        const companyId = Number(params[0]);
+        for (const row of db.tables.IC_NOTIFICATION) {
+          if (row.COMPANY_ID === companyId && row.IS_READ === 0) {
+            row.IS_READ = 1;
+          }
+        }
+        return [] as T[];
+      }
       const id = Number(params[0]);
       const row = db.tables.IC_NOTIFICATION.find((row) => row.NOTIFICATION_ID === id);
       if (row) {
@@ -399,6 +409,17 @@ export const createMemorySqlClient = (
       return db.tables.IC_RETRY_QUEUE.filter((row) => row.RETRY_ID === id).map(clone) as T[];
     }
 
+    if (
+      statement.includes('FROM "IC_RETRY_QUEUE"') &&
+      statement.includes("COMPANY_ID") &&
+      !statement.includes("WAITING")
+    ) {
+      const companyId = Number(params[0]);
+      return db.tables.IC_RETRY_QUEUE.filter((row) => row.COMPANY_ID === companyId)
+        .sort((left, right) => Number(right.RETRY_ID) - Number(left.RETRY_ID))
+        .map(clone) as T[];
+    }
+
     if (statement.startsWith('UPDATE "IC_RETRY_QUEUE"')) {
       if (statement.includes('"RETRY_COUNT"')) {
         const [retryCount, errorMessage, status, deadFlag, retryId] = params;
@@ -409,6 +430,17 @@ export const createMemorySqlClient = (
           row.STATUS = status;
           row.NEXT_RETRY_AT =
             Number(deadFlag) === 1 ? null : new Date(Date.now() + 300_000).toISOString();
+        }
+        return [] as T[];
+      }
+
+      // forceWaiting: SET STATUS, NEXT_RETRY_AT = NULL WHERE STATUS IN (WAITING, DEAD)
+      if (statement.includes("NEXT_RETRY_AT") && statement.includes("IN")) {
+        const [status, retryId] = params;
+        const row = db.tables.IC_RETRY_QUEUE.find((item) => item.RETRY_ID === Number(retryId));
+        if (row && (row.STATUS === "WAITING" || row.STATUS === "DEAD")) {
+          row.STATUS = status;
+          row.NEXT_RETRY_AT = null;
         }
         return [] as T[];
       }

@@ -1,11 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 
 import AppError from "@/core/errors/app-error";
+import { createProcessRetryQueueJob } from "@/modules/intercompany/background/jobs/02-process-retry-queue/process-retry-queue.job";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
+import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
+import { IC_RETRY_STATUS } from "@/modules/intercompany/infrastructure/constants";
 
 import { UpdateRfqBodySchema } from "./ic.schema";
 
@@ -170,6 +173,69 @@ export const markNotificationRead = async (
     }
     const updated = await notifications.markRead(notificationId);
     res.status(200).json({ data: updated, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markAllNotificationsRead = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const companyId = await resolveActorCompanyId(req);
+    const marked = await createNotificationService().markAllReadForCompany(companyId);
+    res.status(200).json({ data: { marked }, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listRetries = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const companyId = await resolveActorCompanyId(req);
+    const statusRaw = String(req.query.status ?? "").trim();
+    const statuses = statusRaw
+      ? statusRaw
+          .split(",")
+          .map((part) => part.trim().toUpperCase())
+          .filter(Boolean)
+      : [IC_RETRY_STATUS.WAITING, IC_RETRY_STATUS.DEAD, IC_RETRY_STATUS.PROCESSING];
+    const rows = await createRetryService().listForCompany(companyId, { statuses });
+    res.status(200).json({ data: rows, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const runRetry = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const companyId = await resolveActorCompanyId(req);
+    const retryId = parseIdParam(String(req.params.id));
+    const retry = createRetryService();
+    const existing = await retry.findById(retryId);
+    if (!existing || existing.companyId !== companyId) {
+      throw new AppError("Retry not found", 404, "IC_RETRY_NOT_FOUND");
+    }
+    if (existing.status === IC_RETRY_STATUS.SUCCESS) {
+      throw new AppError("Retry already succeeded", 400, "IC_RETRY_ALREADY_SUCCESS");
+    }
+    if (existing.status === IC_RETRY_STATUS.PROCESSING) {
+      throw new AppError("Retry is already processing", 409, "IC_RETRY_BUSY");
+    }
+
+    try {
+      const result = await createProcessRetryQueueJob().runOne(retryId);
+      res.status(200).json({ data: result, success: true });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AppError(message, 400, "IC_RETRY_RUN_FAILED");
+    }
   } catch (error) {
     next(error);
   }

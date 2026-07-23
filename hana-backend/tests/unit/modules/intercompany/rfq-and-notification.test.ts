@@ -79,5 +79,13 @@ describe("rfq + notification (T3.6 / T3.7 / T3.7b)", () => {
     await notifications.markRead(n1.notificationId);
     await expect(notifications.countUnreadForCompany(2)).resolves.toBe(1);
     await expect(notifications.countUnreadForCompany(1)).resolves.toBe(1);
+
+    const marked = await notifications.markAllReadForCompany(2);
+    expect(marked).toBe(1);
+    await expect(notifications.countUnreadForCompany(2)).resolves.toBe(0);
+    await expect(notifications.countUnreadForCompany(1)).resolves.toBe(1);
+
+    const markedAgain = await notifications.markAllReadForCompany(2);
+    expect(markedAgain).toBe(0);
   });
 });

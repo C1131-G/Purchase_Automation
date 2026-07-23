@@ -10,6 +10,8 @@ import type { CreateNotificationInput, IcNotification } from "./notification.typ
 export type NotificationMutations = {
   insert: (input: CreateNotificationInput) => Promise<IcNotification>;
   markRead: (notificationId: number) => Promise<IcNotification | null>;
+  /** Marks all unread rows for a company; returns how many rows flipped. */
+  markAllReadForCompany: (companyId: number) => Promise<number>;
 };
 
 export const createNotificationMutations = (
@@ -39,6 +41,28 @@ export const createNotificationMutations = (
       throw new Error(`IC_NOTIFICATION insert failed id=${notificationId}`);
     }
     return mapNotificationRow(rows[0]);
+  },
+
+  markAllReadForCompany: async (companyId) => {
+    const before = await sql.query(
+      `SELECT COUNT(*) AS "CNT"
+         FROM "IC_NOTIFICATION"
+        WHERE "COMPANY_ID" = ?
+          AND "IS_READ" = 0`,
+      [companyId],
+    );
+    const marked = toNumber(before[0]?.CNT ?? before[0]?.cnt);
+    if (marked <= 0) {
+      return 0;
+    }
+    await sql.query(
+      `UPDATE "IC_NOTIFICATION"
+          SET "IS_READ" = 1
+        WHERE "COMPANY_ID" = ?
+          AND "IS_READ" = 0`,
+      [companyId],
+    );
+    return marked;
   },
 
   markRead: async (notificationId) => {
