@@ -175,6 +175,15 @@ export function ShellLayoutNavigation({
             >
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
+                  to="/sales/rfqs"
+                  search={{ limit: 10, page: 1 } as never}
+                  isActive={pathname === "/sales/rfqs" || pathname.startsWith("/sales/rfqs/")}
+                >
+                  RFQs
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton
                   to="/sales/create-quotation"
                   onMouseEnter={() => onTableNavIntent("/sales/quotations")}
                   onFocus={() => onTableNavIntent("/sales/quotations")}

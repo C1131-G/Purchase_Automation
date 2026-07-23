@@ -10,8 +10,9 @@ export const IC_API_PATHS = {
   notificationRead: (id: number | string) => `/api/v1/ic/notifications/${id}/read`,
   retries: "/api/v1/ic/retries",
   retryRun: (id: number | string) => `/api/v1/ic/retries/${id}/run`,
-  /** Reserved for P8B RFQ UI. */
+  /** P8B RFQ list + detail. */
   rfqs: "/api/v1/ic/rfqs",
+  rfqById: (id: number | string) => `/api/v1/ic/rfqs/${id}`,
 } as const;
 
 export type IcApiPathKey = keyof typeof IC_API_PATHS;

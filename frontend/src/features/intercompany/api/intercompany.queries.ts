@@ -17,6 +17,9 @@ export const intercompanyKeys = {
   retries: () => [...intercompanyKeys.all, "retries"] as const,
   retryList: (params: IcRetriesListParams = {}) =>
     [...intercompanyKeys.retries(), "list", params] as const,
+  rfqs: () => [...intercompanyKeys.all, "rfqs"] as const,
+  rfqList: () => [...intercompanyKeys.rfqs(), "list"] as const,
+  rfqDetail: (rfqId: number) => [...intercompanyKeys.rfqs(), "detail", rfqId] as const,
 };
 
 /** Optional health query for the shell placeholder page. */
@@ -62,3 +65,37 @@ export function useIcRetries(params: IcRetriesListParams = {}, enabled = true) {
     staleTime: 15_000,
   });
 }
+
+/** Session-company RFQ list (filter/sort/page client-side on the table). */
+export function useIcRfqs(enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: () => intercompanyAPI.listRfqs(),
+    queryKey: intercompanyKeys.rfqList(),
+    staleTime: 15_000,
+  });
+}
+
+/** RFQ detail (Phase 2 form + optional table prefetch). */
+export function useIcRfq(rfqId: number, enabled = true) {
+  return useQuery({
+    enabled: enabled && Number.isFinite(rfqId) && rfqId > 0,
+    queryFn: () => intercompanyAPI.getRfq(rfqId),
+    queryKey: intercompanyKeys.rfqDetail(rfqId),
+    staleTime: 15_000,
+  });
+}
+
+/** Query options for imperative prefetch from the RFQ table. */
+export const icRfqQueries = {
+  list: () => ({
+    queryFn: () => intercompanyAPI.listRfqs(),
+    queryKey: intercompanyKeys.rfqList(),
+    staleTime: 15_000,
+  }),
+  detail: (rfqId: number) => ({
+    queryFn: () => intercompanyAPI.getRfq(rfqId),
+    queryKey: intercompanyKeys.rfqDetail(rfqId),
+    staleTime: 15_000,
+  }),
+};

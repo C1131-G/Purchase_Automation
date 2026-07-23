@@ -208,3 +208,19 @@ export const icRfqHeaderSchema = z.object({
 });
 
 export type IcRfqHeader = z.infer<typeof icRfqHeaderSchema>;
+
+/** GET /api/v1/ic/rfqs */
+export const icRfqsListResponseSchema = z.object({
+  data: z.array(icRfqHeaderSchema),
+  success: z.literal(true),
+});
+
+export type IcRfqsListResponse = z.infer<typeof icRfqsListResponseSchema>;
+
+/** GET /api/v1/ic/rfqs/:id */
+export const icRfqDetailResponseSchema = z.object({
+  data: icRfqHeaderSchema,
+  success: z.literal(true),
+});
+
+export type IcRfqDetailResponse = z.infer<typeof icRfqDetailResponseSchema>;

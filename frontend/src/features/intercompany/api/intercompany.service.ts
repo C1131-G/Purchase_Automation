@@ -1,4 +1,4 @@
-/** Intercompany API client — health, notifications, retries (P8A). */
+/** Intercompany API client — health, notifications, retries (P8A), RFQs (P8B). */
 import type { z } from "zod";
 
 import type {
@@ -9,6 +9,8 @@ import type {
   icNotificationsListResponseSchema,
   icRetriesListParamsSchema,
   icRetriesListResponseSchema,
+  icRfqDetailResponseSchema,
+  icRfqsListResponseSchema,
   icRunRetryResponseSchema,
   icUnreadCountResponseSchema,
 } from "@/features/intercompany/schemas/intercompany-api.schema";
@@ -28,6 +30,8 @@ export type IcMarkAllNotificationsReadResponse = z.infer<
 export type IcRetriesListParams = z.infer<typeof icRetriesListParamsSchema>;
 export type IcRetriesListResponse = z.infer<typeof icRetriesListResponseSchema>;
 export type IcRunRetryResponse = z.infer<typeof icRunRetryResponseSchema>;
+export type IcRfqsListResponse = z.infer<typeof icRfqsListResponseSchema>;
+export type IcRfqDetailResponse = z.infer<typeof icRfqDetailResponseSchema>;
 
 export const intercompanyAPI = {
   /**
@@ -90,6 +94,18 @@ export const intercompanyAPI = {
     apiClient<IcRunRetryResponse>(IC_API_PATHS.retryRun(retryId), {
       method: "POST",
     }),
+
+  /**
+   * Session-company RFQ headers (source or target).
+   * `GET /api/v1/ic/rfqs`
+   */
+  listRfqs: () => apiClient<IcRfqsListResponse>(IC_API_PATHS.rfqs),
+
+  /**
+   * RFQ detail with lines.
+   * `GET /api/v1/ic/rfqs/:id`
+   */
+  getRfq: (rfqId: number) => apiClient<IcRfqDetailResponse>(IC_API_PATHS.rfqById(rfqId)),
 };
 
 /** Named export for plan T4.3 / docs. */
