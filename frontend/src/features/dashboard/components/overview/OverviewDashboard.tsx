@@ -188,7 +188,12 @@ export function OverviewDashboard() {
                   </div>
                 </div>
               ) : (
-                <StatementShell selection={selection} partnerCount={partners.length} />
+                <StatementShell
+                  selection={selection}
+                  partnerCount={partners.length}
+                  statement={data.statement}
+                  currency={data.currency}
+                />
               )}
             </>
           )}

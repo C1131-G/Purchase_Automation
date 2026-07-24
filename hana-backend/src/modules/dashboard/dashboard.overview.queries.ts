@@ -1,4 +1,4 @@
-// Overview Dashboard: open-document KPIs + IC partners + AR OWDD approvals (P1–P3).
+// Overview Dashboard: open KPIs + IC partners + AR OWDD + statement (P1–P4).
 
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
@@ -11,6 +11,11 @@ import {
   loadArApprovalPending,
   type OverviewArApprovalItem,
 } from "@/modules/dashboard/dashboard.ar-approval.queries";
+import {
+  emptyAging,
+  loadStatement,
+  type OverviewStatement,
+} from "@/modules/dashboard/dashboard.statement.queries";
 import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
 import type { IcBpMappingWithCompanies } from "@/modules/intercompany/config/bp-mapping/bp-mapping.types";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
@@ -18,6 +23,7 @@ import { getDisplayCurrency } from "@/services/currency-format";
 import { MODULE_HREFS } from "@/services/dashboard/dashboard.constants";
 
 export type { OverviewArApprovalItem };
+export type { OverviewStatement };
 
 export type OverviewKpiMetric = {
   count: number;
@@ -57,16 +63,8 @@ export type OverviewDashboard = {
   };
   connectedPartners: OverviewConnectedPartner[];
   arApprovalPending: OverviewArApprovalItem[];
-  statement: {
-    partners: [];
-    totals: {
-      balance: number;
-      aging: { d0_30: number; d31_60: number; d61_90: number; d90_plus: number };
-    };
-  };
+  statement: OverviewStatement;
 };
-
-const emptyAging = () => ({ d0_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 });
 
 const toCount = (value: unknown): number => {
   const parsed = Number(value ?? 0);
@@ -223,8 +221,7 @@ async function loadConnectedPartners(
 }
 
 /**
- * Current open PQ / SQ / PO + IC connected partners + AR OWDD approvals.
- * Statement balances remain stubs until P4.
+ * Current open PQ / SQ / PO + IC partners + AR OWDD + IC statement balance/aging.
  */
 export const getOverviewDashboard = async (dbName: string): Promise<OverviewDashboard> => {
   const cacheKey = `dashboard:overview:${dbName}`;
@@ -242,6 +239,19 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
           loadConnectedPartners(dbName),
           loadArApprovalPending(dbName),
         ]);
+
+        // Statement depends on connected IC card codes (OCRD.Balance + open OINV/OPCH).
+        const statement =
+          connected.partners.length === 0
+            ? { partners: [], totals: { balance: 0, aging: emptyAging() } }
+            : await loadStatement(
+                dbName,
+                connected.partners.map((partner) => ({
+                  cardCode: partner.cardCode,
+                  cardName: partner.cardName,
+                  role: partner.role,
+                })),
+              );
 
         return {
           currency,
@@ -270,10 +280,7 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
           },
           connectedPartners: connected.partners,
           arApprovalPending: arApproval.items,
-          statement: {
-            partners: [],
-            totals: { balance: 0, aging: emptyAging() },
-          },
+          statement,
         } satisfies OverviewDashboard;
       } catch (err: unknown) {
         const caughtError = err instanceof Error ? err : new Error(String(err));

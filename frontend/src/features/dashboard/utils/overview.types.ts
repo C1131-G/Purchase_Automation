@@ -55,17 +55,30 @@ export type OverviewDashboard = {
   };
   connectedPartners: OverviewConnectedPartner[];
   arApprovalPending: OverviewArApprovalItem[];
-  statement: {
-    partners: unknown[];
-    totals: {
-      balance: number;
-      aging: {
-        d0_30: number;
-        d31_60: number;
-        d61_90: number;
-        d90_plus: number;
-      };
-    };
+  statement: OverviewStatement;
+};
+
+export type OverviewAging = {
+  d0_30: number;
+  d31_60: number;
+  d61_90: number;
+  d90_plus: number;
+};
+
+export type OverviewStatementPartner = {
+  cardCode: string;
+  cardName: string;
+  /** SAP CardType: S = vendor, C = customer. */
+  cardType: "S" | "C";
+  balance: number;
+  aging: OverviewAging;
+};
+
+export type OverviewStatement = {
+  partners: OverviewStatementPartner[];
+  totals: {
+    balance: number;
+    aging: OverviewAging;
   };
 };
 
