@@ -7,3 +7,9 @@ export type IcBpMapping = {
   isActive: boolean;
   remarks: string | null;
 };
+
+/** Mapping row with optional IC_COMPANY names (list / overview). */
+export type IcBpMappingWithCompanies = IcBpMapping & {
+  buyerCompanyName: string | null;
+  vendorCompanyName: string | null;
+};

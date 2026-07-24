@@ -1,13 +1,17 @@
+import { useMemo, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 
 import { SectionErrorState } from "@/components/section-error-state";
 import { useOverviewDashboard } from "../../queries/queries";
-import {
-  ConnectedPartnersSkeleton,
-  NeedsAttentionSkeleton,
-  StatementSkeleton,
-} from "./OverviewSectionSkeletons";
+import type {
+  OverviewConnectedPartner,
+  OverviewPartnerSelection,
+} from "../../utils/overview.types";
+import { partnerSelectionKey } from "../../utils/overview.types";
+import { ConnectedPartners } from "./ConnectedPartners";
+import { NeedsAttentionSkeleton } from "./OverviewSectionSkeletons";
 import { OpenWorkStrip, OpenWorkStripSkeleton } from "./OpenWorkStrip";
+import { StatementShell } from "./StatementShell";
 
 function formatAsOf(iso: string | undefined): string | null {
   if (!iso) return null;
@@ -23,12 +27,56 @@ function formatAsOf(iso: string | undefined): string | null {
 
 export function OverviewDashboard() {
   const { data, isLoading, isError, isFetching, refetch } = useOverviewDashboard();
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const scrollToAttention = () => {
     document.getElementById("overview-needs-attention")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
+  };
+
+  const scrollToStatement = () => {
+    document.getElementById("overview-statement")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const partners = data?.connectedPartners ?? [];
+
+  const effectiveSelectedKey = useMemo(() => {
+    if (!selectedKey) return null;
+    const stillPresent = partners.some((item) => partnerSelectionKey(item) === selectedKey);
+    return stillPresent ? selectedKey : null;
+  }, [partners, selectedKey]);
+
+  const selection: OverviewPartnerSelection = useMemo(() => {
+    if (!effectiveSelectedKey) {
+      return { kind: "all" };
+    }
+    const partner = partners.find((item) => partnerSelectionKey(item) === effectiveSelectedKey);
+    if (!partner) {
+      return { kind: "all" };
+    }
+    return {
+      kind: "partner",
+      mappingId: partner.mappingId,
+      role: partner.role,
+      cardCode: partner.cardCode,
+      cardName: partner.cardName,
+      partnerCompanyName: partner.partnerCompanyName,
+    };
+  }, [partners, effectiveSelectedKey]);
+
+  const handleSelectAll = () => {
+    setSelectedKey(null);
+    scrollToStatement();
+  };
+
+  const handleSelectPartner = (partner: OverviewConnectedPartner) => {
+    setSelectedKey(partnerSelectionKey(partner));
+    scrollToStatement();
   };
 
   const asOfLabel = formatAsOf(data?.asOf);
@@ -94,11 +142,49 @@ export function OverviewDashboard() {
                   <NeedsAttentionSkeleton />
                 </div>
                 <div className="lg:col-span-2">
-                  <ConnectedPartnersSkeleton />
+                  {isLoading || !data ? (
+                    <div className="flex min-h-[220px] animate-pulse flex-col rounded-xl border border-zinc-200 bg-white">
+                      <div className="border-b border-zinc-100 px-4 py-3">
+                        <div className="h-4 w-40 rounded bg-zinc-200" />
+                        <div className="mt-2 h-3 w-48 rounded bg-zinc-100" />
+                      </div>
+                      <div className="flex flex-1 flex-col gap-3 p-4">
+                        {[1, 2, 3].map((row) => (
+                          <div key={row} className="flex items-center gap-3">
+                            <div className="h-3.5 flex-1 rounded bg-zinc-200" />
+                            <div className="h-3.5 w-16 rounded bg-zinc-100" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <ConnectedPartners
+                      partners={data.connectedPartners}
+                      selectedKey={effectiveSelectedKey}
+                      onSelectAll={handleSelectAll}
+                      onSelectPartner={handleSelectPartner}
+                    />
+                  )}
                 </div>
               </div>
 
-              <StatementSkeleton />
+              {isLoading || !data ? (
+                <div className="flex min-h-[180px] animate-pulse flex-col rounded-xl border border-zinc-200 bg-white">
+                  <div className="border-b border-zinc-100 px-4 py-3">
+                    <div className="h-4 w-24 rounded bg-zinc-200" />
+                    <div className="mt-2 h-3 w-56 rounded bg-zinc-100" />
+                  </div>
+                  <div className="flex flex-1 flex-col justify-center gap-3 p-4">
+                    <div className="grid grid-cols-4 gap-3">
+                      {[1, 2, 3, 4].map((cell) => (
+                        <div key={cell} className="h-14 rounded-lg bg-zinc-100" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <StatementShell selection={selection} partnerCount={partners.length} />
+              )}
             </>
           )}
         </div>

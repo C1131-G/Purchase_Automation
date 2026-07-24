@@ -156,7 +156,7 @@ export const registerAllPaths = () => {
     operationId: "getDashboardOverview",
     summary: "Overview dashboard",
     description:
-      "Unified post-login overview: open PQ/SQ/PO counts, AR approval pending, IC partners, statement.",
+      "Unified post-login overview: open PQ/SQ/PO counts, AR approval pending stub, live IC connected partners (IC_BP_MAPPING), statement shell.",
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Overview dashboard payload." }),
   });

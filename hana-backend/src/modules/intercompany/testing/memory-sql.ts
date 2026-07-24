@@ -151,7 +151,31 @@ export const createMemorySqlClient = (
       return db.tables.IC_COMPANY.filter((row) => row.IS_ACTIVE === 1).map(clone) as T[];
     }
 
-    if (statement.includes('FROM "IC_BP_MAPPING"')) {
+    if (statement.includes("IC_BP_MAPPING")) {
+      // listActiveForCompany (joined + OR company filter)
+      if (statement.includes("LEFT JOIN") && statement.includes(" OR ")) {
+        const companyId = Number(params[0]);
+        const companyById = new Map(
+          db.tables.IC_COMPANY.map((row) => [Number(row.COMPANY_ID), row] as const),
+        );
+        const listed: Row[] = db.tables.IC_BP_MAPPING.filter(
+          (row) =>
+            row.IS_ACTIVE === 1 &&
+            (row.BUYER_COMPANY_ID === companyId || row.VENDOR_COMPANY_ID === companyId),
+        )
+          .map((row) => {
+            const buyer = companyById.get(Number(row.BUYER_COMPANY_ID));
+            const vendor = companyById.get(Number(row.VENDOR_COMPANY_ID));
+            return {
+              ...clone(row),
+              BUYER_COMPANY_NAME: buyer?.COMPANY_NAME ?? null,
+              VENDOR_COMPANY_NAME: vendor?.COMPANY_NAME ?? null,
+            } as Row;
+          })
+          .sort((left, right) => Number(left.MAPPING_ID) - Number(right.MAPPING_ID));
+        return listed as T[];
+      }
+
       const [buyerCompanyId, vendorCode] = params;
       return db.tables.IC_BP_MAPPING.filter(
         (row) =>

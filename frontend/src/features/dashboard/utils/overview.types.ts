@@ -9,16 +9,36 @@ export type OverviewArKpi = {
   openValue: number;
 };
 
+export type OverviewConnectedPartner = {
+  mappingId: number;
+  buyerCompanyId: number;
+  buyerCompanyName: string | null;
+  vendorCompanyId: number;
+  vendorCompanyName: string | null;
+  vendorCode: string;
+  vendorName: string | null;
+  buyerCustomerCode: string;
+  customerName: string | null;
+  /** How this link appears in the session company books. */
+  role: "vendor" | "customer";
+  /** CardCode in the session company OCRD (vendor or customer). */
+  cardCode: string;
+  cardName: string | null;
+  partnerCompanyId: number;
+  partnerCompanyName: string | null;
+};
+
 export type OverviewDashboard = {
   currency: string;
   asOf: string;
+  sessionCompanyId: number | null;
   kpis: {
     openPq: OverviewKpiMetric;
     openSq: OverviewKpiMetric;
     openPo: OverviewKpiMetric;
     arApprovalPending: OverviewArKpi;
   };
-  connectedPartners: unknown[];
+  connectedPartners: OverviewConnectedPartner[];
   arApprovalPending: unknown[];
   statement: {
     partners: unknown[];
@@ -38,3 +58,19 @@ export type OverviewDashboardResponse = {
   success: boolean;
   data: OverviewDashboard;
 };
+
+/** Client selection key for statement filter shell (P2). */
+export type OverviewPartnerSelection =
+  | { kind: "all" }
+  | {
+      kind: "partner";
+      mappingId: number;
+      role: "vendor" | "customer";
+      cardCode: string;
+      cardName: string | null;
+      partnerCompanyName: string | null;
+    };
+
+export function partnerSelectionKey(partner: OverviewConnectedPartner): string {
+  return `${partner.mappingId}:${partner.role}`;
+}

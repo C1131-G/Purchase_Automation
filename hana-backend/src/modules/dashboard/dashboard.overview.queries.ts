@@ -1,11 +1,15 @@
-// Overview Dashboard: open-document KPIs (no period filter) for the post-login home surface.
+// Overview Dashboard: open-document KPIs + IC connected partners (P1–P2).
 
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
+import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { getTenantRepository } from "@/db/tenant-query";
+import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
+import type { IcBpMappingWithCompanies } from "@/modules/intercompany/config/bp-mapping/bp-mapping.types";
+import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { getDisplayCurrency } from "@/services/currency-format";
 import { MODULE_HREFS } from "@/services/dashboard/dashboard.constants";
 
@@ -15,16 +19,37 @@ export type OverviewKpiMetric = {
   href: string;
 };
 
+/** One IC link from the session company's point of view. */
+export type OverviewConnectedPartner = {
+  mappingId: number;
+  buyerCompanyId: number;
+  buyerCompanyName: string | null;
+  vendorCompanyId: number;
+  vendorCompanyName: string | null;
+  vendorCode: string;
+  vendorName: string | null;
+  buyerCustomerCode: string;
+  customerName: string | null;
+  /** How this link appears in the session company books. */
+  role: "vendor" | "customer";
+  /** CardCode in the session company OCRD (vendor or customer). */
+  cardCode: string;
+  cardName: string | null;
+  partnerCompanyId: number;
+  partnerCompanyName: string | null;
+};
+
 export type OverviewDashboard = {
   currency: string;
   asOf: string;
+  sessionCompanyId: number | null;
   kpis: {
     openPq: OverviewKpiMetric;
     openSq: OverviewKpiMetric;
     openPo: OverviewKpiMetric;
     arApprovalPending: { count: number; openValue: number };
   };
-  connectedPartners: [];
+  connectedPartners: OverviewConnectedPartner[];
   arApprovalPending: [];
   statement: {
     partners: [];
@@ -68,9 +93,132 @@ async function aggregateOpenDocs(
   };
 }
 
+async function loadBpNamesByCode(
+  dbName: string,
+  cardCodes: string[],
+): Promise<Map<string, string>> {
+  const unique = [...new Set(cardCodes.map((code) => code.trim()).filter(Boolean))];
+  const names = new Map<string, string>();
+  if (unique.length === 0) {
+    return names;
+  }
+
+  try {
+    const repo = await getTenantRepository(dbName, BusinessPartnerSchema);
+    const rows = await repo
+      .createQueryBuilder("bp")
+      .select("bp.CardCode", "cardCode")
+      .addSelect("bp.CardName", "cardName")
+      .where("bp.CardCode IN (:...codes)", { codes: unique })
+      .getRawMany<{ cardCode: string; cardName: string }>();
+
+    for (const row of rows) {
+      const code = String(row.cardCode ?? "").trim();
+      const name = String(row.cardName ?? "").trim();
+      if (code && name) {
+        names.set(code, name);
+      }
+    }
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.warn({
+      db: dbName,
+      err: caughtError,
+      msg: "Overview: best-effort OCRD name lookup failed",
+    });
+  }
+
+  return names;
+}
+
+function toConnectedPartner(
+  mapping: IcBpMappingWithCompanies,
+  sessionCompanyId: number,
+  bpNames: Map<string, string>,
+): OverviewConnectedPartner {
+  const isBuyer = mapping.buyerCompanyId === sessionCompanyId;
+  const role: "vendor" | "customer" = isBuyer ? "vendor" : "customer";
+  const cardCode = isBuyer ? mapping.vendorCode : mapping.buyerCustomerCode;
+  const partnerCompanyId = isBuyer ? mapping.vendorCompanyId : mapping.buyerCompanyId;
+  const partnerCompanyName = isBuyer ? mapping.vendorCompanyName : mapping.buyerCompanyName;
+  const vendorName = bpNames.get(mapping.vendorCode) ?? null;
+  const customerName = bpNames.get(mapping.buyerCustomerCode) ?? null;
+
+  return {
+    mappingId: mapping.mappingId,
+    buyerCompanyId: mapping.buyerCompanyId,
+    buyerCompanyName: mapping.buyerCompanyName,
+    vendorCompanyId: mapping.vendorCompanyId,
+    vendorCompanyName: mapping.vendorCompanyName,
+    vendorCode: mapping.vendorCode,
+    vendorName,
+    buyerCustomerCode: mapping.buyerCustomerCode,
+    customerName,
+    role,
+    cardCode,
+    cardName: bpNames.get(cardCode) ?? null,
+    partnerCompanyId,
+    partnerCompanyName,
+  };
+}
+
+async function loadConnectedPartners(
+  dbName: string,
+): Promise<{ sessionCompanyId: number | null; partners: OverviewConnectedPartner[] }> {
+  try {
+    const company = createCompanyService();
+    const bpMapping = createBpMappingService();
+    const sessionCompany = await company.getBySapDbName(dbName);
+
+    if (!sessionCompany) {
+      return { sessionCompanyId: null, partners: [] };
+    }
+
+    const mappings = await bpMapping.listActiveForCompany(sessionCompany.companyId);
+    if (mappings.length === 0) {
+      return { sessionCompanyId: sessionCompany.companyId, partners: [] };
+    }
+
+    const cardCodes: string[] = [];
+    for (const mapping of mappings) {
+      if (mapping.buyerCompanyId === sessionCompany.companyId) {
+        cardCodes.push(mapping.vendorCode);
+      }
+      if (mapping.vendorCompanyId === sessionCompany.companyId) {
+        cardCodes.push(mapping.buyerCustomerCode);
+      }
+    }
+
+    const bpNames = await loadBpNamesByCode(dbName, cardCodes);
+    const partners = mappings.map((mapping) =>
+      toConnectedPartner(mapping, sessionCompany.companyId, bpNames),
+    );
+
+    // Stable order: vendors first, then customers; name/code within role.
+    partners.sort((left, right) => {
+      if (left.role !== right.role) {
+        return left.role === "vendor" ? -1 : 1;
+      }
+      const leftLabel = (left.cardName ?? left.cardCode).toLowerCase();
+      const rightLabel = (right.cardName ?? right.cardCode).toLowerCase();
+      return leftLabel.localeCompare(rightLabel);
+    });
+
+    return { sessionCompanyId: sessionCompany.companyId, partners };
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.warn({
+      db: dbName,
+      err: caughtError,
+      msg: "Overview: connected partners load failed; returning empty list",
+    });
+    return { sessionCompanyId: null, partners: [] };
+  }
+}
+
 /**
- * Current open PQ / SQ / PO for the session company.
- * AR approval, IC partners, and statement are stubs until P2–P4.
+ * Current open PQ / SQ / PO + IC connected partners for the session company.
+ * AR approval and statement balances are stubs until P3–P4.
  */
 export const getOverviewDashboard = async (dbName: string): Promise<OverviewDashboard> => {
   const cacheKey = `dashboard:overview:${dbName}`;
@@ -81,15 +229,17 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
     async () => {
       try {
         const currency = await getDisplayCurrency(dbName);
-        const [openPq, openSq, openPo] = await Promise.all([
+        const [openPq, openSq, openPo, connected] = await Promise.all([
           aggregateOpenDocs(dbName, PurchaseQuotationSchema, "pq"),
           aggregateOpenDocs(dbName, SalesQuotationSchema, "sq"),
           aggregateOpenDocs(dbName, PurchaseOrderSchema, "po"),
+          loadConnectedPartners(dbName),
         ]);
 
         return {
           currency,
           asOf: new Date().toISOString(),
+          sessionCompanyId: connected.sessionCompanyId,
           kpis: {
             openPq: {
               count: openPq.count,
@@ -108,7 +258,7 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
             },
             arApprovalPending: { count: 0, openValue: 0 },
           },
-          connectedPartners: [],
+          connectedPartners: connected.partners,
           arApprovalPending: [],
           statement: {
             partners: [],
