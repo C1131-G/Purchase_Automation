@@ -194,13 +194,6 @@ export const createMemorySqlClient = (
       return [{ CNT: cnt } as unknown as T];
     }
 
-    if (statement.includes('FROM "IC_NOTIFICATION" WHERE "NOTIFICATION_ID"')) {
-      const id = Number(params[0]);
-      return db.tables.IC_NOTIFICATION.filter((row) => row.NOTIFICATION_ID === id).map(
-        clone,
-      ) as T[];
-    }
-
     if (statement.includes('FROM "IC_NOTIFICATION"') && statement.includes('IS_READ" = 0')) {
       const companyId = Number(params[0]);
       return db.tables.IC_NOTIFICATION.filter(
@@ -208,6 +201,22 @@ export const createMemorySqlClient = (
       )
         .sort((left, right) => Number(right.NOTIFICATION_ID) - Number(left.NOTIFICATION_ID))
         .map(clone) as T[];
+    }
+
+    // Single row by id (+ optional company scope for P9 isolation)
+    if (statement.includes('FROM "IC_NOTIFICATION" WHERE "NOTIFICATION_ID"')) {
+      const notificationId = Number(params[0]);
+      const companyId =
+        statement.includes("COMPANY_ID") && params.length > 1 ? Number(params[1]) : null;
+      return db.tables.IC_NOTIFICATION.filter((row) => {
+        if (row.NOTIFICATION_ID !== notificationId) {
+          return false;
+        }
+        if (companyId !== null && !Number.isNaN(companyId)) {
+          return Number(row.COMPANY_ID) === companyId;
+        }
+        return true;
+      }).map(clone) as T[];
     }
 
     if (statement.includes('FROM "IC_NOTIFICATION"') && statement.includes("COMPANY_ID")) {
@@ -234,6 +243,24 @@ export const createMemorySqlClient = (
     }
 
     if (statement.startsWith('UPDATE "IC_NOTIFICATION"')) {
+      // mark single: WHERE "NOTIFICATION_ID" = ? [AND "COMPANY_ID" = ?]
+      if (statement.includes('"NOTIFICATION_ID" =')) {
+        const notificationId = Number(params[0]);
+        const companyId = params.length > 1 ? Number(params[1]) : null;
+        const row = db.tables.IC_NOTIFICATION.find((candidate) => {
+          if (candidate.NOTIFICATION_ID !== notificationId) {
+            return false;
+          }
+          if (companyId !== null && !Number.isNaN(companyId)) {
+            return candidate.COMPANY_ID === companyId;
+          }
+          return true;
+        });
+        if (row) {
+          row.IS_READ = 1;
+        }
+        return [] as T[];
+      }
       // mark-all-read: WHERE COMPANY_ID = ? AND IS_READ = 0
       if (statement.includes("COMPANY_ID")) {
         const companyId = Number(params[0]);
@@ -243,11 +270,6 @@ export const createMemorySqlClient = (
           }
         }
         return [] as T[];
-      }
-      const id = Number(params[0]);
-      const row = db.tables.IC_NOTIFICATION.find((row) => row.NOTIFICATION_ID === id);
-      if (row) {
-        row.IS_READ = 1;
       }
       return [] as T[];
     }

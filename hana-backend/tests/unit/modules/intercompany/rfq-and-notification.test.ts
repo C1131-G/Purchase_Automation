@@ -76,8 +76,15 @@ describe("rfq + notification (T3.6 / T3.7 / T3.7b)", () => {
     expect(list).toHaveLength(2);
     await expect(notifications.countUnreadForCompany(2)).resolves.toBe(2);
 
-    await notifications.markRead(n1.notificationId);
+    await notifications.markRead(n1.notificationId, 2);
     await expect(notifications.countUnreadForCompany(2)).resolves.toBe(1);
+    await expect(notifications.countUnreadForCompany(1)).resolves.toBe(1);
+
+    // Company isolation: wrong company cannot mark another company's row
+    const other = await notifications.listForCompany(1);
+    const otherId = other[0]?.notificationId;
+    expect(otherId).toBeDefined();
+    await expect(notifications.markRead(otherId!, 2)).resolves.toBeNull();
     await expect(notifications.countUnreadForCompany(1)).resolves.toBe(1);
 
     const marked = await notifications.markAllReadForCompany(2);

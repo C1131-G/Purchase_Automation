@@ -38,7 +38,7 @@ describe("IC hooks + health", () => {
     getIcHealth({} as Request, res as unknown as Response);
     expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({
-      data: { module: "intercompany", ok: true, phase: "P7" },
+      data: { module: "intercompany", ok: true, phase: "P9" },
       success: true,
     });
   });

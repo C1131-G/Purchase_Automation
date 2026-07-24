@@ -1,0 +1,23 @@
+-- P9 optional: export pilot INTERCOMPANY_DOCUMENT_MAP before drop.
+-- Run in SAP HANA (SBOCOMMON). Adjust EXPORT path / method to your DBA tooling.
+-- Prefer SELECT → CSV if EXPORT privilege is not available.
+
+-- SELECT all pilot rows for archival
+SELECT
+  "SOURCE_DB",
+  "SOURCE_OBJECT_TYPE",
+  "SOURCE_DOC_ENTRY",
+  "SOURCE_DOC_NUM",
+  "TARGET_DB",
+  "TARGET_OBJECT_TYPE",
+  "TARGET_DRAFT_ENTRY",
+  "TARGET_DRAFT_NUM",
+  "SOURCE_VENDOR_CODE",
+  "TARGET_CUSTOMER_CODE",
+  "STATUS",
+  "ERROR_MESSAGE"
+FROM "SBOCOMMON"."INTERCOMPANY_DOCUMENT_MAP"
+ORDER BY "SOURCE_DB", "SOURCE_DOC_ENTRY";
+
+-- Optional count before drop
+-- SELECT COUNT(*) AS "ROW_COUNT" FROM "SBOCOMMON"."INTERCOMPANY_DOCUMENT_MAP";

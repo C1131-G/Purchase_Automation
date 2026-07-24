@@ -48,7 +48,7 @@ export const getIcHealth = (_req: Request, res: Response): void => {
     data: {
       module: "intercompany",
       ok: true,
-      phase: "P7",
+      phase: "P9",
     },
     success: true,
   });
@@ -166,12 +166,10 @@ export const markNotificationRead = async (
     const companyId = await resolveActorCompanyId(req);
     const notificationId = parseIdParam(String(req.params.id));
     const notifications = createNotificationService();
-    const existing = await notifications.listForCompany(companyId);
-    const owned = existing.find((row) => row.notificationId === notificationId);
-    if (!owned) {
+    const updated = await notifications.markRead(notificationId, companyId);
+    if (!updated) {
       throw new AppError("Notification not found", 404, "IC_NOTIFICATION_NOT_FOUND");
     }
-    const updated = await notifications.markRead(notificationId);
     res.status(200).json({ data: updated, success: true });
   } catch (error) {
     next(error);

@@ -9,7 +9,8 @@ import type { CreateNotificationInput, IcNotification } from "./notification.typ
 
 export type NotificationMutations = {
   insert: (input: CreateNotificationInput) => Promise<IcNotification>;
-  markRead: (notificationId: number) => Promise<IcNotification | null>;
+  /** Company-scoped: only updates rows owned by `companyId`. */
+  markRead: (notificationId: number, companyId: number) => Promise<IcNotification | null>;
   /** Marks all unread rows for a company; returns how many rows flipped. */
   markAllReadForCompany: (companyId: number) => Promise<number>;
 };
@@ -65,13 +66,20 @@ export const createNotificationMutations = (
     return marked;
   },
 
-  markRead: async (notificationId) => {
-    await sql.query(`UPDATE "IC_NOTIFICATION" SET "IS_READ" = 1 WHERE "NOTIFICATION_ID" = ?`, [
-      notificationId,
-    ]);
-    const rows = await sql.query(`SELECT * FROM "IC_NOTIFICATION" WHERE "NOTIFICATION_ID" = ?`, [
-      notificationId,
-    ]);
+  markRead: async (notificationId, companyId) => {
+    await sql.query(
+      `UPDATE "IC_NOTIFICATION"
+          SET "IS_READ" = 1
+        WHERE "NOTIFICATION_ID" = ?
+          AND "COMPANY_ID" = ?`,
+      [notificationId, companyId],
+    );
+    const rows = await sql.query(
+      `SELECT * FROM "IC_NOTIFICATION"
+        WHERE "NOTIFICATION_ID" = ?
+          AND "COMPANY_ID" = ?`,
+      [notificationId, companyId],
+    );
     return rows[0] ? mapNotificationRow(rows[0]) : null;
   },
 });

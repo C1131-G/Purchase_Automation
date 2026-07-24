@@ -9,4 +9,5 @@ coverage/
 .idea/
 sessions/
 *.md
+!src/modules/intercompany/**/*.md
 errors.md

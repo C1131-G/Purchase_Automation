@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { logger } from "@/core/logger/pino-logger";
 import type { ConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
 import { createConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
@@ -80,6 +82,7 @@ export const createFlow1Orchestrator = (deps?: {
       const startedAt = Date.now();
       const logCtx = {
         cardCode: input.cardCode,
+        corrId: randomUUID(),
         dbName: input.dbName,
         docEntry: input.docEntry,
         docNum: input.docNum,

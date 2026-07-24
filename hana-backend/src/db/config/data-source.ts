@@ -16,7 +16,6 @@ import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
 import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
-import { IntercompanyDocumentMapSchema } from "@/db/schemas/intercompany-document-map.schema";
 import { ItemSchema } from "@/db/schemas/item.schema";
 // Schemas
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
@@ -54,10 +53,9 @@ export const AppDataSource = new DataSource({
   logging: config.nodeEnv === "development" ? ["error"] : false,
   logger: "simple-console",
 
-  // Entity configuration
+  // Entity configuration (pilot INTERCOMPANY_DOCUMENT_MAP schema removed in P9)
   entities: [
     OrganizationSchema,
-    IntercompanyDocumentMapSchema,
     PurchaseOrderSchema,
     GRPOSchema,
     APInvoiceSchema,
@@ -86,7 +84,7 @@ export const initializeDatabase = async (): Promise<void> => {
   try {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
-      logger.info({ entities: 20, msg: "TypeORM initialized", pool_size: 10 });
+      logger.info({ entities: 19, msg: "TypeORM initialized", pool_size: 10 });
 
       // Explicitly test connectivity
       const result = await AppDataSource.query("SELECT 1 FROM DUMMY");
