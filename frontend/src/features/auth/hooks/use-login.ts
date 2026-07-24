@@ -42,9 +42,6 @@ export function useLogin() {
         // Sync the Query Cache (Blueprint)
         queryClient.setQueryData(authKeys.user(), response.data.user);
 
-        // Stamp submit→dashboard latency start point (read in DashboardCanvas on mount).
-        (window as unknown as Record<string, unknown>).__loginSubmitAt = Date.now();
-
         // Navigate to unified Overview dashboard.
         void navigate({
           to: "/dashboard",

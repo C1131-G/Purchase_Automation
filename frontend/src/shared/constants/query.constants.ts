@@ -35,4 +35,9 @@ export const QUERY_CACHE_POLICY = {
     gcTime: 1 * QUERY_TIME.hour,
     staleTime: 10 * QUERY_TIME.minute,
   },
+  /** Overview ops desk — short TTL to match backend dashboard:overview cache (~15s). */
+  overview: {
+    gcTime: 2 * QUERY_TIME.minute,
+    staleTime: 15 * QUERY_TIME.second,
+  },
 } as const;

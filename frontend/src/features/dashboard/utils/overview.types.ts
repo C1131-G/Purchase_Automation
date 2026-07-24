@@ -102,3 +102,56 @@ export type OverviewPartnerSelection =
 export function partnerSelectionKey(partner: OverviewConnectedPartner): string {
   return `${partner.mappingId}:${partner.role}`;
 }
+
+export function emptyOverviewAging(): OverviewAging {
+  return { d0_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 };
+}
+
+export function roleToCardType(role: "vendor" | "customer"): "S" | "C" {
+  return role === "vendor" ? "S" : "C";
+}
+
+/** Resolve statement row for a single connected partner selection. */
+export function findStatementPartner(
+  partners: OverviewStatementPartner[],
+  selection: Extract<OverviewPartnerSelection, { kind: "partner" }>,
+): OverviewStatementPartner | null {
+  const cardType = roleToCardType(selection.role);
+  const code = selection.cardCode.trim();
+  return (
+    partners.find((row) => row.cardCode === code && row.cardType === cardType) ??
+    partners.find((row) => row.cardCode === code) ??
+    null
+  );
+}
+
+export type ResolvedStatementView = {
+  balance: number;
+  aging: OverviewAging;
+  selectedPartner: OverviewStatementPartner | null;
+  showEmptyPartner: boolean;
+};
+
+/** Client-side filter: all-connected totals vs one partner (P2/P4). */
+export function resolveStatementView(
+  selection: OverviewPartnerSelection,
+  statement: OverviewStatement,
+  partnerCount: number,
+): ResolvedStatementView {
+  if (selection.kind === "all") {
+    return {
+      balance: statement.totals.balance,
+      aging: statement.totals.aging,
+      selectedPartner: null,
+      showEmptyPartner: false,
+    };
+  }
+
+  const selectedPartner = findStatementPartner(statement.partners, selection);
+  return {
+    balance: selectedPartner?.balance ?? 0,
+    aging: selectedPartner?.aging ?? emptyOverviewAging(),
+    selectedPartner,
+    showEmptyPartner: selectedPartner === null && partnerCount > 0,
+  };
+}

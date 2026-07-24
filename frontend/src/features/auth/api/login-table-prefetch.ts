@@ -67,10 +67,10 @@ export const scheduleIdlePrefetch = (task: () => Promise<void>) => {
 // ---------------------------------------------------------------------------
 // Background (deferred) prefetches — run during idle time after first paint.
 //
-// Dashboard queries are intentionally NOT included here. The DashboardCanvas
-// component owns its own queries and fires them on mount with normal skeletons.
-// Prefetching them from the login handler races with session establishment and
-// causes 401s on the backend before the auth guard has had a chance to run.
+// Overview dashboard is intentionally NOT prefetched here. The Overview page
+// owns /api/v1/dashboard/overview on mount (short staleTime). Prefetching from
+// the login handler races with session establishment and can 401 before the
+// auth guard has settled.
 // ---------------------------------------------------------------------------
 
 const backgroundPrefetches = [

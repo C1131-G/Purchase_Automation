@@ -1,100 +1,17 @@
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { apiClient } from "@/shared/api/client";
-import { dashboardKeys } from "./queryKeys";
-import type {
-  DashboardArea,
-  DashboardPeriod,
-  DashboardMetric,
-  DashboardModuleCard,
-  DashboardTrend,
-  DashboardFunnelStep,
-  DashboardPartnerGroup,
-  DashboardExceptionGroup,
-} from "../utils/types";
-import type { OverviewDashboardResponse } from "../utils/overview.types";
+import { useQuery } from "@tanstack/react-query";
 
-interface DashboardResponse<T> {
-  data: T;
-  currency: string;
-}
+import { apiClient } from "@/shared/api/client";
+import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
+
+import type { OverviewDashboardResponse } from "../utils/overview.types";
+import { dashboardKeys } from "./queryKeys";
 
 export function useOverviewDashboard() {
   return useQuery({
     queryKey: dashboardKeys.overview(),
     queryFn: () => apiClient<OverviewDashboardResponse>("/api/v1/dashboard/overview"),
-    staleTime: 15 * 1000,
+    staleTime: QUERY_CACHE_POLICY.overview.staleTime,
+    gcTime: QUERY_CACHE_POLICY.overview.gcTime,
     select: (response) => response.data,
-  });
-}
-
-export function useDashboardKpiSummary(area: DashboardArea, period: DashboardPeriod) {
-  return useQuery({
-    queryKey: dashboardKeys.segment(area, period, "kpi-summary"),
-    queryFn: () =>
-      apiClient<DashboardResponse<DashboardMetric[]>>(
-        `/api/v1/dashboard/${area}/kpi-summary?period=${period}`,
-      ),
-    staleTime: 15 * 1000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useDashboardModuleCards(area: DashboardArea, period: DashboardPeriod) {
-  return useQuery({
-    queryKey: dashboardKeys.segment(area, period, "module-cards"),
-    queryFn: () =>
-      apiClient<DashboardResponse<DashboardModuleCard[]>>(
-        `/api/v1/dashboard/${area}/module-cards?period=${period}`,
-      ),
-    staleTime: 15 * 1000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useDashboardTrend(area: DashboardArea, period: DashboardPeriod) {
-  return useQuery({
-    queryKey: dashboardKeys.segment(area, period, "trend"),
-    queryFn: () =>
-      apiClient<DashboardResponse<DashboardTrend>>(
-        `/api/v1/dashboard/${area}/trend?period=${period}`,
-      ),
-    staleTime: 15 * 1000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useDashboardFunnel(area: DashboardArea, period: DashboardPeriod) {
-  return useQuery({
-    queryKey: dashboardKeys.segment(area, period, "funnel"),
-    queryFn: () =>
-      apiClient<DashboardResponse<DashboardFunnelStep[]>>(
-        `/api/v1/dashboard/${area}/funnel?period=${period}`,
-      ),
-    staleTime: 15 * 1000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useDashboardTopPartners(area: DashboardArea, period: DashboardPeriod) {
-  return useQuery({
-    queryKey: dashboardKeys.segment(area, period, "top-partners"),
-    queryFn: () =>
-      apiClient<DashboardResponse<DashboardPartnerGroup[]>>(
-        `/api/v1/dashboard/${area}/top-partners?period=${period}`,
-      ),
-    staleTime: 15 * 1000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useDashboardExceptions(area: DashboardArea, period: DashboardPeriod) {
-  return useQuery({
-    queryKey: dashboardKeys.segment(area, period, "exceptions"),
-    queryFn: () =>
-      apiClient<DashboardResponse<DashboardExceptionGroup[]>>(
-        `/api/v1/dashboard/${area}/exceptions?period=${period}`,
-      ),
-    staleTime: 15 * 1000,
-    placeholderData: keepPreviousData,
   });
 }

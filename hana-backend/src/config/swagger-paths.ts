@@ -163,24 +163,27 @@ export const registerAllPaths = () => {
   registerPath("/dashboard/stats", "get", {
     security: cookieSecurity,
     operationId: "getDashboardStats",
-    summary: "Dashboard stats",
-    description: "Combined purchase/sales summary for legacy dashboard.",
+    summary: "Dashboard stats (deprecated)",
+    description:
+      "Deprecated: dual purchase/sales dashboard removed from UI. Prefer GET /dashboard/overview. Kept one release for compatibility.",
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Dashboard stats." }),
   });
   registerPath("/dashboard/purchase-summary", "get", {
     security: cookieSecurity,
     operationId: "getPurchaseSummary",
-    summary: "Purchase summary",
-    description: "Purchase KPI summary for selected range.",
+    summary: "Purchase summary (deprecated)",
+    description:
+      "Deprecated: dual purchase dashboard removed from UI. Prefer GET /dashboard/overview.",
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Purchase summary." }),
   });
   registerPath("/dashboard/sales-summary", "get", {
     security: cookieSecurity,
     operationId: "getSalesSummary",
-    summary: "Sales summary",
-    description: "Sales KPI summary for selected range.",
+    summary: "Sales summary (deprecated)",
+    description:
+      "Deprecated: dual sales dashboard removed from UI. Prefer GET /dashboard/overview.",
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Sales summary." }),
   });
@@ -196,8 +199,8 @@ export const registerAllPaths = () => {
       registerPath(`/dashboard/${area}/${segment}`, "get", {
         security: cookieSecurity,
         operationId: `get${entityPascal(area)}${entityPascal(segment)}`,
-        summary: `${area} ${segment}`,
-        description: `Dashboard ${area} segment: ${segment}.`,
+        summary: `${area} ${segment} (deprecated)`,
+        description: `Deprecated dual-dashboard segment (${area}/${segment}). Prefer GET /dashboard/overview.`,
         tags: ["Dashboard"],
         responses: jsonResponses({
           successDescription: `${area}/${segment} payload.`,

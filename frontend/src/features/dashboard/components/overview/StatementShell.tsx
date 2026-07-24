@@ -3,38 +3,14 @@ import type {
   OverviewAging,
   OverviewPartnerSelection,
   OverviewStatement,
-  OverviewStatementPartner,
 } from "../../utils/overview.types";
+import { resolveStatementView } from "../../utils/overview.types";
 
 interface StatementShellProps {
   selection: OverviewPartnerSelection;
   partnerCount: number;
   statement: OverviewStatement;
   currency: string;
-}
-
-const emptyAging = (): OverviewAging => ({
-  d0_30: 0,
-  d31_60: 0,
-  d61_90: 0,
-  d90_plus: 0,
-});
-
-function roleToCardType(role: "vendor" | "customer"): "S" | "C" {
-  return role === "vendor" ? "S" : "C";
-}
-
-function findPartnerRow(
-  partners: OverviewStatementPartner[],
-  selection: Extract<OverviewPartnerSelection, { kind: "partner" }>,
-): OverviewStatementPartner | null {
-  const cardType = roleToCardType(selection.role);
-  const code = selection.cardCode.trim();
-  return (
-    partners.find((row) => row.cardCode === code && row.cardType === cardType) ??
-    partners.find((row) => row.cardCode === code) ??
-    null
-  );
 }
 
 function selectionCaption(
@@ -75,27 +51,23 @@ export function StatementShell({
   statement,
   currency,
 }: StatementShellProps) {
-  const selectedPartner =
-    selection.kind === "partner" ? findPartnerRow(statement.partners, selection) : null;
-
-  const aging =
-    selection.kind === "all" ? statement.totals.aging : (selectedPartner?.aging ?? emptyAging());
-  const balance =
-    selection.kind === "all" ? statement.totals.balance : (selectedPartner?.balance ?? 0);
+  const { balance, aging, showEmptyPartner } = resolveStatementView(
+    selection,
+    statement,
+    partnerCount,
+  );
 
   const filterLabel =
     selection.kind === "all" ? "All connected" : selection.cardName?.trim() || selection.cardCode;
 
   const caption = selectionCaption(selection, partnerCount, statement.partners.length > 0);
   const openAgingTotal = aging.d0_30 + aging.d31_60 + aging.d61_90 + aging.d90_plus;
-  const showEmptyPartner =
-    selection.kind === "partner" && selectedPartner === null && partnerCount > 0;
 
   return (
     <section
       id="overview-statement"
       aria-label="Statement"
-      className="flex min-h-[180px] flex-col rounded-xl border border-zinc-200 bg-white scroll-mt-4"
+      className="flex min-h-[180px] flex-col scroll-mt-4 rounded-xl border border-zinc-200 bg-white"
     >
       <div className="border-b border-zinc-100 px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-2">

@@ -10,7 +10,11 @@ import type {
 import { partnerSelectionKey } from "../../utils/overview.types";
 import { ConnectedPartners } from "./ConnectedPartners";
 import { NeedsAttention } from "./NeedsAttention";
-import { NeedsAttentionSkeleton } from "./OverviewSectionSkeletons";
+import {
+  ConnectedPartnersSkeleton,
+  NeedsAttentionSkeleton,
+  StatementSkeleton,
+} from "./OverviewSectionSkeletons";
 import { OpenWorkStrip, OpenWorkStripSkeleton } from "./OpenWorkStrip";
 import { StatementShell } from "./StatementShell";
 
@@ -27,7 +31,7 @@ function formatAsOf(iso: string | undefined): string | null {
 }
 
 export function OverviewDashboard() {
-  const { data, isLoading, isError, isFetching, refetch } = useOverviewDashboard();
+  const { data, isLoading, isError, isFetching, refetch, error } = useOverviewDashboard();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const scrollToAttention = () => {
@@ -81,6 +85,10 @@ export function OverviewDashboard() {
   };
 
   const asOfLabel = formatAsOf(data?.asOf);
+  const errorMessage =
+    error instanceof Error && error.message.trim()
+      ? error.message
+      : "Check your session and try again.";
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-50">
@@ -97,13 +105,14 @@ export function OverviewDashboard() {
           <div className="flex items-center gap-2 pt-1 text-xs text-zinc-400">
             {isFetching && !isLoading ? (
               <span className="text-zinc-500">Updating…</span>
-            ) : asOfLabel ? (
+            ) : asOfLabel && !isError ? (
               <span>As of {asOfLabel}</span>
             ) : null}
             <button
               type="button"
               onClick={() => void refetch()}
-              className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              disabled={isFetching}
+              className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="Refresh overview"
             >
               <RefreshCcw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
@@ -117,8 +126,9 @@ export function OverviewDashboard() {
           {isError ? (
             <SectionErrorState
               title="Couldn't load overview"
-              message="Check your session and try again."
+              message={errorMessage}
               onRetry={() => void refetch()}
+              className="min-h-[280px] rounded-xl border border-zinc-200 bg-white"
             />
           ) : (
             <>
@@ -137,7 +147,7 @@ export function OverviewDashboard() {
 
               <div
                 id="overview-needs-attention"
-                className="grid grid-cols-1 gap-4 scroll-mt-4 lg:grid-cols-5"
+                className="grid scroll-mt-4 grid-cols-1 gap-4 lg:grid-cols-5"
               >
                 <div className="lg:col-span-3">
                   {isLoading || !data ? (
@@ -148,20 +158,7 @@ export function OverviewDashboard() {
                 </div>
                 <div className="lg:col-span-2">
                   {isLoading || !data ? (
-                    <div className="flex min-h-[220px] animate-pulse flex-col rounded-xl border border-zinc-200 bg-white">
-                      <div className="border-b border-zinc-100 px-4 py-3">
-                        <div className="h-4 w-40 rounded bg-zinc-200" />
-                        <div className="mt-2 h-3 w-48 rounded bg-zinc-100" />
-                      </div>
-                      <div className="flex flex-1 flex-col gap-3 p-4">
-                        {[1, 2, 3].map((row) => (
-                          <div key={row} className="flex items-center gap-3">
-                            <div className="h-3.5 flex-1 rounded bg-zinc-200" />
-                            <div className="h-3.5 w-16 rounded bg-zinc-100" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <ConnectedPartnersSkeleton />
                   ) : (
                     <ConnectedPartners
                       partners={data.connectedPartners}
@@ -174,19 +171,7 @@ export function OverviewDashboard() {
               </div>
 
               {isLoading || !data ? (
-                <div className="flex min-h-[180px] animate-pulse flex-col rounded-xl border border-zinc-200 bg-white">
-                  <div className="border-b border-zinc-100 px-4 py-3">
-                    <div className="h-4 w-24 rounded bg-zinc-200" />
-                    <div className="mt-2 h-3 w-56 rounded bg-zinc-100" />
-                  </div>
-                  <div className="flex flex-1 flex-col justify-center gap-3 p-4">
-                    <div className="grid grid-cols-4 gap-3">
-                      {[1, 2, 3, 4].map((cell) => (
-                        <div key={cell} className="h-14 rounded-lg bg-zinc-100" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <StatementSkeleton />
               ) : (
                 <StatementShell
                   selection={selection}
