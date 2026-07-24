@@ -185,7 +185,7 @@ export const createPurchaseQuotation = async (
     }
 
     if (resolvedDbName) {
-      purgeCache(`dash:purchase:${resolvedDbName}:`);
+      purgeCache(`dashboard:overview:${resolvedDbName}`);
       if (result?.DocEntry && absoluteEntry !== null) {
         await attachmentsService.finalizeAndLinkAttachments(
           resolvedDbName,

@@ -178,7 +178,7 @@ export const createPurchaseOrder = async (
       result.CompanyDB || result.DBName || session?.companyDB || resolvedDbName || "",
     );
     if (resolvedDbNameFromRes) {
-      purgeCache(`dash:purchase:${resolvedDbNameFromRes}:`);
+      purgeCache(`dashboard:overview:${resolvedDbNameFromRes}`);
       if (result?.DocEntry && absoluteEntry !== null) {
         await attachmentsService.finalizeAndLinkAttachments(
           resolvedDbNameFromRes,

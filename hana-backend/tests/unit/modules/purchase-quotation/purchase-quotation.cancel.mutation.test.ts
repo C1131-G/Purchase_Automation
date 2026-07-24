@@ -31,7 +31,7 @@ describe("cancelPurchaseQuotation", () => {
     const result = await cancelPurchaseQuotation("sess-1", "42");
 
     expect(request).toHaveBeenCalledWith("sess-1", "POST", "/PurchaseQuotations(42)/Cancel");
-    expect(purgeCache).toHaveBeenCalledWith(expect.stringContaining("dash:purchase:"));
+    expect(purgeCache).toHaveBeenCalledWith(expect.stringContaining("dashboard:overview:"));
     expect(result.success).toBe(true);
   });
 

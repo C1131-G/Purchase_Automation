@@ -135,7 +135,7 @@ export const createCreditNote = async (
     // Purge cached dashboard metrics as this new document impacts credit/balance totals.
     if (resolvedDbName) {
       if (!isDraft) {
-        purgeCache(`dash:purchase:${resolvedDbName}:`);
+        purgeCache(`dashboard:overview:${resolvedDbName}`);
       }
       if (result?.DocEntry && absoluteEntry !== null) {
         await attachmentsService.finalizeAndLinkAttachments(

@@ -146,7 +146,7 @@ export const updateInvoice = async (
     // Invalidate dashboard metrics to reflect any potential status changes (though comments usually don't).
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB && !isDraft) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {
@@ -175,7 +175,7 @@ export const cancelInvoice = async (sessionId: string, id: string) => {
     // Invalidate dashboard metrics to reflect the removal of this invoice from transactional totals.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return { message: "A/P Invoice cancelled successfully", success: true };

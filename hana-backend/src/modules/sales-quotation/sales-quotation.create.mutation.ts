@@ -138,7 +138,7 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
 
     // Invalidate the sales dashboard cache as revenue and quotation counts have changed.
     if (resolvedDbName) {
-      purgeCache(`dash:sales:${resolvedDbName}:`);
+      purgeCache(`dashboard:overview:${resolvedDbName}`);
       if (result?.DocEntry && absoluteEntry !== null) {
         await attachmentsService.finalizeAndLinkAttachments(
           resolvedDbName,

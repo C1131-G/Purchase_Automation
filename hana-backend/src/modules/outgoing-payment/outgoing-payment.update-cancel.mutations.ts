@@ -29,7 +29,7 @@ export const updatePayment = async (
     // Invalidate purchase-related dashboard metrics for the tenant.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return { message: "Outgoing Payment updated successfully", success: true };
@@ -53,7 +53,7 @@ export const cancelPayment = async (sessionId: string, id: string) => {
     // Dashboard must be cleared to reflect the reinstatement of the payable.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {

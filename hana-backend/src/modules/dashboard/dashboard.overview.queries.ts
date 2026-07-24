@@ -20,7 +20,13 @@ import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping
 import type { IcBpMappingWithCompanies } from "@/modules/intercompany/config/bp-mapping/bp-mapping.types";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { getDisplayCurrency } from "@/services/currency-format";
-import { MODULE_HREFS } from "@/services/dashboard/dashboard.constants";
+
+/** Deep-links for Overview KPI tiles (frontend routes). */
+const OVERVIEW_KPI_HREFS = {
+  purchaseQuotation: "/purchase/quotations",
+  purchaseOrder: "/purchase/orders",
+  salesQuotation: "/sales/quotations",
+} as const;
 
 export type { OverviewArApprovalItem };
 export type { OverviewStatement };
@@ -261,17 +267,17 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
             openPq: {
               count: openPq.count,
               openValue: openPq.openValue,
-              href: MODULE_HREFS.purchaseQuotation,
+              href: OVERVIEW_KPI_HREFS.purchaseQuotation,
             },
             openSq: {
               count: openSq.count,
               openValue: openSq.openValue,
-              href: MODULE_HREFS.salesQuotation,
+              href: OVERVIEW_KPI_HREFS.salesQuotation,
             },
             openPo: {
               count: openPo.count,
               openValue: openPo.openValue,
-              href: MODULE_HREFS.purchaseOrder,
+              href: OVERVIEW_KPI_HREFS.purchaseOrder,
             },
             arApprovalPending: {
               count: arApproval.count,

@@ -31,7 +31,7 @@ describe("cancelPurchaseOrder", () => {
     const result = await cancelPurchaseOrder("sess-1", "42");
 
     expect(request).toHaveBeenCalledWith("sess-1", "POST", "/PurchaseOrders(42)/Cancel");
-    expect(purgeCache).toHaveBeenCalledWith("dash:purchase:TEST_COMPANY:");
+    expect(purgeCache).toHaveBeenCalledWith("dashboard:overview:TEST_COMPANY");
     expect(result).toEqual({
       message: "Purchase Order cancelled successfully",
       success: true,

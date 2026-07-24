@@ -93,8 +93,7 @@ export const logout: RequestHandler = async (req, res, next) => {
 
     if (dbName) {
       purgeCache(`master:${dbName}:`);
-      purgeCache(`dash:sales:${dbName}:`);
-      purgeCache(`dash:purchase:${dbName}:`);
+      purgeCache(`dashboard:overview:${dbName}`);
       purgeCache(`user:${dbName}:`);
       purgeCache(`creds:${dbName}`);
       logger.info({ dbName }, "Tenant cache purged on logout");

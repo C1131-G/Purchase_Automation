@@ -9,7 +9,6 @@ import { createDocument } from "@/config/swagger-registry";
 import { registerAllPaths } from "@/config/swagger-paths";
 import { LoginInputSchema } from "@/modules/auth/auth.schema";
 import { MasterDataQuerySchema } from "@/modules/master-data/master-data.schema";
-import { DashboardSummaryQuerySchema } from "@/modules/dashboard/dashboard.schema";
 import { OrganizationQuerySchema } from "@/modules/organization/organization.schema";
 import { PurchaseOrderQuerySchema } from "@/modules/purchase-order/purchase-order.schema";
 import { GRPOQuerySchema } from "@/modules/grpo/grpo.schema";
@@ -34,7 +33,6 @@ export const generateOpenApiSpec = () => {
   registry.register("CreditNoteQuery", CreditNoteQuerySchema);
   registry.register("PaymentQuery", PaymentQuerySchema);
   registry.register("MasterDataQuery", MasterDataQuerySchema);
-  registry.register("DashboardSummaryQuery", DashboardSummaryQuerySchema);
   registry.register("OrganizationsQuery", OrganizationQuerySchema);
 
   const generator = new OpenApiGeneratorV31(registry.definitions);

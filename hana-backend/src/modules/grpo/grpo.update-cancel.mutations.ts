@@ -151,7 +151,7 @@ export const updateGRPO = async (
     // Invalidate dashboard metrics for the tenant.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {
@@ -178,7 +178,7 @@ export const cancelGRPO = async (sessionId: string, id: string) => {
     // Cache must be cleared to reflect the reversal of item receipt.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {

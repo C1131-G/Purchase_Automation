@@ -160,7 +160,7 @@ export const updateCreditNote = async (
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       if (!isDraft) {
-        purgeCache(`dash:purchase:${session.companyDB}:`);
+        purgeCache(`dashboard:overview:${session.companyDB}`);
       }
     }
 
@@ -190,7 +190,7 @@ export const cancelCreditNote = async (sessionId: string, id: string) => {
     // Dashboard cache must be cleared to reflect the removal of this balance.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return { message: "A/P Credit Memo cancelled successfully", success: true };

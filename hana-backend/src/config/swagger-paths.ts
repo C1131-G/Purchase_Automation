@@ -1,11 +1,6 @@
 // Full API surface registration (registerAllPaths pattern).
 
-import {
-  cookieSecurity,
-  entityPascal,
-  jsonResponses,
-  registerPath,
-} from "@/config/swagger-registry";
+import { cookieSecurity, jsonResponses, registerPath } from "@/config/swagger-registry";
 import { registerAllDocumentModulePaths } from "@/config/swagger-paths-documents";
 import { LoginInputSchema } from "@/modules/auth/auth.schema";
 
@@ -160,54 +155,6 @@ export const registerAllPaths = () => {
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Overview dashboard payload." }),
   });
-  registerPath("/dashboard/stats", "get", {
-    security: cookieSecurity,
-    operationId: "getDashboardStats",
-    summary: "Dashboard stats (deprecated)",
-    description:
-      "Deprecated: dual purchase/sales dashboard removed from UI. Prefer GET /dashboard/overview. Kept one release for compatibility.",
-    tags: ["Dashboard"],
-    responses: jsonResponses({ successDescription: "Dashboard stats." }),
-  });
-  registerPath("/dashboard/purchase-summary", "get", {
-    security: cookieSecurity,
-    operationId: "getPurchaseSummary",
-    summary: "Purchase summary (deprecated)",
-    description:
-      "Deprecated: dual purchase dashboard removed from UI. Prefer GET /dashboard/overview.",
-    tags: ["Dashboard"],
-    responses: jsonResponses({ successDescription: "Purchase summary." }),
-  });
-  registerPath("/dashboard/sales-summary", "get", {
-    security: cookieSecurity,
-    operationId: "getSalesSummary",
-    summary: "Sales summary (deprecated)",
-    description:
-      "Deprecated: dual sales dashboard removed from UI. Prefer GET /dashboard/overview.",
-    tags: ["Dashboard"],
-    responses: jsonResponses({ successDescription: "Sales summary." }),
-  });
-  for (const area of ["purchase", "sales"] as const) {
-    for (const segment of [
-      "kpi-summary",
-      "module-cards",
-      "trend",
-      "funnel",
-      "top-partners",
-      "exceptions",
-    ] as const) {
-      registerPath(`/dashboard/${area}/${segment}`, "get", {
-        security: cookieSecurity,
-        operationId: `get${entityPascal(area)}${entityPascal(segment)}`,
-        summary: `${area} ${segment} (deprecated)`,
-        description: `Deprecated dual-dashboard segment (${area}/${segment}). Prefer GET /dashboard/overview.`,
-        tags: ["Dashboard"],
-        responses: jsonResponses({
-          successDescription: `${area}/${segment} payload.`,
-        }),
-      });
-    }
-  }
 
   // --- Health ---
   registerPath("/health", "get", {

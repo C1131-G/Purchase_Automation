@@ -172,7 +172,7 @@ export const createPayment = async (sessionId: string, payload: Record<string, u
 
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {

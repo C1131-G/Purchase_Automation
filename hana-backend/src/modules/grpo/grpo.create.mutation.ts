@@ -124,7 +124,7 @@ export const createGRPO = async (
 
     // Purge purchase dashboard cache as the PO statues and totals have likely changed.
     if (resolvedDbName) {
-      purgeCache(`dash:purchase:${resolvedDbName}:`);
+      purgeCache(`dashboard:overview:${resolvedDbName}`);
       if (!isDraft && result?.DocEntry && absoluteEntry !== null) {
         await attachmentsService.finalizeAndLinkAttachments(
           resolvedDbName,

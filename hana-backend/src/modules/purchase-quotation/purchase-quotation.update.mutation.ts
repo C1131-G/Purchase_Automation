@@ -207,7 +207,7 @@ export const updatePurchaseQuotation = async (
     const session = serviceLayerClient.getSession(sessionId);
     const companyDB = session?.companyDB || "";
     if (companyDB) {
-      purgeCache(`dash:purchase:${companyDB}:`);
+      purgeCache(`dashboard:overview:${companyDB}`);
     }
 
     // Flow 1 IC automation on draft update: never fails the PQ draft response.

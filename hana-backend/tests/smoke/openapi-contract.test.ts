@@ -20,7 +20,7 @@ const REQUIRED_PATH_PREFIXES = [
   "/attachments",
   "/master-data/vendors",
   "/master-data/products",
-  "/dashboard/purchase-summary",
+  "/dashboard/overview",
   "/health",
 ];
 

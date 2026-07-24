@@ -153,7 +153,7 @@ export const updatePurchaseOrder = async (
     // Dashboard metrics must be refreshed to reflect potential total spend changes.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {
@@ -181,7 +181,7 @@ export const cancelPurchaseOrder = async (sessionId: string, id: string) => {
 
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:purchase:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {

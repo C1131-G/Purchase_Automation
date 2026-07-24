@@ -142,7 +142,7 @@ export const createInvoice = async (
     // Cache Invalidation: Clear dashboard stats for this tenant since a new invoice affects outstanding totals.
     if (resolvedDbName) {
       if (!isDraft) {
-        purgeCache(`dash:purchase:${resolvedDbName}:`);
+        purgeCache(`dashboard:overview:${resolvedDbName}`);
       }
       if (result?.DocEntry && absoluteEntry !== null) {
         await attachmentsService.finalizeAndLinkAttachments(
@@ -201,7 +201,7 @@ export const createInvoice = async (
         )) as SAPDocumentResponse;
 
         if (resolvedDbName) {
-          purgeCache(`dash:purchase:${resolvedDbName}:`);
+          purgeCache(`dashboard:overview:${resolvedDbName}`);
           if (result?.DocEntry && absoluteEntry !== null) {
             await attachmentsService.finalizeAndLinkAttachments(
               resolvedDbName,

@@ -168,7 +168,7 @@ export const updateSalesQuotation = async (
     // Invalidate dashboard metrics to ensure real-time reporting accuracy.
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
-      purgeCache(`dash:sales:${session.companyDB}:`);
+      purgeCache(`dashboard:overview:${session.companyDB}`);
     }
 
     return {
