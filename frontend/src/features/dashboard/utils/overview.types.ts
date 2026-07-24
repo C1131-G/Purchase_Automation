@@ -9,6 +9,21 @@ export type OverviewArKpi = {
   openValue: number;
 };
 
+/** One AR invoice awaiting SAP approval (OWDD ObjType 13). */
+export type OverviewArApprovalItem = {
+  docEntry: number;
+  docNum: number | null;
+  isDraft: boolean;
+  cardCode: string;
+  cardName: string;
+  docTotal: number;
+  docDate: string | null;
+  wddCode: number;
+  status: string;
+  ageDays: number;
+  requester: string | null;
+};
+
 export type OverviewConnectedPartner = {
   mappingId: number;
   buyerCompanyId: number;
@@ -39,7 +54,7 @@ export type OverviewDashboard = {
     arApprovalPending: OverviewArKpi;
   };
   connectedPartners: OverviewConnectedPartner[];
-  arApprovalPending: unknown[];
+  arApprovalPending: OverviewArApprovalItem[];
   statement: {
     partners: unknown[];
     totals: {

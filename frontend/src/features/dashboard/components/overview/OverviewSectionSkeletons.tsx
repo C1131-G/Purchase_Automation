@@ -1,4 +1,4 @@
-/** Placeholder shells for sections still pending later phases. */
+/** Loading shell for Needs attention (P3 live table when data is ready). */
 
 export function NeedsAttentionSkeleton() {
   return (

@@ -1,4 +1,4 @@
-// Overview Dashboard: open-document KPIs + IC connected partners (P1–P2).
+// Overview Dashboard: open-document KPIs + IC partners + AR OWDD approvals (P1–P3).
 
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
@@ -7,11 +7,17 @@ import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { getTenantRepository } from "@/db/tenant-query";
+import {
+  loadArApprovalPending,
+  type OverviewArApprovalItem,
+} from "@/modules/dashboard/dashboard.ar-approval.queries";
 import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
 import type { IcBpMappingWithCompanies } from "@/modules/intercompany/config/bp-mapping/bp-mapping.types";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { getDisplayCurrency } from "@/services/currency-format";
 import { MODULE_HREFS } from "@/services/dashboard/dashboard.constants";
+
+export type { OverviewArApprovalItem };
 
 export type OverviewKpiMetric = {
   count: number;
@@ -50,7 +56,7 @@ export type OverviewDashboard = {
     arApprovalPending: { count: number; openValue: number };
   };
   connectedPartners: OverviewConnectedPartner[];
-  arApprovalPending: [];
+  arApprovalPending: OverviewArApprovalItem[];
   statement: {
     partners: [];
     totals: {
@@ -217,8 +223,8 @@ async function loadConnectedPartners(
 }
 
 /**
- * Current open PQ / SQ / PO + IC connected partners for the session company.
- * AR approval and statement balances are stubs until P3–P4.
+ * Current open PQ / SQ / PO + IC connected partners + AR OWDD approvals.
+ * Statement balances remain stubs until P4.
  */
 export const getOverviewDashboard = async (dbName: string): Promise<OverviewDashboard> => {
   const cacheKey = `dashboard:overview:${dbName}`;
@@ -229,11 +235,12 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
     async () => {
       try {
         const currency = await getDisplayCurrency(dbName);
-        const [openPq, openSq, openPo, connected] = await Promise.all([
+        const [openPq, openSq, openPo, connected, arApproval] = await Promise.all([
           aggregateOpenDocs(dbName, PurchaseQuotationSchema, "pq"),
           aggregateOpenDocs(dbName, SalesQuotationSchema, "sq"),
           aggregateOpenDocs(dbName, PurchaseOrderSchema, "po"),
           loadConnectedPartners(dbName),
+          loadArApprovalPending(dbName),
         ]);
 
         return {
@@ -256,10 +263,13 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
               openValue: openPo.openValue,
               href: MODULE_HREFS.purchaseOrder,
             },
-            arApprovalPending: { count: 0, openValue: 0 },
+            arApprovalPending: {
+              count: arApproval.count,
+              openValue: arApproval.openValue,
+            },
           },
           connectedPartners: connected.partners,
-          arApprovalPending: [],
+          arApprovalPending: arApproval.items,
           statement: {
             partners: [],
             totals: { balance: 0, aging: emptyAging() },

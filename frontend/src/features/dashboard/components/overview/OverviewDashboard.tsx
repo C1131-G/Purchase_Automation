@@ -9,6 +9,7 @@ import type {
 } from "../../utils/overview.types";
 import { partnerSelectionKey } from "../../utils/overview.types";
 import { ConnectedPartners } from "./ConnectedPartners";
+import { NeedsAttention } from "./NeedsAttention";
 import { NeedsAttentionSkeleton } from "./OverviewSectionSkeletons";
 import { OpenWorkStrip, OpenWorkStripSkeleton } from "./OpenWorkStrip";
 import { StatementShell } from "./StatementShell";
@@ -139,7 +140,11 @@ export function OverviewDashboard() {
                 className="grid grid-cols-1 gap-4 scroll-mt-4 lg:grid-cols-5"
               >
                 <div className="lg:col-span-3">
-                  <NeedsAttentionSkeleton />
+                  {isLoading || !data ? (
+                    <NeedsAttentionSkeleton />
+                  ) : (
+                    <NeedsAttention items={data.arApprovalPending} currency={data.currency} />
+                  )}
                 </div>
                 <div className="lg:col-span-2">
                   {isLoading || !data ? (
