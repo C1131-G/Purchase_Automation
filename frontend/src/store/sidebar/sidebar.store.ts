@@ -12,8 +12,7 @@ export function createSidebarStore() {
     open: false,
     setOpen: (open) =>
       set((state) => (state.open === open ? state : { open }), false, "sidebar/setOpen"),
-    toggleSidebar: () =>
-      set((state) => ({ open: !state.open }), false, "sidebar/toggle"),
+    toggleSidebar: () => set((state) => ({ open: !state.open }), false, "sidebar/toggle"),
   }));
 }
 

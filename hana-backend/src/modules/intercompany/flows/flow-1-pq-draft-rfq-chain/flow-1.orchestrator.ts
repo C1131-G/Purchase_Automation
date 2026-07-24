@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { logger } from "@/core/logger/pino-logger";
 import type { ConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
 import { createConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
 import type { DocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
@@ -13,6 +12,7 @@ import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import type { ResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
+import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcPqDraftHookInput } from "@/modules/intercompany/flows/shared/flow.types";
 import { skipResult, type IcHookResult } from "@/modules/intercompany/flows/shared/flow-result";
@@ -28,7 +28,7 @@ import {
 } from "./03-notify-seller/notify-seller.service";
 import type { Flow1CaptureResult } from "./flow-1.types";
 
-const LOG_SCOPE = "ic.flow1";
+const LOG_SCOPE = IC_LOG_SCOPE.FLOW1;
 
 const skipFromCapture = (capture: Extract<Flow1CaptureResult, { kind: "skip" }>): IcHookResult =>
   skipResult(capture.detail ? `${capture.reason}:${capture.detail}` : capture.reason);
@@ -86,24 +86,26 @@ export const createFlow1Orchestrator = (deps?: {
         dbName: input.dbName,
         docEntry: input.docEntry,
         docNum: input.docNum,
-        scope: LOG_SCOPE,
       };
 
       try {
         const captured = await capture.capture(input);
         if (captured.kind === "skip") {
-          logger.info({
+          icLog.info(LOG_SCOPE, "Flow 1 skipped", {
             ...logCtx,
-            msg: "Flow 1 skipped",
+            check: captured.check ?? captured.reason,
+            detail: captured.detail,
+            outcome: "skip",
             reason: captured.reason,
           });
           return skipFromCapture(captured);
         }
 
-        logger.info({
+        icLog.info(LOG_SCOPE, "Flow 1 capture proceed", {
           ...logCtx,
           buyerCompanyId: captured.partner.buyerCompany.companyId,
-          msg: "Flow 1 capture proceed",
+          check: "capture_proceed",
+          outcome: "pass",
           remarksTag: captured.remarksTag,
           sellerCompanyId: captured.partner.sellerCompany.companyId,
         });
@@ -126,11 +128,13 @@ export const createFlow1Orchestrator = (deps?: {
           });
         }
 
-        logger.info({
+        icLog.info(LOG_SCOPE, "Flow 1 RFQ path complete", {
           ...logCtx,
+          check: "complete",
           created: created.created,
+          durationMs: Date.now() - startedAt,
           mappingId: created.mappingId,
-          msg: "Flow 1 RFQ path complete",
+          outcome: "pass",
           rfqId: created.rfq.rfqId,
         });
 
@@ -145,10 +149,11 @@ export const createFlow1Orchestrator = (deps?: {
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        logger.error({
+        icLog.error(LOG_SCOPE, "Flow 1 unexpected failure; PQ draft remains saved", {
           ...logCtx,
+          check: "unexpected",
           err: err instanceof Error ? err : new Error(message),
-          msg: "Flow 1 unexpected failure; PQ draft remains saved",
+          outcome: "fail",
         });
         return {
           message: message.slice(0, 2000),

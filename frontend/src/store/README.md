@@ -4,13 +4,13 @@ Client-only state for the Vendor Portal. Server data belongs in TanStack Query, 
 
 ## Layout
 
-| Domain | Path | Responsibility |
-| --- | --- | --- |
-| Auth | `auth/` | Session flags, current user, login/logout state |
-| Sidebar / PWA | `sidebar/`, `pwa/` | UI chrome and install state |
-| Table | `table/table.store.ts` | Multi-table filters, pagination, order, sort, and visibility by `tableId` |
-| Create drafts | `create/` | Ephemeral document headers and, where required, line items |
-| Shared helpers | `lib/` | `createAppStore`, `Updater`, and related store utilities |
+| Domain         | Path                   | Responsibility                                                            |
+| -------------- | ---------------------- | ------------------------------------------------------------------------- |
+| Auth           | `auth/`                | Session flags, current user, login/logout state                           |
+| Sidebar / PWA  | `sidebar/`, `pwa/`     | UI chrome and install state                                               |
+| Table          | `table/table.store.ts` | Multi-table filters, pagination, order, sort, and visibility by `tableId` |
+| Create drafts  | `create/`              | Ephemeral document headers and, where required, line items                |
+| Shared helpers | `lib/`                 | `createAppStore`, `Updater`, and related store utilities                  |
 
 Legacy table files such as `table-filter.store.ts`, `table-order.store.ts`, and `table-pagination.store.ts` are re-export shims over the composed table store.
 

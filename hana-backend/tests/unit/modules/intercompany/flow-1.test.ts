@@ -178,7 +178,8 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       docEntry: 11,
       lines: [{ ItemCode: "X", Quantity: 1 }],
     });
-    expect(result).toMatchObject({ reason: "non_ic_vendor", status: "skipped" });
+    expect(result).toMatchObject({ status: "skipped" });
+    expect(String((result as { reason?: string }).reason)).toMatch(/^non_ic_vendor/);
   });
 
   it("T6.1b flag off → skip", async () => {

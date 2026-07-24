@@ -70,7 +70,9 @@ export function useLogin() {
         normalized.includes("rate") ||
         normalized.includes("429");
       if (isRateLimited) {
-        setError(message.includes("Too many") || message.length > 0 ? message : "Too many attempts");
+        setError(
+          message.includes("Too many") || message.length > 0 ? message : "Too many attempts",
+        );
         return;
       }
 

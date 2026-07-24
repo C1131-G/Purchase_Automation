@@ -11,7 +11,7 @@ export type Flow1SkipReason =
   | "already_mapped_success";
 
 export type Flow1CaptureResult =
-  | { kind: "skip"; reason: Flow1SkipReason; detail?: string }
+  | { kind: "skip"; reason: Flow1SkipReason; detail?: string; check?: string }
   | {
       kind: "proceed";
       input: IcPqDraftHookInput;

@@ -27,7 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
-import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";import {
+import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
+import {
   cloneFilters,
   cloneOrder,
   cloneSorting,
@@ -73,7 +74,8 @@ export function OutgoingPaymentTable() {
   const clearAllFilters = useClearAllFiltersAction();
   const queryClient = useQueryClient();
 
-  /** Tracks which user action last triggered a fetch for action-specific toasts. */  const docNumPrefetchRef = useRef<Set<string>>(new Set());
+  /** Tracks which user action last triggered a fetch for action-specific toasts. */
+  const docNumPrefetchRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
@@ -237,7 +239,8 @@ export function OutgoingPaymentTable() {
     manualPagination: true,
     manualSorting: true,
     meta: { tableId: TABLE_ID },
-    onColumnFiltersChange: (updater) => {      const next = typeof updater === "function" ? updater(columnFilters) : updater;
+    onColumnFiltersChange: (updater) => {
+      const next = typeof updater === "function" ? updater(columnFilters) : updater;
       const normalized = normalizeColumnFilters(next);
       const nextFilters = cloneFilters(normalized);
       setColumnFilters(TABLE_ID, nextFilters);
@@ -292,7 +295,8 @@ export function OutgoingPaymentTable() {
         }),
       });
     },
-    onPaginationChange: (updater) => {      const next = typeof updater === "function" ? updater(pagination) : updater;
+    onPaginationChange: (updater) => {
+      const next = typeof updater === "function" ? updater(pagination) : updater;
       const nextPagination = {
         pageIndex: Math.max(next.pageIndex, 0),
         pageSize: Math.max(next.pageSize, 1),
@@ -307,7 +311,8 @@ export function OutgoingPaymentTable() {
         }),
       });
     },
-    onSortingChange: (updater) => {      const next = typeof updater === "function" ? updater(sorting) : updater;
+    onSortingChange: (updater) => {
+      const next = typeof updater === "function" ? updater(sorting) : updater;
       const nextSorting = cloneSorting(next);
       setSorting(TABLE_ID, nextSorting);
       navigate({

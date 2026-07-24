@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { logger } from "@/core/logger/pino-logger";
 import type { ConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
 import { createConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
 import type { DocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
@@ -21,6 +20,7 @@ import {
   IC_CONFIG_KEY,
   IC_DOC_MAP_STATUS,
 } from "@/modules/intercompany/infrastructure/constants";
+import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
@@ -42,10 +42,28 @@ import {
 } from "./04-map-and-notify/map-and-notify.service";
 import type { Flow2CaptureResult } from "./flow-2.types";
 
-const LOG_SCOPE = "ic.flow2";
+const LOG_SCOPE = IC_LOG_SCOPE.FLOW2;
 
 const skipFromCapture = (capture: Extract<Flow2CaptureResult, { kind: "skip" }>): IcHookResult =>
   skipResult(capture.detail ? `${capture.reason}:${capture.detail}` : capture.reason);
+
+const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
+  const lines = Array.isArray(draftPayload.DocumentLines)
+    ? (draftPayload.DocumentLines as Record<string, unknown>[])
+    : [];
+  const vatGroups = [
+    ...new Set(
+      lines
+        .map((line) => (line.VatGroup == null ? "" : String(line.VatGroup)))
+        .filter((code) => code.length > 0),
+    ),
+  ];
+  return {
+    cardCode: draftPayload.CardCode,
+    lineCount: lines.length,
+    vatGroups,
+  };
+};
 
 export type Flow2Orchestrator = {
   run: (input: IcPoHookInput) => Promise<IcHookResult>;
@@ -137,10 +155,10 @@ export const createFlow2Orchestrator = (deps?: {
         mappingId = created.mappingId;
       }
     } catch (mapErr: unknown) {
-      logger.error({
+      icLog.error(LOG_SCOPE, "Flow 2 failed to persist ERROR document map", {
+        check: "document_map_error",
         err: mapErr instanceof Error ? mapErr : new Error(String(mapErr)),
-        msg: "Flow 2 failed to persist ERROR document map",
-        scope: LOG_SCOPE,
+        outcome: "fail",
         sourceDocEntry: partner.sourceDocEntry,
       });
     }
@@ -185,20 +203,21 @@ export const createFlow2Orchestrator = (deps?: {
         targetDocument: IC_OBJECT.AR_DRAFT,
       });
 
-      logger.warn({
+      icLog.warn(LOG_SCOPE, "Flow 2 SL failure; retry enqueued", {
+        check: "sl_post_ar_draft",
         errorMessage,
-        msg: "Flow 2 SL failure; retry enqueued",
+        outcome: "fail",
         retryId: item.retryId,
-        scope: LOG_SCOPE,
+        sellerCompanyId: partner.partner.sellerCompany.companyId,
         sourceDocEntry: partner.sourceDocEntry,
       });
 
       return { retryId: item.retryId, status: "queued_retry" };
     } catch (retryErr: unknown) {
-      logger.error({
+      icLog.error(LOG_SCOPE, "Flow 2 failed to enqueue retry", {
+        check: "retry_enqueue",
         err: retryErr instanceof Error ? retryErr : new Error(String(retryErr)),
-        msg: "Flow 2 failed to enqueue retry",
-        scope: LOG_SCOPE,
+        outcome: "fail",
       });
       return {
         historyId: undefined,
@@ -211,30 +230,33 @@ export const createFlow2Orchestrator = (deps?: {
   return {
     run: async (input) => {
       const startedAt = Date.now();
+      const corrId = randomUUID();
       const logCtx = {
         cardCode: input.cardCode,
-        corrId: randomUUID(),
+        corrId,
         dbName: input.dbName,
         docEntry: input.docEntry,
         docNum: input.docNum,
-        scope: LOG_SCOPE,
       };
 
       try {
         const captured = await capture.capture(input);
         if (captured.kind === "skip") {
-          logger.info({
+          icLog.info(LOG_SCOPE, "Flow 2 skipped", {
             ...logCtx,
-            msg: "Flow 2 skipped",
+            check: captured.check ?? captured.reason,
+            detail: captured.detail,
+            outcome: "skip",
             reason: captured.reason,
           });
           return skipFromCapture(captured);
         }
 
-        logger.info({
+        icLog.info(LOG_SCOPE, "Flow 2 capture proceed", {
           ...logCtx,
           buyerCompanyId: captured.partner.buyerCompany.companyId,
-          msg: "Flow 2 capture proceed",
+          check: "capture_proceed",
+          outcome: "pass",
           remarksTag: captured.remarksTag,
           sellerCompanyId: captured.partner.sellerCompany.companyId,
         });
@@ -243,6 +265,14 @@ export const createFlow2Orchestrator = (deps?: {
           input: captured.input,
           partner: captured.partner,
           remarksTag: captured.remarksTag,
+        });
+
+        icLog.info(LOG_SCOPE, "Flow 2 AR draft payload built", {
+          ...logCtx,
+          ...summarizeDraftPayload(draftPayload as Record<string, unknown>),
+          check: "build_ar_draft",
+          outcome: "pass",
+          sellerCompanyId: captured.partner.sellerCompany.companyId,
         });
 
         try {
@@ -261,10 +291,12 @@ export const createFlow2Orchestrator = (deps?: {
             targetDocNum: created.docNum,
           });
 
-          logger.info({
+          icLog.info(LOG_SCOPE, "Flow 2 completed successfully", {
             ...logCtx,
+            check: "complete",
+            durationMs: Date.now() - startedAt,
             mappingId: mapping.mappingId,
-            msg: "Flow 2 completed successfully",
+            outcome: "pass",
             targetDocEntry: created.docEntry,
             targetDocNum: created.docNum,
           });
@@ -280,10 +312,12 @@ export const createFlow2Orchestrator = (deps?: {
           };
         } catch (slErr: unknown) {
           const errorMessage = slErr instanceof Error ? slErr.message : String(slErr);
-          logger.error({
+          icLog.error(LOG_SCOPE, "Flow 2 AR draft post failed; PO remains created", {
             ...logCtx,
+            check: "sl_post_ar_draft",
             err: slErr instanceof Error ? slErr : new Error(errorMessage),
-            msg: "Flow 2 AR draft post failed; PO remains created",
+            outcome: "fail",
+            sellerCompanyId: captured.partner.sellerCompany.companyId,
           });
           return handleSlFailure({
             draftPayload,
@@ -294,10 +328,11 @@ export const createFlow2Orchestrator = (deps?: {
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        logger.error({
+        icLog.error(LOG_SCOPE, "Flow 2 unexpected failure; PO remains created", {
           ...logCtx,
+          check: "unexpected",
           err: err instanceof Error ? err : new Error(message),
-          msg: "Flow 2 unexpected failure; PO remains created",
+          outcome: "fail",
         });
         return {
           message: message.slice(0, 2000),

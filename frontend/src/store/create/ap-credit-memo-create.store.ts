@@ -1,8 +1,5 @@
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
-import {
-  createLineDraftStore,
-  getTodayISO,
-} from "@/store/create/document-draft.factory";
+import { createLineDraftStore, getTodayISO } from "@/store/create/document-draft.factory";
 
 export type APCreditMemoLineItemState = ProductRow & {
   baseQuantity?: number | undefined;

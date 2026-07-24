@@ -135,7 +135,8 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
       docEntry: 11,
       isDraft: false,
     });
-    expect(result).toMatchObject({ reason: "non_ic_vendor", status: "skipped" });
+    expect(result).toMatchObject({ status: "skipped" });
+    expect(String((result as { reason?: string }).reason)).toMatch(/^non_ic_vendor/);
   });
 
   it("T5.3 flag off → skip", async () => {

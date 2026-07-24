@@ -25,8 +25,7 @@ export function createPwaStore() {
     deferredPrompt: null,
     isInstalled: false,
     isDesktop: false,
-    setDeferredPrompt: (prompt) =>
-      set({ deferredPrompt: prompt }, false, "pwa/setDeferredPrompt"),
+    setDeferredPrompt: (prompt) => set({ deferredPrompt: prompt }, false, "pwa/setDeferredPrompt"),
     setIsInstalled: (isInstalled) => set({ isInstalled }, false, "pwa/setIsInstalled"),
     setIsDesktop: (isDesktop) => set({ isDesktop }, false, "pwa/setIsDesktop"),
   }));

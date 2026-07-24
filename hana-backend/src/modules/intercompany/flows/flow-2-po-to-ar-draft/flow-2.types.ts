@@ -11,7 +11,7 @@ export type Flow2SkipReason =
   | "missing_sl_connection";
 
 export type Flow2CaptureResult =
-  | { kind: "skip"; reason: Flow2SkipReason; detail?: string }
+  | { kind: "skip"; reason: Flow2SkipReason; detail?: string; check?: string }
   | {
       kind: "proceed";
       input: IcPoHookInput;

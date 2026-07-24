@@ -1,4 +1,5 @@
-import { useRouter } from "@tanstack/react-router";import { useMemo, useState } from "react";
+import { useRouter } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
@@ -95,7 +96,7 @@ export function APInvoiceCreate({
     return null;
   }, [state.rows]);
 
-  const handleLockedFamilyClick = () => {  };
+  const handleLockedFamilyClick = () => {};
 
   const handleRestrictedClick =
     (fieldName: string, forceLock = false) =>

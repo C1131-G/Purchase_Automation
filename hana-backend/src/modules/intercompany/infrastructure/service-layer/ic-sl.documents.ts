@@ -4,11 +4,14 @@
 
 import type { ApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
 import { createApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
+import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import type { ResolveSlTargetService } from "@/modules/intercompany/routing/resolve-sl-target/resolve-sl-target.service";
 import { createResolveSlTargetService } from "@/modules/intercompany/routing/resolve-sl-target/resolve-sl-target.service";
 
 import { createIcSlClient, type IcSlClient } from "./ic-sl.client";
 import { createIcSlSessionService, type IcSlSessionService } from "./ic-sl.session";
+
+const SCOPE = IC_LOG_SCOPE.SL;
 
 export type CreateArInvoiceDraftInput = {
   companyId: number;
@@ -81,10 +84,55 @@ export const createIcSlDocuments = (deps?: {
   const withCompanySession = async (companyId: number) => {
     const target = await resolveSlTarget.resolve(companyId);
     if (!target) {
+      icLog.error(SCOPE, "IC SL session aborted — no connection", {
+        check: "sl_connection",
+        companyId,
+        outcome: "fail",
+      });
       throw new Error(`No active IC_SAP_CONNECTION for companyId=${companyId}`);
     }
     const slSession = await session.getOrLogin(target.connection);
+    icLog.debug(SCOPE, "IC SL session ready", {
+      check: "sl_session",
+      companyId,
+      connectionId: target.connection.connectionId,
+      databaseName: target.connection.databaseName,
+      outcome: "pass",
+    });
     return { connection: target.connection, session: slSession };
+  };
+
+  const logSlRequest = (params: {
+    companyId: number;
+    method: string;
+    endpoint: string;
+    lineCount?: number;
+  }) => {
+    icLog.info(SCOPE, "IC SL request", {
+      check: "sl_request",
+      companyId: params.companyId,
+      endpoint: params.endpoint,
+      lineCount: params.lineCount,
+      method: params.method,
+      outcome: "pass",
+    });
+  };
+
+  const logSlFailure = (params: {
+    companyId: number;
+    method: string;
+    endpoint: string;
+    err: unknown;
+  }) => {
+    const message = params.err instanceof Error ? params.err.message : String(params.err);
+    icLog.error(SCOPE, "IC SL request failed", {
+      check: "sl_request",
+      companyId: params.companyId,
+      endpoint: params.endpoint,
+      err: params.err instanceof Error ? params.err : new Error(message),
+      method: params.method,
+      outcome: "fail",
+    });
   };
 
   return {
@@ -92,6 +140,12 @@ export const createIcSlDocuments = (deps?: {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = `/Drafts(${input.draftEntry})`;
       const body = { DocumentLines: input.documentLines };
+      logSlRequest({
+        companyId: input.companyId,
+        endpoint,
+        lineCount: input.documentLines.length,
+        method: "PATCH",
+      });
 
       try {
         const response = await client.request({
@@ -111,6 +165,12 @@ export const createIcSlDocuments = (deps?: {
           statusCode: response.status,
         });
       } catch (err: unknown) {
+        logSlFailure({
+          companyId: input.companyId,
+          endpoint,
+          err,
+          method: "PATCH",
+        });
         const message = err instanceof Error ? err.message : String(err);
         try {
           await apiLog.write({
@@ -131,6 +191,11 @@ export const createIcSlDocuments = (deps?: {
     convertDraftToDocument: async (params) => {
       const { connection, session: slSession } = await withCompanySession(params.companyId);
       const getEndpoint = `/Drafts(${params.draftEntry})`;
+      logSlRequest({
+        companyId: params.companyId,
+        endpoint: getEndpoint,
+        method: "GET+POST",
+      });
 
       try {
         const draftResponse = await client.request<Record<string, unknown>>({
@@ -182,6 +247,12 @@ export const createIcSlDocuments = (deps?: {
 
         return parseDocResult(response.data);
       } catch (err: unknown) {
+        logSlFailure({
+          companyId: params.companyId,
+          endpoint: getEndpoint,
+          err,
+          method: "POST",
+        });
         const message = err instanceof Error ? err.message : String(err);
         try {
           await apiLog.write({
@@ -202,6 +273,15 @@ export const createIcSlDocuments = (deps?: {
     createArInvoiceDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = "/Drafts";
+      const lines = Array.isArray(input.draftPayload.DocumentLines)
+        ? input.draftPayload.DocumentLines
+        : [];
+      logSlRequest({
+        companyId: input.companyId,
+        endpoint,
+        lineCount: lines.length,
+        method: "POST",
+      });
 
       try {
         const response = await client.request<{ DocEntry?: number; DocNum?: number }>({
@@ -221,8 +301,22 @@ export const createIcSlDocuments = (deps?: {
           statusCode: response.status,
         });
 
+        icLog.info(SCOPE, "IC SL AR draft created", {
+          check: "sl_create_ar_draft",
+          companyId: input.companyId,
+          docEntry: response.data?.DocEntry,
+          docNum: response.data?.DocNum,
+          outcome: "pass",
+        });
+
         return parseDocResult(response.data);
       } catch (err: unknown) {
+        logSlFailure({
+          companyId: input.companyId,
+          endpoint,
+          err,
+          method: "POST",
+        });
         const message = err instanceof Error ? err.message : String(err);
         try {
           await apiLog.write({
@@ -249,6 +343,12 @@ export const createIcSlDocuments = (deps?: {
         DocumentLines: input.lines,
         NumAtCard: input.remarks,
       };
+      logSlRequest({
+        companyId: input.companyId,
+        endpoint,
+        lineCount: Array.isArray(input.lines) ? input.lines.length : undefined,
+        method: "POST",
+      });
 
       try {
         const response = await client.request<{ DocEntry?: number; DocNum?: number }>({
@@ -268,8 +368,22 @@ export const createIcSlDocuments = (deps?: {
           statusCode: response.status,
         });
 
+        icLog.info(SCOPE, "IC SL sales quotation created", {
+          check: "sl_create_sq",
+          companyId: input.companyId,
+          docEntry: response.data?.DocEntry,
+          docNum: response.data?.DocNum,
+          outcome: "pass",
+        });
+
         return parseDocResult(response.data);
       } catch (err: unknown) {
+        logSlFailure({
+          companyId: input.companyId,
+          endpoint,
+          err,
+          method: "POST",
+        });
         const message = err instanceof Error ? err.message : String(err);
         try {
           await apiLog.write({
