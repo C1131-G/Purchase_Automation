@@ -9,7 +9,6 @@ import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { APCreditMemoHeaderSchema } from "@/db/schemas/apcreditmemoheader.schema";
 import { APInvoiceHeaderSchema } from "@/db/schemas/apinvoiceheader.schema";
-import { ARCreditMemoSchema } from "@/db/schemas/ar-credit-memo.schema";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { BankDetailsSchema } from "@/db/schemas/bank-details.schema";
 import { BusinessPartnerAddressSchema } from "@/db/schemas/business-partner-address.schema";
@@ -17,7 +16,6 @@ import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { GlAccountSchema } from "@/db/schemas/gl-account.schema";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { GRPOHeaderSchema } from "@/db/schemas/grpoheader.schema";
-import { IncomingPaymentSchema } from "@/db/schemas/incoming-payment.schema";
 import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
 import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
 import { ItemSchema } from "@/db/schemas/item.schema";
@@ -27,18 +25,47 @@ import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { PurchaseQuotationLineSchema } from "@/db/schemas/purchase-quotation-line.schema";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { SalesEmployeeSchema } from "@/db/schemas/sales-employee.schema";
-import { SalesOrderSchema } from "@/db/schemas/sales-order.schema";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { SalesQuotationLineSchema } from "@/db/schemas/sales-quotation-line.schema";
 import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
 import { UserSchema } from "@/db/schemas/user.schema";
 import { WarehouseSchema } from "@/db/schemas/warehouse.schema";
-import { AttachmentHeaderSchema } from "@/db/schemas/attachment-header.schema";
 import { AttachmentLineSchema } from "@/db/schemas/attachment-line.schema";
 
 // Cache: Map of dbName to initialized tenant DataSource instances.
 const tenantDataSources = new Map<string, DataSource>();
+
+const TENANT_ENTITIES = [
+  OrganizationSchema,
+  PurchaseOrderSchema,
+  PurchaseQuotationSchema,
+  PurchaseQuotationLineSchema,
+  GRPOSchema,
+  APInvoiceSchema,
+  APCreditMemoSchema,
+  OutgoingPaymentSchema,
+  UserSchema,
+  ItemSchema,
+  ItemPriceSchema,
+  ItemWarehouseStockSchema,
+  BusinessPartnerSchema,
+  BusinessPartnerAddressSchema,
+  GlAccountSchema,
+  AdminSettingsSchema,
+  TaxGroupSchema,
+  UnitOfMeasurementSchema,
+  WarehouseSchema,
+  BankDetailsSchema,
+  SalesQuotationSchema,
+  SalesQuotationLineSchema,
+  ARInvoiceSchema,
+  SalesEmployeeSchema,
+  GRPOHeaderSchema,
+  APInvoiceHeaderSchema,
+  APCreditMemoHeaderSchema,
+  AttachmentLineSchema,
+] as const;
 
 // Get or create DataSource for a specific tenant DB.
 export const getTenantDataSource = async (dbName: string): Promise<DataSource> => {
@@ -76,40 +103,7 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
     logger: "simple-console",
 
     // Shared entities across all tenants
-    entities: [
-      OrganizationSchema,
-      PurchaseOrderSchema,
-      PurchaseQuotationSchema,
-      PurchaseQuotationLineSchema,
-      GRPOSchema,
-      APInvoiceSchema,
-      APCreditMemoSchema,
-      OutgoingPaymentSchema,
-      UserSchema,
-      ItemSchema,
-      ItemPriceSchema,
-      ItemWarehouseStockSchema,
-      BusinessPartnerSchema,
-      BusinessPartnerAddressSchema,
-      GlAccountSchema,
-      AdminSettingsSchema,
-      TaxGroupSchema,
-      UnitOfMeasurementSchema,
-      WarehouseSchema,
-      BankDetailsSchema,
-      SalesOrderSchema,
-      SalesQuotationSchema,
-      SalesQuotationLineSchema,
-      ARInvoiceSchema,
-      ARCreditMemoSchema,
-      IncomingPaymentSchema,
-      SalesEmployeeSchema,
-      GRPOHeaderSchema,
-      APInvoiceHeaderSchema,
-      APCreditMemoHeaderSchema,
-      AttachmentHeaderSchema,
-      AttachmentLineSchema,
-    ],
+    entities: [...TENANT_ENTITIES],
     subscribers: [],
     migrations: [],
   });
