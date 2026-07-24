@@ -14,8 +14,7 @@ export const Route = createFileRoute("/")({
 
     if (isAuthenticated) {
       throw redirect({
-        to: "/dashboard/purchase",
-        search: { period: "week" },
+        to: "/dashboard",
       });
     }
 
@@ -25,8 +24,7 @@ export const Route = createFileRoute("/")({
       context.queryClient.setQueryData(authKeys.user(), user);
       useAuthStore.getState().login(user);
       throw redirect({
-        to: "/dashboard/purchase",
-        search: { period: "week" },
+        to: "/dashboard",
       });
     } catch {
       // No active session; continue to login.

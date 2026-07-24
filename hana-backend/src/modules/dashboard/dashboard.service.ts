@@ -14,6 +14,7 @@ import {
   getSalesTopPartners as getSalesTopPartnersRaw,
   getPurchaseExceptions as getPurchaseExceptionsRaw,
   getSalesExceptions as getSalesExceptionsRaw,
+  getOverviewDashboard as getOverviewDashboardRaw,
 } from "./dashboard.queries";
 
 type AnyFn = (...args: never[]) => Promise<unknown> | unknown;
@@ -46,6 +47,7 @@ export const getPurchaseExceptions = instrumentSection(
   getPurchaseExceptionsRaw,
 );
 export const getSalesExceptions = instrumentSection("sales.exceptions", getSalesExceptionsRaw);
+export const getOverviewDashboard = instrumentSection("overview", getOverviewDashboardRaw);
 
 export const dashboardService = {
   getPurchaseSummary,
@@ -62,4 +64,5 @@ export const dashboardService = {
   getSalesTopPartners,
   getPurchaseExceptions,
   getSalesExceptions,
+  getOverviewDashboard,
 };

@@ -137,7 +137,7 @@ export function GRPOCreate({
   return (
     <CreatePageWrapper
       dashboardName="Purchase Dashboard"
-      dashboardUrl="/dashboard/purchase"
+      dashboardUrl="/dashboard"
       breadcrumbParent={{
         label: "GRPO Data Table",
         to: "/purchase/grpo",

@@ -120,17 +120,12 @@ export function TableToolbar<TData>({
               <span className="text-zinc-500">{breadcrumb.section}</span>
               <ChevronRight className="size-3 text-zinc-300" />
               <Link
-                to={
-                  (breadcrumb.section.toLowerCase() === "sales"
-                    ? "/dashboard/sales"
-                    : "/dashboard/purchase") as any
-                }
-                search={{ period: "week" } as any}
+                to="/dashboard"
                 preload="intent"
                 viewTransition
                 className="text-zinc-400 transition-colors hover:text-blue-600"
               >
-                {breadcrumb.section} Dashboard
+                Dashboard
               </Link>
               <ChevronRight className="size-3 text-zinc-300" />
               <Link

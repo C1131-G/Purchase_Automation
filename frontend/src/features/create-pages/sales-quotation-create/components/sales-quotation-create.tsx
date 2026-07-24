@@ -99,7 +99,7 @@ export function SalesQuotationCreate({
     <div className="contents">
       <CreatePageWrapper
         dashboardName="Sales Dashboard"
-        dashboardUrl="/dashboard/sales"
+        dashboardUrl="/dashboard"
         breadcrumbParent={{
           label: "Sales Quotations Data Table",
           onMouseEnter: () =>

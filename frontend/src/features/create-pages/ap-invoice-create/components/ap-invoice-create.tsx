@@ -156,7 +156,7 @@ export function APInvoiceCreate({
   return (
     <CreatePageWrapper
       dashboardName="Purchase Dashboard"
-      dashboardUrl="/dashboard/purchase"
+      dashboardUrl="/dashboard"
       breadcrumbParent={{
         label: "A/P Invoice Data Table",
         to: "/purchase/ap-invoice",

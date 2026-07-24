@@ -111,7 +111,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
     <div className="contents">
       <CreatePageWrapper
         dashboardName="Purchase Dashboard"
-        dashboardUrl="/dashboard/purchase"
+        dashboardUrl="/dashboard"
         breadcrumbParent={{
           label: "Purchase Quotations Data Table",
           onMouseEnter: () =>

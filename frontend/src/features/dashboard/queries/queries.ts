@@ -11,10 +11,20 @@ import type {
   DashboardPartnerGroup,
   DashboardExceptionGroup,
 } from "../utils/types";
+import type { OverviewDashboardResponse } from "../utils/overview.types";
 
 interface DashboardResponse<T> {
   data: T;
   currency: string;
+}
+
+export function useOverviewDashboard() {
+  return useQuery({
+    queryKey: dashboardKeys.overview(),
+    queryFn: () => apiClient<OverviewDashboardResponse>("/api/v1/dashboard/overview"),
+    staleTime: 15 * 1000,
+    select: (response) => response.data,
+  });
 }
 
 export function useDashboardKpiSummary(area: DashboardArea, period: DashboardPeriod) {

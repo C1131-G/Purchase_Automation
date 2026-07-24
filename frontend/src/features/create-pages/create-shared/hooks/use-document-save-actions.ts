@@ -132,13 +132,8 @@ export function useDocumentSaveActions({
         setSavedDocNum(null);
         lastSavedStateRef.current = "";
         scrollToTop();
-        const dashboardUrl =
-          moduleType === "purchase"
-            ? ("/dashboard/purchase" as const)
-            : ("/dashboard/sales" as const);
         void router.navigate({
-          to: dashboardUrl,
-          search: { period: "week" },
+          to: "/dashboard",
           viewTransition: true,
         });
       } else if (action === "view") {

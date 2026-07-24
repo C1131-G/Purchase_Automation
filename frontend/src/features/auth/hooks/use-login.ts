@@ -45,10 +45,9 @@ export function useLogin() {
         // Stamp submit→dashboard latency start point (read in DashboardCanvas on mount).
         (window as unknown as Record<string, unknown>).__loginSubmitAt = Date.now();
 
-        // Navigate directly to the purchase dashboard — no intermediate redirect hop.
+        // Navigate to unified Overview dashboard.
         void navigate({
-          to: "/dashboard/purchase",
-          search: { period: "week" },
+          to: "/dashboard",
         });
 
         // Warm caches in the background only after the page is already usable.

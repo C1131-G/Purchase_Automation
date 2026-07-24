@@ -151,6 +151,15 @@ export const registerAllPaths = () => {
   });
 
   // --- Dashboard ---
+  registerPath("/dashboard/overview", "get", {
+    security: cookieSecurity,
+    operationId: "getDashboardOverview",
+    summary: "Overview dashboard",
+    description:
+      "Unified post-login overview: open PQ/SQ/PO counts, AR approval pending, IC partners, statement.",
+    tags: ["Dashboard"],
+    responses: jsonResponses({ successDescription: "Overview dashboard payload." }),
+  });
   registerPath("/dashboard/stats", "get", {
     security: cookieSecurity,
     operationId: "getDashboardStats",

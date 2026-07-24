@@ -862,12 +862,8 @@ export function BaseProductSection({
                     <button
                       type="button"
                       onClick={() => {
-                        const dashboardUrl = backToUrl.startsWith("/purchase")
-                          ? "/dashboard/purchase"
-                          : "/dashboard/sales";
                         void navigate({
-                          to: dashboardUrl,
-                          search: { period: "week" },
+                          to: "/dashboard",
                           viewTransition: true,
                         });
                       }}

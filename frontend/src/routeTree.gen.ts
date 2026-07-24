@@ -14,6 +14,7 @@ import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutDashboardRouteRouteImport } from './routes/_layout/dashboard/route'
 import { Route as LayoutIntercompanyRouteRouteImport } from './routes/_layout/intercompany/route'
+import { Route as LayoutDashboardIndexRouteImport } from './routes/_layout/dashboard/index'
 import { Route as LayoutDashboardPurchaseRouteImport } from './routes/_layout/dashboard/purchase'
 import { Route as LayoutDashboardSalesRouteImport } from './routes/_layout/dashboard/sales'
 import { Route as LayoutIntercompanyIndexRouteImport } from './routes/_layout/intercompany/index'
@@ -66,6 +67,11 @@ const LayoutIntercompanyRouteRoute = LayoutIntercompanyRouteRouteImport.update({
   id: '/intercompany',
   path: '/intercompany',
   getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutDashboardIndexRoute = LayoutDashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LayoutDashboardRouteRoute,
 } as any)
 const LayoutDashboardPurchaseRoute = LayoutDashboardPurchaseRouteImport.update({
   id: '/purchase',
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
+  '/dashboard/': typeof LayoutDashboardIndexRoute
   '/intercompany/': typeof LayoutIntercompanyIndexRoute
   '/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
   '/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
@@ -269,7 +276,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/dashboard': typeof LayoutDashboardRouteRouteWithChildren
   '/purchase/ap-credit-memo': typeof LayoutPurchaseApCreditMemoRouteRouteWithChildren
   '/purchase/ap-invoice': typeof LayoutPurchaseApInvoiceRouteRouteWithChildren
   '/purchase/grpo': typeof LayoutPurchaseGrpoRouteRouteWithChildren
@@ -289,6 +295,7 @@ export interface FileRoutesByTo {
   '/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
+  '/dashboard': typeof LayoutDashboardIndexRoute
   '/intercompany': typeof LayoutIntercompanyIndexRoute
   '/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
   '/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
@@ -325,6 +332,7 @@ export interface FileRoutesById {
   '/_layout/purchase/create-outgoing-payment': typeof LayoutPurchaseCreateOutgoingPaymentRoute
   '/_layout/purchase/create-quotation': typeof LayoutPurchaseCreateQuotationRoute
   '/_layout/sales/create-quotation': typeof LayoutSalesCreateQuotationRoute
+  '/_layout/dashboard/': typeof LayoutDashboardIndexRoute
   '/_layout/intercompany/': typeof LayoutIntercompanyIndexRoute
   '/_layout/sales/request-for-quotations/$rfqId': typeof LayoutSalesRequestForQuotationsRfqIdRoute
   '/_layout/purchase/ap-credit-memo/$docNum/update': typeof LayoutPurchaseApCreditMemoDocNumUpdateRoute
@@ -361,6 +369,7 @@ export interface FileRouteTypes {
     | '/purchase/create-outgoing-payment'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
+    | '/dashboard/'
     | '/intercompany/'
     | '/sales/request-for-quotations/$rfqId'
     | '/purchase/ap-credit-memo/$docNum/update'
@@ -374,7 +383,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/dashboard'
     | '/purchase/ap-credit-memo'
     | '/purchase/ap-invoice'
     | '/purchase/grpo'
@@ -394,6 +402,7 @@ export interface FileRouteTypes {
     | '/purchase/create-outgoing-payment'
     | '/purchase/create-quotation'
     | '/sales/create-quotation'
+    | '/dashboard'
     | '/intercompany'
     | '/sales/request-for-quotations/$rfqId'
     | '/purchase/ap-credit-memo/$docNum/update'
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/_layout/purchase/create-outgoing-payment'
     | '/_layout/purchase/create-quotation'
     | '/_layout/sales/create-quotation'
+    | '/_layout/dashboard/'
     | '/_layout/intercompany/'
     | '/_layout/sales/request-for-quotations/$rfqId'
     | '/_layout/purchase/ap-credit-memo/$docNum/update'
@@ -482,6 +492,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/intercompany'
       preLoaderRoute: typeof LayoutIntercompanyRouteRouteImport
       parentRoute: typeof LayoutRoute
+    }
+    '/_layout/dashboard/': {
+      id: '/_layout/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof LayoutDashboardIndexRouteImport
+      parentRoute: typeof LayoutDashboardRouteRoute
     }
     '/_layout/dashboard/purchase': {
       id: '/_layout/dashboard/purchase'
@@ -685,11 +702,13 @@ declare module '@tanstack/react-router' {
 interface LayoutDashboardRouteRouteChildren {
   LayoutDashboardPurchaseRoute: typeof LayoutDashboardPurchaseRoute
   LayoutDashboardSalesRoute: typeof LayoutDashboardSalesRoute
+  LayoutDashboardIndexRoute: typeof LayoutDashboardIndexRoute
 }
 
 const LayoutDashboardRouteRouteChildren: LayoutDashboardRouteRouteChildren = {
   LayoutDashboardPurchaseRoute: LayoutDashboardPurchaseRoute,
   LayoutDashboardSalesRoute: LayoutDashboardSalesRoute,
+  LayoutDashboardIndexRoute: LayoutDashboardIndexRoute,
 }
 
 const LayoutDashboardRouteRouteWithChildren =

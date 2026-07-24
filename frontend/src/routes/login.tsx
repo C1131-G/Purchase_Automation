@@ -29,8 +29,7 @@ export const Route = createFileRoute("/login")({
     // If authenticated, redirect to app
     if (isAuthenticated) {
       throw redirect({
-        to: "/dashboard/purchase",
-        search: { period: "week" },
+        to: "/dashboard",
       });
     }
 
@@ -86,8 +85,7 @@ function LoginComponent() {
       useAuthStore.getState().login(cachedUser);
       navigate({
         replace: true,
-        to: "/dashboard/purchase",
-        search: { period: "week" },
+        to: "/dashboard",
       });
       return () => {
         isMounted = false;
@@ -114,8 +112,7 @@ function LoginComponent() {
           useAuthStore.getState().login(user);
           navigate({
             replace: true,
-            to: "/dashboard/purchase",
-            search: { period: "week" },
+            to: "/dashboard",
           });
         })
         .catch(() => {

@@ -47,7 +47,7 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
 
   return (
     <CreatePageWrapper
-      dashboardUrl="/dashboard/sales"
+      dashboardUrl="/dashboard"
       breadcrumbParent={{
         label: "Request For Quotations",
         onMouseEnter: () => {

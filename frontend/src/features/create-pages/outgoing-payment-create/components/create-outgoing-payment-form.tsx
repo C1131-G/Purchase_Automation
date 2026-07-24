@@ -368,7 +368,7 @@ export function CreateOutgoingPaymentForm() {
     <div className="contents">
       <CreatePageWrapper
         dashboardName="Purchase Dashboard"
-        dashboardUrl="/dashboard/purchase"
+        dashboardUrl="/dashboard"
         breadcrumbParent={{
           label: "Outgoing Payments Data Table",
           to: "/purchase/outgoing-payment",

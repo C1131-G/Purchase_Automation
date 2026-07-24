@@ -12,7 +12,7 @@ interface BreadcrumbItem {
 interface CreatePageWrapperProps {
   /** @deprecated section is derived from dashboardUrl automatically */
   dashboardName?: string;
-  dashboardUrl: string; // e.g., "/dashboard/purchase" or "/dashboard/sales"
+  dashboardUrl: string; // e.g., "/dashboard"
   breadcrumbParent: BreadcrumbItem;
   pageTitle: string;
   editError?: string | null;
@@ -43,13 +43,13 @@ export function CreatePageWrapper({
   }
 
   let section = "Purchase";
-  if (dashboardUrl.includes("sales")) {
+  if (breadcrumbParent.to.startsWith("/sales") || dashboardUrl.includes("sales")) {
     section = "Sales";
   } else if (dashboardUrl.includes("inventory")) {
     section = "Inventory";
+  } else if (breadcrumbParent.to.startsWith("/purchase") || dashboardUrl.includes("purchase")) {
+    section = "Purchase";
   }
-
-  const isPurchaseOrSales = dashboardUrl.includes("purchase") || dashboardUrl.includes("sales");
 
   return (
     <div className="relative h-full w-full bg-zinc-50 p-3 pb-20 overflow-y-auto">
@@ -62,9 +62,9 @@ export function CreatePageWrapper({
         <Link
           to={dashboardUrl}
           className="text-zinc-400 transition-colors hover:text-blue-600"
-          viewTransition={isPurchaseOrSales}
+          viewTransition
         >
-          {section} Dashboard
+          Dashboard
         </Link>
         <ChevronRight className="size-3 text-zinc-300" />
         <Link
@@ -72,7 +72,7 @@ export function CreatePageWrapper({
           search={breadcrumbParent.search || { limit: 10, page: 1 }}
           className="text-zinc-400 transition-colors hover:text-blue-600"
           onMouseEnter={breadcrumbParent.onMouseEnter}
-          viewTransition={isPurchaseOrSales}
+          viewTransition
         >
           {breadcrumbParent.label}
         </Link>

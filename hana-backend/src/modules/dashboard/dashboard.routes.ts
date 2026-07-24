@@ -12,6 +12,9 @@ const router = express.Router();
 // Security: Dashboard data is sensitive and requires an active, validated session.
 router.use(validateSession);
 
+// Unified Overview (Probe A): open work KPIs + partner/statement sections (phased)
+router.get("/overview", dashboardController.getOverviewDashboard);
+
 // Original compatibility endpoints
 router.get(
   "/purchase-summary",

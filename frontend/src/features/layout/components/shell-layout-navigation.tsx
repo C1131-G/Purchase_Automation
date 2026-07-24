@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "@tanstack/react-router";
 import { ArrowLeftRight, BadgePercent, LayoutDashboard, ShoppingCart } from "lucide-react";
 
 import {
@@ -7,11 +8,13 @@ import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuCollapsible,
+  SidebarMenuItem,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/sidebar";
 import { IcUnreadCountPill } from "@/features/intercompany/components/ic-unread-badge";
 import type { TableRoutePath } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
+import { cn } from "@/shared/utils/cn";
 import { markSidebarNavigation } from "@/shared/utils/route-transition";
 
 import type { SectionKey } from "../utils/shell-layout.types";
@@ -41,32 +44,24 @@ export function ShellLayoutNavigation({
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuCollapsible
-              title="Dashboard"
-              icon={LayoutDashboard}
-              isOpen={isSectionOpen("dashboard")}
-              onToggle={() => onToggleSection("dashboard")}
-              isActive={pathname.startsWith("/dashboard")}
-            >
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/dashboard/purchase"
-                  search={{ period: "week" } as any}
-                  isActive={pathname === "/dashboard/purchase"}
-                >
-                  Purchase
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton
-                  to="/dashboard/sales"
-                  search={{ period: "week" } as any}
-                  isActive={pathname === "/dashboard/sales"}
-                >
-                  Sales
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            </SidebarMenuCollapsible>
+            <SidebarMenuItem>
+              <Link
+                to="/dashboard"
+                preload="intent"
+                viewTransition
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl p-2.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 cursor-pointer",
+                  "hover:bg-blue-50 hover:text-blue-600 text-zinc-500",
+                  pathname.startsWith("/dashboard") &&
+                    "bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)]",
+                  "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto",
+                )}
+                aria-current={pathname.startsWith("/dashboard") ? "page" : undefined}
+              >
+                <LayoutDashboard className="size-5 shrink-0" />
+                <span className="group-data-[collapsible=icon]:hidden">Dashboard</span>
+              </Link>
+            </SidebarMenuItem>
             <SidebarMenuCollapsible
               title="Purchase"
               icon={ShoppingCart}
