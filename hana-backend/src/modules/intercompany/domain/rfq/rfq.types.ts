@@ -57,6 +57,8 @@ export type CreateRfqFromDraftInput = {
 export type UpdateRfqLineInput = {
   lineNum: number;
   unitPrice: number;
+  /** Quoted quantity — seller may revise from buyer request. */
+  quantity?: number | null;
   deliveryDate?: string | null;
   discount?: number | null;
 };

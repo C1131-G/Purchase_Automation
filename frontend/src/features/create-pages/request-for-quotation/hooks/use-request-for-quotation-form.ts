@@ -20,6 +20,7 @@ import {
   isRfqSubmitted,
   mapRfqLinesToEditable,
   type RfqEditableLine,
+  type RfqSellerEditableFields,
 } from "../utils/rfq-form.utils";
 
 export function useRequestForQuotationForm(rfqId: number) {
@@ -48,7 +49,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       header.status,
       ...(header.lines ?? []).map(
         (line) =>
-          `${line.rfqLineId}:${line.unitPrice ?? ""}:${line.discount ?? ""}:${line.deliveryDate ?? ""}`,
+          `${line.rfqLineId}:${line.unitPrice ?? ""}:${line.quantity ?? ""}:${line.discount ?? ""}:${line.deliveryDate ?? ""}`,
       ),
     ].join("|");
 
@@ -79,6 +80,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       }
       if (
         local.unitPrice !== remote.unitPrice ||
+        local.quantity !== remote.quantity ||
         local.discount !== remote.discount ||
         local.deliveryDate !== remote.deliveryDate
       ) {
@@ -89,15 +91,26 @@ export function useRequestForQuotationForm(rfqId: number) {
   }, [header?.lines, lines]);
 
   const updateLine = useCallback(
-    (
-      lineNum: number,
-      patch: Partial<Pick<RfqEditableLine, "unitPrice" | "discount" | "deliveryDate">>,
-    ) => {
+    (lineNum: number, patch: Partial<RfqSellerEditableFields>) => {
       if (!canEditLines) {
         return;
       }
+      // Only seller-editable fields may be patched — never item/whse/uom/description.
+      const allowed: Partial<RfqSellerEditableFields> = {};
+      if (patch.unitPrice !== undefined) {
+        allowed.unitPrice = patch.unitPrice;
+      }
+      if (patch.quantity !== undefined) {
+        allowed.quantity = patch.quantity;
+      }
+      if (patch.discount !== undefined) {
+        allowed.discount = patch.discount;
+      }
+      if (patch.deliveryDate !== undefined) {
+        allowed.deliveryDate = patch.deliveryDate;
+      }
       setLines((prev) =>
-        prev.map((line) => (line.lineNum === lineNum ? { ...line, ...patch } : line)),
+        prev.map((line) => (line.lineNum === lineNum ? { ...line, ...allowed } : line)),
       );
       setFormError(null);
     },

@@ -11,6 +11,7 @@ export const IcHealthResponseSchema = z.object({
 
 export type IcHealthResponse = z.infer<typeof IcHealthResponseSchema>;
 
+/** Seller fill: unit price, quoted qty, delivery date, discount %. itemCode rejected downstream. */
 export const UpdateRfqBodySchema = z.object({
   lines: z
     .array(
@@ -20,7 +21,7 @@ export const UpdateRfqBodySchema = z.object({
           discount: z.number().nullable().optional(),
           itemCode: z.unknown().optional(),
           lineNum: z.number().int(),
-          quantity: z.unknown().optional(),
+          quantity: z.number().positive().nullable().optional(),
           unitPrice: z.number(),
         })
         .strict(),

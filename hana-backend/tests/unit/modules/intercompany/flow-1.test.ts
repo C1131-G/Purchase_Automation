@@ -228,14 +228,22 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(header?.rfqNumber).toContain("9001");
   });
 
-  it("T6.3 fill rejects qty/item change", () => {
+  it("T6.3 fill rejects item change but allows quoted qty", () => {
     expect(() =>
       sanitizeFillLines([{ itemCode: "HACK", lineNum: 0, quantity: 99, unitPrice: 1 }]),
-    ).toThrow(/unit price|item or quantity/i);
+    ).toThrow(/not item/i);
 
-    const ok = sanitizeFillLines([{ deliveryDate: "2026-04-01", lineNum: 0, unitPrice: 12.5 }]);
+    const ok = sanitizeFillLines([
+      { deliveryDate: "2026-04-01", discount: 5, lineNum: 0, quantity: 3, unitPrice: 12.5 },
+    ]);
     expect(ok).toEqual([
-      { deliveryDate: "2026-04-01", discount: null, lineNum: 0, unitPrice: 12.5 },
+      {
+        deliveryDate: "2026-04-01",
+        discount: 5,
+        lineNum: 0,
+        quantity: 3,
+        unitPrice: 12.5,
+      },
     ]);
   });
 

@@ -7,10 +7,12 @@ import type {
 export type RfqEditableLine = {
   deliveryDate: string;
   description: string;
+  /** Discount percent as input string (0–100). */
   discount: string;
   itemCode: string;
   lineNum: number;
-  quantity: number;
+  /** Quoted quantity as input string so partial typing works. */
+  quantity: string;
   remarks: string;
   rfqLineId: number;
   taxCode: string;
@@ -18,6 +20,12 @@ export type RfqEditableLine = {
   uomCode: string;
   warehouse: string;
 };
+
+/** Fields the seller may change on a DRAFT RFQ. */
+export type RfqSellerEditableFields = Pick<
+  RfqEditableLine,
+  "unitPrice" | "quantity" | "discount" | "deliveryDate"
+>;
 
 export const isRfqDraft = (status: string | undefined): boolean =>
   String(status ?? "")
@@ -56,7 +64,7 @@ export const mapRfqLinesToEditable = (lines: IcRfqLine[] | undefined): RfqEditab
     discount: formatNumberInput(line.discount),
     itemCode: String(line.itemCode ?? "").trim(),
     lineNum: line.lineNum,
-    quantity: Number.isFinite(line.quantity) ? line.quantity : 0,
+    quantity: formatNumberInput(line.quantity),
     remarks: String(line.remarks ?? "").trim(),
     rfqLineId: line.rfqLineId,
     taxCode: String(line.taxCode ?? "").trim(),
@@ -77,9 +85,54 @@ export const parseOptionalNumber = (raw: string): number | null => {
   return Number.isFinite(value) ? value : null;
 };
 
+/** Gross line amount before discount. */
+export const computeLineGross = (unitPrice: number, quantity: number): number => {
+  const gross = unitPrice * quantity;
+  if (!Number.isFinite(gross)) {
+    return 0;
+  }
+  return Math.round(gross * 100) / 100;
+};
+
+/** Discount amount from unit price × qty × disc%. */
+export const computeDiscountAmount = (
+  unitPrice: number,
+  quantity: number,
+  discountPercent: number,
+): number => {
+  if (!Number.isFinite(unitPrice) || !Number.isFinite(quantity) || discountPercent <= 0) {
+    return 0;
+  }
+  const gross = unitPrice * quantity;
+  if (!Number.isFinite(gross) || gross <= 0) {
+    return 0;
+  }
+  return Math.round(((gross * discountPercent) / 100) * 100) / 100;
+};
+
+/** Convert a typed disc amount back to percent (clamped 0–100). */
+export const discountPercentFromAmount = (
+  unitPrice: number,
+  quantity: number,
+  discountAmount: number,
+): number | null => {
+  if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+    return null;
+  }
+  const gross = unitPrice * quantity;
+  if (!Number.isFinite(gross) || gross <= 0) {
+    return discountAmount === 0 ? 0 : null;
+  }
+  const percent = (discountAmount / gross) * 100;
+  if (!Number.isFinite(percent)) {
+    return null;
+  }
+  return Math.min(100, Math.max(0, Math.round(percent * 100) / 100));
+};
+
 /**
  * Build PUT body for seller fill.
- * - `requireAllPrices: true` (submit): every line must have a non-negative unit price.
+ * - `requireAllPrices: true` (submit): every line must have a non-negative unit price + qty.
  * - `requireAllPrices: false` (save): only lines with a unit price are sent (partial OK).
  */
 export const buildUpdateRfqLinesPayload = (
@@ -103,6 +156,12 @@ export const buildUpdateRfqLinesPayload = (
       continue;
     }
 
+    const quantity = parseOptionalNumber(line.quantity);
+    if (quantity === null || quantity <= 0) {
+      errors.push(`Line ${line.lineNum}: quoted quantity must be greater than 0`);
+      continue;
+    }
+
     const discount = parseOptionalNumber(line.discount);
     if (discount !== null && (discount < 0 || discount > 100)) {
       errors.push(`Line ${line.lineNum}: discount must be between 0 and 100`);
@@ -114,6 +173,7 @@ export const buildUpdateRfqLinesPayload = (
       deliveryDate: deliveryDate || null,
       discount,
       lineNum: line.lineNum,
+      quantity,
       unitPrice,
     });
   }
@@ -140,8 +200,9 @@ export const computeRfqTotals = (lines: RfqEditableLine[]) => {
   let netTotal = 0;
   for (const line of lines) {
     const unitPrice = parseOptionalNumber(line.unitPrice) ?? 0;
+    const quantity = parseOptionalNumber(line.quantity) ?? 0;
     const discount = parseOptionalNumber(line.discount) ?? 0;
-    netTotal += computeLineNet(unitPrice, line.quantity, discount);
+    netTotal += computeLineNet(unitPrice, quantity, discount);
   }
   return {
     lineCount: lines.length,

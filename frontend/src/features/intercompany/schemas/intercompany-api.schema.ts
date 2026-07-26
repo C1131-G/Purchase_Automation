@@ -226,13 +226,15 @@ export const icRfqDetailResponseSchema = z.object({
 export type IcRfqDetailResponse = z.infer<typeof icRfqDetailResponseSchema>;
 
 /**
- * PUT /api/v1/ic/rfqs/:id — seller fill (unit price / delivery / discount only).
- * Backend rejects itemCode/quantity; omit them from the client payload.
+ * PUT /api/v1/ic/rfqs/:id — seller fill.
+ * Editable: unit price, quoted qty, delivery date, discount %.
+ * Backend rejects itemCode and other buyer snapshot fields.
  */
 export const icUpdateRfqLineBodySchema = z.object({
   deliveryDate: z.string().nullable().optional(),
   discount: z.number().nullable().optional(),
   lineNum: z.number().int(),
+  quantity: z.number().positive().nullable().optional(),
   unitPrice: z.number(),
 });
 

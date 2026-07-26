@@ -3,14 +3,17 @@ import type { UpdateRfqLineInput } from "@/modules/intercompany/domain/rfq/rfq.t
 
 import type { FillRfqLineInput } from "./fill-rfq.types";
 
-/** Only unit price / delivery / discount may change; reject qty or item attempts. */
+/**
+ * Seller (vendor) may edit: unit price, quoted qty, delivery date, discount %.
+ * Item code and other buyer snapshot fields stay immutable.
+ */
 export const sanitizeFillLines = (lines: FillRfqLineInput[]): UpdateRfqLineInput[] => {
   const sanitized: UpdateRfqLineInput[] = [];
 
   for (const line of lines) {
-    if (line.itemCode !== undefined || line.quantity !== undefined) {
+    if (line.itemCode !== undefined) {
       throw new AppError(
-        "RFQ fill may only change unit price, delivery date, and discount — not item or quantity",
+        "RFQ fill may only change unit price, quantity, delivery date, and discount — not item",
         400,
         "IC_RFQ_IMMUTABLE_LINE",
       );
@@ -24,10 +27,27 @@ export const sanitizeFillLines = (lines: FillRfqLineInput[]): UpdateRfqLineInput
       throw new AppError("Each RFQ line requires unitPrice", 400, "IC_RFQ_INVALID_LINE");
     }
 
+    let quantity: number | null = null;
+    if (line.quantity !== undefined && line.quantity !== null) {
+      const qty = Number(line.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        throw new AppError("Quoted quantity must be a positive number", 400, "IC_RFQ_INVALID_LINE");
+      }
+      quantity = qty;
+    }
+
+    if (line.discount !== undefined && line.discount !== null) {
+      const discount = Number(line.discount);
+      if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+        throw new AppError("Discount must be between 0 and 100", 400, "IC_RFQ_INVALID_LINE");
+      }
+    }
+
     sanitized.push({
       deliveryDate: line.deliveryDate ?? null,
       discount: line.discount ?? null,
       lineNum: line.lineNum,
+      quantity,
       unitPrice: line.unitPrice,
     });
   }

@@ -22,8 +22,8 @@ interface RequestForQuotationFormProps {
 
 /**
  * Phase 2 RFQ fill form — layout mirrored from Purchase Quotation create.
- * Seller (target company) edits unit price / discount / delivery on DRAFT,
- * then submits. Buyer (source) converts SUBMITTED → PQ + SQ.
+ * Seller fill on DRAFT: quoted qty, price, disc %, disc amount, quoted date — then Submit.
+ * Header + item/UoM/warehouse stay locked. No Save / Add / Convert on this form.
  */
 export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps) {
   const queryClient = useQueryClient();
@@ -75,11 +75,8 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
             </span>
             {state.canEditLines ? (
               <span className="text-xs text-zinc-500">
-                Seller fill: set unit price, discount, and delivery date, then Save or Submit.
-              </span>
-            ) : state.canConvert ? (
-              <span className="text-xs text-zinc-500">
-                Submitted — buyer can convert to Purchase Quotation.
+                Seller fill: edit quoted qty, price, disc %, disc amount, and quoted date only —
+                then Submit.
               </span>
             ) : (
               <span className="text-xs text-zinc-500">
@@ -252,44 +249,18 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
 
               <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-4">
                 {state.canEditLines ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={state.isSubmitting || !state.isDirty}
-                      onClick={() => {
-                        void state.handleSave();
-                      }}
-                    >
-                      {state.isSubmitting ? "Saving…" : "Save Prices"}
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={state.isSubmitting || state.lines.length === 0}
-                      onClick={() => {
-                        void state.handleSubmit();
-                      }}
-                    >
-                      {state.isSubmitting ? "Submitting…" : "Submit RFQ"}
-                    </Button>
-                  </>
-                ) : null}
-
-                {state.canConvert ? (
                   <Button
                     type="button"
-                    disabled={state.isSubmitting}
+                    disabled={state.isSubmitting || state.lines.length === 0}
                     onClick={() => {
-                      void state.handleConvert();
+                      void state.handleSubmit();
                     }}
                   >
-                    {state.isSubmitting ? "Converting…" : "Convert to PQ"}
+                    {state.isSubmitting ? "Submitting…" : "Submit"}
                   </Button>
-                ) : null}
-
-                {!state.canEditLines && !state.canConvert ? (
+                ) : (
                   <p className="text-xs text-zinc-500">No actions available for this status.</p>
-                ) : null}
+                )}
               </div>
             </SectionCard>
           </div>

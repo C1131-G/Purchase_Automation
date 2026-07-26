@@ -105,9 +105,17 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
             SET "UNIT_PRICE" = ?,
                 "DELIVERY_DATE" = COALESCE(?, "DELIVERY_DATE"),
                 "DISCOUNT" = COALESCE(?, "DISCOUNT"),
+                "QUANTITY" = COALESCE(?, "QUANTITY"),
                 "UPDATED_AT" = CURRENT_TIMESTAMP
           WHERE "RFQ_ID" = ? AND "LINE_NUM" = ?`,
-        [line.unitPrice, line.deliveryDate ?? null, line.discount ?? null, rfqId, line.lineNum],
+        [
+          line.unitPrice,
+          line.deliveryDate ?? null,
+          line.discount ?? null,
+          line.quantity ?? null,
+          rfqId,
+          line.lineNum,
+        ],
       );
     }
     return loadHeaderWithLines(sql, rfqId);

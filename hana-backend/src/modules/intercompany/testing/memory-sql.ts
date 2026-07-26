@@ -379,8 +379,9 @@ export const createMemorySqlClient = (
     }
 
     if (statement.startsWith('UPDATE "IC_RFQ_LINE"')) {
-      const rfqId = Number(params[3]);
-      const lineNum = Number(params[4]);
+      // params: unitPrice, deliveryDate, discount, quantity, rfqId, lineNum
+      const rfqId = Number(params[4]);
+      const lineNum = Number(params[5]);
       const row = db.tables.IC_RFQ_LINE.find(
         (row) => row.RFQ_ID === rfqId && row.LINE_NUM === lineNum,
       );
@@ -391,6 +392,9 @@ export const createMemorySqlClient = (
         }
         if (params[2] !== null && params[2] !== undefined) {
           row.DISCOUNT = params[2];
+        }
+        if (params[3] !== null && params[3] !== undefined) {
+          row.QUANTITY = params[3];
         }
       }
       return [] as T[];
