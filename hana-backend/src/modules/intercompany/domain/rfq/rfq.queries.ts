@@ -77,12 +77,13 @@ export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQuerie
     return header;
   },
 
+  /** Seller inbox only — RFQs where this company is the target (not buyer/source). */
   listForCompany: async (companyId) => {
     const rows = await sql.query(
       `SELECT * FROM "IC_RFQ_HEADER"
-        WHERE "SOURCE_COMPANY_ID" = ? OR "TARGET_COMPANY_ID" = ?
+        WHERE "TARGET_COMPANY_ID" = ?
         ORDER BY "RFQ_ID" DESC`,
-      [companyId, companyId],
+      [companyId],
     );
     return rows.map(mapRfqHeaderRow);
   },

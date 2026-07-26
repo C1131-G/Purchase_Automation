@@ -11,6 +11,7 @@ export type RfqService = {
     sourceCompanyId: number,
     pqDraftDocEntry: number,
   ) => Promise<IcRfqHeader | null>;
+  /** Seller inbox — only RFQs where company is target (not buyer). */
   listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
   updateLines: (rfqId: number, lines: UpdateRfqLineInput[]) => Promise<IcRfqHeader | null>;
   submit: (rfqId: number) => Promise<IcRfqHeader | null>;

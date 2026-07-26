@@ -156,12 +156,17 @@ const createDefaultHandlers = (deps: {
 
     const lines = header.lines ?? [];
     const mapTaxCode = async (sourceTaxCode: string): Promise<string> => {
+      const code = sourceTaxCode.trim();
+      if (!code) {
+        return "";
+      }
       const mapped = await deps.taxMapping.mapTax(
         header.sourceCompanyId,
         header.targetCompanyId,
-        sourceTaxCode,
+        code,
       );
-      return mapped.hit ? mapped.targetTaxCode : sourceTaxCode;
+      // Never send buyer tax to seller — omit VatGroup on miss (BP default / mapping seed).
+      return mapped.hit && mapped.targetTaxCode.trim() ? mapped.targetTaxCode.trim() : "";
     };
 
     const salesQuotation = await createSellerSq({

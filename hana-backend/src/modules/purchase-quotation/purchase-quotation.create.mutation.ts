@@ -203,11 +203,31 @@ export const createPurchaseQuotation = async (
     if (isDraft && result.DocEntry) {
       try {
         intercompany = await afterPqDraftSaved({
+          address: payload.Address != null ? String(payload.Address) : null,
+          address2: payload.Address2 != null ? String(payload.Address2) : null,
           cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
+          cardName: payload.CardName != null ? String(payload.CardName) : null,
+          comments: payload.Comments != null ? String(payload.Comments) : null,
           dbName: resolvedDbName,
+          docDate: payload.DocDate,
+          docDueDate: payload.DocDueDate,
           docEntry: Number(result.DocEntry),
           docNum: result.DocNum != null ? Number(result.DocNum) : null,
           lines: Array.isArray(lines) ? lines : [],
+          numAtCard: payload.NumAtCard != null ? String(payload.NumAtCard) : null,
+          requiredDate:
+            (payload as Record<string, unknown>).RequriedDate ??
+            payload.DocDueDate ??
+            payload.DocDate,
+          salesPersonCode: (() => {
+            const raw =
+              (payload as Record<string, unknown>).SalesPersonCode ??
+              (payload as Record<string, unknown>).salesPersonCode;
+            if (raw === null || raw === undefined || raw === "") {
+              return null;
+            }
+            return typeof raw === "number" || typeof raw === "string" ? raw : String(raw);
+          })(),
         });
       } catch (icErr: unknown) {
         logger.error({

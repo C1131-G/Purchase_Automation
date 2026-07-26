@@ -5,23 +5,19 @@ import { createDocumentMapService } from "@/modules/intercompany/domain/document
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
-import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
+import { logFlowStep, summarizePartner } from "@/modules/intercompany/infrastructure/flow-step-log";
+import { IC_LOG_SCOPE } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { ResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import type { IcPqDraftHookInput } from "@/modules/intercompany/flows/shared/flow.types";
 
+import { compactPqDraftTag } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
+
 import { detectInvalidPqDraftInput } from "./detect-ic-pq-draft";
 import type { Flow1CaptureResult } from "../flow-1.types";
 
 const SCOPE = IC_LOG_SCOPE.FLOW1;
-
-const buildRemarksTag = (docNum: number | null | undefined, docEntry: number): string => {
-  if (docNum != null && Number.isFinite(docNum) && docNum > 0) {
-    return `IC-PQD-${docNum}`;
-  }
-  return `IC-PQD-E${docEntry}`;
-};
 
 export type PqDraftCaptureService = {
   capture: (input: IcPqDraftHookInput) => Promise<Flow1CaptureResult>;
@@ -49,31 +45,39 @@ export const createPqDraftCaptureService = (deps?: {
 
       const invalid = detectInvalidPqDraftInput(input);
       if (invalid) {
-        icLog.info(SCOPE, "Flow 1 capture check", {
-          ...base,
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 18,
+          title: "Flow 1 gate — invalid input",
           check: "invalid_input",
-          detail: "missing dbName, cardCode, or docEntry",
+          ctx: base,
+          detail: { detail: "missing dbName, cardCode, or docEntry", reason: invalid },
           outcome: "skip",
-          reason: invalid,
         });
         return { kind: "skip", reason: invalid, detail: "missing dbName, cardCode, or docEntry" };
       }
 
       const flow1On = await configuration.isFlow1Enabled();
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 18,
+        title: flow1On ? "Flow 1 gate — FLOW1_ENABLED = on" : "Flow 1 gate — FLOW1_ENABLED = off",
+        check: "flow1_flag",
+        ctx: base,
+        detail: { flow1Enabled: flow1On },
+        outcome: flow1On ? "pass" : "skip",
+      });
       if (!flow1On) {
-        icLog.info(SCOPE, "Flow 1 capture check", {
-          ...base,
-          check: "flow1_flag",
-          outcome: "skip",
-          reason: "flow1_disabled",
-        });
         return { kind: "skip", reason: "flow1_disabled" };
       }
 
-      icLog.debug(SCOPE, "Flow 1 capture check", {
-        ...base,
-        check: "flow1_flag",
-        outcome: "pass",
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 18,
+        title: "Flow 1 gate — resolve partner (IC_COMPANY + IC_BP_MAPPING)",
+        check: "resolve_partner_start",
+        ctx: base,
+        detail: { cardCode: input.cardCode.trim(), dbName: input.dbName.trim() },
       });
 
       const partnerOutcome = await resolvePartner.resolveOutcome({
@@ -81,6 +85,18 @@ export const createPqDraftCaptureService = (deps?: {
         dbName: input.dbName.trim(),
       });
       if (!partnerOutcome.success) {
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 18,
+          title: "Flow 1 gate — partner resolve failed (non-IC vendor)",
+          check: partnerOutcome.check,
+          ctx: base,
+          detail: {
+            detail: partnerOutcome.detail,
+            reason: "non_ic_vendor",
+          },
+          outcome: "skip",
+        });
         return {
           check: partnerOutcome.check,
           detail: partnerOutcome.detail,
@@ -90,6 +106,16 @@ export const createPqDraftCaptureService = (deps?: {
       }
 
       const partner = partnerOutcome.partner;
+      const partnerSnap = summarizePartner(partner);
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 18,
+        title: "Flow 1 gate — partner resolve OK",
+        check: "resolve_partner_ok",
+        ctx: base,
+        detail: partnerSnap,
+      });
+
       const sourceDocEntry = String(input.docEntry);
 
       const existingRfq = await rfq.findBySourceDraft(
@@ -97,12 +123,19 @@ export const createPqDraftCaptureService = (deps?: {
         input.docEntry,
       );
       if (existingRfq) {
-        icLog.info(SCOPE, "Flow 1 capture check", {
-          ...base,
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 18,
+          title: "Flow 1 gate — RFQ already exists for this draft",
           check: "already_rfq_exists",
+          ctx: base,
+          detail: {
+            reason: "already_rfq_exists",
+            rfqId: existingRfq.rfqId,
+            rfqNumber: existingRfq.rfqNumber,
+            rfqStatus: existingRfq.status,
+          },
           outcome: "skip",
-          reason: "already_rfq_exists",
-          rfqId: existingRfq.rfqId,
         });
         return {
           check: "already_rfq_exists",
@@ -120,12 +153,18 @@ export const createPqDraftCaptureService = (deps?: {
       });
 
       if (existingMap && existingMap.status === IC_DOC_MAP_STATUS.SUCCESS) {
-        icLog.info(SCOPE, "Flow 1 capture check", {
-          ...base,
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 18,
+          title: "Flow 1 gate — document map already SUCCESS",
           check: "already_mapped_success",
-          mappingId: existingMap.mappingId,
+          ctx: base,
+          detail: {
+            mappingId: existingMap.mappingId,
+            reason: "already_mapped_success",
+            status: existingMap.status,
+          },
           outcome: "skip",
-          reason: "already_mapped_success",
         });
         return {
           check: "already_mapped_success",
@@ -135,14 +174,20 @@ export const createPqDraftCaptureService = (deps?: {
         };
       }
 
-      const remarksTag = buildRemarksTag(input.docNum, input.docEntry);
-      icLog.info(SCOPE, "Flow 1 capture check", {
-        ...base,
-        buyerCompanyId: partner.buyerCompany.companyId,
+      const remarksTag = compactPqDraftTag(input.docNum, input.docEntry);
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 18,
+        title: "Flow 1 capture proceed — all gates passed",
         check: "capture_proceed",
-        outcome: "pass",
-        remarksTag,
-        sellerCompanyId: partner.sellerCompany.companyId,
+        ctx: base,
+        detail: {
+          ...partnerSnap,
+          existingMapId: existingMap?.mappingId ?? null,
+          existingMapStatus: existingMap?.status ?? null,
+          remarksTag,
+          sourceDocEntry,
+        },
       });
 
       return {

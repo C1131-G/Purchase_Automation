@@ -5,7 +5,6 @@
  */
 import { createColumnHelper } from "@tanstack/react-table";
 
-import { Tooltip } from "@/components/tooltip";
 import type { IcRfqHeader } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { DocNumCell } from "@/features/table-pages/table-shared/components/core/doc-num-cell";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
@@ -222,28 +221,6 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
     minSize: 10,
     size: 12,
   }),
-  columnHelper.accessor("createdBy", {
-    cell: (info) => {
-      const value = info.getValue();
-      if (!value) {
-        return "—";
-      }
-      return (
-        <Tooltip content={value} className="block w-full max-w-full truncate">
-          {value}
-        </Tooltip>
-      );
-    },
-    enableSorting: true,
-    filterFn: "includesString",
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Created By" />
-    ),
-    id: "createdBy",
-    meta: { filterType: "text" },
-    minSize: 12,
-    size: 14,
-  }),
 ];
 
 export const RFQ_DEFAULT_COLUMN_ORDER = [
@@ -254,5 +231,4 @@ export const RFQ_DEFAULT_COLUMN_ORDER = [
   "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
-  "createdBy",
 ] as const;

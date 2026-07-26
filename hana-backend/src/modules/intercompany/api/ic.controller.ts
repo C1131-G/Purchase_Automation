@@ -5,6 +5,7 @@ import { createProcessRetryQueueJob } from "@/modules/intercompany/background/jo
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
+import { enrichRfqFromPqDraft } from "@/modules/intercompany/domain/rfq/enrich-rfq-from-pq-draft";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
@@ -54,6 +55,7 @@ export const getIcHealth = (_req: Request, res: Response): void => {
   });
 };
 
+/** GET /rfqs — seller inbox only (TARGET company). Buyer does not list RFQs. */
 export const listRfqs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const companyId = await resolveActorCompanyId(req);
@@ -76,7 +78,9 @@ export const getRfq = async (req: Request, res: Response, next: NextFunction): P
     if (header.sourceCompanyId !== companyId && header.targetCompanyId !== companyId) {
       throw new AppError("RFQ not visible to this company", 403, "IC_RFQ_FORBIDDEN");
     }
-    res.status(200).json({ data: header, success: true });
+    // Merge source PQ draft (vendor name, buyer, dates, addresses, line descriptions).
+    const enriched = await enrichRfqFromPqDraft(header);
+    res.status(200).json({ data: enriched, success: true });
   } catch (error) {
     next(error);
   }
@@ -93,7 +97,9 @@ export const updateRfq = async (req: Request, res: Response, next: NextFunction)
       lines: body.lines,
       rfqId,
     });
-    res.status(200).json({ data: updated, success: true });
+    // Same enrichment as GET so seller UI keeps names/dates/descriptions.
+    const enriched = await enrichRfqFromPqDraft(updated);
+    res.status(200).json({ data: enriched, success: true });
   } catch (error) {
     next(error);
   }
@@ -105,7 +111,9 @@ export const submitRfq = async (req: Request, res: Response, next: NextFunction)
     const rfqId = parseIdParam(String(req.params.id));
     const fill = createSellerFillRfqService();
     const submitted = await fill.submit({ actorCompanyId: companyId, rfqId });
-    res.status(200).json({ data: submitted, success: true });
+    // After convert, draft may be gone — enrich from real PQ when present.
+    const enriched = await enrichRfqFromPqDraft(submitted);
+    res.status(200).json({ data: enriched, success: true });
   } catch (error) {
     next(error);
   }

@@ -30,6 +30,20 @@ export type ApplyPricesToDraftInput = {
   companyId: number;
   draftEntry: number;
   documentLines: Record<string, unknown>[];
+  /** Optional Comments patch (appended IC chain — does not wipe lines if caller merged). */
+  comments?: string | null;
+};
+
+export type ConvertDraftToDocumentInput = {
+  companyId: number;
+  draftEntry: number;
+  /** Optional full Comments to set on posted PQ (caller should merge existing + IC links). */
+  comments?: string | null;
+  /**
+   * RFQ commercial line fields merged onto draft DocumentLines by LineNum before POST.
+   * Ensures posted PQ keeps quoted qty / price / disc% / tax even if draft PATCH was partial.
+   */
+  lineOverrides?: Record<string, unknown>[];
 };
 
 export type IcSlDocumentResult = {
@@ -43,6 +57,83 @@ const safeJson = (value: unknown): string | null => {
   } catch {
     return null;
   }
+};
+
+/** Overlay commercial fields from RFQ onto draft DocumentLines by LineNum (fallback by index). */
+export const mergeDocumentLinesByLineNum = (
+  existing: Record<string, unknown>[],
+  overrides: Record<string, unknown>[],
+): Record<string, unknown>[] => {
+  if (overrides.length === 0) {
+    return existing;
+  }
+
+  const byLineNum = new Map<number, Record<string, unknown>>();
+  for (const line of existing) {
+    const lineNum = Number(line.LineNum);
+    if (Number.isFinite(lineNum)) {
+      byLineNum.set(lineNum, { ...line });
+    }
+  }
+
+  const commercialKeys = [
+    "Quantity",
+    "RequiredQuantity",
+    "UnitPrice",
+    "DiscountPercent",
+    "VatGroup",
+    "ShipDate",
+    "ReqDate",
+    "ItemDescription",
+    "WarehouseCode",
+    "UoMCode",
+    "UseBaseUnit",
+    "ItemCode",
+  ] as const;
+
+  const merged: Record<string, unknown>[] = [];
+  for (let i = 0; i < overrides.length; i++) {
+    const override = overrides[i] ?? {};
+    const lineNumRaw = override.LineNum;
+    const lineNum =
+      lineNumRaw !== undefined && lineNumRaw !== null && Number.isFinite(Number(lineNumRaw))
+        ? Number(lineNumRaw)
+        : i;
+    const base = byLineNum.get(lineNum) ?? existing[i] ?? {};
+    const next: Record<string, unknown> = { ...base, LineNum: lineNum };
+    for (const key of commercialKeys) {
+      if (override[key] !== undefined && override[key] !== null && override[key] !== "") {
+        next[key] = override[key];
+      }
+    }
+    // Always apply numeric commercial fields even when 0 (valid zero discount / free goods).
+    if (override.Quantity !== undefined) {
+      next.Quantity = override.Quantity;
+    }
+    if (override.RequiredQuantity !== undefined) {
+      next.RequiredQuantity = override.RequiredQuantity;
+    }
+    if (override.UnitPrice !== undefined) {
+      next.UnitPrice = override.UnitPrice;
+    }
+    if (override.DiscountPercent !== undefined) {
+      next.DiscountPercent = override.DiscountPercent;
+    }
+    merged.push(next);
+  }
+
+  // Keep any draft lines not present in RFQ overrides (should not happen in Flow 1).
+  for (const line of existing) {
+    const lineNum = Number(line.LineNum);
+    if (!Number.isFinite(lineNum)) {
+      continue;
+    }
+    if (!merged.some((row) => Number(row.LineNum) === lineNum)) {
+      merged.push(line);
+    }
+  }
+
+  return merged;
 };
 
 const parseDocResult = (
@@ -63,10 +154,7 @@ const parseDocResult = (
 export type IcSlDocuments = {
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
   createSalesQuotation: (input: CreateSalesQuotationInput) => Promise<IcSlDocumentResult>;
-  convertDraftToDocument: (params: {
-    companyId: number;
-    draftEntry: number;
-  }) => Promise<IcSlDocumentResult>;
+  convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
   applyPricesToDraft: (input: ApplyPricesToDraftInput) => Promise<void>;
 };
 
@@ -139,19 +227,53 @@ export const createIcSlDocuments = (deps?: {
     applyPricesToDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = `/Drafts(${input.draftEntry})`;
-      const body = { DocumentLines: input.documentLines };
       logSlRequest({
         companyId: input.companyId,
         endpoint,
         lineCount: input.documentLines.length,
-        method: "PATCH",
+        method: "GET+PATCH",
       });
 
       try {
+        // GET existing draft lines so replace-PATCH keeps tax/warehouse when RFQ omits them.
+        const draftResponse = await client.request<Record<string, unknown>>({
+          connection,
+          endpoint,
+          method: "GET",
+          session: slSession,
+        });
+        const draft = draftResponse.data ?? {};
+        const existingLines = Array.isArray(draft.DocumentLines)
+          ? (draft.DocumentLines as Record<string, unknown>[])
+          : [];
+        const mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
+
+        const body: Record<string, unknown> = { DocumentLines: mergedLines };
+        if (input.comments != null && String(input.comments).trim()) {
+          body.Comments = String(input.comments).trim();
+        }
+
+        icLog.info(SCOPE, "IC SL apply prices to draft lines", {
+          check: "sl_apply_prices_lines",
+          companyId: input.companyId,
+          draftEntry: input.draftEntry,
+          lines: mergedLines.map((line, index) => ({
+            discountPercent: line.DiscountPercent ?? null,
+            itemCode: line.ItemCode ?? null,
+            lineNum: line.LineNum ?? index,
+            quantity: line.Quantity ?? null,
+            unitPrice: line.UnitPrice ?? null,
+            vatGroup: line.VatGroup ?? null,
+          })),
+          outcome: "pass",
+        });
+
         const response = await client.request({
           body,
           connection,
           endpoint,
+          // Full merged lines — replace collection so qty/price/disc/tax stick.
+          headers: { "B1S-ReplaceCollectionsOnPatch": "true" },
           method: "PATCH",
           session: slSession,
         });
@@ -177,7 +299,11 @@ export const createIcSlDocuments = (deps?: {
             companyId: input.companyId,
             endpoint,
             method: "PATCH",
-            requestJson: safeJson(body),
+            requestJson: safeJson({
+              DocumentLines: input.documentLines,
+              comments: input.comments ?? null,
+              draftEntry: input.draftEntry,
+            }),
             responseJson: safeJson({ error: message }),
             statusCode: null,
           });
@@ -215,6 +341,36 @@ export const createIcSlDocuments = (deps?: {
           Cancelled: _cancelled,
           ...rest
         } = draft;
+
+        // Preserve draft Comments unless caller provided merged IC chain.
+        if (params.comments != null && String(params.comments).trim()) {
+          (rest as Record<string, unknown>).Comments = String(params.comments).trim();
+        }
+
+        // Merge RFQ commercial fields onto draft lines so posted PQ is never total 0
+        // when draft still had zero prices / missing tax after a weak PATCH.
+        if (params.lineOverrides && params.lineOverrides.length > 0) {
+          (rest as Record<string, unknown>).DocumentLines = mergeDocumentLinesByLineNum(
+            Array.isArray(rest.DocumentLines)
+              ? (rest.DocumentLines as Record<string, unknown>[])
+              : [],
+            params.lineOverrides,
+          );
+          icLog.info(SCOPE, "IC SL convert draft — merged RFQ commercial lines", {
+            check: "sl_convert_merge_lines",
+            companyId: params.companyId,
+            draftEntry: params.draftEntry,
+            lines: (params.lineOverrides ?? []).map((line, index) => ({
+              discountPercent: line.DiscountPercent ?? null,
+              itemCode: line.ItemCode ?? null,
+              lineNum: line.LineNum ?? index,
+              quantity: line.Quantity ?? null,
+              unitPrice: line.UnitPrice ?? null,
+              vatGroup: line.VatGroup ?? null,
+            })),
+            outcome: "pass",
+          });
+        }
 
         const postEndpoint = "/PurchaseQuotations";
         const response = await client.request<{ DocEntry?: number; DocNum?: number }>({
@@ -274,13 +430,31 @@ export const createIcSlDocuments = (deps?: {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = "/Drafts";
       const lines = Array.isArray(input.draftPayload.DocumentLines)
-        ? input.draftPayload.DocumentLines
+        ? (input.draftPayload.DocumentLines as Record<string, unknown>[])
         : [];
+      const items = lines.map((line, index) => ({
+        itemCode: String(line.ItemCode ?? "").trim(),
+        itemDescription: String(line.ItemDescription ?? line.Dscription ?? "").trim() || null,
+        lineNum: line.LineNum ?? index,
+        quantity: line.Quantity ?? null,
+        unitPrice: line.UnitPrice ?? null,
+        vatGroup: line.VatGroup ?? null,
+        warehouseCode: line.WarehouseCode ?? null,
+      }));
       logSlRequest({
         companyId: input.companyId,
         endpoint,
         lineCount: lines.length,
         method: "POST",
+      });
+      icLog.info(SCOPE, "IC SL AR draft request body", {
+        check: "sl_create_ar_draft_request",
+        companyId: input.companyId,
+        databaseName: connection.databaseName,
+        draftPayload: input.draftPayload,
+        items,
+        method: "POST",
+        outcome: "pass",
       });
 
       try {
@@ -304,8 +478,10 @@ export const createIcSlDocuments = (deps?: {
         icLog.info(SCOPE, "IC SL AR draft created", {
           check: "sl_create_ar_draft",
           companyId: input.companyId,
+          databaseName: connection.databaseName,
           docEntry: response.data?.DocEntry,
           docNum: response.data?.DocNum,
+          items,
           outcome: "pass",
         });
 
@@ -337,17 +513,47 @@ export const createIcSlDocuments = (deps?: {
     createSalesQuotation: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = "/Quotations";
+      const remarksFull = input.remarks?.trim() || "";
+      // NumAtCard is short (often ≤100); keep compact first IC line or full if short.
+      const numAtCard =
+        remarksFull
+          .split("\n")
+          .map((line) => line.trim())
+          .find((line) => line.startsWith("IC |"))
+          ?.slice(0, 100) || remarksFull.slice(0, 100);
       const body = {
         CardCode: input.cardCode,
-        Comments: input.remarks,
+        Comments: remarksFull,
         DocumentLines: input.lines,
-        NumAtCard: input.remarks,
+        NumAtCard: numAtCard || undefined,
       };
+      const lineSnap = Array.isArray(input.lines)
+        ? input.lines.map((line, index) => {
+            const row = line as Record<string, unknown>;
+            return {
+              itemCode: row.ItemCode ?? null,
+              lineNum: index,
+              quantity: row.Quantity ?? null,
+              unitPrice: row.UnitPrice ?? null,
+              vatGroup: row.VatGroup ?? null,
+              warehouseCode: row.WarehouseCode ?? null,
+            };
+          })
+        : [];
       logSlRequest({
         companyId: input.companyId,
         endpoint,
-        lineCount: Array.isArray(input.lines) ? input.lines.length : undefined,
+        lineCount: lineSnap.length,
         method: "POST",
+      });
+      icLog.info(SCOPE, "IC SL sales quotation request body", {
+        check: "sl_create_sq_request",
+        companyId: input.companyId,
+        databaseName: connection.databaseName,
+        cardCode: input.cardCode,
+        lines: lineSnap,
+        outcome: "pass",
+        remarks: input.remarks,
       });
 
       try {

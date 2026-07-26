@@ -190,6 +190,11 @@ interface CreateProductTableRowProps {
   showGLAccount?: boolean;
   /** PQ only: Required Date, Quoted Date, Required Qty, Quoted Qty after UoM. */
   showPqLineDatesAndQtys?: boolean;
+  /**
+   * RFQ seller fill: PQ column layout, only quoted qty/date + price + disc editable.
+   * Buyer snapshot fields (product, WH, UoM, required date/qty) stay locked.
+   */
+  rfqSellerFill?: boolean;
 }
 
 export function CreateProductTableRow({
@@ -221,6 +226,7 @@ export function CreateProductTableRow({
   showBinLocation = false,
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
+  rfqSellerFill = false,
 }: CreateProductTableRowProps) {
   const [warehouseInput, setWarehouseInput] = React.useState("");
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState("");
@@ -295,9 +301,10 @@ export function CreateProductTableRow({
   const [uomLookupOpen, setUomLookupOpen] = React.useState(false);
   const [uomLookupInitialSearch, setUomLookupInitialSearch] = React.useState("");
 
-  /** PQ Required Date picker — portaled to document.body so table overflow never clips it. */
-  const [lineDatePicker, setLineDatePicker] = React.useState<"required" | null>(null);
+  /** PQ/RFQ line date pickers — portaled to document.body so table overflow never clips them. */
+  const [lineDatePicker, setLineDatePicker] = React.useState<"required" | "quoted" | null>(null);
   const requiredDateCellRef = React.useRef<HTMLDivElement>(null);
+  const quotedDateCellRef = React.useRef<HTMLDivElement>(null);
   const lineCalendarPortalRef = React.useRef<HTMLDivElement>(null);
   const [lineCalendarStyle, setLineCalendarStyle] = React.useState<React.CSSProperties>({
     position: "fixed",
@@ -309,10 +316,16 @@ export function CreateProductTableRow({
   }, []);
 
   const updateLineCalendarPosition = React.useCallback(() => {
-    if (lineDatePicker !== "required" || !requiredDateCellRef.current) {
+    const anchor =
+      lineDatePicker === "required"
+        ? requiredDateCellRef.current
+        : lineDatePicker === "quoted"
+          ? quotedDateCellRef.current
+          : null;
+    if (!anchor) {
       return;
     }
-    const rect = requiredDateCellRef.current.getBoundingClientRect();
+    const rect = anchor.getBoundingClientRect();
     const calendarHeight = 320;
     const calendarWidth = 280;
     const margin = 6;
@@ -331,14 +344,14 @@ export function CreateProductTableRow({
   }, [lineDatePicker]);
 
   React.useLayoutEffect(() => {
-    if (lineDatePicker !== "required") {
+    if (lineDatePicker !== "required" && lineDatePicker !== "quoted") {
       return;
     }
     updateLineCalendarPosition();
-  }, [lineDatePicker, row.requiredDate, updateLineCalendarPosition]);
+  }, [lineDatePicker, row.requiredDate, row.quotedDate, updateLineCalendarPosition]);
 
   React.useEffect(() => {
-    if (lineDatePicker !== "required") {
+    if (lineDatePicker !== "required" && lineDatePicker !== "quoted") {
       return;
     }
     // Reposition on scroll (do not close — overflow containers fire scroll often).
@@ -346,8 +359,9 @@ export function CreateProductTableRow({
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       const insideRequired = requiredDateCellRef.current?.contains(target);
+      const insideQuoted = quotedDateCellRef.current?.contains(target);
       const insidePortal = lineCalendarPortalRef.current?.contains(target);
-      if (!insideRequired && !insidePortal) {
+      if (!insideRequired && !insideQuoted && !insidePortal) {
         setLineDatePicker(null);
       }
     };
@@ -657,7 +671,15 @@ export function CreateProductTableRow({
         : ""
       : clampedDiscountAmount.toFixed(2));
   const isRowActive = !showSelection || row.selected === true;
-  const effectiveDisableInputs = disableInputs || !isRowActive;
+  const baseDisabled = disableInputs || !isRowActive;
+  /**
+   * RFQ seller fill locks product/WH/UoM/required (and remove) via effectiveDisableInputs.
+   * Quoted qty/date, price, and discounts use sellerFieldEditable instead.
+   */
+  const effectiveDisableInputs = baseDisabled || rfqSellerFill;
+  const snapshotLocked = effectiveDisableInputs;
+  const sellerFieldEditable = rfqSellerFill && !baseDisabled;
+  const sellerFieldLocked = !sellerFieldEditable;
 
   return (
     <tr
@@ -682,9 +704,9 @@ export function CreateProductTableRow({
           >
             <button
               type="button"
-              disabled={disableInputs}
+              disabled={snapshotLocked}
               onClick={() => {
-                if (disableInputs) {
+                if (snapshotLocked) {
                   onInputRestrictedClick?.();
                   return;
                 }
@@ -692,13 +714,17 @@ export function CreateProductTableRow({
               }}
               onMouseEnter={() => prefetchProducts(row.warehouseCode)}
               onFocus={() => prefetchProducts(row.warehouseCode)}
-              className={`block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-zinc-800 transition-all duration-150 ${
-                effectiveDisableInputs
+              className={`block w-full rounded-lg px-2 py-1.5 text-left text-sm text-zinc-800 transition-all duration-150 ${
+                snapshotLocked
                   ? "cursor-not-allowed opacity-70"
                   : "cursor-pointer text-zinc-800 hover:bg-blue-50/50 hover:text-blue-700 active:bg-blue-100/60 active:text-blue-900"
               }`}
             >
-              {row.productName || "Select Product"}
+              <span className="block truncate">
+                {rfqSellerFill
+                  ? row.productName || row.productCode || "—"
+                  : row.productName || "Select Product"}
+              </span>
             </button>
           </Tooltip>
         </div>
@@ -930,21 +956,21 @@ export function CreateProductTableRow({
       )}
       {showPqLineDatesAndQtys ? (
         <>
-          {/* Required Date — same Calendar control as document dates. */}
+          {/* Required Date — editable on PQ buyer; locked on RFQ seller fill. */}
           <td className="relative min-w-0 px-2 py-2">
             <div ref={requiredDateCellRef} className="relative">
               <button
                 type="button"
-                disabled={effectiveDisableInputs}
+                disabled={snapshotLocked}
                 onClick={() => {
-                  if (effectiveDisableInputs) {
+                  if (snapshotLocked) {
                     onInputRestrictedClick?.();
                     return;
                   }
                   setLineDatePicker((prev) => (prev === "required" ? null : "required"));
                 }}
                 className={`relative flex h-9 w-full items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs outline-none transition ${
-                  effectiveDisableInputs
+                  snapshotLocked
                     ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-500 opacity-70"
                     : "cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
                 }`}
@@ -954,15 +980,13 @@ export function CreateProductTableRow({
                 </span>
                 <span
                   className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 ${
-                    effectiveDisableInputs ? "opacity-50" : ""
+                    snapshotLocked ? "opacity-50" : ""
                   }`}
                 >
                   <CalendarIcon className="h-3 w-3" aria-hidden />
                 </span>
               </button>
-              {lineDatePicker === "required" &&
-              !effectiveDisableInputs &&
-              typeof document !== "undefined"
+              {lineDatePicker === "required" && !snapshotLocked && typeof document !== "undefined"
                 ? ReactDOM.createPortal(
                     <div
                       ref={lineCalendarPortalRef}
@@ -991,23 +1015,71 @@ export function CreateProductTableRow({
                 : null}
             </div>
           </td>
-          {/* Quoted Date — display only (blocked; no edit / no auto-fill). */}
+          {/* Quoted Date — locked on PQ; editable on RFQ seller fill. */}
           <td className="relative min-w-0 px-2 py-2">
-            <div className="relative">
-              <button
-                type="button"
-                disabled
-                tabIndex={-1}
-                title="Quoted date is not editable"
-                className="relative flex h-9 w-full cursor-not-allowed items-center justify-start rounded-lg border border-zinc-200 bg-zinc-100 pl-2 pr-8 text-left text-xs text-zinc-500 outline-none opacity-80"
-              >
-                <span className={row.quotedDate ? "text-zinc-600" : "text-zinc-400"}>
-                  {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
-                </span>
-                <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 opacity-60">
-                  <CalendarIcon className="h-3 w-3" aria-hidden />
-                </span>
-              </button>
+            <div ref={quotedDateCellRef} className="relative">
+              {sellerFieldEditable ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLineDatePicker((prev) => (prev === "quoted" ? null : "quoted"));
+                    }}
+                    className="relative flex h-9 w-full cursor-pointer items-center justify-start rounded-lg border border-zinc-200 bg-zinc-50 pl-2 pr-8 text-left text-xs text-zinc-800 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                  >
+                    <span className={row.quotedDate ? "text-zinc-800" : "text-zinc-400"}>
+                      {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
+                    </span>
+                    <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500">
+                      <CalendarIcon className="h-3 w-3" aria-hidden />
+                    </span>
+                  </button>
+                  {lineDatePicker === "quoted" && typeof document !== "undefined"
+                    ? ReactDOM.createPortal(
+                        <div
+                          ref={lineCalendarPortalRef}
+                          style={lineCalendarStyle}
+                          className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"
+                          onMouseDown={(event) => {
+                            event.stopPropagation();
+                          }}
+                        >
+                          <CalendarWithBounds
+                            mode="single"
+                            {...(row.quotedDate ? { selected: parseISODate(row.quotedDate) } : {})}
+                            onSelect={(value) => {
+                              if (!(value instanceof Date)) {
+                                return;
+                              }
+                              updateProductRow(row.id, { quotedDate: toISODate(value) });
+                              setLineDatePicker(null);
+                            }}
+                          />
+                        </div>,
+                        document.body,
+                      )
+                    : null}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  tabIndex={-1}
+                  title={
+                    rfqSellerFill
+                      ? "Quoted date is read-only for this status"
+                      : "Quoted date is not editable"
+                  }
+                  className="relative flex h-9 w-full cursor-not-allowed items-center justify-start rounded-lg border border-zinc-200 bg-zinc-100 pl-2 pr-8 text-left text-xs text-zinc-500 outline-none opacity-80"
+                >
+                  <span className={row.quotedDate ? "text-zinc-600" : "text-zinc-400"}>
+                    {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
+                  </span>
+                  <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 opacity-60">
+                    <CalendarIcon className="h-3 w-3" aria-hidden />
+                  </span>
+                </button>
+              )}
             </div>
           </td>
           <td className="min-w-0 px-2 py-2">
@@ -1020,20 +1092,20 @@ export function CreateProductTableRow({
                   ? rowDraft.requiredQuantity
                   : String(row.requiredQuantity ?? 0)
               }
-              readOnly={effectiveDisableInputs}
+              readOnly={snapshotLocked}
               onClick={() => {
-                if (effectiveDisableInputs) {
+                if (snapshotLocked) {
                   onInputRestrictedClick?.();
                 }
               }}
               onChange={(event) => {
-                if (effectiveDisableInputs) {
+                if (snapshotLocked) {
                   return;
                 }
                 setProductRowDraft(row.id, "requiredQuantity", event.target.value);
               }}
               onBlur={(event) => {
-                if (effectiveDisableInputs) {
+                if (snapshotLocked) {
                   return;
                 }
                 const rawValue = event.target.value.trim();
@@ -1041,24 +1113,60 @@ export function CreateProductTableRow({
                 updateProductRow(row.id, { requiredQuantity: next });
                 clearProductRowDraft(row.id, "requiredQuantity");
               }}
-              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${snapshotLocked ? "cursor-not-allowed opacity-70" : ""}`}
             />
           </td>
-          {/* Quoted Qty — blocked; placeholder shows 0. */}
+          {/* Quoted Qty — locked on PQ; editable on RFQ seller fill. */}
           <td className="min-w-0 px-2 py-2">
-            <input
-              type="number"
-              min={0}
-              step={1}
-              placeholder="0"
-              value={row.quantity > 0 ? String(row.quantity) : ""}
-              disabled
-              readOnly
-              tabIndex={-1}
-              aria-readonly="true"
-              title="Quoted quantity is not editable"
-              className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80 placeholder:text-zinc-400"
-            />
+            {sellerFieldEditable ? (
+              <input
+                type="number"
+                min={0}
+                step="any"
+                placeholder="0"
+                value={
+                  rowDraft?.quantity !== undefined
+                    ? rowDraft.quantity
+                    : row.quantity > 0
+                      ? String(row.quantity)
+                      : ""
+                }
+                onChange={(event) => {
+                  setProductRowDraft(row.id, "quantity", event.target.value);
+                }}
+                onBlur={(event) => {
+                  const rawValue = event.target.value.trim();
+                  const next = rawValue === "" ? 0 : Math.max(0, Number(rawValue) || 0);
+                  const newGross = row.price * next;
+                  const newDiscountAmount =
+                    Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+                  updateProductRow(row.id, {
+                    discountAmount: newDiscountAmount,
+                    quantity: next,
+                  });
+                  clearProductRowDraft(row.id, "quantity");
+                }}
+                className="h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+              />
+            ) : (
+              <input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="0"
+                value={row.quantity > 0 ? String(row.quantity) : ""}
+                disabled
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
+                title={
+                  rfqSellerFill
+                    ? "Quoted quantity is read-only for this status"
+                    : "Quoted quantity is not editable"
+                }
+                className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80 placeholder:text-zinc-400"
+              />
+            )}
           </td>
         </>
       ) : (
@@ -1205,8 +1313,8 @@ export function CreateProductTableRow({
         </td>
       )}
       <td className="min-w-0 px-2 py-2">
-        {showPqLineDatesAndQtys ? (
-          // PQ: same blocked style as Quoted Qty; always show 0.00 when empty.
+        {showPqLineDatesAndQtys && !sellerFieldEditable ? (
+          // PQ buyer / RFQ read-only: price locked.
           <input
             type="text"
             inputMode="decimal"
@@ -1218,6 +1326,46 @@ export function CreateProductTableRow({
             title="Price is not editable"
             className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80"
           />
+        ) : showPqLineDatesAndQtys && sellerFieldEditable ? (
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            inputMode="decimal"
+            value={
+              rowDraft?.price !== undefined
+                ? rowDraft.price
+                : row.price === 0 || row.price === undefined || row.price === null
+                  ? ""
+                  : String(row.price)
+            }
+            onChange={(event) => {
+              // Keep draft string so user can clear "0" and type a new price.
+              setProductRowDraft(row.id, "price", event.target.value);
+            }}
+            onBlur={(event) => {
+              const rawValue = event.target.value.trim();
+              if (rawValue === "") {
+                updateProductRow(row.id, {
+                  discountAmount: 0,
+                  price: 0,
+                });
+                clearProductRowDraft(row.id, "price");
+                return;
+              }
+              const parsed = Number(rawValue);
+              const next = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+              const newGross = next * row.quantity;
+              const newDiscountAmount =
+                Math.round(((newGross * row.discountPercent) / 100) * 100) / 100;
+              updateProductRow(row.id, {
+                discountAmount: newDiscountAmount,
+                price: next,
+              });
+              clearProductRowDraft(row.id, "price");
+            }}
+            className="h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+          />
         ) : (
           <span className="whitespace-nowrap text-left text-sm text-zinc-700">
             {Number(row.price).toLocaleString("en-US", {
@@ -1228,7 +1376,7 @@ export function CreateProductTableRow({
         )}
       </td>
       <td className="min-w-0 px-2 py-2">
-        {showPqLineDatesAndQtys ? (
+        {showPqLineDatesAndQtys && !sellerFieldEditable ? (
           <input
             type="text"
             inputMode="decimal"
@@ -1246,14 +1394,14 @@ export function CreateProductTableRow({
             step="0.001"
             inputMode="decimal"
             value={discountPercentInputValue}
-            readOnly={effectiveDisableInputs}
+            readOnly={showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs}
             onClick={() => {
-              if (effectiveDisableInputs) {
+              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 onInputRestrictedClick?.();
               }
             }}
             onChange={(event) => {
-              if (effectiveDisableInputs) {
+              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 return;
               }
               const rawValue = event.target.value;
@@ -1277,7 +1425,7 @@ export function CreateProductTableRow({
               });
             }}
             onBlur={(event) => {
-              if (effectiveDisableInputs) {
+              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 return;
               }
               const rawValue = event.target.value.trim();
@@ -1291,12 +1439,16 @@ export function CreateProductTableRow({
               });
               clearProductRowDraft(row.id, "discountPercent");
             }}
-            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
+              (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs)
+                ? "cursor-not-allowed opacity-70"
+                : ""
+            }`}
           />
         )}
       </td>
       <td className="min-w-0 px-2 py-2">
-        {showPqLineDatesAndQtys ? (
+        {showPqLineDatesAndQtys && !sellerFieldEditable ? (
           <input
             type="text"
             inputMode="decimal"
@@ -1315,14 +1467,14 @@ export function CreateProductTableRow({
             inputMode="decimal"
             title=""
             value={discountAmountInputValue}
-            readOnly={effectiveDisableInputs}
+            readOnly={showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs}
             onClick={() => {
-              if (effectiveDisableInputs) {
+              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 onInputRestrictedClick?.();
               }
             }}
             onChange={(event) => {
-              if (effectiveDisableInputs) {
+              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 return;
               }
               const rawValue = event.target.value;
@@ -1349,7 +1501,7 @@ export function CreateProductTableRow({
               });
             }}
             onBlur={(event) => {
-              if (effectiveDisableInputs) {
+              if (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs) {
                 return;
               }
               const rawValue = event.target.value.trim();
@@ -1366,7 +1518,11 @@ export function CreateProductTableRow({
               });
               clearProductRowDraft(row.id, "discountAmount");
             }}
-            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
+              (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs)
+                ? "cursor-not-allowed opacity-70"
+                : ""
+            }`}
           />
         )}
       </td>
@@ -1487,16 +1643,16 @@ export function CreateProductTableRow({
         <Tooltip content="Remove row" className="block w-auto max-w-none">
           <button
             type="button"
-            disabled={effectiveDisableInputs}
+            disabled={snapshotLocked}
             onClick={() => {
-              if (effectiveDisableInputs) {
+              if (snapshotLocked) {
                 onInputRestrictedClick?.();
                 return;
               }
               removeProductRow(row.id);
             }}
             className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 transition ${
-              effectiveDisableInputs
+              snapshotLocked
                 ? "cursor-not-allowed bg-zinc-50 opacity-40"
                 : "cursor-pointer bg-white hover:bg-zinc-50 hover:text-blue-600"
             }`}

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { RequestForQuotationForm } from "@/features/create-pages/request-for-quotation/components/request-for-quotation-form";
 import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -10,6 +11,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
  */
 export const Route = createFileRoute("/_layout/sales/request-for-quotations/$rfqId")({
   component: RequestForQuotationDetailRoute,
+  pendingComponent: CreatePageRouteSkeleton,
 });
 
 function RequestForQuotationDetailRoute() {

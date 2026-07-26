@@ -1,7 +1,7 @@
 import { useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-const PRODUCT_ROW_KEYS = ["prod-1"] as const;
+const PRODUCT_ROW_KEYS = ["prod-1", "prod-2"] as const;
 const PRODUCT_HEADER_KEYS = [
   "h-product",
   "h-qty",
@@ -11,6 +11,22 @@ const PRODUCT_HEADER_KEYS = [
   "h-net",
   "h-total",
   "h-comments",
+  "h-actions",
+] as const;
+/** PQ / RFQ line layout: product, WH, UoM, req/quoted dates & qtys, price, disc, net, total, actions */
+const PQ_PRODUCT_HEADER_KEYS = [
+  "h-product",
+  "h-whse",
+  "h-uom",
+  "h-req-date",
+  "h-quoted-date",
+  "h-req-qty",
+  "h-quoted-qty",
+  "h-price",
+  "h-disc-percent",
+  "h-disc-amount",
+  "h-net",
+  "h-total",
   "h-actions",
 ] as const;
 
@@ -100,11 +116,20 @@ export function CreatePageRouteSkeleton() {
   const location = useLocation();
   const pathname = location.pathname.toLowerCase();
   const isEdit = pathname.includes("/edit") || pathname.includes("/update");
-  const isQuotation = pathname.includes("quotation");
+  const isRfq = pathname.includes("request-for-quotation");
+  const isQuotation = pathname.includes("quotation") || isRfq;
+  /** PQ / RFQ use required+quoted date columns and locked-style fields. */
+  const isPqStyle = isQuotation || isRfq;
   const hasCopyFrom = !isEdit && !isQuotation;
+  const productHeaders = isPqStyle ? PQ_PRODUCT_HEADER_KEYS : PRODUCT_HEADER_KEYS;
+  const fieldsLocked = isEdit || isRfq;
 
   return (
-    <div className="relative w-full bg-zinc-50 p-3 pb-20">
+    <div
+      className="relative w-full bg-zinc-50 p-3 pb-20"
+      aria-busy="true"
+      aria-label="Loading form"
+    >
       {/* Top Actions placeholder (Copy From) */}
       {hasCopyFrom && (
         <div className="absolute right-3 top-3 z-10">
@@ -167,23 +192,24 @@ export function CreatePageRouteSkeleton() {
       <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
         {/* VendorCustomerGrid: 2 FieldBlocks (Name + Code) */}
         <SectionShell titleWidth="w-28">
-          <FieldSkeleton showSearch={!isEdit} />
-          <FieldSkeleton showSearch={!isEdit} />
+          <FieldSkeleton showSearch={!fieldsLocked} />
+          <FieldSkeleton showSearch={!fieldsLocked} />
         </SectionShell>
 
         {/* LogisticsGrid: Warehouse + Buyer FieldBlock */}
         <SectionShell titleWidth="w-36">
           {/* Warehouse field */}
-          <FieldSkeleton showSearch={!isEdit} />
+          <FieldSkeleton showSearch={!fieldsLocked} />
           {/* Buyer field */}
-          <FieldSkeleton showSearch={!isEdit} />
+          <FieldSkeleton showSearch={!fieldsLocked} />
         </SectionShell>
 
-        {/* DocumentDatesGrid: Doc Date + Delivery Date pickers */}
+        {/* DocumentDatesGrid: Doc Date + Valid Until (+ Required Date for PQ/RFQ) */}
         <SectionShell titleWidth="w-32">
           <div className="grid grid-cols-1 gap-4">
             <DatePickerSkeleton />
             <DatePickerSkeleton />
+            {isPqStyle ? <DatePickerSkeleton /> : null}
           </div>
         </SectionShell>
       </div>
@@ -228,18 +254,22 @@ export function CreatePageRouteSkeleton() {
 
       {/* Product Details Section */}
       <section className="mt-3 rounded-2xl border border-zinc-200 bg-white">
-        {/* Section header: title + search button */}
+        {/* Section header: title + search button (hidden on RFQ seller fill) */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
           <Pulse className="h-4 w-32" />
-          <Pulse className="h-11 w-40 rounded-xl" />
+          {!isRfq ? <Pulse className="h-11 w-40 rounded-xl" /> : null}
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto px-2 py-2">
-          <table className="min-w-245 w-full text-left text-sm text-zinc-700">
+          <table
+            className={`w-full text-left text-sm text-zinc-700 ${
+              isPqStyle ? "min-w-[1680px]" : "min-w-245"
+            }`}
+          >
             <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
               <tr>
-                {PRODUCT_HEADER_KEYS.map((key) => (
+                {productHeaders.map((key) => (
                   <th key={key} className="whitespace-nowrap px-3 py-2">
                     <Pulse className="h-3 w-14" />
                   </th>
@@ -249,42 +279,79 @@ export function CreatePageRouteSkeleton() {
             <tbody>
               {PRODUCT_ROW_KEYS.map((rowKey) => (
                 <tr key={rowKey} className="border-b border-zinc-100 last:border-b-0">
-                  {/* Product name */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-4 w-56" />
-                  </td>
-                  {/* Qty input */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-9 w-16 rounded-lg" />
-                  </td>
-                  {/* Price */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-4 w-16" />
-                  </td>
-                  {/* Disc % input */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-9 w-16 rounded-lg" />
-                  </td>
-                  {/* Disc Amount input */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-9 w-20 rounded-lg" />
-                  </td>
-                  {/* Net */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-4 w-16" />
-                  </td>
-                  {/* Total */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-4 w-20" />
-                  </td>
-                  {/* Comments input */}
-                  <td className="px-3 py-2">
-                    <Pulse className="h-9 w-36 rounded-lg" />
-                  </td>
-                  {/* Actions */}
-                  <td className="px-3 py-2 text-right">
-                    <Pulse className="ml-auto h-9 w-20 rounded-lg" />
-                  </td>
+                  {isPqStyle ? (
+                    <>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-4 w-40" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-24 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-14 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-20 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-20 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-14 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-14 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-16 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-14 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-16 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-4 w-14" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-4 w-16" />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Pulse className="ml-auto h-9 w-9 rounded-lg" />
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-4 w-56" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-16 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-4 w-16" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-16 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-20 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-4 w-16" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-4 w-20" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Pulse className="h-9 w-36 rounded-lg" />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Pulse className="ml-auto h-9 w-20 rounded-lg" />
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -314,10 +381,19 @@ export function CreatePageRouteSkeleton() {
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-2">
-            <Pulse className="h-11 w-56 rounded-xl" />
-            <div className="flex items-center gap-2">
-              <Pulse className={`h-11 rounded-xl ${isEdit ? "w-[180px]" : "w-52"}`} />
-            </div>
+            {isRfq ? (
+              <>
+                <span />
+                <Pulse className="h-11 w-28 rounded-xl" />
+              </>
+            ) : (
+              <>
+                <Pulse className="h-11 w-56 rounded-xl" />
+                <div className="flex items-center gap-2">
+                  <Pulse className={`h-11 rounded-xl ${isEdit ? "w-[180px]" : "w-52"}`} />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </section>

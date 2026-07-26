@@ -44,30 +44,9 @@ export interface CreateIcNotificationColumnsOptions {
 
 /**
  * Notifications grid order:
- * Doc ID → Created → Message → Status → Priority → Actions
+ * Created → Message → Status → Priority → Actions
  */
 export const createIcNotificationColumns = (options: CreateIcNotificationColumnsOptions) => [
-  columnHelper.accessor("documentId", {
-    cell: (info) => {
-      const value = info.getValue();
-      if (!value) {
-        return "—";
-      }
-      return (
-        <span className="font-mono text-sm font-semibold tabular-nums whitespace-nowrap text-zinc-900">
-          {value}
-        </span>
-      );
-    },
-    enableColumnFilter: false,
-    enableSorting: true,
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc ID" />
-    ),
-    id: "documentId",
-    minSize: 12,
-    size: 14,
-  }),
   columnHelper.accessor("createdAt", {
     cell: (info) => (
       <span className="whitespace-nowrap tabular-nums text-zinc-700">
@@ -238,7 +217,6 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
 ];
 
 export const IC_NOTIFICATION_DEFAULT_COLUMN_ORDER = [
-  "documentId",
   "createdAt",
   "message",
   "isRead",

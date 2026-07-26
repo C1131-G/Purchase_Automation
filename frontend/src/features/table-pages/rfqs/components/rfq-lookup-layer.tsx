@@ -1,7 +1,7 @@
 /**
  * Request For Quotation lookup layer — same TableToolbar + LookupPopup pattern as
  * purchase quotations. Doc Number, vendor, and table-value fields (PQ draft, companies,
- * created by) use suggestion chips + full-screen lookup from the loaded RFQ list.
+ * companies) use suggestion chips + full-screen lookup from the loaded RFQ list.
  * No Create button (documents are created from IC PQ draft Flow 1).
  */
 import { useQuery } from "@tanstack/react-query";
@@ -32,7 +32,6 @@ const RFQ_LOOKUP_COLUMNS = [
   "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
-  "createdBy",
 ] as const;
 
 type RfqLookupColumnId = (typeof RFQ_LOOKUP_COLUMNS)[number];
@@ -42,13 +41,11 @@ const TABLE_VALUE_COLUMNS = new Set<string>([
   "pqDraftDocEntry",
   "sourceCompanyId",
   "targetCompanyId",
-  "createdBy",
 ]);
 
 const LOOKUP_TITLES: Record<RfqLookupColumnId, string> = {
   CardCode: "Search Vendor Code",
   DocNum: "Search Doc Number",
-  createdBy: "Search Created By",
   pqDraftDocEntry: "Search PQ Draft Entry",
   pqDraftDocNum: "Search PQ Draft No.",
   sourceCompanyId: "Search Source Co.",
@@ -58,7 +55,6 @@ const LOOKUP_TITLES: Record<RfqLookupColumnId, string> = {
 const LOOKUP_PLACEHOLDERS: Record<RfqLookupColumnId, string> = {
   CardCode: "Search vendor code",
   DocNum: "Search document number",
-  createdBy: "Search created by",
   pqDraftDocEntry: "Search PQ draft entry",
   pqDraftDocNum: "Search PQ draft number",
   sourceCompanyId: "Search source company id",
@@ -97,8 +93,6 @@ const pickFieldValue = (row: IcRfqHeader, columnId: string): string => {
       return String(row.sourceCompanyId ?? "").trim();
     case "targetCompanyId":
       return String(row.targetCompanyId ?? "").trim();
-    case "createdBy":
-      return String(row.createdBy ?? "").trim();
     default:
       return "";
   }

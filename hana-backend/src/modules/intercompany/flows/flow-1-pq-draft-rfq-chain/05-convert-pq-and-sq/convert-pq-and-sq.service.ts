@@ -24,17 +24,30 @@ import {
   IC_DOC_MAP_STATUS,
   IC_RFQ_STATUS,
 } from "@/modules/intercompany/infrastructure/constants";
+import {
+  FLOW1_CONVERT_STEPS,
+  FLOW1_SCOPE,
+  logFlowStep,
+} from "@/modules/intercompany/infrastructure/flow-step-log";
+import {
+  appendIcRemarkLines,
+  buildFlow1ConvertRemarks,
+  buildFlow1SqRemarks,
+  compactRfqTag,
+  icLinkSq,
+} from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import type { IcHookResult } from "@/modules/intercompany/flows/shared/flow-result";
 
-import { applyPricesToDraft } from "./apply-prices-to-draft";
+import { applyPricesToDraft, buildRfqCommercialDocumentLines } from "./apply-prices-to-draft";
 import { convertDraftToPq } from "./convert-draft-to-pq";
 import { createSellerSq } from "./create-seller-sq";
 
-const LOG_SCOPE = IC_LOG_SCOPE.FLOW1_CONVERT;
+const LOG_SCOPE = FLOW1_SCOPE;
+const CONVERT_SCOPE = IC_LOG_SCOPE.FLOW1_CONVERT;
 
 export type ConvertPqAndSqService = {
   convert: (params: { rfqId: number; actorCompanyId: number }) => Promise<IcHookResult>;
@@ -66,26 +79,36 @@ export const createConvertPqAndSqService = (deps?: {
   return {
     convert: async ({ rfqId, actorCompanyId }) => {
       const startedAt = Date.now();
+      const logCtx = {
+        actorCompanyId,
+        flow: "flow1" as const,
+        rfqId,
+      };
+
       const header = await rfq.getById(rfqId);
       if (!header) {
-        icLog.warn(LOG_SCOPE, "Flow 1 convert check failed", {
-          actorCompanyId,
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.START,
           check: "rfq_exists",
+          ctx: logCtx,
+          detail: { reason: "IC_RFQ_NOT_FOUND" },
           outcome: "fail",
-          reason: "IC_RFQ_NOT_FOUND",
-          rfqId,
+          title: "Flow 1 — convert failed — RFQ not found",
         });
         throw new AppError("RFQ not found", 404, "IC_RFQ_NOT_FOUND");
       }
 
       if (header.sourceCompanyId !== actorCompanyId) {
-        icLog.warn(LOG_SCOPE, "Flow 1 convert check failed", {
-          actorCompanyId,
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.START,
           check: "convert_actor",
+          ctx: logCtx,
+          detail: {
+            reason: "IC_RFQ_CONVERT_FORBIDDEN",
+            sourceCompanyId: header.sourceCompanyId,
+          },
           outcome: "fail",
-          reason: "IC_RFQ_CONVERT_FORBIDDEN",
-          rfqId,
-          sourceCompanyId: header.sourceCompanyId,
+          title: "Flow 1 — convert failed — only buyer can convert",
         });
         throw new AppError(
           "Only the source (buyer) company can convert this RFQ",
@@ -95,11 +118,14 @@ export const createConvertPqAndSqService = (deps?: {
       }
 
       if (header.status === IC_RFQ_STATUS.COMPLETED) {
-        icLog.info(LOG_SCOPE, "Flow 1 convert already complete", {
-          check: "rfq_status",
-          outcome: "pass",
-          rfqId,
-          status: header.status,
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.COMPLETE,
+          check: "rfq_already_completed",
+          ctx: {
+            ...logCtx,
+            rfqNumber: header.rfqNumber,
+          },
+          detail: { status: header.status },
         });
         return {
           mappingId: undefined,
@@ -112,12 +138,13 @@ export const createConvertPqAndSqService = (deps?: {
       }
 
       if (header.status !== IC_RFQ_STATUS.SUBMITTED) {
-        icLog.warn(LOG_SCOPE, "Flow 1 convert check failed", {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.START,
           check: "rfq_status",
+          ctx: logCtx,
+          detail: { reason: "IC_RFQ_NOT_SUBMITTED", status: header.status },
           outcome: "fail",
-          reason: "IC_RFQ_NOT_SUBMITTED",
-          rfqId,
-          status: header.status,
+          title: "Flow 1 — convert failed — RFQ not SUBMITTED",
         });
         throw new AppError(
           `RFQ must be SUBMITTED to convert (current: ${header.status})`,
@@ -128,11 +155,13 @@ export const createConvertPqAndSqService = (deps?: {
 
       const lines = header.lines ?? [];
       if (lines.length === 0) {
-        icLog.warn(LOG_SCOPE, "Flow 1 convert check failed", {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.START,
           check: "rfq_lines",
+          ctx: logCtx,
+          detail: { reason: "IC_RFQ_EMPTY" },
           outcome: "fail",
-          reason: "IC_RFQ_EMPTY",
-          rfqId,
+          title: "Flow 1 — convert failed — empty lines",
         });
         throw new AppError("RFQ has no lines", 400, "IC_RFQ_EMPTY");
       }
@@ -140,13 +169,17 @@ export const createConvertPqAndSqService = (deps?: {
       const sellerCompany = await company.getById(header.targetCompanyId);
       const buyerCompany = await company.getById(header.sourceCompanyId);
       if (!sellerCompany?.isActive || !buyerCompany?.isActive) {
-        icLog.error(LOG_SCOPE, "Flow 1 convert check failed", {
-          buyerCompanyId: header.sourceCompanyId,
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.START,
           check: "company_active",
+          ctx: logCtx,
+          detail: {
+            buyerCompanyId: header.sourceCompanyId,
+            reason: "IC_COMPANY_MISSING",
+            sellerCompanyId: header.targetCompanyId,
+          },
           outcome: "fail",
-          reason: "IC_COMPANY_MISSING",
-          rfqId,
-          sellerCompanyId: header.targetCompanyId,
+          title: "Flow 1 — convert failed — company missing/inactive",
         });
         throw new AppError("IC company not found for RFQ parties", 500, "IC_COMPANY_MISSING");
       }
@@ -156,41 +189,130 @@ export const createConvertPqAndSqService = (deps?: {
         header.vendorCode,
       );
       if (!bpMap) {
-        icLog.error(LOG_SCOPE, "Flow 1 convert check failed", {
-          buyerCompanyId: header.sourceCompanyId,
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.START,
           check: "bp_mapping",
+          ctx: logCtx,
+          detail: {
+            buyerCompanyId: header.sourceCompanyId,
+            reason: "IC_BP_MISSING",
+            vendorCode: header.vendorCode,
+          },
           outcome: "fail",
-          reason: "IC_BP_MISSING",
-          rfqId,
-          vendorCode: header.vendorCode,
+          title: "Flow 1 — convert failed — BP mapping missing",
         });
         throw new AppError("BP mapping missing for RFQ vendor", 500, "IC_BP_MISSING");
       }
 
-      icLog.info(LOG_SCOPE, "Flow 1 convert prechecks passed", {
-        check: "convert_precheck",
-        lineCount: lines.length,
-        outcome: "pass",
-        rfqId,
-        sourceCompanyId: header.sourceCompanyId,
-        targetCompanyId: header.targetCompanyId,
-        vendorCode: header.vendorCode,
+      logFlowStep(LOG_SCOPE, {
+        ...FLOW1_CONVERT_STEPS.START,
+        ctx: {
+          ...logCtx,
+          rfqNumber: header.rfqNumber,
+          sourceCompanyId: header.sourceCompanyId,
+          targetCompanyId: header.targetCompanyId,
+          vendorCode: header.vendorCode,
+        },
+        detail: {
+          buyerCustomerCode: bpMap.buyerCustomerCode,
+          buyerSapDb: buyerCompany.sapDbName,
+          lineCount: lines.length,
+          pqDraftDocEntry: header.pqDraftDocEntry,
+          sellerSapDb: sellerCompany.sapDbName,
+        },
       });
 
-      const remarksTag = `IC-RFQ-${header.rfqNumber}`;
+      // Compact tag for IC_DOCUMENT_MAPPING; multi-line chain for SAP Comments.
+      const remarksTag = compactRfqTag(header.rfqNumber);
       const draftEntry = header.pqDraftDocEntry;
 
+      // Keep any RFQ/header remarks; add PQD + RFQ lines (idempotent).
+      const remarksBeforePq = buildFlow1ConvertRemarks({
+        existing: header.remarks,
+        pqDraftDocEntry: header.pqDraftDocEntry,
+        pqDraftDocNum: header.pqDraftDocNum,
+        rfqId: header.rfqId,
+        rfqNumber: header.rfqNumber,
+      });
+
+      // Full commercial snapshot from RFQ → draft PATCH + convert POST merge.
+      const commercialLines = buildRfqCommercialDocumentLines(lines);
+      const missingCommercial = lines.filter(
+        (line) =>
+          line.unitPrice === null ||
+          line.unitPrice === undefined ||
+          !Number.isFinite(Number(line.quantity)) ||
+          Number(line.quantity) <= 0,
+      );
+      if (missingCommercial.length > 0) {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.APPLY_PRICES,
+          check: "rfq_commercial_incomplete",
+          ctx: logCtx,
+          detail: {
+            lineNums: missingCommercial.map((line) => line.lineNum),
+            reason: "IC_RFQ_COMMERCIAL_INCOMPLETE",
+          },
+          outcome: "fail",
+          title: "Flow 1 — convert failed — RFQ qty/price incomplete",
+        });
+        throw new AppError(
+          "RFQ lines must have quoted quantity and unit price before convert",
+          400,
+          "IC_RFQ_COMMERCIAL_INCOMPLETE",
+        );
+      }
+
+      logFlowStep(LOG_SCOPE, {
+        ...FLOW1_CONVERT_STEPS.APPLY_PRICES,
+        ctx: logCtx,
+        detail: {
+          draftEntry,
+          lineCount: lines.length,
+          lines: commercialLines.map((line) => ({
+            discountPercent: line.DiscountPercent ?? null,
+            itemCode: line.ItemCode ?? null,
+            lineNum: line.LineNum ?? null,
+            quantity: line.Quantity ?? null,
+            unitPrice: line.UnitPrice ?? null,
+            vatGroup: line.VatGroup ?? null,
+          })),
+          remarksPreview: remarksBeforePq.slice(0, 500),
+        },
+      });
       await applyPricesToDraft({
         buyerCompanyId: header.sourceCompanyId,
+        comments: remarksBeforePq,
         documents,
         draftEntry,
         lines,
       });
 
+      logFlowStep(LOG_SCOPE, {
+        ...FLOW1_CONVERT_STEPS.DRAFT_TO_PQ,
+        ctx: logCtx,
+        detail: {
+          draftEntry,
+          lineCount: commercialLines.length,
+        },
+      });
       const purchaseQuotation = await convertDraftToPq({
         buyerCompanyId: header.sourceCompanyId,
+        comments: remarksBeforePq,
         documents,
         draftEntry,
+        lineOverrides: commercialLines,
+      });
+
+      // After PQ exists, chain includes PQ link for SQ / mapping notes.
+      const remarksWithPq = buildFlow1ConvertRemarks({
+        existing: remarksBeforePq,
+        pqDraftDocEntry: header.pqDraftDocEntry,
+        pqDraftDocNum: header.pqDraftDocNum,
+        pqDocEntry: purchaseQuotation.docEntry,
+        pqDocNum: purchaseQuotation.docNum ?? null,
+        rfqId: header.rfqId,
+        rfqNumber: header.rfqNumber,
       });
 
       await documentMap.create({
@@ -206,36 +328,83 @@ export const createConvertPqAndSqService = (deps?: {
         targetObject: IC_OBJECT.PQ,
       });
 
+      /**
+       * Buyer purchase tax → seller sales tax via IC_TAX_MAPPING.
+       * On miss: return "" (omit VatGroup on SQ). Never send buyer tax to seller —
+       * that yields SAP 400 "Invalid VAT Group".
+       */
       const mapTaxCode = async (sourceTaxCode: string): Promise<string> => {
+        const code = sourceTaxCode.trim();
+        if (!code) {
+          return "";
+        }
         const mapped = await taxMapping.mapTax(
           header.sourceCompanyId,
           header.targetCompanyId,
-          sourceTaxCode,
+          code,
         );
-        if (mapped.hit) {
-          return mapped.targetTaxCode;
+        if (mapped.hit && mapped.targetTaxCode.trim()) {
+          icLog.info(IC_LOG_SCOPE.TAX, "IC tax map hit for SQ", {
+            check: "tax_mapping",
+            outcome: "pass",
+            rfqId,
+            sourceCompanyId: header.sourceCompanyId,
+            sourceTaxCode: code,
+            targetCompanyId: header.targetCompanyId,
+            targetTaxCode: mapped.targetTaxCode,
+          });
+          return mapped.targetTaxCode.trim();
         }
-        icLog.warn(IC_LOG_SCOPE.TAX, "IC tax map miss on convert SQ; using source tax", {
-          check: "tax_mapping",
-          fallback: sourceTaxCode,
-          outcome: "fail",
-          rfqId,
-          sourceCompanyId: header.sourceCompanyId,
-          sourceTaxCode,
-          targetCompanyId: header.targetCompanyId,
-        });
-        return sourceTaxCode;
+        icLog.warn(
+          IC_LOG_SCOPE.TAX,
+          "IC tax map miss on convert SQ — omit VatGroup (do not use buyer tax)",
+          {
+            check: "tax_mapping",
+            hint: "INSERT IC_TAX_MAPPING for buyer→seller tax pair, or rely on BP default sales tax",
+            outcome: "fail",
+            rfqId,
+            sourceCompanyId: header.sourceCompanyId,
+            sourceTaxCode: code,
+            targetCompanyId: header.targetCompanyId,
+          },
+        );
+        return "";
       };
 
       try {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.CREATE_SQ,
+          ctx: logCtx,
+          detail: {
+            buyerCustomerCode: bpMap.buyerCustomerCode,
+            pqDocEntry: purchaseQuotation.docEntry,
+            pqDocNum: purchaseQuotation.docNum ?? null,
+            sellerCompanyId: header.targetCompanyId,
+          },
+        });
+        // SQ Comments: full chain PQD → RFQ → PQ (SQ entry appended after create for maps only).
+        const sqRemarksBefore = buildFlow1SqRemarks({
+          existing: remarksWithPq,
+          pqDraftDocEntry: header.pqDraftDocEntry,
+          pqDraftDocNum: header.pqDraftDocNum,
+          pqDocEntry: purchaseQuotation.docEntry,
+          pqDocNum: purchaseQuotation.docNum ?? null,
+          rfqId: header.rfqId,
+          rfqNumber: header.rfqNumber,
+        });
+
         const salesQuotation = await createSellerSq({
           buyerCustomerCode: bpMap.buyerCustomerCode,
           documents,
           lines,
           mapTaxCode,
-          remarks: remarksTag,
+          remarks: sqRemarksBefore,
           sellerCompanyId: header.targetCompanyId,
         });
+
+        const sqRemarksFinal = appendIcRemarkLines(sqRemarksBefore, [
+          icLinkSq(salesQuotation.docNum ?? null, salesQuotation.docEntry),
+        ]);
 
         const sqMap = await documentMap.create({
           sourceCompanyId: header.sourceCompanyId,
@@ -250,14 +419,21 @@ export const createConvertPqAndSqService = (deps?: {
           targetObject: IC_OBJECT.SQ,
         });
 
+        icLog.info(LOG_SCOPE, "Flow 1 remarks chain (SQ)", {
+          check: "remarks_chain",
+          outcome: "pass",
+          remarks: sqRemarksFinal.slice(0, 1000),
+          rfqId,
+        });
+
         await rfq.complete(rfqId);
 
-        const [buyerCompany, sellerCompany] = await Promise.all([
+        const [buyerCo, sellerCo] = await Promise.all([
           company.getById(header.sourceCompanyId),
           company.getById(header.targetCompanyId),
         ]);
-        const buyerName = buyerCompany?.companyName?.trim() || "Buyer";
-        const sellerName = sellerCompany?.companyName?.trim() || "Seller";
+        const buyerName = buyerCo?.companyName?.trim() || "Buyer";
+        const sellerName = sellerCo?.companyName?.trim() || "Seller";
         const sqRef = salesQuotation.docNum ?? salesQuotation.docEntry;
         const pqRef = purchaseQuotation.docNum ?? purchaseQuotation.docEntry;
 
@@ -294,14 +470,21 @@ export const createConvertPqAndSqService = (deps?: {
           status: "SUCCESS",
         });
 
-        icLog.info(LOG_SCOPE, "Flow 1 convert completed", {
-          check: "complete",
-          durationMs: Date.now() - startedAt,
-          mappingId: sqMap.mappingId,
-          outcome: "pass",
-          pqDocEntry: purchaseQuotation.docEntry,
-          rfqId,
-          sqDocEntry: salesQuotation.docEntry,
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.COMPLETE,
+          ctx: {
+            ...logCtx,
+            rfqNumber: header.rfqNumber,
+          },
+          detail: {
+            durationMs: Date.now() - startedAt,
+            mappingId: sqMap.mappingId,
+            pqDocEntry: purchaseQuotation.docEntry,
+            pqDocNum: purchaseQuotation.docNum ?? null,
+            sqDocEntry: salesQuotation.docEntry,
+            sqDocNum: salesQuotation.docNum ?? null,
+            status: "success",
+          },
         });
 
         return {
@@ -315,14 +498,31 @@ export const createConvertPqAndSqService = (deps?: {
         };
       } catch (sqErr: unknown) {
         const errorMessage = sqErr instanceof Error ? sqErr.message : String(sqErr);
-        icLog.error(LOG_SCOPE, "Flow 1 SQ create failed after PQ convert; RFQ stays SUBMITTED", {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_CONVERT_STEPS.CREATE_SQ,
           check: "sl_create_sq",
-          err: sqErr instanceof Error ? sqErr : new Error(errorMessage),
+          ctx: logCtx,
+          detail: {
+            error: errorMessage.slice(0, 2000),
+            note: "PQ may already exist; RFQ stays SUBMITTED",
+            pqDocEntry: purchaseQuotation.docEntry,
+            sellerCompanyId: header.targetCompanyId,
+          },
           outcome: "fail",
-          pqDocEntry: purchaseQuotation.docEntry,
-          rfqId,
-          sellerCompanyId: header.targetCompanyId,
+          title: "Flow 1 — create seller SQ failed",
         });
+        icLog.error(
+          CONVERT_SCOPE,
+          "Flow 1 SQ create failed after PQ convert; RFQ stays SUBMITTED",
+          {
+            check: "sl_create_sq",
+            err: sqErr instanceof Error ? sqErr : new Error(errorMessage),
+            outcome: "fail",
+            pqDocEntry: purchaseQuotation.docEntry,
+            rfqId,
+            sellerCompanyId: header.targetCompanyId,
+          },
+        );
 
         let mappingId: number | undefined;
         try {
@@ -388,11 +588,17 @@ export const createConvertPqAndSqService = (deps?: {
             targetDocument: IC_OBJECT.SQ,
           });
 
-          icLog.warn(LOG_SCOPE, "Flow 1 SQ failure; retry enqueued", {
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW1_CONVERT_STEPS.COMPLETE,
             check: "retry_enqueue",
+            ctx: logCtx,
+            detail: {
+              pqDocEntry: purchaseQuotation.docEntry,
+              retryId: item.retryId,
+              status: "queued_retry",
+            },
             outcome: "fail",
-            retryId: item.retryId,
-            rfqId,
+            title: "Flow 1 — convert done — SQ failed, retry queued",
           });
 
           return { retryId: item.retryId, status: "queued_retry" };

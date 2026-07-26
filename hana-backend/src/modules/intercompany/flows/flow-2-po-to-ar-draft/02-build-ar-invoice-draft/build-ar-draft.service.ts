@@ -56,6 +56,8 @@ export const createBuildArDraftService = (deps?: {
           return sourceTaxCode;
         },
         numAtCard: input.numAtCard,
+        poDocEntry: input.docEntry,
+        poDocNum: input.docNum ?? null,
         remarksTag,
       });
 

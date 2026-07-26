@@ -11,6 +11,9 @@ export type BuildArDraftInput = {
   docDueDate?: unknown;
   numAtCard?: unknown;
   comments?: string;
+  /** Buyer PO identity for IC remarks chain. */
+  poDocEntry: number;
+  poDocNum?: number | null;
   lines?: BuildArDraftLineInput[];
   /** sourceCompanyId → targetCompanyId tax map resolver */
   mapTaxCode: (sourceTaxCode: string) => Promise<string>;

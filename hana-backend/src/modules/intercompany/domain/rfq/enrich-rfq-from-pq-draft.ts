@@ -1,0 +1,425 @@
+/**
+ * Enrich RFQ API payload from buyer-side source document.
+ *
+ * Prefer live PQ **draft** (ODRF/DRF1). After Flow 1 convert, the draft is gone —
+ * fall back to real **PQ** (OPQT/PQT1) via IC_DOCUMENT_MAPPING RFQ→PQ so
+ * SUBMITTED/COMPLETED RFQ UI still shows vendor, dates, addresses, descriptions.
+ */
+
+import { executeTenantQuery } from "@/db/tenant-query";
+import { createCompanyQueries } from "@/modules/intercompany/config/company/company.queries";
+import { createDocumentMapQueries } from "@/modules/intercompany/domain/document-map/document-map.queries";
+import { logger } from "@/core/logger/pino-logger";
+import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
+
+import type { IcRfqHeader, IcRfqLine } from "./rfq.types";
+
+const PQ_DRAFT_OBJ = "540000006";
+
+const toDateOnly = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const raw = String(value).trim();
+  if (!raw) {
+    return null;
+  }
+  if (/^\d{8}$/.test(raw)) {
+    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  }
+  return raw.slice(0, 10);
+};
+
+const toNum = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const toStr = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const str = String(value).trim();
+  return str || null;
+};
+
+type SourceHeaderRow = Record<string, unknown>;
+type SourceLineRow = Record<string, unknown>;
+
+type SourceDoc = {
+  header: SourceHeaderRow;
+  lines: SourceLineRow[];
+  /** "draft" | "pq" — for logs / pqDraftDocNum handling */
+  kind: "draft" | "pq";
+  docEntry: number;
+  docNum: number | null;
+};
+
+const loadDraftHeader = async (
+  dbName: string,
+  docEntry: number,
+): Promise<SourceHeaderRow | null> => {
+  const rows = (await executeTenantQuery(
+    dbName,
+    `SELECT
+       "DocEntry", "DocNum", "CardCode", "CardName",
+       "DocDate", "DocDueDate",
+       "Address", "Address2", "SlpCode", "Comments", "NumAtCard"
+     FROM "ODRF"
+     WHERE "DocEntry" = ? AND "ObjType" = ?`,
+    [docEntry, PQ_DRAFT_OBJ],
+  )) as SourceHeaderRow[];
+  return rows[0] ?? null;
+};
+
+const loadDraftLines = async (dbName: string, docEntry: number): Promise<SourceLineRow[]> => {
+  return (await executeTenantQuery(
+    dbName,
+    `SELECT
+       "LineNum", "ItemCode", "Dscription",
+       "Quantity", "PQTReqQty", "PQTReqDate", "ShipDate",
+       "Price", "PriceBefDi", "DiscPrcnt", "VatGroup", "WhsCode", "UomCode"
+     FROM "DRF1"
+     WHERE "DocEntry" = ?
+     ORDER BY "LineNum"`,
+    [docEntry],
+  )) as SourceLineRow[];
+};
+
+/** Real purchase quotation after draft convert. */
+const loadPqHeader = async (dbName: string, docEntry: number): Promise<SourceHeaderRow | null> => {
+  const rows = (await executeTenantQuery(
+    dbName,
+    `SELECT
+       "DocEntry", "DocNum", "CardCode", "CardName",
+       "DocDate", "DocDueDate",
+       "Address", "Address2", "SlpCode", "Comments", "NumAtCard"
+     FROM "OPQT"
+     WHERE "DocEntry" = ?`,
+    [docEntry],
+  )) as SourceHeaderRow[];
+  return rows[0] ?? null;
+};
+
+const loadPqLines = async (dbName: string, docEntry: number): Promise<SourceLineRow[]> => {
+  return (await executeTenantQuery(
+    dbName,
+    `SELECT
+       "LineNum", "ItemCode", "Dscription",
+       "Quantity", "PQTReqQty", "PQTReqDate", "ShipDate",
+       "Price", "PriceBefDi", "DiscPrcnt", "VatGroup", "WhsCode", "UomCode"
+     FROM "PQT1"
+     WHERE "DocEntry" = ?
+     ORDER BY "LineNum"`,
+    [docEntry],
+  )) as SourceLineRow[];
+};
+
+const loadBuyerName = async (dbName: string, slpCode: number | null): Promise<string | null> => {
+  if (slpCode === null || !Number.isFinite(slpCode)) {
+    return null;
+  }
+  const rows = (await executeTenantQuery(
+    dbName,
+    `SELECT "SlpName" FROM "OSLP" WHERE "SlpCode" = ?`,
+    [slpCode],
+  )) as Array<Record<string, unknown>>;
+  return toStr(rows[0]?.SlpName ?? rows[0]?.slpName);
+};
+
+const loadVendorName = async (dbName: string, cardCode: string): Promise<string | null> => {
+  if (!cardCode) {
+    return null;
+  }
+  const rows = (await executeTenantQuery(
+    dbName,
+    `SELECT "CardName" FROM "OCRD" WHERE "CardCode" = ?`,
+    [cardCode],
+  )) as Array<Record<string, unknown>>;
+  return toStr(rows[0]?.CardName ?? rows[0]?.cardName);
+};
+
+/**
+ * Resolve buyer source document for display:
+ * 1) PQ draft ODRF (before convert)
+ * 2) Mapped real PQ OPQT (after draft→PQ convert)
+ * 3) Heuristic: OPQT with comments/remarks tag IC-RFQ-{rfqNumber}
+ */
+const resolveSourceDoc = async (dbName: string, header: IcRfqHeader): Promise<SourceDoc | null> => {
+  const draftEntry = header.pqDraftDocEntry;
+  if (Number.isFinite(draftEntry) && draftEntry > 0) {
+    const draftHeader = await loadDraftHeader(dbName, draftEntry);
+    if (draftHeader) {
+      const lines = await loadDraftLines(dbName, draftEntry);
+      return {
+        docEntry: draftEntry,
+        docNum: toNum(draftHeader.DocNum ?? draftHeader.docNum),
+        header: draftHeader,
+        kind: "draft",
+        lines,
+      };
+    }
+  }
+
+  // After convert: RFQ → PQ map (buyer company, target is real PQ).
+  try {
+    const map = await createDocumentMapQueries().findBySource({
+      sourceCompanyId: header.sourceCompanyId,
+      sourceDocEntry: String(header.rfqId),
+      sourceObject: IC_OBJECT.RFQ,
+      targetObject: IC_OBJECT.PQ,
+    });
+    if (map?.targetDocEntry) {
+      const pqEntry = Number(map.targetDocEntry);
+      if (Number.isFinite(pqEntry) && pqEntry > 0) {
+        const pqHeader = await loadPqHeader(dbName, pqEntry);
+        if (pqHeader) {
+          const lines = await loadPqLines(dbName, pqEntry);
+          const mappedNum =
+            map.targetDocNum != null && map.targetDocNum !== "" ? Number(map.targetDocNum) : null;
+          return {
+            docEntry: pqEntry,
+            docNum:
+              mappedNum != null && Number.isFinite(mappedNum)
+                ? mappedNum
+                : toNum(pqHeader.DocNum ?? pqHeader.docNum),
+            header: pqHeader,
+            kind: "pq",
+            lines,
+          };
+        }
+      }
+    }
+  } catch (err: unknown) {
+    logger.warn({
+      err: err instanceof Error ? err : new Error(String(err)),
+      msg: "RFQ enrich: document map lookup failed",
+      rfqId: header.rfqId,
+    });
+  }
+
+  // Fallback: remarks tag on posted PQ (IC-RFQ-{rfqNumber}).
+  const tag = `IC-RFQ-${header.rfqNumber}`;
+  try {
+    const rows = (await executeTenantQuery(
+      dbName,
+      `SELECT
+         "DocEntry", "DocNum", "CardCode", "CardName",
+         "DocDate", "DocDueDate",
+         "Address", "Address2", "SlpCode", "Comments", "NumAtCard"
+       FROM "OPQT"
+       WHERE "Comments" LIKE ? OR "NumAtCard" LIKE ?
+       ORDER BY "DocEntry" DESC
+       LIMIT 1`,
+      [`%${tag}%`, `%${tag}%`],
+    )) as SourceHeaderRow[];
+    const pqHeader = rows[0];
+    if (pqHeader) {
+      const pqEntry = toNum(pqHeader.DocEntry ?? pqHeader.docEntry);
+      if (pqEntry != null && pqEntry > 0) {
+        const lines = await loadPqLines(dbName, pqEntry);
+        return {
+          docEntry: pqEntry,
+          docNum: toNum(pqHeader.DocNum ?? pqHeader.docNum),
+          header: pqHeader,
+          kind: "pq",
+          lines,
+        };
+      }
+    }
+  } catch {
+    // Best-effort; OPQT Comments search may be restricted.
+  }
+
+  return null;
+};
+
+const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLine => {
+  if (!source) {
+    return {
+      ...line,
+      requiredDate: line.requiredDate ?? null,
+      requiredQuantity: line.requiredQuantity ?? line.quantity,
+    };
+  }
+
+  const description =
+    toStr(line.description) ??
+    toStr(source.Dscription) ??
+    toStr(source.dscription) ??
+    toStr(source.ItemDescription);
+
+  const requiredQty =
+    toNum(source.PQTReqQty ?? source.pqtReqQty) ??
+    toNum(source.RequiredQuantity) ??
+    line.requiredQuantity ??
+    null;
+
+  const quotedFromSource = toNum(source.Quantity ?? source.quantity);
+  // Prefer IC line qty/price (seller fill) over source snapshot.
+  const quantity =
+    line.quantity > 0
+      ? line.quantity
+      : quotedFromSource && quotedFromSource > 0
+        ? quotedFromSource
+        : (requiredQty ?? line.quantity);
+
+  const unitPrice =
+    line.unitPrice !== null && line.unitPrice !== undefined
+      ? line.unitPrice
+      : (toNum(source.Price ?? source.PriceBefDi) ?? null);
+
+  const discount =
+    line.discount !== null && line.discount !== undefined
+      ? line.discount
+      : (toNum(source.DiscPrcnt ?? source.discPrcnt) ?? 0);
+
+  const requiredDate =
+    toDateOnly(source.PQTReqDate ?? source.pqtReqDate ?? source.ReqDate) ??
+    line.requiredDate ??
+    null;
+
+  const deliveryDate =
+    toDateOnly(line.deliveryDate) ?? toDateOnly(source.ShipDate ?? source.shipDate) ?? null;
+
+  const warehouse =
+    toStr(line.warehouse) ?? toStr(source.WhsCode ?? source.whsCode ?? source.WarehouseCode);
+
+  const uomCode = toStr(line.uomCode) ?? toStr(source.UomCode ?? source.uomCode ?? source.UoMCode);
+
+  const taxCode = toStr(line.taxCode) ?? toStr(source.VatGroup ?? source.vatGroup);
+
+  return {
+    ...line,
+    deliveryDate,
+    description,
+    discount,
+    quantity,
+    requiredDate,
+    requiredQuantity: requiredQty ?? quantity,
+    taxCode,
+    unitPrice,
+    uomCode,
+    warehouse,
+  };
+};
+
+/**
+ * Merge buyer PQ draft / real PQ into RFQ for seller UI.
+ * Failures are logged and original header is returned (never throws).
+ */
+export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHeader> => {
+  try {
+    const company = await createCompanyQueries().getById(header.sourceCompanyId);
+    if (!company?.sapDbName) {
+      return header;
+    }
+
+    const dbName = company.sapDbName;
+    const source = await resolveSourceDoc(dbName, header);
+    if (!source) {
+      logger.info({
+        msg: "RFQ enrich: no PQ draft or posted PQ found; returning base RFQ",
+        pqDraftDocEntry: header.pqDraftDocEntry,
+        rfqId: header.rfqId,
+        sourceCompanyId: header.sourceCompanyId,
+        status: header.status,
+      });
+      return header;
+    }
+
+    const srcHeader = source.header;
+    const cardCode = toStr(srcHeader.CardCode ?? srcHeader.cardCode) ?? header.vendorCode;
+    const vendorName =
+      toStr(srcHeader.CardName ?? srcHeader.cardName) ??
+      (await loadVendorName(dbName, cardCode)) ??
+      null;
+
+    const slpCode = toNum(srcHeader.SlpCode ?? srcHeader.slpCode);
+    const buyerName = await loadBuyerName(dbName, slpCode);
+
+    const sourceByLineNum = new Map<number, SourceLineRow>();
+    for (const row of source.lines) {
+      const lineNum = toNum(row.LineNum ?? row.lineNum);
+      if (lineNum !== null) {
+        sourceByLineNum.set(lineNum, row);
+      }
+    }
+
+    const lines = (header.lines ?? []).map((line) =>
+      mergeLine(line, sourceByLineNum.get(line.lineNum)),
+    );
+
+    const resolvedLines =
+      lines.length > 0
+        ? lines
+        : source.lines.map((row, index) => {
+            const lineNum = toNum(row.LineNum ?? row.lineNum) ?? index;
+            const requiredQty = toNum(row.PQTReqQty) ?? 0;
+            const quotedQty = toNum(row.Quantity) ?? 0;
+            return {
+              deliveryDate: toDateOnly(row.ShipDate),
+              description: toStr(row.Dscription),
+              discount: toNum(row.DiscPrcnt) ?? 0,
+              itemCode: toStr(row.ItemCode) ?? "",
+              lineNum,
+              quantity: quotedQty > 0 ? quotedQty : requiredQty,
+              remarks: null,
+              requiredDate: toDateOnly(row.PQTReqDate),
+              requiredQuantity: requiredQty > 0 ? requiredQty : quotedQty,
+              rfqId: header.rfqId,
+              rfqLineId: -1 * (lineNum + 1),
+              taxCode: toStr(row.VatGroup),
+              unitPrice: toNum(row.Price ?? row.PriceBefDi),
+              uomCode: toStr(row.UomCode),
+              warehouse: toStr(row.WhsCode),
+            } satisfies IcRfqLine;
+          });
+
+    const firstWh =
+      resolvedLines.find((line) => line.warehouse)?.warehouse ??
+      toStr(source.lines[0]?.WhsCode) ??
+      null;
+
+    const draftComments = toStr(srcHeader.Comments ?? srcHeader.comments);
+    const draftVendorRef = toStr(srcHeader.NumAtCard ?? srcHeader.numAtCard);
+    const sourceDocNum = source.docNum;
+
+    // Prefer longest useful remarks: source SAP Comments (user + IC chain) or IC_RFQ.
+    const remarksDisplay =
+      (draftComments && draftComments.length > 0 ? draftComments : null) ?? header.remarks ?? null;
+
+    return {
+      ...header,
+      billToAddress: toStr(srcHeader.Address ?? srcHeader.address),
+      buyerCode: slpCode != null ? String(slpCode) : null,
+      buyerName,
+      docDate: toDateOnly(srcHeader.DocDate ?? srcHeader.docDate),
+      docDueDate: toDateOnly(srcHeader.DocDueDate ?? srcHeader.docDueDate),
+      lines: resolvedLines,
+      pqDraftDocNum: header.pqDraftDocNum ?? sourceDocNum,
+      remarks: remarksDisplay,
+      requiredDate: toDateOnly(srcHeader.DocDueDate ?? srcHeader.docDueDate),
+      shipToAddress: toStr(srcHeader.Address2 ?? srcHeader.address2),
+      vendorCode: cardCode || header.vendorCode,
+      vendorName,
+      vendorRefNo: draftVendorRef ?? header.vendorRefNo ?? null,
+      warehouseCode: firstWh,
+    };
+  } catch (err: unknown) {
+    logger.warn({
+      err: err instanceof Error ? err : new Error(String(err)),
+      msg: "RFQ enrich from PQ draft/PQ failed; returning base RFQ",
+      pqDraftDocEntry: header.pqDraftDocEntry,
+      rfqId: header.rfqId,
+      sourceCompanyId: header.sourceCompanyId,
+    });
+    return header;
+  }
+};

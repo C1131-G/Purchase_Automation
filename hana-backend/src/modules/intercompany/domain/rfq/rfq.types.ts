@@ -6,14 +6,20 @@ export type IcRfqLine = {
   lineNum: number;
   itemCode: string;
   description: string | null;
+  /** Quoted quantity (seller-editable). */
   quantity: number;
   unitPrice: number | null;
   discount: number | null;
   taxCode: string | null;
+  /** Quoted / ship date (seller-editable). */
   deliveryDate: string | null;
   warehouse: string | null;
   uomCode: string | null;
   remarks: string | null;
+  /** Buyer required qty snapshot (display / locked). Enriched from PQ draft when missing. */
+  requiredQuantity?: number | null;
+  /** Buyer required date snapshot (display / locked). */
+  requiredDate?: string | null;
 };
 
 export type IcRfqHeader = {
@@ -28,6 +34,17 @@ export type IcRfqHeader = {
   remarks: string | null;
   createdBy: string | null;
   lines?: IcRfqLine[];
+  /** Enriched from source PQ draft (ODRF) — display only. */
+  vendorName?: string | null;
+  buyerName?: string | null;
+  buyerCode?: string | null;
+  docDate?: string | null;
+  docDueDate?: string | null;
+  requiredDate?: string | null;
+  billToAddress?: string | null;
+  shipToAddress?: string | null;
+  warehouseCode?: string | null;
+  vendorRefNo?: string | null;
 };
 
 export type CreateRfqFromDraftInput = {
@@ -51,6 +68,8 @@ export type CreateRfqFromDraftInput = {
     warehouse?: string | null;
     uomCode?: string | null;
     remarks?: string | null;
+    requiredQuantity?: number | null;
+    requiredDate?: string | null;
   }>;
 };
 

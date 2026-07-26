@@ -190,9 +190,6 @@ export function RfqTable() {
     if (searchParams.targetCompanyId) {
       built.push({ id: "targetCompanyId", value: searchParams.targetCompanyId });
     }
-    if (searchParams.createdBy) {
-      built.push({ id: "createdBy", value: searchParams.createdBy });
-    }
     return cloneFilters(built);
   }, [searchParams]);
 
@@ -248,7 +245,6 @@ export function RfqTable() {
           DocNum: filterValueToString(nextFilters.find((f) => f.id === "DocNum")?.value),
           DocStatus: filterValueToString(nextFilters.find((f) => f.id === "DocStatus")?.value),
           columnFilters: nextSearchColumnFilters,
-          createdBy: filterValueToString(nextFilters.find((f) => f.id === "createdBy")?.value),
           page: 1,
           pqDraftDocEntry: filterValueToString(
             nextFilters.find((f) => f.id === "pqDraftDocEntry")?.value,
@@ -371,7 +367,6 @@ export function RfqTable() {
         columnFilters: [],
         columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnVisibility: {},
-        createdBy: undefined,
         limit: 10,
         page: 1,
         pqDraftDocEntry: undefined,

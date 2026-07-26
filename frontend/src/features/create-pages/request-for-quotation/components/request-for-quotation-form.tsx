@@ -1,35 +1,56 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Lock } from "lucide-react";
+import { useMemo, useRef, useState, type MouseEvent } from "react";
 
-import { Button } from "@/components/button";
-import { FieldBlock } from "@/features/create-pages/create-shared/components/core/field-block";
-import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
+import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
+import { DocumentDatesGrid } from "@/features/create-pages/create-shared/components/grids/document-dates-grid";
+import { LogisticsGrid } from "@/features/create-pages/create-shared/components/grids/logistics-grid";
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
+import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
+import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import { notifyEditRestrictedField } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
-import { RfqLinesTable } from "@/features/create-pages/request-for-quotation/components/rfq-lines-table";
+import type { ActiveDatePicker } from "@/features/create-pages/create-shared/utils/create-order.types";
+import {
+  parseISODate,
+  toDisplayDate,
+  toISODate,
+} from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { RfqProductSection } from "@/features/create-pages/request-for-quotation/components/rfq-product-section";
 import { useRequestForQuotationForm } from "@/features/create-pages/request-for-quotation/hooks/use-request-for-quotation-form";
-import { rfqStatusBadgeClass } from "@/features/create-pages/request-for-quotation/utils/rfq-form.utils";
 import { icRfqQueries } from "@/features/intercompany/api/intercompany.queries";
 import { toSafeErrorMessage } from "@/shared/utils/error-message";
 
 const noop = () => {};
+const noopStr = (_value: string) => {};
 
 interface RequestForQuotationFormProps {
   rfqId: number;
 }
 
 /**
- * Phase 2 RFQ fill form — layout mirrored from Purchase Quotation create.
- * Seller fill on DRAFT: quoted qty, price, disc %, disc amount, quoted date — then Submit.
- * Header + item/UoM/warehouse stay locked. No Save / Add / Convert on this form.
+ * RFQ seller fill — same layout as Purchase Quotation create (vendor, logistics,
+ * dates, address, reference, attachments, PQ product rows).
+ * Only quoted qty, quoted date, price, disc %, disc amount are editable; Submit only.
  */
 export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps) {
   const queryClient = useQueryClient();
   const state = useRequestForQuotationForm(rfqId);
   const header = state.header;
   const titleNumber = header?.rfqNumber ?? String(rfqId);
+
+  const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
+  const docDateContainerRef = useRef<HTMLDivElement>(null);
+  const deliveryDateContainerRef = useRef<HTMLDivElement>(null);
+  const requiredDateContainerRef = useRef<HTMLDivElement>(null);
+
+  const today = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+
+  const todayIso = toISODate(today);
 
   const editError =
     state.detailQuery.isError && !header
@@ -41,9 +62,15 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
 
   const isHydrating = state.detailQuery.isLoading && !header;
 
-  const restricted = (fieldName: string) => () => {
+  const restrictedClick = (fieldName: string) => (event: MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     notifyEditRestrictedField(fieldName);
   };
+
+  if (isHydrating) {
+    return <CreatePageRouteSkeleton />;
+  }
 
   return (
     <CreatePageWrapper
@@ -59,40 +86,12 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
       pageTitle={`Request For Quotation ${titleNumber}`}
       editError={editError}
     >
-      {isHydrating ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-10 text-sm text-zinc-500">
-          Loading Request For Quotation…
-        </div>
-      ) : null}
-
       {header ? (
         <>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${rfqStatusBadgeClass(String(header.status))}`}
-            >
-              {header.status}
-            </span>
-            {state.canEditLines ? (
-              <span className="text-xs text-zinc-500">
-                Seller fill: edit quoted qty, price, disc %, disc amount, and quoted date only —
-                then Submit.
-              </span>
-            ) : (
-              <span className="text-xs text-zinc-500">
-                This Request For Quotation is read-only.
-              </span>
-            )}
-          </div>
-
           <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
             <div
               className="h-full cursor-not-allowed"
-              onClickCapture={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                restricted("Vendor Info")();
-              }}
+              onClickCapture={restrictedClick("Vendor Info")}
             >
               <div className="pointer-events-none h-full">
                 <VendorCustomerGrid
@@ -103,14 +102,14 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
                   codeLabel="Vendor Code"
                   namePlaceholder="Vendor"
                   codePlaceholder="Vendor code"
-                  nameInput={header.vendorCode}
+                  nameInput={header.vendorName?.trim() || header.vendorCode}
                   codeInput={header.vendorCode}
                   nameFocused={false}
                   codeFocused={false}
                   nameSuggestions={[]}
                   codeSuggestions={[]}
-                  onNameChange={noop}
-                  onCodeChange={noop}
+                  onNameChange={noopStr}
+                  onCodeChange={noopStr}
                   onNameFocus={noop}
                   onCodeFocus={noop}
                   onNameBlur={noop}
@@ -125,144 +124,154 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
               </div>
             </div>
 
-            <SectionCard title="Document Details">
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span>RFQ Number</span>
-                      <Lock className="h-3 w-3 text-zinc-400" aria-hidden />
-                    </span>
-                  </label>
-                  <div className="flex h-10 items-center rounded-xl border border-blue-200 bg-blue-50 pl-3 text-sm font-semibold text-blue-700">
-                    {header.rfqNumber}
-                  </div>
-                </div>
-                <FieldBlock
-                  label="Status"
-                  placeholder=""
-                  value={String(header.status)}
-                  onChange={noop}
-                  onFocus={noop}
-                  onBlur={noop}
-                  disabled
-                  uniformReadOnlyAppearance
-                />
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Intercompany">
-              <div className="flex flex-col gap-4">
-                <FieldBlock
-                  label="PQ Draft No."
-                  placeholder="—"
-                  value={
-                    header.pqDraftDocNum != null && Number.isFinite(header.pqDraftDocNum)
-                      ? String(header.pqDraftDocNum)
-                      : ""
+            <div
+              className="h-full cursor-not-allowed"
+              onClickCapture={restrictedClick("Logistics")}
+            >
+              <div className="pointer-events-none h-full">
+                <LogisticsGrid
+                  salesEmployeeLabel="Buyer"
+                  salesEmployeeInput={
+                    header.buyerName?.trim() ||
+                    header.createdBy?.trim() ||
+                    header.buyerCode?.trim() ||
+                    ""
                   }
-                  onChange={noop}
-                  onFocus={noop}
-                  onBlur={noop}
-                  disabled
+                  salesEmployeesLoading={false}
+                  error={null}
+                  salesEmployeeFocused={false}
+                  salesEmployeeSuggestions={[]}
+                  onSalesEmployeeChange={noopStr}
+                  onSalesEmployeeFocus={noop}
+                  onSalesEmployeeBlur={noop}
+                  onOpenSalesEmployeePopup={noop}
+                  onSelectSalesEmployee={noop}
+                  salesEmployeeDisabled
+                  readOnly
                   uniformReadOnlyAppearance
-                />
-                <FieldBlock
-                  label="PQ Draft Entry"
-                  placeholder="—"
-                  value={String(header.pqDraftDocEntry)}
-                  onChange={noop}
-                  onFocus={noop}
-                  onBlur={noop}
-                  disabled
-                  uniformReadOnlyAppearance
+                  showWarehouseInsteadOfDocNum
+                  warehouseLabel="Warehouse"
+                  warehouseInput={header.warehouseCode?.trim() || state.defaultWarehouseCode || ""}
+                  warehousesLoading={false}
+                  warehouseFocused={false}
+                  warehouseSuggestions={[]}
+                  onWarehouseChange={noopStr}
+                  onWarehouseFocus={noop}
+                  onWarehouseBlur={noop}
+                  onOpenWarehousePopup={noop}
+                  onSelectWarehouse={noop}
+                  warehouseDisabled
                 />
               </div>
-            </SectionCard>
+            </div>
+
+            <div
+              className="h-full cursor-not-allowed"
+              onClickCapture={restrictedClick("Document Dates")}
+            >
+              <div className="pointer-events-none h-full">
+                <DocumentDatesGrid
+                  loading={false}
+                  docDate={header.docDate?.slice(0, 10) || todayIso}
+                  docDueDate={header.docDueDate?.slice(0, 10) || ""}
+                  today={today}
+                  activeDatePicker={activeDatePicker}
+                  docDateContainerRef={docDateContainerRef}
+                  deliveryDateContainerRef={deliveryDateContainerRef}
+                  requiredDateContainerRef={requiredDateContainerRef}
+                  toDisplayDate={toDisplayDate}
+                  parseISODate={parseISODate}
+                  toISODate={toISODate}
+                  docDateReadOnly
+                  docDueDateReadOnly
+                  uniformReadOnlyAppearance
+                  onSetActiveDatePicker={setActiveDatePicker}
+                  onDocDateChange={noopStr}
+                  onDocDueDateChange={noopStr}
+                  docDueDateLabel="VALID UNTIL"
+                  docDueDatePlaceholder="—"
+                  showRequiredDate
+                  requiredDate={header.requiredDate?.slice(0, 10) || ""}
+                  requiredDateReadOnly
+                  onRequiredDateChange={noopStr}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="mt-3 grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
-            <div className="h-full lg:col-span-2">
-              <SectionCard title="Companies">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FieldBlock
-                    label="Source (Buyer) Company Id"
-                    placeholder="—"
-                    value={String(header.sourceCompanyId)}
-                    onChange={noop}
-                    onFocus={noop}
-                    onBlur={noop}
-                    disabled
-                    uniformReadOnlyAppearance
-                  />
-                  <FieldBlock
-                    label="Target (Seller) Company Id"
-                    placeholder="—"
-                    value={String(header.targetCompanyId)}
-                    onChange={noop}
-                    onFocus={noop}
-                    onBlur={noop}
-                    disabled
-                    uniformReadOnlyAppearance
-                  />
-                  <FieldBlock
-                    label="Created By"
-                    placeholder="—"
-                    value={header.createdBy ?? ""}
-                    onChange={noop}
-                    onFocus={noop}
-                    onBlur={noop}
-                    disabled
-                    uniformReadOnlyAppearance
-                  />
-                </div>
+            <div
+              className="h-full cursor-not-allowed lg:col-span-2"
+              onClickCapture={restrictedClick("Address")}
+            >
+              <div className="pointer-events-none h-full">
+                <AddressGrid
+                  loading={false}
+                  billToAddress={header.billToAddress ?? ""}
+                  shipToAddress={header.shipToAddress ?? ""}
+                  readOnly
+                  uniformReadOnlyAppearance
+                  billToOptions={[]}
+                  shipToOptions={[]}
+                  onBillToAddressChange={noopStr}
+                  onShipToAddressChange={noopStr}
+                  billToLabel="Pay To Address"
+                />
+              </div>
+            </div>
+            <div
+              className="h-full cursor-not-allowed"
+              onClickCapture={restrictedClick("Reference")}
+            >
+              <div className="pointer-events-none h-full">
+                <ReferenceGrid
+                  loading={false}
+                  referenceNo={header.vendorRefNo?.trim() || ""}
+                  comments={header.remarks ?? ""}
+                  uniformReadOnlyAppearance
+                  onReferenceNoChange={noopStr}
+                  onCommentsChange={noopStr}
+                  referenceNoDisabled
+                  commentsDisabled
+                  referenceLabel="VENDOR REF NO"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 cursor-not-allowed" onClickCapture={restrictedClick("Attachments")}>
+            <div className="pointer-events-none">
+              <SectionCard title="ATTACHMENTS">
+                <UploadGrid
+                  attachments={[]}
+                  onAttachmentsChange={noop}
+                  moduleName="RequestForQuotation"
+                  readOnly
+                  loading={false}
+                />
               </SectionCard>
             </div>
-            <ReferenceGrid
-              referenceNo={`RFQ-${header.rfqNumber}`}
-              comments={header.remarks ?? ""}
-              onReferenceNoChange={noop}
-              onCommentsChange={noop}
-              referenceNoDisabled
-              commentsDisabled
-              uniformReadOnlyAppearance
-              referenceLabel="RFQ REF"
-              onReferenceNoDisabledClick={restricted("Reference")}
-              onCommentsDisabledClick={restricted("Remarks")}
-            />
           </div>
 
           <div className="mt-3">
-            <SectionCard title="Contents">
-              <RfqLinesTable
-                lines={state.lines}
-                canEdit={state.canEditLines}
-                onUpdateLine={state.updateLine}
-                netTotal={state.totals.netTotal}
-              />
-
-              {state.formError ? (
-                <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {state.formError}
-                </p>
-              ) : null}
-
-              <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-4">
-                {state.canEditLines ? (
-                  <Button
-                    type="button"
-                    disabled={state.isSubmitting || state.lines.length === 0}
-                    onClick={() => {
-                      void state.handleSubmit();
-                    }}
-                  >
-                    {state.isSubmitting ? "Submitting…" : "Submit"}
-                  </Button>
-                ) : (
-                  <p className="text-xs text-zinc-500">No actions available for this status.</p>
-                )}
-              </div>
-            </SectionCard>
+            <RfqProductSection
+              productRows={state.productRows}
+              productRowDrafts={state.productRowDrafts}
+              updateProductRow={state.updateProductRow}
+              removeProductRow={state.removeProductRow}
+              setProductRowDraft={state.setProductRowDraft}
+              clearProductRowDraft={state.clearProductRowDraft}
+              openProductPopup={state.openProductPopup}
+              prefetchProducts={state.prefetchProducts}
+              totals={state.totals}
+              canEdit={state.canEditLines}
+              canSubmit={state.canSubmit}
+              isSubmitting={state.isSubmitting}
+              formError={state.formError}
+              onSubmit={() => {
+                void state.handleSubmit();
+              }}
+            />
           </div>
         </>
       ) : null}

@@ -11,6 +11,10 @@ import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPoCreated } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
+import {
+  applyPoBranchToSapPayload,
+  resolvePoBranchId,
+} from "@/modules/purchase-order/temp-assign-po-branch";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const createPurchaseOrder = async (
@@ -80,6 +84,46 @@ export const createPurchaseOrder = async (
       );
     }
 
+    const documentLines = lines.map((item) => {
+      const itemCode = String(item.ItemCode ?? "").trim();
+      const itemDescription = String(
+        item.ItemDescription ?? item.itemDescription ?? item.Dscription ?? item.ItemName ?? "",
+      ).trim();
+      const docLine: Record<string, unknown> = {
+        LineNum: item.LineNum !== undefined ? Number(item.LineNum) : undefined,
+        ItemCode: itemCode,
+        Quantity: item.Quantity as number,
+        UnitPrice: (item.UnitPrice || item.Price) as number,
+        DiscountPercent: Number(item.DiscountPercent ?? 0),
+        UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
+        VatGroup: item.VatGroup as string,
+        WarehouseCode: item.WarehouseCode as string,
+      };
+      // Keep description in payload log + for partner-item setup (SL may ignore on PO lines).
+      if (itemDescription) {
+        docLine.ItemDescription = itemDescription;
+      }
+      const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
+      if (Number.isFinite(uomEntry) && uomEntry > 0) {
+        docLine.UoMEntry = Math.trunc(uomEntry);
+        docLine.UseBaseUnit = "tNO";
+      } else {
+        const uomCode = item.UoMCode ?? item.UomCode;
+        if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
+          docLine.UoMCode = uomCode as string | number;
+          docLine.UseBaseUnit = "tNO";
+        }
+      }
+
+      if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
+        docLine.BaseType = item.BaseType;
+        docLine.BaseEntry = item.BaseEntry;
+        docLine.BaseLine = item.BaseLine;
+      }
+
+      return docLine;
+    });
+
     const sapPayload: Record<string, unknown> = {
       Address: payload.Address,
       Address2: payload.Address2,
@@ -89,37 +133,7 @@ export const createPurchaseOrder = async (
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate || payload.DocDate,
       AttachmentEntry: absoluteEntry ?? undefined,
-      DocumentLines: lines.map((item) => {
-        const docLine: Record<string, unknown> = {
-          LineNum: item.LineNum !== undefined ? Number(item.LineNum) : undefined,
-          ItemCode: item.ItemCode as string,
-          Quantity: item.Quantity as number,
-          UnitPrice: (item.UnitPrice || item.Price) as number,
-          DiscountPercent: Number(item.DiscountPercent ?? 0),
-          UoMEntry: (item.UoMEntry ?? item.UomEntry) as number | undefined,
-          VatGroup: item.VatGroup as string,
-          WarehouseCode: item.WarehouseCode as string,
-        };
-        const uomEntry = Number(item.UoMEntry ?? item.UomEntry);
-        if (Number.isFinite(uomEntry) && uomEntry > 0) {
-          docLine.UoMEntry = Math.trunc(uomEntry);
-          docLine.UseBaseUnit = "tNO";
-        } else {
-          const uomCode = item.UoMCode ?? item.UomCode;
-          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
-            docLine.UoMCode = uomCode as string | number;
-            docLine.UseBaseUnit = "tNO";
-          }
-        }
-
-        if (Number.isFinite(item.BaseEntry) && Number.isFinite(item.BaseLine)) {
-          docLine.BaseType = item.BaseType;
-          docLine.BaseEntry = item.BaseEntry;
-          docLine.BaseLine = item.BaseLine;
-        }
-
-        return docLine;
-      }),
+      DocumentLines: documentLines,
       SalesPersonCode: payload.SalesPersonCode,
       Rounding: payload.Rounding,
       RoundingDiffAmount: payload.RoundingDiffAmount,
@@ -128,6 +142,23 @@ export const createPurchaseOrder = async (
     if (isDraft) {
       sapPayload.DocObjectCode = "22";
     }
+
+    // TEMP: multi-branch companies (e.g. RCM) require BPL on PO; Ajax often has none → omit.
+    // See temp-assign-po-branch.ts — decide create-page vs auto later.
+    const firstWh = String(documentLines[0]?.WarehouseCode ?? "").trim() || null;
+    const branchResolve = await resolvePoBranchId({
+      dbName: resolvedDbName,
+      payloadBranchId: payload.BPL_IDAssignedToInvoice ?? payload.BPLId ?? payload.branchId ?? null,
+      warehouseCode: firstWh,
+    });
+    applyPoBranchToSapPayload(sapPayload, branchResolve.branchId);
+    logger.info({
+      branchId: branchResolve.branchId,
+      branchSource: branchResolve.source,
+      companyDB: resolvedDbName,
+      msg: "TEMP PO branch assignment",
+      warehouseCode: firstWh,
+    });
 
     // Formats DocDate into SAP-compliant YYYY-MM-DD.
     const docDate = sapPayload.DocDate as string;
@@ -145,16 +176,50 @@ export const createPurchaseOrder = async (
     const sapEndpoint = isDraft ? "/Drafts" : "/PurchaseOrders";
     const sapUrl = `${config.serviceLayer.serviceLayerURL}${sapEndpoint}`;
 
+    // Product snapshot for creating the same ItemCode in partner company DB (e.g. RCM_TESTING_POS1).
+    const poItemsForPartnerMaster = documentLines.map((line, index) => ({
+      discountPercent: line.DiscountPercent ?? 0,
+      itemCode: String(line.ItemCode ?? "").trim(),
+      itemDescription: String(line.ItemDescription ?? "").trim() || null,
+      lineNum: line.LineNum ?? index,
+      quantity: line.Quantity ?? null,
+      unitPrice: line.UnitPrice ?? null,
+      uomCode: line.UoMCode ?? null,
+      uomEntry: line.UoMEntry ?? null,
+      vatGroup: line.VatGroup ?? null,
+      warehouseCode: line.WarehouseCode ?? null,
+    }));
+
     logger.info({
-      msg: "Sending PO to SAP Service Layer",
-      url: sapUrl,
       cardCode: sapPayload.CardCode,
+      companyDB: resolvedDbName,
       docDate: sapPayload.DocDate,
       docDueDate: sapPayload.DocDueDate,
-      lineCount: (sapPayload.DocumentLines as any[])?.length ?? 0,
-      salesPersonCode: sapPayload.SalesPersonCode,
       isDraft,
+      lineCount: documentLines.length,
+      msg: "Sending PO to SAP Service Layer",
+      salesPersonCode: sapPayload.SalesPersonCode,
+      url: sapUrl,
     });
+
+    // Full SAP request body (use this to mirror items / fields in the partner DB).
+    logger.info({
+      companyDB: resolvedDbName,
+      isDraft,
+      msg: isDraft ? "PO draft SAP request payload" : "PO SAP request payload",
+      sapEndpoint,
+      sapPayload,
+    });
+
+    // Explicit item list for master-data setup in the second company.
+    if (!isDraft) {
+      logger.info({
+        cardCode: sapPayload.CardCode,
+        companyDB: resolvedDbName,
+        items: poItemsForPartnerMaster,
+        msg: "PO items for partner-company product master (create Item No. in target SAP DB if missing)",
+      });
+    }
 
     const result = (await serviceLayerClient.request(
       sessionId,
@@ -164,14 +229,26 @@ export const createPurchaseOrder = async (
     )) as SAPDocumentResponse;
 
     logger.info({
-      msg: "PO created in SAP Service Layer",
-      url: sapUrl,
+      cardCode: result.CardCode,
+      companyDB: resolvedDbName,
+      docCurrency: result.DocCurrency,
       docEntry: result.DocEntry,
       docNum: result.DocNum,
-      cardCode: result.CardCode,
       docTotal: result.DocTotal,
-      docCurrency: result.DocCurrency,
+      isDraft,
+      msg: isDraft ? "PO draft created in SAP Service Layer" : "PO created in SAP Service Layer",
+      url: sapUrl,
     });
+
+    if (!isDraft) {
+      logger.info({
+        companyDB: resolvedDbName,
+        docEntry: result.DocEntry,
+        docNum: result.DocNum,
+        items: poItemsForPartnerMaster,
+        msg: "PO created — ensure these ItemCodes exist in partner SAP DB before IC AR draft",
+      });
+    }
 
     // Invalidate the procurement dashboard metrics for this tenant.
     const resolvedDbNameFromRes = String(

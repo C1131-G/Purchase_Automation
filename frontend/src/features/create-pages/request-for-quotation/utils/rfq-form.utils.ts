@@ -3,6 +3,8 @@ import type {
   IcRfqLine,
   IcUpdateRfqLineBody,
 } from "@/features/intercompany/schemas/intercompany-api.schema";
+import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 
 export type RfqEditableLine = {
   deliveryDate: string;
@@ -25,6 +27,12 @@ export type RfqEditableLine = {
 export type RfqSellerEditableFields = Pick<
   RfqEditableLine,
   "unitPrice" | "quantity" | "discount" | "deliveryDate"
+>;
+
+/** ProductRow patches allowed on RFQ seller fill. */
+export type RfqSellerProductPatch = Pick<
+  ProductRow,
+  "price" | "quantity" | "discountPercent" | "discountAmount" | "quotedDate"
 >;
 
 export const isRfqDraft = (status: string | undefined): boolean =>
@@ -75,6 +83,73 @@ export const mapRfqLinesToEditable = (lines: IcRfqLine[] | undefined): RfqEditab
 
   return mapped.sort((a, b) => a.lineNum - b.lineNum);
 };
+
+/** Map IC RFQ lines into PQ-style product rows for the shared create table. */
+export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): ProductRow[] => {
+  if (!lines?.length) {
+    return [];
+  }
+
+  const qty = (value: number | null | undefined) =>
+    value === null || value === undefined || !Number.isFinite(value) ? 0 : Number(value);
+  const price = (value: number | null | undefined) =>
+    value === null || value === undefined || !Number.isFinite(value) ? 0 : Number(value);
+  const disc = (value: number | null | undefined) =>
+    value === null || value === undefined || !Number.isFinite(value) ? 0 : Number(value);
+
+  return [...lines]
+    .sort((a, b) => a.lineNum - b.lineNum)
+    .map((line) => {
+      const quotedQty = qty(line.quantity);
+      const requiredQty =
+        line.requiredQuantity !== null &&
+        line.requiredQuantity !== undefined &&
+        Number.isFinite(line.requiredQuantity)
+          ? Number(line.requiredQuantity)
+          : quotedQty;
+      // Quoted qty for totals: prefer stored quoted; if only required was snapshotted, start equal.
+      const quantity = quotedQty > 0 ? quotedQty : requiredQty;
+      const unitPrice = price(line.unitPrice);
+      const discountPercent = disc(line.discount);
+      const gross = unitPrice * quantity;
+      const discountAmount =
+        discountPercent > 0 ? Math.round(((gross * discountPercent) / 100) * 100) / 100 : 0;
+      const quotedDate = toDateInputValue(line.deliveryDate);
+      const requiredDate = toDateInputValue(line.requiredDate);
+      const itemCode = String(line.itemCode ?? "").trim();
+      const description = String(line.description ?? "").trim();
+
+      return {
+        comment: String(line.remarks ?? "").trim(),
+        currency: "",
+        discountAmount,
+        discountPercent,
+        id: String(line.rfqLineId),
+        lineNum: line.lineNum,
+        price: unitPrice,
+        productCode: itemCode,
+        productName: description || itemCode,
+        quantity,
+        requiredDate: requiredDate || undefined,
+        // Buyer snapshot — stay locked; do not update when seller revises quoted qty.
+        requiredQuantity: requiredQty > 0 ? requiredQty : quantity,
+        quotedDate: quotedDate || undefined,
+        stock: 0,
+        taxRate: 0,
+        uomCode: String(line.uomCode ?? "").trim() || undefined,
+        vatGroup: String(line.taxCode ?? "").trim(),
+        warehouseCode: String(line.warehouse ?? "").trim(),
+      } satisfies ProductRow;
+    });
+};
+
+export const productRowsFingerprint = (rows: ProductRow[]): string =>
+  rows
+    .map(
+      (row) =>
+        `${row.id}:${row.price}:${row.quantity}:${row.discountPercent}:${row.quotedDate ?? ""}`,
+    )
+    .join("|");
 
 export const parseOptionalNumber = (raw: string): number | null => {
   const trimmed = raw.trim();
@@ -184,6 +259,60 @@ export const buildUpdateRfqLinesPayload = (
 
   return { errors, lines: payload };
 };
+
+/** Build seller-fill PUT body from PQ-style product rows. */
+export const buildUpdateRfqLinesPayloadFromProductRows = (
+  rows: ProductRow[],
+  options?: { requireAllPrices?: boolean },
+): { lines: IcUpdateRfqLineBody[]; errors: string[] } => {
+  const requireAllPrices = options?.requireAllPrices === true;
+  const payload: IcUpdateRfqLineBody[] = [];
+  const errors: string[] = [];
+
+  for (const row of rows) {
+    const lineNum = row.lineNum ?? 0;
+    const unitPrice = Number(row.price);
+    if (!Number.isFinite(unitPrice)) {
+      if (requireAllPrices) {
+        errors.push(`Line ${lineNum}: unit price is required`);
+      }
+      continue;
+    }
+    if (unitPrice < 0) {
+      errors.push(`Line ${lineNum}: unit price cannot be negative`);
+      continue;
+    }
+
+    const quantity = Number(row.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      errors.push(`Line ${lineNum}: quoted quantity must be greater than 0`);
+      continue;
+    }
+
+    const discount = Number(row.discountPercent);
+    if (Number.isFinite(discount) && (discount < 0 || discount > 100)) {
+      errors.push(`Line ${lineNum}: discount must be between 0 and 100`);
+      continue;
+    }
+
+    const deliveryDate = String(row.quotedDate ?? "").trim();
+    payload.push({
+      deliveryDate: deliveryDate || null,
+      discount: Number.isFinite(discount) ? discount : 0,
+      lineNum,
+      quantity,
+      unitPrice,
+    });
+  }
+
+  if (!requireAllPrices && payload.length === 0 && rows.length > 0) {
+    errors.push("Enter at least one unit price before saving.");
+  }
+
+  return { errors, lines: payload };
+};
+
+export const computeRfqProductTotals = (rows: ProductRow[]) => calculateOrderTotals(rows);
 
 export const computeLineNet = (unitPrice: number, quantity: number, discountPercent: number) => {
   const gross = unitPrice * quantity;

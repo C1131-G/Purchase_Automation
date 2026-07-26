@@ -183,6 +183,8 @@ export const icRfqLineSchema = z.object({
   lineNum: z.number(),
   quantity: z.number(),
   remarks: z.string().nullable(),
+  requiredDate: z.string().nullable().optional(),
+  requiredQuantity: z.number().nullable().optional(),
   rfqId: z.number(),
   rfqLineId: z.number(),
   taxCode: z.string().nullable(),
@@ -194,17 +196,27 @@ export const icRfqLineSchema = z.object({
 export type IcRfqLine = z.infer<typeof icRfqLineSchema>;
 
 export const icRfqHeaderSchema = z.object({
+  billToAddress: z.string().nullable().optional(),
+  buyerCode: z.string().nullable().optional(),
+  buyerName: z.string().nullable().optional(),
   createdBy: z.string().nullable(),
+  docDate: z.string().nullable().optional(),
+  docDueDate: z.string().nullable().optional(),
   lines: z.array(icRfqLineSchema).optional(),
   pqDraftDocEntry: z.number(),
   pqDraftDocNum: z.number().nullable(),
   remarks: z.string().nullable(),
+  requiredDate: z.string().nullable().optional(),
   rfqId: z.number(),
   rfqNumber: z.string(),
+  shipToAddress: z.string().nullable().optional(),
   sourceCompanyId: z.number(),
   status: z.union([icRfqStatusSchema, z.string()]),
   targetCompanyId: z.number(),
   vendorCode: z.string(),
+  vendorName: z.string().nullable().optional(),
+  vendorRefNo: z.string().nullable().optional(),
+  warehouseCode: z.string().nullable().optional(),
 });
 
 export type IcRfqHeader = z.infer<typeof icRfqHeaderSchema>;

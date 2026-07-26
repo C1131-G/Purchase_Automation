@@ -70,6 +70,8 @@ export interface ProductGridRow {
 export interface ProductGridRowDraft {
   quantity?: string;
   requiredQuantity?: string;
+  /** Unit price draft (RFQ seller fill — allows clearing 0 while typing). */
+  price?: string;
   discountPercent?: string;
   discountAmount?: string;
 }

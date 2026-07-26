@@ -218,11 +218,31 @@ export const updatePurchaseQuotation = async (
           ? (payload.DocumentLines as Record<string, unknown>[])
           : [];
         intercompany = await afterPqDraftSaved({
+          address: payload.Address != null ? String(payload.Address) : null,
+          address2: payload.Address2 != null ? String(payload.Address2) : null,
           cardCode: String(payload.CardCode ?? sapPayload.CardCode ?? ""),
+          cardName: payload.CardName != null ? String(payload.CardName) : null,
+          comments: payload.Comments != null ? String(payload.Comments) : null,
           dbName: companyDB,
+          docDate: payload.DocDate,
+          docDueDate: payload.DocDueDate,
           docEntry: Number(id),
           docNum: null,
           lines,
+          numAtCard: payload.NumAtCard != null ? String(payload.NumAtCard) : null,
+          requiredDate:
+            (payload as Record<string, unknown>).RequriedDate ??
+            payload.DocDueDate ??
+            payload.DocDate,
+          salesPersonCode: (() => {
+            const raw =
+              (payload as Record<string, unknown>).SalesPersonCode ??
+              (payload as Record<string, unknown>).salesPersonCode;
+            if (raw === null || raw === undefined || raw === "") {
+              return null;
+            }
+            return typeof raw === "number" || typeof raw === "string" ? raw : String(raw);
+          })(),
         });
       } catch (icErr: unknown) {
         logger.error({

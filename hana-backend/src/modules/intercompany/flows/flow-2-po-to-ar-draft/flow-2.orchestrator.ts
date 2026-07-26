@@ -20,6 +20,13 @@ import {
   IC_CONFIG_KEY,
   IC_DOC_MAP_STATUS,
 } from "@/modules/intercompany/infrastructure/constants";
+import {
+  FLOW2_SCOPE,
+  FLOW2_STEPS,
+  logFlowStep,
+  summarizeIcLines,
+  summarizePartner,
+} from "@/modules/intercompany/infrastructure/flow-step-log";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
@@ -42,7 +49,7 @@ import {
 } from "./04-map-and-notify/map-and-notify.service";
 import type { Flow2CaptureResult } from "./flow-2.types";
 
-const LOG_SCOPE = IC_LOG_SCOPE.FLOW2;
+const LOG_SCOPE = FLOW2_SCOPE;
 
 const skipFromCapture = (capture: Extract<Flow2CaptureResult, { kind: "skip" }>): IcHookResult =>
   skipResult(capture.detail ? `${capture.reason}:${capture.detail}` : capture.reason);
@@ -58,9 +65,27 @@ const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
         .filter((code) => code.length > 0),
     ),
   ];
+  const items = lines.map((line, index) => ({
+    itemCode: String(line.ItemCode ?? "").trim(),
+    itemDescription:
+      String(line.ItemDescription ?? line.Dscription ?? line.ItemName ?? "").trim() || null,
+    lineNum: line.LineNum ?? index,
+    quantity: line.Quantity ?? null,
+    unitPrice: line.UnitPrice ?? line.Price ?? null,
+    uomCode: line.UoMCode ?? line.UomCode ?? null,
+    uomEntry: line.UoMEntry ?? line.UomEntry ?? null,
+    vatGroup: line.VatGroup ?? null,
+    warehouseCode: line.WarehouseCode ?? null,
+  }));
   return {
     cardCode: draftPayload.CardCode,
+    comments: draftPayload.Comments ?? null,
+    docDate: draftPayload.DocDate ?? null,
+    docDueDate: draftPayload.DocDueDate ?? null,
+    docObjectCode: draftPayload.DocObjectCode ?? null,
+    items,
     lineCount: lines.length,
+    numAtCard: draftPayload.NumAtCard ?? null,
     vatGroups,
   };
 };
@@ -121,9 +146,25 @@ export const createFlow2Orchestrator = (deps?: {
     draftPayload: Record<string, unknown>;
     errorMessage: string;
     startedAt: number;
+    logCtx: Record<string, unknown>;
   }): Promise<IcHookResult> => {
-    const { partner, draftPayload, errorMessage, startedAt } = params;
+    const { partner, draftPayload, errorMessage, startedAt, logCtx } = params;
     const durationMs = Date.now() - startedAt;
+
+    logFlowStep(LOG_SCOPE, {
+      step: 7,
+      total: 9,
+      title: "Flow 2 post AR draft failed — recovery",
+      check: "sl_post_ar_draft_fail",
+      ctx: logCtx,
+      detail: {
+        errorMessage: errorMessage.slice(0, 2000),
+        sellerCompanyId: partner.partner.sellerCompany.companyId,
+        sellerSapDb: partner.partner.sellerCompany.sapDbName,
+        sourceDocEntry: partner.sourceDocEntry,
+      },
+      outcome: "fail",
+    });
 
     let mappingId: number | undefined;
     try {
@@ -140,6 +181,15 @@ export const createFlow2Orchestrator = (deps?: {
           targetObject: IC_OBJECT.AR_DRAFT,
         });
         mappingId = existing.mappingId;
+        logFlowStep(LOG_SCOPE, {
+          step: 8,
+          total: 9,
+          title: "Flow 2 document map marked ERROR",
+          check: "document_map_error_update",
+          ctx: logCtx,
+          detail: { mappingId, status: IC_DOC_MAP_STATUS.ERROR },
+          outcome: "fail",
+        });
       } else {
         const created = await documentMap.create({
           errorMessage: errorMessage.slice(0, 2000),
@@ -153,9 +203,19 @@ export const createFlow2Orchestrator = (deps?: {
           targetObject: IC_OBJECT.AR_DRAFT,
         });
         mappingId = created.mappingId;
+        logFlowStep(LOG_SCOPE, {
+          step: 8,
+          total: 9,
+          title: "Flow 2 document map created as ERROR",
+          check: "document_map_error_create",
+          ctx: logCtx,
+          detail: { mappingId, status: IC_DOC_MAP_STATUS.ERROR },
+          outcome: "fail",
+        });
       }
     } catch (mapErr: unknown) {
       icLog.error(LOG_SCOPE, "Flow 2 failed to persist ERROR document map", {
+        ...logCtx,
         check: "document_map_error",
         err: mapErr instanceof Error ? mapErr : new Error(String(mapErr)),
         outcome: "fail",
@@ -203,21 +263,40 @@ export const createFlow2Orchestrator = (deps?: {
         targetDocument: IC_OBJECT.AR_DRAFT,
       });
 
-      icLog.warn(LOG_SCOPE, "Flow 2 SL failure; retry enqueued", {
-        check: "sl_post_ar_draft",
-        errorMessage,
+      logFlowStep(LOG_SCOPE, {
+        ...FLOW2_STEPS.COMPLETE,
+        check: "retry_enqueued",
+        ctx: logCtx,
+        detail: {
+          durationMs,
+          errorMessage: errorMessage.slice(0, 500),
+          mappingId,
+          nextRetryAt,
+          retryId: item.retryId,
+          status: "queued_retry",
+        },
         outcome: "fail",
-        retryId: item.retryId,
-        sellerCompanyId: partner.partner.sellerCompany.companyId,
-        sourceDocEntry: partner.sourceDocEntry,
+        title: "Flow 2 complete — SL failed, retry enqueued",
       });
 
       return { retryId: item.retryId, status: "queued_retry" };
     } catch (retryErr: unknown) {
       icLog.error(LOG_SCOPE, "Flow 2 failed to enqueue retry", {
+        ...logCtx,
         check: "retry_enqueue",
         err: retryErr instanceof Error ? retryErr : new Error(String(retryErr)),
         outcome: "fail",
+      });
+      logFlowStep(LOG_SCOPE, {
+        ...FLOW2_STEPS.COMPLETE,
+        ctx: logCtx,
+        detail: {
+          durationMs,
+          errorMessage: errorMessage.slice(0, 2000),
+          status: "failed",
+        },
+        outcome: "fail",
+        title: "Flow 2 complete — failed (no retry)",
       });
       return {
         historyId: undefined,
@@ -237,28 +316,92 @@ export const createFlow2Orchestrator = (deps?: {
         dbName: input.dbName,
         docEntry: input.docEntry,
         docNum: input.docNum,
+        flow: "flow2" as const,
       };
+      const lineSnap = summarizeIcLines(input.lines as unknown[] | undefined);
 
       try {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.START,
+          ctx: logCtx,
+          detail: {
+            hook: "afterPoCreated",
+            isDraft: input.isDraft ?? false,
+            sourceObject: IC_OBJECT.PO,
+            targetObject: IC_OBJECT.AR_DRAFT,
+          },
+        });
+
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.INPUT,
+          ctx: logCtx,
+          detail: {
+            currency: input.currency ?? null,
+            docDate: input.docDate ?? null,
+            docDueDate: input.docDueDate ?? null,
+            itemCodes: lineSnap.itemCodes,
+            lineCount: lineSnap.lineCount,
+            lines: lineSnap.lines,
+            numAtCard: input.numAtCard ?? null,
+            remarks: input.remarks ?? null,
+          },
+        });
+
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.CAPTURE,
+          ctx: logCtx,
+          detail: { phase: "running_gates" },
+        });
+
         const captured = await capture.capture(input);
         if (captured.kind === "skip") {
-          icLog.info(LOG_SCOPE, "Flow 2 skipped", {
-            ...logCtx,
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.CAPTURE,
             check: captured.check ?? captured.reason,
-            detail: captured.detail,
+            ctx: logCtx,
+            detail: {
+              detail: captured.detail ?? null,
+              reason: captured.reason,
+            },
             outcome: "skip",
-            reason: captured.reason,
+            title: `Flow 2 capture skipped — ${captured.reason}`,
+          });
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.COMPLETE,
+            ctx: logCtx,
+            detail: {
+              durationMs: Date.now() - startedAt,
+              reason: captured.reason,
+              status: "skipped",
+            },
+            outcome: "skip",
+            title: "Flow 2 complete — skipped",
           });
           return skipFromCapture(captured);
         }
 
-        icLog.info(LOG_SCOPE, "Flow 2 capture proceed", {
-          ...logCtx,
-          buyerCompanyId: captured.partner.buyerCompany.companyId,
-          check: "capture_proceed",
-          outcome: "pass",
-          remarksTag: captured.remarksTag,
-          sellerCompanyId: captured.partner.sellerCompany.companyId,
+        const partnerSnap = summarizePartner(captured.partner);
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.PARTNER,
+          ctx: logCtx,
+          detail: {
+            ...partnerSnap,
+            remarksTag: captured.remarksTag,
+            sourceDocEntry: captured.sourceDocEntry,
+            sourceDocNum: captured.sourceDocNum,
+          },
+        });
+
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.BUILD,
+          ctx: logCtx,
+          detail: {
+            ...partnerSnap,
+            buyerCustomerOnSeller: captured.partner.buyerCustomerCode,
+            phase: "building",
+            sourceLineCount: lineSnap.lineCount,
+            sourceLines: lineSnap.lines,
+          },
         });
 
         const draftPayload = await build.build({
@@ -267,18 +410,68 @@ export const createFlow2Orchestrator = (deps?: {
           remarksTag: captured.remarksTag,
         });
 
-        icLog.info(LOG_SCOPE, "Flow 2 AR draft payload built", {
-          ...logCtx,
-          ...summarizeDraftPayload(draftPayload as Record<string, unknown>),
-          check: "build_ar_draft",
-          outcome: "pass",
-          sellerCompanyId: captured.partner.sellerCompany.companyId,
+        const draftSummary = summarizeDraftPayload(draftPayload as Record<string, unknown>);
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.BUILD,
+          check: "build_ar_draft_done",
+          ctx: logCtx,
+          detail: {
+            ...draftSummary,
+            sellerCompanyId: captured.partner.sellerCompany.companyId,
+            sellerSapDb: captured.partner.sellerCompany.sapDbName,
+          },
+          title: "Flow 2 build AR invoice draft payload — done",
+        });
+
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.PAYLOAD,
+          ctx: logCtx,
+          detail: {
+            draftPayload,
+            items: draftSummary.items,
+            sellerCompanyId: captured.partner.sellerCompany.companyId,
+            sellerSapDb: captured.partner.sellerCompany.sapDbName,
+          },
         });
 
         try {
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.POST,
+            ctx: logCtx,
+            detail: {
+              endpoint: "/Drafts",
+              lineCount: draftSummary.lineCount,
+              method: "POST",
+              sellerCompanyId: captured.partner.sellerCompany.companyId,
+              sellerSapDb: captured.partner.sellerCompany.sapDbName,
+            },
+          });
+
           const created = await post.post({
             draftPayload,
             sellerCompanyId: captured.partner.sellerCompany.companyId,
+          });
+
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.POST,
+            check: "sl_post_ar_draft_done",
+            ctx: logCtx,
+            detail: {
+              targetDocEntry: created.docEntry,
+              targetDocNum: created.docNum ?? null,
+            },
+            title: "Flow 2 post AR draft to seller SAP — done",
+          });
+
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.MAP_NOTIFY,
+            ctx: logCtx,
+            detail: {
+              phase: "running",
+              sourceDocEntry: captured.sourceDocEntry,
+              targetDocEntry: created.docEntry,
+              targetDocNum: created.docNum ?? null,
+            },
           });
 
           const mapping = await mapAndNotify.complete({
@@ -291,14 +484,31 @@ export const createFlow2Orchestrator = (deps?: {
             targetDocNum: created.docNum,
           });
 
-          icLog.info(LOG_SCOPE, "Flow 2 completed successfully", {
-            ...logCtx,
-            check: "complete",
-            durationMs: Date.now() - startedAt,
-            mappingId: mapping.mappingId,
-            outcome: "pass",
-            targetDocEntry: created.docEntry,
-            targetDocNum: created.docNum,
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.MAP_NOTIFY,
+            check: "map_notify_done",
+            ctx: logCtx,
+            detail: {
+              mappingId: mapping.mappingId,
+              mappingStatus: mapping.status,
+              targetDocEntry: created.docEntry,
+              targetDocNum: created.docNum ?? null,
+            },
+            title: "Flow 2 document map + notify — done",
+          });
+
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW2_STEPS.COMPLETE,
+            ctx: logCtx,
+            detail: {
+              durationMs: Date.now() - startedAt,
+              mappingId: mapping.mappingId,
+              status: "success",
+              targetDocEntry: created.docEntry,
+              targetDocNum: created.docNum ?? null,
+              ...partnerSnap,
+              items: draftSummary.items,
+            },
           });
 
           return {
@@ -316,19 +526,33 @@ export const createFlow2Orchestrator = (deps?: {
             ...logCtx,
             check: "sl_post_ar_draft",
             err: slErr instanceof Error ? slErr : new Error(errorMessage),
+            items: draftSummary.items,
             outcome: "fail",
             sellerCompanyId: captured.partner.sellerCompany.companyId,
+            sellerSapDb: captured.partner.sellerCompany.sapDbName,
           });
           return handleSlFailure({
             draftPayload,
             errorMessage,
+            logCtx,
             partner: captured,
             startedAt,
           });
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        icLog.error(LOG_SCOPE, "Flow 2 unexpected failure; PO remains created", {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.COMPLETE,
+          ctx: logCtx,
+          detail: {
+            durationMs: Date.now() - startedAt,
+            error: message.slice(0, 2000),
+            status: "failed",
+          },
+          outcome: "fail",
+          title: "Flow 2 complete — failed (PO remains created)",
+        });
+        icLog.error(IC_LOG_SCOPE.FLOW2, "Flow 2 unexpected failure; PO remains created", {
           ...logCtx,
           check: "unexpected",
           err: err instanceof Error ? err : new Error(message),

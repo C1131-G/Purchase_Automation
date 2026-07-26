@@ -43,6 +43,11 @@ interface CreateProductTableProps {
    * Required Qty, Quoted Qty (replaces single Quantity column).
    */
   showPqLineDatesAndQtys?: boolean;
+  /**
+   * RFQ seller fill: same PQ columns, but only quoted qty/date, price, disc %/amt editable.
+   * Product, warehouse, UoM, required date/qty stay locked.
+   */
+  rfqSellerFill?: boolean;
 }
 
 export function CreateProductTable({
@@ -74,6 +79,7 @@ export function CreateProductTable({
   showBinLocation = false,
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
+  rfqSellerFill = false,
 }: CreateProductTableProps) {
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   return (
@@ -168,6 +174,7 @@ export function CreateProductTable({
               showBinLocation={showBinLocation}
               showGLAccount={showGLAccount}
               showPqLineDatesAndQtys={showPqLineDatesAndQtys}
+              rfqSellerFill={rfqSellerFill}
             />
           ))}
         </tbody>

@@ -3,7 +3,9 @@ import { createConfigurationService } from "@/modules/intercompany/config/config
 import type { DocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
 import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
 import { IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
-import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
+import { logFlowStep, summarizePartner } from "@/modules/intercompany/infrastructure/flow-step-log";
+import { compactPoTag } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
+import { IC_LOG_SCOPE } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { ResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
@@ -13,13 +15,6 @@ import { detectDraftPo, detectInvalidPoInput } from "./detect-ic-po";
 import type { Flow2CaptureResult } from "../flow-2.types";
 
 const SCOPE = IC_LOG_SCOPE.FLOW2;
-
-const buildRemarksTag = (docNum: number | null | undefined, docEntry: number): string => {
-  if (docNum != null && Number.isFinite(docNum) && docNum > 0) {
-    return `IC-PO-${docNum}`;
-  }
-  return `IC-PO-E${docEntry}`;
-};
 
 export type PoCaptureService = {
   capture: (input: IcPoHookInput) => Promise<Flow2CaptureResult>;
@@ -44,42 +39,53 @@ export const createPoCaptureService = (deps?: {
       };
 
       if (detectDraftPo(input)) {
-        icLog.info(SCOPE, "Flow 2 capture check", {
-          ...base,
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 9,
+          title: "Flow 2 gate — draft PO (not eligible)",
           check: "draft_po",
+          ctx: base,
+          detail: { isDraft: true, reason: "draft_po" },
           outcome: "skip",
-          reason: "draft_po",
         });
         return { kind: "skip", reason: "draft_po" };
       }
 
       const invalid = detectInvalidPoInput(input);
       if (invalid) {
-        icLog.info(SCOPE, "Flow 2 capture check", {
-          ...base,
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 9,
+          title: "Flow 2 gate — invalid input",
           check: "invalid_input",
-          detail: "missing dbName, cardCode, or docEntry",
+          ctx: base,
+          detail: { detail: "missing dbName, cardCode, or docEntry", reason: invalid },
           outcome: "skip",
-          reason: invalid,
         });
         return { kind: "skip", reason: invalid, detail: "missing dbName, cardCode, or docEntry" };
       }
 
       const flow2On = await configuration.isFlow2Enabled();
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 9,
+        title: flow2On ? "Flow 2 gate — FLOW2_ENABLED = on" : "Flow 2 gate — FLOW2_ENABLED = off",
+        check: "flow2_flag",
+        ctx: base,
+        detail: { flow2Enabled: flow2On },
+        outcome: flow2On ? "pass" : "skip",
+      });
       if (!flow2On) {
-        icLog.info(SCOPE, "Flow 2 capture check", {
-          ...base,
-          check: "flow2_flag",
-          outcome: "skip",
-          reason: "flow2_disabled",
-        });
         return { kind: "skip", reason: "flow2_disabled" };
       }
 
-      icLog.debug(SCOPE, "Flow 2 capture check", {
-        ...base,
-        check: "flow2_flag",
-        outcome: "pass",
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 9,
+        title: "Flow 2 gate — resolve partner (IC_COMPANY + IC_BP_MAPPING)",
+        check: "resolve_partner_start",
+        ctx: base,
+        detail: { cardCode: input.cardCode.trim(), dbName: input.dbName.trim() },
       });
 
       const partnerOutcome = await resolvePartner.resolveOutcome({
@@ -87,6 +93,18 @@ export const createPoCaptureService = (deps?: {
         dbName: input.dbName.trim(),
       });
       if (!partnerOutcome.success) {
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 9,
+          title: "Flow 2 gate — partner resolve failed (non-IC vendor)",
+          check: partnerOutcome.check,
+          ctx: base,
+          detail: {
+            detail: partnerOutcome.detail,
+            reason: "non_ic_vendor",
+          },
+          outcome: "skip",
+        });
         return {
           check: partnerOutcome.check,
           detail: partnerOutcome.detail,
@@ -96,6 +114,16 @@ export const createPoCaptureService = (deps?: {
       }
 
       const partner = partnerOutcome.partner;
+      const partnerSnap = summarizePartner(partner);
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 9,
+        title: "Flow 2 gate — partner resolve OK",
+        check: "resolve_partner_ok",
+        ctx: base,
+        detail: partnerSnap,
+      });
+
       const sourceDocEntry = String(input.docEntry);
       const existing = await documentMap.findBySource({
         sourceCompanyId: partner.buyerCompany.companyId,
@@ -105,12 +133,19 @@ export const createPoCaptureService = (deps?: {
       });
 
       if (existing && existing.status === IC_DOC_MAP_STATUS.SUCCESS) {
-        icLog.info(SCOPE, "Flow 2 capture check", {
-          ...base,
+        logFlowStep(SCOPE, {
+          step: 3,
+          total: 9,
+          title: "Flow 2 gate — AR draft already mapped SUCCESS",
           check: "already_mapped_success",
-          mappingId: existing.mappingId,
+          ctx: base,
+          detail: {
+            mappingId: existing.mappingId,
+            reason: "already_mapped_success",
+            status: existing.status,
+            targetDocEntry: existing.targetDocEntry,
+          },
           outcome: "skip",
-          reason: "already_mapped_success",
         });
         return {
           detail: `mappingId=${existing.mappingId}`,
@@ -120,14 +155,20 @@ export const createPoCaptureService = (deps?: {
         };
       }
 
-      const remarksTag = buildRemarksTag(input.docNum, input.docEntry);
-      icLog.info(SCOPE, "Flow 2 capture check", {
-        ...base,
-        buyerCompanyId: partner.buyerCompany.companyId,
+      const remarksTag = compactPoTag(input.docNum, input.docEntry);
+      logFlowStep(SCOPE, {
+        step: 3,
+        total: 9,
+        title: "Flow 2 capture proceed — all gates passed",
         check: "capture_proceed",
-        outcome: "pass",
-        remarksTag,
-        sellerCompanyId: partner.sellerCompany.companyId,
+        ctx: base,
+        detail: {
+          ...partnerSnap,
+          existingMapId: existing?.mappingId ?? null,
+          existingMapStatus: existing?.status ?? null,
+          remarksTag,
+          sourceDocEntry,
+        },
       });
 
       return {

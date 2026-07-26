@@ -153,6 +153,7 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
   it("T5.4 build payload tax/customer/remarks", async () => {
     const payload = await buildArDraftPayload({
       buyerCustomerCode: "C-A-ON-B",
+      comments: "User note keep me",
       defaultBranchId: 1,
       docDate: "20260315",
       lines: [
@@ -165,12 +166,17 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
         },
       ],
       mapTaxCode: async (code) => (code === "IN-12.5" ? "GSTO" : code),
+      poDocEntry: 100,
+      poDocNum: 100,
       remarksTag: "IC-PO-100",
     });
 
     expect(payload.DocObjectCode).toBe(SAP_OBJECT_TYPE_AR_INVOICE);
     expect(payload.CardCode).toBe("C-A-ON-B");
-    expect(payload.Comments).toBe("IC-PO-100");
+    // Existing remarks preserved; IC chain appended line-by-line.
+    expect(payload.Comments).toContain("User note keep me");
+    expect(payload.Comments).toContain("IC | PO:");
+    expect(payload.Comments).toContain("IC | AR:");
     expect(payload.NumAtCard).toBe("IC-PO-100");
     expect(payload.BPL_IDAssignedToInvoice).toBe(1);
     expect(payload.DocDate).toBe("2026-03-15");

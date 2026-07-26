@@ -12,6 +12,13 @@ import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import type { ResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
+import {
+  FLOW1_SCOPE,
+  FLOW1_STEPS,
+  logFlowStep,
+  summarizeIcLines,
+  summarizePartner,
+} from "@/modules/intercompany/infrastructure/flow-step-log";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcPqDraftHookInput } from "@/modules/intercompany/flows/shared/flow.types";
@@ -28,7 +35,7 @@ import {
 } from "./03-notify-seller/notify-seller.service";
 import type { Flow1CaptureResult } from "./flow-1.types";
 
-const LOG_SCOPE = IC_LOG_SCOPE.FLOW1;
+const LOG_SCOPE = FLOW1_SCOPE;
 
 const skipFromCapture = (capture: Extract<Flow1CaptureResult, { kind: "skip" }>): IcHookResult =>
   skipResult(capture.detail ? `${capture.reason}:${capture.detail}` : capture.reason);
@@ -80,34 +87,102 @@ export const createFlow1Orchestrator = (deps?: {
   return {
     run: async (input) => {
       const startedAt = Date.now();
+      const corrId = randomUUID();
       const logCtx = {
         cardCode: input.cardCode,
-        corrId: randomUUID(),
+        corrId,
         dbName: input.dbName,
         docEntry: input.docEntry,
         docNum: input.docNum,
+        flow: "flow1" as const,
       };
+      const lineSnap = summarizeIcLines(input.lines as unknown[] | undefined);
 
       try {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.START,
+          ctx: logCtx,
+          detail: {
+            hook: "afterPqDraftSaved",
+            sourceObject: IC_OBJECT.PQ_DRAFT,
+            targetObject: IC_OBJECT.RFQ,
+          },
+        });
+
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.INPUT,
+          ctx: logCtx,
+          detail: {
+            address: input.address ?? null,
+            buyerHint: input.salesPersonCode ?? null,
+            comments: input.comments ?? null,
+            docDate: input.docDate ?? null,
+            docDueDate: input.docDueDate ?? null,
+            itemCodes: lineSnap.itemCodes,
+            lineCount: lineSnap.lineCount,
+            lines: lineSnap.lines,
+            numAtCard: input.numAtCard ?? null,
+            requiredDate: input.requiredDate ?? null,
+          },
+        });
+
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.CAPTURE,
+          ctx: logCtx,
+          detail: { phase: "running_gates" },
+        });
+
         const captured = await capture.capture(input);
         if (captured.kind === "skip") {
-          icLog.info(LOG_SCOPE, "Flow 1 skipped", {
-            ...logCtx,
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW1_STEPS.CAPTURE,
             check: captured.check ?? captured.reason,
-            detail: captured.detail,
+            ctx: logCtx,
+            detail: {
+              detail: captured.detail ?? null,
+              reason: captured.reason,
+            },
             outcome: "skip",
-            reason: captured.reason,
+            title: `Flow 1 capture skipped — ${captured.reason}`,
+          });
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW1_STEPS.COMPLETE,
+            ctx: logCtx,
+            detail: {
+              durationMs: Date.now() - startedAt,
+              reason: captured.reason,
+              status: "skipped",
+            },
+            outcome: "skip",
+            title: "Flow 1 complete — skipped",
           });
           return skipFromCapture(captured);
         }
 
-        icLog.info(LOG_SCOPE, "Flow 1 capture proceed", {
-          ...logCtx,
-          buyerCompanyId: captured.partner.buyerCompany.companyId,
-          check: "capture_proceed",
-          outcome: "pass",
-          remarksTag: captured.remarksTag,
-          sellerCompanyId: captured.partner.sellerCompany.companyId,
+        const partnerSnap = summarizePartner(captured.partner);
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.PARTNER,
+          ctx: logCtx,
+          detail: {
+            ...partnerSnap,
+            remarksTag: captured.remarksTag,
+            sourceDocEntry: captured.sourceDocEntry,
+            sourceDocNum: captured.sourceDocNum,
+          },
+        });
+
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.CREATE_RFQ,
+          ctx: logCtx,
+          detail: {
+            ...partnerSnap,
+            lineCount: lineSnap.lineCount,
+            lines: lineSnap.lines,
+            remarksTag: captured.remarksTag,
+            sourceDocEntry: captured.sourceDocEntry,
+            sourceDocNum: captured.sourceDocNum,
+            vendorCode: captured.partner.vendorCode,
+          },
         });
 
         const created = await createRfq.create({
@@ -118,7 +193,41 @@ export const createFlow1Orchestrator = (deps?: {
           sourceDocNum: captured.sourceDocNum,
         });
 
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.RFQ_RESULT,
+          ctx: logCtx,
+          detail: {
+            created: created.created,
+            mappingId: created.mappingId,
+            rfqId: created.rfq.rfqId,
+            rfqLineCount: created.rfq.lines?.length ?? 0,
+            rfqLines: (created.rfq.lines ?? []).map((line) => ({
+              description: line.description,
+              itemCode: line.itemCode,
+              lineNum: line.lineNum,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              warehouse: line.warehouse,
+            })),
+            rfqNumber: created.rfq.rfqNumber,
+            rfqStatus: created.rfq.status,
+            sourceCompanyId: created.rfq.sourceCompanyId,
+            targetCompanyId: created.rfq.targetCompanyId,
+            vendorCode: created.rfq.vendorCode,
+          },
+        });
+
         if (created.created) {
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW1_STEPS.NOTIFY,
+            ctx: logCtx,
+            detail: {
+              notifyCompanyId: captured.partner.sellerCompany.companyId,
+              notifyCompanyName: captured.partner.sellerCompany.companyName,
+              rfqId: created.rfq.rfqId,
+              rfqNumber: created.rfq.rfqNumber,
+            },
+          });
           await notify.notifyRfqCreated({
             durationMs: Date.now() - startedAt,
             partner: captured.partner,
@@ -126,16 +235,44 @@ export const createFlow1Orchestrator = (deps?: {
             rfq: created.rfq,
             sourceDocEntry: captured.sourceDocEntry,
           });
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW1_STEPS.NOTIFY,
+            check: "notify_seller_done",
+            ctx: logCtx,
+            detail: {
+              notified: true,
+              sellerCompanyId: captured.partner.sellerCompany.companyId,
+            },
+            title: "Flow 1 — notify seller company — done",
+          });
+        } else {
+          logFlowStep(LOG_SCOPE, {
+            ...FLOW1_STEPS.NOTIFY,
+            check: "notify_skipped_existing",
+            ctx: logCtx,
+            detail: {
+              created: false,
+              mappingId: created.mappingId,
+              rfqId: created.rfq.rfqId,
+              reason: "rfq_already_existed_idempotent",
+            },
+            outcome: "pass",
+            title: "Flow 1 — notify skipped — RFQ already existed",
+          });
         }
 
-        icLog.info(LOG_SCOPE, "Flow 1 RFQ path complete", {
-          ...logCtx,
-          check: "complete",
-          created: created.created,
-          durationMs: Date.now() - startedAt,
-          mappingId: created.mappingId,
-          outcome: "pass",
-          rfqId: created.rfq.rfqId,
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.COMPLETE,
+          ctx: logCtx,
+          detail: {
+            created: created.created,
+            durationMs: Date.now() - startedAt,
+            mappingId: created.mappingId,
+            rfqId: created.rfq.rfqId,
+            rfqNumber: created.rfq.rfqNumber,
+            status: "success",
+            ...partnerSnap,
+          },
         });
 
         return {
@@ -149,7 +286,18 @@ export const createFlow1Orchestrator = (deps?: {
         };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        icLog.error(LOG_SCOPE, "Flow 1 unexpected failure; PQ draft remains saved", {
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW1_STEPS.COMPLETE,
+          ctx: logCtx,
+          detail: {
+            durationMs: Date.now() - startedAt,
+            error: message.slice(0, 2000),
+            status: "failed",
+          },
+          outcome: "fail",
+          title: "Flow 1 complete — failed (PQ draft remains saved)",
+        });
+        icLog.error(IC_LOG_SCOPE.FLOW1, "Flow 1 unexpected failure; PQ draft remains saved", {
           ...logCtx,
           check: "unexpected",
           err: err instanceof Error ? err : new Error(message),

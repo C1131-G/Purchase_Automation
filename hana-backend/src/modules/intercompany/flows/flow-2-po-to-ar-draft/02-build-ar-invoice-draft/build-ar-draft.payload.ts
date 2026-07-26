@@ -3,6 +3,7 @@
  */
 
 import { SAP_OBJECT_TYPE_AR_INVOICE } from "@/modules/intercompany/infrastructure/constants";
+import { buildFlow2ArRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import type { IcDocumentLineInput } from "@/modules/intercompany/flows/shared/flow.types";
 
 import type { BuildArDraftInput, BuildArDraftResult } from "./build-ar-draft.types";
@@ -70,9 +71,16 @@ export const buildArDraftPayload = async (
   const docDueDate = formatSapDate(input.docDueDate) ?? docDate;
   const numAtCardRaw = input.numAtCard == null ? "" : String(input.numAtCard).trim();
 
+  // Keep existing PO comments; append IC | PO + IC | AR lines (never wipe user text).
+  const comments = buildFlow2ArRemarks({
+    existingComments: input.comments,
+    poDocEntry: input.poDocEntry,
+    poDocNum: input.poDocNum,
+  });
+
   const payload: BuildArDraftResult = {
     CardCode: input.buyerCustomerCode,
-    Comments: input.comments?.trim() || input.remarksTag,
+    Comments: comments,
     DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,
     DocumentLines: documentLines,
   };
@@ -83,10 +91,11 @@ export const buildArDraftPayload = async (
   if (docDueDate) {
     payload.DocDueDate = docDueDate;
   }
+  // NumAtCard: keep buyer PO ref if present; else compact IC-PO tag.
   if (numAtCardRaw) {
-    payload.NumAtCard = numAtCardRaw;
+    payload.NumAtCard = numAtCardRaw.slice(0, 100);
   } else {
-    payload.NumAtCard = input.remarksTag;
+    payload.NumAtCard = (input.remarksTag || "").slice(0, 100);
   }
 
   const branchId = input.defaultBranchId;

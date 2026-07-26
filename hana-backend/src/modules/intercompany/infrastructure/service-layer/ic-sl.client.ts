@@ -12,6 +12,8 @@ export type IcSlHttpRequest = {
   body?: unknown;
   session: IcSlSessionRecord;
   connection: IcSapConnection;
+  /** Extra SL headers (e.g. B1S-ReplaceCollectionsOnPatch). */
+  headers?: Record<string, string>;
 };
 
 export type IcSlHttpResponse<T = unknown> = {
@@ -36,6 +38,7 @@ const defaultRequest = async <T>(req: IcSlHttpRequest): Promise<IcSlHttpResponse
     headers: {
       Cookie: buildCookieHeader(req.session),
       "Content-Type": "application/json",
+      ...req.headers,
     },
     httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     method: req.method,

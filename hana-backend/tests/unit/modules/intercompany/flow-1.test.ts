@@ -24,9 +24,11 @@ import { createRfqMutations } from "@/modules/intercompany/domain/rfq/rfq.mutati
 import { createRfqQueries } from "@/modules/intercompany/domain/rfq/rfq.queries";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
+import { buildRfqCommercialDocumentLines } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/apply-prices-to-draft";
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
 import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator";
 import { sanitizeFillLines } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/update-rfq-lines";
+import { mergeDocumentLinesByLineNum } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import {
   IC_CONFIG_KEY,
   IC_DOC_MAP_STATUS,
@@ -153,14 +155,33 @@ const createFlow1TestStack = (opts?: {
     taxMapping,
   });
 
+  // Rebuild fill with convert so submit auto-runs draft→PQ + SQ (production path).
+  const fillWithConvert = createSellerFillRfqService({
+    convert,
+    notify: {
+      notifyRfqCreated: async () => undefined,
+      notifyRfqSubmitted: async (params) => {
+        await notifications.create({
+          companyId: params.rfq.sourceCompanyId,
+          documentId: String(params.rfq.rfqId),
+          documentType: IC_OBJECT.RFQ,
+          flowStep: "FLOW1_RFQ_SUBMITTED",
+          title: `RFQ submitted ${params.rfq.rfqNumber}`,
+        });
+      },
+    },
+    rfq,
+  });
+
   void fill;
   void fillWithNotify;
+  void fillService;
 
   return {
     convert,
     db,
     documentMap,
-    fill: fillService,
+    fill: fillWithConvert,
     notifications,
     orchestrator,
     resolvePartner,
@@ -268,8 +289,12 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     });
 
     const submitted = await fill.submit({ actorCompanyId: 2, rfqId });
-    expect(submitted.status).toBe(IC_RFQ_STATUS.SUBMITTED);
+    // Submit auto-converts (draft→PQ + SQ); RFQ becomes COMPLETED on success.
+    expect(submitted.status).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(db.tables.IC_NOTIFICATION.some((row) => row.FLOW_STEP === "FLOW1_RFQ_SUBMITTED")).toBe(
+      true,
+    );
+    expect(db.tables.IC_DOCUMENT_MAPPING.some((row) => row.TARGET_OBJECT === IC_OBJECT.SQ)).toBe(
       true,
     );
   });
@@ -278,14 +303,18 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     let applied = false;
     let converted = false;
     let sqCreated = false;
+    let appliedLines: Record<string, unknown>[] = [];
+    let convertOverrides: Record<string, unknown>[] | undefined;
 
     const { orchestrator, fill, convert, db } = createFlow1TestStack({
       documents: {
-        applyPricesToDraft: async () => {
+        applyPricesToDraft: async (input) => {
           applied = true;
+          appliedLines = input.documentLines;
         },
-        convertDraftToDocument: async () => {
+        convertDraftToDocument: async (input) => {
           converted = true;
+          convertOverrides = input.lineOverrides;
           return { docEntry: 7100, docNum: 710 };
         },
         createSalesQuotation: async () => {
@@ -300,15 +329,25 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       dbName: "DB_A",
       docEntry: 70,
       docNum: 70,
-      lines: [{ ItemCode: "ITEM1", LineNum: 0, Quantity: 2, UnitPrice: 1, VatGroup: "IN-12.5" }],
+      lines: [
+        {
+          DiscountPercent: 5,
+          ItemCode: "ITEM1",
+          LineNum: 0,
+          Quantity: 2,
+          UnitPrice: 1,
+          VatGroup: "IN-12.5",
+        },
+      ],
     });
 
     const rfqId = Number(db.tables.IC_RFQ_HEADER[0].RFQ_ID);
     await fill.updateLines({
       actorCompanyId: 2,
-      lines: [{ lineNum: 0, unitPrice: 40 }],
+      lines: [{ discount: 10, lineNum: 0, quantity: 3, unitPrice: 40 }],
       rfqId,
     });
+    // Submit auto-runs convert (no separate buyer convert click).
     await fill.submit({ actorCompanyId: 2, rfqId });
 
     const result = await convert.convert({ actorCompanyId: 1, rfqId });
@@ -316,14 +355,79 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(applied).toBe(true);
     expect(converted).toBe(true);
     expect(sqCreated).toBe(true);
+    // Seller-filled qty/price/disc% (+ tax from RFQ snapshot) must reach SL.
+    expect(appliedLines[0]).toMatchObject({
+      DiscountPercent: 10,
+      ItemCode: "ITEM1",
+      Quantity: 3,
+      UnitPrice: 40,
+      VatGroup: "IN-12.5",
+    });
+    expect(convertOverrides?.[0]).toMatchObject({
+      DiscountPercent: 10,
+      Quantity: 3,
+      UnitPrice: 40,
+      VatGroup: "IN-12.5",
+    });
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(db.tables.IC_DOCUMENT_MAPPING.some((row) => row.TARGET_OBJECT === IC_OBJECT.SQ)).toBe(
       true,
     );
   });
 
+  it("T6.5b commercial line map + merge keeps tax/qty/price/disc", () => {
+    const built = buildRfqCommercialDocumentLines([
+      {
+        deliveryDate: "2026-06-01",
+        description: "Widget",
+        discount: 12.5,
+        itemCode: "W1",
+        lineNum: 0,
+        quantity: 4,
+        remarks: null,
+        requiredQuantity: 5,
+        rfqId: 1,
+        rfqLineId: 1,
+        taxCode: "IN-12.5",
+        unitPrice: 100,
+        uomCode: "NOS",
+        warehouse: "WH01",
+      },
+    ]);
+    expect(built[0]).toMatchObject({
+      DiscountPercent: 12.5,
+      ItemCode: "W1",
+      Quantity: 4,
+      RequiredQuantity: 5,
+      UnitPrice: 100,
+      VatGroup: "IN-12.5",
+      WarehouseCode: "WH01",
+    });
+
+    const merged = mergeDocumentLinesByLineNum(
+      [
+        {
+          ItemCode: "W1",
+          LineNum: 0,
+          Quantity: 1,
+          UnitPrice: 0,
+          VatGroup: "OLD-TAX",
+          WarehouseCode: "WH01",
+        },
+      ],
+      built,
+    );
+    expect(merged[0]).toMatchObject({
+      DiscountPercent: 12.5,
+      Quantity: 4,
+      UnitPrice: 100,
+      VatGroup: "IN-12.5",
+      WarehouseCode: "WH01",
+    });
+  });
+
   it("T6.6 SQ fail → retry enqueue; RFQ stays SUBMITTED", async () => {
-    const { orchestrator, fill, convert, db } = createFlow1TestStack({
+    const { orchestrator, fill, db } = createFlow1TestStack({
       documents: {
         createSalesQuotation: async () => {
           throw new Error("SL SQ down");
@@ -343,10 +447,9 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       lines: [{ lineNum: 0, unitPrice: 9 }],
       rfqId,
     });
+    // Auto-convert on submit fails SQ → retry queue; RFQ remains SUBMITTED.
     await fill.submit({ actorCompanyId: 2, rfqId });
 
-    const result = await convert.convert({ actorCompanyId: 1, rfqId });
-    expect(result.status).toBe("queued_retry");
     expect(db.tables.IC_RETRY_QUEUE).toHaveLength(1);
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.SUBMITTED);
   });
