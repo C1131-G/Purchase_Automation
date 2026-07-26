@@ -180,26 +180,18 @@ export function IcNotificationTable() {
 
   const columnFilters = useMemo<ColumnFiltersState>(() => {
     if (searchParams.columnFilters !== undefined) {
-      return cloneFilters(normalizeColumnFilters(searchParams.columnFilters));
+      // Only keep the three supported filters: Created At, Status, Priority.
+      const allowed = new Set(["createdAt", "isRead", "priority"]);
+      return cloneFilters(
+        normalizeColumnFilters(searchParams.columnFilters).filter((f) => allowed.has(f.id)),
+      );
     }
     const built: ColumnFiltersState = [];
     if (searchParams.isRead && searchParams.isRead !== "all") {
       built.push({ id: "isRead", value: searchParams.isRead });
     }
-    if (searchParams.title) {
-      built.push({ id: "title", value: searchParams.title });
-    }
-    if (searchParams.documentType) {
-      built.push({ id: "documentType", value: searchParams.documentType });
-    }
-    if (searchParams.documentId) {
-      built.push({ id: "documentId", value: searchParams.documentId });
-    }
     if (searchParams.priority) {
       built.push({ id: "priority", value: searchParams.priority });
-    }
-    if (searchParams.q) {
-      built.push({ id: "message", value: searchParams.q });
     }
     return cloneFilters(built);
   }, [searchParams]);
@@ -248,31 +240,27 @@ export function IcNotificationTable() {
       const nextSearchColumnFilters = toIcNotificationColumnFilters(nextFilters);
 
       const isReadVal = filterValueToString(nextFilters.find((f) => f.id === "isRead")?.value);
-      const titleVal = filterValueToString(nextFilters.find((f) => f.id === "title")?.value);
-      const documentTypeVal = filterValueToString(
-        nextFilters.find((f) => f.id === "documentType")?.value,
-      );
-      const documentIdVal = filterValueToString(
-        nextFilters.find((f) => f.id === "documentId")?.value,
-      );
       const priorityVal = filterValueToString(nextFilters.find((f) => f.id === "priority")?.value);
-      const messageVal = filterValueToString(nextFilters.find((f) => f.id === "message")?.value);
+      // Date range stays only in columnFilters (calendar), same as PQ Doc Date.
+      const allowedFilters = nextSearchColumnFilters.filter(
+        (f) => f.id === "createdAt" || f.id === "isRead" || f.id === "priority",
+      );
 
       void navigate({
         replace: true,
         search: (prev: IcNotificationSearch) => ({
           ...prev,
-          columnFilters: nextSearchColumnFilters,
-          documentId: documentIdVal,
-          documentType: documentTypeVal,
+          columnFilters: allowedFilters,
+          documentId: undefined,
+          documentType: undefined,
           isRead:
             isReadVal === "unread" || isReadVal === "read" || isReadVal === "all"
               ? isReadVal
               : "all",
           page: 1,
           priority: priorityVal,
-          q: messageVal,
-          title: titleVal,
+          q: undefined,
+          title: undefined,
         }),
       });
     },
@@ -431,7 +419,7 @@ export function IcNotificationTable() {
                   <TableHead
                     key={header.id}
                     className="align-top whitespace-nowrap py-3"
-                    style={{ width: header.getSize() }}
+                    style={{ width: `${header.getSize()}%` }}
                   >
                     <div className="flex items-center justify-start gap-2">
                       {header.isPlaceholder
@@ -452,7 +440,11 @@ export function IcNotificationTable() {
                   data-unread={!row.original.isRead ? "true" : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                    <TableCell
+                      key={cell.id}
+                      className="align-top"
+                      style={{ width: `${cell.column.getSize()}%` }}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

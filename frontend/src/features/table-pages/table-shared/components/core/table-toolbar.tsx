@@ -1,6 +1,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import type { Table } from "@tanstack/react-table";
 import { ArrowRight, ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { Separator } from "@/components/separator";
@@ -35,6 +36,12 @@ interface TableToolbarProps<TData> {
   onLookupPopupIntent?: (columnId: string, initialSearch?: string) => void;
   lookupExternalSelection?: { item: LookupItem; columnId: string } | null;
   hideCreate?: boolean | undefined;
+  /** Hide column View options (e.g. IC notifications / retries). */
+  hideView?: boolean | undefined;
+  /** Hide Filter button (e.g. IC retries — fixed columns, no column filters). */
+  hideFilter?: boolean | undefined;
+  /** Extra controls after View (e.g. Mark all read). Rendered before Create when Create is shown. */
+  endActions?: ReactNode;
 }
 
 export function TableToolbar<TData>({
@@ -54,6 +61,9 @@ export function TableToolbar<TData>({
   onLookupPopupIntent,
   lookupExternalSelection,
   hideCreate = false,
+  hideView = false,
+  hideFilter = false,
+  endActions,
 }: TableToolbarProps<TData>) {
   const resolvedLookupSuggestions = lookupSuggestions ?? EMPTY_SUGGESTIONS;
   const resolvedDocNumSuggestions = docNumSuggestions ?? EMPTY_SUGGESTIONS;
@@ -158,28 +168,40 @@ export function TableToolbar<TData>({
             />
           </div>
 
-          <TableFilterOptions tableId={tableId} table={table} />
-          <Separator orientation="vertical" className="mx-1 h-6" />
-          <TableViewOptions tableId={tableId} table={table} onReset={onReset} />
-          <Separator orientation="vertical" className="mx-1 h-6" />
+          {!hideFilter ? <TableFilterOptions tableId={tableId} table={table} /> : null}
+          {!hideView ? (
+            <>
+              <Separator orientation="vertical" className="mx-1 h-6" />
+              <TableViewOptions tableId={tableId} table={table} onReset={onReset} />
+            </>
+          ) : null}
+          {endActions ? (
+            <>
+              <Separator orientation="vertical" className="mx-1 h-6" />
+              {endActions}
+            </>
+          ) : null}
           {!hideCreate && (
-            <Link
-              to={createLink}
-              preload="intent"
-              preloadDelay={0}
-              viewTransition
-              onPointerEnter={triggerCreatePrefetch}
-              onMouseEnter={triggerCreatePrefetch}
-              onFocus={triggerCreatePrefetch}
-              onTouchStart={triggerCreatePrefetch}
-              onClick={() => {
-                triggerCreatePrefetch();
-              }}
-              className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
-            >
-              {createLabel}
-              <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </Link>
+            <>
+              <Separator orientation="vertical" className="mx-1 h-6" />
+              <Link
+                to={createLink}
+                preload="intent"
+                preloadDelay={0}
+                viewTransition
+                onPointerEnter={triggerCreatePrefetch}
+                onMouseEnter={triggerCreatePrefetch}
+                onFocus={triggerCreatePrefetch}
+                onTouchStart={triggerCreatePrefetch}
+                onClick={() => {
+                  triggerCreatePrefetch();
+                }}
+                className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
+              >
+                {createLabel}
+                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            </>
           )}
         </div>
       </div>

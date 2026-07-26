@@ -14,6 +14,8 @@ import { createRetryService } from "@/modules/intercompany/domain/retry/retry.se
 import type { IcRetryQueueItem } from "@/modules/intercompany/domain/retry/retry.types";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
+import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
+import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import type { TaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
 import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
 import {
@@ -64,6 +66,7 @@ const parsePayload = (raw: string | null): Record<string, unknown> => {
 };
 
 const createDefaultHandlers = (deps: {
+  company: CompanyService;
   documents: IcSlDocuments;
   documentMap: DocumentMapService;
   rfq: RfqService;
@@ -96,14 +99,18 @@ const createDefaultHandlers = (deps: {
       });
     }
 
+    const arRef = created.docNum != null ? String(created.docNum) : String(created.docEntry);
+    const poRef = String(payload.sourceDocEntry ?? item.sourceDocument);
+    const buyer = await deps.company.getById(item.companyId);
+    const buyerName = buyer?.companyName?.trim() || "Buyer";
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(created.docEntry),
       documentType: IC_OBJECT.AR_DRAFT,
       flowStep: "FLOW2_RETRY_SUCCESS",
-      message: `AR invoice draft ${created.docEntry} created on retry for PO ${payload.sourceDocEntry ?? item.sourceDocument}.`,
+      message: `AR draft ${arRef} ready for PO ${poRef}.`,
       priority: "MEDIUM",
-      title: "IC Flow 2 retry succeeded",
+      title: buyerName,
     });
 
     await deps.history.append({
@@ -189,14 +196,20 @@ const createDefaultHandlers = (deps: {
 
     await deps.rfq.complete(rfqId);
 
+    const sqRef =
+      salesQuotation.docNum != null
+        ? String(salesQuotation.docNum)
+        : String(salesQuotation.docEntry);
+    const buyer = await deps.company.getById(header.sourceCompanyId);
+    const buyerName = buyer?.companyName?.trim() || "Buyer";
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(salesQuotation.docEntry),
       documentType: IC_OBJECT.SQ,
       flowStep: "FLOW1_RETRY_SUCCESS",
-      message: `SQ ${salesQuotation.docEntry} created on retry for RFQ ${header.rfqNumber}.`,
+      message: `SQ ${sqRef} ready for RFQ ${header.rfqNumber}.`,
       priority: "MEDIUM",
-      title: "IC Flow 1 SQ retry succeeded",
+      title: buyerName,
     });
 
     await deps.history.append({
@@ -243,6 +256,7 @@ export const createProcessRetryQueueJob = (deps?: {
   const scheduler = deps?.scheduler ?? createSchedulerService(sql);
 
   const defaultHandlers = createDefaultHandlers({
+    company: createCompanyService(),
     documentMap: deps?.documentMap ?? createDocumentMapService(),
     documents: deps?.documents ?? createIcSlDocuments(),
     history: deps?.history ?? createHistoryService(),
@@ -282,9 +296,9 @@ export const createProcessRetryQueueJob = (deps?: {
             documentId: String(item.retryId),
             documentType: "RETRY",
             flowStep: "RETRY_DEAD",
-            message: `Retry ${item.retryId} (${item.actionCode}) exhausted after ${updated.retryCount}/${updated.maxRetry}: ${message.slice(0, 500)}`,
+            message: `Failed after ${updated.retryCount}/${updated.maxRetry} attempts: ${message.slice(0, 200)}`,
             priority: "HIGH",
-            title: `IC retry DEAD — ${item.actionCode}`,
+            title: "System",
           });
         } catch {
           // best-effort notify

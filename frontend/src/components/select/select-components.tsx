@@ -219,10 +219,13 @@ export function SelectItem({ value, label, children, className, onMouseEnter }: 
   const isSelected = selectedValue === value;
 
   useEffect(() => {
-    if (label) {
+    // Prefer explicit label so trigger shows "Read" when value is "read".
+    if (label != null && label !== "") {
       registerLabel(value, label);
-    } else if (typeof children === "string") {
-      registerLabel(value, children);
+      return;
+    }
+    if (typeof children === "string" || typeof children === "number") {
+      registerLabel(value, String(children));
     }
   }, [value, children, label, registerLabel]);
 

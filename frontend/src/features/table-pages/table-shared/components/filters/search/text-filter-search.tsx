@@ -37,6 +37,14 @@ const CARD_CODE_COLUMNS = new Set([
 const CARD_NAME_COLUMNS = new Set(["CardName", "ItemName"]);
 const DOC_NUM_COLUMNS = new Set(["DocNum"]);
 const WAREHOUSE_COLUMNS = new Set(["Filler", "ToWhsCode"]);
+/** Text filters that suggest unique values from the loaded table (RFQ draft/co fields). */
+const TABLE_VALUE_LOOKUP_COLUMNS = new Set([
+  "pqDraftDocNum",
+  "pqDraftDocEntry",
+  "sourceCompanyId",
+  "targetCompanyId",
+  "createdBy",
+]);
 const LOOKUP_STYLE_COLUMNS = new Set([
   "DocNum",
   "CardCode",
@@ -48,8 +56,32 @@ const LOOKUP_STYLE_COLUMNS = new Set([
   "ToWhsCode",
   "InvntryUom",
   "CodeBars",
+  ...TABLE_VALUE_LOOKUP_COLUMNS,
 ]);
 const TEXT_FILTER_DEBOUNCE_MS = 700;
+const TABLE_LOOKUP_SUGGESTION_LIMIT = 100;
+
+const toTableValueLookupItems = <TData,>(
+  table: TextFilterSearchProps<TData>["table"],
+  columnId: string,
+): LookupItem[] => {
+  const unique = new Set<string>();
+  const values: LookupItem[] = [];
+  // Core model = full loaded dataset (not just the current page).
+  for (const row of table.getCoreRowModel().rows) {
+    const raw = row.getValue(columnId);
+    const value = raw === null || raw === undefined ? "" : String(raw).trim();
+    if (!value || unique.has(value)) {
+      continue;
+    }
+    unique.add(value);
+    values.push({ code: value, name: value });
+    if (values.length >= TABLE_LOOKUP_SUGGESTION_LIMIT) {
+      break;
+    }
+  }
+  return values;
+};
 
 export function TextFilterSearch<TData>({
   table,
@@ -93,7 +125,8 @@ export function TextFilterSearch<TData>({
     }
     const unique = new Set<string>();
     const values: LookupItem[] = [];
-    for (const row of table.getRowModel().rows) {
+    // Prefer full loaded set so suggestion chips match lookup popup (not page only).
+    for (const row of table.getCoreRowModel().rows) {
       const raw = row.getValue(activeColumnId);
       const value = raw === null || raw === undefined ? "" : String(raw).trim();
       if (!value || unique.has(value)) {
@@ -111,12 +144,22 @@ export function TextFilterSearch<TData>({
     return preserveDocNumSuggestionOrder ? values : sortLookupByCodeDesc(values);
   }, [table, activeColumnId, preserveDocNumSuggestionOrder]);
 
+  const tableValueLookupSuggestions = useMemo(() => {
+    if (!TABLE_VALUE_LOOKUP_COLUMNS.has(activeColumnId)) {
+      return [];
+    }
+    return toTableValueLookupItems(table, activeColumnId);
+  }, [table, activeColumnId]);
+
+  const isTableValueLookupColumn = TABLE_VALUE_LOOKUP_COLUMNS.has(activeColumnId);
+
   const showSuggestions =
     isFocused &&
     (CARD_CODE_COLUMNS.has(activeColumnId) ||
       CARD_NAME_COLUMNS.has(activeColumnId) ||
       DOC_NUM_COLUMNS.has(activeColumnId) ||
-      WAREHOUSE_COLUMNS.has(activeColumnId));
+      WAREHOUSE_COLUMNS.has(activeColumnId) ||
+      isTableValueLookupColumn);
 
   const filteredSuggestions = useMemo(() => {
     if (!showSuggestions) {
@@ -157,6 +200,19 @@ export function TextFilterSearch<TData>({
       return typedValue ? [{ code: typedValue, name: typedValue }] : [];
     }
 
+    if (TABLE_VALUE_LOOKUP_COLUMNS.has(activeColumnId)) {
+      // Distinct values from the loaded table (same pattern as Doc Number chips).
+      const source = tableValueLookupSuggestions;
+      if (!term) {
+        return source;
+      }
+      if (source.length > 0) {
+        return rankLookupSuggestions(source, term, "code");
+      }
+      const typedValue = effectiveLiveValue.trim();
+      return typedValue ? [{ code: typedValue, name: typedValue }] : [];
+    }
+
     if (!term) {
       return suggestions;
     }
@@ -178,6 +234,7 @@ export function TextFilterSearch<TData>({
     docNumSuggestions,
     preserveDocNumSuggestionOrder,
     tableDocNumSuggestions,
+    tableValueLookupSuggestions,
   ]);
 
   const isDocNumberColumn = activeColumnId === "DocNum";
@@ -187,6 +244,7 @@ export function TextFilterSearch<TData>({
     (CARD_CODE_COLUMNS.has(activeColumnId) ||
       CARD_NAME_COLUMNS.has(activeColumnId) ||
       WAREHOUSE_COLUMNS.has(activeColumnId) ||
+      isTableValueLookupColumn ||
       (enableDocNumPopup && DOC_NUM_COLUMNS.has(activeColumnId)));
 
   const searchPlaceholder = isDocLookupStyleColumn ? "Type or select..." : "Search...";
@@ -267,18 +325,19 @@ export function TextFilterSearch<TData>({
           } else if (event.key === "Escape") {
             setIsFocused(false);
           } else if (
-            isDocNumberColumn &&
+            (isDocNumberColumn || isTableValueLookupColumn) &&
             event.key === "Backspace" &&
             activeFilterText &&
             !liveValue
           ) {
-            // DocNum: Backspace on an applied-but-not-edited value clears the filter
+            // Lookup columns: Backspace on an applied-but-not-edited value clears the filter
             event.preventDefault();
             applySearchImmediately("");
           }
         }}
         onFocus={() => {
-          if (!isDocNumberColumn) {
+          // DocNum / table-value lookup keep committed value so chips open immediately.
+          if (!isDocNumberColumn && !isTableValueLookupColumn) {
             setLiveValue(activeFilterText);
           }
           setIsFocused(true);

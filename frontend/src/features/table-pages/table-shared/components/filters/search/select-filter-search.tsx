@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { Select } from "@/components/select/select";
 import type { SelectOption } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import { cn } from "@/shared/utils/cn";
@@ -10,11 +12,28 @@ export function SelectFilterSearch<TData>({
   onSearchChange,
   className,
 }: SelectFilterSearchProps<TData>) {
+  // Map raw values → display labels so the trigger shows "Read" not "read"
+  // even before the popup mounts (items only render when open).
+  const labelMap = useMemo(() => {
+    const map: Record<string, string> = { "": "All" };
+    if (!Array.isArray(filterOptions)) {
+      return map;
+    }
+    for (const option of filterOptions as SelectOption[]) {
+      const value = typeof option === "string" ? option : option.value;
+      const labelText = typeof option === "string" ? option : option.label;
+      if (value != null && String(value).trim() !== "") {
+        map[String(value)] = labelText;
+      }
+    }
+    return map;
+  }, [filterOptions]);
+
   return (
     <div className={cn("relative w-full", className)}>
       <Select value={selectValue} onValueChange={onSearchChange}>
         <Select.Trigger className="w-full h-11 bg-zinc-50/50 border-zinc-200 hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all rounded-xl text-[13px] font-normal">
-          <Select.Value placeholder="Select Status..." />
+          <Select.Value placeholder="Select…" labelMap={labelMap} />
           <Select.Icon>
             <svg
               className="size-4 text-zinc-400"
@@ -35,66 +54,75 @@ export function SelectFilterSearch<TData>({
           <Select.Positioner>
             <Select.Popup>
               <Select.List>
-                <Select.Item value="">All</Select.Item>
+                <Select.Item value="" label="All">
+                  All
+                </Select.Item>
                 {Array.isArray(filterOptions) &&
-                  (filterOptions as SelectOption[]).map((option: SelectOption | string) => {
-                    const value = typeof option === "string" ? option : option.value;
-                    const labelText = typeof option === "string" ? option : option.label;
+                  (filterOptions as SelectOption[])
+                    // Skip duplicate "All" options — empty value already covers clear/all.
+                    .filter((option) => {
+                      const value = typeof option === "string" ? option : option.value;
+                      const normalized = String(value).trim().toLowerCase();
+                      return normalized !== "" && normalized !== "all";
+                    })
+                    .map((option: SelectOption | string) => {
+                      const value = typeof option === "string" ? option : option.value;
+                      const labelText = typeof option === "string" ? option : option.label;
 
-                    let icon = null;
-                    if (labelText === "Open") {
-                      icon = <div className="size-2 rounded-full bg-emerald-500" />;
-                    }
-                    if (labelText === "Closed") {
-                      icon = <div className="size-2 rounded-full bg-zinc-400" />;
-                    }
-                    if (labelText === "Draft") {
-                      icon = <div className="size-2 rounded-full bg-amber-500" />;
-                    }
-                    if (labelText === "Yes (Canceled)") {
-                      icon = (
-                        <svg
-                          className="size-4 text-emerald-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      );
-                    }
-                    if (labelText === "No (Active)") {
-                      icon = (
-                        <svg
-                          className="size-4 text-zinc-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      );
-                    }
+                      let icon = null;
+                      if (labelText === "Open") {
+                        icon = <div className="size-2 rounded-full bg-emerald-500" />;
+                      }
+                      if (labelText === "Closed") {
+                        icon = <div className="size-2 rounded-full bg-zinc-400" />;
+                      }
+                      if (labelText === "Draft") {
+                        icon = <div className="size-2 rounded-full bg-amber-500" />;
+                      }
+                      if (labelText === "Yes (Canceled)") {
+                        icon = (
+                          <svg
+                            className="size-4 text-emerald-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        );
+                      }
+                      if (labelText === "No (Active)") {
+                        icon = (
+                          <svg
+                            className="size-4 text-zinc-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        );
+                      }
 
-                    return (
-                      <Select.Item key={value} value={value}>
-                        <div className="flex items-center gap-2">
-                          {icon}
-                          {labelText}
-                        </div>
-                      </Select.Item>
-                    );
-                  })}
+                      return (
+                        <Select.Item key={value} value={value} label={labelText}>
+                          <div className="flex items-center gap-2">
+                            {icon}
+                            {labelText}
+                          </div>
+                        </Select.Item>
+                      );
+                    })}
               </Select.List>
             </Select.Popup>
           </Select.Positioner>

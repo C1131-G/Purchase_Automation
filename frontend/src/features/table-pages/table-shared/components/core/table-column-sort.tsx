@@ -24,11 +24,11 @@ export function TableColumnSort<TData, TValue>({
     return (
       <div
         className={cn(
-          "px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 font-sans",
+          "inline-flex items-center justify-start px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-600 font-sans select-none",
           className,
         )}
       >
-        {title}
+        <span className="whitespace-nowrap truncate">{title}</span>
       </div>
     );
   }

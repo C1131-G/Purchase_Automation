@@ -21,6 +21,8 @@ export const rfqColumnFilterSchema = z.object({
 /**
  * URL search for `/sales/request-for-quotations`.
  * Mirrors purchase-quotation table chrome; filtering is client-side over GET /ic/rfqs.
+ * Text lookup filters (Doc Number, PQ draft, companies, created by) are stored both as
+ * top-level keys and inside `columnFilters` so shareable URLs restore the same chips.
  */
 export const rfqSearchSchema = z.object({
   CardCode: z.string().optional(),
@@ -29,11 +31,14 @@ export const rfqSearchSchema = z.object({
   columnFilters: z.array(rfqColumnFilterSchema).optional(),
   columnOrder: z.array(z.string()).optional(),
   columnVisibility: z.record(z.string(), z.boolean()).optional(),
+  createdBy: z.string().optional(),
   limit: z.coerce.number().int().min(1).catch(10),
   page: z.coerce.number().int().min(1).catch(1),
   pqDraftDocEntry: z.string().optional(),
   pqDraftDocNum: z.string().optional(),
   sorting: z.array(z.object({ desc: z.boolean(), id: z.string() })).optional(),
+  sourceCompanyId: z.string().optional(),
+  targetCompanyId: z.string().optional(),
 });
 
 export type RfqSearch = z.infer<typeof rfqSearchSchema>;

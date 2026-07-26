@@ -184,6 +184,15 @@ export function RfqTable() {
     if (searchParams.pqDraftDocEntry) {
       built.push({ id: "pqDraftDocEntry", value: searchParams.pqDraftDocEntry });
     }
+    if (searchParams.sourceCompanyId) {
+      built.push({ id: "sourceCompanyId", value: searchParams.sourceCompanyId });
+    }
+    if (searchParams.targetCompanyId) {
+      built.push({ id: "targetCompanyId", value: searchParams.targetCompanyId });
+    }
+    if (searchParams.createdBy) {
+      built.push({ id: "createdBy", value: searchParams.createdBy });
+    }
     return cloneFilters(built);
   }, [searchParams]);
 
@@ -239,12 +248,19 @@ export function RfqTable() {
           DocNum: filterValueToString(nextFilters.find((f) => f.id === "DocNum")?.value),
           DocStatus: filterValueToString(nextFilters.find((f) => f.id === "DocStatus")?.value),
           columnFilters: nextSearchColumnFilters,
+          createdBy: filterValueToString(nextFilters.find((f) => f.id === "createdBy")?.value),
           page: 1,
           pqDraftDocEntry: filterValueToString(
             nextFilters.find((f) => f.id === "pqDraftDocEntry")?.value,
           ),
           pqDraftDocNum: filterValueToString(
             nextFilters.find((f) => f.id === "pqDraftDocNum")?.value,
+          ),
+          sourceCompanyId: filterValueToString(
+            nextFilters.find((f) => f.id === "sourceCompanyId")?.value,
+          ),
+          targetCompanyId: filterValueToString(
+            nextFilters.find((f) => f.id === "targetCompanyId")?.value,
           ),
         }),
       });
@@ -355,11 +371,14 @@ export function RfqTable() {
         columnFilters: [],
         columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnVisibility: {},
+        createdBy: undefined,
         limit: 10,
         page: 1,
         pqDraftDocEntry: undefined,
         pqDraftDocNum: undefined,
         sorting: [],
+        sourceCompanyId: undefined,
+        targetCompanyId: undefined,
       }),
     });
   }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate]);

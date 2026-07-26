@@ -144,7 +144,7 @@ function FilterContent<TData>({
     <Popover.Content
       id={popoverId}
       className="w-57.5 p-0 overflow-hidden border border-zinc-200 rounded-xl shadow-xl"
-      align="start"
+      align="end"
     >
       <div className="flex flex-col bg-white/95 backdrop-blur-xl">
         {/* Columns List */}

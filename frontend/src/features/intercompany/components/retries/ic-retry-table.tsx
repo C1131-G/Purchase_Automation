@@ -181,9 +181,6 @@ export function IcRetryTable() {
     if (searchParams.status && searchParams.status !== "all") {
       built.push({ id: "status", value: searchParams.status });
     }
-    if (searchParams.actionCode) {
-      built.push({ id: "actionCode", value: searchParams.actionCode });
-    }
     if (searchParams.q) {
       built.push({ id: "errorMessage", value: searchParams.q });
     }
@@ -234,7 +231,6 @@ export function IcRetryTable() {
       const nextSearchColumnFilters = toIcRetryColumnFilters(nextFilters);
 
       const statusVal = filterValueToString(nextFilters.find((f) => f.id === "status")?.value);
-      const actionVal = filterValueToString(nextFilters.find((f) => f.id === "actionCode")?.value);
       const errorVal = filterValueToString(nextFilters.find((f) => f.id === "errorMessage")?.value);
 
       const statusEnum =
@@ -250,7 +246,7 @@ export function IcRetryTable() {
         replace: true,
         search: (prev: IcRetrySearch) => ({
           ...prev,
-          actionCode: actionVal,
+          actionCode: undefined,
           columnFilters: nextSearchColumnFilters,
           page: 1,
           q: errorVal,
@@ -411,7 +407,7 @@ export function IcRetryTable() {
                   <TableHead
                     key={header.id}
                     className="align-top whitespace-nowrap py-3"
-                    style={{ width: header.getSize() }}
+                    style={{ width: `${header.getSize()}%` }}
                   >
                     <div className="flex items-center justify-start gap-2">
                       {header.isPlaceholder
@@ -436,7 +432,11 @@ export function IcRetryTable() {
                 return (
                   <TableRow key={row.id} className={rowClass} data-status={status}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
+                      <TableCell
+                        key={cell.id}
+                        className="align-top"
+                        style={{ width: `${cell.column.getSize()}%` }}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

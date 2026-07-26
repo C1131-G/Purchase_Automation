@@ -100,16 +100,11 @@ export function OverviewDashboard() {
       <header className="shrink-0 border-b border-sky-100/80 bg-gradient-to-r from-sky-50/90 via-white to-violet-50/50 px-6 py-5 sm:px-8">
         <div className="mx-auto flex max-w-7xl items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl font-semibold tracking-tight text-balance text-zinc-950">
-                Overview
-              </h1>
-              <span className="rounded-full bg-sky-100/90 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-sky-800 ring-1 ring-sky-200/80">
-                Ops desk
-              </span>
-            </div>
-            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-zinc-500">
-              Open work and partner exposure for this company — scan, jump, act.
+            <h1 className="text-2xl font-semibold tracking-tight text-balance text-zinc-950">
+              Dashboard
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              Open documents, approvals, and partner balances for this company.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5 pt-1 text-xs text-zinc-500">
@@ -169,22 +164,22 @@ export function OverviewDashboard() {
 
               <div
                 id="overview-needs-attention"
-                className="grid scroll-mt-4 grid-cols-1 gap-5 lg:grid-cols-5 lg:gap-6"
+                className="grid scroll-mt-4 grid-cols-1 items-stretch gap-5 lg:grid-cols-5 lg:gap-6"
               >
-                <div className="lg:col-span-3">
+                <div className="flex min-h-0 lg:col-span-3">
                   {isLoading || !data ? (
                     <NeedsAttentionSkeleton />
                   ) : (
-                    <div className={overviewMotionClass.enter}>
+                    <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
                       <NeedsAttention items={data.arApprovalPending} currency={data.currency} />
                     </div>
                   )}
                 </div>
-                <div className="lg:col-span-2">
+                <div className="flex min-h-0 lg:col-span-2">
                   {isLoading || !data ? (
                     <ConnectedPartnersSkeleton />
                   ) : (
-                    <div className={overviewMotionClass.enter}>
+                    <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
                       <ConnectedPartners
                         partners={data.connectedPartners}
                         selectedKey={effectiveSelectedKey}

@@ -1,7 +1,7 @@
 import { createColumnHelper } from "@tanstack/react-table";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/button";
-import { Tooltip } from "@/components/tooltip";
 import type { IcNotification } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import { matchesDateRange } from "@/features/table-pages/table-shared/utils/table-filter-values";
@@ -42,7 +42,66 @@ export interface CreateIcNotificationColumnsOptions {
   onMarkRead: (notificationId: number) => void;
 }
 
+/**
+ * Notifications grid order:
+ * Doc ID → Created → Message → Status → Priority → Actions
+ */
 export const createIcNotificationColumns = (options: CreateIcNotificationColumnsOptions) => [
+  columnHelper.accessor("documentId", {
+    cell: (info) => {
+      const value = info.getValue();
+      if (!value) {
+        return "—";
+      }
+      return (
+        <span className="font-mono text-sm font-semibold tabular-nums whitespace-nowrap text-zinc-900">
+          {value}
+        </span>
+      );
+    },
+    enableColumnFilter: false,
+    enableSorting: true,
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc ID" />
+    ),
+    id: "documentId",
+    minSize: 12,
+    size: 14,
+  }),
+  columnHelper.accessor("createdAt", {
+    cell: (info) => (
+      <span className="whitespace-nowrap tabular-nums text-zinc-700">
+        {formatCreatedAt(info.getValue())}
+      </span>
+    ),
+    enableColumnFilter: true,
+    enableSorting: true,
+    filterFn: (row, columnId, filterValue) => matchesDateRange(row.getValue(columnId), filterValue),
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Created At" />
+    ),
+    id: "createdAt",
+    meta: { filterType: "date" },
+    minSize: 12,
+    size: 14,
+  }),
+  columnHelper.accessor("message", {
+    cell: (info) => {
+      const value = info.getValue();
+      if (!value) {
+        return "—";
+      }
+      return <span className="block whitespace-pre-wrap break-words text-zinc-700">{value}</span>;
+    },
+    enableColumnFilter: false,
+    enableSorting: true,
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Message" />
+    ),
+    id: "message",
+    minSize: 30,
+    size: 36,
+  }),
   columnHelper.accessor("isRead", {
     cell: (info) => {
       const isRead = info.getValue();
@@ -59,6 +118,7 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
         </span>
       );
     },
+    enableColumnFilter: true,
     enableSorting: true,
     filterFn: (row, _columnId, filterValue) => {
       const raw = String(filterValue ?? "")
@@ -81,65 +141,15 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
     id: "isRead",
     meta: {
       filterType: "select",
+      // Labels are title case; values stay lowercase for filter logic / URL.
+      // Select trigger always shows `label` (e.g. "Read"), not raw value ("read").
       filterOptions: [
-        { label: "All", value: "all" },
         { label: "Unread", value: "unread" },
         { label: "Read", value: "read" },
       ],
     },
-    minSize: 10,
-    size: 12,
-  }),
-  columnHelper.accessor("title", {
-    cell: (info) => {
-      const value = info.getValue();
-      const unread = !info.row.original.isRead;
-      return (
-        <Tooltip content={value} className="block w-full max-w-full truncate">
-          <span
-            className={cn(unread ? "font-semibold text-zinc-950" : "font-medium text-zinc-700")}
-          >
-            {value}
-          </span>
-        </Tooltip>
-      );
-    },
-    enableSorting: true,
-    filterFn: "includesString",
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Title" />
-    ),
-    id: "title",
-    meta: { filterType: "text" },
-    minSize: 20,
-    size: 24,
-  }),
-  columnHelper.accessor("documentType", {
-    cell: (info) => info.getValue() || "—",
-    enableSorting: true,
-    filterFn: "includesString",
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc type" />
-    ),
-    id: "documentType",
-    meta: { filterType: "text" },
-    minSize: 10,
-    size: 12,
-  }),
-  columnHelper.accessor("documentId", {
-    cell: (info) => {
-      const value = info.getValue();
-      return value ? <span className="font-mono text-xs text-zinc-800">{value}</span> : "—";
-    },
-    enableSorting: true,
-    filterFn: "includesString",
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Doc ID" />
-    ),
-    id: "documentId",
-    meta: { filterType: "text" },
-    minSize: 10,
-    size: 12,
+    minSize: 8,
+    size: 10,
   }),
   columnHelper.accessor("priority", {
     cell: (info) => {
@@ -155,87 +165,83 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
         </span>
       );
     },
+    enableColumnFilter: true,
     enableSorting: true,
-    filterFn: "includesString",
+    filterFn: (row, _columnId, filterValue) => {
+      const raw = String(filterValue ?? "")
+        .trim()
+        .toUpperCase();
+      if (!raw || raw === "ALL") {
+        return true;
+      }
+      return (
+        String(row.original.priority ?? "MEDIUM")
+          .trim()
+          .toUpperCase() === raw
+      );
+    },
     header: ({ column, table }) => (
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Priority" />
     ),
     id: "priority",
-    meta: { filterType: "text" },
-    minSize: 10,
-    size: 10,
-  }),
-  columnHelper.accessor("message", {
-    cell: (info) => {
-      const value = info.getValue();
-      if (!value) {
-        return "—";
-      }
-      return (
-        <Tooltip content={value} className="block w-full max-w-full truncate text-zinc-600">
-          {value}
-        </Tooltip>
-      );
+    meta: {
+      filterType: "select",
+      filterOptions: [
+        { label: "Low", value: "LOW" },
+        { label: "Medium", value: "MEDIUM" },
+        { label: "High", value: "HIGH" },
+        { label: "Critical", value: "CRITICAL" },
+      ],
     },
-    enableSorting: false,
-    filterFn: "includesString",
-    header: () => <span>Message</span>,
-    id: "message",
-    meta: { filterType: "text" },
-    minSize: 18,
-    size: 20,
-  }),
-  columnHelper.accessor("createdAt", {
-    cell: (info) => formatCreatedAt(info.getValue()),
-    enableSorting: true,
-    filterFn: (row, columnId, filterValue) => matchesDateRange(row.getValue(columnId), filterValue),
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Created" />
-    ),
-    id: "createdAt",
-    meta: { filterType: "date" },
-    minSize: 12,
-    size: 14,
+    minSize: 8,
+    size: 10,
   }),
   columnHelper.display({
     cell: ({ row }) => {
       const { isRead, notificationId } = row.original;
       if (isRead) {
-        return <span className="text-xs text-zinc-400">—</span>;
+        return (
+          <div className="flex w-full items-center justify-start">
+            <span className="inline-block min-w-[7.5rem] text-left text-xs text-zinc-400">—</span>
+          </div>
+        );
       }
       const isPending = options.markReadPendingId === notificationId;
       return (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="normal-case tracking-normal"
-          isLoading={isPending}
-          loadingText="…"
-          aria-label={`Mark notification ${notificationId} as read`}
-          onClick={() => options.onMarkRead(notificationId)}
-        >
-          Mark read
-        </Button>
+        <div className="flex w-full items-center justify-start">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-9 min-w-[7.5rem] gap-1.5 px-4 normal-case tracking-normal shadow-sm"
+            isLoading={isPending}
+            loadingText="Reading…"
+            aria-label={`Mark notification ${notificationId} as read`}
+            onClick={() => options.onMarkRead(notificationId)}
+          >
+            <Check className="size-3.5 stroke-[2.5px]" aria-hidden />
+            Read
+          </Button>
+        </div>
       );
     },
     enableColumnFilter: false,
     enableHiding: false,
     enableSorting: false,
-    header: () => <span className="sr-only">Actions</span>,
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Read" />
+    ),
     id: "actions",
-    minSize: 10,
-    size: 12,
+    minSize: 12,
+    size: 14,
   }),
 ];
 
 export const IC_NOTIFICATION_DEFAULT_COLUMN_ORDER = [
-  "isRead",
-  "title",
-  "documentType",
   "documentId",
-  "priority",
-  "message",
   "createdAt",
+  "message",
+  "isRead",
+  "priority",
   "actions",
 ] as const;

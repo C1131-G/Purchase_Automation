@@ -34,7 +34,7 @@ export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
   return (
     <section
       aria-label="Needs attention"
-      className="flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm shadow-amber-50/80"
+      className="flex h-full min-h-[320px] w-full flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm shadow-amber-50/80"
     >
       <div className="border-b border-amber-100/90 bg-gradient-to-r from-amber-50/90 via-white to-white px-5 py-4">
         <div className="flex items-start justify-between gap-2">
@@ -60,8 +60,8 @@ export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
           </p>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="hidden grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,6.5rem)_minmax(0,4rem)_minmax(0,5rem)] gap-2 border-b border-amber-50 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800/50 sm:grid">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="hidden shrink-0 grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,6.5rem)_minmax(0,4rem)_minmax(0,5rem)] gap-2 border-b border-amber-50 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800/50 sm:grid">
             <span>Doc</span>
             <span>Customer</span>
             <span className="text-right">Amount</span>
@@ -69,7 +69,7 @@ export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
             <span className="text-right">Status</span>
           </div>
 
-          <ul className="flex max-h-[300px] flex-col overflow-y-auto" role="list">
+          <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto" role="list">
             {items.map((item) => {
               const name = item.cardName?.trim() || item.cardCode || "—";
               const code = item.cardCode?.trim();

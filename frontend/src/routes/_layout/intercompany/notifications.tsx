@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_layout/intercompany/notifications")({
 });
 
 function IntercompanyNotificationsRoute() {
-  useDocumentTitle("IC Notifications | ERP Portal");
+  useDocumentTitle("Notifications Data Table | ERP Portal");
   return (
     <div className="h-full w-full">
       <IcNotificationTable />

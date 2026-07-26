@@ -94,10 +94,12 @@ export function TableSearch<TData>({
   }
 
   if (filterType === "select" || filterType === "boolean") {
-    const selectValue =
+    const rawSelectValue =
       (typeof activeFilterValue === "string" ? activeFilterValue : undefined) ??
       (typeof storeActiveFilterValue === "string" ? storeActiveFilterValue : undefined) ??
       "";
+    // "all" is treated as no selection (shared empty "All" option).
+    const selectValue = rawSelectValue.trim().toLowerCase() === "all" ? "" : rawSelectValue;
 
     return (
       <SelectFilterSearch
@@ -105,7 +107,8 @@ export function TableSearch<TData>({
         selectValue={selectValue}
         filterOptions={filterOptions}
         onSearchChange={(value) => {
-          activeColumn.setFilterValue(value === "" ? undefined : value);
+          const next = value === "" || value.trim().toLowerCase() === "all" ? undefined : value;
+          activeColumn.setFilterValue(next);
         }}
       />
     );

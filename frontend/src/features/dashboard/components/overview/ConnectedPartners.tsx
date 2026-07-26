@@ -26,7 +26,7 @@ export function ConnectedPartners({
   return (
     <section
       aria-label="Connected vendors and customers"
-      className="flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-violet-200/80 bg-white shadow-sm shadow-violet-50/80"
+      className="flex h-full min-h-[320px] w-full flex-col overflow-hidden rounded-2xl border border-violet-200/80 bg-white shadow-sm shadow-violet-50/80"
     >
       <div className="border-b border-violet-100/90 bg-gradient-to-r from-violet-50/90 via-white to-white px-5 py-4">
         <div className="flex items-start justify-between gap-2">
@@ -58,8 +58,8 @@ export function ConnectedPartners({
           </p>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col">
-          <div className="border-b border-violet-50 px-2.5 py-2">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-violet-50 px-2.5 py-2">
             <button
               type="button"
               onClick={onSelectAll}
@@ -80,7 +80,7 @@ export function ConnectedPartners({
           </div>
 
           <ul
-            className="flex max-h-[300px] flex-col gap-0.5 overflow-y-auto p-2.5"
+            className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2.5"
             role="listbox"
             aria-label="Partner list"
           >

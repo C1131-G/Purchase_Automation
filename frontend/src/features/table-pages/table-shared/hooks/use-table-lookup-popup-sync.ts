@@ -26,6 +26,23 @@ interface UseTableLookupPopupSyncResult {
 
 const DEFAULT_LOOKUP_COLUMNS = ["CardCode", "CardName", "DocNum"];
 
+/** Columns whose filter value is the lookup item `code` (not name). */
+const CODE_VALUE_COLUMNS = new Set([
+  "DocNum",
+  "CardCode",
+  "Filler",
+  "ToWhsCode",
+  "pqDraftDocNum",
+  "pqDraftDocEntry",
+  "sourceCompanyId",
+  "targetCompanyId",
+  "createdBy",
+  "ItemCode",
+  "ItmsGrpCod",
+  "InvntryUom",
+  "CodeBars",
+]);
+
 export function useTableLookupPopupSync<TData>({
   table,
   tableId,
@@ -123,14 +140,12 @@ export function useTableLookupPopupSync<TData>({
 
       if (filterValueResolver) {
         column.setFilterValue(filterValueResolver(item, columnId));
-      } else if (columnId === "DocNum") {
+      } else if (CODE_VALUE_COLUMNS.has(columnId)) {
         column.setFilterValue(item.code);
-      } else if (columnId === "CardCode" || columnId === "Filler" || columnId === "ToWhsCode") {
-        column.setFilterValue(item.code);
-      } else if (columnId === "CardName") {
+      } else if (columnId === "CardName" || columnId === "ItemName") {
         column.setFilterValue(item.name);
       } else {
-        column.setFilterValue(item.name);
+        column.setFilterValue(item.code || item.name);
       }
 
       onSetActiveFilter?.(tableId, columnId);

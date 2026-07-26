@@ -1,29 +1,12 @@
 import { createColumnHelper } from "@tanstack/react-table";
+import { Play } from "lucide-react";
 
 import { Button } from "@/components/button";
-import { Tooltip } from "@/components/tooltip";
 import type { IcRetryQueueItem } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import { cn } from "@/shared/utils/cn";
 
 const columnHelper = createColumnHelper<IcRetryQueueItem>();
-
-const formatNextRetryAt = (value: string | null | undefined): string => {
-  if (!value) {
-    return "—";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString("en-GB", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 const statusClassName = (status: string): string => {
   const normalized = status.trim().toUpperCase();
@@ -52,6 +35,10 @@ export interface CreateIcRetryColumnsOptions {
   onRun: (retryId: number) => void;
 }
 
+/**
+ * Lean IC retry grid — no row id / company id / payload clutter.
+ * Ops-focused: status, docs, attempts, error, run.
+ */
 export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
   columnHelper.accessor("status", {
     cell: (info) => {
@@ -94,49 +81,43 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
     minSize: 10,
     size: 12,
   }),
-  columnHelper.accessor("actionCode", {
-    cell: (info) => (
-      <span className="font-mono text-xs font-medium text-zinc-800">{info.getValue() || "—"}</span>
-    ),
-    enableSorting: true,
-    filterFn: "includesString",
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Action" />
-    ),
-    id: "actionCode",
-    meta: { filterType: "text" },
-    minSize: 12,
-    size: 14,
-  }),
   columnHelper.accessor("sourceDocument", {
     cell: (info) => {
       const value = info.getValue();
-      return value ? <span className="font-mono text-xs text-zinc-800">{value}</span> : "—";
+      return value ? (
+        <span className="font-mono text-xs whitespace-normal break-all text-zinc-800">{value}</span>
+      ) : (
+        "—"
+      );
     },
     enableSorting: true,
     filterFn: "includesString",
     header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Source" />
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Source Doc" />
     ),
     id: "sourceDocument",
     meta: { filterType: "text" },
-    minSize: 12,
-    size: 14,
+    minSize: 14,
+    size: 16,
   }),
   columnHelper.accessor("targetDocument", {
     cell: (info) => {
       const value = info.getValue();
-      return value ? <span className="font-mono text-xs text-zinc-800">{value}</span> : "—";
+      return value ? (
+        <span className="font-mono text-xs whitespace-normal break-all text-zinc-800">{value}</span>
+      ) : (
+        "—"
+      );
     },
     enableSorting: true,
     filterFn: "includesString",
     header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Target" />
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Target Doc" />
     ),
     id: "targetDocument",
     meta: { filterType: "text" },
-    minSize: 10,
-    size: 12,
+    minSize: 14,
+    size: 16,
   }),
   columnHelper.accessor("retryCount", {
     cell: (info) => {
@@ -154,18 +135,8 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Attempts" />
     ),
     id: "retryCount",
-    minSize: 8,
-    size: 10,
-  }),
-  columnHelper.accessor("nextRetryAt", {
-    cell: (info) => formatNextRetryAt(info.getValue()),
-    enableSorting: true,
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Next run" />
-    ),
-    id: "nextRetryAt",
-    minSize: 12,
-    size: 14,
+    minSize: 10,
+    size: 12,
   }),
   columnHelper.accessor("errorMessage", {
     cell: (info) => {
@@ -173,38 +144,39 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
       if (!value) {
         return "—";
       }
-      return (
-        <Tooltip content={value} className="block w-full max-w-full truncate text-zinc-600">
-          {value}
-        </Tooltip>
-      );
+      return <span className="block whitespace-pre-wrap break-words text-zinc-600">{value}</span>;
     },
-    enableSorting: false,
+    enableSorting: true,
     filterFn: "includesString",
-    header: () => <span>Error</span>,
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Error" />
+    ),
     id: "errorMessage",
     meta: { filterType: "text" },
-    minSize: 16,
-    size: 20,
+    minSize: 20,
+    size: 26,
   }),
   columnHelper.display({
     cell: ({ row }) => {
       const { retryId, status } = row.original;
       if (!canRunRetry(String(status))) {
-        return <span className="text-xs text-zinc-400">—</span>;
+        return (
+          <span className="inline-block min-w-[7.5rem] text-center text-xs text-zinc-400">—</span>
+        );
       }
       const isPending = options.runPendingId === retryId;
       return (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
-          className="normal-case tracking-normal"
+          className="h-9 min-w-[7.5rem] gap-1.5 px-4 normal-case tracking-normal shadow-sm"
           isLoading={isPending}
-          loadingText="…"
+          loadingText="Running…"
           aria-label={`Run retry ${retryId}`}
           onClick={() => options.onRun(retryId)}
         >
+          <Play className="size-3.5 fill-current" aria-hidden />
           Run
         </Button>
       );
@@ -212,20 +184,20 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
     enableColumnFilter: false,
     enableHiding: false,
     enableSorting: false,
-    header: () => <span className="sr-only">Actions</span>,
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Run" />
+    ),
     id: "actions",
-    minSize: 10,
-    size: 10,
+    minSize: 12,
+    size: 14,
   }),
 ];
 
 export const IC_RETRY_DEFAULT_COLUMN_ORDER = [
   "status",
-  "actionCode",
   "sourceDocument",
   "targetDocument",
   "retryCount",
-  "nextRetryAt",
   "errorMessage",
   "actions",
 ] as const;

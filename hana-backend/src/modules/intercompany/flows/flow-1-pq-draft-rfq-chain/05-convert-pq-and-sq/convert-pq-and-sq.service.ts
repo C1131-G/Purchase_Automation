@@ -252,14 +252,23 @@ export const createConvertPqAndSqService = (deps?: {
 
         await rfq.complete(rfqId);
 
+        const [buyerCompany, sellerCompany] = await Promise.all([
+          company.getById(header.sourceCompanyId),
+          company.getById(header.targetCompanyId),
+        ]);
+        const buyerName = buyerCompany?.companyName?.trim() || "Buyer";
+        const sellerName = sellerCompany?.companyName?.trim() || "Seller";
+        const sqRef = salesQuotation.docNum ?? salesQuotation.docEntry;
+        const pqRef = purchaseQuotation.docNum ?? purchaseQuotation.docEntry;
+
         await notifications.create({
           companyId: header.targetCompanyId,
           documentId: String(salesQuotation.docEntry),
           documentType: IC_OBJECT.SQ,
           flowStep: "FLOW1_CONVERT_COMPLETE",
-          message: `SQ created for RFQ ${header.rfqNumber} (buyer PQ entry ${purchaseQuotation.docEntry}).`,
+          message: `${buyerName}: SQ ${sqRef} for RFQ ${header.rfqNumber}.`,
           priority: "MEDIUM",
-          title: `IC Flow 1 complete — SQ ${salesQuotation.docNum ?? salesQuotation.docEntry}`,
+          title: buyerName,
         });
 
         await notifications.create({
@@ -267,9 +276,9 @@ export const createConvertPqAndSqService = (deps?: {
           documentId: String(purchaseQuotation.docEntry),
           documentType: IC_OBJECT.PQ,
           flowStep: "FLOW1_CONVERT_COMPLETE",
-          message: `RFQ ${header.rfqNumber} converted. PQ entry ${purchaseQuotation.docEntry}; partner SQ entry ${salesQuotation.docEntry}.`,
+          message: `${sellerName}: RFQ ${header.rfqNumber} → PQ ${pqRef} & SQ ${sqRef}.`,
           priority: "LOW",
-          title: `IC convert complete ${header.rfqNumber}`,
+          title: sellerName,
         });
 
         await history.append({

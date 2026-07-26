@@ -28,7 +28,7 @@ function selectionCaption(
     if (!hasStatementRows) {
       return `All connected partners (${partnerCount}) · balances unavailable`;
     }
-    return `All connected partners (${partnerCount}) · open invoice aging`;
+    return `All connected partners (${partnerCount})`;
   }
 
   const name = selection.cardName?.trim() || selection.cardCode;
@@ -90,9 +90,6 @@ export function StatementShell({
     partnerCount,
   );
 
-  const filterLabel =
-    selection.kind === "all" ? "All connected" : selection.cardName?.trim() || selection.cardCode;
-
   const caption = selectionCaption(selection, partnerCount, statement.partners.length > 0);
   const openAgingTotal = aging.d0_30 + aging.d31_60 + aging.d61_90 + aging.d90_plus;
   const isEmpty = partnerCount === 0 || showEmptyPartner;
@@ -104,15 +101,8 @@ export function StatementShell({
       className="flex min-h-[200px] flex-col scroll-mt-4 overflow-hidden rounded-2xl border border-teal-200/80 bg-white shadow-sm shadow-teal-50/70"
     >
       <div className="border-b border-teal-100/90 bg-gradient-to-r from-teal-50/90 via-white to-white px-5 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold tracking-tight text-teal-950">Statement</h2>
-            <p className="mt-1 text-xs text-teal-800/65">{caption}</p>
-          </div>
-          <span className="rounded-lg border border-teal-200/80 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-900">
-            Filter: {filterLabel}
-          </span>
-        </div>
+        <h2 className="text-sm font-semibold tracking-tight text-teal-950">Statement</h2>
+        <p className="mt-1 text-xs text-teal-800/65">{caption}</p>
       </div>
 
       <div

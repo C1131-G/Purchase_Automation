@@ -15,29 +15,28 @@ export const createNotifyArCreated = (
   notifications: NotificationService = createNotificationService(),
 ) => {
   return async (params: NotifyArCreatedParams): Promise<void> => {
-    const draftLabel = params.targetDocNum
-      ? `DocNum ${params.targetDocNum}`
-      : `DocEntry ${params.targetDocEntry}`;
+    const buyerName = params.partner.buyerCompany.companyName.trim() || "Buyer";
+    const sellerName = params.partner.sellerCompany.companyName.trim() || "Seller";
+    const draftRef = params.targetDocNum ?? params.targetDocEntry;
 
     await notifications.create({
       companyId: params.partner.sellerCompany.companyId,
       documentId: params.targetDocEntry,
       documentType: IC_OBJECT.AR_DRAFT,
       flowStep: "FLOW2_AR_DRAFT_CREATED",
-      message: `Buyer ${params.partner.buyerCompany.companyCode} PO (${params.remarksTag}, entry ${params.sourceDocEntry}) created AR Invoice Draft ${draftLabel}.`,
+      message: `${buyerName} PO created AR draft ${draftRef}.`,
       priority: "MEDIUM",
-      title: `IC AR Draft created (${params.remarksTag})`,
+      title: buyerName,
     });
 
-    // Optional buyer awareness (rows only; UI in P8).
     await notifications.create({
       companyId: params.partner.buyerCompany.companyId,
       documentId: params.sourceDocEntry,
       documentType: IC_OBJECT.PO,
       flowStep: "FLOW2_AR_DRAFT_CREATED",
-      message: `Partner ${params.partner.sellerCompany.companyCode} has AR Invoice Draft ${draftLabel} for ${params.remarksTag}.`,
+      message: `${sellerName} has AR draft ${draftRef}.`,
       priority: "LOW",
-      title: `IC partner AR Draft created (${params.remarksTag})`,
+      title: sellerName,
     });
   };
 };

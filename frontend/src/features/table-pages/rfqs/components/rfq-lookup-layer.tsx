@@ -1,6 +1,8 @@
 /**
  * Request For Quotation lookup layer — same TableToolbar + LookupPopup pattern as
- * purchase quotations. No Create button (documents are created from IC PQ draft Flow 1).
+ * purchase quotations. Doc Number, vendor, and table-value fields (PQ draft, companies,
+ * created by) use suggestion chips + full-screen lookup from the loaded RFQ list.
+ * No Create button (documents are created from IC PQ draft Flow 1).
  */
 import { useQuery } from "@tanstack/react-query";
 import type { useReactTable } from "@tanstack/react-table";
@@ -22,7 +24,48 @@ const REQUEST_FOR_QUOTATION_BREADCRUMB = {
 
 const DOC_NUM_BACKGROUND_LIMIT = 100;
 
-const toOrderedUniqueDocNumSuggestions = (items: LookupItem[]): LookupItem[] => {
+/** Columns that open lookup popup + suggestion chips (mirrors Doc Number UX). */
+const RFQ_LOOKUP_COLUMNS = [
+  "DocNum",
+  "CardCode",
+  "pqDraftDocNum",
+  "pqDraftDocEntry",
+  "sourceCompanyId",
+  "targetCompanyId",
+  "createdBy",
+] as const;
+
+type RfqLookupColumnId = (typeof RFQ_LOOKUP_COLUMNS)[number];
+
+const TABLE_VALUE_COLUMNS = new Set<string>([
+  "pqDraftDocNum",
+  "pqDraftDocEntry",
+  "sourceCompanyId",
+  "targetCompanyId",
+  "createdBy",
+]);
+
+const LOOKUP_TITLES: Record<RfqLookupColumnId, string> = {
+  CardCode: "Search Vendor Code",
+  DocNum: "Search Doc Number",
+  createdBy: "Search Created By",
+  pqDraftDocEntry: "Search PQ Draft Entry",
+  pqDraftDocNum: "Search PQ Draft No.",
+  sourceCompanyId: "Search Source Co.",
+  targetCompanyId: "Search Target Co.",
+};
+
+const LOOKUP_PLACEHOLDERS: Record<RfqLookupColumnId, string> = {
+  CardCode: "Search vendor code",
+  DocNum: "Search document number",
+  createdBy: "Search created by",
+  pqDraftDocEntry: "Search PQ draft entry",
+  pqDraftDocNum: "Search PQ draft number",
+  sourceCompanyId: "Search source company id",
+  targetCompanyId: "Search target company id",
+};
+
+const toOrderedUniqueSuggestions = (items: LookupItem[]): LookupItem[] => {
   const seen = new Set<string>();
   const result: LookupItem[] = [];
   for (const item of items) {
@@ -31,9 +74,46 @@ const toOrderedUniqueDocNumSuggestions = (items: LookupItem[]): LookupItem[] => 
       continue;
     }
     seen.add(code);
-    result.push({ code, name: code });
+    result.push({ code, name: item.name || code });
   }
   return result;
+};
+
+const pickFieldValue = (row: IcRfqHeader, columnId: string): string => {
+  switch (columnId) {
+    case "DocNum":
+      return String(row.rfqNumber ?? "").trim();
+    case "CardCode":
+      return String(row.vendorCode ?? "").trim();
+    case "pqDraftDocNum":
+      return row.pqDraftDocNum === null || row.pqDraftDocNum === undefined
+        ? ""
+        : String(row.pqDraftDocNum).trim();
+    case "pqDraftDocEntry":
+      return row.pqDraftDocEntry === null || row.pqDraftDocEntry === undefined
+        ? ""
+        : String(row.pqDraftDocEntry).trim();
+    case "sourceCompanyId":
+      return String(row.sourceCompanyId ?? "").trim();
+    case "targetCompanyId":
+      return String(row.targetCompanyId ?? "").trim();
+    case "createdBy":
+      return String(row.createdBy ?? "").trim();
+    default:
+      return "";
+  }
+};
+
+const buildSuggestionsFromRows = (rows: IcRfqHeader[], columnId: string): LookupItem[] => {
+  const items: LookupItem[] = [];
+  for (const row of rows) {
+    const code = pickFieldValue(row, columnId);
+    if (!code) {
+      continue;
+    }
+    items.push({ code, name: code });
+  }
+  return toOrderedUniqueSuggestions(items).slice(0, DOC_NUM_BACKGROUND_LIMIT);
 };
 
 export interface RfqLookupLayerProps {
@@ -64,37 +144,53 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
   } = useTableLookupPopupSync({
     table,
     tableId,
+    allowedColumnIds: [...RFQ_LOOKUP_COLUMNS],
+    filterValueResolver: (item) => item.code,
     onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
   });
 
-  const docNumSuggestions = useMemo<LookupItem[]>(() => {
-    const items: LookupItem[] = [];
-    for (const row of allRows) {
-      const code = String(row.rfqNumber ?? "").trim();
-      if (!code) {
-        continue;
-      }
-      items.push({ code, name: code });
-    }
-    return toOrderedUniqueDocNumSuggestions(items).slice(0, DOC_NUM_BACKGROUND_LIMIT);
-  }, [allRows]);
+  const docNumSuggestions = useMemo(() => buildSuggestionsFromRows(allRows, "DocNum"), [allRows]);
 
-  const docNumLookupSearchTerm = useMemo(
+  const lookupSearchTerm = useMemo(
     () => debouncedLookupSearch.trim().toLowerCase(),
     [debouncedLookupSearch],
   );
 
-  const docNumLookupResults = useMemo<LookupItem[]>(() => {
-    if (lookupColumnId !== "DocNum") {
-      return docNumSuggestions;
+  const isTableValueLookup = TABLE_VALUE_COLUMNS.has(lookupColumnId);
+  const isDocNumLookup = lookupColumnId === "DocNum";
+  const isVendorLookup = lookupColumnId === "CardCode";
+
+  const tableColumnSuggestions = useMemo(() => {
+    if (!isTableValueLookup && !isDocNumLookup) {
+      return [] as LookupItem[];
     }
-    if (!docNumLookupSearchTerm) {
-      return docNumSuggestions;
+    return buildSuggestionsFromRows(allRows, lookupColumnId || "DocNum");
+  }, [allRows, isDocNumLookup, isTableValueLookup, lookupColumnId]);
+
+  const filteredTableLookupResults = useMemo(() => {
+    if (!lookupSearchTerm) {
+      return tableColumnSuggestions;
     }
-    return docNumSuggestions
-      .filter((item) => item.code.toLowerCase().includes(docNumLookupSearchTerm))
+    return tableColumnSuggestions
+      .filter((item) => item.code.toLowerCase().includes(lookupSearchTerm))
       .slice(0, DOC_NUM_BACKGROUND_LIMIT);
-  }, [lookupColumnId, docNumSuggestions, docNumLookupSearchTerm]);
+  }, [lookupSearchTerm, tableColumnSuggestions]);
+
+  const popupResults = isVendorLookup
+    ? vendors
+    : isDocNumLookup || isTableValueLookup
+      ? filteredTableLookupResults
+      : vendors;
+
+  const popupTitle =
+    lookupColumnId && lookupColumnId in LOOKUP_TITLES
+      ? LOOKUP_TITLES[lookupColumnId as RfqLookupColumnId]
+      : "Search";
+
+  const popupPlaceholder =
+    lookupColumnId && lookupColumnId in LOOKUP_PLACEHOLDERS
+      ? LOOKUP_PLACEHOLDERS[lookupColumnId as RfqLookupColumnId]
+      : "Search…";
 
   return (
     <>
@@ -115,42 +211,25 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
       />
       <LookupPopup
         open={lookupPopupOpen}
-        mode={
-          lookupColumnId === "DocNum"
-            ? "vendor-code"
-            : lookupColumnId === "CardCode"
-              ? "vendor-code"
-              : "vendor-name"
-        }
+        mode="vendor-code"
+        showCodeOnly={isDocNumLookup || isTableValueLookup}
         search={lookupSearch}
-        results={lookupColumnId === "DocNum" ? docNumLookupResults : vendors}
-        loading={lookupColumnId === "DocNum" ? false : vendorsQuery.isFetching}
-        error={
-          lookupColumnId === "DocNum"
-            ? null
-            : vendorsQuery.isError
-              ? "Failed to load vendors"
-              : null
-        }
+        results={popupResults}
+        loading={isVendorLookup ? vendorsQuery.isFetching : false}
+        error={isVendorLookup && vendorsQuery.isError ? "Failed to load vendors" : null}
         onRetry={() => {
-          if (lookupColumnId === "DocNum") {
-            return;
+          if (isVendorLookup) {
+            void vendorsQuery.refetch();
           }
-          void vendorsQuery.refetch();
         }}
-        title={
-          lookupColumnId === "DocNum"
-            ? "Search Doc Number"
-            : lookupColumnId === "CardCode"
-              ? "Search Vendor Code"
-              : "Search Vendor Name"
-        }
-        searchPlaceholder={
-          lookupColumnId === "DocNum"
-            ? "Search document number"
-            : lookupColumnId === "CardCode"
-              ? "Search vendor code"
-              : "Search vendor name"
+        title={popupTitle}
+        searchPlaceholder={popupPlaceholder}
+        codeLabel={
+          isDocNumLookup
+            ? "Doc Number"
+            : isTableValueLookup
+              ? popupTitle.replace(/^Search\s+/i, "")
+              : "Code"
         }
         onSearchChange={handleLookupSearchChange}
         onClose={handleLookupPopupClose}

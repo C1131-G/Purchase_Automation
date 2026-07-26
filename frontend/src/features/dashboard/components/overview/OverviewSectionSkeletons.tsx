@@ -5,7 +5,7 @@ export function NeedsAttentionSkeleton() {
     <section
       aria-label="Needs attention"
       aria-busy="true"
-      className="flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm"
+      className="flex h-full min-h-[320px] w-full flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm"
     >
       <div className="border-b border-amber-100 bg-amber-50/50 px-5 py-4">
         <div className="h-4 w-32 rounded-md bg-amber-100" />
@@ -29,7 +29,7 @@ export function ConnectedPartnersSkeleton() {
   return (
     <div
       aria-hidden
-      className="flex min-h-[240px] animate-pulse flex-col overflow-hidden rounded-2xl border border-violet-200/80 bg-white shadow-sm"
+      className="flex h-full min-h-[320px] w-full animate-pulse flex-col overflow-hidden rounded-2xl border border-violet-200/80 bg-white shadow-sm"
     >
       <div className="border-b border-violet-100 bg-violet-50/50 px-5 py-4">
         <div className="h-4 w-44 rounded-md bg-violet-100" />

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_layout/intercompany/retries")({
 });
 
 function IntercompanyRetriesRoute() {
-  useDocumentTitle("IC Retries | ERP Portal");
+  useDocumentTitle("Retries Data Table | ERP Portal");
   return (
     <div className="h-full w-full">
       <IcRetryTable />
