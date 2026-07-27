@@ -52,6 +52,20 @@ export const getCachedData = async <T>(
   return data;
 };
 
+/** Seed or overwrite a cache entry without a source round-trip (e.g. warm from a bulk load). */
+export const setCachedData = <T extends object>(key: string, data: T, ttl?: number): void => {
+  cache.set(key, data, ttl === undefined ? undefined : { ttl });
+  logger.debug({ key, msg: "Cache SET (seeded)" });
+};
+
+/** Read a cache entry without fetching. Returns undefined on miss. */
+export const peekCachedData = <T>(key: string): T | undefined => {
+  if (!cache.has(key)) {
+    return undefined;
+  }
+  return cache.get(key) as T;
+};
+
 // Immediately removes a specific key (e.g., after an update operation).
 export const invalidateKey = (key: string): void => {
   cache.delete(key);

@@ -35,6 +35,8 @@ import { AttachmentLineSchema } from "@/db/schemas/attachment-line.schema";
 
 // Cache: Map of dbName to initialized tenant DataSource instances.
 const tenantDataSources = new Map<string, DataSource>();
+/** In-flight initializations — prevents concurrent first-login double-connect for the same tenant. */
+const tenantDataSourceInFlight = new Map<string, Promise<DataSource>>();
 
 const TENANT_ENTITIES = [
   OrganizationSchema,
@@ -75,46 +77,64 @@ export const getTenantDataSource = async (dbName: string): Promise<DataSource> =
     return cached;
   }
 
-  logger.info({ msg: "Creating new tenant DataSource", tenant: dbName });
+  const inFlight = tenantDataSourceInFlight.get(dbName);
+  if (inFlight) {
+    return inFlight;
+  }
 
-  // Create new DataSource for this tenant
-  const dataSource = new DataSource({
-    type: "sap",
-    host: config.hana.host,
-    port: config.hana.port,
-    username: config.hana.systemUser,
-    password: config.hana.systemPassword,
-    schema: dbName, // Tenant-specific schema
+  const initPromise = (async (): Promise<DataSource> => {
+    // Re-check after awaiting any race that may have finished between map lookups.
+    const existing = tenantDataSources.get(dbName);
+    if (existing) {
+      return existing;
+    }
 
-    // Connection pool configuration
-    poolSize: config.hana.maxPoolSize,
+    logger.info({ msg: "Creating new tenant DataSource", tenant: dbName });
 
-    // Security settings
-    encrypt: true,
-    extra: {
-      sslValidateCertificate: false,
-    },
+    // Create new DataSource for this tenant
+    const dataSource = new DataSource({
+      type: "sap",
+      host: config.hana.host,
+      port: config.hana.port,
+      username: config.hana.systemUser,
+      password: config.hana.systemPassword,
+      schema: dbName, // Tenant-specific schema
 
-    // Schema management
-    synchronize: false, // Never auto-sync with SAP tables
+      // Connection pool configuration
+      poolSize: config.hana.maxPoolSize,
 
-    // Logging
-    logging: config.nodeEnv === "development" ? ["error"] : false,
-    logger: "simple-console",
+      // Security settings
+      encrypt: true,
+      extra: {
+        sslValidateCertificate: false,
+      },
 
-    // Shared entities across all tenants
-    entities: [...TENANT_ENTITIES],
-    subscribers: [],
-    migrations: [],
+      // Schema management
+      synchronize: false, // Never auto-sync with SAP tables
+
+      // Logging
+      logging: config.nodeEnv === "development" ? ["error"] : false,
+      logger: "simple-console",
+
+      // Shared entities across all tenants
+      entities: [...TENANT_ENTITIES],
+      subscribers: [],
+      migrations: [],
+    });
+
+    // Initialize connection
+    await dataSource.initialize();
+
+    // Cache for future requests
+    tenantDataSources.set(dbName, dataSource);
+
+    return dataSource;
+  })().finally(() => {
+    tenantDataSourceInFlight.delete(dbName);
   });
 
-  // Initialize connection
-  await dataSource.initialize();
-
-  // Cache for future requests
-  tenantDataSources.set(dbName, dataSource);
-
-  return dataSource;
+  tenantDataSourceInFlight.set(dbName, initPromise);
+  return initPromise;
 };
 
 // Graceful Shutdown: Closes all active tenant DataSource connections.

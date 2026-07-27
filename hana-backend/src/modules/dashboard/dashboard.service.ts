@@ -1,5 +1,8 @@
 import { timedDashboardSection } from "@/core/observability/dashboard";
-import { getOverviewDashboard as getOverviewDashboardRaw } from "./dashboard.queries";
+import {
+  getOverviewDashboard as getOverviewDashboardRaw,
+  warmOverviewDashboard as warmOverviewDashboardRaw,
+} from "./dashboard.queries";
 
 type AnyFn = (...args: never[]) => Promise<unknown> | unknown;
 
@@ -10,6 +13,9 @@ function instrumentSection<T extends AnyFn>(section: string, run: T): T {
 
 export const getOverviewDashboard = instrumentSection("overview", getOverviewDashboardRaw);
 
+export const warmOverviewDashboard = warmOverviewDashboardRaw;
+
 export const dashboardService = {
   getOverviewDashboard,
+  warmOverviewDashboard,
 };

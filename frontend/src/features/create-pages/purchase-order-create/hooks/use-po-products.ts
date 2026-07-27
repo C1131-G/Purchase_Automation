@@ -3,10 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import {
-  createSharedKeys,
-  createSharedQueries as purchaseOrderCreateQueries,
-} from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { createSharedQueries as purchaseOrderCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type {
   ProductLookupItem,
   ProductWarehouseStockItem,
@@ -16,6 +13,7 @@ import type {
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
+  BROWSE_PRODUCT_LIMIT,
   QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
@@ -82,20 +80,12 @@ export function usePoProducts({
     ...purchaseOrderCreateQueries.products(
       undefined, // Pass undefined to keep search warehouse-agnostic
       normalizedProductSearch || undefined,
-      normalizedProductSearch ? undefined : productQueryLimit,
+      // Always send a cap: browse uses progressive limit; search uses warm page size.
+      normalizedProductSearch ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "purchase",
     ),
     enabled: productPopupOpen && vendorSelected,
   });
-
-  useEffect(() => {
-    if (!productPopupOpen || !vendorSelected) {
-      return;
-    }
-    void queryClient.invalidateQueries({
-      queryKey: createSharedKeys.products(),
-    });
-  }, [productPopupOpen, queryClient, vendorLookupToken, vendorSelected]);
 
   const products = useMemo(
     () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
@@ -127,6 +117,37 @@ export function usePoProducts({
     }
     prefetchProducts();
   }, [vendorLookupToken, vendorSelected, prefetchProducts]);
+
+  // After the quick first page settles, warm the full browse page so scroll load-more is instant.
+  useEffect(() => {
+    if (!productPopupOpen || !vendorSelected) {
+      return;
+    }
+    if (normalizedProductSearch) {
+      return;
+    }
+    if (productsQuery.isFetching || productsQuery.isError) {
+      return;
+    }
+    if ((productsQuery.data?.length ?? 0) === 0) {
+      return;
+    }
+    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
+      return;
+    }
+    void queryClient.prefetchQuery(
+      purchaseOrderCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "purchase"),
+    );
+  }, [
+    productPopupOpen,
+    vendorSelected,
+    normalizedProductSearch,
+    productsQuery.isFetching,
+    productsQuery.isError,
+    productsQuery.data,
+    productQueryLimit,
+    queryClient,
+  ]);
 
   const openProductPopup = (
     rowId: string | null,
@@ -171,10 +192,11 @@ export function usePoProducts({
     if (isSearchMode) {
       return;
     }
-    if (productQueryLimit >= 50) {
+    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
       return;
     }
-    setProductQueryLimit((prev) => Math.min(prev + 10, 50));
+    // Single jump to warm page (prefetched after first paint) instead of 10→20→30 steps.
+    setProductQueryLimit(BROWSE_PRODUCT_LIMIT);
   };
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {

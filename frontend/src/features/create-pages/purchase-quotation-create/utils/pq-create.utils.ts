@@ -37,7 +37,11 @@ export const REQUIRED_FIELD_LABEL_TEXT: Record<
   vendorCode: "Vendor Code",
   vendorName: "Vendor Name",
 };
+/** First paint in product popup — keep small for fast open. */
 export const QUICK_PRODUCT_LIMIT = 10;
+/** Browse expansion after scroll / background warm (matches backend warm page). */
+export const BROWSE_PRODUCT_LIMIT = 50;
+/** Large hydrate for edit / bulk line resolution. */
 export const FULL_PRODUCT_LIMIT = 500;
 
 export const rankProductsBySearchRelevance = (items: ProductLookupItem[], rawSearch: string) => {

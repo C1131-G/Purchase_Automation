@@ -6,20 +6,20 @@ import { getIcHealth } from "@/modules/intercompany/api/ic.controller";
 import type { Request, Response } from "express";
 
 describe("IC hooks + health", () => {
-  it("afterPqDraftSaved never throws (may skip or fail without DB)", async () => {
+  it("afterPqDraftSaved accepts immediately (IC background; never throws)", async () => {
     const result = await afterPqDraftSaved({ cardCode: "V", dbName: "DB_A", docEntry: 1 });
-    expect(["skipped", "failed", "success"]).toContain(result.status);
+    expect(result).toMatchObject({ flow: "flow1", status: "accepted" });
   });
 
-  it("afterPoCreated never throws (may skip or fail without DB)", async () => {
+  it("afterPoCreated draft still runs via background accept (never throws)", async () => {
+    // Default hook schedules work and returns accepted; draft_po skip happens off-request.
     const result = await afterPoCreated({
       cardCode: "V",
       dbName: "DB_A",
       docEntry: 1,
       isDraft: true,
     });
-    expect(result.status).toBe("skipped");
-    expect(result).toMatchObject({ reason: "draft_po" });
+    expect(result).toMatchObject({ flow: "flow2", status: "accepted" });
   });
 
   it("health returns ok with P7 phase", () => {

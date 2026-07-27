@@ -24,8 +24,10 @@ export const login = async (
   password: string,
   dbName: string,
 ): Promise<LoginResponse> => {
+  const loginStartedAt = process.hrtime.bigint();
   try {
     // Stage 1: Parallel retrieval of Service Layer technical credentials and local user profile from the tenant DB.
+    const stage1StartedAt = process.hrtime.bigint();
     const [dbInfo, localUser] = await Promise.all([
       getServiceLayerCredentials(dbName),
       (async () => {
@@ -35,9 +37,9 @@ export const login = async (
           cacheKey,
           async () => {
             const repo = await getTenantRepository(dbName, UserSchema);
-            // We only check USER_CODE (Identity) and U_PortalPassword (Credential).
+            // Identity + portal credential + display name only (minimal OUSR projection).
             return await repo.findOne({
-              select: ["USER_CODE", "U_PortalPassword"],
+              select: ["USER_CODE", "U_PortalPassword", "U_NAME"],
               where: {
                 USER_CODE: Raw((alias) => `UPPER(${alias}) = UPPER(:username)`, { username }),
               },
@@ -47,6 +49,7 @@ export const login = async (
         );
       })(),
     ]);
+    const portalAuthMs = Math.round(Number(process.hrtime.bigint() - stage1StartedAt) / 1e6);
 
     // Validate database configuration existence.
     if (!dbInfo) {
@@ -79,18 +82,28 @@ export const login = async (
       });
     }
 
-    // Stage 2: Service Layer login.
-    // Uses specific service account credentials if configured, otherwise falls back to user's portal credentials.
+    // Stage 2: Service Layer login (reuses live session for same service account when possible).
+    const slStartedAt = process.hrtime.bigint();
     const sessionInfo = await serviceLayerClient.login(
       dbName,
       dbInfo.serviceLayerUsername || username,
       dbInfo.serviceLayerPassword || password,
     );
+    const serviceLayerMs = Math.round(Number(process.hrtime.bigint() - slStartedAt) / 1e6);
+    const totalMs = Math.round(Number(process.hrtime.bigint() - loginStartedAt) / 1e6);
 
-    logger.info({ company: dbName, msg: "User login success", username });
+    logger.info({
+      company: dbName,
+      msg: "User login success",
+      username,
+      portalAuthMs,
+      serviceLayerMs,
+      totalMs,
+    });
     recordAuthLogin("success");
 
     // Map internal SAP data to a unified user session object for the frontend.
+    // companyName comes from already-fetched credentials — no extra org DB round-trip.
     return {
       sessionId: sessionInfo.sessionId,
       sessionTimeout: sessionInfo.sessionTimeout,
@@ -98,6 +111,7 @@ export const login = async (
       slUsername: dbInfo.serviceLayerUsername || username,
       slPassword: dbInfo.serviceLayerPassword || password,
       user: {
+        companyName: dbInfo.companyName || dbName,
         dbName,
         dbServer: dbInfo.dbServer,
         userName: localUser.U_NAME || username,
@@ -113,6 +127,7 @@ export const login = async (
       msg: "User login failed",
       reason: sapError.reason || "service_layer_error",
       status: sapError.statusCode || 500,
+      totalMs: Math.round(Number(process.hrtime.bigint() - loginStartedAt) / 1e6),
       username,
     });
 

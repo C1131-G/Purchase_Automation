@@ -7,7 +7,10 @@ import { createSharedQueries as salesQuotationCreateQueries } from "@/features/c
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
-import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
+import {
+  BROWSE_PRODUCT_LIMIT,
+  QUICK_PRODUCT_LIMIT,
+} from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
 import type { SQHeaderState } from "@/store/create/sq-create.store";
 
@@ -187,8 +190,12 @@ export function useSqLookups({
     setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
+    // Match product popup keys: warehouse-agnostic + type "sales" (not warehouse-scoped).
     void queryClient.prefetchQuery(
-      salesQuotationCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT),
+      salesQuotationCreateQueries.products(undefined, undefined, QUICK_PRODUCT_LIMIT, "sales"),
+    );
+    void queryClient.prefetchQuery(
+      salesQuotationCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "sales"),
     );
     setWarehouseFocused(false);
     onWarehouseSelected?.(item.code);

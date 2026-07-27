@@ -289,11 +289,13 @@ export function ProductPopupModal({
                 className="max-h-80 overflow-y-scroll relative"
                 onScroll={(event) => {
                   popupScrollState.set(scrollKey, event.currentTarget.scrollTop);
-                  if (!onReachEnd || loading) {
+                  // Allow reach-end while previous rows stay visible (keepPreviousData /
+                  // background warm). Only block when the list is empty skeleton-loading.
+                  if (!onReachEnd || (loading && safeResults.length === 0)) {
                     return;
                   }
                   const target = event.currentTarget;
-                  const threshold = 32;
+                  const threshold = 48;
                   const reachedEnd =
                     target.scrollHeight - target.scrollTop - target.clientHeight <= threshold;
                   if (reachedEnd) {

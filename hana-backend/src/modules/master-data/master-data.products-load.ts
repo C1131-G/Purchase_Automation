@@ -130,14 +130,12 @@ export async function loadProductsForTenant(
   }
 
   // Default sorting: if no search, sort by ItemCode.
-  // Pagination: only apply limits when NOT searching.
+  // Always apply a row cap (browse and search) so product popup never scans full OITM.
   query.orderBy("item.ItemCode", "ASC");
-  if (!normalizedSearch) {
-    if (resolvedLimit !== undefined) {
-      query.take(resolvedLimit);
-    } else {
-      query.take(defaultListLimit);
-    }
+  if (resolvedLimit !== undefined) {
+    query.take(resolvedLimit);
+  } else {
+    query.take(defaultListLimit);
   }
 
   const items = await query.getMany();

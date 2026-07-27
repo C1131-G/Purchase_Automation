@@ -1,10 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import {
-  createSharedKeys,
-  createSharedQueries as salesQuotationCreateQueries,
-} from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { createSharedQueries as salesQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type {
   ProductLookupItem,
   ProductWarehouseStockItem,
@@ -14,6 +11,7 @@ import type {
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
+  BROWSE_PRODUCT_LIMIT,
   QUICK_PRODUCT_LIMIT,
   rankProductsBySearchRelevance,
 } from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
@@ -79,20 +77,12 @@ export function useSqProducts({
     ...salesQuotationCreateQueries.products(
       undefined, // Pass undefined to keep search warehouse-agnostic
       normalizedProductSearch || undefined,
-      normalizedProductSearch ? undefined : productQueryLimit,
+      // Always send a cap: browse uses progressive limit; search uses warm page size.
+      normalizedProductSearch ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "sales",
     ),
     enabled: productPopupOpen && customerSelected,
   });
-
-  useEffect(() => {
-    if (!productPopupOpen || !customerSelected) {
-      return;
-    }
-    void queryClient.invalidateQueries({
-      queryKey: createSharedKeys.products(),
-    });
-  }, [customerLookupToken, customerSelected, productPopupOpen, queryClient]);
 
   const products = useMemo(
     () => rankProductsBySearchRelevance(productsQuery.data ?? [], normalizedProductSearch),
@@ -108,15 +98,61 @@ export function useSqProducts({
     if (!customerSelected) {
       return;
     }
+    // Same cache keys as the live popup query (warehouse-agnostic + type "sales").
+    const search = normalizedProductSearch || undefined;
     void queryClient.prefetchQuery(
       salesQuotationCreateQueries.products(
-        undefined, // Pass undefined to keep search warehouse-agnostic
-        normalizedProductSearch || undefined,
-        QUICK_PRODUCT_LIMIT,
+        undefined,
+        search,
+        search ? BROWSE_PRODUCT_LIMIT : QUICK_PRODUCT_LIMIT,
         "sales",
       ),
     );
+    // Warm browse page as soon as customer is selected so open + scroll are cache hits.
+    if (!search) {
+      void queryClient.prefetchQuery(
+        salesQuotationCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "sales"),
+      );
+    }
   }, [customerSelected, normalizedProductSearch, queryClient]);
+
+  useEffect(() => {
+    if (!customerSelected) {
+      return;
+    }
+    prefetchProducts();
+  }, [customerLookupToken, customerSelected, prefetchProducts]);
+
+  // While the popup is open, ensure browse warm stays ahead of scroll load-more.
+  useEffect(() => {
+    if (!productPopupOpen || !customerSelected) {
+      return;
+    }
+    if (normalizedProductSearch) {
+      return;
+    }
+    if (productsQuery.isFetching || productsQuery.isError) {
+      return;
+    }
+    if ((productsQuery.data?.length ?? 0) === 0) {
+      return;
+    }
+    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
+      return;
+    }
+    void queryClient.prefetchQuery(
+      salesQuotationCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "sales"),
+    );
+  }, [
+    productPopupOpen,
+    customerSelected,
+    normalizedProductSearch,
+    productsQuery.isFetching,
+    productsQuery.isError,
+    productsQuery.data,
+    productQueryLimit,
+    queryClient,
+  ]);
 
   const openProductPopup = (
     rowId: string | null,
@@ -161,10 +197,11 @@ export function useSqProducts({
     if (isSearchMode) {
       return;
     }
-    if (productQueryLimit >= 50) {
+    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
       return;
     }
-    setProductQueryLimit((prev) => Math.min(prev + 10, 50));
+    // Single jump to warm page (prefetched after first paint) instead of 10→20→30 steps.
+    setProductQueryLimit(BROWSE_PRODUCT_LIMIT);
   };
 
   const updateProductRow = (id: string, patch: Partial<ProductRow>) => {

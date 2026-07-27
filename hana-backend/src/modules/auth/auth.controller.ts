@@ -4,7 +4,7 @@ import type { RequestHandler } from "express";
 
 import { bindRequestLogger, logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { organizationService } from "@/modules/organization/organization.service";
+import { warmOverviewDashboard } from "@/modules/dashboard/dashboard.service";
 
 import type { LoginResponse } from "./auth.types";
 import { authService } from "./auth.service";
@@ -18,8 +18,8 @@ export const login: RequestHandler = async (req, res, next) => {
 
     const loginResponse: LoginResponse = await authService.login(username, password, companyDB);
 
-    const organization = await organizationService.getDatabaseById(companyDB);
-    const companyName = organization?.companyName ?? companyDB;
+    // companyName is already resolved during login (credential cache) — no second HANA hit.
+    const companyName = loginResponse.user.companyName ?? companyDB;
 
     req.session.regenerate((err) => {
       if (err) {
@@ -48,6 +48,9 @@ export const login: RequestHandler = async (req, res, next) => {
         },
         success: true,
       });
+
+      // Warm overview cache after the login response is queued so /dashboard/overview is fast.
+      warmOverviewDashboard(companyDB);
     });
   } catch (error) {
     next(error);

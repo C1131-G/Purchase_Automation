@@ -89,6 +89,7 @@ export interface APCreditMemoCreateLine {
   selected?: boolean | undefined;
 }
 const QUICK_PRODUCT_LIMIT = 10;
+const BROWSE_PRODUCT_LIMIT = 50;
 
 interface UseAPCreditMemoCreateOptions {
   mode?: "create" | "edit";
@@ -272,7 +273,7 @@ export function useAPCreditMemoCreate({
     ...createSharedQueries.products(
       undefined, // Pass undefined to keep search warehouse-agnostic
       debouncedProductSearch.trim() || undefined,
-      debouncedProductSearch.trim() ? undefined : productQueryLimit,
+      debouncedProductSearch.trim() ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "purchase",
     ),
     enabled: productPopupOpen && vendorSelected,
@@ -312,6 +313,37 @@ export function useAPCreditMemoCreate({
     }
     prefetchProducts();
   }, [vendorLookupToken, vendorSelected, prefetchProducts]);
+
+  // After the quick first page settles, warm the full browse page so scroll load-more is instant.
+  useEffect(() => {
+    if (!productPopupOpen || !vendorSelected) {
+      return;
+    }
+    if (debouncedProductSearch.trim()) {
+      return;
+    }
+    if (productsQuery.isFetching || productsQuery.isError) {
+      return;
+    }
+    if ((productsQuery.data?.length ?? 0) === 0) {
+      return;
+    }
+    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
+      return;
+    }
+    void queryClient.prefetchQuery(
+      createSharedQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "purchase"),
+    );
+  }, [
+    productPopupOpen,
+    vendorSelected,
+    debouncedProductSearch,
+    productsQuery.isFetching,
+    productsQuery.isError,
+    productsQuery.data,
+    productQueryLimit,
+    queryClient,
+  ]);
 
   const productWarehouseStocksQuery = useQuery({
     ...createSharedQueries.productWarehouseStocks(stockPreviewProduct?.code),
@@ -2057,10 +2089,10 @@ export function useAPCreditMemoCreate({
       if (debouncedProductSearch.trim().length > 0) {
         return;
       }
-      if (productQueryLimit >= 50) {
+      if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
         return;
       }
-      setProductQueryLimit((prev) => Math.min(prev + 10, 50));
+      setProductQueryLimit(BROWSE_PRODUCT_LIMIT);
     },
     lookupError:
       (modalMode.includes("vendor")

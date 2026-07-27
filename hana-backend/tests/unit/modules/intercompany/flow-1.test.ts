@@ -495,11 +495,20 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(buyerResult.status).toBe("success");
   });
 
-  it("afterPqDraftSaved never throws", async () => {
+  it("afterPqDraftSaved never throws (sync path for unit assert)", async () => {
+    const { orchestrator } = createFlow1TestStack({ enableFlag: false });
+    const hook = createAfterPqDraftSaved(orchestrator, { runInBackground: false });
+    await expect(hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 1 })).resolves.toMatchObject({
+      status: "skipped",
+    });
+  });
+
+  it("afterPqDraftSaved default path accepts immediately (IC runs in background)", async () => {
     const { orchestrator } = createFlow1TestStack({ enableFlag: false });
     const hook = createAfterPqDraftSaved(orchestrator);
     await expect(hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 1 })).resolves.toMatchObject({
-      status: "skipped",
+      flow: "flow1",
+      status: "accepted",
     });
   });
 });

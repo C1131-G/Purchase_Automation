@@ -16,18 +16,22 @@ export const authKeys = {
 
 // authQueries: Reusable query options for fetching/caching authentication data.
 export const authQueries = {
-  organization: (username?: string) => {
-    return queryOptions({
-      gcTime: username ? 0 : QUERY_CACHE_POLICY.authOrganization.gcTime,
+  /**
+   * organization: Tenant list for the login company picker.
+   * Loaded once and cached for a long time — backend returns the full list
+   * (no username filter), so keying/refetching on username only wasted requests
+   * and made the form feel slower while typing.
+   */
+  organization: () =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.authOrganization.gcTime,
       queryFn: async () => {
-        const { data } = await OrganizationsAPI.getAll(username);
+        const { data } = await OrganizationsAPI.getAll();
         return data;
       },
-      queryKey: [...authKeys.organization(), username || ""] as const,
-      staleTime: username ? 0 : QUERY_CACHE_POLICY.authOrganization.staleTime,
-      enabled: true,
-    });
-  },
+      queryKey: authKeys.organization(),
+      staleTime: QUERY_CACHE_POLICY.authOrganization.staleTime,
+    }),
 
   // user: Fetches user profile (Fresh for 30 minutes).
   user: () =>

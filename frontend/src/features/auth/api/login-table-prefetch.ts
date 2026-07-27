@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { overviewDashboardQueryOptions } from "@/features/dashboard/queries/queries";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
@@ -19,7 +20,10 @@ const defaultTableParams = {
 };
 
 const docNumQuickLimit = 10;
-const backgroundBatchSize = 4;
+/** Keep background warmup gentle so HANA pool stays free for Overview first paint. */
+const backgroundBatchSize = 2;
+/** Wait longer before table warmup so dashboard /overview finishes first. */
+const tableWarmupIdleTimeoutMs = 4000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,7 +45,10 @@ const prefetchQueryBatch = async (queryClient: QueryClient, queries: unknown[]) 
  * Exported so callers (e.g. use-login) can schedule the full warmup
  * after navigation has already committed.
  */
-export const scheduleIdlePrefetch = (task: () => Promise<void>) => {
+export const scheduleIdlePrefetch = (
+  task: () => Promise<void>,
+  idleTimeoutMs = tableWarmupIdleTimeoutMs,
+) => {
   if (typeof window === "undefined") {
     void task();
     return;
@@ -53,7 +60,7 @@ export const scheduleIdlePrefetch = (task: () => Promise<void>) => {
         void task();
       },
       {
-        timeout: 2000,
+        timeout: idleTimeoutMs,
       },
     );
     return;
@@ -61,16 +68,32 @@ export const scheduleIdlePrefetch = (task: () => Promise<void>) => {
 
   globalThis.setTimeout(() => {
     void task();
-  }, 0);
+  }, idleTimeoutMs);
+};
+
+/**
+ * Prefetch Overview immediately after login (session cookie is already set).
+ * Backend also warms the same cache; this populates the React Query cache so
+ * the dashboard route can paint without waiting for mount-time fetch.
+ */
+export const prefetchOverviewAfterLogin = async (queryClient: QueryClient) => {
+  const startedAt = Date.now();
+  try {
+    await queryClient.prefetchQuery(overviewDashboardQueryOptions());
+    // eslint-disable-next-line no-console
+    console.debug(`[perf] overview prefetch complete: ${Date.now() - startedAt}ms`);
+  } catch (error) {
+    // Non-fatal — Overview mounts and fetches itself on 401/network blip.
+    // eslint-disable-next-line no-console
+    console.debug("[perf] overview prefetch skipped", error);
+  }
 };
 
 // ---------------------------------------------------------------------------
 // Background (deferred) prefetches — run during idle time after first paint.
 //
-// Overview dashboard is intentionally NOT prefetched here. The Overview page
-// owns /api/v1/dashboard/overview on mount (short staleTime). Prefetching from
-// the login handler races with session establishment and can 401 before the
-// auth guard has settled.
+// Overview is prefetched separately (immediate). Table/master warmup stays
+// deferred so it does not compete with /dashboard/overview on the HANA pool.
 // ---------------------------------------------------------------------------
 
 const backgroundPrefetches = [

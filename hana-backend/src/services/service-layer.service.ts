@@ -16,12 +16,29 @@ import {
   type ServiceLayerHost,
 } from "./service-layer-request";
 
+type LoginResult = { sessionId: string; version: string; sessionTimeout: number };
+
+/** Build a stable key for credential-based session reuse (company + SL user). */
+export function serviceLayerCredentialKey(companyDB: string, username: string): string {
+  return `${companyDB.trim().toUpperCase()}::${username.trim().toUpperCase()}`;
+}
+
 class ServiceLayerClient implements ServiceLayerHost {
   private httpsAgent: https.Agent | null = null;
   client: AxiosInstance | null = null;
   sessions = new Map<string, SLSessionInfo>();
   sessionCredentials = new Map<string, { companyDB: string; username: string; password: string }>();
   refreshLocks = new Map<string, Promise<void>>();
+
+  /**
+   * Index of live SL sessions by credential key so the same service account
+   * (or user) reuses one SAP session instead of calling /Login every time.
+   */
+  private credentialSessionIndex = new Map<string, string>();
+  /** How many portal Express sessions currently reference each SL session. */
+  private sessionRefCounts = new Map<string, number>();
+  /** In-flight login promises keyed by credential — collapses concurrent logins. */
+  private loginInFlight = new Map<string, Promise<LoginResult>>();
 
   initialize(serviceLayerURL: string, rejectUnauthorized: boolean = false) {
     this.httpsAgent = new https.Agent({
@@ -60,16 +77,47 @@ class ServiceLayerClient implements ServiceLayerHost {
     });
   }
 
-  async login(
-    companyDB: string,
-    username: string,
-    password: string,
-  ): Promise<{ sessionId: string; version: string; sessionTimeout: number }> {
+  async login(companyDB: string, username: string, password: string): Promise<LoginResult> {
     if (!this.client) {
       throw new Error("Service Layer client not initialized");
     }
 
+    const credKey = serviceLayerCredentialKey(companyDB, username);
+
+    const inFlight = this.loginInFlight.get(credKey);
+    if (inFlight) {
+      const shared = await inFlight;
+      this.retainSession(shared.sessionId);
+      logger.info({
+        msg: "Service Layer login joined in-flight request",
+        companyDB,
+        username,
+      });
+      return shared;
+    }
+
+    const loginPromise = this.loginWithReuse(companyDB, username, password, credKey);
+    this.loginInFlight.set(credKey, loginPromise);
+
     try {
+      return await loginPromise;
+    } finally {
+      this.loginInFlight.delete(credKey);
+    }
+  }
+
+  private async loginWithReuse(
+    companyDB: string,
+    username: string,
+    password: string,
+    credKey: string,
+  ): Promise<LoginResult> {
+    try {
+      const reused = this.tryReuseSession(credKey, companyDB, username, password);
+      if (reused) {
+        return reused;
+      }
+
       const sapLogin = await loginToSap(this, companyDB, username, password);
 
       const sessionInfo: SLSessionInfo = {
@@ -88,11 +136,14 @@ class ServiceLayerClient implements ServiceLayerHost {
         username,
         password,
       });
+      this.credentialSessionIndex.set(credKey, sapLogin.sapSessionId);
+      this.sessionRefCounts.set(sapLogin.sapSessionId, 1);
 
       logger.info({
         msg: "Service Layer login successful",
         companyDB,
         username,
+        reused: false,
       });
 
       return {
@@ -109,6 +160,57 @@ class ServiceLayerClient implements ServiceLayerHost {
       }
       throw err instanceof Error ? err : new Error(String(err));
     }
+  }
+
+  /**
+   * Reuse a still-tracked SL session for the same company + username when the
+   * stored password matches (service accounts / repeated portal logins).
+   */
+  private tryReuseSession(
+    credKey: string,
+    companyDB: string,
+    username: string,
+    password: string,
+  ): LoginResult | null {
+    const existingId = this.credentialSessionIndex.get(credKey);
+    if (!existingId) {
+      return null;
+    }
+
+    const sessionInfo = this.sessions.get(existingId);
+    const credentials = this.sessionCredentials.get(existingId);
+    if (!sessionInfo || !credentials) {
+      this.credentialSessionIndex.delete(credKey);
+      return null;
+    }
+
+    if (credentials.password !== password) {
+      // Password rotated for this technical user — force a fresh SAP login.
+      this.credentialSessionIndex.delete(credKey);
+      return null;
+    }
+
+    this.retainSession(existingId);
+    sessionInfo.lastSapCall = Date.now();
+
+    logger.info({
+      msg: "Service Layer session reused (skipped /Login)",
+      companyDB,
+      username,
+      sessionId: `${existingId.slice(0, 10)}...`,
+    });
+
+    return {
+      sessionId: existingId,
+      // SAP only returns SessionTimeout on Login; default to 30 minutes when reusing.
+      sessionTimeout: 30,
+      version: "",
+    };
+  }
+
+  private retainSession(sessionId: string): void {
+    const current = this.sessionRefCounts.get(sessionId) ?? 0;
+    this.sessionRefCounts.set(sessionId, current + 1);
   }
 
   async request<T>(
@@ -136,6 +238,18 @@ class ServiceLayerClient implements ServiceLayerHost {
     }
     const sessionInfo = this.sessions.get(sessionId);
     if (!sessionInfo) {
+      return;
+    }
+
+    // Shared service-account sessions: only tear down SAP when the last portal user leaves.
+    const refs = this.sessionRefCounts.get(sessionId) ?? 1;
+    if (refs > 1) {
+      this.sessionRefCounts.set(sessionId, refs - 1);
+      logger.info({
+        msg: "Service Layer session retained (other portal sessions still using it)",
+        remainingRefs: refs - 1,
+        sessionId: `${sessionId.slice(0, 10)}...`,
+      });
       return;
     }
 
@@ -176,6 +290,10 @@ class ServiceLayerClient implements ServiceLayerHost {
   destroyLocalSession(sessionId: string, reason: string = "Unknown") {
     const sessionInfo = this.sessions.get(sessionId);
     if (sessionInfo) {
+      const credKey = serviceLayerCredentialKey(sessionInfo.companyDB, sessionInfo.username);
+      if (this.credentialSessionIndex.get(credKey) === sessionId) {
+        this.credentialSessionIndex.delete(credKey);
+      }
       sessionInfo.cookies = null;
       sessionInfo.cookieString = null;
       this.sessions.delete(sessionId);
@@ -186,6 +304,7 @@ class ServiceLayerClient implements ServiceLayerHost {
       });
     }
     this.sessionCredentials.delete(sessionId);
+    this.sessionRefCounts.delete(sessionId);
   }
 
   getSession(sessionId: string): SLSessionInfo | null {

@@ -210,7 +210,7 @@ export const updatePurchaseQuotation = async (
       purgeCache(`dashboard:overview:${companyDB}`);
     }
 
-    // Flow 1 IC automation on draft update: never fails the PQ draft response.
+    // Flow 1 IC: schedule only — main PQ draft update does not wait for partner chain.
     let intercompany: IcHookResult | undefined;
     if (isDraft) {
       try {

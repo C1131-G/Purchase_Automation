@@ -451,12 +451,20 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
     expect(db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("afterPoCreated never throws (hook wall)", async () => {
+  it("afterPoCreated never throws (sync path for unit assert)", async () => {
+    const { orchestrator } = createFlow2TestStack({ enableFlag: false });
+    const hook = createAfterPoCreated(orchestrator, { runInBackground: false });
+    await expect(
+      hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 1, isDraft: false }),
+    ).resolves.toMatchObject({ status: "skipped" });
+  });
+
+  it("afterPoCreated default path accepts immediately (IC runs in background)", async () => {
     const { orchestrator } = createFlow2TestStack({ enableFlag: false });
     const hook = createAfterPoCreated(orchestrator);
     await expect(
       hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 1, isDraft: false }),
-    ).resolves.toMatchObject({ status: "skipped" });
+    ).resolves.toMatchObject({ flow: "flow2", status: "accepted" });
   });
 
   it("po-capture service draft short-circuit without config I/O when isDraft", async () => {

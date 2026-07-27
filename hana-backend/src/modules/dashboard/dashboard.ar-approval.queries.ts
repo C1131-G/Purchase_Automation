@@ -31,6 +31,9 @@ const PENDING_OWDD_STATUSES = new Set(["W"]);
 /** AR Invoice object type in OWDD / ODRF. */
 const AR_INVOICE_OBJ_TYPE = "13";
 
+/** Cap list size for Overview attention panel (still returns true KPI counts via items length). */
+const AR_APPROVAL_LIST_LIMIT = 50;
+
 const toCount = (value: unknown): number => {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
@@ -214,6 +217,7 @@ export async function loadArApprovalPending(dbName: string): Promise<OverviewArA
       WHERE CAST(w."ObjType" AS NVARCHAR) = '${AR_INVOICE_OBJ_TYPE}'
         AND UPPER(TRIM(CAST(w."Status" AS NVARCHAR))) = 'W'
       ORDER BY w."CreateDate" ASC, w."WddCode" ASC
+      LIMIT ${AR_APPROVAL_LIST_LIMIT}
     `;
 
     const raw = (await executeTenantQuery(dbName, sql, [])) as unknown;

@@ -3,7 +3,7 @@
 import type { Repository } from "typeorm";
 
 import { logger } from "@/core/logger/pino-logger";
-import { getCachedData } from "@/core/utils/cache";
+import { getCachedData, setCachedData } from "@/core/utils/cache";
 import { AppDataSource } from "@/db/config/data-source";
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
 import type { Organization } from "@/db/schemas/organization.schema";
@@ -37,21 +37,37 @@ export const getAvailableDatabases = async (): Promise<DatabaseItem[]> =>
       try {
         const repository = getOrganizationRepository();
 
-        // Optimized SELECT: Only retrieves fields necessary for the login/discovery screen.
+        // Pull display fields + SL credentials in one scan so the login form warm-up
+        // also primes `creds:{dbName}` and avoids a second org row read on Sign In.
         const results = await repository.find({
           order: {
             companyName: "ASC",
           },
-          select: ["id", "companyName", "dbServer"],
+          select: ["id", "companyName", "dbServer", "serviceLayerUsername", "serviceLayerPassword"],
         });
 
-        const databases = results.map((data) => ({
-          dbName: data.id,
-          companyName: data.companyName,
-          dbServer: data.dbServer,
-          // Defaults to Active for now; SAP-side suspension logic could be added here.
-          isActive: "Y",
-        }));
+        const databases = results.map((data) => {
+          // Seed credential cache for each tenant from this single scan (login skip-read).
+          setCachedData(
+            `creds:${data.id}`,
+            {
+              companyName: data.companyName,
+              dbName: data.id,
+              dbServer: data.dbServer,
+              serviceLayerPassword: data.serviceLayerPassword,
+              serviceLayerUsername: data.serviceLayerUsername,
+            },
+            1000 * 60 * 60,
+          );
+
+          return {
+            dbName: data.id,
+            companyName: data.companyName,
+            dbServer: data.dbServer,
+            // Defaults to Active for now; SAP-side suspension logic could be added here.
+            isActive: "Y",
+          };
+        });
 
         logger.info({
           count: databases.length,
@@ -78,23 +94,28 @@ export const getAvailableDatabases = async (): Promise<DatabaseItem[]> =>
     1000 * 60 * 60,
   );
 
-// Returns a single database by its id (dbName).
-export const getDatabaseById = async (id: string): Promise<DatabaseItem | null> => {
-  const repository = getOrganizationRepository();
-  const result = await repository.findOne({
-    where: { id },
-    select: ["id", "companyName", "dbServer"],
-  });
-  if (!result) {
-    return null;
-  }
-  return {
-    dbName: result.id,
-    companyName: result.companyName,
-    dbServer: result.dbServer,
-    isActive: "Y",
-  };
-};
+// Returns a single database by its id (dbName). Cached — org rows rarely change.
+export const getDatabaseById = async (id: string): Promise<DatabaseItem | null> =>
+  getCachedData(
+    `org:by-id:${id}`,
+    async () => {
+      const repository = getOrganizationRepository();
+      const result = await repository.findOne({
+        where: { id },
+        select: ["id", "companyName", "dbServer"],
+      });
+      if (!result) {
+        return null;
+      }
+      return {
+        dbName: result.id,
+        companyName: result.companyName,
+        dbServer: result.dbServer,
+        isActive: "Y",
+      };
+    },
+    1000 * 60 * 60,
+  );
 
 export const organizationService = {
   getAvailableDatabases,

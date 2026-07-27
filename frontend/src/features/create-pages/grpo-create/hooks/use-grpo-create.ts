@@ -2,10 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
-import {
-  createSharedKeys,
-  createSharedQueries,
-} from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type {
   LookupItem,
   ProductLookupItem,
@@ -97,6 +94,7 @@ type GRPOFieldErrors = Record<GRPOMandatoryField, string | undefined> & {
   warehouseCode?: string | undefined;
 };
 const QUICK_PRODUCT_LIMIT = 10;
+const BROWSE_PRODUCT_LIMIT = 50;
 
 const EMPTY_GRPO_FIELD_ERRORS: GRPOFieldErrors = {
   vendorCode: undefined,
@@ -274,20 +272,12 @@ export function useGRPOCreate({
     ...createSharedQueries.products(
       undefined, // Pass undefined to keep search warehouse-agnostic
       debouncedProductSearch.trim() || undefined,
-      debouncedProductSearch.trim() ? undefined : productQueryLimit,
+      debouncedProductSearch.trim() ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "purchase",
     ),
     enabled: productPopupOpen && vendorSelected,
   });
 
-  useEffect(() => {
-    if (!productPopupOpen || !vendorSelected) {
-      return;
-    }
-    void queryClient.invalidateQueries({
-      queryKey: createSharedKeys.products(),
-    });
-  }, [productPopupOpen, queryClient, vendorLookupToken, vendorSelected]);
   const products = useMemo(
     () => filterAndRankLookups(productsQuery.data ?? [], debouncedProductSearch),
     [productsQuery.data, debouncedProductSearch],
@@ -320,6 +310,37 @@ export function useGRPOCreate({
       ),
     );
   }, [vendorSelected, productSearch, queryClient]);
+
+  // After the quick first page settles, warm the full browse page so scroll load-more is instant.
+  useEffect(() => {
+    if (!productPopupOpen || !vendorSelected) {
+      return;
+    }
+    if (debouncedProductSearch.trim()) {
+      return;
+    }
+    if (productsQuery.isFetching || productsQuery.isError) {
+      return;
+    }
+    if ((productsQuery.data?.length ?? 0) === 0) {
+      return;
+    }
+    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
+      return;
+    }
+    void queryClient.prefetchQuery(
+      createSharedQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "purchase"),
+    );
+  }, [
+    productPopupOpen,
+    vendorSelected,
+    debouncedProductSearch,
+    productsQuery.isFetching,
+    productsQuery.isError,
+    productsQuery.data,
+    productQueryLimit,
+    queryClient,
+  ]);
 
   const productWarehouseStocksQuery = useQuery({
     ...createSharedQueries.productWarehouseStocks(stockPreviewProduct?.code),
@@ -1646,10 +1667,10 @@ export function useGRPOCreate({
     if (isSearchMode) {
       return;
     }
-    if (productQueryLimit >= 50) {
+    if (productQueryLimit >= BROWSE_PRODUCT_LIMIT) {
       return;
     }
-    setProductQueryLimit((prev) => Math.min(prev + 10, 50));
+    setProductQueryLimit(BROWSE_PRODUCT_LIMIT);
   };
 
   const selectBuyer = (item: LookupItem) => {

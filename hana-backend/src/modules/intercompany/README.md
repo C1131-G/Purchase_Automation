@@ -34,8 +34,9 @@ import { afterPoCreated, afterPqDraftSaved, icRoutes } from "@/modules/intercomp
 ```
 
 - `GET /api/v1/ic/health` → `{ success, data: { ok: true, module, phase: "P9" } }`
-- `afterPoCreated` → Flow 2 orchestrator (never throws into PO create)
-- `afterPqDraftSaved` → Flow 1 orchestrator 01→03 (never throws into PQ draft)
+- `afterPoCreated` → accepts immediately; Flow 2 runs in **background** (never blocks PO create)
+- `afterPqDraftSaved` → accepts immediately; Flow 1 runs in **background** (never blocks PQ draft)
+- API response `intercompany.status: "accepted"` means IC was scheduled; success/retry/skip complete off-request
 - RFQ APIs: `GET/PUT /rfqs`, `POST /rfqs/:id/submit`, `POST /rfqs/:id/convert`
 - Notification APIs: `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/mark-all-read`
 - Retry APIs: `GET /retries`, `POST /retries/:id/run`

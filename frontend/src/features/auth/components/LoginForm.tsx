@@ -15,22 +15,6 @@ import { loginSchema } from "@/features/auth/schemas/auth.schema";
 import type { LoginFormData } from "@/features/auth/schemas/auth.schema";
 import { useAuthError } from "@/store/auth/auth.store";
 
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
-
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
 // LoginForm: Authenticated entryway utilizing standardized Sapphire and Industrial design patterns.
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false);
@@ -40,7 +24,6 @@ export function LoginForm() {
     handleSubmit,
     control,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<LoginFormData>({
     defaultValues: {
@@ -51,16 +34,14 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
-  const watchedUsername = watch("username");
-  const debouncedUsername = useDebounce(watchedUsername, 500);
-
   // --- Real Backend Hooks ---
+  // Org list is independent of username (backend returns all tenants once).
   const authError = useAuthError();
   const {
     data: organizations,
     isLoading: isLoadingOrgs,
     isFetching: isOrganizationsFetching,
-  } = useQuery(authQueries.organization(debouncedUsername));
+  } = useQuery(authQueries.organization());
   const { mutate: loginMutation, isPending: isLoggingIn } = useLogin();
 
   const orgLabelMap = React.useMemo(() => {

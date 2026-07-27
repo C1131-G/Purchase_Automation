@@ -300,7 +300,7 @@ export const createPurchaseOrder = async (
       }
     }
 
-    // Flow 2 IC automation: never fails the PO response.
+    // Flow 2 IC: schedule only — main PO create does not wait for AR draft / notifications.
     let intercompany: IcHookResult | undefined;
     if (!isDraft && result.DocEntry) {
       try {

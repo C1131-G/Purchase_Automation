@@ -6,6 +6,7 @@ import { authKeys } from "@/features/auth/api/auth.queries";
 import { authAPI } from "@/features/auth/api/auth.service";
 import type { LoginRequest } from "@/features/auth/api/auth.service";
 import {
+  prefetchOverviewAfterLogin,
   prefetchTableDataAfterLogin,
   scheduleIdlePrefetch,
 } from "@/features/auth/api/login-table-prefetch";
@@ -42,12 +43,16 @@ export function useLogin() {
         // Sync the Query Cache (Blueprint)
         queryClient.setQueryData(authKeys.user(), response.data.user);
 
-        // Navigate to unified Overview dashboard.
+        // Navigate immediately — overview prefetch races in parallel (session cookie ready).
         void navigate({
+          replace: true,
           to: "/dashboard",
         });
 
-        // Warm caches in the background only after the page is already usable.
+        // Priority: warm Overview React Query cache so first paint is instant when ready.
+        void prefetchOverviewAfterLogin(queryClient);
+
+        // Warm table caches only after idle so they do not fight Overview on the HANA pool.
         scheduleIdlePrefetch(async () => {
           await prefetchTableDataAfterLogin(queryClient);
         });

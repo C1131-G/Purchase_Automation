@@ -113,11 +113,15 @@ export function SalesQuotationTable() {
           }
 
           const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-          if (warehouseCode) {
-            void queryClient.prefetchQuery(
-              createSharedQueries.products(warehouseCode, undefined, EDIT_PRODUCTS_PREFETCH_LIMIT),
-            );
-          }
+          // Warm sales product list for edit hydrate (type must match SQ create/edit queries).
+          void queryClient.prefetchQuery(
+            createSharedQueries.products(
+              warehouseCode || undefined,
+              undefined,
+              EDIT_PRODUCTS_PREFETCH_LIMIT,
+              "sales",
+            ),
+          );
 
           const itemCodes = [
             ...new Set(

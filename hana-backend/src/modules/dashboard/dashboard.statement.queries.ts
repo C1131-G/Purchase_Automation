@@ -157,45 +157,35 @@ async function loadOpenInvoiceAging(
   const map = new Map<string, OverviewAging>();
   if (cardCodes.length === 0) return map;
 
-  // Age from DocDueDate (fallback DocDate). Not-yet-due days are negative → bucket 0–30.
+  // Compute DAYS_BETWEEN once per row (outer CASE buckets). Not-yet-due days are negative → 0–30.
   const sql = `
     SELECT
-      inv."CardCode" AS "CardCode",
+      aged."CardCode" AS "CardCode",
+      SUM(CASE WHEN aged."AgeDays" <= 30 THEN aged."Residual" ELSE 0 END) AS "D0_30",
       SUM(
         CASE
-          WHEN DAYS_BETWEEN(IFNULL(inv."DocDueDate", inv."DocDate"), CURRENT_DATE) <= 30
-          THEN (IFNULL(inv."DocTotal", 0) - IFNULL(inv."PaidToDate", 0))
-          ELSE 0
-        END
-      ) AS "D0_30",
-      SUM(
-        CASE
-          WHEN DAYS_BETWEEN(IFNULL(inv."DocDueDate", inv."DocDate"), CURRENT_DATE) > 30
-           AND DAYS_BETWEEN(IFNULL(inv."DocDueDate", inv."DocDate"), CURRENT_DATE) <= 60
-          THEN (IFNULL(inv."DocTotal", 0) - IFNULL(inv."PaidToDate", 0))
+          WHEN aged."AgeDays" > 30 AND aged."AgeDays" <= 60 THEN aged."Residual"
           ELSE 0
         END
       ) AS "D31_60",
       SUM(
         CASE
-          WHEN DAYS_BETWEEN(IFNULL(inv."DocDueDate", inv."DocDate"), CURRENT_DATE) > 60
-           AND DAYS_BETWEEN(IFNULL(inv."DocDueDate", inv."DocDate"), CURRENT_DATE) <= 90
-          THEN (IFNULL(inv."DocTotal", 0) - IFNULL(inv."PaidToDate", 0))
+          WHEN aged."AgeDays" > 60 AND aged."AgeDays" <= 90 THEN aged."Residual"
           ELSE 0
         END
       ) AS "D61_90",
-      SUM(
-        CASE
-          WHEN DAYS_BETWEEN(IFNULL(inv."DocDueDate", inv."DocDate"), CURRENT_DATE) > 90
-          THEN (IFNULL(inv."DocTotal", 0) - IFNULL(inv."PaidToDate", 0))
-          ELSE 0
-        END
-      ) AS "D90_PLUS"
-    FROM "${table}" inv
-    WHERE inv."DocStatus" = 'O'
-      AND IFNULL(inv."CANCELED", 'N') = 'N'
-      AND inv."CardCode" IN (${placeholders(cardCodes.length)})
-    GROUP BY inv."CardCode"
+      SUM(CASE WHEN aged."AgeDays" > 90 THEN aged."Residual" ELSE 0 END) AS "D90_PLUS"
+    FROM (
+      SELECT
+        inv."CardCode" AS "CardCode",
+        DAYS_BETWEEN(IFNULL(inv."DocDueDate", inv."DocDate"), CURRENT_DATE) AS "AgeDays",
+        (IFNULL(inv."DocTotal", 0) - IFNULL(inv."PaidToDate", 0)) AS "Residual"
+      FROM "${table}" inv
+      WHERE inv."DocStatus" = 'O'
+        AND IFNULL(inv."CANCELED", 'N') = 'N'
+        AND inv."CardCode" IN (${placeholders(cardCodes.length)})
+    ) aged
+    GROUP BY aged."CardCode"
   `;
 
   const raw = (await executeTenantQuery(dbName, sql, cardCodes)) as unknown;

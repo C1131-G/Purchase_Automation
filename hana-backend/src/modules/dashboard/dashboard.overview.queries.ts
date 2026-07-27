@@ -88,13 +88,12 @@ async function aggregateOpenDocs(
   alias: string,
 ): Promise<{ count: number; openValue: number }> {
   const repo = await getTenantRepository(dbName, schema);
+  // Filter open docs in WHERE so HANA can use DocStatus index instead of full-table CASE sums.
   const stats = await repo
     .createQueryBuilder(alias)
-    .select(`SUM(CASE WHEN ${alias}.docStatus = 'O' THEN 1 ELSE 0 END)`, "openCount")
-    .addSelect(
-      `SUM(CASE WHEN ${alias}.docStatus = 'O' THEN ${alias}.docTotal ELSE 0 END)`,
-      "openValue",
-    )
+    .select("COUNT(*)", "openCount")
+    .addSelect(`SUM(${alias}.docTotal)`, "openValue")
+    .where(`${alias}.docStatus = :status`, { status: "O" })
     .getRawOne();
 
   return {
@@ -226,19 +225,23 @@ async function loadConnectedPartners(
   }
 }
 
+/** Server-side overview TTL — long enough to absorb login→dashboard + revisits. */
+export const OVERVIEW_CACHE_TTL_MS = 60_000;
+
 /**
  * Current open PQ / SQ / PO + IC partners + AR OWDD + IC statement balance/aging.
  */
 export const getOverviewDashboard = async (dbName: string): Promise<OverviewDashboard> => {
   const cacheKey = `dashboard:overview:${dbName}`;
-  const cacheTtlMs = 15_000;
+  const loadStartedAt = process.hrtime.bigint();
 
   return getCachedData(
     cacheKey,
     async () => {
       try {
-        const currency = await getDisplayCurrency(dbName);
-        const [openPq, openSq, openPo, connected, arApproval] = await Promise.all([
+        // Currency runs in parallel with KPI / partner / AR work (was sequential before).
+        const [currency, openPq, openSq, openPo, connected, arApproval] = await Promise.all([
+          getDisplayCurrency(dbName),
           aggregateOpenDocs(dbName, PurchaseQuotationSchema, "pq"),
           aggregateOpenDocs(dbName, SalesQuotationSchema, "sq"),
           aggregateOpenDocs(dbName, PurchaseOrderSchema, "po"),
@@ -258,6 +261,15 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
                   role: partner.role,
                 })),
               );
+
+        const durationMs = Math.round(Number(process.hrtime.bigint() - loadStartedAt) / 1e6);
+        logger.info({
+          db: dbName,
+          durationMs,
+          msg: "Overview dashboard built",
+          partnerCount: connected.partners.length,
+          arPendingCount: arApproval.count,
+        });
 
         return {
           currency,
@@ -298,6 +310,31 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
         throw caughtError;
       }
     },
-    cacheTtlMs,
+    OVERVIEW_CACHE_TTL_MS,
   );
+};
+
+/**
+ * Fire-and-forget warm of overview cache (e.g. right after login) so the first
+ * /dashboard/overview request is a cache hit instead of a cold multi-query build.
+ */
+export const warmOverviewDashboard = (dbName: string): void => {
+  const company = dbName.trim();
+  if (!company) return;
+
+  const run = (): void => {
+    void getOverviewDashboard(company).catch((err: unknown) => {
+      logger.warn({
+        db: company,
+        err: err instanceof Error ? err : new Error(String(err)),
+        msg: "Overview dashboard warm failed (non-fatal)",
+      });
+    });
+  };
+
+  if (typeof setImmediate === "function") {
+    setImmediate(run);
+    return;
+  }
+  setTimeout(run, 0);
 };

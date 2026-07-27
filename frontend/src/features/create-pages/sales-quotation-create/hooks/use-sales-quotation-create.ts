@@ -319,7 +319,12 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           warehouseCode.trim().length > 0
             ? await queryClient
                 .fetchQuery(
-                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
+                  createSharedQueries.products(
+                    warehouseCode,
+                    undefined,
+                    FULL_PRODUCT_LIMIT,
+                    "sales",
+                  ),
                 )
                 .catch((): ProductLookupItem[] => [])
             : [];

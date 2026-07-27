@@ -198,7 +198,7 @@ export const createPurchaseQuotation = async (
       }
     }
 
-    // Flow 1 IC automation on draft save: never fails the PQ draft response.
+    // Flow 1 IC: schedule only — main PQ draft response does not wait for RFQ/SQ/notifications.
     let intercompany: IcHookResult | undefined;
     if (isDraft && result.DocEntry) {
       try {
