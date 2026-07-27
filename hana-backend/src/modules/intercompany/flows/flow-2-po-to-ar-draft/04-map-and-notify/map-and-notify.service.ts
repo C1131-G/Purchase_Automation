@@ -56,6 +56,7 @@ export const createMapAndNotifyService = (deps?: {
         partner: params.partner,
         remarksTag: params.remarksTag,
         sourceDocEntry: params.sourceDocEntry,
+        sourceDocNum: params.sourceDocNum,
         targetDocEntry,
         targetDocNum,
       });

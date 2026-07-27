@@ -1,5 +1,7 @@
-import type { TaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
-import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
+import type { PartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
+import { createPartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
+import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
+import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import type { ResolvePartnerResult } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.types";
 import type { IcPoHookInput } from "@/modules/intercompany/flows/shared/flow.types";
@@ -16,18 +18,26 @@ export type BuildArDraftService = {
 };
 
 export const createBuildArDraftService = (deps?: {
-  taxMapping?: TaxMappingService;
+  company?: CompanyService;
+  partnerTax?: PartnerTaxResolver;
 }): BuildArDraftService => {
-  const taxMapping = deps?.taxMapping ?? createTaxMappingService();
+  const company = deps?.company ?? createCompanyService();
+  const partnerTax =
+    deps?.partnerTax ??
+    createPartnerTaxResolver({
+      company,
+    });
 
   return {
     build: async ({ partner, input, remarksTag }) => {
-      const sourceCompanyId = partner.buyerCompany.companyId;
       const targetCompanyId = partner.sellerCompany.companyId;
-      let taxMapped = 0;
-      let taxFallback = 0;
-      const fallbackCodes = new Set<string>();
-      const mappedPairs = new Set<string>();
+      const targetSapDbName = partner.sellerCompany.sapDbName;
+      const targetCardCode = partner.buyerCustomerCode;
+
+      let taxItem = 0;
+      let taxBp = 0;
+      let taxOmit = 0;
+      const resolvedPairs = new Set<string>();
 
       const payload = await buildArDraftPayload({
         buyerCustomerCode: partner.buyerCustomerCode,
@@ -36,24 +46,24 @@ export const createBuildArDraftService = (deps?: {
         docDate: input.docDate,
         docDueDate: input.docDueDate,
         lines: input.lines,
-        mapTaxCode: async (sourceTaxCode) => {
-          const mapped = await taxMapping.mapTax(sourceCompanyId, targetCompanyId, sourceTaxCode);
-          if (mapped.hit) {
-            taxMapped += 1;
-            mappedPairs.add(`${sourceTaxCode}->${mapped.targetTaxCode}`);
-            return mapped.targetTaxCode;
-          }
-          taxFallback += 1;
-          fallbackCodes.add(sourceTaxCode);
-          icLog.warn(IC_LOG_SCOPE.TAX, "IC tax map miss; using source tax on partner doc", {
-            check: "tax_mapping",
-            fallback: sourceTaxCode,
-            outcome: "fail",
-            sourceCompanyId,
-            sourceTaxCode,
+        resolveLineTax: async ({ itemCode }) => {
+          const resolved = await partnerTax.resolve({
+            docSide: "sales",
+            itemCode,
+            targetCardCode,
             targetCompanyId,
+            targetSapDbName,
           });
-          return sourceTaxCode;
+          if (resolved.source === "item") {
+            taxItem += 1;
+            resolvedPairs.add(`${itemCode}->${resolved.taxCode}(item)`);
+          } else if (resolved.source === "bp") {
+            taxBp += 1;
+            resolvedPairs.add(`${targetCardCode}->${resolved.taxCode}(bp)`);
+          } else {
+            taxOmit += 1;
+          }
+          return resolved.taxCode;
         },
         numAtCard: input.numAtCard,
         poDocEntry: input.docEntry,
@@ -61,15 +71,14 @@ export const createBuildArDraftService = (deps?: {
         remarksTag,
       });
 
-      icLog.info(IC_LOG_SCOPE.TAX, "IC tax map summary for AR draft", {
-        check: "tax_mapping_summary",
-        fallbackCodes: [...fallbackCodes],
-        mappedPairs: [...mappedPairs],
-        outcome: taxFallback > 0 ? "fail" : "pass",
-        sourceCompanyId,
+      icLog.info(IC_LOG_SCOPE.TAX, "IC partner tax summary for AR draft (dynamic)", {
+        check: "tax_resolve_summary",
+        outcome: taxOmit > 0 ? "fail" : "pass",
+        resolvedPairs: [...resolvedPairs],
         targetCompanyId,
-        taxFallback,
-        taxMapped,
+        taxBp,
+        taxItem,
+        taxOmit,
       });
 
       return payload;

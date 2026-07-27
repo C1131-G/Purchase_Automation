@@ -10,6 +10,10 @@ import { executeTenantQuery } from "@/db/tenant-query";
 import { createCompanyQueries } from "@/modules/intercompany/config/company/company.queries";
 import { createDocumentMapQueries } from "@/modules/intercompany/domain/document-map/document-map.queries";
 import { logger } from "@/core/logger/pino-logger";
+import {
+  buildFlow1RfqRemarks,
+  mergeUserAndIcRemarks,
+} from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
 import type { IcRfqHeader, IcRfqLine } from "./rfq.types";
@@ -310,6 +314,21 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
   };
 };
 
+/** Ensure RFQ always exposes auto IC remarks (PQD + RFQ), even without SAP enrich. */
+const withEnsuredRfqRemarks = (
+  header: IcRfqHeader,
+  draftComments?: string | null,
+): IcRfqHeader => ({
+  ...header,
+  remarks: buildFlow1RfqRemarks({
+    existing: mergeUserAndIcRemarks(draftComments, header.remarks),
+    pqDraftDocEntry: header.pqDraftDocEntry,
+    pqDraftDocNum: header.pqDraftDocNum,
+    rfqId: header.rfqId,
+    rfqNumber: header.rfqNumber,
+  }),
+});
+
 /**
  * Merge buyer PQ draft / real PQ into RFQ for seller UI.
  * Failures are logged and original header is returned (never throws).
@@ -318,7 +337,7 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
   try {
     const company = await createCompanyQueries().getById(header.sourceCompanyId);
     if (!company?.sapDbName) {
-      return header;
+      return withEnsuredRfqRemarks(header);
     }
 
     const dbName = company.sapDbName;
@@ -331,7 +350,7 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
         sourceCompanyId: header.sourceCompanyId,
         status: header.status,
       });
-      return header;
+      return withEnsuredRfqRemarks(header);
     }
 
     const srcHeader = source.header;
@@ -390,28 +409,27 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
     const draftComments = toStr(srcHeader.Comments ?? srcHeader.comments);
     const draftVendorRef = toStr(srcHeader.NumAtCard ?? srcHeader.numAtCard);
     const sourceDocNum = source.docNum;
+    const pqDraftDocNum = header.pqDraftDocNum ?? sourceDocNum;
 
-    // Prefer longest useful remarks: source SAP Comments (user + IC chain) or IC_RFQ.
-    const remarksDisplay =
-      (draftComments && draftComments.length > 0 ? draftComments : null) ?? header.remarks ?? null;
-
-    return {
-      ...header,
-      billToAddress: toStr(srcHeader.Address ?? srcHeader.address),
-      buyerCode: slpCode != null ? String(slpCode) : null,
-      buyerName,
-      docDate: toDateOnly(srcHeader.DocDate ?? srcHeader.docDate),
-      docDueDate: toDateOnly(srcHeader.DocDueDate ?? srcHeader.docDueDate),
-      lines: resolvedLines,
-      pqDraftDocNum: header.pqDraftDocNum ?? sourceDocNum,
-      remarks: remarksDisplay,
-      requiredDate: toDateOnly(srcHeader.DocDueDate ?? srcHeader.docDueDate),
-      shipToAddress: toStr(srcHeader.Address2 ?? srcHeader.address2),
-      vendorCode: cardCode || header.vendorCode,
-      vendorName,
-      vendorRefNo: draftVendorRef ?? header.vendorRefNo ?? null,
-      warehouseCode: firstWh,
-    };
+    return withEnsuredRfqRemarks(
+      {
+        ...header,
+        billToAddress: toStr(srcHeader.Address ?? srcHeader.address),
+        buyerCode: slpCode != null ? String(slpCode) : null,
+        buyerName,
+        docDate: toDateOnly(srcHeader.DocDate ?? srcHeader.docDate),
+        docDueDate: toDateOnly(srcHeader.DocDueDate ?? srcHeader.docDueDate),
+        lines: resolvedLines,
+        pqDraftDocNum,
+        requiredDate: toDateOnly(srcHeader.DocDueDate ?? srcHeader.docDueDate),
+        shipToAddress: toStr(srcHeader.Address2 ?? srcHeader.address2),
+        vendorCode: cardCode || header.vendorCode,
+        vendorName,
+        vendorRefNo: draftVendorRef ?? header.vendorRefNo ?? null,
+        warehouseCode: firstWh,
+      },
+      draftComments,
+    );
   } catch (err: unknown) {
     logger.warn({
       err: err instanceof Error ? err : new Error(String(err)),
@@ -420,6 +438,6 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
       rfqId: header.rfqId,
       sourceCompanyId: header.sourceCompanyId,
     });
-    return header;
+    return withEnsuredRfqRemarks(header);
   }
 };

@@ -15,8 +15,11 @@ export type BuildArDraftInput = {
   poDocEntry: number;
   poDocNum?: number | null;
   lines?: BuildArDraftLineInput[];
-  /** sourceCompanyId → targetCompanyId tax map resolver */
-  mapTaxCode: (sourceTaxCode: string) => Promise<string>;
+  /**
+   * Resolve seller sales tax for one AR line.
+   * Return seller code; empty string → omit VatGroup (never buyer tax).
+   */
+  resolveLineTax: (input: { sourceTaxCode: string; itemCode: string }) => Promise<string>;
 };
 
 export type BuildArDraftResult = Flow2ArDraftPayload;

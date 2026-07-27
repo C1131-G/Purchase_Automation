@@ -53,18 +53,8 @@ VALUES
   );
 */
 
--- 4) Tax mapping both ways for taxes used on test docs
-/*
-INSERT INTO "SBOCOMMON"."IC_TAX_MAPPING"
-  ("SOURCE_COMPANY_ID","TARGET_COMPANY_ID","SOURCE_TAX_CODE","TARGET_TAX_CODE","IS_ACTIVE")
-VALUES
-  (
-    (SELECT "COMPANY_ID" FROM "SBOCOMMON"."IC_COMPANY" WHERE "COMPANY_CODE" = 'A'),
-    (SELECT "COMPANY_ID" FROM "SBOCOMMON"."IC_COMPANY" WHERE "COMPANY_CODE" = 'C'),
-    'VAT0',
-    'VAT0',
-    1
-  );
-*/
+-- 4) IC_TAX_MAPPING removed — partner tax is dynamic (seller item/BP).
+--    Optional DROP (run once after deploy):
+--    DROP TABLE "SBOCOMMON"."IC_TAX_MAPPING";
 
 -- 5) Portal match: IC_COMPANY.SAP_DB_NAME must equal VST_COMMON.DB_NAME for the org.

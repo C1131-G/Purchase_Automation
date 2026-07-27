@@ -12,8 +12,8 @@ function formatUnreadBadge(count: number): string {
 }
 
 /**
- * Compact unread indicator for Intercompany → Notifications sidebar / section nav.
- * Small bell + total count from TanStack Query only (never Zustand).
+ * Compact unread indicator for Intercompany sidebar.
+ * Bell + count from TanStack Query only (never Zustand).
  * Renders nothing when count is 0.
  */
 export function IcUnreadCountPill({ className }: { className?: string }) {
@@ -25,13 +25,36 @@ export function IcUnreadCountPill({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "ml-auto inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-blue-700 tabular-nums",
+        "inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-blue-700 tabular-nums",
         className,
       )}
       aria-label={`${count} unread notifications`}
     >
       <Bell className="size-3 shrink-0" aria-hidden />
       <span>{formatUnreadBadge(count)}</span>
+    </span>
+  );
+}
+
+/**
+ * Tiny count dot for Intercompany section icon (icon-collapsed sidebar).
+ * Renders nothing when count is 0.
+ */
+export function IcUnreadIconBadge({ className }: { className?: string }) {
+  const unreadQuery = useIcUnreadCount(true);
+  const count = unreadQuery.data?.data.count ?? 0;
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <span
+      className={cn(
+        "inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-bold leading-none text-white tabular-nums shadow-sm ring-2 ring-white",
+        className,
+      )}
+      aria-label={`${count} unread notifications`}
+    >
+      {formatUnreadBadge(count)}
     </span>
   );
 }

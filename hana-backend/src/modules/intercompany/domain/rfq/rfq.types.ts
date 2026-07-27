@@ -27,6 +27,10 @@ export type IcRfqHeader = {
   rfqNumber: string;
   sourceCompanyId: number;
   targetCompanyId: number;
+  /** From IC_COMPANY join — display name for source (buyer) company. */
+  sourceCompanyName?: string | null;
+  /** From IC_COMPANY join — display name for target (seller) company. */
+  targetCompanyName?: string | null;
   pqDraftDocEntry: number;
   pqDraftDocNum: number | null;
   vendorCode: string;

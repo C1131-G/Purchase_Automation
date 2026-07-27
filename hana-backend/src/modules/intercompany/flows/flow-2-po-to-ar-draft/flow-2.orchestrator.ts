@@ -10,8 +10,7 @@ import type { NotificationService } from "@/modules/intercompany/domain/notifica
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import type { RetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
-import type { TaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
-import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
+
 import type { ResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import {
@@ -27,6 +26,7 @@ import {
   summarizeIcLines,
   summarizePartner,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
+import { formatIcDocLabel } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
@@ -54,6 +54,16 @@ const LOG_SCOPE = FLOW2_SCOPE;
 const skipFromCapture = (capture: Extract<Flow2CaptureResult, { kind: "skip" }>): IcHookResult =>
   skipResult(capture.detail ? `${capture.reason}:${capture.detail}` : capture.reason);
 
+const compactLogRow = (row: Record<string, unknown>): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (value !== null && value !== undefined && value !== "") {
+      out[key] = value;
+    }
+  }
+  return out;
+};
+
 const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
   const lines = Array.isArray(draftPayload.DocumentLines)
     ? (draftPayload.DocumentLines as Record<string, unknown>[])
@@ -65,29 +75,38 @@ const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
         .filter((code) => code.length > 0),
     ),
   ];
-  const items = lines.map((line, index) => ({
-    itemCode: String(line.ItemCode ?? "").trim(),
-    itemDescription:
-      String(line.ItemDescription ?? line.Dscription ?? line.ItemName ?? "").trim() || null,
-    lineNum: line.LineNum ?? index,
-    quantity: line.Quantity ?? null,
-    unitPrice: line.UnitPrice ?? line.Price ?? null,
-    uomCode: line.UoMCode ?? line.UomCode ?? null,
-    uomEntry: line.UoMEntry ?? line.UomEntry ?? null,
-    vatGroup: line.VatGroup ?? null,
-    warehouseCode: line.WarehouseCode ?? null,
-  }));
-  return {
+  const items = lines.map((line, index) => {
+    const itemDescription = String(
+      line.ItemDescription ?? line.Dscription ?? line.ItemName ?? "",
+    ).trim();
+    const uomCode = line.UoMCode ?? line.UomCode;
+    const uomEntry = line.UoMEntry ?? line.UomEntry;
+    return compactLogRow({
+      itemCode: String(line.ItemCode ?? "").trim() || undefined,
+      itemDescription: itemDescription || undefined,
+      lineNum: line.LineNum ?? index,
+      quantity: line.Quantity,
+      unitPrice: line.UnitPrice ?? line.Price,
+      uomCode: uomCode == null || String(uomCode).trim() === "" ? undefined : uomCode,
+      uomEntry:
+        uomEntry == null || !Number.isFinite(Number(uomEntry)) || Number(uomEntry) <= 0
+          ? undefined
+          : uomEntry,
+      vatGroup: line.VatGroup,
+      warehouseCode: line.WarehouseCode,
+    });
+  });
+  return compactLogRow({
     cardCode: draftPayload.CardCode,
-    comments: draftPayload.Comments ?? null,
-    docDate: draftPayload.DocDate ?? null,
-    docDueDate: draftPayload.DocDueDate ?? null,
-    docObjectCode: draftPayload.DocObjectCode ?? null,
+    comments: draftPayload.Comments,
+    docDate: draftPayload.DocDate,
+    docDueDate: draftPayload.DocDueDate,
+    docObjectCode: draftPayload.DocObjectCode,
     items,
     lineCount: lines.length,
-    numAtCard: draftPayload.NumAtCard ?? null,
-    vatGroups,
-  };
+    numAtCard: draftPayload.NumAtCard,
+    vatGroups: vatGroups.length > 0 ? vatGroups : undefined,
+  });
 };
 
 export type Flow2Orchestrator = {
@@ -104,7 +123,6 @@ export const createFlow2Orchestrator = (deps?: {
   history?: HistoryService;
   configuration?: ConfigurationService;
   resolvePartner?: ResolvePartnerService;
-  taxMapping?: TaxMappingService;
   notifications?: NotificationService;
   documents?: IcSlDocuments;
 }): Flow2Orchestrator => {
@@ -121,11 +139,7 @@ export const createFlow2Orchestrator = (deps?: {
       resolvePartner: deps?.resolvePartner ?? createResolvePartnerService(),
     });
 
-  const build =
-    deps?.build ??
-    createBuildArDraftService({
-      taxMapping: deps?.taxMapping ?? createTaxMappingService(),
-    });
+  const build = deps?.build ?? createBuildArDraftService();
 
   const post =
     deps?.post ??
@@ -259,8 +273,12 @@ export const createFlow2Orchestrator = (deps?: {
           sourceDocEntry: partner.sourceDocEntry,
           sourceDocNum: partner.sourceDocNum,
         }),
-        sourceDocument: IC_OBJECT.PO,
-        targetDocument: IC_OBJECT.AR_DRAFT,
+        sourceDocument: formatIcDocLabel({
+          kind: "PO",
+          docEntry: partner.sourceDocEntry,
+          docNum: partner.sourceDocNum,
+        }),
+        targetDocument: formatIcDocLabel({ kind: "AR" }),
       });
 
       logFlowStep(LOG_SCOPE, {
@@ -335,16 +353,16 @@ export const createFlow2Orchestrator = (deps?: {
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.INPUT,
           ctx: logCtx,
-          detail: {
-            currency: input.currency ?? null,
-            docDate: input.docDate ?? null,
-            docDueDate: input.docDueDate ?? null,
+          detail: compactLogRow({
+            currency: input.currency,
+            docDate: input.docDate,
+            docDueDate: input.docDueDate,
             itemCodes: lineSnap.itemCodes,
             lineCount: lineSnap.lineCount,
             lines: lineSnap.lines,
-            numAtCard: input.numAtCard ?? null,
-            remarks: input.remarks ?? null,
-          },
+            numAtCard: input.numAtCard,
+            remarks: input.remarks,
+          }),
         });
 
         logFlowStep(LOG_SCOPE, {
@@ -396,9 +414,10 @@ export const createFlow2Orchestrator = (deps?: {
           ...FLOW2_STEPS.BUILD,
           ctx: logCtx,
           detail: {
-            ...partnerSnap,
             buyerCustomerOnSeller: captured.partner.buyerCustomerCode,
             phase: "building",
+            sellerCompanyId: captured.partner.sellerCompany.companyId,
+            sellerSapDb: captured.partner.sellerCompany.sapDbName,
             sourceLineCount: lineSnap.lineCount,
             sourceLines: lineSnap.lines,
           },
@@ -423,12 +442,12 @@ export const createFlow2Orchestrator = (deps?: {
           title: "Flow 2 build AR invoice draft payload — done",
         });
 
+        // One SAP body log (no duplicate items array — lines are inside draftPayload).
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.PAYLOAD,
           ctx: logCtx,
           detail: {
             draftPayload,
-            items: draftSummary.items,
             sellerCompanyId: captured.partner.sellerCompany.companyId,
             sellerSapDb: captured.partner.sellerCompany.sapDbName,
           },
@@ -506,7 +525,11 @@ export const createFlow2Orchestrator = (deps?: {
               status: "success",
               targetDocEntry: created.docEntry,
               targetDocNum: created.docNum ?? null,
-              ...partnerSnap,
+              buyerCustomerCode: partnerSnap.buyerCustomerCode,
+              sellerCompanyId: partnerSnap.sellerCompanyId,
+              sellerSapDb: partnerSnap.sellerSapDb,
+              vendorCode: partnerSnap.vendorCode,
+              vatGroups: draftSummary.vatGroups,
               items: draftSummary.items,
             },
           });

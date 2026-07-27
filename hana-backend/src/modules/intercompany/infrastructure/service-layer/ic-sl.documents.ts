@@ -4,6 +4,7 @@
 
 import type { ApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
 import { createApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
+import { mergeUserAndIcRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import type { ResolveSlTargetService } from "@/modules/intercompany/routing/resolve-sl-target/resolve-sl-target.service";
 import { createResolveSlTargetService } from "@/modules/intercompany/routing/resolve-sl-target/resolve-sl-target.service";
@@ -24,6 +25,11 @@ export type CreateSalesQuotationInput = {
   cardCode: string;
   lines: unknown[];
   remarks?: string;
+  /**
+   * Seller multi-branch companies require BPL_IDAssignedToInvoice (OQUT.BPLId).
+   * From IC_COMPANY.DEFAULT_BRANCH_ID (same as AR draft Flow 2).
+   */
+  defaultBranchId?: number | null;
 };
 
 export type ApplyPricesToDraftInput = {
@@ -151,11 +157,18 @@ const parseDocResult = (
   };
 };
 
+export type GetDraftCommentsInput = {
+  companyId: number;
+  draftEntry: number;
+};
+
 export type IcSlDocuments = {
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
   createSalesQuotation: (input: CreateSalesQuotationInput) => Promise<IcSlDocumentResult>;
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
   applyPricesToDraft: (input: ApplyPricesToDraftInput) => Promise<void>;
+  /** Buyer draft Comments for IC remarks merge (parent typed text). */
+  getDraftComments: (input: GetDraftCommentsInput) => Promise<string | null>;
 };
 
 export const createIcSlDocuments = (deps?: {
@@ -224,6 +237,39 @@ export const createIcSlDocuments = (deps?: {
   };
 
   return {
+    getDraftComments: async (input) => {
+      const { connection, session: slSession } = await withCompanySession(input.companyId);
+      const endpoint = `/Drafts(${input.draftEntry})?$select=Comments`;
+      logSlRequest({
+        companyId: input.companyId,
+        endpoint,
+        method: "GET",
+      });
+      try {
+        const response = await client.request<Record<string, unknown>>({
+          connection,
+          endpoint,
+          method: "GET",
+          session: slSession,
+        });
+        const comments = response.data?.Comments;
+        if (comments === null || comments === undefined) {
+          return null;
+        }
+        const text = String(comments).trim();
+        return text || null;
+      } catch (err: unknown) {
+        logSlFailure({
+          companyId: input.companyId,
+          endpoint,
+          err,
+          method: "GET",
+        });
+        // Best-effort: convert can still proceed with RFQ remarks only.
+        return null;
+      }
+    },
+
     applyPricesToDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = `/Drafts(${input.draftEntry})`;
@@ -249,8 +295,11 @@ export const createIcSlDocuments = (deps?: {
         const mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
 
         const body: Record<string, unknown> = { DocumentLines: mergedLines };
+        // Never wipe original draft Comments — merge user text + IC chain.
         if (input.comments != null && String(input.comments).trim()) {
-          body.Comments = String(input.comments).trim();
+          const existingComments =
+            draft.Comments === null || draft.Comments === undefined ? null : String(draft.Comments);
+          body.Comments = mergeUserAndIcRemarks(existingComments, String(input.comments).trim());
         }
 
         icLog.info(SCOPE, "IC SL apply prices to draft lines", {
@@ -342,9 +391,14 @@ export const createIcSlDocuments = (deps?: {
           ...rest
         } = draft;
 
-        // Preserve draft Comments unless caller provided merged IC chain.
+        // Preserve draft Comments; merge caller IC chain (never replace user text).
         if (params.comments != null && String(params.comments).trim()) {
-          (rest as Record<string, unknown>).Comments = String(params.comments).trim();
+          const existingComments =
+            rest.Comments === null || rest.Comments === undefined ? null : String(rest.Comments);
+          (rest as Record<string, unknown>).Comments = mergeUserAndIcRemarks(
+            existingComments,
+            String(params.comments).trim(),
+          );
         }
 
         // Merge RFQ commercial fields onto draft lines so posted PQ is never total 0
@@ -432,27 +486,37 @@ export const createIcSlDocuments = (deps?: {
       const lines = Array.isArray(input.draftPayload.DocumentLines)
         ? (input.draftPayload.DocumentLines as Record<string, unknown>[])
         : [];
-      const items = lines.map((line, index) => ({
-        itemCode: String(line.ItemCode ?? "").trim(),
-        itemDescription: String(line.ItemDescription ?? line.Dscription ?? "").trim() || null,
-        lineNum: line.LineNum ?? index,
-        quantity: line.Quantity ?? null,
-        unitPrice: line.UnitPrice ?? null,
-        vatGroup: line.VatGroup ?? null,
-        warehouseCode: line.WarehouseCode ?? null,
-      }));
+      const items = lines.map((line, index) => {
+        const itemDescription = String(line.ItemDescription ?? line.Dscription ?? "").trim();
+        const row: Record<string, unknown> = {
+          itemCode: String(line.ItemCode ?? "").trim(),
+          lineNum: line.LineNum ?? index,
+          quantity: line.Quantity,
+          unitPrice: line.UnitPrice,
+        };
+        if (itemDescription) {
+          row.itemDescription = itemDescription;
+        }
+        if (line.VatGroup != null && String(line.VatGroup).trim()) {
+          row.vatGroup = line.VatGroup;
+        }
+        if (line.WarehouseCode != null && String(line.WarehouseCode).trim()) {
+          row.warehouseCode = line.WarehouseCode;
+        }
+        return row;
+      });
       logSlRequest({
         companyId: input.companyId,
         endpoint,
         lineCount: lines.length,
         method: "POST",
       });
+      // Full body only (no parallel items dump — DocumentLines already in payload).
       icLog.info(SCOPE, "IC SL AR draft request body", {
         check: "sl_create_ar_draft_request",
         companyId: input.companyId,
         databaseName: connection.databaseName,
         draftPayload: input.draftPayload,
-        items,
         method: "POST",
         outcome: "pass",
       });
@@ -521,12 +585,19 @@ export const createIcSlDocuments = (deps?: {
           .map((line) => line.trim())
           .find((line) => line.startsWith("IC |"))
           ?.slice(0, 100) || remarksFull.slice(0, 100);
-      const body = {
+      const body: Record<string, unknown> = {
         CardCode: input.cardCode,
         Comments: remarksFull,
         DocumentLines: input.lines,
-        NumAtCard: numAtCard || undefined,
       };
+      if (numAtCard) {
+        body.NumAtCard = numAtCard;
+      }
+      // Multi-branch seller DBs: SAP requires active BPLId on OQUT (same field as AR/Invoice).
+      const branchId = input.defaultBranchId;
+      if (branchId != null && Number.isFinite(branchId) && branchId > 0) {
+        body.BPL_IDAssignedToInvoice = Math.trunc(branchId);
+      }
       const lineSnap = Array.isArray(input.lines)
         ? input.lines.map((line, index) => {
             const row = line as Record<string, unknown>;
@@ -550,6 +621,7 @@ export const createIcSlDocuments = (deps?: {
         check: "sl_create_sq_request",
         companyId: input.companyId,
         databaseName: connection.databaseName,
+        bplId: body.BPL_IDAssignedToInvoice ?? null,
         cardCode: input.cardCode,
         lines: lineSnap,
         outcome: "pass",

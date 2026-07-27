@@ -28,6 +28,7 @@ import {
 } from "@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils";
 import type { APCreditMemoFieldErrors } from "@/features/create-pages/ap-credit-memo-create/utils/ap-credit-memo-create.utils";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   LookupItem,
   ProductLookupItem,
@@ -117,33 +118,7 @@ export function useAPCreditMemoCreate({
   draftDocEntry = "",
   onCreateSuccess,
 }: UseAPCreditMemoCreateOptions) {
-  const parseAPCreditMemoHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
-    const referenceNo = String(detail.NumAtCard ?? "").trim();
-    const rawComments = String(detail.Comments ?? "").trim();
-
-    if (referenceNo) {
-      const legacyReferencePrefix = `${referenceNo} | `;
-      return {
-        comments: rawComments.startsWith(legacyReferencePrefix)
-          ? rawComments.slice(legacyReferencePrefix.length).trim()
-          : rawComments,
-        referenceNo,
-      };
-    }
-
-    const splitComments = rawComments.split(" | ").map((part) => part.trim());
-    if (splitComments.length > 1) {
-      return {
-        comments: splitComments.slice(1).join(" | "),
-        referenceNo: splitComments[0] ?? "",
-      };
-    }
-
-    return {
-      comments: rawComments,
-      referenceNo,
-    };
-  };
+  const parseAPCreditMemoHeaderNotes = parseDocumentHeaderNotes;
   const isEditMode = mode === "edit";
   const editDocNum = (docNum ?? "").trim();
   const queryClient = useQueryClient();

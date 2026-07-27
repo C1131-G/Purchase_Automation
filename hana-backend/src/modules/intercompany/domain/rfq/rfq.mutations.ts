@@ -5,7 +5,11 @@ import {
   type IcSqlClient,
 } from "@/modules/intercompany/infrastructure/ic-sql";
 
-import { mapRfqHeaderRow, mapRfqLineRow } from "./rfq.queries";
+import {
+  mapRfqHeaderRow,
+  mapRfqLineRow,
+  RFQ_HEADER_SELECT_WITH_COMPANY_NAMES,
+} from "./rfq.queries";
 import type { CreateRfqFromDraftInput, IcRfqHeader, UpdateRfqLineInput } from "./rfq.types";
 
 export type RfqMutations = {
@@ -18,7 +22,11 @@ const loadHeaderWithLines = async (
   sql: IcSqlClient,
   rfqId: number,
 ): Promise<IcRfqHeader | null> => {
-  const rows = await sql.query(`SELECT * FROM "IC_RFQ_HEADER" WHERE "RFQ_ID" = ?`, [rfqId]);
+  const rows = await sql.query(
+    `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
+      WHERE h."RFQ_ID" = ?`,
+    [rfqId],
+  );
   if (!rows[0]) {
     return null;
   }

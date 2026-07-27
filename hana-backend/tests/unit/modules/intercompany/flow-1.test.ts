@@ -7,8 +7,7 @@ import { createBpMappingQueries } from "@/modules/intercompany/config/bp-mapping
 import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
 import { createCompanyQueries } from "@/modules/intercompany/config/company/company.queries";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
-import { createTaxMappingQueries } from "@/modules/intercompany/config/tax-mapping/tax-mapping.queries";
-import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
+import { createPartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
 import { createDocumentMapMutations } from "@/modules/intercompany/domain/document-map/document-map.mutations";
 import { createDocumentMapQueries } from "@/modules/intercompany/domain/document-map/document-map.queries";
 import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
@@ -67,7 +66,7 @@ const createFlow1TestStack = (opts?: {
   const bpMapping = createBpMappingService(createBpMappingQueries(sql));
   const resolvePartner = createResolvePartnerService({ bpMapping, company });
   const configuration = createConfigurationService(createConfigurationQueries(sql));
-  const taxMapping = createTaxMappingService(createTaxMappingQueries(sql));
+
   const documentMap = createDocumentMapService({
     mutations: createDocumentMapMutations(sql),
     queries: createDocumentMapQueries(sql),
@@ -105,6 +104,7 @@ const createFlow1TestStack = (opts?: {
         docEntry: 8001,
         docNum: 801,
       })),
+    getDraftComments: opts?.documents?.getDraftComments ?? (async () => null),
   };
 
   const orchestrator = createFlow1Orchestrator({
@@ -149,10 +149,20 @@ const createFlow1TestStack = (opts?: {
     documentMap,
     documents,
     history,
-    notifications,
+    partnerTax: createPartnerTaxResolver({
+      company,
+      masters: {
+        getBpTax: async () => null,
+        getItemTax: async () => null,
+      },
+    }),
+    // Avoid live OWHS tenant lookup in unit tests (multi-branch SQ WH).
+    warehouseMasters: {
+      getItemWarehouseOnBranch: async () => null,
+      getWarehouseForBranch: async () => "WH-TEST",
+    },
     retry,
     rfq,
-    taxMapping,
   });
 
   // Rebuild fill with convert so submit auto-runs draft→PQ + SQ (production path).
@@ -237,6 +247,12 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
+
+    // Auto IC remarks stored on RFQ at create (doc type + number only).
+    const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
+    expect(storedRemarks).toContain("IC | PQD: PQ Draft No 9001");
+    expect(storedRemarks).toContain("IC | RFQ: RFQ-PQD-9001");
+    expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
 
     const second = await orchestrator.run(input);
     expect(second.status).toBe("skipped");

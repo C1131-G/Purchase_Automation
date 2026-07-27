@@ -167,10 +167,14 @@ describe("IC API schemas (P8A)", () => {
       rfqId: 7,
       rfqNumber: "RFQ-0007",
       sourceCompanyId: 1,
+      sourceCompanyName: "Buyer Co A",
       status: "DRAFT",
       targetCompanyId: 2,
+      targetCompanyName: "Seller Co B",
       vendorCode: "V-IC-B",
     });
     expect(rfq.rfqNumber).toBe("RFQ-0007");
+    expect(rfq.sourceCompanyName).toBe("Buyer Co A");
+    expect(rfq.targetCompanyName).toBe("Seller Co B");
   });
 });

@@ -1,14 +1,13 @@
 import AppError from "@/core/errors/app-error";
 import type { ConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
 import { createConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
-import type { TaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
-import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
+import type { PartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
+import { createPartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
+import type { PartnerWarehouseMasters } from "@/modules/intercompany/config/warehouse/partner-warehouse.masters";
 import type { DocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
 import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
 import type { HistoryService } from "@/modules/intercompany/domain/history/history.service";
 import { createHistoryService } from "@/modules/intercompany/domain/history/history.service";
-import type { NotificationService } from "@/modules/intercompany/domain/notification/notification.service";
-import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import type { RetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
@@ -34,7 +33,9 @@ import {
   buildFlow1ConvertRemarks,
   buildFlow1SqRemarks,
   compactRfqTag,
+  formatIcDocLabel,
   icLinkSq,
+  mergeUserAndIcRemarks,
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
@@ -56,25 +57,30 @@ export type ConvertPqAndSqService = {
 export const createConvertPqAndSqService = (deps?: {
   rfq?: RfqService;
   documentMap?: DocumentMapService;
-  notifications?: NotificationService;
   history?: HistoryService;
   retry?: RetryService;
   configuration?: ConfigurationService;
-  taxMapping?: TaxMappingService;
+  partnerTax?: PartnerTaxResolver;
+  /** OWHS lookup for multi-branch seller SQ (injectable in unit tests). */
+  warehouseMasters?: PartnerWarehouseMasters;
   company?: CompanyService;
   bpMapping?: BpMappingService;
   documents?: IcSlDocuments;
 }): ConvertPqAndSqService => {
   const rfq = deps?.rfq ?? createRfqService();
   const documentMap = deps?.documentMap ?? createDocumentMapService();
-  const notifications = deps?.notifications ?? createNotificationService();
   const history = deps?.history ?? createHistoryService();
   const retry = deps?.retry ?? createRetryService();
   const configuration = deps?.configuration ?? createConfigurationService();
-  const taxMapping = deps?.taxMapping ?? createTaxMappingService();
   const company = deps?.company ?? createCompanyService();
   const bpMapping = deps?.bpMapping ?? createBpMappingService();
   const documents = deps?.documents ?? createIcSlDocuments();
+  const warehouseMasters = deps?.warehouseMasters;
+  const partnerTax =
+    deps?.partnerTax ??
+    createPartnerTaxResolver({
+      company,
+    });
 
   return {
     convert: async ({ rfqId, actorCompanyId }) => {
@@ -226,9 +232,20 @@ export const createConvertPqAndSqService = (deps?: {
       const remarksTag = compactRfqTag(header.rfqNumber);
       const draftEntry = header.pqDraftDocEntry;
 
-      // Keep any RFQ/header remarks; add PQD + RFQ lines (idempotent).
+      // Re-read buyer draft Comments so parent typed text is not lost if RFQ row missed it.
+      let draftComments: string | null = null;
+      try {
+        draftComments = await documents.getDraftComments({
+          companyId: header.sourceCompanyId,
+          draftEntry,
+        });
+      } catch {
+        draftComments = null;
+      }
+
+      // Keep RFQ + draft user remarks; append PQD + RFQ IC lines (never drop parent text).
       const remarksBeforePq = buildFlow1ConvertRemarks({
-        existing: header.remarks,
+        existing: mergeUserAndIcRemarks(header.remarks, draftComments),
         pqDraftDocEntry: header.pqDraftDocEntry,
         pqDraftDocNum: header.pqDraftDocNum,
         rfqId: header.rfqId,
@@ -329,47 +346,19 @@ export const createConvertPqAndSqService = (deps?: {
       });
 
       /**
-       * Buyer purchase tax → seller sales tax via IC_TAX_MAPPING.
-       * On miss: return "" (omit VatGroup on SQ). Never send buyer tax to seller —
-       * that yields SAP 400 "Invalid VAT Group".
+       * Seller SQ tax: seller item sales tax → BP default → omit.
+       * Never send buyer tax to seller (SAP 400 "Invalid VAT Group").
        */
-      const mapTaxCode = async (sourceTaxCode: string): Promise<string> => {
-        const code = sourceTaxCode.trim();
-        if (!code) {
-          return "";
-        }
-        const mapped = await taxMapping.mapTax(
-          header.sourceCompanyId,
-          header.targetCompanyId,
-          code,
-        );
-        if (mapped.hit && mapped.targetTaxCode.trim()) {
-          icLog.info(IC_LOG_SCOPE.TAX, "IC tax map hit for SQ", {
-            check: "tax_mapping",
-            outcome: "pass",
-            rfqId,
-            sourceCompanyId: header.sourceCompanyId,
-            sourceTaxCode: code,
-            targetCompanyId: header.targetCompanyId,
-            targetTaxCode: mapped.targetTaxCode,
-          });
-          return mapped.targetTaxCode.trim();
-        }
-        icLog.warn(
-          IC_LOG_SCOPE.TAX,
-          "IC tax map miss on convert SQ — omit VatGroup (do not use buyer tax)",
-          {
-            check: "tax_mapping",
-            hint: "INSERT IC_TAX_MAPPING for buyer→seller tax pair, or rely on BP default sales tax",
-            outcome: "fail",
-            rfqId,
-            sourceCompanyId: header.sourceCompanyId,
-            sourceTaxCode: code,
-            targetCompanyId: header.targetCompanyId,
-          },
-        );
-        return "";
-      };
+      const resolveLineTax = async (input: {
+        sourceTaxCode: string;
+        itemCode: string;
+      }): Promise<string> =>
+        partnerTax.resolveLineTax({
+          docSide: "sales",
+          itemCode: input.itemCode,
+          targetCardCode: bpMap.buyerCustomerCode,
+          targetCompanyId: header.targetCompanyId,
+        });
 
       try {
         logFlowStep(LOG_SCOPE, {
@@ -377,8 +366,10 @@ export const createConvertPqAndSqService = (deps?: {
           ctx: logCtx,
           detail: {
             buyerCustomerCode: bpMap.buyerCustomerCode,
+            defaultBranchId: sellerCompany.defaultBranchId ?? null,
             pqDocEntry: purchaseQuotation.docEntry,
             pqDocNum: purchaseQuotation.docNum ?? null,
+            sapDbName: sellerCompany.sapDbName ?? null,
             sellerCompanyId: header.targetCompanyId,
           },
         });
@@ -395,11 +386,14 @@ export const createConvertPqAndSqService = (deps?: {
 
         const salesQuotation = await createSellerSq({
           buyerCustomerCode: bpMap.buyerCustomerCode,
+          defaultBranchId: sellerCompany.defaultBranchId,
           documents,
           lines,
-          mapTaxCode,
           remarks: sqRemarksBefore,
+          resolveLineTax,
+          sapDbName: sellerCompany.sapDbName,
           sellerCompanyId: header.targetCompanyId,
+          warehouseMasters,
         });
 
         const sqRemarksFinal = appendIcRemarkLines(sqRemarksBefore, [
@@ -428,34 +422,8 @@ export const createConvertPqAndSqService = (deps?: {
 
         await rfq.complete(rfqId);
 
-        const [buyerCo, sellerCo] = await Promise.all([
-          company.getById(header.sourceCompanyId),
-          company.getById(header.targetCompanyId),
-        ]);
-        const buyerName = buyerCo?.companyName?.trim() || "Buyer";
-        const sellerName = sellerCo?.companyName?.trim() || "Seller";
-        const sqRef = salesQuotation.docNum ?? salesQuotation.docEntry;
-        const pqRef = purchaseQuotation.docNum ?? purchaseQuotation.docEntry;
-
-        await notifications.create({
-          companyId: header.targetCompanyId,
-          documentId: String(salesQuotation.docEntry),
-          documentType: IC_OBJECT.SQ,
-          flowStep: "FLOW1_CONVERT_COMPLETE",
-          message: `${buyerName}: SQ ${sqRef} for RFQ ${header.rfqNumber}.`,
-          priority: "MEDIUM",
-          title: buyerName,
-        });
-
-        await notifications.create({
-          companyId: header.sourceCompanyId,
-          documentId: String(purchaseQuotation.docEntry),
-          documentType: IC_OBJECT.PQ,
-          flowStep: "FLOW1_CONVERT_COMPLETE",
-          message: `${sellerName}: RFQ ${header.rfqNumber} → PQ ${pqRef} & SQ ${sqRef}.`,
-          priority: "LOW",
-          title: sellerName,
-        });
+        // No convert-complete notifications: handoffs already covered by
+        // FLOW1_RFQ_CREATED (seller) and FLOW1_RFQ_SUBMITTED (buyer).
 
         await history.append({
           action: IC_ACTION.FLOW1_CONVERT_PQ_SQ,
@@ -580,12 +548,19 @@ export const createConvertPqAndSqService = (deps?: {
             payloadJson: JSON.stringify({
               buyerCustomerCode: bpMap.buyerCustomerCode,
               pqDocEntry: purchaseQuotation.docEntry,
+              pqDocNum: purchaseQuotation.docNum ?? null,
+              remarks: remarksWithPq,
               remarksTag,
               rfqId: header.rfqId,
+              rfqNumber: header.rfqNumber,
               sellerCompanyId: header.targetCompanyId,
             }),
-            sourceDocument: IC_OBJECT.PQ,
-            targetDocument: IC_OBJECT.SQ,
+            sourceDocument: formatIcDocLabel({
+              kind: "PQ",
+              docEntry: purchaseQuotation.docEntry,
+              docNum: purchaseQuotation.docNum ?? null,
+            }),
+            targetDocument: formatIcDocLabel({ kind: "SQ" }),
           });
 
           logFlowStep(LOG_SCOPE, {

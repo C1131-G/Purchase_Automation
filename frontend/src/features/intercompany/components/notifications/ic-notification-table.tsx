@@ -10,7 +10,10 @@ import {
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import {
+  IC_NOTIFICATION_SKELETON_COLUMNS,
+  TableSkeleton,
+} from "@/components/skeleton/Table-skeleton";
 import { normalizeColumnFilters } from "@/components/types/filter-utils";
 import {
   useMarkAllIcNotificationsRead,
@@ -382,7 +385,21 @@ export function IcNotificationTable() {
   }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate]);
 
   if (showInitialSkeleton) {
-    return <TableSkeleton />;
+    return (
+      <TableSkeleton
+        columnWidths={IC_NOTIFICATION_SKELETON_COLUMNS.columnWidths}
+        cellWidths={IC_NOTIFICATION_SKELETON_COLUMNS.cellWidths}
+        // Match real toolbar: Filter + Mark all (no View / Create).
+        toolbar={{
+          showCreate: false,
+          showView: false,
+          showFilter: true,
+          endActionWidths: ["w-28"],
+        }}
+        // Read column: left content + small right gap (mirrors live table).
+        columnClassNames={[undefined, undefined, undefined, undefined, "pl-2 pr-4 text-left"]}
+      />
+    );
   }
 
   if (listQuery.isError && !listQuery.data) {
@@ -415,19 +432,26 @@ export function IcNotificationTable() {
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="align-top whitespace-nowrap py-3"
-                    style={{ width: `${header.getSize()}%` }}
-                  >
-                    <div className="flex items-center justify-start gap-2">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </div>
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const isActions = header.column.id === "actions";
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={
+                        isActions
+                          ? "align-top whitespace-nowrap py-3 pl-2 pr-4 text-left"
+                          : "align-top whitespace-nowrap py-3"
+                      }
+                      style={{ width: `${header.getSize()}%` }}
+                    >
+                      <div className="flex items-center justify-start gap-2">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </div>
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -439,15 +463,23 @@ export function IcNotificationTable() {
                   className={row.original.isRead ? undefined : "bg-blue-50/30"}
                   data-unread={!row.original.isRead ? "true" : undefined}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className="align-top"
-                      style={{ width: `${cell.column.getSize()}%` }}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const isActions = cell.column.id === "actions";
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={
+                          isActions
+                            ? // Pull content left; keep a little gap on the right edge of Read column.
+                              "align-top pl-2 pr-4 text-left"
+                            : "align-top"
+                        }
+                        style={{ width: `${cell.column.getSize()}%` }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (

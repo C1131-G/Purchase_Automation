@@ -176,19 +176,35 @@ export const createPurchaseOrder = async (
     const sapEndpoint = isDraft ? "/Drafts" : "/PurchaseOrders";
     const sapUrl = `${config.serviceLayer.serviceLayerURL}${sapEndpoint}`;
 
-    // Product snapshot for creating the same ItemCode in partner company DB (e.g. RCM_TESTING_POS1).
-    const poItemsForPartnerMaster = documentLines.map((line, index) => ({
-      discountPercent: line.DiscountPercent ?? 0,
-      itemCode: String(line.ItemCode ?? "").trim(),
-      itemDescription: String(line.ItemDescription ?? "").trim() || null,
-      lineNum: line.LineNum ?? index,
-      quantity: line.Quantity ?? null,
-      unitPrice: line.UnitPrice ?? null,
-      uomCode: line.UoMCode ?? null,
-      uomEntry: line.UoMEntry ?? null,
-      vatGroup: line.VatGroup ?? null,
-      warehouseCode: line.WarehouseCode ?? null,
-    }));
+    // Compact line snapshot for logs (omit null/empty — avoids noise when description/UoM absent).
+    const poItemsForPartnerMaster = documentLines.map((line, index) => {
+      const snap: Record<string, unknown> = {
+        itemCode: String(line.ItemCode ?? "").trim(),
+        lineNum: line.LineNum ?? index,
+        quantity: line.Quantity,
+        unitPrice: line.UnitPrice,
+      };
+      const itemDescription = String(line.ItemDescription ?? "").trim();
+      if (itemDescription) {
+        snap.itemDescription = itemDescription;
+      }
+      if (line.DiscountPercent != null && Number(line.DiscountPercent) !== 0) {
+        snap.discountPercent = line.DiscountPercent;
+      }
+      if (line.UoMCode != null && String(line.UoMCode).trim()) {
+        snap.uomCode = line.UoMCode;
+      }
+      if (line.UoMEntry != null && Number(line.UoMEntry) > 0) {
+        snap.uomEntry = line.UoMEntry;
+      }
+      if (line.VatGroup != null && String(line.VatGroup).trim()) {
+        snap.vatGroup = line.VatGroup;
+      }
+      if (line.WarehouseCode != null && String(line.WarehouseCode).trim()) {
+        snap.warehouseCode = line.WarehouseCode;
+      }
+      return snap;
+    });
 
     logger.info({
       cardCode: sapPayload.CardCode,
@@ -288,6 +304,7 @@ export const createPurchaseOrder = async (
     let intercompany: IcHookResult | undefined;
     if (!isDraft && result.DocEntry) {
       try {
+        // Pass normalized documentLines (not raw client payload) so ItemDescription / UoM reach Flow 2.
         intercompany = await afterPoCreated({
           cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
           currency: result.DocCurrency != null ? String(result.DocCurrency) : undefined,
@@ -297,7 +314,7 @@ export const createPurchaseOrder = async (
           docEntry: Number(result.DocEntry),
           docNum: result.DocNum != null ? Number(result.DocNum) : null,
           isDraft: false,
-          lines: Array.isArray(lines) ? lines : [],
+          lines: documentLines,
           numAtCard: sapPayload.NumAtCard,
           remarks: sapPayload.Comments == null ? undefined : String(sapPayload.Comments),
         });

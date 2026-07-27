@@ -207,7 +207,13 @@ export const createPurchaseQuotation = async (
           address2: payload.Address2 != null ? String(payload.Address2) : null,
           cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
           cardName: payload.CardName != null ? String(payload.CardName) : null,
-          comments: payload.Comments != null ? String(payload.Comments) : null,
+          // Prefer SAP result Comments (parent typed), then request payload — never drop.
+          comments:
+            result.Comments != null && String(result.Comments).trim()
+              ? String(result.Comments)
+              : payload.Comments != null
+                ? String(payload.Comments)
+                : null,
           dbName: resolvedDbName,
           docDate: payload.DocDate,
           docDueDate: payload.DocDueDate,

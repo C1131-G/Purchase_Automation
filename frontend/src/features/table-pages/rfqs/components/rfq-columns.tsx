@@ -181,46 +181,50 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
     minSize: 12,
     size: 14,
   }),
-  columnHelper.accessor("sourceCompanyId", {
-    cell: (info) => info.getValue(),
-    enableSorting: true,
-    filterFn: (row, _columnId, filterValue) => {
-      const term = String(filterValue ?? "")
-        .trim()
-        .toLowerCase();
-      if (!term) {
-        return true;
-      }
-      return String(row.original.sourceCompanyId).toLowerCase().includes(term);
+  columnHelper.accessor(
+    (row) => {
+      const name = row.sourceCompanyName?.trim();
+      return name || String(row.sourceCompanyId ?? "");
     },
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Source Co." />
-    ),
-    id: "sourceCompanyId",
-    meta: { filterType: "text" },
-    minSize: 10,
-    size: 12,
-  }),
-  columnHelper.accessor("targetCompanyId", {
-    cell: (info) => info.getValue(),
-    enableSorting: true,
-    filterFn: (row, _columnId, filterValue) => {
-      const term = String(filterValue ?? "")
-        .trim()
-        .toLowerCase();
-      if (!term) {
-        return true;
-      }
-      return String(row.original.targetCompanyId).toLowerCase().includes(term);
+    {
+      cell: (info) => info.getValue() || "—",
+      enableSorting: true,
+      filterFn: "includesString",
+      header: ({ column, table }) => (
+        <TableColumnSort
+          column={column}
+          sortingState={table.getState().sorting}
+          title="Source Co."
+        />
+      ),
+      id: "sourceCompanyId",
+      meta: { filterType: "text" },
+      minSize: 12,
+      size: 16,
     },
-    header: ({ column, table }) => (
-      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Target Co." />
-    ),
-    id: "targetCompanyId",
-    meta: { filterType: "text" },
-    minSize: 10,
-    size: 12,
-  }),
+  ),
+  columnHelper.accessor(
+    (row) => {
+      const name = row.targetCompanyName?.trim();
+      return name || String(row.targetCompanyId ?? "");
+    },
+    {
+      cell: (info) => info.getValue() || "—",
+      enableSorting: true,
+      filterFn: "includesString",
+      header: ({ column, table }) => (
+        <TableColumnSort
+          column={column}
+          sortingState={table.getState().sorting}
+          title="Target Co."
+        />
+      ),
+      id: "targetCompanyId",
+      meta: { filterType: "text" },
+      minSize: 12,
+      size: 16,
+    },
+  ),
 ];
 
 export const RFQ_DEFAULT_COLUMN_ORDER = [

@@ -15,7 +15,7 @@ export type BuildSqPayloadInput = {
   buyerCustomerCode: string;
   lines: IcRfqLine[];
   remarksTag: string;
-  mapTaxCode: (sourceTaxCode: string) => Promise<string>;
+  resolveLineTax: (input: { sourceTaxCode: string; itemCode: string }) => Promise<string>;
   defaultBranchId?: number | null;
 };
 

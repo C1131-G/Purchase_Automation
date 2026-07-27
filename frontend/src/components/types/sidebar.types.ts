@@ -42,6 +42,13 @@ export interface SidebarMenuCollapsibleProps {
   isActive?: boolean;
   isOpen?: boolean;
   onToggle?: () => void;
+  /**
+   * Optional trailing chrome on the section header (e.g. unread badge).
+   * Hidden in icon-collapsed mode; use `iconBadge` for that state.
+   */
+  trailing?: React.ReactNode;
+  /** Small badge over the section icon (visible in icon-collapsed sidebar). */
+  iconBadge?: React.ReactNode;
 }
 
 export type SidebarMenuSubProps = React.ComponentProps<"ul">;

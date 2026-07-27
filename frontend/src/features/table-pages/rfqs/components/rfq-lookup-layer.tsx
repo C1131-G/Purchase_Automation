@@ -57,8 +57,8 @@ const LOOKUP_PLACEHOLDERS: Record<RfqLookupColumnId, string> = {
   DocNum: "Search document number",
   pqDraftDocEntry: "Search PQ draft entry",
   pqDraftDocNum: "Search PQ draft number",
-  sourceCompanyId: "Search source company id",
-  targetCompanyId: "Search target company id",
+  sourceCompanyId: "Search source company name",
+  targetCompanyId: "Search target company name",
 };
 
 const toOrderedUniqueSuggestions = (items: LookupItem[]): LookupItem[] => {
@@ -89,10 +89,14 @@ const pickFieldValue = (row: IcRfqHeader, columnId: string): string => {
       return row.pqDraftDocEntry === null || row.pqDraftDocEntry === undefined
         ? ""
         : String(row.pqDraftDocEntry).trim();
-    case "sourceCompanyId":
-      return String(row.sourceCompanyId ?? "").trim();
-    case "targetCompanyId":
-      return String(row.targetCompanyId ?? "").trim();
+    case "sourceCompanyId": {
+      const name = row.sourceCompanyName?.trim();
+      return name || String(row.sourceCompanyId ?? "").trim();
+    }
+    case "targetCompanyId": {
+      const name = row.targetCompanyName?.trim();
+      return name || String(row.targetCompanyId ?? "").trim();
+    }
     default:
       return "";
   }

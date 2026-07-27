@@ -11,6 +11,22 @@ import { createMemoryDb, createMemorySqlClient } from "@/modules/intercompany/te
 describe("rfq + notification (T3.6 / T3.7 / T3.7b)", () => {
   it("T3.6 RFQ create header + lines; idempotent per draft", async () => {
     const db = createMemoryDb();
+    db.tables.IC_COMPANY.push(
+      {
+        COMPANY_CODE: "A",
+        COMPANY_ID: 1,
+        COMPANY_NAME: "Buyer Co A",
+        IS_ACTIVE: 1,
+        SAP_DB_NAME: "DB_A",
+      },
+      {
+        COMPANY_CODE: "B",
+        COMPANY_ID: 2,
+        COMPANY_NAME: "Seller Co B",
+        IS_ACTIVE: 1,
+        SAP_DB_NAME: "DB_B",
+      },
+    );
     const sql = createMemorySqlClient(db);
     const rfq = createRfqService({
       mutations: createRfqMutations(sql),
@@ -33,6 +49,13 @@ describe("rfq + notification (T3.6 / T3.7 / T3.7b)", () => {
     expect(created.rfqId).toBeGreaterThan(0);
     expect(created.lines).toHaveLength(2);
     expect(created.status).toBe("DRAFT");
+    expect(created.sourceCompanyName).toBe("Buyer Co A");
+    expect(created.targetCompanyName).toBe("Seller Co B");
+
+    const listed = await rfq.listForCompany(2);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.sourceCompanyName).toBe("Buyer Co A");
+    expect(listed[0]?.targetCompanyName).toBe("Seller Co B");
 
     const again = await rfq.createFromDraft({
       lines: [{ itemCode: "X", lineNum: 0, quantity: 1 }],

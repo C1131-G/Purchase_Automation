@@ -31,8 +31,6 @@ import type { RetryService } from "@/modules/intercompany/domain/retry/retry.ser
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
-import type { TaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
-import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
 import type { Flow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator";
 import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator";
 import { getIcSqlClient, type IcSqlClient } from "@/modules/intercompany/infrastructure/ic-sql";
@@ -58,7 +56,6 @@ export type CreateIcWorkerContextDeps = {
   history?: HistoryService;
   retry?: RetryService;
   rfq?: RfqService;
-  taxMapping?: TaxMappingService;
   documents?: IcSlDocuments;
   flow1?: Flow1Orchestrator;
   missedDraftSource?: MissedPqDraftSource;
@@ -91,7 +88,6 @@ export const createIcWorkerContext = (deps?: CreateIcWorkerContextDeps): IcWorke
   const history = deps?.history ?? createHistoryService();
   const retry = deps?.retry ?? createRetryService();
   const rfq = deps?.rfq ?? createRfqService();
-  const taxMapping = deps?.taxMapping ?? createTaxMappingService();
   const documents = deps?.documents ?? createIcSlDocuments();
   const flow1 = deps?.flow1 ?? createFlow1Orchestrator();
   const missedDraftSource = deps?.missedDraftSource ?? createEmptyMissedPqDraftSource();
@@ -117,7 +113,6 @@ export const createIcWorkerContext = (deps?: CreateIcWorkerContextDeps): IcWorke
       rfq,
       scheduler,
       sql,
-      taxMapping,
     }),
     scheduler,
     sessionCleanup: createSessionCleanupJob({ scheduler, sql }),

@@ -222,6 +222,7 @@ export const updatePurchaseQuotation = async (
           address2: payload.Address2 != null ? String(payload.Address2) : null,
           cardCode: String(payload.CardCode ?? sapPayload.CardCode ?? ""),
           cardName: payload.CardName != null ? String(payload.CardName) : null,
+          // Parent typed Comments from payload; if omitted, leave null (capture may skip if RFQ exists).
           comments: payload.Comments != null ? String(payload.Comments) : null,
           dbName: companyDB,
           docDate: payload.DocDate,

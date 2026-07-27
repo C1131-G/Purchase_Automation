@@ -6,6 +6,7 @@ import type { NotificationService } from "@/modules/intercompany/domain/notifica
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import type { IcRfqHeader } from "@/modules/intercompany/domain/rfq/rfq.types";
 import { IC_ACTION } from "@/modules/intercompany/infrastructure/constants";
+import { formatIcDocLabel } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { ResolvePartnerResult } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.types";
 
@@ -31,13 +32,24 @@ export const createNotifySellerService = (deps?: {
 
   return {
     notifyRfqCreated: async (params) => {
+      // Handoff only: seller must act on new RFQ (buyer gets no create notify).
       const buyerName = params.partner.buyerCompany.companyName.trim() || "Buyer";
+      const rfqLabel = formatIcDocLabel({
+        kind: "RFQ",
+        rfqNumber: params.rfq.rfqNumber,
+        docEntry: params.rfq.rfqId,
+      });
+      const pqdLabel = formatIcDocLabel({
+        kind: "PQD",
+        docEntry: params.rfq.pqDraftDocEntry,
+        docNum: params.rfq.pqDraftDocNum,
+      });
       await notifications.create({
         companyId: params.partner.sellerCompany.companyId,
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_CREATED",
-        message: `${buyerName} sent RFQ ${params.rfq.rfqNumber}.`,
+        message: `${buyerName} sent ${rfqLabel} (from ${pqdLabel}).`,
         priority: "HIGH",
         // TITLE stores source company for list/filter (Company column).
         title: buyerName,
@@ -58,14 +70,20 @@ export const createNotifySellerService = (deps?: {
     },
 
     notifyRfqSubmitted: async (params) => {
+      // Handoff only: buyer must see seller quote (seller gets no submit notify).
       const seller = await company.getById(params.rfq.targetCompanyId);
       const sellerName = seller?.companyName?.trim() || "Seller";
+      const rfqLabel = formatIcDocLabel({
+        kind: "RFQ",
+        rfqNumber: params.rfq.rfqNumber,
+        docEntry: params.rfq.rfqId,
+      });
       await notifications.create({
         companyId: params.rfq.sourceCompanyId,
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_SUBMITTED",
-        message: `${sellerName} submitted RFQ ${params.rfq.rfqNumber}.`,
+        message: `${sellerName} submitted ${rfqLabel}.`,
         priority: "MEDIUM",
         title: sellerName,
       });

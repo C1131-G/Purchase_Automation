@@ -23,6 +23,7 @@ import type {
   ProductWarehouseStockItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
+import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
   PopupMode,
@@ -119,33 +120,7 @@ export function useAPInvoiceCreate({
   draftDocEntry,
   onCreateSuccess,
 }: UseAPInvoiceCreateOptions) {
-  const parseAPInvoiceHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
-    const referenceNo = String(detail.NumAtCard ?? "").trim();
-    const rawComments = String(detail.Comments ?? "").trim();
-
-    if (referenceNo) {
-      const legacyReferencePrefix = `${referenceNo} | `;
-      return {
-        comments: rawComments.startsWith(legacyReferencePrefix)
-          ? rawComments.slice(legacyReferencePrefix.length).trim()
-          : rawComments,
-        referenceNo,
-      };
-    }
-
-    const splitComments = rawComments.split(" | ").map((part) => part.trim());
-    if (splitComments.length > 1) {
-      return {
-        comments: splitComments.slice(1).join(" | "),
-        referenceNo: splitComments[0] ?? "",
-      };
-    }
-
-    return {
-      comments: rawComments,
-      referenceNo,
-    };
-  };
+  const parseAPInvoiceHeaderNotes = parseDocumentHeaderNotes;
   const isEditMode = mode === "edit";
   const editDocNum = (docNum ?? "").trim();
   const queryClient = useQueryClient();

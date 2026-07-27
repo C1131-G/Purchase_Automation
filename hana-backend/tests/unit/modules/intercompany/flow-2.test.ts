@@ -6,8 +6,7 @@ import { createBpMappingQueries } from "@/modules/intercompany/config/bp-mapping
 import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
 import { createCompanyQueries } from "@/modules/intercompany/config/company/company.queries";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
-import { createTaxMappingQueries } from "@/modules/intercompany/config/tax-mapping/tax-mapping.queries";
-import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
+import { createPartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
 import { createDocumentMapMutations } from "@/modules/intercompany/domain/document-map/document-map.mutations";
 import { createDocumentMapQueries } from "@/modules/intercompany/domain/document-map/document-map.queries";
 import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
@@ -22,6 +21,7 @@ import { createRetryService } from "@/modules/intercompany/domain/retry/retry.se
 import { createAfterPoCreated } from "@/modules/intercompany/api/hooks/after-po-created.hook";
 import { createPoCaptureService } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/01-po-capture/po-capture.service";
 import { buildArDraftPayload } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/02-build-ar-invoice-draft/build-ar-draft.payload";
+import { createBuildArDraftService } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/02-build-ar-invoice-draft/build-ar-draft.service";
 import { createFlow2Orchestrator } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/flow-2.orchestrator";
 import {
   IC_CONFIG_KEY,
@@ -60,7 +60,6 @@ const createFlow2TestStack = (opts?: {
   const bpMapping = createBpMappingService(createBpMappingQueries(sql));
   const resolvePartner = createResolvePartnerService({ bpMapping, company });
   const configuration = createConfigurationService(createConfigurationQueries(sql));
-  const taxMapping = createTaxMappingService(createTaxMappingQueries(sql));
   const documentMap = createDocumentMapService({
     mutations: createDocumentMapMutations(sql),
     queries: createDocumentMapQueries(sql),
@@ -93,9 +92,20 @@ const createFlow2TestStack = (opts?: {
     createSalesQuotation: async () => {
       throw new Error("not used");
     },
+    getDraftComments: async () => null,
   };
 
   const orchestrator = createFlow2Orchestrator({
+    build: createBuildArDraftService({
+      company,
+      partnerTax: createPartnerTaxResolver({
+        company,
+        masters: {
+          getBpTax: async () => null,
+          getItemTax: async () => null,
+        },
+      }),
+    }),
     configuration,
     documentMap,
     documents,
@@ -103,7 +113,6 @@ const createFlow2TestStack = (opts?: {
     notifications,
     resolvePartner,
     retry,
-    taxMapping,
   });
 
   return {
@@ -159,13 +168,14 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
       lines: [
         {
           ItemCode: "ITEM1",
+          ItemDescription: "Widget A",
           Quantity: 2,
           UnitPrice: 10,
           VatGroup: "IN-12.5",
           WarehouseCode: "01",
         },
       ],
-      mapTaxCode: async (code) => (code === "IN-12.5" ? "GSTO" : code),
+      resolveLineTax: async ({ sourceTaxCode }) => (sourceTaxCode === "IN-12.5" ? "GSTO" : ""),
       poDocEntry: 100,
       poDocNum: 100,
       remarksTag: "IC-PO-100",
@@ -173,16 +183,166 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
 
     expect(payload.DocObjectCode).toBe(SAP_OBJECT_TYPE_AR_INVOICE);
     expect(payload.CardCode).toBe("C-A-ON-B");
-    // Existing remarks preserved; IC chain appended line-by-line.
+    // Existing remarks preserved; IC chain = source PO number only (no Flow 1/2 text).
     expect(payload.Comments).toContain("User note keep me");
-    expect(payload.Comments).toContain("IC | PO:");
-    expect(payload.Comments).toContain("IC | AR:");
+    expect(payload.Comments).toContain("IC | PO: PO No 100");
+    expect(payload.Comments).not.toMatch(/Flow\s*[12]/i);
+    expect(payload.Comments).not.toContain("IC | AR:");
     expect(payload.NumAtCard).toBe("IC-PO-100");
     expect(payload.BPL_IDAssignedToInvoice).toBe(1);
     expect(payload.DocDate).toBe("2026-03-15");
     expect(payload.DocumentLines).toHaveLength(1);
     expect(payload.DocumentLines[0].VatGroup).toBe("GSTO");
     expect(payload.DocumentLines[0].ItemCode).toBe("ITEM1");
+    expect(payload.DocumentLines[0].ItemDescription).toBe("Widget A");
+  });
+
+  it("T5.4b tax map miss → omit VatGroup (never buyer tax on seller AR)", async () => {
+    const payload = await buildArDraftPayload({
+      buyerCustomerCode: "C-A-ON-B",
+      defaultBranchId: 1,
+      lines: [
+        {
+          ItemCode: "ITEM1",
+          Quantity: 1,
+          UnitPrice: 10,
+          VatGroup: "BUYER-ONLY-TAX",
+          WarehouseCode: "01",
+        },
+      ],
+      // Same contract as Flow 1 SQ / buildArDraftService: miss → empty string.
+      resolveLineTax: async () => "",
+      poDocEntry: 101,
+      poDocNum: 101,
+      remarksTag: "IC-PO-101",
+    });
+
+    expect(payload.DocumentLines).toHaveLength(1);
+    expect(payload.DocumentLines[0].VatGroup).toBeUndefined();
+    expect(payload.DocumentLines[0].ItemCode).toBe("ITEM1");
+  });
+
+  it("T5.4c buildArDraftService omits when item/BP miss (never buyer tax)", async () => {
+    const db = createMemoryDb();
+    seedMemoryCompanyGraph(db);
+    const sql = createMemorySqlClient(db);
+    const company = createCompanyService(createCompanyQueries(sql));
+    const service = createBuildArDraftService({
+      company,
+      partnerTax: createPartnerTaxResolver({
+        company,
+        masters: {
+          getBpTax: async () => null,
+          getItemTax: async () => null,
+        },
+      }),
+    });
+
+    const partner = {
+      buyerCompany: {
+        companyCode: "A",
+        companyId: 1,
+        companyName: "A",
+        defaultBranchId: null,
+        isActive: true,
+        sapDbName: "DB_A",
+      },
+      buyerCustomerCode: "C-A-ON-B",
+      sellerCompany: {
+        companyCode: "B",
+        companyId: 2,
+        companyName: "B",
+        defaultBranchId: 1,
+        isActive: true,
+        sapDbName: "DB_B",
+      },
+      vendorCode: "V-B",
+      bpMappingId: 1,
+    };
+
+    const payload = await service.build({
+      input: {
+        cardCode: "V-B",
+        docEntry: 200,
+        docNum: 200,
+        isDraft: false,
+        lines: [
+          {
+            ItemCode: "ITEM1",
+            Quantity: 1,
+            UnitPrice: 9,
+            VatGroup: "BUYER-ONLY-TAX",
+            WarehouseCode: "01",
+          },
+        ],
+      },
+      partner,
+      remarksTag: "IC-PO-200",
+    });
+
+    expect(payload.DocumentLines[0].VatGroup).toBeUndefined();
+  });
+
+  it("T5.4d buildArDraftService uses seller item sales tax dynamically", async () => {
+    const db = createMemoryDb();
+    seedMemoryCompanyGraph(db);
+    const sql = createMemorySqlClient(db);
+    const company = createCompanyService(createCompanyQueries(sql));
+    const service = createBuildArDraftService({
+      company,
+      partnerTax: createPartnerTaxResolver({
+        company,
+        masters: {
+          getBpTax: async () => "BP-TAX",
+          getItemTax: async (_db, itemCode, side) =>
+            side === "sales" && itemCode === "ITEM1" ? "ITEM-SA-TAX" : null,
+        },
+      }),
+    });
+
+    const partner = {
+      buyerCompany: {
+        companyCode: "A",
+        companyId: 1,
+        companyName: "A",
+        defaultBranchId: null,
+        isActive: true,
+        sapDbName: "DB_A",
+      },
+      buyerCustomerCode: "C-A-ON-B",
+      sellerCompany: {
+        companyCode: "B",
+        companyId: 2,
+        companyName: "B",
+        defaultBranchId: 1,
+        isActive: true,
+        sapDbName: "DB_B",
+      },
+      vendorCode: "V-B",
+      bpMappingId: 1,
+    };
+
+    const payload = await service.build({
+      input: {
+        cardCode: "V-B",
+        docEntry: 202,
+        docNum: 202,
+        isDraft: false,
+        lines: [
+          {
+            ItemCode: "ITEM1",
+            Quantity: 1,
+            UnitPrice: 9,
+            VatGroup: "BUYER-ONLY-TAX",
+            WarehouseCode: "01",
+          },
+        ],
+      },
+      partner,
+      remarksTag: "IC-PO-202",
+    });
+
+    expect(payload.DocumentLines[0].VatGroup).toBe("ITEM-SA-TAX");
   });
 
   it("T5.5 idempotent: existing SUCCESS map → skip create", async () => {
@@ -284,7 +444,10 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_DOCUMENT_MAPPING[0].TARGET_DOC_ENTRY).toBe("9001");
-    expect(db.tables.IC_NOTIFICATION).toHaveLength(2);
+    // Seller only (AR draft handoff); buyer is not notified on Flow 2 success.
+    expect(db.tables.IC_NOTIFICATION).toHaveLength(1);
+    expect(db.tables.IC_NOTIFICATION[0].COMPANY_ID).toBe(2);
+    expect(db.tables.IC_NOTIFICATION[0].FLOW_STEP).toBe("FLOW2_AR_DRAFT_CREATED");
     expect(db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
   });
 

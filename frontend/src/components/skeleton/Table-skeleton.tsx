@@ -16,12 +16,16 @@ import {
  *   col-5  14%  w-20  (e.g. Total / Amount)
  *   col-6  14%  w-14  (e.g. Status – short)
  */
-const COLUMN_WIDTHS = ["14%", "14%", "14%", "30%", "14%", "14%"] as const;
-const CELL_WIDTHS = ["w-20", "w-22", "w-24", "w-48", "w-20", "w-14"] as const;
+const DEFAULT_COLUMN_WIDTHS = ["14%", "14%", "14%", "30%", "14%", "14%"] as const;
+const DEFAULT_CELL_WIDTHS = ["w-20", "w-22", "w-24", "w-48", "w-20", "w-14"] as const;
+
+/** IC notifications: Created · Message · Status · Priority · Read */
+export const IC_NOTIFICATION_SKELETON_COLUMNS = {
+  cellWidths: ["w-28", "w-48", "w-14", "w-14", "w-12"] as const,
+  columnWidths: ["15%", "50%", "12%", "12%", "7%"] as const,
+} as const;
 
 const ROW_COUNT = 10;
-
-const HEADER_KEYS = ["sk-h-1", "sk-h-2", "sk-h-3", "sk-h-4", "sk-h-5", "sk-h-6"] as const;
 
 const ROW_KEYS = [
   "sk-r-1",
@@ -36,28 +40,45 @@ const ROW_KEYS = [
   "sk-r-10",
 ] as const;
 
-const CELL_KEYS = ["sk-c-1", "sk-c-2", "sk-c-3", "sk-c-4", "sk-c-5", "sk-c-6"] as const;
-
 /** Pulsing pill used for a single skeleton cell value. */
 function CellPulse({ widthClass }: { widthClass: string }) {
   return <div className={`h-4 rounded bg-zinc-100 animate-pulse ${widthClass}`} />;
 }
 
+export interface TableSkeletonToolbarOptions {
+  /** Show Create button pulse (default true). */
+  showCreate?: boolean;
+  /** Show View button pulse (default true). */
+  showView?: boolean;
+  /** Show Filter button pulse (default true). */
+  showFilter?: boolean;
+  /**
+   * Extra end-action pulse(s) after View / Filter (e.g. Mark all).
+   * Rendered before Create when Create is shown.
+   */
+  endActionWidths?: readonly string[];
+}
+
 /**
- * Toolbar skeleton – mirrors TableToolbar exactly:
+ * Toolbar skeleton – mirrors TableToolbar.
  *
  * Single row, border-b border-zinc-100, px-6 py-3
- * LEFT:  [SidebarTrigger] [vertical separator] [breadcrumb pill]
- * RIGHT: [Filter btn h-11] [separator] [View btn h-11] [separator] [Create btn h-11]
- * Note: search input (TableSearch) is hidden during skeleton — not rendered.
+ * LEFT:  breadcrumb pill
+ * RIGHT: [Filter] [View] [end actions…] [Create] — optional per flags
  */
-function ToolbarSkeleton() {
+function ToolbarSkeleton({
+  showCreate = true,
+  showView = true,
+  showFilter = true,
+  endActionWidths = [],
+}: TableSkeletonToolbarOptions) {
+  const hasRightActions = showFilter || showView || endActionWidths.length > 0 || showCreate;
+
   return (
     <div className="border-b border-zinc-100 bg-white">
       <div className="flex items-center justify-between px-6 py-3">
         {/* Left: breadcrumb pill */}
         <div className="flex items-center gap-2">
-          {/* Breadcrumb pill: rounded-full border, "Section > Dashboard > Page" */}
           <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 shadow-xs">
             <div className="h-3 w-14 rounded bg-zinc-200 animate-pulse" />
             <div className="size-3 rounded bg-zinc-100 animate-pulse" />
@@ -67,23 +88,40 @@ function ToolbarSkeleton() {
           </div>
         </div>
 
-        {/* Right: Filter + separator + View + separator + Create — all h-11 rounded-xl */}
-        <div className="flex flex-1 items-center justify-end gap-2 pl-4">
-          {/* Filter button – matches h-11 rounded-xl border px-4 */}
-          <div className="h-11 w-24 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+        {hasRightActions ? (
+          <div className="flex flex-1 items-center justify-end gap-2 pl-4">
+            {showFilter ? (
+              <div className="h-11 w-24 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+            ) : null}
 
-          {/* Separator */}
-          <div className="mx-1 h-6 w-px bg-zinc-200" />
+            {showFilter && (showView || endActionWidths.length > 0 || showCreate) ? (
+              <div className="mx-1 h-6 w-px bg-zinc-200" />
+            ) : null}
 
-          {/* View button – matches h-11 rounded-xl border px-4 */}
-          <div className="h-11 w-20 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+            {showView ? (
+              <div className="h-11 w-20 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+            ) : null}
 
-          {/* Separator */}
-          <div className="mx-1 h-6 w-px bg-zinc-200" />
+            {showView && (endActionWidths.length > 0 || showCreate) ? (
+              <div className="mx-1 h-6 w-px bg-zinc-200" />
+            ) : null}
 
-          {/* Create button – h-11 rounded-xl */}
-          <div className="h-11 w-28 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
-        </div>
+            {endActionWidths.map((widthClass, index) => (
+              <div
+                key={`sk-end-${widthClass}-${index}`}
+                className={`h-11 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm ${widthClass}`}
+              />
+            ))}
+
+            {endActionWidths.length > 0 && showCreate ? (
+              <div className="mx-1 h-6 w-px bg-zinc-200" />
+            ) : null}
+
+            {showCreate ? (
+              <div className="h-11 w-28 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -93,14 +131,11 @@ function ToolbarSkeleton() {
 function PaginationSkeleton() {
   return (
     <div className="flex items-center justify-end space-x-12 px-6 py-5 border-t border-zinc-100 bg-white">
-      {/* Rows-per-page label + select */}
       <div className="flex items-center space-x-3">
         <div className="h-4 w-24 rounded bg-zinc-200 animate-pulse" />
         <div className="h-9 w-20 rounded-lg border border-zinc-100 bg-zinc-50 animate-pulse" />
       </div>
-      {/* "Page X of Y" */}
       <div className="h-4 w-24 rounded bg-zinc-200 animate-pulse" />
-      {/* First / Prev / Next / Last */}
       <div className="flex items-center space-x-1.5">
         <div className="size-9 rounded-lg bg-zinc-100 animate-pulse" />
         <div className="size-9 rounded-lg bg-zinc-100 animate-pulse" />
@@ -111,34 +146,53 @@ function PaginationSkeleton() {
   );
 }
 
+export interface TableSkeletonProps {
+  /** Column width percentages (e.g. "15%"). Defaults to standard 6-col layout. */
+  columnWidths?: readonly string[];
+  /** Tailwind width classes for cell pulses. Length should match columnWidths. */
+  cellWidths?: readonly string[];
+  /** Toolbar chrome options (hide Create/View, Mark all pulse, etc.). */
+  toolbar?: TableSkeletonToolbarOptions;
+  /**
+   * Extra class on a column’s header/cell (by index).
+   * Used for left-aligned Read column with right gap.
+   */
+  columnClassNames?: readonly (string | undefined)[];
+}
+
 /**
- * Shared loading skeleton for all data tables.
- *
- * Renders a full-height layout that precisely mirrors the real table chrome:
- * toolbar (single-row), 6-column × 10-row body, pagination footer.
- * Zero layout shift when real data arrives.
+ * Shared loading skeleton for data tables.
+ * Optional props keep IC notifications (and similar) layout-matched without layout shift.
  */
-/**
- * TableSkeleton: Shared loading state for all high-precision data tables.
- * UX: Mirrors actual table anatomy (toolbar, header, body, pagination) to prevent layout shifts.
- * DESIGN: Uses pulsing zinc-100 backgrounds with industrial fluid transitions.
- */
-export function TableSkeleton() {
+export function TableSkeleton({
+  columnWidths = DEFAULT_COLUMN_WIDTHS,
+  cellWidths = DEFAULT_CELL_WIDTHS,
+  toolbar,
+  columnClassNames,
+}: TableSkeletonProps = {}) {
+  const colCount = columnWidths.length;
+
   return (
     <div className="h-full w-full overflow-hidden bg-white flex flex-col">
-      <ToolbarSkeleton />
+      <ToolbarSkeleton {...toolbar} />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
         <Table className="w-full">
           <TableHeader>
             <TableRow>
-              {COLUMN_WIDTHS.map((width, i) => (
+              {columnWidths.map((width, i) => (
                 <TableHead
-                  key={HEADER_KEYS[i]}
-                  className="align-top py-3 whitespace-nowrap"
+                  key={`sk-h-${i}`}
+                  className={`align-top py-3 whitespace-nowrap ${columnClassNames?.[i] ?? ""}`}
                   style={{ width }}
                 >
-                  <div className="ml-2 h-3 w-20 rounded bg-zinc-200 animate-pulse" />
+                  <div
+                    className={`h-3 rounded bg-zinc-200 animate-pulse ${
+                      i === colCount - 1 && columnClassNames?.[i]?.includes("text-left")
+                        ? "ml-0 w-10"
+                        : "ml-2 w-20"
+                    }`}
+                  />
                 </TableHead>
               ))}
             </TableRow>
@@ -147,9 +201,13 @@ export function TableSkeleton() {
           <TableBody>
             {ROW_KEYS.slice(0, ROW_COUNT).map((rowKey) => (
               <TableRow key={rowKey}>
-                {COLUMN_WIDTHS.map((width, i) => (
-                  <TableCell key={`${rowKey}-${CELL_KEYS[i]}`} style={{ width }}>
-                    <CellPulse widthClass={CELL_WIDTHS[i] ?? "w-24"} />
+                {columnWidths.map((width, i) => (
+                  <TableCell
+                    key={`${rowKey}-sk-c-${i}`}
+                    className={columnClassNames?.[i] ?? undefined}
+                    style={{ width }}
+                  >
+                    <CellPulse widthClass={cellWidths[i] ?? "w-24"} />
                   </TableCell>
                 ))}
               </TableRow>

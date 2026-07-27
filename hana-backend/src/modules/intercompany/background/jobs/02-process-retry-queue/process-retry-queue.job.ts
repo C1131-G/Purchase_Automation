@@ -16,19 +16,46 @@ import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
-import type { TaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
-import { createTaxMappingService } from "@/modules/intercompany/config/tax-mapping/tax-mapping.service";
+import type { PartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
+import { createPartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
 import {
   IC_ACTION,
   IC_DOC_MAP_STATUS,
   IC_JOB_NAME,
   IC_RETRY_STATUS,
 } from "@/modules/intercompany/infrastructure/constants";
+import {
+  FLOW1_RETRY_STEPS,
+  FLOW2_RETRY_STEPS,
+  logFlowStep,
+} from "@/modules/intercompany/infrastructure/flow-step-log";
+import {
+  buildFlow1SqRemarks,
+  formatIcDocLabel,
+} from "@/modules/intercompany/infrastructure/ic-remarks-chain";
+import { IC_LOG_SCOPE } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createSellerSq } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/create-seller-sq";
 import { getIcSqlClient, type IcSqlClient } from "@/modules/intercompany/infrastructure/ic-sql";
+
+/** Map retry action → same step numbers as the original failed flow step. */
+const retryStepMeta = (actionCode: string) => {
+  if (actionCode === IC_ACTION.FLOW1_CONVERT_PQ_SQ) {
+    return {
+      scope: IC_LOG_SCOPE.FLOW1,
+      steps: FLOW1_RETRY_STEPS,
+    };
+  }
+  if (actionCode === IC_ACTION.FLOW2_CREATE_AR_DRAFT) {
+    return {
+      scope: IC_LOG_SCOPE.FLOW2,
+      steps: FLOW2_RETRY_STEPS,
+    };
+  }
+  return null;
+};
 
 export type RetryActionHandler = (item: IcRetryQueueItem) => Promise<void>;
 
@@ -70,7 +97,7 @@ const createDefaultHandlers = (deps: {
   documents: IcSlDocuments;
   documentMap: DocumentMapService;
   rfq: RfqService;
-  taxMapping: TaxMappingService;
+  partnerTax: PartnerTaxResolver;
   notifications: NotificationService;
   history: HistoryService;
 }): Record<string, RetryActionHandler> => {
@@ -99,16 +126,37 @@ const createDefaultHandlers = (deps: {
       });
     }
 
-    const arRef = created.docNum != null ? String(created.docNum) : String(created.docEntry);
-    const poRef = String(payload.sourceDocEntry ?? item.sourceDocument);
+    // Retry success: notify seller only (AR draft handoff), same as live Flow 2.
+    const sourceDocEntryRaw = payload.sourceDocEntry;
+    const sourceDocNumRaw = payload.sourceDocNum;
+    const poLabel = formatIcDocLabel({
+      kind: "PO",
+      docEntry:
+        sourceDocEntryRaw === null || sourceDocEntryRaw === undefined
+          ? null
+          : typeof sourceDocEntryRaw === "string" || typeof sourceDocEntryRaw === "number"
+            ? sourceDocEntryRaw
+            : String(sourceDocEntryRaw),
+      docNum:
+        sourceDocNumRaw === null || sourceDocNumRaw === undefined
+          ? null
+          : typeof sourceDocNumRaw === "string" || typeof sourceDocNumRaw === "number"
+            ? sourceDocNumRaw
+            : String(sourceDocNumRaw),
+    });
+    const arLabel = formatIcDocLabel({
+      kind: "AR",
+      docEntry: created.docEntry,
+      docNum: created.docNum ?? null,
+    });
     const buyer = await deps.company.getById(item.companyId);
     const buyerName = buyer?.companyName?.trim() || "Buyer";
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(created.docEntry),
       documentType: IC_OBJECT.AR_DRAFT,
-      flowStep: "FLOW2_RETRY_SUCCESS",
-      message: `AR draft ${arRef} ready for PO ${poRef}.`,
+      flowStep: "FLOW2_AR_DRAFT_CREATED",
+      message: `${buyerName}: ${poLabel} created ${arLabel}.`,
       priority: "MEDIUM",
       title: buyerName,
     });
@@ -155,26 +203,41 @@ const createDefaultHandlers = (deps: {
     }
 
     const lines = header.lines ?? [];
-    const mapTaxCode = async (sourceTaxCode: string): Promise<string> => {
-      const code = sourceTaxCode.trim();
-      if (!code) {
-        return "";
-      }
-      const mapped = await deps.taxMapping.mapTax(
-        header.sourceCompanyId,
-        header.targetCompanyId,
-        code,
-      );
-      // Never send buyer tax to seller — omit VatGroup on miss (BP default / mapping seed).
-      return mapped.hit && mapped.targetTaxCode.trim() ? mapped.targetTaxCode.trim() : "";
-    };
+    const resolveLineTax = async (input: {
+      sourceTaxCode: string;
+      itemCode: string;
+    }): Promise<string> =>
+      deps.partnerTax.resolveLineTax({
+        docSide: "sales",
+        itemCode: input.itemCode,
+        targetCardCode: buyerCustomerCode,
+        targetCompanyId: header.targetCompanyId,
+      });
 
+    // Full IC chain + any stored user remarks (never only compact tag).
+    const remarksFromPayload =
+      payload.remarks != null && String(payload.remarks).trim()
+        ? String(payload.remarks).trim()
+        : null;
+    const sqRemarks = buildFlow1SqRemarks({
+      existing: remarksFromPayload ?? header.remarks,
+      pqDraftDocEntry: header.pqDraftDocEntry,
+      pqDraftDocNum: header.pqDraftDocNum,
+      pqDocEntry: Number.isFinite(pqDocEntry) ? pqDocEntry : header.pqDraftDocEntry,
+      pqDocNum: payload.pqDocNum != null ? Number(payload.pqDocNum) : null,
+      rfqId: header.rfqId,
+      rfqNumber: header.rfqNumber,
+    });
+
+    const sellerCompany = await deps.company.getById(sellerCompanyId);
     const salesQuotation = await createSellerSq({
       buyerCustomerCode,
+      defaultBranchId: sellerCompany?.defaultBranchId ?? null,
       documents: deps.documents,
       lines,
-      mapTaxCode,
-      remarks: remarksTag,
+      remarks: sqRemarks,
+      resolveLineTax,
+      sapDbName: sellerCompany?.sapDbName ?? null,
       sellerCompanyId,
     });
 
@@ -201,21 +264,8 @@ const createDefaultHandlers = (deps: {
 
     await deps.rfq.complete(rfqId);
 
-    const sqRef =
-      salesQuotation.docNum != null
-        ? String(salesQuotation.docNum)
-        : String(salesQuotation.docEntry);
-    const buyer = await deps.company.getById(header.sourceCompanyId);
-    const buyerName = buyer?.companyName?.trim() || "Buyer";
-    await deps.notifications.create({
-      companyId: sellerCompanyId,
-      documentId: String(salesQuotation.docEntry),
-      documentType: IC_OBJECT.SQ,
-      flowStep: "FLOW1_RETRY_SUCCESS",
-      message: `SQ ${sqRef} ready for RFQ ${header.rfqNumber}.`,
-      priority: "MEDIUM",
-      title: buyerName,
-    });
+    // No convert/retry-success notify: buyer already got FLOW1_RFQ_SUBMITTED;
+    // seller already got FLOW1_RFQ_CREATED. Retry only completes the SQ post.
 
     await deps.history.append({
       action: IC_ACTION.FLOW1_CONVERT_PQ_SQ,
@@ -248,7 +298,7 @@ export const createProcessRetryQueueJob = (deps?: {
   documents?: IcSlDocuments;
   documentMap?: DocumentMapService;
   rfq?: RfqService;
-  taxMapping?: TaxMappingService;
+  partnerTax?: PartnerTaxResolver;
   notifications?: NotificationService;
   history?: HistoryService;
   scheduler?: SchedulerService;
@@ -259,15 +309,21 @@ export const createProcessRetryQueueJob = (deps?: {
   const retry = deps?.retry ?? createRetryService();
   const notifications = deps?.notifications ?? createNotificationService();
   const scheduler = deps?.scheduler ?? createSchedulerService(sql);
+  const company = createCompanyService();
+  const partnerTax =
+    deps?.partnerTax ??
+    createPartnerTaxResolver({
+      company,
+    });
 
   const defaultHandlers = createDefaultHandlers({
-    company: createCompanyService(),
+    company,
     documentMap: deps?.documentMap ?? createDocumentMapService(),
     documents: deps?.documents ?? createIcSlDocuments(),
     history: deps?.history ?? createHistoryService(),
     notifications,
+    partnerTax,
     rfq: deps?.rfq ?? createRfqService(),
-    taxMapping: deps?.taxMapping ?? createTaxMappingService(),
   });
 
   const handlers: Record<string, RetryActionHandler> = { ...defaultHandlers };
@@ -281,12 +337,62 @@ export const createProcessRetryQueueJob = (deps?: {
 
   const executeClaimed = async (item: IcRetryQueueItem): Promise<ProcessOneRetryResult> => {
     const handler = handlers[item.actionCode];
+    const meta = retryStepMeta(item.actionCode);
+    const logCtx = {
+      actionCode: item.actionCode,
+      companyId: item.companyId,
+      retryCount: item.retryCount,
+      retryId: item.retryId,
+      sourceDocument: item.sourceDocument,
+      targetDocument: item.targetDocument,
+    };
+
+    // Same step number as original failure (Flow 1 = 17/18, Flow 2 = 7/9).
+    if (meta) {
+      logFlowStep(meta.scope, {
+        ...meta.steps.START,
+        check: "retry_start",
+        ctx: logCtx,
+        detail: {
+          attempt: item.retryCount + 1,
+          maxRetry: item.maxRetry,
+          phase: "retry",
+        },
+      });
+    } else {
+      logger.info({
+        ...logCtx,
+        msg: "IC retry action start",
+        scope: "ic.job.process_retry",
+      });
+    }
+
     try {
       if (!handler) {
         throw new Error(`No retry handler for actionCode=${item.actionCode}`);
       }
       await handler(item);
       const successItem = await retry.markSuccess(item.retryId);
+      if (meta) {
+        logFlowStep(meta.scope, {
+          ...meta.steps.SUCCESS,
+          check: "retry_success",
+          ctx: logCtx,
+          detail: {
+            attempt: item.retryCount + 1,
+            maxRetry: item.maxRetry,
+            phase: "retry",
+            status: IC_RETRY_STATUS.SUCCESS,
+          },
+        });
+      } else {
+        logger.info({
+          ...logCtx,
+          msg: "IC retry action success",
+          scope: "ic.job.process_retry",
+          status: IC_RETRY_STATUS.SUCCESS,
+        });
+      }
       return {
         item: successItem ?? { ...item, status: IC_RETRY_STATUS.SUCCESS },
         status: "success",
@@ -308,24 +414,56 @@ export const createProcessRetryQueueJob = (deps?: {
         } catch {
           // best-effort notify
         }
+        if (meta) {
+          logFlowStep(meta.scope, {
+            ...meta.steps.DEAD,
+            check: "retry_dead",
+            ctx: logCtx,
+            detail: {
+              attempt: updated.retryCount,
+              errorMessage: message.slice(0, 500),
+              maxRetry: updated.maxRetry,
+              phase: "retry",
+              status: IC_RETRY_STATUS.DEAD,
+            },
+            outcome: "fail",
+          });
+        } else {
+          logger.warn({
+            actionCode: item.actionCode,
+            err: err instanceof Error ? err : new Error(message),
+            msg: "IC retry action failed",
+            retryId: item.retryId,
+            scope: "ic.job.process_retry",
+            status: updated.status,
+          });
+        }
+        return { errorMessage: message, item: updated, status: "dead" };
+      }
+      if (meta) {
+        logFlowStep(meta.scope, {
+          ...meta.steps.FAIL,
+          check: "retry_failed",
+          ctx: logCtx,
+          detail: {
+            attempt: updated?.retryCount ?? item.retryCount + 1,
+            errorMessage: message.slice(0, 500),
+            maxRetry: updated?.maxRetry ?? item.maxRetry,
+            phase: "retry",
+            status: updated?.status ?? IC_RETRY_STATUS.WAITING,
+          },
+          outcome: "fail",
+        });
+      } else {
         logger.warn({
           actionCode: item.actionCode,
           err: err instanceof Error ? err : new Error(message),
           msg: "IC retry action failed",
           retryId: item.retryId,
           scope: "ic.job.process_retry",
-          status: updated.status,
+          status: updated?.status,
         });
-        return { errorMessage: message, item: updated, status: "dead" };
       }
-      logger.warn({
-        actionCode: item.actionCode,
-        err: err instanceof Error ? err : new Error(message),
-        msg: "IC retry action failed",
-        retryId: item.retryId,
-        scope: "ic.job.process_retry",
-        status: updated?.status,
-      });
       return {
         errorMessage: message,
         item: updated ?? item,

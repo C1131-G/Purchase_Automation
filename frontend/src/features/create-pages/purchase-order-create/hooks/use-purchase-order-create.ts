@@ -14,6 +14,7 @@ import {
   calculateSummaryCurrency,
 } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
+import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
   PopupMode,
@@ -90,33 +91,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
-  const parsePurchaseOrderHeaderNotes = (detail: { Comments?: unknown; NumAtCard?: unknown }) => {
-    const referenceNo = String(detail.NumAtCard ?? "").trim();
-    const rawComments = String(detail.Comments ?? "").trim();
-
-    if (referenceNo) {
-      const legacyReferencePrefix = `${referenceNo} | `;
-      return {
-        comments: rawComments.startsWith(legacyReferencePrefix)
-          ? rawComments.slice(legacyReferencePrefix.length).trim()
-          : rawComments,
-        referenceNo,
-      };
-    }
-
-    const splitComments = rawComments.split(" | ").map((part) => part.trim());
-    if (splitComments.length > 1) {
-      return {
-        comments: splitComments.slice(1).join(" | "),
-        referenceNo: splitComments[0] ?? "",
-      };
-    }
-
-    return {
-      comments: rawComments,
-      referenceNo,
-    };
-  };
+  const parsePurchaseOrderHeaderNotes = parseDocumentHeaderNotes;
 
   const mode = options?.mode ?? "create";
   const isEditMode = mode === "edit";

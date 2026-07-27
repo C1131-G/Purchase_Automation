@@ -32,7 +32,6 @@ export const createMemoryDb = (): MemoryDb => ({
     IC_SCHEDULER_JOB: [],
     IC_SL_SESSION: [],
     IC_SYNC_HISTORY: [],
-    IC_TAX_MAPPING: [],
   },
 });
 
@@ -43,6 +42,22 @@ const nextId = (db: MemoryDb, table: string): number => {
 };
 
 const normalizeSql = (sql: string) => sql.replace(/\s+/g, " ").trim();
+
+/** Attach IC_COMPANY display names onto RFQ header rows (mirrors SQL LEFT JOIN). */
+const withRfqCompanyNames = (db: MemoryDb, rows: Row[]): Row[] => {
+  const companyById = new Map(
+    db.tables.IC_COMPANY.map((row) => [Number(row.COMPANY_ID), row] as const),
+  );
+  return rows.map((row) => {
+    const source = companyById.get(Number(row.SOURCE_COMPANY_ID));
+    const target = companyById.get(Number(row.TARGET_COMPANY_ID));
+    return {
+      ...clone(row),
+      SOURCE_COMPANY_NAME: source?.COMPANY_NAME ?? null,
+      TARGET_COMPANY_NAME: target?.COMPANY_NAME ?? null,
+    };
+  });
+};
 
 export const createMemorySqlClient = (
   db: MemoryDb = createMemoryDb(),
@@ -181,17 +196,6 @@ export const createMemorySqlClient = (
         (row) =>
           row.BUYER_COMPANY_ID === buyerCompanyId &&
           row.VENDOR_CODE === vendorCode &&
-          row.IS_ACTIVE === 1,
-      ).map(clone) as T[];
-    }
-
-    if (statement.includes('FROM "IC_TAX_MAPPING"')) {
-      const [sourceCompanyId, targetCompanyId, sourceTaxCode] = params;
-      return db.tables.IC_TAX_MAPPING.filter(
-        (row) =>
-          row.SOURCE_COMPANY_ID === sourceCompanyId &&
-          row.TARGET_COMPANY_ID === targetCompanyId &&
-          row.SOURCE_TAX_CODE === sourceTaxCode &&
           row.IS_ACTIVE === 1,
       ).map(clone) as T[];
     }
@@ -337,40 +341,55 @@ export const createMemorySqlClient = (
 
     if (statement.includes('FROM "IC_RFQ_HEADER"') && statement.includes("PQ_DRAFT_DOC_ENTRY")) {
       const [sourceCompanyId, pqDraftDocEntry] = params;
-      return db.tables.IC_RFQ_HEADER.filter(
-        (row) =>
-          row.SOURCE_COMPANY_ID === sourceCompanyId && row.PQ_DRAFT_DOC_ENTRY === pqDraftDocEntry,
-      ).map(clone) as T[];
+      return withRfqCompanyNames(
+        db,
+        db.tables.IC_RFQ_HEADER.filter(
+          (row) =>
+            row.SOURCE_COMPANY_ID === sourceCompanyId && row.PQ_DRAFT_DOC_ENTRY === pqDraftDocEntry,
+        ),
+      ) as T[];
     }
 
-    // Seller inbox: TARGET_COMPANY_ID only (buyer/source no longer listed).
+    // Seller inbox: filter by target only (JOIN may still mention SOURCE_COMPANY_ID).
     if (
       statement.includes('FROM "IC_RFQ_HEADER"') &&
       statement.includes("TARGET_COMPANY_ID") &&
-      !statement.includes("SOURCE_COMPANY_ID")
+      statement.includes("ORDER BY") &&
+      !statement.includes(" OR ")
     ) {
       const companyId = Number(params[0]);
-      return db.tables.IC_RFQ_HEADER.filter((row) => row.TARGET_COMPANY_ID === companyId)
-        .sort((left, right) => Number(right.RFQ_ID) - Number(left.RFQ_ID))
-        .map(clone) as T[];
+      return withRfqCompanyNames(
+        db,
+        db.tables.IC_RFQ_HEADER.filter((row) => row.TARGET_COMPANY_ID === companyId).sort(
+          (left, right) => Number(right.RFQ_ID) - Number(left.RFQ_ID),
+        ),
+      ) as T[];
     }
 
     if (
       statement.includes('FROM "IC_RFQ_HEADER"') &&
+      statement.includes(" OR ") &&
       statement.includes("SOURCE_COMPANY_ID") &&
       statement.includes("TARGET_COMPANY_ID")
     ) {
       const companyId = Number(params[0]);
-      return db.tables.IC_RFQ_HEADER.filter(
-        (row) => row.SOURCE_COMPANY_ID === companyId || row.TARGET_COMPANY_ID === companyId,
-      )
-        .sort((left, right) => Number(right.RFQ_ID) - Number(left.RFQ_ID))
-        .map(clone) as T[];
+      return withRfqCompanyNames(
+        db,
+        db.tables.IC_RFQ_HEADER.filter(
+          (row) => row.SOURCE_COMPANY_ID === companyId || row.TARGET_COMPANY_ID === companyId,
+        ).sort((left, right) => Number(right.RFQ_ID) - Number(left.RFQ_ID)),
+      ) as T[];
     }
 
-    if (statement.includes('FROM "IC_RFQ_HEADER"') && statement.includes("RFQ_ID")) {
+    if (
+      statement.includes('FROM "IC_RFQ_HEADER"') &&
+      (statement.includes('WHERE h."RFQ_ID" = ?') || statement.includes('WHERE "RFQ_ID" = ?'))
+    ) {
       const rfqId = Number(params[0]);
-      return db.tables.IC_RFQ_HEADER.filter((row) => row.RFQ_ID === rfqId).map(clone) as T[];
+      return withRfqCompanyNames(
+        db,
+        db.tables.IC_RFQ_HEADER.filter((row) => row.RFQ_ID === rfqId),
+      ) as T[];
     }
 
     if (statement.includes('FROM "IC_RFQ_LINE"')) {
@@ -665,14 +684,6 @@ export const seedMemoryCompanyGraph = (db: MemoryDb): void => {
     REMARKS: "A→B",
     VENDOR_CODE: "V-B",
     VENDOR_COMPANY_ID: 2,
-  });
-  db.tables.IC_TAX_MAPPING.push({
-    IS_ACTIVE: 1,
-    SOURCE_COMPANY_ID: 1,
-    SOURCE_TAX_CODE: "IN-12.5",
-    TARGET_COMPANY_ID: 2,
-    TARGET_TAX_CODE: "GSTO",
-    TAX_MAP_ID: 1,
   });
   db.tables.IC_SAP_CONNECTION.push({
     COMPANY_ID: 2,

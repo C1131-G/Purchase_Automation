@@ -87,9 +87,9 @@ export const createCreateRfqService = (deps?: {
 
       const pqDraftDocEntry = Number(input.sourceDocEntry);
       const pqDraftDocNum = input.sourceDocNum ? Number(input.sourceDocNum) : null;
-      // Line-by-line IC chain; keep any existing user remarks (append only).
+      // Line-by-line IC chain; keep any existing user remarks from PQ draft (append only).
       const chainRemarks = buildFlow1RfqRemarks({
-        existing: null,
+        existing: input.existingRemarks ?? null,
         pqDraftDocEntry,
         pqDraftDocNum,
         rfqNumber,

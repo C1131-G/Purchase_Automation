@@ -10,31 +10,51 @@ export type FlowStepContext = IcLogFields & {
   flow?: "flow1" | "flow2";
 };
 
+/** Drop null/undefined keys so step logs stay readable. */
+const compactFields = (row: Record<string, unknown>): Record<string, unknown> => {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (value !== null && value !== undefined && value !== "") {
+      out[key] = value;
+    }
+  }
+  return out;
+};
+
 const summarizeLines = (lines: unknown[] | undefined) => {
   if (!Array.isArray(lines) || lines.length === 0) {
     return { itemCodes: [] as string[], lineCount: 0, lines: [] as Record<string, unknown>[] };
   }
   const mapped = lines.map((raw, index) => {
     const line = (raw ?? {}) as Record<string, unknown>;
-    return {
-      discountPercent: line.DiscountPercent ?? line.discountPercent ?? null,
-      itemCode: String(line.ItemCode ?? line.itemCode ?? "").trim(),
-      itemDescription:
-        String(
-          line.ItemDescription ?? line.Dscription ?? line.ItemName ?? line.description ?? "",
-        ).trim() || null,
+    const itemDescription = String(
+      line.ItemDescription ?? line.Dscription ?? line.ItemName ?? line.description ?? "",
+    ).trim();
+    const requiredQuantity = line.RequiredQuantity ?? line.requiredQuantity;
+    const uomCode = line.UoMCode ?? line.UomCode ?? line.uomCode;
+    const uomEntry = line.UoMEntry ?? line.UomEntry ?? line.uomEntry;
+    const discountPercent = line.DiscountPercent ?? line.discountPercent;
+    return compactFields({
+      discountPercent:
+        discountPercent == null || Number(discountPercent) === 0 ? undefined : discountPercent,
+      itemCode: String(line.ItemCode ?? line.itemCode ?? "").trim() || undefined,
+      itemDescription: itemDescription || undefined,
       lineNum: line.LineNum ?? line.lineNum ?? index,
-      quantity: line.Quantity ?? line.quantity ?? null,
-      requiredQuantity: line.RequiredQuantity ?? line.requiredQuantity ?? null,
-      unitPrice: line.UnitPrice ?? line.Price ?? line.unitPrice ?? null,
-      uomCode: line.UoMCode ?? line.UomCode ?? line.uomCode ?? null,
-      uomEntry: line.UoMEntry ?? line.UomEntry ?? line.uomEntry ?? null,
-      vatGroup: line.VatGroup ?? line.vatGroup ?? null,
-      warehouseCode: line.WarehouseCode ?? line.warehouseCode ?? null,
-    };
+      quantity: line.Quantity ?? line.quantity,
+      requiredQuantity:
+        requiredQuantity == null || requiredQuantity === "" ? undefined : requiredQuantity,
+      unitPrice: line.UnitPrice ?? line.Price ?? line.unitPrice,
+      uomCode: uomCode == null || String(uomCode).trim() === "" ? undefined : uomCode,
+      uomEntry:
+        uomEntry == null || !Number.isFinite(Number(uomEntry)) || Number(uomEntry) <= 0
+          ? undefined
+          : uomEntry,
+      vatGroup: line.VatGroup ?? line.vatGroup,
+      warehouseCode: line.WarehouseCode ?? line.warehouseCode,
+    });
   });
   return {
-    itemCodes: mapped.map((line) => line.itemCode).filter(Boolean),
+    itemCodes: mapped.map((line) => String(line.itemCode ?? "").trim()).filter(Boolean),
     lineCount: mapped.length,
     lines: mapped,
   };
@@ -187,16 +207,71 @@ export const FLOW1_CONVERT_STEPS = {
   },
 } as const;
 
+/**
+ * Retry of failed Flow 1 step 17 (SQ create after PQ posted).
+ * Same step number as the original failure so logs correlate.
+ */
+export const FLOW1_RETRY_STEPS = {
+  START: {
+    step: 17,
+    total: FLOW1_TOTAL,
+    title: "Flow 1 — retry create seller SQ (step 17)",
+  },
+  SUCCESS: {
+    step: 17,
+    total: FLOW1_TOTAL,
+    title: "Flow 1 — retry SQ success (step 17)",
+  },
+  FAIL: {
+    step: 17,
+    total: FLOW1_TOTAL,
+    title: "Flow 1 — retry SQ failed (step 17)",
+  },
+  DEAD: {
+    step: 17,
+    total: FLOW1_TOTAL,
+    title: "Flow 1 — retry SQ dead (step 17)",
+  },
+} as const;
+
+export const FLOW2_TOTAL = 9 as const;
+
 export const FLOW2_STEPS = {
-  START: { step: 1, total: 9, title: "Flow 2 start — PO created" },
-  INPUT: { step: 2, total: 9, title: "Flow 2 input snapshot" },
-  CAPTURE: { step: 3, total: 9, title: "Flow 2 capture & partner resolve" },
-  PARTNER: { step: 4, total: 9, title: "Flow 2 partner companies resolved" },
-  BUILD: { step: 5, total: 9, title: "Flow 2 build AR invoice draft payload" },
-  PAYLOAD: { step: 6, total: 9, title: "Flow 2 AR draft SAP request body" },
-  POST: { step: 7, total: 9, title: "Flow 2 post AR draft to seller SAP" },
-  MAP_NOTIFY: { step: 8, total: 9, title: "Flow 2 document map + notify" },
-  COMPLETE: { step: 9, total: 9, title: "Flow 2 complete" },
+  START: { step: 1, total: FLOW2_TOTAL, title: "Flow 2 start — PO created" },
+  INPUT: { step: 2, total: FLOW2_TOTAL, title: "Flow 2 input snapshot" },
+  CAPTURE: { step: 3, total: FLOW2_TOTAL, title: "Flow 2 capture & partner resolve" },
+  PARTNER: { step: 4, total: FLOW2_TOTAL, title: "Flow 2 partner companies resolved" },
+  BUILD: { step: 5, total: FLOW2_TOTAL, title: "Flow 2 build AR invoice draft payload" },
+  PAYLOAD: { step: 6, total: FLOW2_TOTAL, title: "Flow 2 AR draft SAP request body" },
+  POST: { step: 7, total: FLOW2_TOTAL, title: "Flow 2 post AR draft to seller SAP" },
+  MAP_NOTIFY: { step: 8, total: FLOW2_TOTAL, title: "Flow 2 document map + notify" },
+  COMPLETE: { step: 9, total: FLOW2_TOTAL, title: "Flow 2 complete" },
+} as const;
+
+/**
+ * Retry of failed Flow 2 SL post (step 7). Same number as original failure.
+ */
+export const FLOW2_RETRY_STEPS = {
+  START: {
+    step: 7,
+    total: FLOW2_TOTAL,
+    title: "Flow 2 — retry post AR draft (step 7)",
+  },
+  SUCCESS: {
+    step: 7,
+    total: FLOW2_TOTAL,
+    title: "Flow 2 — retry AR draft success (step 7)",
+  },
+  FAIL: {
+    step: 7,
+    total: FLOW2_TOTAL,
+    title: "Flow 2 — retry AR draft failed (step 7)",
+  },
+  DEAD: {
+    step: 7,
+    total: FLOW2_TOTAL,
+    title: "Flow 2 — retry AR draft dead (step 7)",
+  },
 } as const;
 
 export const FLOW1_SCOPE = IC_LOG_SCOPE.FLOW1;

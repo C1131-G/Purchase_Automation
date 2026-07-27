@@ -138,9 +138,15 @@ export function RfqTable() {
   const columnIds = useMemo(
     () =>
       columns
-        .map((column) =>
-          column.id ? column.id : typeof column.accessorKey === "string" ? column.accessorKey : "",
-        )
+        .map((column) => {
+          if (column.id) {
+            return column.id;
+          }
+          if ("accessorKey" in column && typeof column.accessorKey === "string") {
+            return column.accessorKey;
+          }
+          return "";
+        })
         .filter(Boolean),
     [columns],
   );

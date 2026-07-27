@@ -1,7 +1,6 @@
 import { createColumnHelper } from "@tanstack/react-table";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 
-import { Button } from "@/components/button";
 import type { IcNotification } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import { matchesDateRange } from "@/features/table-pages/table-shared/utils/table-filter-values";
@@ -62,7 +61,7 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
     id: "createdAt",
     meta: { filterType: "date" },
     minSize: 12,
-    size: 14,
+    size: 15,
   }),
   columnHelper.accessor("message", {
     cell: (info) => {
@@ -78,8 +77,8 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Message" />
     ),
     id: "message",
-    minSize: 30,
-    size: 36,
+    minSize: 36,
+    size: 50,
   }),
   columnHelper.accessor("isRead", {
     cell: (info) => {
@@ -128,7 +127,7 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
       ],
     },
     minSize: 8,
-    size: 10,
+    size: 12,
   }),
   columnHelper.accessor("priority", {
     cell: (info) => {
@@ -173,46 +172,63 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
       ],
     },
     minSize: 8,
-    size: 10,
+    size: 12,
   }),
   columnHelper.display({
     cell: ({ row }) => {
       const { isRead, notificationId } = row.original;
       if (isRead) {
         return (
-          <div className="flex w-full items-center justify-start">
-            <span className="inline-block min-w-[7.5rem] text-left text-xs text-zinc-400">—</span>
+          // Left content + small right gap so the column edge doesn’t feel cramped.
+          <div className="flex w-full items-center justify-start pr-3">
+            <span
+              className="inline-flex h-6 items-center gap-0.5 text-[10px] font-medium text-zinc-400"
+              title="Already read"
+              aria-label="Already read"
+            >
+              <Check className="size-3 stroke-[2.5px]" aria-hidden />
+              Done
+            </span>
           </div>
         );
       }
       const isPending = options.markReadPendingId === notificationId;
       return (
-        <div className="flex w-full items-center justify-start">
-          <Button
+        <div className="flex w-full items-center justify-start pr-3">
+          <button
             type="button"
-            variant="secondary"
-            size="sm"
-            className="h-9 min-w-[7.5rem] gap-1.5 px-4 normal-case tracking-normal shadow-sm"
-            isLoading={isPending}
-            loadingText="Reading…"
+            className={cn(
+              "inline-flex h-6 shrink-0 cursor-pointer items-center gap-0.5 rounded-md border border-zinc-200 bg-white px-1.5 text-[10px] font-semibold text-zinc-700 shadow-none transition-colors",
+              "hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300",
+              "disabled:cursor-not-allowed disabled:opacity-60",
+            )}
+            disabled={isPending}
             aria-label={`Mark notification ${notificationId} as read`}
+            title="Mark as read"
             onClick={() => options.onMarkRead(notificationId)}
           >
-            <Check className="size-3.5 stroke-[2.5px]" aria-hidden />
+            {isPending ? (
+              <Loader2 className="size-3 animate-spin" aria-hidden />
+            ) : (
+              <Check className="size-3 stroke-[2.5px]" aria-hidden />
+            )}
             Read
-          </Button>
+          </button>
         </div>
       );
     },
     enableColumnFilter: false,
     enableHiding: false,
     enableSorting: false,
+    // Same header chrome as Created / Message / Status (non-sortable style).
     header: ({ column, table }) => (
       <TableColumnSort column={column} sortingState={table.getState().sorting} title="Read" />
     ),
     id: "actions",
-    minSize: 12,
-    size: 14,
+    maxSize: 8,
+    minSize: 6,
+    size: 7,
   }),
 ];
 

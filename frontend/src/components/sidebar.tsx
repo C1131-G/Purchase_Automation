@@ -335,6 +335,8 @@ export function SidebarMenuCollapsible({
   isActive = false,
   isOpen = false,
   onToggle,
+  trailing,
+  iconBadge,
 }: SidebarMenuCollapsibleProps) {
   return (
     <SidebarMenuItem>
@@ -343,17 +345,25 @@ export function SidebarMenuCollapsible({
         isActive={isActive}
         className="justify-between group/trigger"
       >
-        <div className="flex items-center gap-3">
-          <Icon className="size-5" />
-          <span className="group-data-[collapsible=icon]:hidden">{title}</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="relative inline-flex shrink-0">
+            <Icon className="size-5" />
+            {iconBadge ? (
+              <span className="pointer-events-none absolute -right-1.5 -top-1.5">{iconBadge}</span>
+            ) : null}
+          </span>
+          <span className="truncate group-data-[collapsible=icon]:hidden">{title}</span>
         </div>
-        <ChevronRight
-          className={cn(
-            "size-3.5 transition-transform duration-300 text-zinc-300 group-hover/trigger:text-blue-600 group-data-[collapsible=icon]:hidden",
-            isOpen && "rotate-90",
-            isActive && "text-white group-hover/trigger:text-white",
-          )}
-        />
+        <div className="flex shrink-0 items-center gap-1.5 group-data-[collapsible=icon]:hidden">
+          {trailing}
+          <ChevronRight
+            className={cn(
+              "size-3.5 transition-transform duration-300 text-zinc-300 group-hover/trigger:text-blue-600",
+              isOpen && "rotate-90",
+              isActive && "text-white group-hover/trigger:text-white",
+            )}
+          />
+        </div>
       </SidebarMenuButton>
       <div
         className={cn(

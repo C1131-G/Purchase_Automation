@@ -28,6 +28,25 @@ export const mapRfqLineRow = (row: Record<string, unknown>): IcRfqLine => ({
   warehouse: row.WAREHOUSE === null || row.WAREHOUSE === undefined ? null : toString(row.WAREHOUSE),
 });
 
+const toNullableName = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  return toString(value);
+};
+
+/**
+ * RFQ header + IC_COMPANY names (source = buyer, target = seller).
+ * Shared by queries and mutation reloads so list/detail always show names.
+ */
+export const RFQ_HEADER_SELECT_WITH_COMPANY_NAMES = `
+SELECT h.*,
+       sc."COMPANY_NAME" AS "SOURCE_COMPANY_NAME",
+       tc."COMPANY_NAME" AS "TARGET_COMPANY_NAME"
+  FROM "IC_RFQ_HEADER" h
+  LEFT JOIN "IC_COMPANY" sc ON sc."COMPANY_ID" = h."SOURCE_COMPANY_ID"
+  LEFT JOIN "IC_COMPANY" tc ON tc."COMPANY_ID" = h."TARGET_COMPANY_ID"`;
+
 export const mapRfqHeaderRow = (row: Record<string, unknown>): IcRfqHeader => ({
   createdBy:
     row.CREATED_BY === null || row.CREATED_BY === undefined ? null : toString(row.CREATED_BY),
@@ -37,8 +56,10 @@ export const mapRfqHeaderRow = (row: Record<string, unknown>): IcRfqHeader => ({
   rfqId: toNumber(row.RFQ_ID ?? row.rfqId),
   rfqNumber: toString(row.RFQ_NUMBER ?? row.rfqNumber),
   sourceCompanyId: toNumber(row.SOURCE_COMPANY_ID ?? row.sourceCompanyId),
+  sourceCompanyName: toNullableName(row.SOURCE_COMPANY_NAME ?? row.sourceCompanyName),
   status: toString(row.STATUS ?? row.status),
   targetCompanyId: toNumber(row.TARGET_COMPANY_ID ?? row.targetCompanyId),
+  targetCompanyName: toNullableName(row.TARGET_COMPANY_NAME ?? row.targetCompanyName),
   vendorCode: toString(row.VENDOR_CODE ?? row.vendorCode),
 });
 
@@ -54,15 +75,19 @@ export type RfqQueries = {
 export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQueries => ({
   findBySourceDraft: async (sourceCompanyId, pqDraftDocEntry) => {
     const rows = await sql.query(
-      `SELECT * FROM "IC_RFQ_HEADER"
-        WHERE "SOURCE_COMPANY_ID" = ? AND "PQ_DRAFT_DOC_ENTRY" = ?`,
+      `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
+        WHERE h."SOURCE_COMPANY_ID" = ? AND h."PQ_DRAFT_DOC_ENTRY" = ?`,
       [sourceCompanyId, pqDraftDocEntry],
     );
     return rows[0] ? mapRfqHeaderRow(rows[0]) : null;
   },
 
   getById: async (rfqId, withLines = true) => {
-    const rows = await sql.query(`SELECT * FROM "IC_RFQ_HEADER" WHERE "RFQ_ID" = ?`, [rfqId]);
+    const rows = await sql.query(
+      `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
+        WHERE h."RFQ_ID" = ?`,
+      [rfqId],
+    );
     if (!rows[0]) {
       return null;
     }
@@ -80,9 +105,9 @@ export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQuerie
   /** Seller inbox only — RFQs where this company is the target (not buyer/source). */
   listForCompany: async (companyId) => {
     const rows = await sql.query(
-      `SELECT * FROM "IC_RFQ_HEADER"
-        WHERE "TARGET_COMPANY_ID" = ?
-        ORDER BY "RFQ_ID" DESC`,
+      `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
+        WHERE h."TARGET_COMPANY_ID" = ?
+        ORDER BY h."RFQ_ID" DESC`,
       [companyId],
     );
     return rows.map(mapRfqHeaderRow);

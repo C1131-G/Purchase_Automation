@@ -166,14 +166,44 @@ IC_BP_MAPPING (BUYER = session company)
 
 ---
 
-### 3.4 `IC_TAX_MAPPING`
+### 3.4 Tax resolution (no `IC_TAX_MAPPING`)
 
-|                 |                                                                                        |
-| --------------- | -------------------------------------------------------------------------------------- |
-| **Why**         | Buyer tax (input) often ≠ seller tax (output). Must be config, not hardcoded.          |
-| **Use**         | When building partner lines (SQ, AR Draft), map `SOURCE_TAX_CODE` → `TARGET_TAX_CODE`. |
-| **Key columns** | `SOURCE_COMPANY_ID`, `TARGET_COMPANY_ID`, `SOURCE_TAX_CODE`, `TARGET_TAX_CODE`         |
-| **Connects to** | `IC_COMPANY` pair. Used at document create time only.                                  |
+**Removed:** `IC_TAX_MAPPING` is **not used**. Do not seed purchase↔sales pairs.  
+Optional cleanup SQL (after this release):
+
+```sql
+DROP TABLE "SBOCOMMON"."IC_TAX_MAPPING";
+```
+
+#### Tax ownership by document (company + doc type)
+
+Tax is always **company-local**. Purchase tax ≠ sales tax; each is taken from the company where the document is posted.
+
+| Document           | Company | Tax family    | How obtained                                                    |
+| ------------------ | ------- | ------------- | --------------------------------------------------------------- |
+| PQ Draft           | Buyer   | Purchase      | UI / AJAX / SAP buyer defaults                                  |
+| RFQ line           | —       | Snapshot only | Buyer draft `VatGroup` for re-apply to PQ only (not seller tax) |
+| PQ (after convert) | Buyer   | Purchase      | RFQ snapshot = buyer tax                                        |
+| SQ (seller)        | Seller  | Sales         | Dynamic: item `VatGourpSa` → BP `ECVatGroup` → omit             |
+| PO                 | Buyer   | Purchase      | Normal buyer PO posting                                         |
+| AR Invoice Draft   | Seller  | Sales         | Same dynamic resolver as SQ                                     |
+| GRPO / AP (future) | Buyer   | Purchase      | Buyer base doc / SAP                                            |
+| AR final (manual)  | Seller  | Sales         | User posts in B1 from draft                                     |
+
+```text
+resolvePartnerTax (SQ, AR draft, retry) — docSide = sales:
+  1. OITM.VatGourpSa on document company DB   (item sales tax)
+  2. OCRD.ECVatGroup on document company DB   (customer default)
+  3. omit VatGroup → SAP tax determination on POST
+  NEVER copy buyer purchase tax onto seller sales lines
+
+docSide = purchase (future): OITM.VatGroupPu → BP → omit
+```
+
+Implementation: `config/tax-mapping/resolve-partner-tax.service.ts`  
+Masters: `config/tax-mapping/partner-tax.masters.ts` (HANA tenant query).
+
+**Ops:** Set seller item sales tax + IC customer BP tax in SAP once. No SBOCOMMON tax matrix.
 
 ---
 
@@ -441,11 +471,11 @@ Use these strings consistently in `IC_DOCUMENT_MAPPING`, notifications, retry ac
 
 ### 6.2 Step × table matrix (Flow 1)
 
-| Step | Action             | Tables read                                                                      | Tables write                                                                                                   |
-| ---- | ------------------ | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 1–2  | Save PQ Draft      | `IC_COMPANY`, `IC_BP_MAPPING`, `IC_CONFIGURATION`                                | `IC_RFQ_HEADER`, `IC_RFQ_LINE`, `IC_DOCUMENT_MAPPING`, `IC_NOTIFICATION`, `IC_SYNC_HISTORY`                    |
-| 4–6  | Vendor fill/submit | `IC_RFQ_*`                                                                       | `IC_RFQ_*`, `IC_NOTIFICATION`, `IC_SYNC_HISTORY`                                                               |
-| 8    | Convert + SQ       | `IC_RFQ_*`, `IC_BP_MAPPING`, `IC_TAX_MAPPING`, `IC_SAP_CONNECTION`, `IC_COMPANY` | SAP PQ/SQ; `IC_DOCUMENT_MAPPING`; `IC_NOTIFICATION`; `IC_RFQ` completed; fail → `IC_RETRY_QUEUE`, `IC_API_LOG` |
+| Step | Action             | Tables read                                                                             | Tables write                                                                                                   |
+| ---- | ------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1–2  | Save PQ Draft      | `IC_COMPANY`, `IC_BP_MAPPING`, `IC_CONFIGURATION`                                       | `IC_RFQ_HEADER`, `IC_RFQ_LINE`, `IC_DOCUMENT_MAPPING`, `IC_NOTIFICATION`, `IC_SYNC_HISTORY`                    |
+| 4–6  | Vendor fill/submit | `IC_RFQ_*`                                                                              | `IC_RFQ_*`, `IC_NOTIFICATION`, `IC_SYNC_HISTORY`                                                               |
+| 8    | Convert + SQ       | `IC_RFQ_*`, `IC_BP_MAPPING`, `IC_SAP_CONNECTION`, `IC_COMPANY` (+ seller OITM/OCRD tax) | SAP PQ/SQ; `IC_DOCUMENT_MAPPING`; `IC_NOTIFICATION`; `IC_RFQ` completed; fail → `IC_RETRY_QUEUE`, `IC_API_LOG` |
 
 ### 6.3 UI wireframe (notification page — both companies)
 
@@ -502,10 +532,10 @@ Use these strings consistently in `IC_DOCUMENT_MAPPING`, notifications, retry ac
 
 ### 7.2 Step × table matrix (Flow 2)
 
-| Step | Action         | Tables read                                                                              | Tables write                                                                                       |
-| ---- | -------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 2–3  | PO create      | `IC_CONFIGURATION`, `IC_COMPANY`, `IC_BP_MAPPING`, `IC_SAP_CONNECTION`, `IC_TAX_MAPPING` | `IC_DOCUMENT_MAPPING`, `IC_NOTIFICATION`, `IC_SYNC_HISTORY`, `IC_API_LOG`; fail → `IC_RETRY_QUEUE` |
-| 4    | Manual post AR | (none IC)                                                                                | SAP only                                                                                           |
+| Step | Action         | Tables read                                                                                     | Tables write                                                                                       |
+| ---- | -------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 2–3  | PO create      | `IC_CONFIGURATION`, `IC_COMPANY`, `IC_BP_MAPPING`, `IC_SAP_CONNECTION` (+ seller OITM/OCRD tax) | `IC_DOCUMENT_MAPPING`, `IC_NOTIFICATION`, `IC_SYNC_HISTORY`, `IC_API_LOG`; fail → `IC_RETRY_QUEUE` |
+| 4    | Manual post AR | (none IC)                                                                                       | SAP only                                                                                           |
 
 ### 7.3 Env / config flags
 
@@ -677,24 +707,10 @@ VALUES
   (2, 1, '<<FILL_VENDOR_CODE_B_SEES_A>>', '<<FILL_CUSTOMER_CODE_A_SEES_B>>', 1, 'B→A');
 
 -- =============================================================================
--- 4) IC_TAX_MAPPING
+-- 4) IC_TAX_MAPPING — REMOVED (dynamic tax via OITM/OCRD per company + doc type)
+-- Optional cleanup after deploy:
+--   DROP TABLE "SBOCOMMON"."IC_TAX_MAPPING";
 -- =============================================================================
-CREATE COLUMN TABLE "SBOCOMMON"."IC_TAX_MAPPING" (
-  "TAX_MAP_ID"          INTEGER GENERATED BY DEFAULT AS IDENTITY,
-  "SOURCE_COMPANY_ID"   INTEGER NOT NULL,
-  "TARGET_COMPANY_ID"   INTEGER NOT NULL,
-  "SOURCE_TAX_CODE"     NVARCHAR(50) NOT NULL,
-  "TARGET_TAX_CODE"     NVARCHAR(50) NOT NULL,
-  "IS_ACTIVE"           TINYINT DEFAULT 1 NOT NULL,
-  "CREATED_AT"          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY ("TAX_MAP_ID"),
-  UNIQUE ("SOURCE_COMPANY_ID","TARGET_COMPANY_ID","SOURCE_TAX_CODE")
-);
-
-INSERT INTO "SBOCOMMON"."IC_TAX_MAPPING"
-  ("SOURCE_COMPANY_ID","TARGET_COMPANY_ID","SOURCE_TAX_CODE","TARGET_TAX_CODE","IS_ACTIVE")
-VALUES
-  (1, 2, '<<FILL_SOURCE_TAX_e.g.IN-12.5>>', '<<FILL_TARGET_TAX_e.g.GSTO>>', 1);
 
 -- =============================================================================
 -- 5) IC_RFQ_HEADER

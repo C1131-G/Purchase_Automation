@@ -1,5 +1,5 @@
 /**
- * Pure payload helpers for Flow 2 AR Invoice Draft (no I/O except tax map callback).
+ * Pure payload helpers for Flow 2 AR Invoice Draft (no I/O except tax resolve callback).
  */
 
 import { SAP_OBJECT_TYPE_AR_INVOICE } from "@/modules/intercompany/infrastructure/constants";
@@ -7,6 +7,11 @@ import { buildFlow2ArRemarks } from "@/modules/intercompany/infrastructure/ic-re
 import type { IcDocumentLineInput } from "@/modules/intercompany/flows/shared/flow.types";
 
 import type { BuildArDraftInput, BuildArDraftResult } from "./build-ar-draft.types";
+
+export type ResolveArLineTax = (input: {
+  sourceTaxCode: string;
+  itemCode: string;
+}) => Promise<string>;
 
 export const formatSapDate = (value: unknown): string | undefined => {
   if (value == null) {
@@ -24,10 +29,12 @@ export const formatSapDate = (value: unknown): string | undefined => {
 
 export const mapPoLineToArLine = async (
   line: IcDocumentLineInput,
-  mapTaxCode: (sourceTaxCode: string) => Promise<string>,
+  resolveLineTax: ResolveArLineTax,
 ): Promise<Record<string, unknown>> => {
   const sourceTax = line.VatGroup == null ? "" : String(line.VatGroup).trim();
-  const targetTax = sourceTax ? await mapTaxCode(sourceTax) : "";
+  const itemCode = line.ItemCode == null ? "" : String(line.ItemCode).trim();
+  // Always resolve (map → item → BP → omit), even when buyer tax is empty.
+  const targetTax = (await resolveLineTax({ itemCode, sourceTaxCode: sourceTax })).trim();
 
   const docLine: Record<string, unknown> = {
     DiscountPercent: Number(line.DiscountPercent ?? 0),
@@ -37,6 +44,11 @@ export const mapPoLineToArLine = async (
     VatGroup: targetTax || undefined,
     WarehouseCode: line.WarehouseCode as string,
   };
+
+  const itemDescription = String(line.ItemDescription ?? line.ItemName ?? "").trim();
+  if (itemDescription) {
+    docLine.ItemDescription = itemDescription;
+  }
 
   if (line.LineNum !== undefined && line.LineNum !== null) {
     docLine.LineNum = Number(line.LineNum);
@@ -64,14 +76,14 @@ export const buildArDraftPayload = async (
   const lines = Array.isArray(input.lines) ? input.lines : [];
   const documentLines: Record<string, unknown>[] = [];
   for (const line of lines) {
-    documentLines.push(await mapPoLineToArLine(line, input.mapTaxCode));
+    documentLines.push(await mapPoLineToArLine(line, input.resolveLineTax));
   }
 
   const docDate = formatSapDate(input.docDate);
   const docDueDate = formatSapDate(input.docDueDate) ?? docDate;
   const numAtCardRaw = input.numAtCard == null ? "" : String(input.numAtCard).trim();
 
-  // Keep existing PO comments; append IC | PO + IC | AR lines (never wipe user text).
+  // Keep existing PO comments; append IC | PO No … only (no Flow 1/2 wording).
   const comments = buildFlow2ArRemarks({
     existingComments: input.comments,
     poDocEntry: input.poDocEntry,
