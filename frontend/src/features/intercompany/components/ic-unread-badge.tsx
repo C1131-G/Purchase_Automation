@@ -1,10 +1,13 @@
-import { Bell } from "lucide-react";
+import { Bell, RotateCcw } from "lucide-react";
 
-import { useIcUnreadCount } from "@/features/intercompany/api/intercompany.queries";
+import {
+  useIcPendingRetryCount,
+  useIcUnreadCount,
+} from "@/features/intercompany/api/intercompany.queries";
 import { cn } from "@/shared/utils/cn";
 
 /** Cap badge digits for dense chrome; API still returns the raw count. */
-function formatUnreadBadge(count: number): string {
+function formatCountBadge(count: number): string {
   if (count > 99) {
     return "99+";
   }
@@ -31,7 +34,7 @@ export function IcUnreadCountPill({ className }: { className?: string }) {
       aria-label={`${count} unread notifications`}
     >
       <Bell className="size-3 shrink-0" aria-hidden />
-      <span>{formatUnreadBadge(count)}</span>
+      <span>{formatCountBadge(count)}</span>
     </span>
   );
 }
@@ -54,7 +57,52 @@ export function IcUnreadIconBadge({ className }: { className?: string }) {
       )}
       aria-label={`${count} unread notifications`}
     >
-      {formatUnreadBadge(count)}
+      {formatCountBadge(count)}
+    </span>
+  );
+}
+
+/**
+ * Compact pending-retry indicator for Intercompany sidebar.
+ * Renders nothing when count is 0.
+ */
+export function IcRetryCountPill({ className }: { className?: string }) {
+  const retryQuery = useIcPendingRetryCount(true);
+  const count = retryQuery.data ?? 0;
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-800 tabular-nums",
+        className,
+      )}
+      aria-label={`${count} pending ${count === 1 ? "retry" : "retries"}`}
+    >
+      <RotateCcw className="size-3 shrink-0" aria-hidden />
+      <span>{formatCountBadge(count)}</span>
+    </span>
+  );
+}
+
+/**
+ * Section-header badges for expanded Intercompany nav (notifications + retries).
+ */
+export function IcIntercompanySectionBadges({ className }: { className?: string }) {
+  const unreadQuery = useIcUnreadCount(true);
+  const retryQuery = useIcPendingRetryCount(true);
+  const unreadCount = unreadQuery.data?.data.count ?? 0;
+  const retryCount = retryQuery.data ?? 0;
+
+  if (unreadCount <= 0 && retryCount <= 0) {
+    return null;
+  }
+
+  return (
+    <span className={cn("inline-flex items-center gap-1", className)}>
+      {unreadCount > 0 ? <IcUnreadCountPill /> : null}
+      {retryCount > 0 ? <IcRetryCountPill /> : null}
     </span>
   );
 }

@@ -17,6 +17,7 @@ export const intercompanyKeys = {
   retries: () => [...intercompanyKeys.all, "retries"] as const,
   retryList: (params: IcRetriesListParams = {}) =>
     [...intercompanyKeys.retries(), "list", params] as const,
+  pendingRetryCount: () => [...intercompanyKeys.retries(), "pending-count"] as const,
   rfqs: () => [...intercompanyKeys.all, "rfqs"] as const,
   rfqList: () => [...intercompanyKeys.rfqs(), "list"] as const,
   rfqDetail: (rfqId: number) => [...intercompanyKeys.rfqs(), "detail", rfqId] as const,
@@ -62,6 +63,21 @@ export function useIcRetries(params: IcRetriesListParams = {}, enabled = true) {
     enabled,
     queryFn: () => intercompanyAPI.listRetries(params),
     queryKey: intercompanyKeys.retryList(params),
+    staleTime: 15_000,
+  });
+}
+
+/** Pending retry count for shell badge — WAITING, DEAD, PROCESSING (backend default). */
+export function useIcPendingRetryCount(enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: async () => {
+      const response = await intercompanyAPI.listRetries();
+      return response.data.length;
+    },
+    queryKey: intercompanyKeys.pendingRetryCount(),
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
     staleTime: 15_000,
   });
 }

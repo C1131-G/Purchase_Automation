@@ -39,17 +39,12 @@ export const createNotifySellerService = (deps?: {
         rfqNumber: params.rfq.rfqNumber,
         docEntry: params.rfq.rfqId,
       });
-      const pqdLabel = formatIcDocLabel({
-        kind: "PQD",
-        docEntry: params.rfq.pqDraftDocEntry,
-        docNum: params.rfq.pqDraftDocNum,
-      });
       await notifications.create({
         companyId: params.partner.sellerCompany.companyId,
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_CREATED",
-        message: `${buyerName} sent ${rfqLabel} (from ${pqdLabel}).`,
+        message: `${buyerName} sent ${rfqLabel}. Open ${rfqLabel} to enter your prices.`,
         priority: "HIGH",
         // TITLE stores source company for list/filter (Company column).
         title: buyerName,
@@ -83,7 +78,7 @@ export const createNotifySellerService = (deps?: {
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_SUBMITTED",
-        message: `${sellerName} submitted ${rfqLabel}.`,
+        message: `${sellerName} submitted ${rfqLabel}. Open ${rfqLabel} to review and convert.`,
         priority: "MEDIUM",
         title: sellerName,
       });

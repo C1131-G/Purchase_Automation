@@ -12,10 +12,12 @@ import type { RetryService } from "@/modules/intercompany/domain/retry/retry.ser
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
-import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
-import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
+import type { NotificationService } from "@/modules/intercompany/domain/notification/notification.service";
+import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import type { BpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
 import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
+import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
+import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import {
   DEFAULT_MAX_RETRY,
   IC_ACTION,
@@ -66,6 +68,7 @@ export const createConvertPqAndSqService = (deps?: {
   company?: CompanyService;
   bpMapping?: BpMappingService;
   documents?: IcSlDocuments;
+  notifications?: NotificationService;
 }): ConvertPqAndSqService => {
   const rfq = deps?.rfq ?? createRfqService();
   const documentMap = deps?.documentMap ?? createDocumentMapService();
@@ -75,6 +78,7 @@ export const createConvertPqAndSqService = (deps?: {
   const company = deps?.company ?? createCompanyService();
   const bpMapping = deps?.bpMapping ?? createBpMappingService();
   const documents = deps?.documents ?? createIcSlDocuments();
+  const notifications = deps?.notifications ?? createNotificationService();
   const warehouseMasters = deps?.warehouseMasters;
   const partnerTax =
     deps?.partnerTax ??
@@ -436,8 +440,43 @@ export const createConvertPqAndSqService = (deps?: {
 
         await rfq.complete(rfqId);
 
-        // No convert-complete notifications: handoffs already covered by
-        // FLOW1_RFQ_CREATED (seller) and FLOW1_RFQ_SUBMITTED (buyer).
+        const buyer = await company.getById(header.sourceCompanyId);
+        const rfqLabel = formatIcDocLabel({
+          kind: "RFQ",
+          rfqNumber: header.rfqNumber,
+          docEntry: header.rfqId,
+        });
+        const buyerName = buyer?.companyName?.trim() || "Buyer";
+        const pqLabel = formatIcDocLabel({
+          kind: "PQ",
+          docEntry: purchaseQuotation.docEntry,
+          docNum: purchaseQuotation.docNum ?? null,
+        });
+        const sqLabel = formatIcDocLabel({
+          kind: "SQ",
+          docEntry: salesQuotation.docEntry,
+          docNum: salesQuotation.docNum ?? null,
+        });
+
+        await notifications.create({
+          companyId: header.sourceCompanyId,
+          documentId: String(purchaseQuotation.docNum ?? purchaseQuotation.docEntry),
+          documentType: IC_OBJECT.PQ,
+          flowStep: "FLOW1_PQ_CREATED",
+          message: `${pqLabel} created from ${rfqLabel}. Open ${pqLabel} to review.`,
+          priority: "MEDIUM",
+          title: "Purchase quotation ready",
+        });
+
+        await notifications.create({
+          companyId: header.targetCompanyId,
+          documentId: String(salesQuotation.docNum ?? salesQuotation.docEntry),
+          documentType: IC_OBJECT.SQ,
+          flowStep: "FLOW1_SQ_CREATED",
+          message: `${buyerName} converted ${rfqLabel}. ${sqLabel} is ready — open ${sqLabel}.`,
+          priority: "MEDIUM",
+          title: buyerName,
+        });
 
         await history.append({
           action: IC_ACTION.FLOW1_CONVERT_PQ_SQ,

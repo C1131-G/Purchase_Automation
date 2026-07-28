@@ -3,6 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
+import {
+  createPageHighlightSearchSchema,
+  toCreatePageHighlightProps,
+} from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import { SalesQuotationCreate } from "@/features/create-pages/sales-quotation-create/components/sales-quotation-create";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/shared/auth/require-active-session";
@@ -23,11 +27,18 @@ export const Route = createFileRoute("/_layout/sales/create-quotation")({
         draftDocNum: z.string().or(z.number()).transform(String).optional(),
         draftDocEntry: z.string().or(z.number()).transform(String).optional(),
       })
+      .merge(createPageHighlightSearchSchema)
       .parse(search),
 });
 
 function RouteComponent() {
   useDocumentTitle("Create Sales Quotation | ERP Portal");
-  const { draftDocNum, draftDocEntry } = Route.useSearch();
-  return <SalesQuotationCreate draftDocNum={draftDocNum} draftDocEntry={draftDocEntry} />;
+  const { draftDocNum, draftDocEntry, highlightDocNum, highlightUntil } = Route.useSearch();
+  return (
+    <SalesQuotationCreate
+      {...(draftDocEntry !== undefined ? { draftDocEntry } : {})}
+      {...(draftDocNum !== undefined ? { draftDocNum } : {})}
+      {...toCreatePageHighlightProps(highlightDocNum, highlightUntil)}
+    />
+  );
 }

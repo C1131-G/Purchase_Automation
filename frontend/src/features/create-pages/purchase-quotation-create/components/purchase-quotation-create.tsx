@@ -12,6 +12,7 @@ import { ReferenceGrid } from "@/features/create-pages/create-shared/components/
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import { resolveActiveHighlightDocRef } from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import {
   parseISODate,
   toDisplayDate,
@@ -28,6 +29,8 @@ const routeApi = getRouteApi("/_layout/purchase/create-quotation");
 interface PurchaseQuotationCreateProps {
   mode?: "create" | "edit";
   docNum?: string;
+  highlightDocNum?: string;
+  highlightUntil?: number;
 }
 
 /**
@@ -35,7 +38,12 @@ interface PurchaseQuotationCreateProps {
  * State is centralized in usePurchaseQuotationCreate to keep the UI declarative and clean.
  * Leverages CreatePageWrapper for consistent entity layout.
  */
-export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuotationCreateProps) {
+export function PurchaseQuotationCreate({
+  mode = "create",
+  docNum,
+  highlightDocNum,
+  highlightUntil,
+}: PurchaseQuotationCreateProps) {
   const queryClient = useQueryClient();
 
   let draftDocNum: string | undefined;
@@ -69,6 +77,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
     : draftDocNum
       ? `Create Purchase Quotation (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
       : "Create Purchase Quotation";
+  const highlightDocRef = resolveActiveHighlightDocRef(highlightDocNum, highlightUntil);
   const isFormHydrating =
     !state.isEditMode && !draftDocNum
       ? state.vendorsQuery.isLoading &&
@@ -119,6 +128,7 @@ export function PurchaseQuotationCreate({ mode = "create", docNum }: PurchaseQuo
           to: "/purchase/quotations",
         }}
         pageTitle={pageTitle}
+        highlightDocRef={highlightDocRef}
         editError={
           state.isEditMode && state.editDetailQuery.isError
             ? state.editDetailQuery.error instanceof Error

@@ -10,6 +10,7 @@ import { UploadGrid } from "@/features/create-pages/create-shared/components/gri
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import { resolveActiveHighlightDocRef } from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import { notifyEditRestrictedField } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import type { ActiveDatePicker } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
@@ -29,6 +30,8 @@ const noopStr = (_value: string) => {};
 
 interface RequestForQuotationFormProps {
   rfqId: number;
+  highlightDocNum?: string;
+  highlightUntil?: number;
 }
 
 /**
@@ -36,11 +39,16 @@ interface RequestForQuotationFormProps {
  * dates, address, reference, attachments, PQ product rows).
  * Only quoted qty, quoted date, price, disc %, disc amount are editable; Submit only.
  */
-export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps) {
+export function RequestForQuotationForm({
+  rfqId,
+  highlightDocNum,
+  highlightUntil,
+}: RequestForQuotationFormProps) {
   const queryClient = useQueryClient();
   const state = useRequestForQuotationForm(rfqId);
   const header = state.header;
   const titleNumber = header?.rfqNumber ? formatRfqDocNumber(header.rfqNumber) : String(rfqId);
+  const highlightDocRef = resolveActiveHighlightDocRef(highlightDocNum, highlightUntil);
 
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
   const docDateContainerRef = useRef<HTMLDivElement>(null);
@@ -86,6 +94,7 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
         to: "/sales/request-for-quotations",
       }}
       pageTitle={`Request For Quotation ${titleNumber}`}
+      highlightDocRef={highlightDocRef}
       editError={editError}
     >
       {header ? (

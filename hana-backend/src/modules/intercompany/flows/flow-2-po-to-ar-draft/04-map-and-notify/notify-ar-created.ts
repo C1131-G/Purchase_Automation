@@ -36,7 +36,7 @@ export const createNotifyArCreated = (
       documentId: params.targetDocEntry,
       documentType: IC_OBJECT.AR_DRAFT,
       flowStep: "FLOW2_AR_DRAFT_CREATED",
-      message: `${buyerName}: ${poLabel} created ${arLabel}.`,
+      message: `${buyerName} placed ${poLabel}. ${arLabel} was created — open ${arLabel} to review.`,
       priority: "MEDIUM",
       title: buyerName,
     });

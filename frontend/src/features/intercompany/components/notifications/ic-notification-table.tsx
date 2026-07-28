@@ -1,4 +1,4 @@
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import {
   flexRender,
   getCoreRowModel,
@@ -26,6 +26,7 @@ import {
 } from "@/features/intercompany/components/notifications/ic-notification-columns";
 import { IcNotificationToolbar } from "@/features/intercompany/components/notifications/ic-notification-toolbar";
 import type { IcNotification } from "@/features/intercompany/schemas/intercompany-api.schema";
+import type { IcNotificationDocLink } from "@/features/intercompany/utils/ic-notification-navigation";
 import {
   icNotificationColumnFilterSchema,
   type IcNotificationColumnFilter,
@@ -90,7 +91,8 @@ const filterValueToString = (value: unknown): string | undefined => {
  */
 export function IcNotificationTable() {
   const searchParams = routeApi.useSearch();
-  const navigate = routeApi.useNavigate();
+  const navigate = useNavigate();
+  const navigateRoute = routeApi.useNavigate();
   const setSorting = useSetSortingAction();
   const setVisibility = useSetVisibilityAction();
   const setOrder = useSetOrderAction();
@@ -148,13 +150,28 @@ export function IcNotificationTable() {
     });
   }, [markAllMutation]);
 
+  const handleNotificationNavigate = useCallback(
+    (notification: IcNotification, link: IcNotificationDocLink) => {
+      if (!notification.isRead) {
+        markReadMutation.mutate(notification.notificationId);
+      }
+      void navigate({
+        params: link.params,
+        search: link.search ?? {},
+        to: link.to,
+      } as never);
+    },
+    [markReadMutation, navigate],
+  );
+
   const columns = useMemo(
     () =>
       createIcNotificationColumns({
         markReadPendingId,
         onMarkRead: handleMarkRead,
+        onNavigate: handleNotificationNavigate,
       }),
-    [handleMarkRead, markReadPendingId],
+    [handleMarkRead, handleNotificationNavigate, markReadPendingId],
   );
 
   const columnIds = useMemo(
@@ -249,7 +266,7 @@ export function IcNotificationTable() {
         (f) => f.id === "createdAt" || f.id === "isRead" || f.id === "priority",
       );
 
-      void navigate({
+      void navigateRoute({
         replace: true,
         search: (prev: IcNotificationSearch) => ({
           ...prev,
@@ -270,7 +287,7 @@ export function IcNotificationTable() {
     onColumnOrderChange: (updater) => {
       const next = typeof updater === "function" ? updater(columnOrder) : updater;
       setOrder(TABLE_ID, cloneOrder(next));
-      void navigate({
+      void navigateRoute({
         replace: true,
         search: (prev: IcNotificationSearch) => ({
           ...prev,
@@ -282,7 +299,7 @@ export function IcNotificationTable() {
       const next = typeof updater === "function" ? updater(columnVisibility) : updater;
       const nextVisibility = normalizeVisibility(cloneVisibility(next));
       setVisibility(TABLE_ID, nextVisibility);
-      void navigate({
+      void navigateRoute({
         replace: true,
         search: (prev: IcNotificationSearch) => ({
           ...prev,
@@ -297,7 +314,7 @@ export function IcNotificationTable() {
         pageSize: Math.max(next.pageSize, 1),
       };
       setPagination(TABLE_ID, nextPagination);
-      void navigate({
+      void navigateRoute({
         replace: true,
         search: (prev: IcNotificationSearch) => ({
           ...prev,
@@ -310,7 +327,7 @@ export function IcNotificationTable() {
       const next = typeof updater === "function" ? updater(sorting) : updater;
       const nextSorting = cloneSorting(next);
       setSorting(TABLE_ID, nextSorting);
-      void navigate({
+      void navigateRoute({
         replace: true,
         search: (prev: IcNotificationSearch) => ({
           ...prev,
@@ -349,14 +366,14 @@ export function IcNotificationTable() {
       pageIndex: clampedPageIndex,
       totalRows: filteredTotalRows,
     });
-    void navigate({
+    void navigateRoute({
       replace: true,
       search: (prev: IcNotificationSearch) => ({
         ...prev,
         page: clampedPageIndex + 1,
       }),
     });
-  }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigate]);
+  }, [pagination.pageIndex, maxPageIndex, filteredTotalRows, setPagination, navigateRoute]);
 
   const handleResetTable = useCallback(() => {
     setSorting(TABLE_ID, []);
@@ -365,9 +382,10 @@ export function IcNotificationTable() {
     clearAllFilters(TABLE_ID);
     setPagination(TABLE_ID, { pageIndex: 0, pageSize: 10, totalRows: 0 });
 
-    void navigate({
+    void navigateRoute({
       replace: true,
-      search: () => ({
+      search: (prev: IcNotificationSearch) => ({
+        ...prev,
         columnFilters: [],
         columnOrder: [...DEFAULT_COLUMN_ORDER],
         columnVisibility: {},
@@ -382,7 +400,7 @@ export function IcNotificationTable() {
         title: undefined,
       }),
     });
-  }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigate]);
+  }, [setSorting, setVisibility, setOrder, clearAllFilters, setPagination, navigateRoute]);
 
   if (showInitialSkeleton) {
     return (

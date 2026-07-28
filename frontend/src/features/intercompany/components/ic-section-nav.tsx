@@ -2,7 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { IcUnreadCountPill } from "@/features/intercompany/components/ic-unread-badge";
+import {
+  IcRetryCountPill,
+  IcUnreadCountPill,
+} from "@/features/intercompany/components/ic-unread-badge";
 import { cn } from "@/shared/utils/cn";
 
 export type IcSectionNavActive = "notifications" | "retries";
@@ -64,11 +67,12 @@ export function IcSectionNav({ active, trailing, className }: IcSectionNavProps)
         viewTransition
         aria-current={active === "retries" ? "page" : undefined}
         className={cn(
-          "truncate transition-colors hover:text-blue-600",
+          "inline-flex items-center gap-1.5 truncate transition-colors hover:text-blue-600",
           active === "retries" ? "font-semibold text-zinc-800" : "text-zinc-500",
         )}
       >
         Retries
+        {active === "retries" ? null : <IcRetryCountPill />}
       </Link>
       {trailing ? (
         <>

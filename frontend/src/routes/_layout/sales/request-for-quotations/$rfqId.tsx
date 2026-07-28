@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
+import {
+  createPageHighlightSearchSchema,
+  toCreatePageHighlightProps,
+} from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import { RequestForQuotationForm } from "@/features/create-pages/request-for-quotation/components/request-for-quotation-form";
 import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import { formatRfqDocNumber } from "@/features/table-pages/rfqs/utils/format-rfq-doc-number";
@@ -13,10 +17,12 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 export const Route = createFileRoute("/_layout/sales/request-for-quotations/$rfqId")({
   component: RequestForQuotationDetailRoute,
   pendingComponent: CreatePageRouteSkeleton,
+  validateSearch: createPageHighlightSearchSchema,
 });
 
 function RequestForQuotationDetailRoute() {
   const { rfqId: rfqIdParam } = Route.useParams();
+  const { highlightDocNum, highlightUntil } = Route.useSearch();
   const rfqId = Number(rfqIdParam);
   const detailQuery = useIcRfq(rfqId, Number.isFinite(rfqId) && rfqId > 0);
   const titleNumber = detailQuery.data?.data?.rfqNumber
@@ -33,5 +39,10 @@ function RequestForQuotationDetailRoute() {
     );
   }
 
-  return <RequestForQuotationForm rfqId={rfqId} />;
+  return (
+    <RequestForQuotationForm
+      rfqId={rfqId}
+      {...toCreatePageHighlightProps(highlightDocNum, highlightUntil)}
+    />
+  );
 }

@@ -12,8 +12,9 @@ import type {
 import { partnerSelectionKey } from "../../utils/overview.types";
 import { overviewMotionClass } from "../../utils/overview.motion";
 import { ConnectedPartners } from "./ConnectedPartners";
-import { ConnectedPartnersSkeleton, StatementSkeleton } from "./OverviewSectionSkeletons";
-import { OpenWorkStrip, OpenWorkStripSkeleton } from "./OpenWorkStrip";
+import { NeedsAttention } from "./NeedsAttention";
+import { OverviewDashboardContentSkeleton } from "./OverviewSectionSkeletons";
+import { OpenWorkStrip } from "./OpenWorkStrip";
 import { StatementShell } from "./StatementShell";
 
 import "./overview.css";
@@ -33,6 +34,13 @@ function formatAsOf(iso: string | undefined): string | null {
 export function OverviewDashboard() {
   const { data, isLoading, isError, isFetching, refetch, error } = useOverviewDashboard();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  const scrollToAttention = () => {
+    document.getElementById("overview-needs-attention")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
   const scrollToStatement = () => {
     document.getElementById("overview-statement")?.scrollIntoView({
@@ -96,7 +104,12 @@ export function OverviewDashboard() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5 pt-1 text-xs text-zinc-500">
-            {isFetching && !isLoading ? (
+            {isLoading ? (
+              <span
+                className="h-7 w-28 animate-pulse rounded-full bg-zinc-100 ring-1 ring-zinc-200/80"
+                aria-hidden
+              />
+            ) : isFetching ? (
               <span className="rounded-full bg-sky-50 px-2.5 py-1 font-medium text-sky-700 ring-1 ring-sky-100">
                 Updating…
               </span>
@@ -133,25 +146,31 @@ export function OverviewDashboard() {
               onRetry={() => void refetch()}
               className="min-h-[280px] rounded-2xl border border-rose-200/80 bg-white shadow-sm"
             />
+          ) : isLoading || !data ? (
+            <OverviewDashboardContentSkeleton />
           ) : (
             <>
-              {isLoading || !data ? (
-                <OpenWorkStripSkeleton />
-              ) : (
-                <div className={overviewMotionClass.enter}>
-                  <OpenWorkStrip
-                    currency={data.currency}
-                    openPq={data.kpis.openPq}
-                    openSq={data.kpis.openSq}
-                    openPo={data.kpis.openPo}
-                  />
-                </div>
-              )}
+              <div className={overviewMotionClass.enter}>
+                <OpenWorkStrip
+                  currency={data.currency}
+                  openPq={data.kpis.openPq}
+                  openSq={data.kpis.openSq}
+                  openPo={data.kpis.openPo}
+                  arPending={data.kpis.arApprovalPending}
+                  onArClick={scrollToAttention}
+                />
+              </div>
 
-              <div className="flex min-h-0">
-                {isLoading || !data ? (
-                  <ConnectedPartnersSkeleton />
-                ) : (
+              <div
+                id="overview-needs-attention"
+                className="grid scroll-mt-4 grid-cols-1 items-stretch gap-5 lg:grid-cols-5 lg:gap-6"
+              >
+                <div className="flex min-h-0 lg:col-span-3">
+                  <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
+                    <NeedsAttention items={data.arApprovalPending} currency={data.currency} />
+                  </div>
+                </div>
+                <div className="flex min-h-0 lg:col-span-2">
                   <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
                     <ConnectedPartners
                       partners={data.connectedPartners}
@@ -160,21 +179,18 @@ export function OverviewDashboard() {
                       onSelectPartner={handleSelectPartner}
                     />
                   </div>
-                )}
+                </div>
               </div>
 
-              {isLoading || !data ? (
-                <StatementSkeleton />
-              ) : (
-                <div className={overviewMotionClass.enter}>
-                  <StatementShell
-                    selection={selection}
-                    partnerCount={partners.length}
-                    statement={data.statement}
-                    currency={data.currency}
-                  />
-                </div>
-              )}
+              <div className={overviewMotionClass.enter}>
+                <StatementShell
+                  selection={selection}
+                  partnerCount={partners.length}
+                  statement={data.statement}
+                  currency={data.currency}
+                  asOf={data.asOf}
+                />
+              </div>
             </>
           )}
         </div>

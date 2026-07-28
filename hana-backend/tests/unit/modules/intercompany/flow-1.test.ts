@@ -420,6 +420,12 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const sqMap = db.tables.IC_DOCUMENT_MAPPING.find((row) => row.TARGET_OBJECT === IC_OBJECT.SQ);
     expect(sqMap?.SOURCE_OBJECT).toBe(IC_OBJECT.RFQ);
     expect(sqMap?.SOURCE_DOC_ENTRY).toBe(String(rfqId));
+    expect(db.tables.IC_NOTIFICATION.some((row) => row.FLOW_STEP === "FLOW1_PQ_CREATED")).toBe(
+      true,
+    );
+    expect(db.tables.IC_NOTIFICATION.some((row) => row.FLOW_STEP === "FLOW1_SQ_CREATED")).toBe(
+      true,
+    );
   });
 
   it("T6.5b commercial line map + merge keeps tax/qty/price/disc", () => {

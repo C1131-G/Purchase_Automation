@@ -15,10 +15,41 @@ interface CreatePageWrapperProps {
   dashboardUrl: string; // e.g., "/dashboard"
   breadcrumbParent: BreadcrumbItem;
   pageTitle: string;
+  /** When set, highlights the matching doc ref inside `pageTitle`. */
+  highlightDocRef?: string | null;
   editError?: string | null;
   topActions?: ReactNode;
   children: ReactNode;
 }
+
+const renderHighlightedTitle = (pageTitle: string, highlightDocRef?: string | null): ReactNode => {
+  const ref = highlightDocRef?.trim();
+  if (!ref) {
+    return pageTitle;
+  }
+
+  const index = pageTitle.indexOf(ref);
+  if (index === -1) {
+    return (
+      <>
+        {pageTitle}{" "}
+        <span className="rounded-md bg-violet-100 px-1.5 py-0.5 font-bold text-violet-800">
+          #{ref}
+        </span>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {pageTitle.slice(0, index)}
+      <span className="rounded-md bg-violet-100 px-1.5 py-0.5 font-bold text-violet-800">
+        {ref}
+      </span>
+      {pageTitle.slice(index + ref.length)}
+    </>
+  );
+};
 
 /**
  * CreatePageWrapper: Unified layout wrapper for all entity creation/edit pages.
@@ -28,6 +59,7 @@ export function CreatePageWrapper({
   dashboardUrl,
   breadcrumbParent,
   pageTitle,
+  highlightDocRef,
   editError,
   topActions,
   children,
@@ -77,7 +109,9 @@ export function CreatePageWrapper({
           {breadcrumbParent.label}
         </Link>
         <ChevronRight className="size-3 text-zinc-300" />
-        <span className="font-semibold text-zinc-800">{pageTitle}</span>
+        <span className="font-semibold text-zinc-800">
+          {renderHighlightedTitle(pageTitle, highlightDocRef)}
+        </span>
       </div>
 
       {children}

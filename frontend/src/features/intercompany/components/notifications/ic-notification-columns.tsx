@@ -2,6 +2,8 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { Check, Loader2 } from "lucide-react";
 
 import type { IcNotification } from "@/features/intercompany/schemas/intercompany-api.schema";
+import { IcNotificationMessage } from "@/features/intercompany/components/notifications/ic-notification-message";
+import type { IcNotificationDocLink } from "@/features/intercompany/utils/ic-notification-navigation";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import { matchesDateRange } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import { cn } from "@/shared/utils/cn";
@@ -39,6 +41,7 @@ const priorityClassName = (priority: string): string => {
 export interface CreateIcNotificationColumnsOptions {
   markReadPendingId: number | null;
   onMarkRead: (notificationId: number) => void;
+  onNavigate?: (notification: IcNotification, link: IcNotificationDocLink) => void;
 }
 
 /**
@@ -65,11 +68,13 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
   }),
   columnHelper.accessor("message", {
     cell: (info) => {
-      const value = info.getValue();
-      if (!value) {
-        return "—";
+      const notification = info.row.original;
+      if (options.onNavigate) {
+        return (
+          <IcNotificationMessage notification={notification} onNavigate={options.onNavigate} />
+        );
       }
-      return <span className="block whitespace-pre-wrap break-words text-zinc-700">{value}</span>;
+      return <IcNotificationMessage notification={notification} />;
     },
     enableColumnFilter: false,
     enableSorting: true,

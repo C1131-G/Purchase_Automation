@@ -72,6 +72,12 @@ export type OverviewStatementPartner = {
   cardType: "S" | "C";
   balance: number;
   aging: OverviewAging;
+  /** OCRD master currency when available. */
+  currency?: string | null;
+  /** OCRD.CreditLine when set on the partner. */
+  creditLine?: number | null;
+  /** OCRD.frozenFor = Y */
+  isFrozen?: boolean;
 };
 
 export type OverviewStatement = {

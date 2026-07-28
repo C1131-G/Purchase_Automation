@@ -2,14 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
+import {
+  createPageHighlightSearchSchema,
+  toCreatePageHighlightProps,
+} from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import { PurchaseQuotationCreate } from "@/features/create-pages/purchase-quotation-create/components/purchase-quotation-create";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/shared/auth/require-active-session";
 
-const createQuotationSearchSchema = z.object({
-  draftDocNum: z.string().optional(),
-  draftDocEntry: z.string().optional(),
-});
+const createQuotationSearchSchema = z
+  .object({
+    draftDocNum: z.string().optional(),
+    draftDocEntry: z.string().optional(),
+  })
+  .merge(createPageHighlightSearchSchema);
 
 /**
  * PurchaseQuotationCreateRoute: Transactional page for drafting new purchase quotations.
@@ -25,6 +31,9 @@ export const Route = createFileRoute("/_layout/purchase/create-quotation")({
 });
 
 function RouteComponent() {
+  const { highlightDocNum, highlightUntil } = Route.useSearch();
   useDocumentTitle("Create Purchase Quotation | ERP Portal");
-  return <PurchaseQuotationCreate />;
+  return (
+    <PurchaseQuotationCreate {...toCreatePageHighlightProps(highlightDocNum, highlightUntil)} />
+  );
 }

@@ -11,6 +11,7 @@ import { LogisticsGrid } from "@/features/create-pages/create-shared/components/
 import { ReferenceGrid } from "@/features/create-pages/create-shared/components/grids/reference-grid";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
+import { resolveActiveHighlightDocRef } from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import {
   parseISODate,
   toDisplayDate,
@@ -27,6 +28,8 @@ interface SalesQuotationCreateProps {
   docNum?: string;
   draftDocNum?: string | undefined;
   draftDocEntry?: string | undefined;
+  highlightDocNum?: string;
+  highlightUntil?: number;
 }
 
 /**
@@ -39,6 +42,8 @@ export function SalesQuotationCreate({
   docNum,
   draftDocNum,
   draftDocEntry,
+  highlightDocNum,
+  highlightUntil,
 }: SalesQuotationCreateProps) {
   const queryClient = useQueryClient();
   const state = useSalesQuotationCreate(
@@ -56,6 +61,7 @@ export function SalesQuotationCreate({
     : draftDocNum
       ? `Create Sales Quotation (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
       : "Create Sales Quotation";
+  const highlightDocRef = resolveActiveHighlightDocRef(highlightDocNum, highlightUntil);
   const isFormHydrating = !state.isEditMode
     ? draftDocNum
       ? !state.isEditHydrated
@@ -107,6 +113,7 @@ export function SalesQuotationCreate({
           to: "/sales/quotations",
         }}
         pageTitle={pageTitle}
+        highlightDocRef={highlightDocRef}
         editError={
           state.isEditMode && state.editDetailQuery.isError
             ? state.editDetailQuery.error instanceof Error

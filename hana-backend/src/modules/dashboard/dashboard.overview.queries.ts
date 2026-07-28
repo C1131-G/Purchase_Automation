@@ -21,11 +21,12 @@ import type { IcBpMappingWithCompanies } from "@/modules/intercompany/config/bp-
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import { getDisplayCurrency } from "@/services/currency-format";
 
-/** Deep-links for Overview KPI tiles (frontend routes). */
+/** Deep-links for Overview KPI tiles (frontend routes + open doc filter). */
+const OPEN_DOC_STATUS_SEARCH = "DocStatus=Open";
 const OVERVIEW_KPI_HREFS = {
-  purchaseQuotation: "/purchase/quotations",
-  purchaseOrder: "/purchase/orders",
-  salesQuotation: "/sales/quotations",
+  purchaseQuotation: `/purchase/quotations?${OPEN_DOC_STATUS_SEARCH}`,
+  purchaseOrder: `/purchase/orders?${OPEN_DOC_STATUS_SEARCH}`,
+  salesQuotation: `/sales/quotations?${OPEN_DOC_STATUS_SEARCH}`,
 } as const;
 
 export type { OverviewArApprovalItem };

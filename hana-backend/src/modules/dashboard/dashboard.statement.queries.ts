@@ -17,6 +17,9 @@ export type OverviewStatementPartner = {
   cardType: "S" | "C";
   balance: number;
   aging: OverviewAging;
+  currency?: string | null;
+  creditLine?: number | null;
+  isFrozen?: boolean;
 };
 
 export type OverviewStatement = {
@@ -112,8 +115,30 @@ function placeholders(count: number): string {
 async function loadBalancesByCode(
   dbName: string,
   cardCodes: string[],
-): Promise<Map<string, { cardName: string; cardType: string; balance: number }>> {
-  const map = new Map<string, { cardName: string; cardType: string; balance: number }>();
+): Promise<
+  Map<
+    string,
+    {
+      cardName: string;
+      cardType: string;
+      balance: number;
+      currency: string | null;
+      creditLine: number | null;
+      isFrozen: boolean;
+    }
+  >
+> {
+  const map = new Map<
+    string,
+    {
+      cardName: string;
+      cardType: string;
+      balance: number;
+      currency: string | null;
+      creditLine: number | null;
+      isFrozen: boolean;
+    }
+  >();
   if (cardCodes.length === 0) return map;
 
   const sql = `
@@ -121,7 +146,10 @@ async function loadBalancesByCode(
       bp."CardCode" AS "CardCode",
       bp."CardName" AS "CardName",
       bp."CardType" AS "CardType",
-      IFNULL(bp."Balance", 0) AS "Balance"
+      IFNULL(bp."Balance", 0) AS "Balance",
+      bp."Currency" AS "Currency",
+      bp."CreditLine" AS "CreditLine",
+      bp."frozenFor" AS "frozenFor"
     FROM "OCRD" bp
     WHERE bp."CardCode" IN (${placeholders(cardCodes.length)})
   `;
@@ -139,6 +167,20 @@ async function loadBalancesByCode(
         .trim()
         .toUpperCase(),
       balance: toMoney(pickRowField(row, "Balance", "balance")),
+      currency: (() => {
+        const raw = String(pickRowField(row, "Currency", "currency") ?? "").trim();
+        return raw || null;
+      })(),
+      creditLine: (() => {
+        const raw = pickRowField(row, "CreditLine", "creditLine");
+        if (raw === null || raw === undefined || raw === "") return null;
+        const parsed = Number(raw);
+        return Number.isFinite(parsed) && parsed > 0 ? toMoney(parsed) : null;
+      })(),
+      isFrozen:
+        String(pickRowField(row, "frozenFor", "FrozenFor") ?? "N")
+          .trim()
+          .toUpperCase() === "Y",
     });
   }
 
@@ -247,6 +289,9 @@ export async function loadStatement(
         cardName: (balanceRow?.cardName || item.cardName || item.cardCode).trim(),
         cardType,
         balance: balanceRow?.balance ?? 0,
+        currency: balanceRow?.currency ?? null,
+        creditLine: balanceRow?.creditLine ?? null,
+        isFrozen: balanceRow?.isFrozen ?? false,
         aging: {
           d0_30: toMoney(aging.d0_30),
           d31_60: toMoney(aging.d31_60),

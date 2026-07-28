@@ -42,27 +42,48 @@ export function ShellLayoutBrandHeader() {
     }
   };
 
+  const companyLabel = user?.companyName ?? "Vendor Portal";
+
+  const toggleButton = (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setSidebarOpen(!isOpen);
+      }}
+      className="size-9 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0 border-none bg-transparent outline-none"
+      aria-label={companyLabel}
+    >
+      {isOpen ? <Building2 className="size-5" /> : <Menu className="size-5" />}
+    </button>
+  );
+
   return (
     <SidebarHeader
       className={cn(
-        "relative border-b border-zinc-50 p-0 pt-[13px] pb-[11px] px-[26px] flex flex-row items-center justify-between",
+        "relative border-b border-zinc-50 p-0 pt-[13px] pb-[11px] px-[26px] flex flex-row items-start justify-between",
         !isOpen && "px-2 justify-center",
       )}
     >
-      <div className={cn("flex items-center gap-3 min-w-0", !isOpen && "flex-col gap-2")}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setSidebarOpen(!isOpen);
-          }}
-          className="size-9 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0 border-none bg-transparent outline-none"
-        >
-          {isOpen ? <Building2 className="size-5" /> : <Menu className="size-5" />}
-        </button>
+      <div
+        className={cn(
+          "flex items-start gap-3 min-w-0 flex-1",
+          !isOpen && "flex-col items-center gap-2",
+        )}
+      >
         {isOpen ? (
-          <div className="flex flex-col animate-in fade-in duration-300 min-w-0">
-            <span className="text-sm font-black uppercase tracking-tight text-blue-600 leading-tight truncate">
-              {user?.companyName ?? "Vendor Portal"}
+          toggleButton
+        ) : (
+          <Tooltip content={companyLabel} className="w-auto max-w-xs">
+            {toggleButton}
+          </Tooltip>
+        )}
+        {isOpen ? (
+          <div className="flex min-w-0 flex-1 flex-col animate-in fade-in duration-300">
+            <span
+              className="text-sm font-semibold leading-snug text-blue-600 text-pretty break-words"
+              title={companyLabel}
+            >
+              {companyLabel}
             </span>
           </div>
         ) : null}
