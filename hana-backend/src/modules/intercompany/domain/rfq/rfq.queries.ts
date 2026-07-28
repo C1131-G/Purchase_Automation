@@ -8,25 +8,62 @@ import {
 
 import type { IcRfqHeader, IcRfqLine } from "./rfq.types";
 
-export const mapRfqLineRow = (row: Record<string, unknown>): IcRfqLine => ({
-  deliveryDate:
-    row.DELIVERY_DATE === null || row.DELIVERY_DATE === undefined
-      ? null
-      : toString(row.DELIVERY_DATE),
-  description:
-    row.DESCRIPTION === null || row.DESCRIPTION === undefined ? null : toString(row.DESCRIPTION),
-  discount: toNullableNumber(row.DISCOUNT ?? row.discount),
-  itemCode: toString(row.ITEM_CODE ?? row.itemCode),
-  lineNum: toNumber(row.LINE_NUM ?? row.lineNum),
-  quantity: toNumber(row.QUANTITY ?? row.quantity),
-  remarks: row.REMARKS === null || row.REMARKS === undefined ? null : toString(row.REMARKS),
-  rfqId: toNumber(row.RFQ_ID ?? row.rfqId),
-  rfqLineId: toNumber(row.RFQ_LINE_ID ?? row.rfqLineId),
-  taxCode: row.TAX_CODE === null || row.TAX_CODE === undefined ? null : toString(row.TAX_CODE),
-  unitPrice: toNullableNumber(row.UNIT_PRICE ?? row.unitPrice),
-  uomCode: row.UOM_CODE === null || row.UOM_CODE === undefined ? null : toString(row.UOM_CODE),
-  warehouse: row.WAREHOUSE === null || row.WAREHOUSE === undefined ? null : toString(row.WAREHOUSE),
-});
+const pickNullableString = (row: Record<string, unknown>, keys: string[]): string | null => {
+  for (const key of keys) {
+    const value = row[key];
+    if (value === null || value === undefined) {
+      continue;
+    }
+    const text = toString(value).trim();
+    if (text) {
+      return text;
+    }
+  }
+  return null;
+};
+
+export const mapRfqLineRow = (row: Record<string, unknown>): IcRfqLine => {
+  // Buyer PQ / RFQ purchase tax (IC_RFQ_LINE.TAX_CODE). Accept common key casings.
+  const taxCode = pickNullableString(row, [
+    "TAX_CODE",
+    "taxCode",
+    "TaxCode",
+    "tax_code",
+    "VatGroup",
+    "vatGroup",
+  ]);
+  // Seller SQ sales tax when column exists (optional).
+  const sqTaxCode = pickNullableString(row, [
+    "SQ_TAX_CODE",
+    "sqTaxCode",
+    "SqTaxCode",
+    "sq_tax_code",
+  ]);
+
+  return {
+    deliveryDate:
+      row.DELIVERY_DATE === null || row.DELIVERY_DATE === undefined
+        ? null
+        : toString(row.DELIVERY_DATE),
+    description:
+      row.DESCRIPTION === null || row.DESCRIPTION === undefined ? null : toString(row.DESCRIPTION),
+    discount: toNullableNumber(row.DISCOUNT ?? row.discount),
+    itemCode: toString(row.ITEM_CODE ?? row.itemCode),
+    lineNum: toNumber(row.LINE_NUM ?? row.lineNum),
+    quantity: toNumber(row.QUANTITY ?? row.quantity),
+    remarks: row.REMARKS === null || row.REMARKS === undefined ? null : toString(row.REMARKS),
+    rfqId: toNumber(row.RFQ_ID ?? row.rfqId),
+    rfqLineId: toNumber(row.RFQ_LINE_ID ?? row.rfqLineId),
+    taxCode,
+    // Explicit aliases so product-row UI never has to guess field names.
+    pqTaxCode: taxCode,
+    sqTaxCode,
+    unitPrice: toNullableNumber(row.UNIT_PRICE ?? row.unitPrice),
+    uomCode: row.UOM_CODE === null || row.UOM_CODE === undefined ? null : toString(row.UOM_CODE),
+    warehouse:
+      row.WAREHOUSE === null || row.WAREHOUSE === undefined ? null : toString(row.WAREHOUSE),
+  };
+};
 
 const toNullableName = (value: unknown): string | null => {
   if (value === null || value === undefined || value === "") {

@@ -9,6 +9,8 @@ export interface RelationshipMapResult {
   arInvoice: NodeResult[];
   arCreditMemo: NodeResult[];
   incomingPayment: NodeResult[];
+  /** IC Request For Quotation linked upstream of seller SQ (Flow 1). */
+  requestForQuotation?: NodeResult[];
   purchaseQuotation?: NodeResult[];
   purchaseOrder?: NodeResult[];
   grpo?: NodeResult[];

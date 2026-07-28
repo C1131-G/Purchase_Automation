@@ -11,7 +11,7 @@ import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
 import { IC_RETRY_STATUS } from "@/modules/intercompany/infrastructure/constants";
 
-import { UpdateRfqBodySchema } from "./ic.schema";
+import { SubmitRfqBodySchema, UpdateRfqBodySchema } from "./ic.schema";
 
 const resolveSessionDbName = (req: Request): string => {
   const session = req.session as { dbName?: string; user?: { dbName?: string } } | undefined;
@@ -109,11 +109,17 @@ export const submitRfq = async (req: Request, res: Response, next: NextFunction)
   try {
     const companyId = await resolveActorCompanyId(req);
     const rfqId = parseIdParam(String(req.params.id));
+    // Empty body is fine; optional `lines` saves fill in the same request.
+    const body = SubmitRfqBodySchema.parse(req.body ?? {});
     const fill = createSellerFillRfqService();
-    const submitted = await fill.submit({ actorCompanyId: companyId, rfqId });
-    // After convert, draft may be gone — enrich from real PQ when present.
-    const enriched = await enrichRfqFromPqDraft(submitted);
-    res.status(200).json({ data: enriched, success: true });
+    const submitted = await fill.submit({
+      actorCompanyId: companyId,
+      lines: body.lines,
+      rfqId,
+    });
+    // Fast path: no enrich / no wait for notify or convert (those run in background).
+    // Seller UI already has line data; status flip is enough for the response.
+    res.status(200).json({ data: submitted, success: true });
   } catch (error) {
     next(error);
   }

@@ -5,8 +5,9 @@
  *   `REF123 | user message`
  *
  * IC automation appends multi-line chain lines:
- *   IC | PQD: …
- *   IC | RFQ: …
+ *   Based on Purchase Quotation Draft …
+ *   Based on Request For Quotation …
+ * Legacy `IC | PQD: …` lines are still recognized.
  * Splitting those on " | " steals parent typed text into Ref No — never do that.
  */
 
@@ -15,11 +16,14 @@ export type HeaderNotesFields = {
   referenceNo: string;
 };
 
-const IC_REMARK_LINE_RE = /^IC\s*\|\s*[A-Za-z0-9_-]+\s*:/im;
+const LEGACY_IC_REMARK_LINE_RE = /^IC\s*\|\s*[A-Za-z0-9_-]+\s*:/im;
+const BASED_ON_REFERENCE_LINE_RE = /^based on /im;
 
 /** True when Comments contain IC automation chain lines. */
-export const hasIcRemarkLines = (comments: string | null | undefined): boolean =>
-  IC_REMARK_LINE_RE.test(String(comments ?? ""));
+export const hasIcRemarkLines = (comments: string | null | undefined): boolean => {
+  const raw = String(comments ?? "");
+  return LEGACY_IC_REMARK_LINE_RE.test(raw) || BASED_ON_REFERENCE_LINE_RE.test(raw);
+};
 
 /**
  * Map SAP NumAtCard + Comments into form fields without dropping parent text.

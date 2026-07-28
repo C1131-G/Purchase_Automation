@@ -48,6 +48,12 @@ export type DocumentMapQueries = {
     sourceDocEntry: string;
     targetObject?: string | null;
   }) => Promise<IcDocumentMap | null>;
+  findByTarget: (params: {
+    targetCompanyId: number;
+    targetObject: string;
+    targetDocEntry: string;
+    sourceObject?: string | null;
+  }) => Promise<IcDocumentMap | null>;
   findById: (mappingId: number) => Promise<IcDocumentMap | null>;
 };
 
@@ -80,6 +86,30 @@ export const createDocumentMapQueries = (
           AND "SOURCE_DOC_ENTRY" = ?
         ORDER BY "MAPPING_ID" DESC`,
       [sourceCompanyId, sourceObject, sourceDocEntry],
+    );
+    return rows[0] ? mapDocumentMapRow(rows[0]) : null;
+  },
+
+  findByTarget: async ({ targetCompanyId, targetObject, targetDocEntry, sourceObject }) => {
+    if (sourceObject) {
+      const rows = await sql.query(
+        `SELECT * FROM "IC_DOCUMENT_MAPPING"
+          WHERE "TARGET_COMPANY_ID" = ?
+            AND "TARGET_OBJECT" = ?
+            AND "TARGET_DOC_ENTRY" = ?
+            AND "SOURCE_OBJECT" = ?
+          ORDER BY "MAPPING_ID" DESC`,
+        [targetCompanyId, targetObject, targetDocEntry, sourceObject],
+      );
+      return rows[0] ? mapDocumentMapRow(rows[0]) : null;
+    }
+    const rows = await sql.query(
+      `SELECT * FROM "IC_DOCUMENT_MAPPING"
+        WHERE "TARGET_COMPANY_ID" = ?
+          AND "TARGET_OBJECT" = ?
+          AND "TARGET_DOC_ENTRY" = ?
+        ORDER BY "MAPPING_ID" DESC`,
+      [targetCompanyId, targetObject, targetDocEntry],
     );
     return rows[0] ? mapDocumentMapRow(rows[0]) : null;
   },

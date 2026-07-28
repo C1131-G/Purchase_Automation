@@ -1,9 +1,9 @@
-// AR invoice approval pending (SAP OWDD ObjType 13) for Overview P3.
+// AR invoice drafts (ODRF ObjType 13) for Overview Needs attention panel.
 
 import { logger } from "@/core/logger/pino-logger";
 import { executeTenantQuery } from "@/db/tenant-query";
 
-/** One pending AR invoice approval row for the Needs attention table. */
+/** One AR invoice draft row for the Needs attention table. */
 export type OverviewArApprovalItem = {
   docEntry: number;
   docNum: number | null;
@@ -12,8 +12,9 @@ export type OverviewArApprovalItem = {
   cardName: string;
   docTotal: number;
   docDate: string | null;
+  /** Stable list key (DocEntry for ODRF drafts). */
   wddCode: number;
-  /** Normalized display status (e.g. Pending). */
+  /** Display status (e.g. Draft). */
   status: string;
   ageDays: number;
   requester: string | null;
@@ -25,14 +26,14 @@ export type OverviewArApprovalResult = {
   openValue: number;
 };
 
-/** SAP OWDD.Status values treated as still awaiting action. */
-const PENDING_OWDD_STATUSES = new Set(["W"]);
-
-/** AR Invoice object type in OWDD / ODRF. */
+/** AR Invoice object type in ODRF / OWDD. */
 const AR_INVOICE_OBJ_TYPE = "13";
 
-/** Cap list size for Overview attention panel (still returns true KPI counts via items length). */
-const AR_APPROVAL_LIST_LIMIT = 50;
+/** Cap list size for Overview attention panel. */
+const AR_DRAFT_LIST_LIMIT = 50;
+
+/** SAP OWDD.Status values treated as still awaiting action (OWDD legacy path). */
+const PENDING_OWDD_STATUSES = new Set(["W"]);
 
 const toCount = (value: unknown): number => {
   const parsed = Number(value ?? 0);
@@ -123,6 +124,52 @@ function computeAgeDays(docDateIso: string | null, createDateIso: string | null)
 }
 
 /**
+ * Map a raw ODRF AR invoice draft row into the overview item shape.
+ */
+export function mapArInvoiceDraftRow(row: Record<string, unknown>): OverviewArApprovalItem | null {
+  const docEntry = toCount(pickRowField(row, "DocEntry", "docEntry"));
+  if (docEntry <= 0) {
+    return null;
+  }
+
+  const docNumRaw = pickRowField(row, "DocNum", "docNum");
+  const docNumParsed =
+    docNumRaw === null || docNumRaw === undefined || docNumRaw === "" ? null : toCount(docNumRaw);
+  const docNum = docNumParsed !== null && docNumParsed > 0 ? docNumParsed : null;
+
+  const cardCode = String(pickRowField(row, "CardCode", "cardCode") ?? "").trim();
+  const cardName = String(pickRowField(row, "CardName", "cardName") ?? "").trim();
+  const docTotal = toMoney(pickRowField(row, "DocTotal", "docTotal"));
+  const docDate = toIsoDate(pickRowField(row, "DocDate", "docDate"));
+  const createDate = toIsoDate(pickRowField(row, "CreateDate", "createDate"));
+  const ageFromSql = pickRowField(row, "AgeDays", "ageDays");
+  const ageDays =
+    ageFromSql !== undefined && ageFromSql !== null && Number.isFinite(Number(ageFromSql))
+      ? Math.max(0, Math.trunc(Number(ageFromSql)))
+      : computeAgeDays(docDate, createDate);
+
+  const requesterRaw = pickRowField(row, "OwnerID", "ownerId", "UserSign", "userSign");
+  const requester =
+    requesterRaw === null || requesterRaw === undefined || String(requesterRaw).trim() === ""
+      ? null
+      : String(requesterRaw).trim();
+
+  return {
+    docEntry,
+    docNum,
+    isDraft: true,
+    cardCode,
+    cardName: cardName || cardCode || "—",
+    docTotal,
+    docDate,
+    wddCode: docEntry,
+    status: "Draft",
+    ageDays,
+    requester,
+  };
+}
+
+/**
  * Map a raw OWDD (+ ODRF/OINV) row into the overview approval item shape.
  * Exported for unit tests (OWDD version drift / column alias variance).
  */
@@ -182,10 +229,63 @@ export function mapArApprovalRow(row: Record<string, unknown>): OverviewArApprov
 }
 
 /**
- * Pending AR invoice approvals from OWDD (ObjType 13, Status W).
- * Soft-fails to empty when approval workflow is unused or schema differs.
+ * Open AR invoice drafts from ODRF (ObjType 13).
+ * Includes IC Flow 2 partner AR drafts and any manual AR invoice drafts.
+ * Soft-fails to empty when schema differs.
  */
 export async function loadArApprovalPending(dbName: string): Promise<OverviewArApprovalResult> {
+  try {
+    const sql = `
+      SELECT
+        d."DocEntry" AS "DocEntry",
+        d."DocNum" AS "DocNum",
+        d."CardCode" AS "CardCode",
+        d."CardName" AS "CardName",
+        d."DocTotal" AS "DocTotal",
+        d."DocDate" AS "DocDate",
+        d."CreateDate" AS "CreateDate",
+        d."UserSign" AS "UserSign",
+        DAYS_BETWEEN(COALESCE(d."DocDate", d."CreateDate"), CURRENT_DATE) AS "AgeDays"
+      FROM "ODRF" d
+      WHERE CAST(d."ObjType" AS NVARCHAR) = '${AR_INVOICE_OBJ_TYPE}'
+        AND UPPER(IFNULL(d."CANCELED", 'N')) <> 'Y'
+      ORDER BY d."CreateDate" DESC, d."DocEntry" DESC
+      LIMIT ${AR_DRAFT_LIST_LIMIT}
+    `;
+
+    const raw = (await executeTenantQuery(dbName, sql, [])) as unknown;
+    const rows = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
+
+    const items: OverviewArApprovalItem[] = [];
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const mapped = mapArInvoiceDraftRow(row as Record<string, unknown>);
+      if (!mapped) continue;
+      items.push(mapped);
+    }
+
+    const openValue = toMoney(items.reduce((sum, item) => sum + item.docTotal, 0));
+
+    return {
+      items,
+      count: items.length,
+      openValue,
+    };
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.warn({
+      db: dbName,
+      err: caughtError,
+      msg: "Overview: AR invoice drafts (ODRF) load failed; returning empty list",
+    });
+    return { items: [], count: 0, openValue: 0 };
+  }
+}
+
+/** @deprecated OWDD path retained for tests only — overview uses ODRF drafts via loadArApprovalPending. */
+export async function loadArApprovalPendingFromOwdd(
+  dbName: string,
+): Promise<OverviewArApprovalResult> {
   try {
     // Prefer draft (ODRF) when IsDraft=Y; otherwise posted invoice (OINV).
     // DAYS_BETWEEN is HANA-native; falls back in mapper if missing.
@@ -217,7 +317,7 @@ export async function loadArApprovalPending(dbName: string): Promise<OverviewArA
       WHERE CAST(w."ObjType" AS NVARCHAR) = '${AR_INVOICE_OBJ_TYPE}'
         AND UPPER(TRIM(CAST(w."Status" AS NVARCHAR))) = 'W'
       ORDER BY w."CreateDate" ASC, w."WddCode" ASC
-      LIMIT ${AR_APPROVAL_LIST_LIMIT}
+      LIMIT ${AR_DRAFT_LIST_LIMIT}
     `;
 
     const raw = (await executeTenantQuery(dbName, sql, [])) as unknown;

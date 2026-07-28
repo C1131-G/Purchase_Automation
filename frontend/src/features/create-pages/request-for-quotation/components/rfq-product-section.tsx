@@ -68,7 +68,6 @@ export function RfqProductSection({
         warehouses={[]}
         warehousesLoading={false}
         enforceStockLimit={false}
-        showTaxCode={false}
         showExplicitZeroDiscount
         showUom
         uoms={[]}

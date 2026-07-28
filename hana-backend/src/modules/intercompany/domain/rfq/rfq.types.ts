@@ -10,7 +10,15 @@ export type IcRfqLine = {
   quantity: number;
   unitPrice: number | null;
   discount: number | null;
+  /**
+   * Buyer PQ / RFQ purchase tax (VatGroup on source). Same as pqTaxCode.
+   * Never copy this onto seller SQ/AR — those resolve seller sales tax.
+   */
   taxCode: string | null;
+  /** Explicit alias of taxCode — PQ tax code used on buyer draft/PQ. */
+  pqTaxCode?: string | null;
+  /** Seller SQ sales tax when known (convert/enrich); display/audit only. */
+  sqTaxCode?: string | null;
   /** Quoted / ship date (seller-editable). */
   deliveryDate: string | null;
   warehouse: string | null;

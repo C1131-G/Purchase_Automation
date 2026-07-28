@@ -93,6 +93,7 @@ const createFlow2TestStack = (opts?: {
       throw new Error("not used");
     },
     getDraftComments: async () => null,
+    getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
   };
 
   const orchestrator = createFlow2Orchestrator({
@@ -103,6 +104,8 @@ const createFlow2TestStack = (opts?: {
         masters: {
           getBpTax: async () => null,
           getItemTax: async () => null,
+          getOvtgTax: async () => null,
+          listOvtgTaxes: async () => [],
         },
       }),
     }),
@@ -185,9 +188,9 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
     expect(payload.CardCode).toBe("C-A-ON-B");
     // Existing remarks preserved; IC chain = source PO number only (no Flow 1/2 text).
     expect(payload.Comments).toContain("User note keep me");
-    expect(payload.Comments).toContain("IC | PO: PO No 100");
+    expect(payload.Comments).toContain("Based on Purchase Order 100");
     expect(payload.Comments).not.toMatch(/Flow\s*[12]/i);
-    expect(payload.Comments).not.toContain("IC | AR:");
+    expect(payload.Comments).not.toContain("Based on AR Invoice Draft");
     expect(payload.NumAtCard).toBe("IC-PO-100");
     expect(payload.BPL_IDAssignedToInvoice).toBe(1);
     expect(payload.DocDate).toBe("2026-03-15");
@@ -195,6 +198,14 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
     expect(payload.DocumentLines[0].VatGroup).toBe("GSTO");
     expect(payload.DocumentLines[0].ItemCode).toBe("ITEM1");
     expect(payload.DocumentLines[0].ItemDescription).toBe("Widget A");
+    // Explicit PO vs AR tax fields for ops visibility.
+    expect(payload.taxUsage).toEqual([
+      expect.objectContaining({
+        arTaxCode: "GSTO",
+        itemCode: "ITEM1",
+        poTaxCode: "IN-12.5",
+      }),
+    ]);
   });
 
   it("T5.4b tax map miss → omit VatGroup (never buyer tax on seller AR)", async () => {
@@ -234,6 +245,8 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
         masters: {
           getBpTax: async () => null,
           getItemTax: async () => null,
+          getOvtgTax: async () => null,
+          listOvtgTaxes: async () => [],
         },
       }),
     });
@@ -296,6 +309,8 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
           getBpTax: async () => "BP-TAX",
           getItemTax: async (_db, itemCode, side) =>
             side === "sales" && itemCode === "ITEM1" ? "ITEM-SA-TAX" : null,
+          getOvtgTax: async () => null,
+          listOvtgTaxes: async () => [],
         },
       }),
     });

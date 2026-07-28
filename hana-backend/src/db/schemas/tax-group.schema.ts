@@ -8,6 +8,7 @@ import type { HANAColumnType } from "@/db/schemas/types/base.types";
 export interface TaxGroup {
   Code: string; // The primary tax identifier (e.g., 'GST18').
   Name: string; // Friendly name of the tax.
+  Category?: string; // I = purchase (input), O = sales (output).
   Rate: number; // The percentage value.
   Inactive?: string; // Status flag.
 }
@@ -27,6 +28,12 @@ export const TaxGroupSchema = new EntitySchema<TaxGroup>({
       type: "nvarchar" as HANAColumnType,
     },
     Name: { length: 100, name: "Name", type: "nvarchar" as HANAColumnType },
+    Category: {
+      length: 1,
+      name: "Category",
+      nullable: true,
+      type: "nvarchar" as HANAColumnType,
+    },
     Rate: {
       name: "Rate",
       precision: 19,

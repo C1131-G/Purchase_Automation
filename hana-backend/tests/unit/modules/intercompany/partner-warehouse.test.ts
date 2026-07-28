@@ -45,13 +45,15 @@ describe("partner warehouse masters (branch-matched WH)", () => {
 
 describe("buildSalesQuotationLines warehouse", () => {
   it("sets branch WH when item WH resolver returns null", async () => {
-    const lines = await buildSalesQuotationLines(
+    const { documentLines, taxUsage } = await buildSalesQuotationLines(
       [
         {
           discount: 0,
           itemCode: "SKU1",
           lineNum: 0,
+          pqTaxCode: "BUYER-PU",
           quantity: 1,
+          taxCode: "BUYER-PU",
           unitPrice: 10,
         },
       ],
@@ -62,12 +64,16 @@ describe("buildSalesQuotationLines warehouse", () => {
       },
     );
 
-    expect(lines[0]?.WarehouseCode).toBe("W-BPL1");
-    expect(lines[0]?.VatGroup).toBe("S1");
+    expect(documentLines[0]?.WarehouseCode).toBe("W-BPL1");
+    expect(documentLines[0]?.VatGroup).toBe("S1");
+    expect(taxUsage[0]).toMatchObject({
+      pqTaxCode: "BUYER-PU",
+      sqTaxCode: "S1",
+    });
   });
 
   it("prefers item WH on branch over branch default", async () => {
-    const lines = await buildSalesQuotationLines(
+    const { documentLines } = await buildSalesQuotationLines(
       [
         {
           discount: 0,
@@ -84,7 +90,7 @@ describe("buildSalesQuotationLines warehouse", () => {
       },
     );
 
-    expect(lines[0]?.WarehouseCode).toBe("ITEM-WH");
+    expect(documentLines[0]?.WarehouseCode).toBe("ITEM-WH");
   });
 });
 

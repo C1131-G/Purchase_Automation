@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useConvertIcRfq,
   useSubmitIcRfq,
-  useUpdateIcRfq,
 } from "@/features/intercompany/api/intercompany.mutations";
 import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import {
@@ -37,7 +36,6 @@ export function useRequestForQuotationForm(rfqId: number) {
   const [formError, setFormError] = useState<string | null>(null);
   const requiredQtyByIdRef = useRef<Record<string, number>>({});
 
-  const updateMutation = useUpdateIcRfq();
   const submitMutation = useSubmitIcRfq();
   const convertMutation = useConvertIcRfq();
 
@@ -73,7 +71,8 @@ export function useRequestForQuotationForm(rfqId: number) {
     const rows = mapRfqLinesToProductRows(header.lines);
     const requiredMap: Record<string, number> = {};
     for (const row of rows) {
-      requiredMap[row.id] = row.requiredQuantity ?? row.quantity;
+      // Buyer required qty only — never seed from quoted qty.
+      requiredMap[row.id] = row.requiredQuantity ?? 0;
     }
     requiredQtyByIdRef.current = requiredMap;
     setProductRows(rows);
@@ -194,18 +193,17 @@ export function useRequestForQuotationForm(rfqId: number) {
     }
 
     try {
-      if (payloadLines.length > 0) {
-        await updateMutation.mutateAsync({
-          body: { lines: payloadLines },
-          rfqId: header.rfqId,
-        });
-      }
-      const submitted = await submitMutation.mutateAsync(header.rfqId);
+      // Single request: save lines (if any) + mark SUBMITTED. Notify + PQ/SQ convert
+      // run server-side in background — do not PUT then POST.
+      const submitted = await submitMutation.mutateAsync({
+        rfqId: header.rfqId,
+        ...(payloadLines.length > 0 ? { body: { lines: payloadLines } } : {}),
+      });
       const status = String(submitted.data?.status ?? "").toUpperCase();
       notifyActionSuccess(
         status === "COMPLETED"
           ? "RFQ submitted and converted (PQ + SQ)"
-          : "Request For Quotation submitted",
+          : "RFQ submitted — PQ + SQ converting in background",
         "rfq-submit",
       );
       setFormError(null);
@@ -217,7 +215,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       setFormError(message);
       notifyCreateApiError(message, "rfq");
     }
-  }, [canSubmit, header, productRows, submitMutation, updateMutation]);
+  }, [canSubmit, header, productRows, submitMutation]);
 
   const handleConvert = useCallback(async () => {
     if (!header || !canConvert) {
@@ -252,8 +250,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     }
   }, [canConvert, convertMutation, header]);
 
-  const isSubmitting =
-    updateMutation.isPending || submitMutation.isPending || convertMutation.isPending;
+  const isSubmitting = submitMutation.isPending || convertMutation.isPending;
 
   const defaultWarehouseCode = header?.warehouseCode?.trim() || productRows[0]?.warehouseCode || "";
 

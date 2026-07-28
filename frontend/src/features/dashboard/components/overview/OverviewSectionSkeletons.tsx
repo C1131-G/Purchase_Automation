@@ -1,30 +1,5 @@
 /** Loading shells for Overview sections — match tinted card chrome. */
 
-export function NeedsAttentionSkeleton() {
-  return (
-    <section
-      aria-label="Needs attention"
-      aria-busy="true"
-      className="flex h-full min-h-[320px] w-full flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm"
-    >
-      <div className="border-b border-amber-100 bg-amber-50/50 px-5 py-4">
-        <div className="h-4 w-32 rounded-md bg-amber-100" />
-        <div className="mt-2 h-3 w-44 rounded-md bg-amber-50" />
-      </div>
-      <div className="flex flex-1 animate-pulse flex-col gap-4 p-5">
-        {[1, 2, 3, 4].map((row) => (
-          <div key={row} className="flex items-center gap-3">
-            <div className="h-3.5 w-16 rounded bg-amber-100/80" />
-            <div className="h-3.5 flex-1 rounded bg-zinc-100" />
-            <div className="h-3.5 w-14 rounded bg-amber-100/60" />
-            <div className="h-3.5 w-10 rounded bg-zinc-100" />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function ConnectedPartnersSkeleton() {
   return (
     <div

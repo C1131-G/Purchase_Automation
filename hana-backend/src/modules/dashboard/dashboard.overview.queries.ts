@@ -266,9 +266,9 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
         logger.info({
           db: dbName,
           durationMs,
-          msg: "Overview dashboard built",
           partnerCount: connected.partners.length,
-          arPendingCount: arApproval.count,
+          arDraftCount: arApproval.count,
+          msg: "Overview dashboard built",
         });
 
         return {

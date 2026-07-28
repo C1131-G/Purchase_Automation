@@ -248,8 +248,9 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
   if (!source) {
     return {
       ...line,
+      // Keep quoted vs required split — do not invent required from quoted (or vice versa).
       requiredDate: line.requiredDate ?? null,
-      requiredQuantity: line.requiredQuantity ?? line.quantity,
+      requiredQuantity: line.requiredQuantity ?? null,
     };
   }
 
@@ -266,13 +267,13 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
     null;
 
   const quotedFromSource = toNum(source.Quantity ?? source.quantity);
-  // Prefer IC line qty/price (seller fill) over source snapshot.
+  // Prefer IC line quoted qty (seller fill); else SAP Ship/Quantity only — never required.
   const quantity =
     line.quantity > 0
       ? line.quantity
       : quotedFromSource && quotedFromSource > 0
         ? quotedFromSource
-        : (requiredQty ?? line.quantity);
+        : 0;
 
   const unitPrice =
     line.unitPrice !== null && line.unitPrice !== undefined
@@ -289,6 +290,7 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
     line.requiredDate ??
     null;
 
+  // Quoted date only — never fall back to required date.
   const deliveryDate =
     toDateOnly(line.deliveryDate) ?? toDateOnly(source.ShipDate ?? source.shipDate) ?? null;
 
@@ -297,7 +299,10 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
 
   const uomCode = toStr(line.uomCode) ?? toStr(source.UomCode ?? source.uomCode ?? source.UoMCode);
 
-  const taxCode = toStr(line.taxCode) ?? toStr(source.VatGroup ?? source.vatGroup);
+  const taxCode =
+    toStr(line.taxCode) ??
+    toStr(line.pqTaxCode) ??
+    toStr(source?.VatGroup ?? source?.vatGroup ?? source?.VATGROUP ?? source?.TaxCode);
 
   return {
     ...line,
@@ -306,8 +311,11 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
     discount,
     quantity,
     requiredDate,
-    requiredQuantity: requiredQty ?? quantity,
+    requiredQuantity: requiredQty,
     taxCode,
+    // Always expose explicit alias for product-row UI (PQ Tax column).
+    pqTaxCode: taxCode ?? toStr(line.pqTaxCode),
+    sqTaxCode: toStr(line.sqTaxCode) ?? null,
     unitPrice,
     uomCode,
     warehouse,
@@ -383,18 +391,21 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
             const requiredQty = toNum(row.PQTReqQty) ?? 0;
             const quotedQty = toNum(row.Quantity) ?? 0;
             return {
+              // Quoted date/qty only from ShipDate/Quantity — leave empty when buyer has not quoted.
               deliveryDate: toDateOnly(row.ShipDate),
               description: toStr(row.Dscription),
               discount: toNum(row.DiscPrcnt) ?? 0,
               itemCode: toStr(row.ItemCode) ?? "",
               lineNum,
-              quantity: quotedQty > 0 ? quotedQty : requiredQty,
+              quantity: quotedQty > 0 ? quotedQty : 0,
               remarks: null,
               requiredDate: toDateOnly(row.PQTReqDate),
-              requiredQuantity: requiredQty > 0 ? requiredQty : quotedQty,
+              requiredQuantity: requiredQty > 0 ? requiredQty : 0,
               rfqId: header.rfqId,
               rfqLineId: -1 * (lineNum + 1),
-              taxCode: toStr(row.VatGroup),
+              taxCode: toStr(row.VatGroup ?? row.vatGroup ?? row.TaxCode),
+              pqTaxCode: toStr(row.VatGroup ?? row.vatGroup ?? row.TaxCode),
+              sqTaxCode: null,
               unitPrice: toNum(row.Price ?? row.PriceBefDi),
               uomCode: toStr(row.UomCode),
               warehouse: toStr(row.WhsCode),

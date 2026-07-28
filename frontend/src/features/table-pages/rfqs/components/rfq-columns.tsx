@@ -7,6 +7,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 
 import type { IcRfqHeader } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { DocNumCell } from "@/features/table-pages/table-shared/components/core/doc-num-cell";
+import { formatRfqDocNumber } from "@/features/table-pages/rfqs/utils/format-rfq-doc-number";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
 import { cn } from "@/shared/utils/cn";
 
@@ -46,10 +47,12 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
   columnHelper.accessor("rfqNumber", {
     cell: (info) => {
       const row = info.row.original;
-      const docNum = info.getValue();
+      const docNum = formatRfqDocNumber(info.getValue());
       return (
         <DocNumCell
           value={docNum}
+          docEntry={row.rfqId}
+          docType="request-for-quotation"
           onHover={() => options?.onDocNumHover?.(row)}
           onDoubleClick={() => options?.onDocNumDoubleClick?.(row)}
         />

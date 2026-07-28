@@ -17,6 +17,8 @@ import {
   toDisplayDate,
   toISODate,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { formatRfqDocNumber } from "@/features/table-pages/rfqs/utils/format-rfq-doc-number";
+import { RelationshipMapTracker } from "@/features/create-shared/components/layout/relationship-map-tracker";
 import { RfqProductSection } from "@/features/create-pages/request-for-quotation/components/rfq-product-section";
 import { useRequestForQuotationForm } from "@/features/create-pages/request-for-quotation/hooks/use-request-for-quotation-form";
 import { icRfqQueries } from "@/features/intercompany/api/intercompany.queries";
@@ -38,7 +40,7 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
   const queryClient = useQueryClient();
   const state = useRequestForQuotationForm(rfqId);
   const header = state.header;
-  const titleNumber = header?.rfqNumber ?? String(rfqId);
+  const titleNumber = header?.rfqNumber ? formatRfqDocNumber(header.rfqNumber) : String(rfqId);
 
   const [activeDatePicker, setActiveDatePicker] = useState<ActiveDatePicker>(null);
   const docDateContainerRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,16 @@ export function RequestForQuotationForm({ rfqId }: RequestForQuotationFormProps)
     >
       {header ? (
         <>
+          <div className="mb-4 mt-2 w-full">
+            <div className="relative z-10 w-full overflow-x-auto">
+              <RelationshipMapTracker
+                docType="request-for-quotation"
+                docEntry={rfqId}
+                compact={true}
+              />
+            </div>
+          </div>
+
           <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
             <div
               className="h-full cursor-not-allowed"

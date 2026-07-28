@@ -12,12 +12,7 @@ import type {
 import { partnerSelectionKey } from "../../utils/overview.types";
 import { overviewMotionClass } from "../../utils/overview.motion";
 import { ConnectedPartners } from "./ConnectedPartners";
-import { NeedsAttention } from "./NeedsAttention";
-import {
-  ConnectedPartnersSkeleton,
-  NeedsAttentionSkeleton,
-  StatementSkeleton,
-} from "./OverviewSectionSkeletons";
+import { ConnectedPartnersSkeleton, StatementSkeleton } from "./OverviewSectionSkeletons";
 import { OpenWorkStrip, OpenWorkStripSkeleton } from "./OpenWorkStrip";
 import { StatementShell } from "./StatementShell";
 
@@ -38,13 +33,6 @@ function formatAsOf(iso: string | undefined): string | null {
 export function OverviewDashboard() {
   const { data, isLoading, isError, isFetching, refetch, error } = useOverviewDashboard();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-
-  const scrollToAttention = () => {
-    document.getElementById("overview-needs-attention")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
 
   const scrollToStatement = () => {
     document.getElementById("overview-statement")?.scrollIntoView({
@@ -156,39 +144,23 @@ export function OverviewDashboard() {
                     openPq={data.kpis.openPq}
                     openSq={data.kpis.openSq}
                     openPo={data.kpis.openPo}
-                    arPending={data.kpis.arApprovalPending}
-                    onArClick={scrollToAttention}
                   />
                 </div>
               )}
 
-              <div
-                id="overview-needs-attention"
-                className="grid scroll-mt-4 grid-cols-1 items-stretch gap-5 lg:grid-cols-5 lg:gap-6"
-              >
-                <div className="flex min-h-0 lg:col-span-3">
-                  {isLoading || !data ? (
-                    <NeedsAttentionSkeleton />
-                  ) : (
-                    <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
-                      <NeedsAttention items={data.arApprovalPending} currency={data.currency} />
-                    </div>
-                  )}
-                </div>
-                <div className="flex min-h-0 lg:col-span-2">
-                  {isLoading || !data ? (
-                    <ConnectedPartnersSkeleton />
-                  ) : (
-                    <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
-                      <ConnectedPartners
-                        partners={data.connectedPartners}
-                        selectedKey={effectiveSelectedKey}
-                        onSelectAll={handleSelectAll}
-                        onSelectPartner={handleSelectPartner}
-                      />
-                    </div>
-                  )}
-                </div>
+              <div className="flex min-h-0">
+                {isLoading || !data ? (
+                  <ConnectedPartnersSkeleton />
+                ) : (
+                  <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
+                    <ConnectedPartners
+                      partners={data.connectedPartners}
+                      selectedKey={effectiveSelectedKey}
+                      onSelectAll={handleSelectAll}
+                      onSelectPartner={handleSelectPartner}
+                    />
+                  </div>
+                )}
               </div>
 
               {isLoading || !data ? (

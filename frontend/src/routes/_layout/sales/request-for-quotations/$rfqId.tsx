@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import { RequestForQuotationForm } from "@/features/create-pages/request-for-quotation/components/request-for-quotation-form";
 import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
+import { formatRfqDocNumber } from "@/features/table-pages/rfqs/utils/format-rfq-doc-number";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 /**
@@ -18,7 +19,9 @@ function RequestForQuotationDetailRoute() {
   const { rfqId: rfqIdParam } = Route.useParams();
   const rfqId = Number(rfqIdParam);
   const detailQuery = useIcRfq(rfqId, Number.isFinite(rfqId) && rfqId > 0);
-  const titleNumber = detailQuery.data?.data?.rfqNumber ?? rfqIdParam;
+  const titleNumber = detailQuery.data?.data?.rfqNumber
+    ? formatRfqDocNumber(detailQuery.data.data.rfqNumber)
+    : rfqIdParam;
 
   useDocumentTitle(`Request For Quotation ${titleNumber} | ERP Portal`);
 

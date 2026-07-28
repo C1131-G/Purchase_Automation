@@ -9,6 +9,7 @@ export function RelationshipMapHover({
 }: {
   children: React.ReactNode;
   docType:
+    | "request-for-quotation"
     | "sales-quotation"
     | "sales-order"
     | "ar-invoice"

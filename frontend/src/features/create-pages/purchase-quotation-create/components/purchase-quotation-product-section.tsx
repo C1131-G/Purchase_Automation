@@ -158,7 +158,6 @@ export function PurchaseQuotationProductSection({
         warehouses={warehouses}
         warehousesLoading={warehousesLoading}
         enforceStockLimit={false}
-        showTaxCode={false}
         showExplicitZeroDiscount={true}
         disableLineInputs={isClosed}
         warehouseErrors={warehouseErrors}

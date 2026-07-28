@@ -32,7 +32,6 @@ interface CreateProductTableProps {
   showSelection?: boolean;
   showReturnReason?: boolean;
   nativeReturnReason?: boolean;
-  showTaxCode?: boolean;
   warehouseErrors?: Record<string, string> | undefined;
   showUom?: boolean;
   uoms?: CreateLookupOption[];
@@ -71,7 +70,6 @@ export function CreateProductTable({
   showSelection = false,
   showReturnReason = false,
   nativeReturnReason = false,
-  showTaxCode = false,
   linkedRow = false,
   warehouseErrors,
   showUom = false,
@@ -86,7 +84,7 @@ export function CreateProductTable({
     <div className="overflow-x-auto px-2 py-2">
       <table
         className={`w-full table-fixed text-left text-sm text-zinc-700 ${
-          showPqLineDatesAndQtys ? "min-w-[1680px]" : "min-w-[1400px]"
+          showPqLineDatesAndQtys ? "min-w-[1780px]" : "min-w-[1400px]"
         }`}
       >
         <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
@@ -111,7 +109,6 @@ export function CreateProductTable({
             <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
             <th className="w-[7%] px-2 py-2 text-left text-wrap">Net Price</th>
             <th className="w-[7%] px-2 py-2 text-left">Total</th>
-            {showTaxCode && <th className="w-[8%] px-2 py-2 text-left">Tax Code</th>}
             {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
             {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
             <th className="w-[7%] px-2 py-2 text-right">Actions</th>
@@ -127,7 +124,6 @@ export function CreateProductTable({
                   pqExtraCols +
                   (showSelection ? 1 : 0) +
                   (showReturnReason ? 1 : 0) +
-                  (showTaxCode ? 1 : 0) +
                   (showUom ? 1 : 0) +
                   (showBinLocation ? 1 : 0) +
                   (showGLAccount ? 1 : 0)
@@ -167,7 +163,6 @@ export function CreateProductTable({
               showSelection={showSelection}
               showReturnReason={showReturnReason}
               nativeReturnReason={nativeReturnReason}
-              showTaxCode={showTaxCode}
               warehouseError={warehouseErrors?.[row.id]}
               showUom={showUom}
               uoms={uoms}

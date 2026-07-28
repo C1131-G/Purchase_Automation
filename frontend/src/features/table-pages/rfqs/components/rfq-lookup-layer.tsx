@@ -12,6 +12,7 @@ import { LookupPopup } from "@/components/lookup/lookup-popup";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { IcRfqHeader } from "@/features/intercompany/schemas/intercompany-api.schema";
+import { formatRfqDocNumber } from "@/features/table-pages/rfqs/utils/format-rfq-doc-number";
 import { TableToolbar } from "@/features/table-pages/table-shared/components/core/table-toolbar";
 import { useTableLookupPopupSync } from "@/features/table-pages/table-shared/hooks/use-table-lookup-popup-sync";
 import { useSetActiveFilterAction } from "@/store/table/table-filter.store";
@@ -78,7 +79,7 @@ const toOrderedUniqueSuggestions = (items: LookupItem[]): LookupItem[] => {
 const pickFieldValue = (row: IcRfqHeader, columnId: string): string => {
   switch (columnId) {
     case "DocNum":
-      return String(row.rfqNumber ?? "").trim();
+      return String(formatRfqDocNumber(row.rfqNumber)).trim();
     case "CardCode":
       return String(row.vendorCode ?? "").trim();
     case "pqDraftDocNum":

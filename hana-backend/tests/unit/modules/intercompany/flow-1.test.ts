@@ -105,6 +105,12 @@ const createFlow1TestStack = (opts?: {
         docNum: 801,
       })),
     getDraftComments: opts?.documents?.getDraftComments ?? (async () => null),
+    getDraftHeaderFields:
+      opts?.documents?.getDraftHeaderFields ??
+      (async () => ({
+        comments: null,
+        numAtCard: null,
+      })),
   };
 
   const orchestrator = createFlow1Orchestrator({
@@ -154,6 +160,8 @@ const createFlow1TestStack = (opts?: {
       masters: {
         getBpTax: async () => null,
         getItemTax: async () => null,
+        getOvtgTax: async () => null,
+        listOvtgTaxes: async () => [],
       },
     }),
     // Avoid live OWHS tenant lookup in unit tests (multi-branch SQ WH).
@@ -165,7 +173,9 @@ const createFlow1TestStack = (opts?: {
     rfq,
   });
 
-  // Rebuild fill with convert so submit auto-runs draft→PQ + SQ (production path).
+  // Rebuild fill with convert so submit auto-runs draft→PQ + SQ.
+  // Unit tests assert convert outcome on submit → keep convert on-request (sync).
+  // Production default is runConvertInBackground: true (same split as PQ draft / PO).
   const fillWithConvert = createSellerFillRfqService({
     convert,
     notify: {
@@ -181,6 +191,7 @@ const createFlow1TestStack = (opts?: {
       },
     },
     rfq,
+    runConvertInBackground: false,
   });
 
   void fill;
@@ -248,10 +259,10 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
 
-    // Auto IC remarks stored on RFQ at create (doc type + number only).
+    // Auto IC remarks stored on RFQ at create (Based on … format).
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).toContain("IC | PQD: PQ Draft No 9001");
-    expect(storedRemarks).toContain("IC | RFQ: RFQ-PQD-9001");
+    expect(storedRemarks).toContain("Based on Purchase Quotation Draft 9001");
+    expect(storedRemarks).toContain("Based on Request For Quotation 9001");
     expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
 
     const second = await orchestrator.run(input);
@@ -321,22 +332,33 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     let sqCreated = false;
     let appliedLines: Record<string, unknown>[] = [];
     let convertOverrides: Record<string, unknown>[] | undefined;
+    let sqRemarks: string | undefined;
+    let sqNumAtCard: string | null | undefined;
+    let sqCommentsOnPatch: string | null | undefined;
 
     const { orchestrator, fill, convert, db } = createFlow1TestStack({
       documents: {
         applyPricesToDraft: async (input) => {
           applied = true;
           appliedLines = input.documentLines;
+          // Parent remarks path: PATCH receives merged comments (keep this one).
+          sqCommentsOnPatch = input.comments ?? null;
         },
         convertDraftToDocument: async (input) => {
           converted = true;
           convertOverrides = input.lineOverrides;
           return { docEntry: 7100, docNum: 710 };
         },
-        createSalesQuotation: async () => {
+        createSalesQuotation: async (input) => {
           sqCreated = true;
+          sqRemarks = input.remarks;
+          sqNumAtCard = input.numAtCard ?? null;
           return { docEntry: 8100, docNum: 810 };
         },
+        getDraftHeaderFields: async () => ({
+          comments: "Parent typed on PQ draft",
+          numAtCard: "VENDOR-REF-99",
+        }),
       },
     });
 
@@ -385,10 +407,19 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       UnitPrice: 40,
       VatGroup: "IN-12.5",
     });
+    // Parent remarks (one path): patch apply keeps parent text.
+    expect(sqCommentsOnPatch).toContain("Parent typed on PQ draft");
+    // Vendor ref must reach seller SQ NumAtCard + remarks (was missing before).
+    expect(sqNumAtCard).toBe("VENDOR-REF-99");
+    expect(sqRemarks).toContain("Vendor Ref No: VENDOR-REF-99");
+    expect(sqRemarks).toContain("Parent typed on PQ draft");
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(db.tables.IC_DOCUMENT_MAPPING.some((row) => row.TARGET_OBJECT === IC_OBJECT.SQ)).toBe(
       true,
     );
+    const sqMap = db.tables.IC_DOCUMENT_MAPPING.find((row) => row.TARGET_OBJECT === IC_OBJECT.SQ);
+    expect(sqMap?.SOURCE_OBJECT).toBe(IC_OBJECT.RFQ);
+    expect(sqMap?.SOURCE_DOC_ENTRY).toBe(String(rfqId));
   });
 
   it("T6.5b commercial line map + merge keeps tax/qty/price/disc", () => {
@@ -501,6 +532,77 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     await expect(hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 1 })).resolves.toMatchObject({
       status: "skipped",
     });
+  });
+
+  it("RFQ submit default path returns SUBMITTED immediately (convert runs in background)", async () => {
+    let convertStarted = false;
+    const { orchestrator, convert, db, rfq, notifications } = createFlow1TestStack({
+      documents: {
+        convertDraftToDocument: async () => {
+          convertStarted = true;
+          return { docEntry: 9100, docNum: 910 };
+        },
+      },
+    });
+
+    await orchestrator.run({
+      cardCode: "V-B",
+      dbName: "DB_A",
+      docEntry: 95,
+      lines: [{ ItemCode: "ITEM1", LineNum: 0, Quantity: 1 }],
+    });
+    const rfqId = Number(db.tables.IC_RFQ_HEADER[0].RFQ_ID);
+
+    const fillBg = createSellerFillRfqService({
+      convert,
+      notify: {
+        notifyRfqCreated: async () => undefined,
+        notifyRfqSubmitted: async (params) => {
+          await notifications.create({
+            companyId: params.rfq.sourceCompanyId,
+            documentId: String(params.rfq.rfqId),
+            documentType: IC_OBJECT.RFQ,
+            flowStep: "FLOW1_RFQ_SUBMITTED",
+            title: `RFQ submitted ${params.rfq.rfqNumber}`,
+          });
+        },
+      },
+      rfq,
+      // production default
+      runConvertInBackground: true,
+    });
+
+    const submitted = await fillBg.submit({
+      actorCompanyId: 2,
+      // One-shot fill+submit (production frontend path).
+      lines: [{ lineNum: 0, unitPrice: 15 }],
+      rfqId,
+    });
+    // Main path only — notify + convert not finished yet (scheduled via setImmediate).
+    expect(submitted.status).toBe(IC_RFQ_STATUS.SUBMITTED);
+    expect(convertStarted).toBe(false);
+    expect(db.tables.IC_NOTIFICATION.some((row) => row.FLOW_STEP === "FLOW1_RFQ_SUBMITTED")).toBe(
+      false,
+    );
+
+    // Flush setImmediate so background notify + convert can complete.
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    // Allow promise chain to settle.
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(db.tables.IC_NOTIFICATION.some((row) => row.FLOW_STEP === "FLOW1_RFQ_SUBMITTED")).toBe(
+      true,
+    );
+    const after = await rfq.getById(rfqId);
+    expect(after?.status).toBe(IC_RFQ_STATUS.COMPLETED);
+    expect(convertStarted).toBe(true);
   });
 
   it("afterPqDraftSaved default path accepts immediately (IC runs in background)", async () => {

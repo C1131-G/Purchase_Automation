@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { ClipboardList, FileText, ShoppingCart, ShieldAlert } from "lucide-react";
+import { ClipboardList, FileText, ShoppingCart } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/shared/utils/cn";
 
 import { formatCurrency, formatNumber } from "../../utils/formatters";
-import type { OverviewArKpi, OverviewKpiMetric } from "../../utils/overview.types";
+import type { OverviewKpiMetric } from "../../utils/overview.types";
 import { overviewMotionClass } from "../../utils/overview.motion";
 
 type ChipTone = "sky" | "indigo" | "blue" | "amber";
@@ -28,8 +28,6 @@ interface OpenWorkStripProps {
   openPq: OverviewKpiMetric;
   openSq: OverviewKpiMetric;
   openPo: OverviewKpiMetric;
-  arPending: OverviewArKpi;
-  onArClick: () => void;
 }
 
 const TONE: Record<
@@ -119,14 +117,7 @@ function StripChip({ item, currency }: { item: StripItem; currency: string }) {
   );
 }
 
-export function OpenWorkStrip({
-  currency,
-  openPq,
-  openSq,
-  openPo,
-  arPending,
-  onArClick,
-}: OpenWorkStripProps) {
+export function OpenWorkStrip({ currency, openPq, openSq, openPo }: OpenWorkStripProps) {
   const items: StripItem[] = [
     {
       key: "pq",
@@ -158,23 +149,12 @@ export function OpenWorkStrip({
       tone: "blue",
       Icon: ShoppingCart,
     },
-    {
-      key: "ar",
-      label: "AR pending approval",
-      count: arPending.count,
-      openValue: arPending.openValue,
-      onClick: onArClick,
-      warnWhenPositive: true,
-      ariaLabel: `AR invoices pending approval, ${arPending.count} open`,
-      tone: "amber",
-      Icon: ShieldAlert,
-    },
   ];
 
   return (
     <section
       aria-label="Open work"
-      className={cn("grid grid-cols-2 gap-4 lg:grid-cols-4", overviewMotionClass.chipStagger)}
+      className={cn("grid grid-cols-1 gap-4 sm:grid-cols-3", overviewMotionClass.chipStagger)}
     >
       {items.map((item) => (
         <StripChip key={item.key} item={item} currency={currency} />
@@ -185,12 +165,11 @@ export function OpenWorkStrip({
 
 export function OpenWorkStripSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-hidden>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-hidden>
       {[
         "border-sky-100 bg-sky-50/40",
         "border-indigo-100 bg-indigo-50/40",
         "border-blue-100 bg-blue-50/40",
-        "border-amber-100 bg-amber-50/40",
       ].map((tone, i) => (
         <div
           key={tone}

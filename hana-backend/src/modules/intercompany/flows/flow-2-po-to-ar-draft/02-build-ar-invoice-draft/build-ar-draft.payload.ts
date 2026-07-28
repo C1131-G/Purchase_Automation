@@ -4,6 +4,10 @@
 
 import { SAP_OBJECT_TYPE_AR_INVOICE } from "@/modules/intercompany/infrastructure/constants";
 import { buildFlow2ArRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
+import {
+  flow2LineTaxUsage,
+  type IcLineTaxUsage,
+} from "@/modules/intercompany/infrastructure/ic-tax-usage";
 import type { IcDocumentLineInput } from "@/modules/intercompany/flows/shared/flow.types";
 
 import type { BuildArDraftInput, BuildArDraftResult } from "./build-ar-draft.types";
@@ -12,6 +16,11 @@ export type ResolveArLineTax = (input: {
   sourceTaxCode: string;
   itemCode: string;
 }) => Promise<string>;
+
+export type MapPoLineToArResult = {
+  docLine: Record<string, unknown>;
+  taxUsage: IcLineTaxUsage;
+};
 
 export const formatSapDate = (value: unknown): string | undefined => {
   if (value == null) {
@@ -30,18 +39,19 @@ export const formatSapDate = (value: unknown): string | undefined => {
 export const mapPoLineToArLine = async (
   line: IcDocumentLineInput,
   resolveLineTax: ResolveArLineTax,
-): Promise<Record<string, unknown>> => {
-  const sourceTax = line.VatGroup == null ? "" : String(line.VatGroup).trim();
+): Promise<MapPoLineToArResult> => {
+  // PO tax = buyer purchase VatGroup on the PO line.
+  const poTaxCode = line.VatGroup == null ? "" : String(line.VatGroup).trim();
   const itemCode = line.ItemCode == null ? "" : String(line.ItemCode).trim();
   // Always resolve (map → item → BP → omit), even when buyer tax is empty.
-  const targetTax = (await resolveLineTax({ itemCode, sourceTaxCode: sourceTax })).trim();
+  const arTaxCode = (await resolveLineTax({ itemCode, sourceTaxCode: poTaxCode })).trim();
 
   const docLine: Record<string, unknown> = {
     DiscountPercent: Number(line.DiscountPercent ?? 0),
     ItemCode: line.ItemCode as string,
     Quantity: line.Quantity as number,
     UnitPrice: (line.UnitPrice ?? line.Price) as number,
-    VatGroup: targetTax || undefined,
+    VatGroup: arTaxCode || undefined,
     WarehouseCode: line.WarehouseCode as string,
   };
 
@@ -66,17 +76,27 @@ export const mapPoLineToArLine = async (
     }
   }
 
-  return docLine;
+  const taxUsage = flow2LineTaxUsage({
+    arTaxCode,
+    itemCode,
+    lineNum: line.LineNum != null ? Number(line.LineNum) : 0,
+    poTaxCode,
+  });
+
+  return { docLine, taxUsage };
 };
 
 /** Build Service Layer AR Invoice Draft body from PO capture context. */
 export const buildArDraftPayload = async (
   input: BuildArDraftInput,
-): Promise<BuildArDraftResult> => {
+): Promise<BuildArDraftResult & { taxUsage: IcLineTaxUsage[] }> => {
   const lines = Array.isArray(input.lines) ? input.lines : [];
   const documentLines: Record<string, unknown>[] = [];
+  const taxUsage: IcLineTaxUsage[] = [];
   for (const line of lines) {
-    documentLines.push(await mapPoLineToArLine(line, input.resolveLineTax));
+    const mapped = await mapPoLineToArLine(line, input.resolveLineTax);
+    documentLines.push(mapped.docLine);
+    taxUsage.push(mapped.taxUsage);
   }
 
   const docDate = formatSapDate(input.docDate);
@@ -115,5 +135,5 @@ export const buildArDraftPayload = async (
     payload.BPL_IDAssignedToInvoice = Math.trunc(branchId);
   }
 
-  return payload;
+  return { ...payload, taxUsage };
 };

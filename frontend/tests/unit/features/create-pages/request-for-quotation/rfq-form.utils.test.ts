@@ -5,6 +5,7 @@ import {
   isRfqDraft,
   isRfqSubmitted,
   mapRfqLinesToEditable,
+  mapRfqLinesToProductRows,
 } from "@/features/create-pages/request-for-quotation/utils/rfq-form.utils";
 import type { IcRfqLine } from "@/features/intercompany/schemas/intercompany-api.schema";
 
@@ -33,6 +34,35 @@ describe("rfq-form.utils", () => {
     expect(mapped[0]?.unitPrice).toBe("");
     expect(mapped[0]?.discount).toBe("5");
     expect(mapped[0]?.deliveryDate).toBe("2026-08-01");
+  });
+
+  it("keeps quoted qty/date empty and does not copy required fields", () => {
+    const lines: IcRfqLine[] = [
+      {
+        deliveryDate: null,
+        description: "Widget",
+        discount: null,
+        itemCode: "A-1",
+        lineNum: 0,
+        quantity: 0,
+        remarks: null,
+        requiredDate: "2026-09-15",
+        requiredQuantity: 25,
+        rfqId: 1,
+        rfqLineId: 11,
+        taxCode: null,
+        unitPrice: null,
+        uomCode: "EA",
+        warehouse: "01",
+      },
+    ];
+
+    const rows = mapRfqLinesToProductRows(lines);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.quantity).toBe(0);
+    expect(rows[0]?.quotedDate).toBeUndefined();
+    expect(rows[0]?.requiredQuantity).toBe(25);
+    expect(rows[0]?.requiredDate).toBe("2026-09-15");
   });
 
   it("allows partial save and requires all prices on submit", () => {

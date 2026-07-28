@@ -210,8 +210,11 @@ const createDefaultHandlers = (deps: {
       deps.partnerTax.resolveLineTax({
         docSide: "sales",
         itemCode: input.itemCode,
+        sourceCompanyId: header.sourceCompanyId,
+        sourceTaxCode: input.sourceTaxCode,
         targetCardCode: buyerCustomerCode,
         targetCompanyId: header.targetCompanyId,
+        targetSapDbName: sellerCompany?.sapDbName ?? null,
       });
 
     // Full IC chain + any stored user remarks (never only compact tag).
@@ -219,6 +222,12 @@ const createDefaultHandlers = (deps: {
       payload.remarks != null && String(payload.remarks).trim()
         ? String(payload.remarks).trim()
         : null;
+    const vendorRefNo =
+      payload.vendorRefNo != null && String(payload.vendorRefNo).trim()
+        ? String(payload.vendorRefNo).trim()
+        : header.vendorRefNo != null
+          ? String(header.vendorRefNo).trim()
+          : null;
     const sqRemarks = buildFlow1SqRemarks({
       existing: remarksFromPayload ?? header.remarks,
       pqDraftDocEntry: header.pqDraftDocEntry,
@@ -227,6 +236,7 @@ const createDefaultHandlers = (deps: {
       pqDocNum: payload.pqDocNum != null ? Number(payload.pqDocNum) : null,
       rfqId: header.rfqId,
       rfqNumber: header.rfqNumber,
+      vendorRefNo,
     });
 
     const sellerCompany = await deps.company.getById(sellerCompanyId);
@@ -235,6 +245,7 @@ const createDefaultHandlers = (deps: {
       defaultBranchId: sellerCompany?.defaultBranchId ?? null,
       documents: deps.documents,
       lines,
+      numAtCard: vendorRefNo,
       remarks: sqRemarks,
       resolveLineTax,
       sapDbName: sellerCompany?.sapDbName ?? null,
@@ -251,8 +262,9 @@ const createDefaultHandlers = (deps: {
     } else {
       await deps.documentMap.create({
         sourceCompanyId: header.sourceCompanyId,
-        sourceDocEntry: String(Number.isFinite(pqDocEntry) ? pqDocEntry : header.pqDraftDocEntry),
-        sourceObject: IC_OBJECT.PQ,
+        sourceDocEntry: String(header.rfqId),
+        sourceDocNum: header.rfqNumber,
+        sourceObject: IC_OBJECT.RFQ,
         sourceRemarksTag: remarksTag,
         status: IC_DOC_MAP_STATUS.SUCCESS,
         targetCompanyId: sellerCompanyId,

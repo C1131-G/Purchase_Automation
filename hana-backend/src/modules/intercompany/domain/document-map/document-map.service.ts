@@ -11,6 +11,12 @@ export type DocumentMapService = {
     sourceDocEntry: string;
     targetObject?: string | null;
   }) => Promise<IcDocumentMap | null>;
+  findByTarget: (params: {
+    targetCompanyId: number;
+    targetObject: string;
+    targetDocEntry: string;
+    sourceObject?: string | null;
+  }) => Promise<IcDocumentMap | null>;
   create: (input: CreateDocumentMapInput) => Promise<IcDocumentMap>;
   updateStatus: (
     mappingId: number,
@@ -37,6 +43,7 @@ export const createDocumentMapService = (deps?: {
 
   return {
     findBySource: (params) => queries.findBySource(params),
+    findByTarget: (params) => queries.findByTarget(params),
 
     create: async (input) => {
       const existing = await queries.findBySource({

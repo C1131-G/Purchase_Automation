@@ -232,16 +232,26 @@ export const createConvertPqAndSqService = (deps?: {
       const remarksTag = compactRfqTag(header.rfqNumber);
       const draftEntry = header.pqDraftDocEntry;
 
-      // Re-read buyer draft Comments so parent typed text is not lost if RFQ row missed it.
+      // One GET: parent Comments + vendor ref (NumAtCard). Parent text is also re-merged on
+      // applyPrices PATCH (the single SAP write path — keep that; no second strategy).
       let draftComments: string | null = null;
+      let draftVendorRef: string | null = null;
       try {
-        draftComments = await documents.getDraftComments({
+        const draftHeader = await documents.getDraftHeaderFields({
           companyId: header.sourceCompanyId,
           draftEntry,
         });
+        draftComments = draftHeader.comments;
+        draftVendorRef = draftHeader.numAtCard;
       } catch {
         draftComments = null;
+        draftVendorRef = null;
       }
+      // Enriched RFQ may already expose vendorRefNo when draft GET is unavailable later.
+      const vendorRefNo =
+        draftVendorRef?.trim() ||
+        (header.vendorRefNo != null ? String(header.vendorRefNo).trim() : "") ||
+        null;
 
       // Keep RFQ + draft user remarks; append PQD + RFQ IC lines (never drop parent text).
       const remarksBeforePq = buildFlow1ConvertRemarks({
@@ -290,6 +300,8 @@ export const createConvertPqAndSqService = (deps?: {
             discountPercent: line.DiscountPercent ?? null,
             itemCode: line.ItemCode ?? null,
             lineNum: line.LineNum ?? null,
+            // Buyer PQ tax applied on draft PATCH / posted PQ.
+            pqTaxCode: line.VatGroup ?? null,
             quantity: line.Quantity ?? null,
             unitPrice: line.UnitPrice ?? null,
             vatGroup: line.VatGroup ?? null,
@@ -313,9 +325,10 @@ export const createConvertPqAndSqService = (deps?: {
           lineCount: commercialLines.length,
         },
       });
+      // Comments were already merged onto the draft in applyPricesToDraft — do not
+      // pass them again here or mergeUserAndIcRemarks can duplicate the chain.
       const purchaseQuotation = await convertDraftToPq({
         buyerCompanyId: header.sourceCompanyId,
-        comments: remarksBeforePq,
         documents,
         draftEntry,
         lineOverrides: commercialLines,
@@ -345,10 +358,6 @@ export const createConvertPqAndSqService = (deps?: {
         targetObject: IC_OBJECT.PQ,
       });
 
-      /**
-       * Seller SQ tax: seller item sales tax → BP default → omit.
-       * Never send buyer tax to seller (SAP 400 "Invalid VAT Group").
-       */
       const resolveLineTax = async (input: {
         sourceTaxCode: string;
         itemCode: string;
@@ -356,8 +365,11 @@ export const createConvertPqAndSqService = (deps?: {
         partnerTax.resolveLineTax({
           docSide: "sales",
           itemCode: input.itemCode,
+          sourceCompanyId: header.sourceCompanyId,
+          sourceTaxCode: input.sourceTaxCode,
           targetCardCode: bpMap.buyerCustomerCode,
           targetCompanyId: header.targetCompanyId,
+          targetSapDbName: sellerCompany.sapDbName,
         });
 
       try {
@@ -373,7 +385,7 @@ export const createConvertPqAndSqService = (deps?: {
             sellerCompanyId: header.targetCompanyId,
           },
         });
-        // SQ Comments: full chain PQD → RFQ → PQ (SQ entry appended after create for maps only).
+        // SQ Comments: vendor ref + chain PQD → RFQ → PQ (SQ entry appended after create for maps).
         const sqRemarksBefore = buildFlow1SqRemarks({
           existing: remarksWithPq,
           pqDraftDocEntry: header.pqDraftDocEntry,
@@ -382,6 +394,7 @@ export const createConvertPqAndSqService = (deps?: {
           pqDocNum: purchaseQuotation.docNum ?? null,
           rfqId: header.rfqId,
           rfqNumber: header.rfqNumber,
+          vendorRefNo,
         });
 
         const salesQuotation = await createSellerSq({
@@ -389,6 +402,7 @@ export const createConvertPqAndSqService = (deps?: {
           defaultBranchId: sellerCompany.defaultBranchId,
           documents,
           lines,
+          numAtCard: vendorRefNo,
           remarks: sqRemarksBefore,
           resolveLineTax,
           sapDbName: sellerCompany.sapDbName,
@@ -402,9 +416,9 @@ export const createConvertPqAndSqService = (deps?: {
 
         const sqMap = await documentMap.create({
           sourceCompanyId: header.sourceCompanyId,
-          sourceDocEntry: String(purchaseQuotation.docEntry),
-          sourceDocNum: purchaseQuotation.docNum != null ? String(purchaseQuotation.docNum) : null,
-          sourceObject: IC_OBJECT.PQ,
+          sourceDocEntry: String(header.rfqId),
+          sourceDocNum: header.rfqNumber,
+          sourceObject: IC_OBJECT.RFQ,
           sourceRemarksTag: remarksTag,
           status: IC_DOC_MAP_STATUS.SUCCESS,
           targetCompanyId: header.targetCompanyId,
@@ -434,6 +448,8 @@ export const createConvertPqAndSqService = (deps?: {
           responseJson: JSON.stringify({
             pqDocEntry: purchaseQuotation.docEntry,
             sqDocEntry: salesQuotation.docEntry,
+            // Explicit tax codes used on PQ (buyer) vs SQ (seller).
+            taxUsage: salesQuotation.taxUsage ?? [],
           }),
           status: "SUCCESS",
         });
@@ -497,10 +513,9 @@ export const createConvertPqAndSqService = (deps?: {
           const errMap = await documentMap.create({
             errorMessage: errorMessage.slice(0, 2000),
             sourceCompanyId: header.sourceCompanyId,
-            sourceDocEntry: String(purchaseQuotation.docEntry),
-            sourceDocNum:
-              purchaseQuotation.docNum != null ? String(purchaseQuotation.docNum) : null,
-            sourceObject: IC_OBJECT.PQ,
+            sourceDocEntry: String(header.rfqId),
+            sourceDocNum: header.rfqNumber,
+            sourceObject: IC_OBJECT.RFQ,
             sourceRemarksTag: remarksTag,
             status: IC_DOC_MAP_STATUS.ERROR,
             targetCompanyId: header.targetCompanyId,
@@ -554,6 +569,7 @@ export const createConvertPqAndSqService = (deps?: {
               rfqId: header.rfqId,
               rfqNumber: header.rfqNumber,
               sellerCompanyId: header.targetCompanyId,
+              vendorRefNo,
             }),
             sourceDocument: formatIcDocLabel({
               kind: "PQ",

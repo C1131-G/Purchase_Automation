@@ -1,6 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { FileText, ShoppingCart, FileSpreadsheet, Undo2, Banknote, Truck } from "lucide-react";
+import {
+  FileText,
+  ShoppingCart,
+  FileSpreadsheet,
+  Undo2,
+  Banknote,
+  Truck,
+  ClipboardList,
+} from "lucide-react";
 import React from "react";
 
 import { relationshipMapQueries } from "@/features/create-shared/api/relationship-map.queries";
@@ -8,6 +16,7 @@ import type { NodeResult } from "@/features/create-shared/api/relationship-map.q
 
 interface RelationshipMapTrackerProps {
   docType:
+    | "request-for-quotation"
     | "sales-quotation"
     | "sales-order"
     | "ar-invoice"
@@ -29,6 +38,7 @@ const NodeIcon = ({
   items,
   linkPrefix,
   compact = false,
+  buildLink,
 }: {
   icon: React.ElementType;
   label: string;
@@ -36,9 +46,13 @@ const NodeIcon = ({
   items?: NodeResult[] | undefined;
   linkPrefix: string;
   compact?: boolean;
+  buildLink?: (item: NodeResult) => string;
 }) => {
   const hasItems = items && items.length > 0;
   const isSingle = hasItems && items.length === 1;
+
+  const resolveLink = (item: NodeResult) =>
+    buildLink ? buildLink(item) : `${linkPrefix}/${item.docNum}/update`;
 
   const content = (
     <div
@@ -75,7 +89,7 @@ const NodeIcon = ({
             {items.map((item) => (
               <Link
                 key={item.docEntry}
-                to={`${linkPrefix}/${item.docNum}/update` as any}
+                to={resolveLink(item) as any}
                 className="px-4 py-2 text-xs hover:bg-slate-50 text-slate-700 font-medium whitespace-nowrap text-center block"
               >
                 #{item.docNum}
@@ -90,7 +104,7 @@ const NodeIcon = ({
   if (isSingle && items) {
     return (
       <Link
-        to={`${linkPrefix}/${items[0]?.docNum}/update` as any}
+        to={resolveLink(items[0]!) as any}
         className="block hover:opacity-90 transition-opacity"
       >
         {content}
@@ -125,12 +139,21 @@ export function RelationshipMapTracker({
     "outgoing-payment",
   ].includes(docType);
 
+  const isIcSalesDoc =
+    !isAP && (docType === "request-for-quotation" || docType === "sales-quotation");
+
   if (isLoading) {
-    const nodeCount = isAP ? 6 : 5;
+    const nodeCount = isAP ? 6 : isIcSalesDoc ? 2 : 5;
     return (
       <div
         className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${
-          compact ? "min-w-[400px] px-4 py-1.5" : "min-w-[600px] p-6"
+          compact
+            ? isIcSalesDoc
+              ? "min-w-[280px] px-4 py-1.5"
+              : "min-w-[400px] px-4 py-1.5"
+            : isIcSalesDoc
+              ? "min-w-[360px] p-6"
+              : "min-w-[600px] p-6"
         }`}
       >
         <h3
@@ -193,12 +216,71 @@ export function RelationshipMapTracker({
     );
   }
 
+  const hasRfq = docType === "request-for-quotation" || !!data.requestForQuotation?.length;
+  const hasSq = docType === "sales-quotation" || !!data.salesQuotation?.length;
+  const isIcSalesMap = isIcSalesDoc;
   const hasDoc1 = isAP ? !!data.purchaseQuotation?.length : !!data.salesQuotation?.length;
   const hasDoc2 = isAP ? !!data.purchaseOrder?.length : !!data.salesOrder?.length;
   const hasDocGRPO = isAP ? !!data.grpo?.length : false;
   const hasDoc3 = isAP ? !!data.apInvoice?.length : !!data.arInvoice?.length;
   const hasDoc4 = isAP ? !!data.apCreditMemo?.length : !!data.arCreditMemo?.length;
   const hasDoc5 = isAP ? !!data.outgoingPayment?.length : !!data.incomingPayment?.length;
+
+  const icSalesNodes = [
+    {
+      icon: ClipboardList,
+      label: "Request For Quotation",
+      active: hasRfq,
+      items: data.requestForQuotation,
+      linkPrefix: "/sales/request-for-quotations",
+      buildLink: (item: NodeResult) => `/sales/request-for-quotations/${item.docEntry}`,
+    },
+    {
+      icon: FileText,
+      label: "Sales Quotation",
+      active: hasSq,
+      items: data.salesQuotation,
+      linkPrefix: "/sales/quotations",
+    },
+  ];
+
+  const standardSalesNodes = [
+    {
+      icon: FileText,
+      label: "Sales Quotation",
+      active: hasDoc1,
+      items: data.salesQuotation,
+      linkPrefix: "/sales/quotations",
+    },
+    {
+      icon: ShoppingCart,
+      label: "Sales Order",
+      active: hasDoc2,
+      items: data.salesOrder,
+      linkPrefix: "/sales/orders",
+    },
+    {
+      icon: FileSpreadsheet,
+      label: "A/R Invoice",
+      active: hasDoc3,
+      items: data.arInvoice,
+      linkPrefix: "/sales/ar-invoice",
+    },
+    {
+      icon: Undo2,
+      label: "A/R Credit Memo",
+      active: hasDoc4,
+      items: data.arCreditMemo,
+      linkPrefix: "/sales/ar-credit-memo",
+    },
+    {
+      icon: Banknote,
+      label: "Incoming Payment",
+      active: hasDoc5,
+      items: data.incomingPayment,
+      linkPrefix: "/sales/incoming-payment",
+    },
+  ];
 
   const nodes = isAP
     ? [
@@ -245,47 +327,21 @@ export function RelationshipMapTracker({
           linkPrefix: "/purchase/outgoing-payment",
         },
       ]
-    : [
-        {
-          icon: FileText,
-          label: "Sales Quotation",
-          active: hasDoc1,
-          items: data.salesQuotation,
-          linkPrefix: "/sales/quotations",
-        },
-        {
-          icon: ShoppingCart,
-          label: "Sales Order",
-          active: hasDoc2,
-          items: data.salesOrder,
-          linkPrefix: "/sales/orders",
-        },
-        {
-          icon: FileSpreadsheet,
-          label: "A/R Invoice",
-          active: hasDoc3,
-          items: data.arInvoice,
-          linkPrefix: "/sales/ar-invoice",
-        },
-        {
-          icon: Undo2,
-          label: "A/R Credit Memo",
-          active: hasDoc4,
-          items: data.arCreditMemo,
-          linkPrefix: "/sales/ar-credit-memo",
-        },
-        {
-          icon: Banknote,
-          label: "Incoming Payment",
-          active: hasDoc5,
-          items: data.incomingPayment,
-          linkPrefix: "/sales/incoming-payment",
-        },
-      ];
+    : isIcSalesMap
+      ? icSalesNodes
+      : standardSalesNodes;
+
+  const mapMinWidth = isIcSalesMap
+    ? compact
+      ? "min-w-[280px]"
+      : "min-w-[360px]"
+    : compact
+      ? "min-w-[400px]"
+      : "min-w-[600px]";
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${compact ? "min-w-[400px] px-4 py-2.5" : "min-w-[600px] p-6"}`}
+      className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${mapMinWidth} ${compact ? "px-4 py-2.5" : "p-6"}`}
     >
       <h3
         className={`font-semibold text-slate-800 ${compact ? "text-[11px] mb-2" : "text-sm mb-6"}`}
@@ -309,6 +365,7 @@ export function RelationshipMapTracker({
                 items={node.items}
                 linkPrefix={node.linkPrefix}
                 compact={compact}
+                {...("buildLink" in node ? { buildLink: node.buildLink } : {})}
               />
             </React.Fragment>
           );

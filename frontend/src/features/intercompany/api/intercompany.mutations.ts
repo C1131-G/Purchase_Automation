@@ -74,14 +74,15 @@ export function useUpdateIcRfq() {
   });
 }
 
-/** POST /rfqs/:id/submit — seller submits DRAFT RFQ. */
+/** POST /rfqs/:id/submit — seller submits DRAFT RFQ (optional lines in same request). */
 export function useSubmitIcRfq() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (rfqId: number) => intercompanyAPI.submitRfq(rfqId),
-    onSuccess: (_data, rfqId) => {
-      void invalidateRfqCaches(queryClient, rfqId);
+    mutationFn: ({ body, rfqId }: { rfqId: number; body?: IcUpdateRfqBody }) =>
+      intercompanyAPI.submitRfq(rfqId, body),
+    onSuccess: (_data, variables) => {
+      void invalidateRfqCaches(queryClient, variables.rfqId);
     },
   });
 }

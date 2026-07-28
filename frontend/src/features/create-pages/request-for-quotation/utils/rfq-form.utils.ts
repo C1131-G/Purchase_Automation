@@ -100,20 +100,20 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
   return [...lines]
     .sort((a, b) => a.lineNum - b.lineNum)
     .map((line) => {
-      const quotedQty = qty(line.quantity);
+      // Quoted qty/date stay empty until seller fills them — never copy from required.
+      const quantity = qty(line.quantity);
       const requiredQty =
         line.requiredQuantity !== null &&
         line.requiredQuantity !== undefined &&
         Number.isFinite(line.requiredQuantity)
           ? Number(line.requiredQuantity)
-          : quotedQty;
-      // Quoted qty for totals: prefer stored quoted; if only required was snapshotted, start equal.
-      const quantity = quotedQty > 0 ? quotedQty : requiredQty;
+          : 0;
       const unitPrice = price(line.unitPrice);
       const discountPercent = disc(line.discount);
       const gross = unitPrice * quantity;
       const discountAmount =
         discountPercent > 0 ? Math.round(((gross * discountPercent) / 100) * 100) / 100 : 0;
+      // deliveryDate is quoted date only (not required date).
       const quotedDate = toDateInputValue(line.deliveryDate);
       const requiredDate = toDateInputValue(line.requiredDate);
       const itemCode = String(line.itemCode ?? "").trim();
@@ -132,12 +132,12 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
         quantity,
         requiredDate: requiredDate || undefined,
         // Buyer snapshot — stay locked; do not update when seller revises quoted qty.
-        requiredQuantity: requiredQty > 0 ? requiredQty : quantity,
+        requiredQuantity: requiredQty,
         quotedDate: quotedDate || undefined,
         stock: 0,
         taxRate: 0,
         uomCode: String(line.uomCode ?? "").trim() || undefined,
-        vatGroup: String(line.taxCode ?? "").trim(),
+        vatGroup: "",
         warehouseCode: String(line.warehouse ?? "").trim(),
       } satisfies ProductRow;
     });

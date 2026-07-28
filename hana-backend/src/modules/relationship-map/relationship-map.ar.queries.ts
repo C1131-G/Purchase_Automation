@@ -1,4 +1,5 @@
 import type { NodeResult, RelationshipMapResult } from "./relationship-map.types";
+import { resolveIcRfqForSalesQuotation } from "./relationship-map.ic.queries";
 import { getTenantRepository } from "@/db/tenant-query";
 import { ARInvoiceSchema } from "@/db/schemas/ar-invoice.schema";
 import { logger } from "@/core/logger/pino-logger";
@@ -42,20 +43,19 @@ export const getARRelationshipMap = async (
       ];
     };
 
-    // Depending on start node, resolve initial arrays
+    // Seller SQ map: RFQ → SQ only (no downstream SAP chain).
     if (docType === "sales-quotation") {
-      currentSQs = [docEntry];
-      // Down to SO
-      const sqlQuery = `SELECT DISTINCT "DocEntry" FROM "RDR1" WHERE "BaseType" = 23 AND "BaseEntry" IN (${docEntry})`;
-      const rows = await manager.query(sqlQuery);
-      currentSOs = extractIds(rows, "DocEntry");
-
-      if (currentSOs.length > 0) {
-        const invoiceSql = `SELECT DISTINCT "DocEntry" FROM "INV1" WHERE "BaseType" = 17 AND "BaseEntry" IN (${currentSOs.join(",")})`;
-        const invs = await manager.query(invoiceSql);
-        currentInvs = extractIds(invs, "DocEntry");
+      const requestForQuotation = await resolveIcRfqForSalesQuotation(dbName, docEntry);
+      const salesQuotation = await getDocNums("OQUT", [docEntry]);
+      result.salesQuotation = salesQuotation;
+      if (requestForQuotation.length > 0) {
+        result.requestForQuotation = requestForQuotation;
       }
-    } else if (docType === "sales-order") {
+      return result;
+    }
+
+    // Depending on start node, resolve initial arrays
+    if (docType === "sales-order") {
       currentSOs = [docEntry];
       // Up to SQ
       const qUp = `SELECT DISTINCT "BaseEntry" FROM "RDR1" WHERE "BaseType" = 23 AND "DocEntry" IN (${docEntry})`;

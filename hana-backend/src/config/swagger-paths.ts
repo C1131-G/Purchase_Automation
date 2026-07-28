@@ -151,7 +151,7 @@ export const registerAllPaths = () => {
     operationId: "getDashboardOverview",
     summary: "Overview dashboard",
     description:
-      "Unified post-login overview: open PQ/SQ/PO, AR approval pending (OWDD ObjType 13), IC partners (IC_BP_MAPPING), statement balance + open-invoice aging for connected cards.",
+      "Unified post-login overview: open PQ/SQ/PO, AR invoice drafts (ODRF ObjType 13), IC partners (IC_BP_MAPPING), statement balance + open-invoice aging for connected cards.",
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Overview dashboard payload." }),
   });

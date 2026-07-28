@@ -4,6 +4,10 @@ import {
   type PartnerWarehouseMasters,
 } from "@/modules/intercompany/config/warehouse/partner-warehouse.masters";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
+import {
+  flow1LineTaxUsage,
+  type IcLineTaxUsage,
+} from "@/modules/intercompany/infrastructure/ic-tax-usage";
 import type {
   IcSlDocumentResult,
   IcSlDocuments,
@@ -22,6 +26,12 @@ export type ResolveSqLineWarehouse = (input: { itemCode: string }) => Promise<st
  * - VatGroup only when resolver returns a **seller** tax code (never buyer tax).
  * - Warehouse: never copy buyer WH; when multi-branch, set seller WH that matches document BPL.
  */
+export type BuildSqLinesResult = {
+  documentLines: Record<string, unknown>[];
+  /** Explicit PQ vs SQ tax per line (what IC used). */
+  taxUsage: IcLineTaxUsage[];
+};
+
 export const buildSalesQuotationLines = async (
   lines: IcRfqLine[],
   resolveLineTax: ResolveSqLineTax,
@@ -31,19 +41,30 @@ export const buildSalesQuotationLines = async (
     /** Prefer item default WH when it is on the same branch. */
     resolveLineWarehouse?: ResolveSqLineWarehouse;
   },
-): Promise<Record<string, unknown>[]> => {
+): Promise<BuildSqLinesResult> => {
   const branchWh = options?.branchWarehouseCode?.trim() || null;
   const resolveLineWarehouse = options?.resolveLineWarehouse;
-  const result: Record<string, unknown>[] = [];
+  const documentLines: Record<string, unknown>[] = [];
+  const taxUsage: IcLineTaxUsage[] = [];
 
   for (const line of lines) {
-    const sourceTax = line.taxCode?.trim() ?? "";
-    const targetTax = (
+    // PQ tax = buyer RFQ/PQ purchase tax (source snapshot; never posted on seller SQ).
+    const pqTaxCode = line.taxCode?.trim() || line.pqTaxCode?.trim() || "";
+    const sqTaxCode = (
       await resolveLineTax({
         itemCode: line.itemCode ?? "",
-        sourceTaxCode: sourceTax,
+        sourceTaxCode: pqTaxCode,
       })
     ).trim();
+
+    taxUsage.push(
+      flow1LineTaxUsage({
+        itemCode: line.itemCode,
+        lineNum: line.lineNum,
+        pqTaxCode,
+        sqTaxCode,
+      }),
+    );
 
     const docLine: Record<string, unknown> = {
       DiscountPercent: line.discount ?? 0,
@@ -53,8 +74,8 @@ export const buildSalesQuotationLines = async (
     };
     // Only set when resolved to a real seller VAT group. Empty → omit so SAP
     // uses customer/item default tax (avoids "Invalid VAT Group" from buyer codes).
-    if (targetTax) {
-      docLine.VatGroup = targetTax;
+    if (sqTaxCode) {
+      docLine.VatGroup = sqTaxCode;
     }
 
     const itemWh = resolveLineWarehouse
@@ -72,9 +93,9 @@ export const buildSalesQuotationLines = async (
     if (line.deliveryDate) {
       docLine.ShipDate = line.deliveryDate;
     }
-    result.push(docLine);
+    documentLines.push(docLine);
   }
-  return result;
+  return { documentLines, taxUsage };
 };
 
 /**
@@ -111,19 +132,25 @@ export const resolveSqWarehouseContext = async (params: {
   };
 };
 
+export type CreateSellerSqResult = IcSlDocumentResult & {
+  taxUsage: IcLineTaxUsage[];
+};
+
 export const createSellerSq = async (params: {
   documents: IcSlDocuments;
   sellerCompanyId: number;
   buyerCustomerCode: string;
   lines: IcRfqLine[];
   remarks: string;
+  /** Buyer PQ draft vendor ref (NumAtCard) — set on seller SQ. */
+  numAtCard?: string | null;
   resolveLineTax: ResolveSqLineTax;
   /** IC_COMPANY.DEFAULT_BRANCH_ID for seller — required when multi-branch is active. */
   defaultBranchId?: number | null;
   /** Seller SAP company DB (IC_COMPANY.SAP_DB_NAME) for OWHS lookup. */
   sapDbName?: string | null;
   warehouseMasters?: PartnerWarehouseMasters;
-}): Promise<IcSlDocumentResult> => {
+}): Promise<CreateSellerSqResult> => {
   const warehouseCtx = await resolveSqWarehouseContext({
     defaultBranchId: params.defaultBranchId,
     sapDbName: params.sapDbName,
@@ -144,10 +171,14 @@ export const createSellerSq = async (params: {
     );
   }
 
-  const documentLines = await buildSalesQuotationLines(params.lines, params.resolveLineTax, {
-    branchWarehouseCode: warehouseCtx.branchWarehouseCode,
-    resolveLineWarehouse: warehouseCtx.resolveLineWarehouse,
-  });
+  const { documentLines, taxUsage } = await buildSalesQuotationLines(
+    params.lines,
+    params.resolveLineTax,
+    {
+      branchWarehouseCode: warehouseCtx.branchWarehouseCode,
+      resolveLineWarehouse: warehouseCtx.resolveLineWarehouse,
+    },
+  );
 
   icLog.info(IC_LOG_SCOPE.FLOW1, "Flow 1 SQ lines prepared for seller", {
     branchWarehouseCode: warehouseCtx.branchWarehouseCode,
@@ -157,7 +188,10 @@ export const createSellerSq = async (params: {
     lines: documentLines.map((line, index) => ({
       itemCode: line.ItemCode ?? null,
       lineNum: index,
+      // Explicit names — which tax each document type uses.
+      pqTaxCode: taxUsage[index]?.pqTaxCode ?? null,
       quantity: line.Quantity ?? null,
+      sqTaxCode: taxUsage[index]?.sqTaxCode ?? line.VatGroup ?? null,
       unitPrice: line.UnitPrice ?? null,
       vatGroup: line.VatGroup ?? null,
       warehouseCode: line.WarehouseCode ?? null,
@@ -165,13 +199,16 @@ export const createSellerSq = async (params: {
     outcome: "pass",
     sapDbName: params.sapDbName ?? null,
     sellerCompanyId: params.sellerCompanyId,
+    taxUsage,
   });
 
-  return params.documents.createSalesQuotation({
+  const created = await params.documents.createSalesQuotation({
     cardCode: params.buyerCustomerCode,
     companyId: params.sellerCompanyId,
     defaultBranchId: params.defaultBranchId,
     lines: documentLines,
+    numAtCard: params.numAtCard ?? null,
     remarks: params.remarks,
   });
+  return { ...created, taxUsage };
 };

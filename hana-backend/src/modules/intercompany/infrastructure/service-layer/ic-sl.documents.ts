@@ -26,6 +26,11 @@ export type CreateSalesQuotationInput = {
   lines: unknown[];
   remarks?: string;
   /**
+   * Buyer PQ draft / PO vendor reference (NumAtCard). Prefer this over IC chain text.
+   * SAP field is short (≤100).
+   */
+  numAtCard?: string | null;
+  /**
    * Seller multi-branch companies require BPL_IDAssignedToInvoice (OQUT.BPLId).
    * From IC_COMPANY.DEFAULT_BRANCH_ID (same as AR draft Flow 2).
    */
@@ -162,12 +167,24 @@ export type GetDraftCommentsInput = {
   draftEntry: number;
 };
 
+export type DraftHeaderFields = {
+  /** Parent typed Comments (user text + any prior IC lines). */
+  comments: string | null;
+  /** Buyer vendor ref no (NumAtCard) — must carry to seller SQ. */
+  numAtCard: string | null;
+};
+
 export type IcSlDocuments = {
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
   createSalesQuotation: (input: CreateSalesQuotationInput) => Promise<IcSlDocumentResult>;
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
   applyPricesToDraft: (input: ApplyPricesToDraftInput) => Promise<void>;
-  /** Buyer draft Comments for IC remarks merge (parent typed text). */
+  /**
+   * One GET for convert: parent Comments + NumAtCard.
+   * Parent remarks stay via applyPrices PATCH merge; this feeds SQ remarks + vendor ref.
+   */
+  getDraftHeaderFields: (input: GetDraftCommentsInput) => Promise<DraftHeaderFields>;
+  /** @deprecated Prefer getDraftHeaderFields — kept for older call sites / tests. */
   getDraftComments: (input: GetDraftCommentsInput) => Promise<string | null>;
 };
 
@@ -236,38 +253,49 @@ export const createIcSlDocuments = (deps?: {
     });
   };
 
-  return {
-    getDraftComments: async (input) => {
-      const { connection, session: slSession } = await withCompanySession(input.companyId);
-      const endpoint = `/Drafts(${input.draftEntry})?$select=Comments`;
-      logSlRequest({
-        companyId: input.companyId,
+  const getDraftHeaderFields = async (input: GetDraftCommentsInput): Promise<DraftHeaderFields> => {
+    const { connection, session: slSession } = await withCompanySession(input.companyId);
+    const endpoint = `/Drafts(${input.draftEntry})?$select=Comments,NumAtCard`;
+    logSlRequest({
+      companyId: input.companyId,
+      endpoint,
+      method: "GET",
+    });
+    try {
+      const response = await client.request<Record<string, unknown>>({
+        connection,
         endpoint,
         method: "GET",
+        session: slSession,
       });
-      try {
-        const response = await client.request<Record<string, unknown>>({
-          connection,
-          endpoint,
-          method: "GET",
-          session: slSession,
-        });
-        const comments = response.data?.Comments;
-        if (comments === null || comments === undefined) {
-          return null;
-        }
-        const text = String(comments).trim();
-        return text || null;
-      } catch (err: unknown) {
-        logSlFailure({
-          companyId: input.companyId,
-          endpoint,
-          err,
-          method: "GET",
-        });
-        // Best-effort: convert can still proceed with RFQ remarks only.
-        return null;
-      }
+      const commentsRaw = response.data?.Comments;
+      const numAtCardRaw = response.data?.NumAtCard;
+      const comments =
+        commentsRaw === null || commentsRaw === undefined
+          ? null
+          : String(commentsRaw).trim() || null;
+      const numAtCard =
+        numAtCardRaw === null || numAtCardRaw === undefined
+          ? null
+          : String(numAtCardRaw).trim() || null;
+      return { comments, numAtCard };
+    } catch (err: unknown) {
+      logSlFailure({
+        companyId: input.companyId,
+        endpoint,
+        err,
+        method: "GET",
+      });
+      // Best-effort: convert can still proceed with RFQ remarks only.
+      return { comments: null, numAtCard: null };
+    }
+  };
+
+  return {
+    getDraftHeaderFields,
+    getDraftComments: async (input) => {
+      const fields = await getDraftHeaderFields(input);
+      return fields.comments;
     },
 
     applyPricesToDraft: async (input) => {
@@ -578,13 +606,9 @@ export const createIcSlDocuments = (deps?: {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = "/Quotations";
       const remarksFull = input.remarks?.trim() || "";
-      // NumAtCard is short (often ≤100); keep compact first IC line or full if short.
-      const numAtCard =
-        remarksFull
-          .split("\n")
-          .map((line) => line.trim())
-          .find((line) => line.startsWith("IC |"))
-          ?.slice(0, 100) || remarksFull.slice(0, 100);
+      // Prefer buyer vendor ref (parent NumAtCard). Never stuff full IC remarks into NumAtCard.
+      const vendorRef = input.numAtCard != null ? String(input.numAtCard).trim() : "";
+      const numAtCard = (vendorRef || "").slice(0, 100);
       const body: Record<string, unknown> = {
         CardCode: input.cardCode,
         Comments: remarksFull,
@@ -624,6 +648,7 @@ export const createIcSlDocuments = (deps?: {
         bplId: body.BPL_IDAssignedToInvoice ?? null,
         cardCode: input.cardCode,
         lines: lineSnap,
+        numAtCard: body.NumAtCard ?? null,
         outcome: "pass",
         remarks: input.remarks,
       });

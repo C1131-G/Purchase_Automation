@@ -84,6 +84,38 @@ export const createMemorySqlClient = (
 
     if (
       statement.includes('FROM "IC_DOCUMENT_MAPPING"') &&
+      statement.includes("TARGET_COMPANY_ID") &&
+      statement.includes("SOURCE_OBJECT")
+    ) {
+      const [targetCompanyId, targetObject, targetDocEntry, sourceObject] = params;
+      return db.tables.IC_DOCUMENT_MAPPING.filter(
+        (row) =>
+          row.TARGET_COMPANY_ID === targetCompanyId &&
+          row.TARGET_OBJECT === targetObject &&
+          row.TARGET_DOC_ENTRY === String(targetDocEntry) &&
+          row.SOURCE_OBJECT === sourceObject,
+      )
+        .sort((left, right) => Number(right.MAPPING_ID) - Number(left.MAPPING_ID))
+        .map(clone) as T[];
+    }
+
+    if (
+      statement.includes('FROM "IC_DOCUMENT_MAPPING"') &&
+      statement.includes("TARGET_COMPANY_ID")
+    ) {
+      const [targetCompanyId, targetObject, targetDocEntry] = params;
+      return db.tables.IC_DOCUMENT_MAPPING.filter(
+        (row) =>
+          row.TARGET_COMPANY_ID === targetCompanyId &&
+          row.TARGET_OBJECT === targetObject &&
+          row.TARGET_DOC_ENTRY === String(targetDocEntry),
+      )
+        .sort((left, right) => Number(right.MAPPING_ID) - Number(left.MAPPING_ID))
+        .map(clone) as T[];
+    }
+
+    if (
+      statement.includes('FROM "IC_DOCUMENT_MAPPING"') &&
       statement.includes("SOURCE_COMPANY_ID") &&
       statement.includes("TARGET_OBJECT")
     ) {

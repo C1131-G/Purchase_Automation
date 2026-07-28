@@ -3,9 +3,39 @@ import { describe, expect, it } from "vitest";
 import {
   isPendingOwddStatus,
   mapArApprovalRow,
+  mapArInvoiceDraftRow,
   mapOwddStatusLabel,
   pickRowField,
 } from "@/modules/dashboard/dashboard.ar-approval.queries";
+
+describe("overview AR invoice draft mapping", () => {
+  it("maps ODRF AR invoice draft row", () => {
+    const item = mapArInvoiceDraftRow({
+      DocEntry: 9001,
+      DocNum: 12045,
+      CardCode: "C1000",
+      CardName: "Ajax Trading",
+      DocTotal: 1500.5,
+      DocDate: "2026-07-01",
+      CreateDate: "2026-07-01",
+      UserSign: 3,
+      AgeDays: 3,
+    });
+
+    expect(item).toMatchObject({
+      docEntry: 9001,
+      docNum: 12045,
+      isDraft: true,
+      cardCode: "C1000",
+      cardName: "Ajax Trading",
+      docTotal: 1500.5,
+      docDate: "2026-07-01",
+      status: "Draft",
+      ageDays: 3,
+      wddCode: 9001,
+    });
+  });
+});
 
 describe("overview AR approval OWDD mapping (P3)", () => {
   it("maps pending draft row with mixed-case columns", () => {

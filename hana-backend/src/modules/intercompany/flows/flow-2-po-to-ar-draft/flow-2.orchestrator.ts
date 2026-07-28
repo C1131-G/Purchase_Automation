@@ -82,6 +82,8 @@ const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
     const uomCode = line.UoMCode ?? line.UomCode;
     const uomEntry = line.UoMEntry ?? line.UomEntry;
     return compactLogRow({
+      // AR invoice tax = seller sales tax on the draft line.
+      arTaxCode: line.VatGroup == null ? undefined : String(line.VatGroup),
       itemCode: String(line.ItemCode ?? "").trim() || undefined,
       itemDescription: itemDescription || undefined,
       lineNum: line.LineNum ?? index,
@@ -105,6 +107,8 @@ const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
     items,
     lineCount: lines.length,
     numAtCard: draftPayload.NumAtCard,
+    // Distinct AR tax codes used on this draft.
+    arTaxCodes: vatGroups.length > 0 ? vatGroups : undefined,
     vatGroups: vatGroups.length > 0 ? vatGroups : undefined,
   });
 };

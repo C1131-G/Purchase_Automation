@@ -40,4 +40,35 @@ describe("document-map (T3.5)", () => {
     expect(second.targetDocEntry).toBe("200");
     expect(db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
   });
+
+  it("findByTarget resolves seller SQ back to IC RFQ", async () => {
+    const db = createMemoryDb();
+    const sql = createMemorySqlClient(db);
+    const queries = createDocumentMapQueries(sql);
+
+    await createDocumentMapService({
+      mutations: createDocumentMapMutations(sql),
+      queries,
+    }).create({
+      sourceCompanyId: 1,
+      sourceDocEntry: "42",
+      sourceDocNum: "9001",
+      sourceObject: IC_OBJECT.RFQ,
+      status: IC_DOC_MAP_STATUS.SUCCESS,
+      targetCompanyId: 2,
+      targetDocEntry: "8100",
+      targetDocNum: "810",
+      targetObject: IC_OBJECT.SQ,
+    });
+
+    const map = await queries.findByTarget({
+      sourceObject: IC_OBJECT.RFQ,
+      targetCompanyId: 2,
+      targetDocEntry: "8100",
+      targetObject: IC_OBJECT.SQ,
+    });
+
+    expect(map?.sourceDocEntry).toBe("42");
+    expect(map?.sourceDocNum).toBe("9001");
+  });
 });

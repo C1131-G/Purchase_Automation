@@ -1,0 +1,2674 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Intercompany (IC) Automation - Explained</title>
+    <meta
+      name="description"
+      content="Technical guide to Intercompany (IC): Flow 1 PQ→RFQ→PQ+SQ, Flow 2 PO→AR Draft, OVTG tax rate matching, IC_DOCUMENT_MAPPING relationship maps, remarks chain, retry worker."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --primary: #6c3de8;
+        --primary-light: #8b5cf6;
+        --accent: #f59e0b;
+        --accent2: #10b981;
+        --bg: #05050f;
+        --bg2: #0a0a1f;
+        --card: #0e0e22;
+        --glass: rgba(255, 255, 255, 0.04);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --text: #f0f0ff;
+        --muted: #8888aa;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        overflow-x: hidden;
+      }
+      .orb {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(130px);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .orb1 {
+        width: 600px;
+        height: 600px;
+        background: rgba(108, 61, 232, 0.18);
+        top: -120px;
+        left: -180px;
+      }
+      .orb2 {
+        width: 500px;
+        height: 500px;
+        background: rgba(245, 158, 11, 0.07);
+        top: 40%;
+        right: -160px;
+      }
+      .orb3 {
+        width: 400px;
+        height: 400px;
+        background: rgba(16, 185, 129, 0.07);
+        bottom: 0;
+        left: 30%;
+      }
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(20px);
+        background: rgba(5, 5, 15, 0.88);
+        border-bottom: 1px solid var(--glass-border);
+        padding: 0 2rem;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .nav-logo {
+        font-family: "Outfit", sans-serif;
+        font-size: 1.22rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #a78bfa, #6c3de8, #f59e0b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        white-space: nowrap;
+      }
+      .nav-links {
+        display: flex;
+        gap: 1.5rem;
+      }
+      .nav-links a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.79rem;
+        font-weight: 500;
+        transition: color 0.2s;
+        white-space: nowrap;
+      }
+      .nav-links a:hover {
+        color: #a78bfa;
+      }
+      .nav-btn {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: #fff;
+        padding: 0.45rem 1.3rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      section {
+        position: relative;
+        z-index: 1;
+      }
+      .hero {
+        min-height: 92vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 7rem 2rem 4rem;
+        position: relative;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 80% 60% at 50% 30%,
+          rgba(108, 61, 232, 0.22) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      @keyframes fid {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fiu {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fi {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(1.5);
+        }
+      }
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(108, 61, 232, 0.15);
+        border: 1px solid rgba(108, 61, 232, 0.4);
+        padding: 0.4rem 1.2rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #c4b5fd;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 2rem;
+        animation: fid 0.6s ease;
+      }
+      .hbd {
+        width: 7px;
+        height: 7px;
+        background: var(--accent);
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+      }
+      h1 {
+        font-family: "Outfit", sans-serif;
+        font-size: clamp(2.4rem, 6vw, 4.4rem);
+        font-weight: 900;
+        line-height: 1.08;
+        letter-spacing: -2px;
+        margin-bottom: 1.5rem;
+        animation: fiu 0.7s ease 0.1s both;
+      }
+      h1 span {
+        background: linear-gradient(135deg, #a78bfa 0%, #6c3de8 40%, #f59e0b 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .hsub {
+        font-size: clamp(1rem, 2vw, 1.16rem);
+        color: var(--muted);
+        max-width: 780px;
+        line-height: 1.7;
+        margin: 0 auto 3rem;
+        animation: fiu 0.7s ease 0.2s both;
+      }
+      .hcta {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        animation: fiu 0.7s ease 0.3s both;
+      }
+      .btn-p {
+        background: linear-gradient(135deg, var(--primary), #7c3aed);
+        color: #fff;
+        padding: 0.9rem 2.4rem;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+        box-shadow: 0 8px 30px rgba(108, 61, 232, 0.4);
+        display: inline-block;
+      }
+      .btn-p:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 40px rgba(108, 61, 232, 0.55);
+      }
+      .btn-o {
+        background: transparent;
+        color: var(--text);
+        padding: 0.9rem 2.4rem;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border: 1px solid var(--glass-border);
+        cursor: pointer;
+        text-decoration: none;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+        display: inline-block;
+      }
+      .btn-o:hover {
+        border-color: var(--primary-light);
+        background: rgba(108, 61, 232, 0.08);
+      }
+      .stats-bar {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 4rem;
+        animation: fi 0.8s ease 0.5s both;
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        overflow: hidden;
+        max-width: 1020px;
+        width: 100%;
+      }
+      .si {
+        text-align: center;
+        padding: 1.5rem 1.4rem;
+        border-right: 1px solid var(--glass-border);
+        flex: 1;
+        min-width: 115px;
+      }
+      .si:last-child {
+        border-right: none;
+      }
+      .sn {
+        font-family: "Outfit", sans-serif;
+        font-size: 2rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #a78bfa, #f59e0b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .sl {
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-top: 0.2rem;
+        font-weight: 500;
+      }
+      .sw {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 5rem 2rem;
+      }
+      .stag {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--primary-light);
+        margin-bottom: 0.8rem;
+      }
+      h2 {
+        font-family: "Outfit", sans-serif;
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -1px;
+        margin-bottom: 1rem;
+      }
+      h3 {
+        font-family: "Outfit", sans-serif;
+        font-size: 1.22rem;
+        font-weight: 700;
+        margin: 2.6rem 0 1rem;
+        color: #d8ccff;
+      }
+      .ssub {
+        color: var(--muted);
+        font-size: 1.01rem;
+        max-width: 760px;
+        line-height: 1.7;
+      }
+      .divider {
+        width: 60px;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        margin: 1rem 0 1.5rem;
+      }
+      .alt {
+        background: var(--bg2);
+        border-top: 1px solid var(--glass-border);
+        border-bottom: 1px solid var(--glass-border);
+      }
+      code.ic {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.86em;
+        color: #c4b5fd;
+        background: rgba(108, 61, 232, 0.12);
+        padding: 0.1rem 0.4rem;
+        border-radius: 6px;
+      }
+      /* --- code / diagram blocks --- */
+      .cb {
+        background: #07071a;
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 1.4rem 1.6rem;
+        margin-top: 1.6rem;
+        overflow-x: auto;
+        position: relative;
+      }
+      .cb::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        border-radius: 16px 16px 0 0;
+        background: var(--al, linear-gradient(90deg, #6c3de8, #a78bfa));
+      }
+      .cb pre {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.76rem;
+        line-height: 1.6;
+        color: #b8b8d9;
+        white-space: pre;
+      }
+      .cb .cm {
+        color: #5b5b80;
+      }
+      .cb .hl {
+        color: #a78bfa;
+        font-weight: 600;
+      }
+      .cb .hl2 {
+        color: #f59e0b;
+        font-weight: 600;
+      }
+      .cb .hl3 {
+        color: #10b981;
+        font-weight: 600;
+      }
+      /* --- generic cards / grids --- */
+      .cg {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.2rem;
+        margin-top: 2.2rem;
+      }
+      .cc {
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s,
+          border-color 0.2s;
+      }
+      .cc:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        border-color: rgba(108, 61, 232, 0.25);
+      }
+      .ct {
+        font-weight: 700;
+        font-size: 0.92rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .cd {
+        font-size: 0.8rem;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      /* --- DB table cards --- */
+      .tbg {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 1.2rem;
+        margin-top: 2.2rem;
+      }
+      .tbc {
+        background: var(--card);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 1.4rem;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s,
+          border-color 0.2s;
+        position: relative;
+        overflow: hidden;
+      }
+      .tbc::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: var(--al, linear-gradient(90deg, #6c3de8, #a78bfa));
+      }
+      .tbc:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 14px 44px rgba(0, 0, 0, 0.4);
+        border-color: rgba(108, 61, 232, 0.25);
+      }
+      .tbh {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        margin-bottom: 0.9rem;
+        flex-wrap: wrap;
+      }
+      .tbn {
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #e8e4ff;
+      }
+      .bdg {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding: 0.22rem 0.7rem;
+        border-radius: 999px;
+      }
+      .bc {
+        background: rgba(108, 61, 232, 0.16);
+        color: #a78bfa;
+      }
+      .br {
+        background: rgba(16, 185, 129, 0.14);
+        color: #10b981;
+      }
+      .bs {
+        background: rgba(245, 158, 11, 0.14);
+        color: #f59e0b;
+      }
+      .ba {
+        background: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+      }
+      .bx {
+        background: rgba(239, 68, 68, 0.14);
+        color: #f87171;
+      }
+      .trow {
+        display: flex;
+        gap: 0.6rem;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        margin-bottom: 0.55rem;
+      }
+      .tk {
+        flex-shrink: 0;
+        width: 74px;
+        font-weight: 700;
+        color: #c4b5fd;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding-top: 0.1rem;
+      }
+      .tv {
+        color: var(--muted);
+      }
+      .cols {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .col {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.66rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        color: #b8b8d9;
+        padding: 0.14rem 0.5rem;
+        border-radius: 6px;
+      }
+      .col.pk {
+        background: rgba(108, 61, 232, 0.14);
+        border-color: rgba(108, 61, 232, 0.35);
+        color: #c4b5fd;
+      }
+      /* --- flow pipeline --- */
+      .pf {
+        display: flex;
+        gap: 0;
+        margin-top: 3rem;
+        position: relative;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+      }
+      .pf::before {
+        content: "";
+        position: absolute;
+        top: 34px;
+        left: 40px;
+        right: 40px;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--primary),
+          var(--accent),
+          var(--accent2),
+          transparent
+        );
+        z-index: 0;
+      }
+      .pst {
+        flex: 1;
+        min-width: 165px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.8rem;
+        position: relative;
+        z-index: 1;
+        padding: 0 0.6rem;
+      }
+      .pi {
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.45rem;
+        border: 2px solid var(--glass-border);
+        background: var(--card);
+        box-shadow: 0 0 25px var(--psg, rgba(108, 61, 232, 0.25));
+      }
+      .ptn {
+        font-weight: 700;
+        font-size: 0.83rem;
+      }
+      .pts {
+        font-size: 0.72rem;
+        color: var(--muted);
+        max-width: 175px;
+        line-height: 1.55;
+      }
+      .pss {
+        padding: 0.18rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.64rem;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .sd {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+      }
+      .sw2 {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+      }
+      .sp {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+      }
+      .sv {
+        background: rgba(108, 61, 232, 0.18);
+        color: #a78bfa;
+      }
+      /* --- data tables --- */
+      .vtw {
+        margin-top: 2rem;
+        overflow-x: auto;
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+      }
+      .vt {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+      .vt th {
+        padding: 0.9rem 1.2rem;
+        text-align: left;
+        font-weight: 700;
+        font-size: 0.78rem;
+        background: rgba(108, 61, 232, 0.1);
+        color: #c4b5fd;
+        white-space: nowrap;
+      }
+      .vt td {
+        padding: 0.8rem 1.2rem;
+        border-top: 1px solid var(--glass-border);
+        color: var(--muted);
+        vertical-align: top;
+        line-height: 1.55;
+      }
+      .vt tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .vt td b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .vt td code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.74rem;
+        color: #a78bfa;
+        background: rgba(108, 61, 232, 0.1);
+        padding: 0.08rem 0.38rem;
+        border-radius: 5px;
+        white-space: nowrap;
+      }
+      .chk {
+        color: #10b981;
+        font-weight: 700;
+      }
+      .crs {
+        color: #ef4444;
+        font-weight: 700;
+      }
+      .prt {
+        color: #f59e0b;
+        font-weight: 700;
+      }
+      /* --- callout notes --- */
+      .note {
+        display: flex;
+        gap: 0.9rem;
+        border-radius: 14px;
+        padding: 1.1rem 1.3rem;
+        margin-top: 1.6rem;
+        font-size: 0.84rem;
+        line-height: 1.6;
+        border: 1px solid;
+      }
+      .note .ni {
+        font-size: 1.15rem;
+        flex-shrink: 0;
+      }
+      .nw {
+        background: rgba(245, 158, 11, 0.07);
+        border-color: rgba(245, 158, 11, 0.3);
+        color: #e8d5b5;
+      }
+      .ng {
+        background: rgba(16, 185, 129, 0.06);
+        border-color: rgba(16, 185, 129, 0.3);
+        color: #c5e8da;
+      }
+      .nr {
+        background: rgba(239, 68, 68, 0.06);
+        border-color: rgba(239, 68, 68, 0.3);
+        color: #eecaca;
+      }
+      .note code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.78em;
+        background: rgba(255, 255, 255, 0.07);
+        padding: 0.08rem 0.4rem;
+        border-radius: 5px;
+      }
+      .faq {
+        margin-top: 2.5rem;
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .faq > h3 {
+        margin: 0;
+        padding: 1rem 1.25rem;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--primary-light);
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .faq-item {
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .faq-item:last-child {
+        border-bottom: none;
+      }
+      .faq-item summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 1rem 1.25rem;
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: #e8e4ff;
+      }
+      .faq-item summary::-webkit-details-marker {
+        display: none;
+      }
+      .faq-item summary::before {
+        content: "+ ";
+        color: var(--accent);
+        font-weight: 800;
+      }
+      .faq-item[open] summary::before {
+        content: "− ";
+      }
+      .faq-a {
+        padding: 0 1.25rem 1rem 1.25rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .faq-a code {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.86em;
+        color: #c4b5fd;
+      }
+      /* --- state machine --- */
+      .sm {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+        margin-top: 1.8rem;
+      }
+      .st2 {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.6rem 1.1rem;
+        border-radius: 12px;
+        border: 1px solid;
+      }
+      .stw {
+        background: rgba(59, 130, 246, 0.12);
+        border-color: rgba(59, 130, 246, 0.4);
+        color: #93c5fd;
+      }
+      .stp {
+        background: rgba(245, 158, 11, 0.12);
+        border-color: rgba(245, 158, 11, 0.4);
+        color: #fcd34d;
+      }
+      .sts {
+        background: rgba(16, 185, 129, 0.12);
+        border-color: rgba(16, 185, 129, 0.4);
+        color: #6ee7b7;
+      }
+      .std {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.4);
+        color: #fca5a5;
+      }
+      .sar {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      /* --- footer / reveal / responsive --- */
+      footer {
+        border-top: 1px solid var(--glass-border);
+        padding: 2rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+      }
+      .flogo {
+        font-family: "Outfit", sans-serif;
+        font-size: 1.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #a78bfa, #f59e0b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .reveal {
+        opacity: 1;
+        transform: translateY(0);
+        transition:
+          opacity 0.65s ease,
+          transform 0.65s ease;
+      }
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      @media (max-width: 900px) {
+        .nav-links {
+          display: none;
+        }
+      }
+      @media (max-width: 768px) {
+        .pf {
+          flex-direction: column;
+          align-items: center;
+          gap: 1.6rem;
+        }
+        .pf::before {
+          display: none;
+        }
+        .tbg {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+    <nav>
+      <div class="nav-logo">Intercompany Engine &middot; Explained</div>
+      <div class="nav-links">
+        <a href="#arch">Architecture</a>
+        <a href="#tables">DB Tables</a>
+        <a href="#code">Code</a>
+        <a href="#flow1">Flow 1</a>
+        <a href="#flow2">Flow 2</a>
+        <a href="#remarks">Remarks</a>
+        <a href="#relmap">Rel. Map</a>
+        <a href="#retry">Retry</a>
+        <a href="#tax">Tax</a>
+        <a href="#warehouse">Warehouse</a>
+        <a href="#config">Config</a>
+      </div>
+      <a class="nav-btn" href="#tables">Explore Tables</a>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-badge">
+        <span class="hbd"></span>SAP Business One &middot; HANA &middot; SBOCOMMON &middot; Service
+        Layer
+      </div>
+      <h1>Intercompany Automation<br /><span>Company to Company, Zero Touch</span></h1>
+      <p class="hsub">
+        The IC engine inside <code class="ic">hana-backend</code> links every SAP company in the
+        group. A Purchase Quotation draft saved in Company A becomes an RFQ for Company B, converts
+        into a real PQ + Sales Quotation, and a Purchase Order becomes a partner AR Invoice Draft
+        &mdash; automatically, with OVTG tax matching, relationship maps, audit, notification and
+        self-healing retry.
+      </p>
+      <div class="hcta">
+        <a href="#flow1" class="btn-p">See Flow 1 (RFQ Chain)</a>
+        <a href="#tables" class="btn-o">13 IC Tables Explained</a>
+      </div>
+      <div class="stats-bar reveal">
+        <div class="si">
+          <div class="sn">13</div>
+          <div class="sl">IC Tables (SBOCOMMON)</div>
+        </div>
+        <div class="si">
+          <div class="sn">2</div>
+          <div class="sl">Automated Flows</div>
+        </div>
+        <div class="si">
+          <div class="sn">3</div>
+          <div class="sl">Worker Jobs</div>
+        </div>
+        <div class="si">
+          <div class="sn">5</div>
+          <div class="sl">Retry Action Codes</div>
+        </div>
+        <div class="si">
+          <div class="sn">A&ndash;F</div>
+          <div class="sl">Company Participants</div>
+        </div>
+        <div class="si">
+          <div class="sn">P9</div>
+          <div class="sl">Phases Complete</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="arch">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">01 &middot; Big Picture</span>
+          <div class="divider"></div>
+          <h2>How Everything Connects</h2>
+          <p class="ssub">
+            One login = one company. The portal never writes partner SAP directly from the browser
+            &mdash; the Node API reacts to save events, a separate worker is the safety-net, and all
+            shared state lives in <code class="ic">SBOCOMMON</code>.
+          </p>
+        </div>
+        <div class="cb reveal">
+          <pre><span class="cm">┌─────────────────────────────────────────────────────────────┐
+│</span>                    <span class="hl">Web Portal (React)</span>                        <span class="cm">│
+│</span>  One login = one company (<span class="hl3">VST_COMMON</span> / session)           <span class="cm">│
+│</span>  IC Notification page &middot; RFQ fill &middot; Convert &middot; PO create    <span class="cm">│
+└────────────────────────────┬────────────────────────────────┘</span>
+                             <span class="cm">│</span>  hooks: <span class="hl2">afterPqDraftSaved</span> / <span class="hl2">afterPoCreated</span>
+                             <span class="cm">▼</span>
+<span class="cm">┌─────────────────────────────────────────────────────────────┐
+│</span>              <span class="hl">Node.js API  +  IC Worker (separate)</span>            <span class="cm">│
+│</span>  Business logic &middot; event on save &middot; cron safety-net &middot; retry  <span class="cm">│
+└───────┬─────────────────────┬─────────────────────┬─────────┘</span>
+        <span class="cm">│                     │                     │</span>
+        <span class="cm">▼                     ▼                     ▼</span>
+<span class="cm">┌───────────────┐   ┌─────────────────┐   ┌──────────────────┐
+│</span>  <span class="hl3">SBOCOMMON</span>    <span class="cm">│   │</span> <span class="hl">SAP Service</span>     <span class="cm">│   │</span> <span class="hl2">Background jobs</span>  <span class="cm">│
+│</span>  VST_COMMON   <span class="cm">│   │</span> <span class="hl">Layer (A&ndash;F)</span>    <span class="cm">│   │</span> DETECT_PQ_DRAFT  <span class="cm">│
+│</span>  IC_* tables  <span class="cm">│   │</span> via IC_SAP_    <span class="cm">│   │</span> PROCESS_RETRY    <span class="cm">│
+│</span>  (RFQ, maps)  <span class="cm">│   │</span> CONNECTION     <span class="cm">│   │</span> SESSION_CLEANUP  <span class="cm">│
+└───────────────┘   └─────────────────┘   └──────────────────┘</span></pre>
+        </div>
+        <div class="cg reveal">
+          <div class="cc">
+            <div class="ct">&#128451;&#65039; Portal login store</div>
+            <div class="cd">
+              <code class="ic">VST_COMMON</code> (existing) authenticates users to their own company
+              DB. It is <b>reused, never recreated</b>, and new IC tables deliberately have no FK
+              into it &mdash; only a soft link via <code class="ic">SAP_DB_NAME</code>.
+            </div>
+          </div>
+          <div class="cc">
+            <div class="ct">&#128736;&#65039; IC runtime store</div>
+            <div class="cd">
+              All 13 <code class="ic">IC_*</code> tables live in
+              <code class="ic">SBOCOMMON</code> (the SAP common DB) so one engine sees every
+              company's config, RFQs, mappings, notifications and retry queue over a single
+              connection.
+            </div>
+          </div>
+          <div class="cc">
+            <div class="ct">&#128279; Partner documents</div>
+            <div class="cd">
+              Real SAP documents (SQ, AR Invoice Draft) are created inside each company's own tenant
+              DB through the <b>SAP Service Layer</b>, logged in per company via
+              <code class="ic">IC_SAP_CONNECTION</code>.
+            </div>
+          </div>
+        </div>
+        <div class="faq reveal">
+          <h3>Architecture FAQ</h3>
+          <details class="faq-item">
+            <summary>Why is IC data in SBOCOMMON instead of each company DB?</summary>
+            <div class="faq-a">
+              RFQs, document mappings, notifications and retry rows are <b>cross-company</b>. One
+              shared schema lets the worker and API see every participant without opening six tenant
+              databases for metadata. Real SAP documents (PQ, SQ, AR) still live in each company's
+              own tenant DB via Service Layer.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Can an IC failure block the user's PQ draft or PO save?</summary>
+            <div class="faq-a">
+              No. Hooks <code>afterPqDraftSaved</code> and <code>afterPoCreated</code> return
+              immediately and run flows in the background. A Service Layer timeout on the partner
+              side enqueues <code>IC_RETRY_QUEUE</code> instead of rolling back the buyer document.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>How does the portal know which company I am?</summary>
+            <div class="faq-a">
+              Session <code>dbName</code> maps to <code>IC_COMPANY.SAP_DB_NAME</code>. Every IC API
+              scopes RFQs, notifications and retries to that company ID. Seller actions require
+              <code>TARGET_COMPANY_ID</code>; buyer actions require <code>SOURCE_COMPANY_ID</code>.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="tables">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">02 &middot; Database Layer</span>
+          <div class="divider"></div>
+          <h2>13 IC Tables &mdash; What, Why &amp; How They Connect</h2>
+          <p class="ssub">
+            Every table lives in <code class="ic">SBOCOMMON</code> (SAP HANA common DB).
+            <code class="ic">IC_COMPANY</code> is the hub: almost every table carries a
+            <code class="ic">COMPANY_ID</code> back to it. Entities:
+            <code class="ic">src/modules/intercompany/db/entities/</code>.
+          </p>
+        </div>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #10b981, #34d399)">
+          <pre><span class="hl3">IC_COMPANY</span> <span class="cm">(hub — one row per participant A–F)</span>
+  <span class="cm">├──</span> IC_SAP_CONNECTION.COMPANY_ID          <span class="cm"># how to log into that company's SL</span>
+  <span class="cm">├──</span> IC_BP_MAPPING.BUYER_COMPANY_ID / VENDOR_COMPANY_ID
+  <span class="cm">├──</span> IC_RFQ_HEADER.SOURCE_COMPANY_ID / TARGET_COMPANY_ID
+  <span class="cm">├──</span> IC_DOCUMENT_MAPPING.SOURCE_COMPANY_ID / TARGET_COMPANY_ID
+  <span class="cm">├──</span> IC_NOTIFICATION.COMPANY_ID
+  <span class="cm">├──</span> IC_RETRY_QUEUE.COMPANY_ID
+  <span class="cm">├──</span> IC_SYNC_HISTORY.COMPANY_ID
+  <span class="cm">├──</span> IC_SL_SESSION.COMPANY_ID
+  <span class="cm">├──</span> IC_API_LOG.COMPANY_ID
+  <span class="cm">└──</span> IC_SCHEDULER_JOB.COMPANY_ID <span class="cm">(optional per-company jobs)</span>
+  <span class="cm">~~ soft-link only ~~&gt;</span> VST_COMMON <span class="cm">via SAP_DB_NAME (no FK — portal login untouched)</span></pre>
+        </div>
+        <h3 class="reveal">Configuration tables (seeded once)</h3>
+        <div class="tbg reveal">
+          <div class="tbc">
+            <div class="tbh">
+              <span class="tbn">IC_COMPANY</span><span class="bdg bc">Config</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Config-driven list of IC participants (A&ndash;F) so no company is ever hardcoded
+                in code.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Resolves company code &harr; SAP DB name; holds the default branch for auto-created
+                partner docs; active flag gates the flows.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">COMPANY_ID</span><span class="col">COMPANY_CODE</span
+                ><span class="col">COMPANY_NAME</span><span class="col">SAP_DB_NAME</span
+                ><span class="col">DEFAULT_BRANCH_ID</span><span class="col">IS_ACTIVE</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >Parent of almost every IC table; soft-link to VST_COMMON via SAP_DB_NAME.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #7c3aed, #c084fc)">
+            <div class="tbh">
+              <span class="tbn">IC_SAP_CONNECTION</span><span class="bdg bc">Config</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >The IC engine must log into <b>partner</b> SAP companies &mdash; separate from the
+                portal login (VST_COMMON).</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Service Layer URL, DB name, IC technical username/password per company; bootstraps
+                SL sessions.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">CONNECTION_ID</span><span class="col">COMPANY_ID</span
+                ><span class="col">SERVICE_LAYER_URL</span><span class="col">DATABASE_NAME</span
+                ><span class="col">USERNAME</span><span class="col">PASSWORD</span
+                ><span class="col">IS_DEFAULT</span><span class="col">IS_ACTIVE</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY; consumed by IC_SL_SESSION + IC_API_LOG at runtime.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #8b5cf6, #f472b6)">
+            <div class="tbh">
+              <span class="tbn">IC_BP_MAPPING</span><span class="bdg bc">Config</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Full mesh: A's vendor code for B &ne; A's vendor code for C &mdash; a pair table is
+                required.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Given buyer company + <code class="ic">CardCode</code> on the PQ/PO &rarr; find
+                target (seller) company + the buyer's customer code there.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">MAPPING_ID</span><span class="col">BUYER_COMPANY_ID</span
+                ><span class="col">VENDOR_COMPANY_ID</span><span class="col">VENDOR_CODE</span
+                ><span class="col">BUYER_CUSTOMER_CODE</span
+                ><span class="col">IS_ACTIVE</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY (buyer + vendor). Unique per (BUYER_COMPANY_ID, VENDOR_CODE). Drives all
+                routing.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #6d28d9, #a78bfa)">
+            <div class="tbh">
+              <span class="tbn">IC_CONFIGURATION</span><span class="bdg bc">Config</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Runtime feature-flags and tuning without redeploys &mdash; read by hooks, flows and
+                the worker.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Key/value rows: <code class="ic">ENABLE_FLOW1_RFQ_CHAIN</code>,
+                <code class="ic">ENABLE_FLOW2_DIRECT_PO</code>,
+                <code class="ic">MAX_RETRY_COUNT</code> (2),
+                <code class="ic">RETRY_DELAY_MINUTES</code>,
+                <code class="ic">DETECT_DRAFT_CRON_MINUTES</code>,
+                <code class="ic">REMARKS_PREFIX</code>,
+                <code class="ic">SL_SESSION_TIMEOUT_MINUTES</code>.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >Global (not per-company). Checked first by both flow hooks &mdash; flag 0 = hook
+                skips silently.</span
+              >
+            </div>
+          </div>
+        </div>
+        <h3 class="reveal">Runtime &amp; spine tables (written by the flows)</h3>
+        <div class="tbg reveal">
+          <div class="tbc" style="--al: linear-gradient(90deg, #10b981, #34d399)">
+            <div class="tbh">
+              <span class="tbn">IC_RFQ_HEADER</span><span class="bdg br">Runtime</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >The RFQ is a <b>custom-only</b> object (not a SAP object) &mdash; the vendor quotes
+                without touching buyer SAP until Convert.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >One RFQ per PQ Draft; lifecycle
+                <code class="ic">DRAFT &rarr; SUBMITTED &rarr; COMPLETED / CANCELLED</code>; links
+                to the buyer draft DocEntry.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">RFQ_ID</span><span class="col">RFQ_NUMBER</span
+                ><span class="col">SOURCE_COMPANY_ID</span><span class="col">TARGET_COMPANY_ID</span
+                ><span class="col">PQ_DRAFT_DOC_ENTRY</span><span class="col">VENDOR_CODE</span
+                ><span class="col">STATUS</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY (buyer + seller); 1&ndash;* IC_RFQ_LINE; mapped in IC_DOCUMENT_MAPPING
+                as target of PQ_DRAFT.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #059669, #6ee7b7)">
+            <div class="tbh">
+              <span class="tbn">IC_RFQ_LINE</span><span class="bdg br">Runtime</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Line-level quote data. The vendor edits <b>price + delivery only</b>; qty and item
+                stay buyer-owned.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Stores vendor unit price, discount, delivery date; also snapshots the buyer draft
+                <code class="ic">VatGroup</code> so Convert can re-apply buyer tax to the PQ.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">RFQ_ID+LINE_NUM</span><span class="col">ITEM_CODE</span
+                ><span class="col">QUANTITY</span><span class="col">UNIT_PRICE</span
+                ><span class="col">DISCOUNT</span><span class="col">TAX_CODE</span
+                ><span class="col">DELIVERY_DATE</span><span class="col">WAREHOUSE</span
+                ><span class="col">UOM_CODE</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >Child of IC_RFQ_HEADER; source for Convert &rarr; SAP PQ lines.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #f59e0b, #fbbf24)">
+            <div class="tbh">
+              <span class="tbn">IC_DOCUMENT_MAPPING</span><span class="bdg bs">Spine</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >The single <b>document spine</b> &mdash; every cross-company link lives here
+                (replaces the retired pilot map).</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Rows like <code class="ic">PQ_DRAFT&rarr;RFQ</code>,
+                <code class="ic">PQ&rarr;SQ</code>, <code class="ic">PO&rarr;AR_DRAFT</code> with
+                status <code class="ic">PENDING / SUCCESS / ERROR</code>, error text. Remarks on SAP
+                docs use <code class="ic">Based on …</code> lines (see
+                <a href="#remarks" style="color: #a78bfa">Remarks</a>). Unique index makes flows
+                idempotent.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">MAPPING_ID</span><span class="col">SOURCE_COMPANY_ID</span
+                ><span class="col">TARGET_COMPANY_ID</span><span class="col">SOURCE_OBJECT</span
+                ><span class="col">SOURCE_DOC_ENTRY</span><span class="col">TARGET_OBJECT</span
+                ><span class="col">TARGET_DOC_ENTRY</span><span class="col">STATUS</span
+                ><span class="col">ERROR_MESSAGE</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY both sides; referenced by IC_RETRY_QUEUE.DOC_MAPPING_ID.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #10b981, #2dd4bf)">
+            <div class="tbh">
+              <span class="tbn">IC_NOTIFICATION</span><span class="bdg br">Runtime</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Each company needs its own inbox &mdash; "new RFQ for you", "your SQ was created",
+                "a retry is pending".</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Company-scoped rows with priority + read flag; powers the header unread badge and
+                the Intercompany Activity page.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">NOTIFICATION_ID</span><span class="col">COMPANY_ID</span
+                ><span class="col">DOCUMENT_TYPE</span><span class="col">DOCUMENT_ID</span
+                ><span class="col">TITLE</span><span class="col">MESSAGE</span
+                ><span class="col">PRIORITY</span><span class="col">IS_READ</span
+                ><span class="col">FLOW_STEP</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY (recipient). Written by notify steps in Flow 1, Flow 2 and the retry
+                job.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #f59e0b, #fb923c)">
+            <div class="tbh">
+              <span class="tbn">IC_RETRY_QUEUE</span><span class="bdg bs">Spine</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Partner SL can be down or slow &mdash; failed actions must retry automatically
+                instead of dying.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >One row per failed action with <code class="ic">ACTION_CODE</code> + frozen
+                <code class="ic">PAYLOAD_JSON</code>; worker replays it while
+                <code class="ic">RETRY_COUNT &lt; MAX_RETRY_COUNT</code>.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Columns</span
+              ><span class="cols"
+                ><span class="col pk">RETRY_ID</span><span class="col">COMPANY_ID</span
+                ><span class="col">DOC_MAPPING_ID</span><span class="col">ACTION_CODE</span
+                ><span class="col">PAYLOAD_JSON</span><span class="col">RETRY_COUNT</span
+                ><span class="col">NEXT_RETRY_AT</span><span class="col">STATUS</span></span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY; optional link to the IC_DOCUMENT_MAPPING row it repairs.</span
+              >
+            </div>
+          </div>
+        </div>
+        <h3 class="reveal">Audit, session &amp; scheduler tables</h3>
+        <div class="tbg reveal">
+          <div class="tbc" style="--al: linear-gradient(90deg, #3b82f6, #60a5fa)">
+            <div class="tbh">
+              <span class="tbn">IC_SYNC_HISTORY</span><span class="bdg ba">Audit</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Immutable audit trail &mdash; every flow action, success or failure, with actor
+                company and payload snapshot.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Written at each flow step (RFQ created, submitted, converted, AR draft posted,
+                retry attempted); read by ops/dashboards.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY; complements IC_DOCUMENT_MAPPING with a time-ordered event log.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #2563eb, #38bdf8)">
+            <div class="tbh">
+              <span class="tbn">IC_API_LOG</span><span class="bdg ba">Audit</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >Every Service Layer call to a partner company is traceable &mdash; request,
+                response, status, duration.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Debugging failed SQ / AR draft creation; secrets are masked (<code class="ic"
+                  >maskSecrets</code
+                >
+                strips passwords &amp; session cookies before persist).</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY (target of the call); ties errors back to IC_RETRY_QUEUE entries.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #0ea5e9, #67e8f9)">
+            <div class="tbh">
+              <span class="tbn">IC_SL_SESSION</span><span class="bdg ba">Runtime</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >SL logins are expensive &mdash; cache one session per partner company and reuse
+                it.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >Stores session cookie + expiry (<code class="ic">SL_SESSION_TIMEOUT_MINUTES</code
+                >); the SESSION_CLEANUP worker job expires stale rows.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >IC_COMPANY + IC_SAP_CONNECTION; refreshed on 401/expiry by the SL client.</span
+              >
+            </div>
+          </div>
+          <div class="tbc" style="--al: linear-gradient(90deg, #6366f1, #818cf8)">
+            <div class="tbh">
+              <span class="tbn">IC_SCHEDULER_JOB</span><span class="bdg ba">Runtime</span>
+            </div>
+            <div class="trow">
+              <span class="tk">Why</span
+              ><span class="tv"
+                >The worker must remember what it ran and when &mdash; survive restarts without
+                reprocessing.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Use</span
+              ><span class="tv"
+                >One row per job name (<code class="ic">DETECT_PQ_DRAFT</code>,
+                <code class="ic">PROCESS_RETRY</code>, <code class="ic">SESSION_CLEANUP</code>):
+                last run, last success, cursor/watermark.</span
+              >
+            </div>
+            <div class="trow">
+              <span class="tk">Links</span
+              ><span class="tv"
+                >Optional COMPANY_ID for per-company jobs; updated by every worker loop.</span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="note nr reveal">
+          <span class="ni">&#9888;&#65039;</span
+          ><span
+            ><b>Removed / retired &mdash; do not use:</b> <code>IC_TAX_MAPPING</code> was dropped
+            from the design (tax uses live <code>OVTG</code> rate + category matching &mdash; see
+            Tax section). The pilot <code>INTERCOMPANY_DOCUMENT_MAP</code> runtime was removed in
+            P9; optional export + DBA drop scripts live in
+            <code>src/modules/intercompany/ops/</code>.</span
+          >
+        </div>
+        <div class="note ng reveal">
+          <span class="ni">&#9989;</span
+          ><span
+            ><b>Reused, not recreated:</b> <code>VST_COMMON</code> stays the portal login/tenant
+            registry. IC tables never FK into it &mdash; they join logically through
+            <code>SAP_DB_NAME</code> only.</span
+          >
+        </div>
+        <div class="faq reveal">
+          <h3>Database FAQ</h3>
+          <details class="faq-item">
+            <summary>What is IC_DOCUMENT_MAPPING used for?</summary>
+            <div class="faq-a">
+              It is the <b>source of truth</b> for cross-company document links: PQ_DRAFT&rarr;RFQ,
+              RFQ&rarr;PQ, RFQ&rarr;SQ, PO&rarr;AR_DRAFT. The relationship map API and frontend
+              hover UI read these rows. Each mapping stores source/target company, object code, doc
+              entry/num, status and optional error text.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Why is RFQ data not in SAP ODRF/OQUT?</summary>
+            <div class="faq-a">
+              RFQ is a <b>custom IC workflow</b> (seller fills prices before buyer converts). It
+              lives in <code>IC_RFQ_HEADER</code> / <code>IC_RFQ_LINE</code> until convert creates
+              real SAP PQ + SQ. RFQ numbers display as plain doc nums (e.g. <code>8000590</code>),
+              not <code>RFQ-PQD-*</code> prefixes.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>What happens when convert fails mid-way?</summary>
+            <div class="faq-a">
+              Mapping rows may stay <code>PENDING</code> or <code>ERROR</code>; a
+              <code>FLOW1_CONVERT_PQ_SQ</code> retry row is inserted. The worker replays convert
+              idempotently (checks existing mappings before re-creating SQ).
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="code">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">03 &middot; Code Structure</span>
+          <div class="divider"></div>
+          <h2>Folders &amp; Files &mdash; Where Everything Lives</h2>
+          <p class="ssub">
+            All IC code sits in <code class="ic">src/modules/intercompany/</code> inside
+            <code class="ic">hana-backend</code>. The only public imports allowed are the two hooks
+            and the router &mdash; everything else is internal.
+          </p>
+        </div>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #8b5cf6, #f472b6)">
+          <pre><span class="hl">intercompany/</span>
+  <span class="hl2">index.ts</span>                 <span class="cm"># public wall → afterPoCreated, afterPqDraftSaved, icRoutes</span>
+  <span class="hl">api/</span>                     <span class="cm"># ic.routes.ts · ic.controller.ts · ic.schema.ts</span>
+    <span class="hl">hooks/</span>                 <span class="cm"># after-pq-draft-saved.hook.ts (Flow 1 trigger)</span>
+                           <span class="cm"># after-po-created.hook.ts   (Flow 2 trigger)</span>
+  <span class="hl">config/</span>                  <span class="cm"># seeded masters, read-only at runtime</span>
+    <span class="cm">company/ · bp-mapping/ · configuration/ · sap-connection/</span>
+    <span class="cm">tax-mapping/  → resolve-partner-tax.service.ts · map-ovtg-partner-tax.ts</span>
+    <span class="cm">               partner-tax.masters.ts (OVTG / OITM / OCRD lookups)</span>
+    <span class="cm">warehouse/    → partner-warehouse.masters.ts</span>
+  <span class="hl">routing/</span>                 <span class="cm"># resolve-partner (who is the seller?) · resolve-sl-target (how to reach it)</span>
+  <span class="hl">domain/</span>                  <span class="cm"># document-map · notification · retry · history · rfq (SBOCOMMON CRUD)</span>
+  <span class="hl">infrastructure/</span>          <span class="cm"># ic-sql (SBOCOMMON client) · service-layer/ (SL login + documents)</span>
+                           <span class="cm"># api-log · constants.ts (flags, statuses, action codes)</span>
+                           <span class="cm"># ic-remarks-chain.ts ("Based on …") · ic-tax-usage.ts (tax audit)</span>
+  <span class="hl">flows/</span>
+    <span class="hl2">flow-1-pq-draft-rfq-chain/</span>  <span class="cm"># 01-pq-draft-capture → 02-create-rfq → 03-notify-seller</span>
+                                <span class="cm"># → 04-seller-fill-rfq → 05-convert-pq-and-sq</span>
+    <span class="hl2">flow-2-po-to-ar-draft/</span>      <span class="cm"># 01-po-capture → 02-build-ar-invoice-draft</span>
+                                <span class="cm"># → 03-post-ar-invoice-draft → 04-map-and-notify</span>
+  <span class="hl">background/</span>              <span class="cm"># worker.entry.ts + worker.context.ts + jobs/ (01, 02, 03)</span>
+  <span class="hl">db/entities/</span>             <span class="cm"># 13 entity files, one per IC_* table</span>
+  <span class="hl">ops/</span>                     <span class="cm"># DBA SQL: pilot export/drop · company C seed appendix</span>
+  <span class="hl">testing/memory-sql.ts</span>    <span class="cm"># offline in-memory SBOCOMMON for unit tests</span>
+
+<span class="cm"># Related (outside intercompany/):</span>
+<span class="hl">modules/relationship-map/</span>  <span class="cm"># GET /api/v1/relationship-map/:docType/:docEntry</span>
+                           <span class="cm"># IC RFQ↔SQ via IC_DOCUMENT_MAPPING + SAP chain for other docs</span></pre>
+        </div>
+        <div class="note nw reveal">
+          <span class="ni">&#128640;</span
+          ><span
+            ><b>Hooks never block:</b> <code>afterPqDraftSaved</code> and
+            <code>afterPoCreated</code> return <code>"accepted"</code> immediately and run the flow
+            in the background &mdash; an IC failure can never fail the user's PQ draft or PO
+            save.</span
+          >
+        </div>
+        <div class="faq reveal">
+          <h3>Code FAQ</h3>
+          <details class="faq-item">
+            <summary>Where do I start reading Flow 1?</summary>
+            <div class="faq-a">
+              <code>api/hooks/after-pq-draft-saved.hook.ts</code> &rarr;
+              <code>flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator.ts</code> &rarr; step
+              folders 01&ndash;05. Convert logic is in
+              <code>05-convert-pq-and-sq/convert-pq-and-sq.service.ts</code> +
+              <code>create-seller-sq.ts</code>.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Where is tax resolved for SQ and AR lines?</summary>
+            <div class="faq-a">
+              <code>config/tax-mapping/resolve-partner-tax.service.ts</code> — called from convert
+              (Flow 1) and <code>build-ar-draft.service.ts</code> (Flow 2). Pure rate math lives in
+              <code>map-ovtg-partner-tax.ts</code>; HANA queries in
+              <code>partner-tax.masters.ts</code>.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>How do I run IC unit tests offline?</summary>
+            <div class="faq-a">
+              <code>pnpm --filter hana-backend test</code> — Flow 1/2, tax, document-map and
+              relationship-map tests use <code>testing/memory-sql.ts</code> (no live HANA required).
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow1">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">04 &middot; Flow 1 &mdash; Company to Company</span>
+          <div class="divider"></div>
+          <h2>PQ Draft &rarr; RFQ &rarr; Convert &rarr; Real PQ + SQ</h2>
+          <p class="ssub">
+            A buyer in <b>Company A</b> saves a Purchase Quotation <i>draft</i> whose vendor is an
+            intercompany vendor. The engine opens a custom RFQ for <b>Company B</b> (the seller),
+            the seller fills prices, and the buyer converts &mdash; producing a real PQ in A
+            <i>and</i> a real Sales Quotation in B. Gated by
+            <code class="ic">ENABLE_FLOW1_RFQ_CHAIN</code>.
+          </p>
+        </div>
+        <div class="pf reveal">
+          <div class="pst">
+            <div class="pi">&#128203;</div>
+            <div class="ptn">1 &middot; Capture</div>
+            <div class="pss sv">auto &middot; on save</div>
+            <div class="pts">
+              Hook <code class="ic">afterPqDraftSaved</code>: flag on? CardCode in IC_BP_MAPPING?
+              not already mapped? &rarr; idempotent accept.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#128221;</div>
+            <div class="ptn">2 &middot; Create RFQ</div>
+            <div class="pss sv">auto</div>
+            <div class="pts">
+              IC_RFQ_HEADER + IC_RFQ_LINE rows built from the draft (items, qty, buyer tax
+              snapshot). Status DRAFT.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#128276;</div>
+            <div class="ptn">3 &middot; Notify Seller</div>
+            <div class="pss sv">auto</div>
+            <div class="pts">
+              IC_NOTIFICATION (HIGH) to the seller company + history row. Mapping PQ_DRAFT&rarr;RFQ
+              = SUCCESS.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#9998;</div>
+            <div class="ptn">4 &middot; Seller Fills</div>
+            <div class="pss sp">user &middot; Company B</div>
+            <div class="pts">
+              Seller edits <b>price / discount / delivery only</b> &rarr; Submit. Status SUBMITTED;
+              buyer notified.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#9889;</div>
+            <div class="ptn">5 &middot; Convert</div>
+            <div class="pss sd">user &middot; Company A</div>
+            <div class="pts">
+              Prices applied to draft &rarr; draft becomes real PQ; engine creates SQ in B (seller
+              tax + branch WH) &rarr; RFQ COMPLETED.
+            </div>
+          </div>
+        </div>
+        <div class="vtw reveal">
+          <table class="vt">
+            <tr>
+              <th>Steps</th>
+              <th>Action</th>
+              <th>Tables read</th>
+              <th>Tables written</th>
+            </tr>
+            <tr>
+              <td><b>1&ndash;2</b></td>
+              <td>Save PQ Draft</td>
+              <td>
+                <code>IC_COMPANY</code> <code>IC_BP_MAPPING</code> <code>IC_CONFIGURATION</code>
+              </td>
+              <td>
+                <code>IC_RFQ_HEADER</code> <code>IC_RFQ_LINE</code> <code>IC_DOCUMENT_MAPPING</code>
+                <code>IC_NOTIFICATION</code> <code>IC_SYNC_HISTORY</code>
+              </td>
+            </tr>
+            <tr>
+              <td><b>4</b></td>
+              <td>Vendor fill / submit</td>
+              <td><code>IC_RFQ_*</code></td>
+              <td>
+                <code>IC_RFQ_*</code> <code>IC_NOTIFICATION</code> <code>IC_SYNC_HISTORY</code>
+              </td>
+            </tr>
+            <tr>
+              <td><b>5</b></td>
+              <td>Convert + create SQ</td>
+              <td>
+                <code>IC_RFQ_*</code> <code>IC_BP_MAPPING</code> <code>IC_SAP_CONNECTION</code>
+                <code>IC_COMPANY</code> + seller OITM/OCRD
+              </td>
+              <td>
+                SAP PQ + SQ; <code>IC_DOCUMENT_MAPPING</code> <code>IC_NOTIFICATION</code>
+                <code>IC_RFQ (COMPLETED)</code>; fail &rarr; <code>IC_RETRY_QUEUE</code>
+                <code>IC_API_LOG</code>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <h3 class="reveal">Convert step in detail &mdash; PQ created + SQ created (diagram)</h3>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #6c3de8, #f59e0b)">
+          <pre><span class="cm">  Flow 1 step 05 · action code FLOW1_CONVERT_PQ_SQ · trigger: POST /rfqs/:id/convert</span>
+
+ <span class="hl">COMPANY A (buyer)</span>              <span class="hl2">SBOCOMMON (IC engine)</span>              <span class="hl3">COMPANY B (seller)</span>
+ <span class="cm">─────────────────              ──────────────────────              ────────────────────</span>
+
+ [1] RFQ = SUBMITTED
+     buyer clicks CONVERT
+          <span class="cm">│</span>
+          <span class="cm">▼</span>
+ [2] apply seller prices  ─────►  read <span class="hl2">IC_RFQ_HEADER + IC_RFQ_LINE</span>
+     onto the SAP PQ Draft       <span class="cm">(unit price / discount / delivery)</span>
+          <span class="cm">│</span>
+          <span class="cm">▼</span>
+ <span class="hl">[3] REAL PURCHASE</span>              map <span class="hl2">IC_DOCUMENT_MAPPING</span>
+ <span class="hl">    QUOTATION (A)</span>      ─────►  <span class="cm">PQ_DRAFT → PQ = SUCCESS</span>
+     Remarks: Based on Request For Quotation {rfq}
+          <span class="cm">│</span>
+          <span class="cm">├────────────────────►</span> <span class="hl2">IC_BP_MAPPING</span>       <span class="cm">seller = B + customer code</span>
+          <span class="cm">│</span>                    <span class="hl2">IC_SAP_CONNECTION</span>  <span class="cm">SL login for B</span>
+          <span class="cm">│</span>                    <span class="hl3">resolvePartnerTax</span>  <span class="cm">OVTG rate → item → bp → omit</span>
+          <span class="cm">│</span>                    <span class="hl3">partnerWarehouse</span>   <span class="cm">item WH on branch → branch WH</span>
+          <span class="cm">│                           │</span>
+          <span class="cm">│                           ▼</span>
+          <span class="cm">│</span>                    Service Layer: create SQ  ──►  <span class="hl3">[4] REAL SALES</span>
+          <span class="cm">│</span>                        Customer = buyer code        <span class="hl3">    QUOTATION (B)</span>
+          <span class="cm">│</span>                        Remarks = Based on Purchase Quotation {A docNum}
+          <span class="cm">├◄───────────────────────────┘</span>
+          <span class="cm">▼</span>
+     <span class="hl2">IC_DOCUMENT_MAPPING</span>  <span class="cm">PQ → SQ = SUCCESS</span>
+     <span class="hl2">IC_RFQ_HEADER</span>        <span class="cm">STATUS = COMPLETED</span>
+     <span class="hl3">IC_NOTIFICATION</span>      <span class="cm">→ A (PQ ready) + B (your SQ created)</span>
+     <span class="cm">on failure →</span> <span class="hl2">IC_RETRY_QUEUE</span> <span class="cm">(FLOW1_CONVERT_PQ_SQ, max 2)</span></pre>
+        </div>
+        <h3 class="reveal">How "company to company" actually resolves (dynamic routing)</h3>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #f59e0b, #fbbf24)">
+          <pre><span class="cm">                    ┌──────────────────┐
+                    │</span> Document vendor  <span class="cm">│
+                    │</span> code (CardCode)  <span class="cm">│
+                    └────────┬─────────┘</span>
+                             <span class="cm">▼</span>
+<span class="cm">                    ┌──────────────────┐
+                    │</span> <span class="hl2">IC_BP_MAPPING</span>    <span class="cm">│</span>  <span class="cm">buyer = session company</span>
+<span class="cm">                    └────────┬─────────┘</span>
+              <span class="hl3">VENDOR_COMPANY_ID</span> <span class="cm">+ BUYER_CUSTOMER_CODE</span>
+                             <span class="cm">▼</span>
+<span class="cm">                    ┌──────────────────┐
+                    │</span> <span class="hl">IC_COMPANY</span>       <span class="cm">│</span>  <span class="cm">target (seller) company</span>
+<span class="cm">                    └────────┬─────────┘</span>
+                             <span class="cm">▼</span>
+<span class="cm">                    ┌──────────────────┐
+                    │</span> <span class="hl">IC_SAP_CONNECTION</span><span class="cm">│</span>  <span class="cm">SL URL + IC technical user</span>
+<span class="cm">                    └────────┬─────────┘</span>
+                             <span class="cm">▼</span>
+<span class="cm">                    ┌──────────────────┐
+                    │</span> <span class="hl">IC_SL_SESSION</span>    <span class="cm">│</span>  <span class="cm">cached login or fresh login</span>
+<span class="cm">                    └────────┬─────────┘</span>
+                             <span class="cm">▼</span>
+<span class="cm">                    ┌──────────────────┐
+                    │</span> <span class="hl3">Service Layer</span>    <span class="cm">│</span>  <span class="cm">create SQ / AR draft in partner DB</span>
+<span class="cm">                    └────────┬─────────┘</span>
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+     <span class="hl2">IC_DOCUMENT_MAPPING</span>            <span class="hl3">IC_NOTIFICATION</span>
+     IC_SYNC_HISTORY                (+ IC_API_LOG)
+              <span class="cm">│</span>
+              <span class="cm">fail ▼</span>
+        <span class="hl2">IC_RETRY_QUEUE</span></pre>
+        </div>
+        <div class="note ng reveal">
+          <span class="ni">&#128161;</span
+          ><span
+            ><b>Remarks chain:</b> SAP Comments append human-readable lines like
+            <code>Based on Purchase Quotation Draft 8000590</code> and
+            <code>Based on Request For Quotation 8000590</code> (see
+            <a href="#remarks" style="color: #a78bfa">Remarks section</a>). Legacy
+            <code>IC | KEY: …</code> lines are still parsed for idempotency. User-typed remarks are
+            never replaced.</span
+          >
+        </div>
+        <div class="faq reveal">
+          <h3>Flow 1 FAQ</h3>
+          <details class="faq-item">
+            <summary>Who can submit vs convert?</summary>
+            <div class="faq-a">
+              <b>Seller (Company B)</b> fills prices and submits RFQ (<code>SUBMITTED</code>).
+              <b>Buyer (Company A)</b> runs convert, which posts PQ in A and auto-creates SQ in B.
+              Role checks use session company vs RFQ source/target IDs.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>How is RFQ linked to the auto-generated SQ?</summary>
+            <div class="faq-a">
+              On successful convert, <code>IC_DOCUMENT_MAPPING</code> writes RFQ&rarr;SQ with source
+              = buyer company + RFQ id, target = seller company + SQ DocEntry. The
+              <a href="#relmap" style="color: #a78bfa">relationship map</a> reads this row — not SAP
+              base-document fields.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>What tax goes on the seller SQ?</summary>
+            <div class="faq-a">
+              Buyer PQ line tax (e.g. <code>IN-12.5</code>, OVTG Category <code>I</code>) is looked
+              up on Company A. The engine finds a matching <b>Rate</b> on Company B OVTG with
+              Category <code>O</code> (e.g. <code>OUT-12.5</code>). Falls back to item/BP tax if no
+              OVTG match. See <a href="#tax" style="color: #a78bfa">Tax section</a>.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Can the same PQ draft create two RFQs?</summary>
+            <div class="faq-a">
+              No — idempotent capture checks <code>IC_DOCUMENT_MAPPING</code> for an existing
+              PQ_DRAFT&rarr;RFQ row before creating a new header. Retry replays the same RFQ id.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="flow2">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">05 &middot; Flow 2 &mdash; Direct PO Path</span>
+          <div class="divider"></div>
+          <h2>Purchase Order &rarr; Partner AR Invoice Draft</h2>
+          <p class="ssub">
+            When a <b>real (non-draft) PO</b> is posted in Company A with an IC vendor, the engine
+            immediately creates an <b>AR Invoice Draft</b> in Company B &mdash; no RFQ chain needed.
+            Gated by <code class="ic">ENABLE_FLOW2_DIRECT_PO</code>. Both flags can be on at the
+            same time.
+          </p>
+        </div>
+        <div class="pf reveal">
+          <div class="pst">
+            <div class="pi">&#128230;</div>
+            <div class="ptn">1 &middot; PO Capture</div>
+            <div class="pss sv">auto &middot; on save</div>
+            <div class="pts">
+              Hook <code class="ic">afterPoCreated</code>: non-draft PO? IC vendor? flag on?
+              map-check for idempotency.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#129531;</div>
+            <div class="ptn">2 &middot; Build Payload</div>
+            <div class="pss sv">auto</div>
+            <div class="pts">
+              Pure builder: customer = BUYER_CUSTOMER_CODE, seller tax per line (OVTG rate match),
+              branch + remarks <code class="ic">Based on Purchase Order {docNum}</code>.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#128640;</div>
+            <div class="ptn">3 &middot; Post AR Draft</div>
+            <div class="pss sv">auto</div>
+            <div class="pts">
+              Service Layer creates the AR Invoice Draft in Company B (session from IC_SL_SESSION).
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#128279;</div>
+            <div class="ptn">4 &middot; Map + Notify</div>
+            <div class="pss sd">auto</div>
+            <div class="pts">
+              IC_DOCUMENT_MAPPING <code class="ic">PO&rarr;AR_DRAFT</code> = SUCCESS, history row,
+              notification to B (and A). Fail &rarr; retry queue.
+            </div>
+          </div>
+        </div>
+        <div class="vtw reveal">
+          <table class="vt">
+            <tr>
+              <th>Steps</th>
+              <th>Action</th>
+              <th>Tables read</th>
+              <th>Tables written</th>
+            </tr>
+            <tr>
+              <td><b>1&ndash;3</b></td>
+              <td>PO create &rarr; AR draft</td>
+              <td>
+                <code>IC_CONFIGURATION</code> <code>IC_COMPANY</code> <code>IC_BP_MAPPING</code>
+                <code>IC_SAP_CONNECTION</code> + seller OITM/OCRD tax
+              </td>
+              <td>
+                <code>IC_DOCUMENT_MAPPING</code> <code>IC_NOTIFICATION</code>
+                <code>IC_SYNC_HISTORY</code> <code>IC_API_LOG</code>; fail &rarr;
+                <code>IC_RETRY_QUEUE</code> (max 2)
+              </td>
+            </tr>
+            <tr>
+              <td><b>&mdash;</b></td>
+              <td>Post final AR invoice</td>
+              <td><i>(none IC)</i></td>
+              <td>User posts the draft manually in SAP B1 &mdash; SAP only</td>
+            </tr>
+          </table>
+        </div>
+        <div class="note nw reveal">
+          <span class="ni">&#128737;&#65039;</span
+          ><span
+            ><b>Failure isolation:</b> the orchestrator runs <i>after</i> the PO response &mdash;
+            <code>intercompany.status: "accepted"</code> in the API response only means IC was
+            scheduled. Even if Company B's Service Layer is down, the PO in A is safe and the retry
+            queue finishes the job later.</span
+          >
+        </div>
+        <div class="faq reveal">
+          <h3>Flow 2 FAQ</h3>
+          <details class="faq-item">
+            <summary>Does Flow 2 need a prior RFQ?</summary>
+            <div class="faq-a">
+              No. Flow 2 is independent: any posted PO with an IC vendor triggers AR Invoice Draft
+              creation on the seller. Flow 1 and Flow 2 can both be enabled.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>How is PO line tax mapped to AR draft?</summary>
+            <div class="faq-a">
+              Same OVTG rate engine as PQ&rarr;SQ: read buyer PO <code>VatGroup</code> on Company A
+              OVTG (Category <code>I</code>), find seller OVTG with same <code>Rate</code> and
+              Category <code>O</code>. Logged per line in <code>ic-tax-usage</code> as
+              <code>poTaxCode</code> + <code>arTaxCode</code>.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>What SAP object is created in Company B?</summary>
+            <div class="faq-a">
+              An <b>AR Invoice Draft</b> (ObjType 13 / ODRF), not a posted AR invoice. Finance posts
+              it manually in SAP B1 when ready. Mapping object code is <code>AR_DRAFT</code>.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="remarks">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">05b &middot; Remarks / Comments Chain</span>
+          <div class="divider"></div>
+          <h2>How Document Comments Are Built</h2>
+          <p class="ssub">
+            Implemented in <code class="ic">infrastructure/ic-remarks-chain.ts</code>. User remarks
+            are preserved; IC appends one line per linked document, idempotent by key (PQD, RFQ, PQ,
+            SQ, PO, AR).
+          </p>
+        </div>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #10b981, #6c3de8)">
+          <pre><span class="cm"># Example SQ Comments after Flow 1 convert:</span>
+Vendor Ref No: VENDOR-REF-99
+Parent typed on PQ draft
+<span class="hl3">Based on Purchase Quotation Draft 8000590</span>
+<span class="hl3">Based on Request For Quotation 8000590</span>
+<span class="hl3">Based on Purchase Quotation 2042</span>
+<span class="hl3">Based on Sales Quotation 810</span>
+
+<span class="cm"># Legacy format still parsed (not written on new docs):</span>
+<span class="hl2">IC | RFQ: RFQ-PQD-8000590</span></pre>
+        </div>
+        <div class="faq reveal">
+          <h3>Remarks FAQ</h3>
+          <details class="faq-item">
+            <summary>Why did we change from IC | KEY format?</summary>
+            <div class="faq-a">
+              Business users read SAP Comments directly.
+              <code>Based on Purchase Order 5001328</code> is clearer than <code>IC | PO: …</code>.
+              Legacy lines remain parseable so re-running convert does not duplicate links.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Will convert duplicate remark lines?</summary>
+            <div class="faq-a">
+              No — <code>parseIcRemarkKeys()</code> collects existing keys before append. Each of
+              PQD, RFQ, PQ, SQ, PO, AR can appear at most once in the chain.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>What RFQ number appears in remarks?</summary>
+            <div class="faq-a">
+              Plain PQ draft doc num (e.g. <code>8000590</code>), not <code>RFQ-PQD-*</code>.
+              Matches RFQ table display via <code>formatRfqDocNumber</code> /
+              <code>parseRfqDisplayNum</code>.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="relmap">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">05c &middot; Relationship Map (Frontend + API)</span>
+          <div class="divider"></div>
+          <h2>RFQ &harr; SQ Document Graph</h2>
+          <p class="ssub">
+            API: <code class="ic">GET /api/v1/relationship-map/:docType/:docEntry</code> &mdash;
+            frontend hover on doc numbers and trackers on create/edit pages. For intercompany seller
+            docs, the map shows <b>only RFQ and SQ</b> (no SO / AR / payment chain).
+          </p>
+        </div>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #6c3de8, #10b981)">
+          <pre><span class="cm"># docType values for IC sales side:</span>
+<span class="hl">request-for-quotation</span>  → IC RFQ id  → reads IC_DOCUMENT_MAPPING RFQ→SQ
+<span class="hl">sales-quotation</span>        → OQUT DocEntry → resolve upstream RFQ + current SQ
+
+<span class="cm"># Backend modules:</span>
+relationship-map.ic.queries.ts   <span class="cm">getIcRfqRelationshipMap · resolveIcRfqForSalesQuotation</span>
+relationship-map.ar.queries.ts   <span class="cm">sales-quotation short-circuit (RFQ+SQ only)</span>
+
+<span class="cm"># Frontend:</span>
+relationship-map-tracker.tsx   <span class="cm">compact map on RFQ form + SQ create/edit</span>
+relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</span></pre>
+        </div>
+        <div class="faq reveal">
+          <h3>Relationship Map FAQ</h3>
+          <details class="faq-item">
+            <summary>Why only RFQ and SQ for IC sales quotations?</summary>
+            <div class="faq-a">
+              IC Flow 1 ends at seller SQ. Downstream SO/AR on the seller DB are normal SAP docs,
+              not IC-driven. Showing them would confuse users; the map reflects the IC contract
+              only.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>RFQ hover shows no SQ — why?</summary>
+            <div class="faq-a">
+              SQ appears only after buyer convert succeeds and <code>IC_DOCUMENT_MAPPING</code> has
+              RFQ&rarr;SQ with status SUCCESS. Before convert, RFQ node is active and SQ is
+              inactive.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Where is the mapping stored?</summary>
+            <div class="faq-a">
+              <code>IC_DOCUMENT_MAPPING</code>: SOURCE_OBJECT=RFQ, TARGET_OBJECT=SQ,
+              TARGET_DOC_ENTRY = seller SQ DocEntry. Not stored in SAP UDFs.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="retry">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">06 &middot; Notifications &amp; Retry Engine</span>
+          <div class="divider"></div>
+          <h2>What Happens When Something Fails</h2>
+          <p class="ssub">
+            Every cross-company action is wrapped: success &rarr; map + notify; failure &rarr;
+            freeze the action into <code class="ic">IC_RETRY_QUEUE</code> and let the worker replay
+            it. Users watch progress on the Intercompany Activity page.
+          </p>
+        </div>
+        <div class="cg reveal">
+          <div class="cc">
+            <div class="ct">&#128276; Company-scoped inbox</div>
+            <div class="cd">
+              Notifications are written with the <b>recipient</b> COMPANY_ID &mdash; Company B never
+              sees A's alerts. APIs: <code class="ic">GET /notifications</code>,
+              <code class="ic">GET /notifications/unread-count</code> (header badge),
+              <code class="ic">PATCH /:id/read</code>, <code class="ic">POST /mark-all-read</code>.
+            </div>
+          </div>
+          <div class="cc">
+            <div class="ct">&#128737;&#65039; What raises one</div>
+            <div class="cd">
+              New RFQ for seller, RFQ submitted for buyer, SQ created, AR draft created, and every
+              retry attempt/exhaustion &mdash; each with PRIORITY (HIGH/MEDIUM) and a FLOW_STEP like
+              <code class="ic">FLOW1_RFQ_CREATED</code>.
+            </div>
+          </div>
+          <div class="cc">
+            <div class="ct">&#128202; Fully auditable</div>
+            <div class="cd">
+              Every attempt (auto or manual) also lands in
+              <code class="ic">IC_SYNC_HISTORY</code> and SL traffic in
+              <code class="ic">IC_API_LOG</code> with masked secrets &mdash; ops can reconstruct any
+              incident.
+            </div>
+          </div>
+        </div>
+        <h3 class="reveal">Retry lifecycle (state machine)</h3>
+        <div class="sm reveal">
+          <span class="st2 stw">WAITING</span
+          ><span class="sar">&rarr; worker claims due row &rarr;</span>
+          <span class="st2 stp">PROCESSING</span><span class="sar">&rarr; handler OK &rarr;</span>
+          <span class="st2 sts">SUCCESS</span>
+        </div>
+        <div class="sm reveal" style="margin-top: 0.8rem">
+          <span class="st2 stp">PROCESSING</span
+          ><span class="sar">&rarr; handler throws &rarr; RETRY_COUNT + 1 &rarr; back to</span>
+          <span class="st2 stw">WAITING</span
+          ><span class="sar"
+            >(NEXT_RETRY_AT = now + RETRY_DELAY_MINUTES) &hellip; or when count &ge; MAX_RETRY_COUNT
+            (2) &rarr;</span
+          >
+          <span class="st2 std">DEAD</span>
+        </div>
+        <div class="vtw reveal">
+          <table class="vt">
+            <tr>
+              <th>Action code (ACTION_CODE)</th>
+              <th>Replays</th>
+              <th>Enqueued by</th>
+            </tr>
+            <tr>
+              <td><code>FLOW1_CREATE_RFQ</code></td>
+              <td>Rebuild the custom RFQ from a captured PQ draft</td>
+              <td>Flow 1 steps 01&ndash;02</td>
+            </tr>
+            <tr>
+              <td><code>FLOW1_CONVERT_PQ_SQ</code></td>
+              <td>Re-apply prices, convert draft &rarr; PQ, create seller SQ</td>
+              <td>Flow 1 step 05</td>
+            </tr>
+            <tr>
+              <td><code>FLOW1_SUBMIT_RFQ</code></td>
+              <td>Re-submit a seller-filled RFQ</td>
+              <td>Flow 1 step 04</td>
+            </tr>
+            <tr>
+              <td><code>FLOW2_CREATE_AR_DRAFT</code></td>
+              <td>Re-post the AR Invoice Draft to the partner SL</td>
+              <td>Flow 2 steps 02&ndash;03</td>
+            </tr>
+            <tr>
+              <td><code>FLOW2_MAP_NOTIFY</code></td>
+              <td>Re-run the mapping + notification after a late success</td>
+              <td>Flow 2 step 04</td>
+            </tr>
+          </table>
+        </div>
+        <h3 class="reveal">The worker &mdash; 3 jobs every loop</h3>
+        <div class="vtw reveal">
+          <table class="vt">
+            <tr>
+              <th>Job (IC_SCHEDULER_JOB.JOB_NAME)</th>
+              <th>What it does</th>
+              <th>Cadence</th>
+            </tr>
+            <tr>
+              <td><code>DETECT_PQ_DRAFT</code></td>
+              <td>
+                <b>Safety net:</b> for each active IC_COMPANY, logs into its SL and finds new PQ
+                drafts with IC vendors; creates the RFQ if none exists (covers API downtime). Hybrid
+                design: hook is primary, worker is the net.
+              </td>
+              <td><code>DETECT_DRAFT_CRON_MINUTES</code></td>
+            </tr>
+            <tr>
+              <td><code>PROCESS_RETRY</code></td>
+              <td>
+                Claims due <code>WAITING</code> rows (<code>NEXT_RETRY_AT &le; now</code>, count
+                &lt; max), replays the handler for each ACTION_CODE, marks SUCCESS / re-WAITING /
+                DEAD, and notifies on exhaustion.
+              </td>
+              <td>every loop</td>
+            </tr>
+            <tr>
+              <td><code>SESSION_CLEANUP</code></td>
+              <td>
+                Expires stale <code>IC_SL_SESSION</code> rows so the next call re-logins cleanly.
+              </td>
+              <td>every loop</td>
+            </tr>
+          </table>
+        </div>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #f59e0b, #fbbf24)">
+          <pre><span class="cm"># continuous IC worker (default loop 60s, IC_WORKER_INTERVAL_MS, min 5000)</span>
+<span class="hl3">pnpm --filter hana-backend worker:ic</span>
+
+<span class="cm"># one loop then exit (ops / smoke)</span>
+<span class="hl3">pnpm --filter hana-backend worker:ic:once</span>
+
+<span class="cm"># manual retry from the UI / API — forces WAITING so the next loop picks it up</span>
+<span class="hl2">POST /api/v1/ic/retries/:id/run</span>     <span class="cm"># list: GET /api/v1/ic/retries</span></pre>
+        </div>
+        <div class="faq reveal">
+          <h3>Retry FAQ</h3>
+          <details class="faq-item">
+            <summary>How many times will the worker retry?</summary>
+            <div class="faq-a">
+              Default <code>MAX_RETRY_COUNT = 2</code> from <code>IC_CONFIGURATION</code>. After
+              that the row becomes <code>DEAD</code> and a notification is raised. Ops can still
+              force <code>POST /retries/:id/run</code>.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Convert failed but PQ was created — is it safe to retry?</summary>
+            <div class="faq-a">
+              Yes — <code>FLOW1_CONVERT_PQ_SQ</code> handler checks existing mappings and RFQ
+              status. It will not create duplicate SQs if mapping already succeeded.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Do I need the worker if hooks work?</summary>
+            <div class="faq-a">
+              <b>Yes for production.</b> Hooks are primary; worker <code>DETECT_PQ_DRAFT</code> is
+              the safety net when API was down during save, and <code>PROCESS_RETRY</code> replays
+              failures.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="tax">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">07 &middot; Tax Code Selection (OVTG)</span>
+          <div class="divider"></div>
+          <h2>Cross-Company Tax via OVTG Rate + Category</h2>
+          <p class="ssub">
+            There is <b>no IC_TAX_MAPPING table</b>. Tax is resolved by
+            <code class="ic">config/tax-mapping/resolve-partner-tax.service.ts</code> using SAP
+            <code class="ic">OVTG</code>: purchase lines use Category <code>I</code> (Input), sales
+            lines use Category <code>O</code> (Output). The <b>Rate</b> must match across companies.
+          </p>
+        </div>
+        <div class="pf reveal">
+          <div class="pst">
+            <div class="pi" style="--psg: rgba(108, 61, 232, 0.3)">0&#65039;&#8419;</div>
+            <div class="ptn">OVTG rate match</div>
+            <div class="pss sv">source = "ovtg_rate"</div>
+            <div class="pts">
+              Read buyer tax on Company A OVTG &rarr; same <code>Rate</code> on Company B OVTG with
+              opposite category (I&rarr;O for PQ&rarr;SQ and PO&rarr;AR).
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi" style="--psg: rgba(16, 185, 129, 0.3)">1&#65039;&#8419;</div>
+            <div class="ptn">Item master tax</div>
+            <div class="pss sd">source = "item"</div>
+            <div class="pts">
+              <code class="ic">OITM.VatGourpSa</code> on the <b>seller's own DB</b> (sales side).
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi" style="--psg: rgba(245, 158, 11, 0.3)">2&#65039;&#8419;</div>
+            <div class="ptn">BP default tax</div>
+            <div class="pss sp">source = "bp"</div>
+            <div class="pts">
+              <code class="ic">OCRD.ECVatGroup</code> of the IC customer on the seller's DB.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi" style="--psg: rgba(239, 68, 68, 0.3)">3&#65039;&#8419;</div>
+            <div class="ptn">Omit VatGroup</div>
+            <div class="pss sw2">source = "omit"</div>
+            <div class="pts">
+              No VatGroup sent &rarr; SAP tax determination on POST. Logged with seeding hint.
+            </div>
+          </div>
+        </div>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #6c3de8, #f59e0b)">
+          <pre><span class="cm"># Example: PQ line IN-12.5 on Company A (buyer)</span>
+<span class="hl">SELECT "Code","Category","Rate" FROM "OVTG" WHERE "Code" = 'IN-12.5'</span>
+  → Category <span class="hl2">I</span>, Rate <span class="hl2">12.5</span>
+
+<span class="cm"># Find seller sales tax on Company B with same rate:</span>
+<span class="hl3">SELECT "Code" FROM "OVTG" WHERE "Category" = 'O' AND "Rate" = 12.5</span>
+  → e.g. <span class="hl3">OUT-12.5</span> used on SQ / AR draft line
+
+<span class="cm"># Pure logic: map-ovtg-partner-tax.ts · HANA: partner-tax.masters.ts</span></pre>
+        </div>
+        <div class="note nr reveal">
+          <span class="ni">&#9888;&#65039;</span
+          ><span
+            ><b>Golden rule:</b> buyer purchase codes like <code>IN-12.5</code> are
+            <b>never</b> copied verbatim onto seller sales lines. They are used only to
+            <b>lookup the rate</b> on buyer OVTG, then pick the matching seller output tax. RFQ/PQ
+            lines still store buyer tax snapshot for re-applying to buyer PQ at convert.</span
+          >
+        </div>
+        <h3 class="reveal">Tax ownership by document</h3>
+        <div class="vtw reveal">
+          <table class="vt">
+            <tr>
+              <th>Document</th>
+              <th>Company</th>
+              <th>Tax family</th>
+              <th>How obtained</th>
+            </tr>
+            <tr>
+              <td><b>PQ Draft</b></td>
+              <td>Buyer</td>
+              <td>Purchase</td>
+              <td>UI / SAP buyer defaults</td>
+            </tr>
+            <tr>
+              <td><b>RFQ line</b></td>
+              <td>&mdash;</td>
+              <td>Snapshot only</td>
+              <td>
+                Buyer draft <code>VatGroup</code> &mdash; re-applied to the PQ only, never seller
+                tax
+              </td>
+            </tr>
+            <tr>
+              <td><b>PQ (after convert)</b></td>
+              <td>Buyer</td>
+              <td>Purchase</td>
+              <td>RFQ snapshot = buyer tax</td>
+            </tr>
+            <tr>
+              <td><b>SQ (seller)</b></td>
+              <td>Seller</td>
+              <td>Sales</td>
+              <td>
+                OVTG rate match (I&rarr;O) &rarr; item <code>VatGourpSa</code> &rarr; BP
+                <code>ECVatGroup</code> &rarr; omit
+              </td>
+            </tr>
+            <tr>
+              <td><b>PO</b></td>
+              <td>Buyer</td>
+              <td>Purchase</td>
+              <td>Normal buyer PO posting</td>
+            </tr>
+            <tr>
+              <td><b>AR Invoice Draft</b></td>
+              <td>Seller</td>
+              <td>Sales</td>
+              <td>Same OVTG + fallback chain as SQ</td>
+            </tr>
+            <tr>
+              <td><b>AR final (manual)</b></td>
+              <td>Seller</td>
+              <td>Sales</td>
+              <td>User posts in SAP B1 from the draft</td>
+            </tr>
+          </table>
+        </div>
+        <div class="note ng reveal">
+          <span class="ni">&#128295;</span
+          ><span
+            ><b>Ops checklist:</b> for each company pair, ensure OVTG has matching
+            <code>Rate</code> rows for Category <code>I</code> (buyer) and <code>O</code> (seller).
+            Also set seller item sales tax (<code>OITM.VatGourpSa</code>) and IC customer BP tax
+            (<code>OCRD.ECVatGroup</code>) as fallbacks. Per-line audit:
+            <code>ic-tax-usage.ts</code> on convert/AR build logs <code>pqTaxCode</code> /
+            <code>sqTaxCode</code> or <code>poTaxCode</code> / <code>arTaxCode</code>.</span
+          >
+        </div>
+        <div class="faq reveal">
+          <h3>Tax FAQ</h3>
+          <details class="faq-item">
+            <summary>IN-12.5 on buyer — what should seller SQ use?</summary>
+            <div class="faq-a">
+              Look up <code>IN-12.5</code> on buyer OVTG (Rate 12.5, Category I). On seller OVTG,
+              pick the sales code with Rate 12.5 and Category O (e.g. <code>OUT-12.5</code>). Code
+              names can differ; <b>rate + category</b> are what match.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>What if seller has no matching O rate?</summary>
+            <div class="faq-a">
+              Resolver falls back to item master, then BP default, then omit. Check IC logs
+              (<code>IC_LOG_SCOPE.TAX</code>) for <code>source: "omit"</code> and fix OVTG or
+              OITM/OCRD on the seller company.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Does reverse mapping (sales → purchase) work?</summary>
+            <div class="faq-a">
+              Yes — <code>map-ovtg-partner-tax.ts</code> picks target category from
+              <code>docSide</code>. For purchase targets, it finds Category <code>I</code> at the
+              same rate as the source sales tax.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="warehouse">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">08 &middot; Warehouse &amp; Branch Selection</span>
+          <div class="divider"></div>
+          <h2>How the Seller Warehouse &amp; Branch Are Chosen</h2>
+          <p class="ssub">
+            Multi-branch SAP companies require the document branch and every line warehouse to
+            agree. Implemented in
+            <code class="ic">config/warehouse/partner-warehouse.masters.ts</code> +
+            <code class="ic">flows/flow-1.../create-seller-sq.ts</code>.
+          </p>
+        </div>
+        <div class="pf reveal">
+          <div class="pst">
+            <div class="pi">&#127979;</div>
+            <div class="ptn">Branch first</div>
+            <div class="pss sv">IC_COMPANY</div>
+            <div class="pts">
+              <code class="ic">DEFAULT_BRANCH_ID</code> of the seller company &rarr; set as
+              <code class="ic">BPL_IDAssignedToInvoice</code> on the SQ / AR draft header.
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#128230;</div>
+            <div class="ptn">Line WH: item default</div>
+            <div class="pss sd">preferred</div>
+            <div class="pts">
+              Item's <code class="ic">OITM.DfltWH</code> &mdash; but only if that warehouse is
+              active <b>and assigned to the same branch</b> (OWHS.BPLid).
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#127962;</div>
+            <div class="ptn">Line WH: branch fallback</div>
+            <div class="pss sp">fallback</div>
+            <div class="pts">
+              First active warehouse on the document branch (<code class="ic">OWHS</code> where
+              <code class="ic">Inactive='N'</code> and <code class="ic">BPLid = branch</code>,
+              ordered by WhsCode).
+            </div>
+          </div>
+          <div class="pst">
+            <div class="pi">&#9211;</div>
+            <div class="ptn">Omit otherwise</div>
+            <div class="pss sw2">safe</div>
+            <div class="pts">
+              No branch configured or no match &rarr; WarehouseCode omitted and SAP applies its own
+              default.
+            </div>
+          </div>
+        </div>
+        <div class="cb reveal" style="--al: linear-gradient(90deg, #10b981, #34d399)">
+          <pre><span class="cm">-- branch default WH (document-level fallback for all lines)</span>
+<span class="hl3">SELECT TOP 1 "WhsCode" FROM "OWHS"
+ WHERE "Inactive" = 'N' AND "BPLid" = ?  ORDER BY "WhsCode" ASC</span>
+
+<span class="cm">-- per-line WH: item default WH only when it lives on the same branch</span>
+<span class="hl3">SELECT TOP 1 T0."DfltWH" AS "WhsCode"
+   FROM "OITM" T0 INNER JOIN "OWHS" T1 ON T1."WhsCode" = T0."DfltWH"
+  WHERE T0."ItemCode" = ? AND T1."Inactive" = 'N' AND T1."BPLid" = ?</span>
+
+<span class="cm">-- final line rule</span>
+<span class="hl2">WarehouseCode = itemWhOnBranch ?? branchWarehouse ?? (omit)</span></pre>
+        </div>
+        <div class="note nr reveal">
+          <span class="ni">&#128683;</span
+          ><span
+            ><b>Never copy the buyer warehouse.</b> A buyer WH like <code>L101</code> may belong to
+            a different branch (BPL 7) than the seller document (BPL 1) &mdash; SAP would reject or
+            mis-assign it. The engine always resolves the <b>seller's own</b> warehouse on the
+            <b>document's branch</b>. Same principle as tax: company-local, never
+            cross-copied.</span
+          >
+        </div>
+        <div class="faq reveal">
+          <h3>Warehouse FAQ</h3>
+          <details class="faq-item">
+            <summary>Why did SQ fail with "No active warehouse on branch"?</summary>
+            <div class="faq-a">
+              Seller <code>IC_COMPANY.DEFAULT_BRANCH_ID</code> is set but no active
+              <code>OWHS</code> row exists with matching <code>BPLid</code>. Add a warehouse on that
+              branch or fix the default branch id.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Can we use the buyer's warehouse code on SQ?</summary>
+            <div class="faq-a">
+              No — buyer WH may belong to a different branch on the seller DB and SAP will reject or
+              mis-post. Always resolve seller WH on the document branch.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="config">
+      <div class="sw">
+        <div class="reveal">
+          <span class="stag">09 &middot; Configuration &amp; APIs</span>
+          <div class="divider"></div>
+          <h2>Flags, Go-Live Order &amp; Endpoint Map</h2>
+          <p class="ssub">
+            Everything is switchable from <code class="ic">IC_CONFIGURATION</code> &mdash; keep both
+            flow flags <b>off</b> until seed + Service Layer logins are verified.
+          </p>
+        </div>
+        <div class="vtw reveal">
+          <table class="vt">
+            <tr>
+              <th>Key</th>
+              <th>Default</th>
+              <th>Effect</th>
+            </tr>
+            <tr>
+              <td><code>ENABLE_FLOW1_RFQ_CHAIN</code></td>
+              <td>0</td>
+              <td>PQ Draft path creates the custom RFQ chain</td>
+            </tr>
+            <tr>
+              <td><code>ENABLE_FLOW2_DIRECT_PO</code></td>
+              <td>0</td>
+              <td>PO creates an AR Draft even without a prior RFQ chain</td>
+            </tr>
+            <tr>
+              <td><code>MAX_RETRY_COUNT</code></td>
+              <td>2</td>
+              <td>Attempts before a retry row goes DEAD</td>
+            </tr>
+            <tr>
+              <td><code>RETRY_DELAY_MINUTES</code></td>
+              <td>&mdash;</td>
+              <td>Delay between automatic retry attempts</td>
+            </tr>
+            <tr>
+              <td><code>DETECT_DRAFT_CRON_MINUTES</code></td>
+              <td>e.g. 5</td>
+              <td>Worker safety-net scan cadence</td>
+            </tr>
+            <tr>
+              <td><code>REMARKS_PREFIX</code></td>
+              <td>IC-PO (legacy)</td>
+              <td>
+                Legacy config key; new docs use <code>Based on …</code> via ic-remarks-chain.ts
+              </td>
+            </tr>
+            <tr>
+              <td><code>SL_SESSION_TIMEOUT_MINUTES</code></td>
+              <td>&mdash;</td>
+              <td>Cached Service Layer session lifetime</td>
+            </tr>
+          </table>
+        </div>
+        <div class="note nw reveal">
+          <span class="ni">&#128202;</span
+          ><span
+            ><b>Recommended production order:</b> seed <code>IC_*</code> tables &rarr; start the
+            worker &rarr; enable <code>ENABLE_FLOW2_DIRECT_PO</code> &rarr; smoke A&harr;B &rarr;
+            enable <code>ENABLE_FLOW1_RFQ_CHAIN</code> &rarr; smoke again.</span
+          >
+        </div>
+        <h3 class="reveal">API endpoint map (base <code class="ic">/api/v1/ic</code>)</h3>
+        <div class="vtw reveal">
+          <table class="vt">
+            <tr>
+              <th>Endpoint</th>
+              <th>Purpose</th>
+            </tr>
+            <tr>
+              <td><code>GET /health</code></td>
+              <td>Module liveness ({ ok: true, module, phase: "P9" })</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET/PUT /rfqs</code> &middot; <code>POST /rfqs/:id/submit</code> &middot;
+                <code>POST /rfqs/:id/convert</code>
+              </td>
+              <td>RFQ list, seller fill, submit, buyer convert (role-enforced per company)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /notifications</code> &middot;
+                <code>GET /notifications/unread-count</code> &middot;
+                <code>PATCH /notifications/:id/read</code> &middot;
+                <code>POST /notifications/mark-all-read</code>
+              </td>
+              <td>Company-scoped inbox + header badge</td>
+            </tr>
+            <tr>
+              <td><code>GET /retries</code> &middot; <code>POST /retries/:id/run</code></td>
+              <td>Retry queue visibility + manual force-retry</td>
+            </tr>
+          </table>
+        </div>
+        <div class="note ng reveal">
+          <span class="ni">&#128274;</span
+          ><span
+            ><b>Security:</b> all routes resolve the actor company from the session DB &rarr;
+            <code>IC_COMPANY</code>; RFQ/notification/retry queries are company-scoped in SQL; API
+            logs mask passwords &amp; session cookies; flow logs carry a per-run
+            <code>corrId</code>.</span
+          >
+        </div>
+        <div class="faq reveal">
+          <h3>Config &amp; API FAQ</h3>
+          <details class="faq-item">
+            <summary>Which flag should I enable first?</summary>
+            <div class="faq-a">
+              Seed tables &rarr; start worker &rarr; enable <code>ENABLE_FLOW2_DIRECT_PO</code> and
+              smoke PO&rarr;AR &rarr; then <code>ENABLE_FLOW1_RFQ_CHAIN</code>. Keep both off until
+              Service Layer logins work for every IC company.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Where is the relationship map API documented?</summary>
+            <div class="faq-a">
+              Swagger: <code>GET /relationship-map/{docType}/{docEntry}</code>. IC types:
+              <code>request-for-quotation</code>, <code>sales-quotation</code>. Standard SAP types
+              still return full chains where applicable.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Is this HTML doc the source of truth?</summary>
+            <div class="faq-a">
+              This page summarizes behaviour for engineers. Code + unit tests in
+              <code>src/modules/intercompany/</code> win on conflict. Open this file in a browser:
+              <code>hana-backend/ic-explained.html</code>.
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="flogo">Intercompany Engine</div>
+      <div>
+        2026 VedhaSoft Technologies. All rights reserved. IC module P1&ndash;P9 complete (P0 seed
+        before go-live).
+      </div>
+      <div style="font-size: 0.75rem">
+        Sources: src/modules/intercompany &middot; src/modules/relationship-map &middot;
+        ic-remarks-chain.ts &middot; ic-tax-usage.ts &middot; README.md &middot; Updated Jul 2026
+      </div>
+    </footer>
+
+    <script>
+      const reveals = document.querySelectorAll(".reveal");
+      reveals.forEach((el) => el.classList.add("visible"));
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                e.target.classList.add("visible");
+                io.unobserve(e.target);
+              }
+            });
+          },
+          { threshold: 0.05 },
+        );
+        reveals.forEach((el) => io.observe(el));
+      }
+    </script>
+  </body>
+</html>

@@ -15,6 +15,9 @@ export type IcDocumentLineInput = {
   UoMCode?: unknown;
   UomCode?: unknown;
   VatGroup?: unknown;
+  /** Alias of VatGroup from some portal payloads. */
+  TaxCode?: unknown;
+  taxCode?: unknown;
   WarehouseCode?: unknown;
   LineNum?: unknown;
   ReqDate?: unknown;

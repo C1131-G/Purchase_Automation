@@ -12,10 +12,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/sidebar";
-import {
-  IcUnreadCountPill,
-  IcUnreadIconBadge,
-} from "@/features/intercompany/components/ic-unread-badge";
+import { IcUnreadCountPill } from "@/features/intercompany/components/ic-unread-badge";
 import type { TableRoutePath } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
 import { cn } from "@/shared/utils/cn";
 import { markSidebarNavigation } from "@/shared/utils/route-transition";
@@ -206,8 +203,6 @@ export function ShellLayoutNavigation({
               isOpen={isSectionOpen("intercompany")}
               onToggle={() => onToggleSection("intercompany")}
               isActive={pathname.startsWith("/intercompany")}
-              trailing={<IcUnreadCountPill />}
-              iconBadge={<IcUnreadIconBadge />}
             >
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton

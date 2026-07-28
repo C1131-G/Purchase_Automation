@@ -259,9 +259,18 @@ export const icUpdateRfqBodySchema = z.object({
 export type IcUpdateRfqLineBody = z.infer<typeof icUpdateRfqLineBodySchema>;
 export type IcUpdateRfqBody = z.infer<typeof icUpdateRfqBodySchema>;
 
-/** PUT /rfqs/:id and POST /rfqs/:id/submit return the header with lines. */
+/**
+ * PUT /rfqs/:id returns enriched header with lines.
+ * POST /rfqs/:id/submit returns the header after status flip (no enrich; fast path).
+ */
 export const icUpdateRfqResponseSchema = icRfqDetailResponseSchema;
 export type IcUpdateRfqResponse = z.infer<typeof icUpdateRfqResponseSchema>;
+
+/** POST /rfqs/:id/submit may include lines (same shape as PUT) to save+submit in one call. */
+export const icSubmitRfqBodySchema = z.object({
+  lines: z.array(icUpdateRfqLineBodySchema).min(1).optional(),
+});
+export type IcSubmitRfqBody = z.infer<typeof icSubmitRfqBodySchema>;
 
 /** POST /api/v1/ic/rfqs/:id/convert — buyer converts submitted RFQ → PQ + SQ. */
 export const icConvertRfqResponseSchema = z.object({

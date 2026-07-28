@@ -39,22 +39,28 @@ export const createBuildArDraftService = (deps?: {
       let taxOmit = 0;
       const resolvedPairs = new Set<string>();
 
-      const payload = await buildArDraftPayload({
+      const built = await buildArDraftPayload({
         buyerCustomerCode: partner.buyerCustomerCode,
         comments: input.remarks,
         defaultBranchId: partner.sellerCompany.defaultBranchId,
         docDate: input.docDate,
         docDueDate: input.docDueDate,
         lines: input.lines,
-        resolveLineTax: async ({ itemCode }) => {
+        resolveLineTax: async ({ itemCode, sourceTaxCode }) => {
           const resolved = await partnerTax.resolve({
             docSide: "sales",
             itemCode,
+            sourceCompanyId: partner.buyerCompany.companyId,
+            sourceSapDbName: partner.buyerCompany.sapDbName,
+            sourceTaxCode,
             targetCardCode,
             targetCompanyId,
             targetSapDbName,
           });
-          if (resolved.source === "item") {
+          if (resolved.source === "ovtg_rate") {
+            taxItem += 1;
+            resolvedPairs.add(`${sourceTaxCode}->${resolved.taxCode}(ovtg)`);
+          } else if (resolved.source === "item") {
             taxItem += 1;
             resolvedPairs.add(`${itemCode}->${resolved.taxCode}(item)`);
           } else if (resolved.source === "bp") {
@@ -71,14 +77,18 @@ export const createBuildArDraftService = (deps?: {
         remarksTag,
       });
 
+      const { taxUsage, ...payload } = built;
+
       icLog.info(IC_LOG_SCOPE.TAX, "IC partner tax summary for AR draft (dynamic)", {
         check: "tax_resolve_summary",
         outcome: taxOmit > 0 ? "fail" : "pass",
+        // Explicit PO (buyer) vs AR (seller) tax codes per line.
         resolvedPairs: [...resolvedPairs],
         targetCompanyId,
         taxBp,
         taxItem,
         taxOmit,
+        taxUsage,
       });
 
       return payload;

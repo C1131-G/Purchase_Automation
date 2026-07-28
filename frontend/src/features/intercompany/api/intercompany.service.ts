@@ -125,10 +125,12 @@ export const intercompanyAPI = {
 
   /**
    * Seller submit DRAFT → SUBMITTED (all lines must have unit price).
+   * Optional `body.lines` saves fill in the same request (no separate PUT).
    * `POST /api/v1/ic/rfqs/:id/submit`
    */
-  submitRfq: (rfqId: number) =>
+  submitRfq: (rfqId: number, body?: IcUpdateRfqBody) =>
     apiClient<IcUpdateRfqResponse>(IC_API_PATHS.rfqSubmit(rfqId), {
+      ...(body ? { body: JSON.stringify(body) } : {}),
       method: "POST",
     }),
 

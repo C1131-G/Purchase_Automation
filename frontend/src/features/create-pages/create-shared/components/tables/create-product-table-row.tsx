@@ -182,7 +182,6 @@ interface CreateProductTableRowProps {
   showSelection?: boolean;
   showReturnReason?: boolean;
   nativeReturnReason?: boolean;
-  showTaxCode?: boolean;
   warehouseError?: string | undefined;
   showUom?: boolean;
   uoms?: CreateLookupOption[];
@@ -217,7 +216,6 @@ export function CreateProductTableRow({
   showSelection = false,
   showReturnReason = false,
   nativeReturnReason = false,
-  showTaxCode = false,
   maxQuantity,
   linkedRow = false,
   warehouseError,
@@ -1332,12 +1330,10 @@ export function CreateProductTableRow({
             min={0}
             step="0.01"
             inputMode="decimal"
+            placeholder="0"
             value={
-              rowDraft?.price !== undefined
-                ? rowDraft.price
-                : row.price === 0 || row.price === undefined || row.price === null
-                  ? ""
-                  : String(row.price)
+              // Draft string while typing (so "0" is removable); otherwise show 0, not blank.
+              rowDraft?.price !== undefined ? rowDraft.price : String(row.price ?? 0)
             }
             onChange={(event) => {
               // Keep draft string so user can clear "0" and type a new price.
@@ -1532,11 +1528,6 @@ export function CreateProductTableRow({
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm font-medium text-zinc-900">
         {lineTotal.toFixed(2)}
       </td>
-      {showTaxCode && (
-        <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
-          {row.vatGroup || "-"}
-        </td>
-      )}
       {showGLAccount && (
         <td className="relative px-2 py-2 min-w-0">
           <div className="relative">

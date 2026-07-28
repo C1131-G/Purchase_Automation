@@ -6,13 +6,13 @@ import {
 } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 
 describe("parseDocumentHeaderNotes", () => {
-  it("keeps parent typed Comments when IC chain lines are present (no Ref steal)", () => {
+  it("keeps parent typed Comments when Based on chain lines are present (no Ref steal)", () => {
     const comments = [
       "Please match last quote",
       "Urgent for plant B",
-      "IC | PQD: PQ Draft No 9001",
-      "IC | RFQ: RFQ-PQD-9001",
-      "IC | PQ: PQ No 2042",
+      "Based on Purchase Quotation Draft 9001",
+      "Based on Request For Quotation 9001",
+      "Based on Purchase Quotation 2042",
     ].join("\n");
 
     const parsed = parseDocumentHeaderNotes({
@@ -24,20 +24,28 @@ describe("parseDocumentHeaderNotes", () => {
     expect(parsed.referenceNo).toBe("");
     expect(parsed.comments).toContain("Please match last quote");
     expect(parsed.comments).toContain("Urgent for plant B");
-    expect(parsed.comments).toContain("IC | PQD: PQ Draft No 9001");
-    expect(parsed.comments).toContain("IC | PQ: PQ No 2042");
+    expect(parsed.comments).toContain("Based on Purchase Quotation Draft 9001");
+    expect(parsed.comments).toContain("Based on Purchase Quotation 2042");
   });
 
-  it("does not split parent message into Ref No when IC | appears", () => {
-    // Legacy bug: split(" | ") moved "Parent note\\nIC" into referenceNo
+  it("recognizes legacy IC | chain lines", () => {
     const comments = "Parent note\nIC | PQD: PQ Draft No 1\nIC | RFQ: RFQ-1";
+    expect(hasIcRemarkLines(comments)).toBe(true);
+    const parsed = parseDocumentHeaderNotes({ Comments: comments, NumAtCard: null });
+    expect(parsed.referenceNo).toBe("");
+    expect(parsed.comments).toBe(comments);
+  });
+
+  it("does not split parent message into Ref No when Based on appears", () => {
+    const comments =
+      "Parent note\nBased on Purchase Quotation Draft 1\nBased on Request For Quotation 1";
     const parsed = parseDocumentHeaderNotes({ Comments: comments, NumAtCard: null });
     expect(parsed.referenceNo).toBe("");
     expect(parsed.comments).toBe(comments);
   });
 
   it("keeps real NumAtCard as Ref No and full Comments", () => {
-    const comments = "Ship dock 3\nIC | PO: PO No 188";
+    const comments = "Ship dock 3\nBased on Purchase Order 188";
     const parsed = parseDocumentHeaderNotes({
       Comments: comments,
       NumAtCard: "VREF-99",

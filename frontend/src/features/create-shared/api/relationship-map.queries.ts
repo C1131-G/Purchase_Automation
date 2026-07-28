@@ -19,6 +19,8 @@ export interface RelationshipMapResult {
   apCreditMemo?: NodeResult[];
   outgoingPayment?: NodeResult[];
   delivery?: NodeResult[];
+  /** IC RFQ upstream of seller SQ (Flow 1). */
+  requestForQuotation?: NodeResult[];
 }
 
 export interface RelationshipMapResponse {

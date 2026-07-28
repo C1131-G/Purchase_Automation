@@ -45,7 +45,9 @@ export const mapDraftLinesToRfqLines = (
       unitPriceRaw === undefined || unitPriceRaw === null ? null : Number(unitPriceRaw);
 
     const uomCode = line.UoMCode ?? line.UomCode;
-    const taxCode = line.VatGroup == null ? null : String(line.VatGroup).trim() || null;
+    // Prefer VatGroup (SAP); accept TaxCode aliases from portal payloads.
+    const taxRaw = line.VatGroup ?? line.TaxCode ?? line.taxCode ?? null;
+    const taxCode = taxRaw == null ? null : String(taxRaw).trim() || null;
 
     const descriptionRaw = line.ItemDescription ?? line.ItemName;
     const description =
@@ -53,17 +55,16 @@ export const mapDraftLinesToRfqLines = (
         ? null
         : String(descriptionRaw).trim() || null;
 
+    // Quoted qty/date stay empty until seller fills RFQ — never copy from required.
     const quotedQty = toFiniteNumber(line.Quantity) ?? 0;
     const requiredQty =
       toFiniteNumber(line.RequiredQuantity) ?? toFiniteNumber(line.requiredQuantity) ?? 0;
-    // Persist a usable qty for seller fill: prefer required (buyer need) when quoted is still 0.
-    const quantity = quotedQty > 0 ? quotedQty : requiredQty > 0 ? requiredQty : 0;
 
     const requiredDate = toDateOnly(line.ReqDate ?? line.RequiredDate ?? line.requiredDate);
     const quotedDate = toDateOnly(line.ShipDate ?? line.QuotedDate ?? line.quotedDate);
 
     return {
-      deliveryDate: quotedDate ?? requiredDate,
+      deliveryDate: quotedDate,
       description,
       discount:
         line.DiscountPercent === undefined || line.DiscountPercent === null
@@ -71,9 +72,9 @@ export const mapDraftLinesToRfqLines = (
           : Number(line.DiscountPercent),
       itemCode: String(line.ItemCode ?? "").trim(),
       lineNum,
-      quantity,
+      quantity: quotedQty > 0 ? quotedQty : 0,
       requiredDate,
-      requiredQuantity: requiredQty > 0 ? requiredQty : quantity,
+      requiredQuantity: requiredQty > 0 ? requiredQty : 0,
       taxCode,
       unitPrice: Number.isFinite(unitPrice as number) ? (unitPrice as number) : null,
       uomCode: uomCode === undefined || uomCode === null || uomCode === "" ? null : String(uomCode),
@@ -85,9 +86,11 @@ export const mapDraftLinesToRfqLines = (
   });
 };
 
+/** IC RFQ doc number: PQ draft doc num when known, else draft entry (no RFQ-PQD- prefix). */
 export const buildRfqNumber = (docEntry: number, docNum: string | null): string => {
-  if (docNum) {
-    return `RFQ-PQD-${docNum}`;
+  const trimmed = docNum != null ? String(docNum).trim() : "";
+  if (trimmed) {
+    return trimmed;
   }
-  return `RFQ-PQD-E${docEntry}`;
+  return String(docEntry);
 };

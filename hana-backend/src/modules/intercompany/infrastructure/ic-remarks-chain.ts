@@ -2,25 +2,44 @@
  * IC document remarks / Comments chain.
  *
  * Format (one link per line, never replaces user text):
- *   IC | PQD: PQ Draft No 8000586
- *   IC | RFQ: RFQ-PQD-8000586
- *   IC | PQ: PQ No 2042
- *   IC | SQ: SQ No 810
- *   IC | PO: PO No 5001328
- *   IC | AR: AR Invoice Draft No 1201
+ *   Based on Purchase Quotation Draft 8000586
+ *   Based on Request For Quotation 8000586
+ *   Based on Purchase Quotation 2042
+ *   Based on Sales Quotation 810
+ *   Based on Purchase Order 5001328
+ *   Based on AR Invoice Draft 1201
  *
- * Prefer document type + number only (no Flow 1/2 wording).
- * Existing non-IC remarks are preserved; IC lines append only if that KEY is new.
+ * Legacy `IC | KEY: …` lines are still parsed for merge/idempotency.
+ * Existing non-IC remarks are preserved; auto lines append only if that KEY is new.
  */
 
 export type IcRemarkLink = {
   /** Stable key for idempotent append: PQD | RFQ | PQ | SQ | PO | AR */
   key: string;
-  /** Human-readable value after the key. */
+  /** Document number (or entry fallback) shown after the type label. */
   text: string;
 };
 
-const LINE_RE = /^IC\s*\|\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/i;
+const LEGACY_IC_LINE_RE = /^IC\s*\|\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/i;
+const BASED_ON_LINE_RE = /^Based on (.+?)\s+(\S+)\s*$/i;
+
+const IC_DOC_TYPE_LABEL: Record<string, string> = {
+  PQD: "Purchase Quotation Draft",
+  RFQ: "Request For Quotation",
+  PQ: "Purchase Quotation",
+  SQ: "Sales Quotation",
+  PO: "Purchase Order",
+  AR: "AR Invoice Draft",
+};
+
+const LABEL_TO_KEY: Record<string, string> = {
+  "purchase quotation draft": "PQD",
+  "request for quotation": "RFQ",
+  "purchase quotation": "PQ",
+  "sales quotation": "SQ",
+  "purchase order": "PO",
+  "ar invoice draft": "AR",
+};
 
 const hasDocNum = (docNum: number | null | undefined): docNum is number =>
   docNum != null && Number.isFinite(docNum) && docNum > 0;
@@ -28,34 +47,76 @@ const hasDocNum = (docNum: number | null | undefined): docNum is number =>
 const hasEntry = (docEntry: number | null | undefined): docEntry is number =>
   docEntry != null && Number.isFinite(docEntry) && docEntry > 0;
 
-export const formatIcRemarkLine = (key: string, text: string): string =>
-  `IC | ${key.toUpperCase()}: ${text.trim()}`;
+const normalizeRemarkNewlines = (remarks: string): string =>
+  remarks.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-/** Collect IC keys already present in comments. */
+const docRef = (docNum: number | null | undefined, docEntry: number): string =>
+  hasDocNum(docNum) ? String(docNum) : String(docEntry);
+
+/** Extract a numeric doc ref from legacy `IC | KEY: PQ Draft No 9001` text. */
+const extractDocRefFromLegacyText = (text: string): string => {
+  const trimmed = text.trim();
+  const numMatch = trimmed.match(/(\d+)\s*$/);
+  if (numMatch?.[1]) {
+    return numMatch[1];
+  }
+  return trimmed;
+};
+
+const isAutoRemarkLine = (trimmed: string): boolean =>
+  LEGACY_IC_LINE_RE.test(trimmed) || BASED_ON_LINE_RE.test(trimmed);
+
+export const formatIcRemarkLine = (key: string, docRefText: string): string => {
+  const label = IC_DOC_TYPE_LABEL[key.toUpperCase()] ?? key;
+  return `Based on ${label} ${docRefText.trim()}`;
+};
+
+/** Collect IC keys already present in comments (legacy + Based on formats). */
 export const parseIcRemarkKeys = (remarks: string | null | undefined): Set<string> => {
   const keys = new Set<string>();
   if (!remarks) {
     return keys;
   }
-  for (const raw of remarks.replace(/\r\n/g, "\n").split("\n")) {
-    const match = raw.trim().match(LINE_RE);
-    if (match?.[1]) {
-      keys.add(match[1].toUpperCase());
+  for (const raw of normalizeRemarkNewlines(remarks).split("\n")) {
+    const trimmed = raw.trim();
+    const legacy = trimmed.match(LEGACY_IC_LINE_RE);
+    if (legacy?.[1]) {
+      keys.add(legacy[1].toUpperCase());
+      continue;
+    }
+    const basedOn = trimmed.match(BASED_ON_LINE_RE);
+    if (basedOn?.[1]) {
+      const mapped = LABEL_TO_KEY[basedOn[1].trim().toLowerCase()];
+      if (mapped) {
+        keys.add(mapped);
+      }
     }
   }
   return keys;
 };
 
-/** Extract existing `IC | KEY: text` lines so they can be re-merged onto user comments. */
+/** Extract existing auto-reference lines so they can be re-merged onto user comments. */
 export const parseIcRemarkLinks = (remarks: string | null | undefined): IcRemarkLink[] => {
   const links: IcRemarkLink[] = [];
   if (!remarks) {
     return links;
   }
-  for (const raw of remarks.replace(/\r\n/g, "\n").split("\n")) {
-    const match = raw.trim().match(LINE_RE);
-    if (match?.[1] && match[2] !== undefined && match[2].trim()) {
-      links.push({ key: match[1], text: match[2].trim() });
+  for (const raw of normalizeRemarkNewlines(remarks).split("\n")) {
+    const trimmed = raw.trim();
+    const legacy = trimmed.match(LEGACY_IC_LINE_RE);
+    if (legacy?.[1] && legacy[2] !== undefined && legacy[2].trim()) {
+      links.push({
+        key: legacy[1].toUpperCase(),
+        text: extractDocRefFromLegacyText(legacy[2]),
+      });
+      continue;
+    }
+    const basedOn = trimmed.match(BASED_ON_LINE_RE);
+    if (basedOn?.[1] && basedOn[2]) {
+      const mapped = LABEL_TO_KEY[basedOn[1].trim().toLowerCase()];
+      if (mapped) {
+        links.push({ key: mapped, text: basedOn[2].trim() });
+      }
     }
   }
   return links;
@@ -69,7 +130,7 @@ export const appendIcRemarkLines = (
   existing: string | null | undefined,
   links: IcRemarkLink[],
 ): string => {
-  const base = (existing ?? "").replace(/\r\n/g, "\n").trimEnd();
+  const base = normalizeRemarkNewlines(existing ?? "").trimEnd();
   const have = parseIcRemarkKeys(base);
   const toAdd: string[] = [];
 
@@ -97,10 +158,10 @@ const collectUserRemarkLines = (remarks: string | null | undefined): string[] =>
     return [];
   }
   const lines: string[] = [];
-  for (const raw of remarks.replace(/\r\n/g, "\n").split("\n")) {
+  for (const raw of normalizeRemarkNewlines(remarks).split("\n")) {
     const line = raw.trimEnd();
     const trimmed = line.trim();
-    if (!trimmed || LINE_RE.test(trimmed)) {
+    if (!trimmed || isAutoRemarkLine(trimmed)) {
       continue;
     }
     lines.push(line);
@@ -111,15 +172,15 @@ const collectUserRemarkLines = (remarks: string | null | undefined): string[] =>
 /**
  * Merge two remarks blobs without dropping original user text.
  * - Non-IC lines from both sides are kept (primary order first, then secondary-only).
- * - IC | KEY lines from both sides are kept (secondary wins on same KEY).
+ * - Auto-reference lines from both sides are kept (secondary wins on same KEY).
  * Never replaces user comments with only auto-generated IC lines.
  */
 export const mergeUserAndIcRemarks = (
   primary: string | null | undefined,
   secondary: string | null | undefined,
 ): string => {
-  const primaryTrim = (primary ?? "").replace(/\r\n/g, "\n").trim();
-  const secondaryTrim = (secondary ?? "").replace(/\r\n/g, "\n").trim();
+  const primaryTrim = normalizeRemarkNewlines(primary ?? "").trim();
+  const secondaryTrim = normalizeRemarkNewlines(secondary ?? "").trim();
   if (!primaryTrim) {
     return secondaryTrim;
   }
@@ -223,27 +284,30 @@ export const icLinkPqDraft = (
   docEntry: number,
 ): IcRemarkLink => ({
   key: "PQD",
-  text: hasDocNum(docNum) ? `PQ Draft No ${docNum}` : `PQ Draft Entry ${docEntry}`,
+  text: docRef(docNum, docEntry),
 });
 
-export const icLinkRfq = (rfqNumber: string, _rfqId?: number | null): IcRemarkLink => ({
+export const icLinkRfq = (
+  docNum: number | null | undefined,
+  docEntry?: number | null,
+): IcRemarkLink => ({
   key: "RFQ",
-  text: String(rfqNumber).trim(),
+  text: hasDocNum(docNum) ? String(docNum) : hasEntry(docEntry) ? String(docEntry) : "",
 });
 
 export const icLinkPq = (docNum: number | null | undefined, docEntry: number): IcRemarkLink => ({
   key: "PQ",
-  text: hasDocNum(docNum) ? `PQ No ${docNum}` : `PQ Entry ${docEntry}`,
+  text: docRef(docNum, docEntry),
 });
 
 export const icLinkSq = (docNum: number | null | undefined, docEntry: number): IcRemarkLink => ({
   key: "SQ",
-  text: hasDocNum(docNum) ? `SQ No ${docNum}` : `SQ Entry ${docEntry}`,
+  text: docRef(docNum, docEntry),
 });
 
 export const icLinkPo = (docNum: number | null | undefined, docEntry: number): IcRemarkLink => ({
   key: "PO",
-  text: hasDocNum(docNum) ? `PO No ${docNum}` : `PO Entry ${docEntry}`,
+  text: docRef(docNum, docEntry),
 });
 
 /**
@@ -255,10 +319,10 @@ export const icLinkArDraft = (
   docNum?: number | null,
 ): IcRemarkLink | null => {
   if (hasDocNum(docNum)) {
-    return { key: "AR", text: `AR Invoice Draft No ${docNum}` };
+    return { key: "AR", text: String(docNum) };
   }
   if (hasEntry(docEntry)) {
-    return { key: "AR", text: `AR Invoice Draft Entry ${docEntry}` };
+    return { key: "AR", text: String(docEntry) };
   }
   return null;
 };
@@ -285,7 +349,7 @@ export const buildFlow1RfqRemarks = (params: {
 }): string =>
   appendIcRemarkLines(params.existing, [
     icLinkPqDraft(params.pqDraftDocNum, params.pqDraftDocEntry),
-    icLinkRfq(params.rfqNumber, params.rfqId),
+    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
   ]);
 
 /**
@@ -303,17 +367,45 @@ export const buildFlow1ConvertRemarks = (params: {
 }): string => {
   const links: IcRemarkLink[] = [
     icLinkPqDraft(params.pqDraftDocNum, params.pqDraftDocEntry),
-    icLinkRfq(params.rfqNumber, params.rfqId),
+    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
   ];
   if (hasEntry(params.pqDocEntry)) {
-    links.push(icLinkPq(params.pqDocNum, params.pqDocEntry));
+    links.push(icLinkPq(params.pqDocNum, params.pqDocEntry!));
   }
   return appendIcRemarkLines(params.existing, links);
 };
 
 /**
+ * Ensure buyer vendor ref appears once in remarks (plain user line, not IC key).
+ * Keeps parent typed text first; does not replace existing lines that already contain the ref.
+ */
+export const ensureVendorRefInRemarks = (
+  remarks: string | null | undefined,
+  vendorRefNo: string | null | undefined,
+): string => {
+  const base = normalizeRemarkNewlines(remarks ?? "").trimEnd();
+  const ref = vendorRefNo != null ? String(vendorRefNo).trim() : "";
+  if (!ref) {
+    return base;
+  }
+  const refLine = `Vendor Ref No: ${ref}`;
+  const lower = base.toLowerCase();
+  if (lower.includes(ref.toLowerCase()) || lower.includes("vendor ref no:")) {
+    return base;
+  }
+  if (!base) {
+    return refLine;
+  }
+  // Keep vendor ref with other user lines (before auto-reference chain).
+  const userLines = collectUserRemarkLines(base);
+  const icLinks = parseIcRemarkLinks(base);
+  const mergedUser = [...userLines, refLine];
+  return appendIcRemarkLines(mergedUser.join("\n"), icLinks);
+};
+
+/**
  * Full chain for seller SQ Comments.
- * PQD → RFQ → PQ → SQ
+ * Vendor ref (user line) + PQD → RFQ → PQ → SQ
  */
 export const buildFlow1SqRemarks = (params: {
   existing?: string | null;
@@ -325,21 +417,23 @@ export const buildFlow1SqRemarks = (params: {
   pqDocEntry: number;
   sqDocNum?: number | null;
   sqDocEntry?: number | null;
+  /** Buyer PQ draft NumAtCard — shown on seller SQ remarks. */
+  vendorRefNo?: string | null;
 }): string => {
+  const withVendorRef = ensureVendorRefInRemarks(params.existing, params.vendorRefNo);
   const links: IcRemarkLink[] = [
     icLinkPqDraft(params.pqDraftDocNum, params.pqDraftDocEntry),
-    icLinkRfq(params.rfqNumber, params.rfqId),
+    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
     icLinkPq(params.pqDocNum, params.pqDocEntry),
   ];
   if (hasEntry(params.sqDocEntry)) {
     links.push(icLinkSq(params.sqDocNum, params.sqDocEntry));
   }
-  return appendIcRemarkLines(params.existing, links);
+  return appendIcRemarkLines(withVendorRef, links);
 };
 
 /**
  * AR draft Comments: keep PO user remarks + append PO link (and AR when numbered).
- * No Flow 1/2 wording — document type + number only.
  */
 export const buildFlow2ArRemarks = (params: {
   existingComments?: string | null;

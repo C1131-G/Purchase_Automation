@@ -1,11 +1,13 @@
 /**
  * Read company-local tax defaults from SAP tenant DB (HANA).
- * No IC_TAX_MAPPING — tax is always resolved in the document's company.
+ * OVTG rate/category used for cross-company PQ→SQ and PO→AR tax mapping.
  */
 
 import { executeTenantQuery } from "@/db/tenant-query";
 
-/** Sales docs (SQ, AR) vs purchase docs (if ever created on partner for AP). */
+import { normalizeOvtgCategory, type OvtgTaxRecord } from "./map-ovtg-partner-tax";
+
+/** Sales docs (SQ, AR) vs purchase docs (PQ, PO). */
 export type PartnerTaxDocSide = "sales" | "purchase";
 
 export type PartnerTaxMasters = {
@@ -19,6 +21,8 @@ export type PartnerTaxMasters = {
     cardCode: string,
     side: PartnerTaxDocSide,
   ) => Promise<string | null>;
+  getOvtgTax: (sapDbName: string, taxCode: string) => Promise<OvtgTaxRecord | null>;
+  listOvtgTaxes: (sapDbName: string) => Promise<OvtgTaxRecord[]>;
 };
 
 const toTax = (value: unknown): string | null => {
@@ -27,6 +31,29 @@ const toTax = (value: unknown): string | null => {
   }
   const text = String(value).trim();
   return text || null;
+};
+
+const mapOvtgRow = (row: Record<string, unknown>): OvtgTaxRecord | null => {
+  const code = toTax(row.Code ?? row.code);
+  if (!code) {
+    return null;
+  }
+  const rate = Number(row.Rate ?? row.rate);
+  if (!Number.isFinite(rate)) {
+    return null;
+  }
+  return {
+    category: normalizeOvtgCategory(row.Category ?? row.category),
+    code,
+    rate,
+  };
+};
+
+const isActiveOvtgRow = (row: Record<string, unknown>): boolean => {
+  const inactive = String(row.Inactive ?? row.inactive ?? "N")
+    .trim()
+    .toUpperCase();
+  return inactive !== "Y";
 };
 
 export const createPartnerTaxMasters = (deps?: {
@@ -90,6 +117,45 @@ export const createPartnerTaxMasters = (deps?: {
         return tax;
       } catch {
         return null;
+      }
+    },
+
+    getOvtgTax: async (sapDbName, taxCode) => {
+      const db = sapDbName.trim();
+      const code = taxCode.trim();
+      if (!db || !code) {
+        return null;
+      }
+      try {
+        const rows = (await queryTenant(
+          db,
+          `SELECT "Code", "Name", "Category", "Rate", "Inactive"
+             FROM "OVTG"
+            WHERE "Code" = ?`,
+          [code],
+        )) as Array<Record<string, unknown>>;
+        const row = rows.find(isActiveOvtgRow);
+        return row ? mapOvtgRow(row) : null;
+      } catch {
+        return null;
+      }
+    },
+
+    listOvtgTaxes: async (sapDbName) => {
+      const db = sapDbName.trim();
+      if (!db) {
+        return [];
+      }
+      try {
+        const rows = (await queryTenant(
+          db,
+          `SELECT "Code", "Name", "Category", "Rate", "Inactive"
+             FROM "OVTG"
+            WHERE COALESCE("Inactive", 'N') = 'N'`,
+        )) as Array<Record<string, unknown>>;
+        return rows.map(mapOvtgRow).filter((row): row is OvtgTaxRecord => row !== null);
+      } catch {
+        return [];
       }
     },
   };

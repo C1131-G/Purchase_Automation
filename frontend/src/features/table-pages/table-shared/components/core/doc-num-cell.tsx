@@ -4,6 +4,7 @@ interface DocNumCellProps {
   value: string | number;
   docEntry?: number | undefined;
   docType?:
+    | "request-for-quotation"
     | "sales-quotation"
     | "sales-order"
     | "ar-invoice"

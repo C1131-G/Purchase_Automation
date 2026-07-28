@@ -9,7 +9,7 @@ export type OverviewArKpi = {
   openValue: number;
 };
 
-/** One AR invoice awaiting SAP approval (OWDD ObjType 13). */
+/** One AR invoice draft (ODRF ObjType 13) for the overview panel. */
 export type OverviewArApprovalItem = {
   docEntry: number;
   docNum: number | null;

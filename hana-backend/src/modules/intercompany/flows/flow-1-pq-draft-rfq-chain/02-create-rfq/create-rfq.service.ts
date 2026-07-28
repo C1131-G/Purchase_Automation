@@ -72,6 +72,8 @@ export const createCreateRfqService = (deps?: {
             description: line.description,
             itemCode: line.itemCode,
             lineNum: line.lineNum,
+            // Same tax that lands on product-row PQ Tax (IC_RFQ_LINE.TAX_CODE).
+            taxCode: line.taxCode ?? null,
             quantity: line.quantity,
             unitPrice: line.unitPrice,
             warehouse: line.warehouse,
