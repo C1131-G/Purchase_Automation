@@ -215,8 +215,12 @@ export const icRfqHeaderSchema = z.object({
   status: z.union([icRfqStatusSchema, z.string()]),
   targetCompanyId: z.number(),
   targetCompanyName: z.string().nullable().optional(),
+  /** Buyer-side vendor code (IC routing). Prefer customerCode for sales RFQ UI. */
   vendorCode: z.string(),
   vendorName: z.string().nullable().optional(),
+  /** Seller-side customer (buyer BP) — RFQ create/detail like SQ. */
+  customerCode: z.string().nullable().optional(),
+  customerName: z.string().nullable().optional(),
   vendorRefNo: z.string().nullable().optional(),
   warehouseCode: z.string().nullable().optional(),
 });

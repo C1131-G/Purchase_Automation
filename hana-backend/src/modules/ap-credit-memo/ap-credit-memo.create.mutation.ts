@@ -114,24 +114,6 @@ export const createCreditNote = async (
       sapPayload,
     )) as SAPDocumentResponse;
 
-    // After converting a draft to a real document, delete the draft.
-    if (!isDraft && draftDocEntry) {
-      try {
-        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
-        logger.info({
-          draftDocEntry,
-          msg: "Deleted draft after successful A/P Credit Memo creation",
-        });
-      } catch (draftErr: unknown) {
-        const draftDelErr = draftErr instanceof Error ? draftErr : new Error(String(draftErr));
-        logger.warn({
-          draftDocEntry,
-          err: draftDelErr,
-          msg: "Failed to delete draft after A/P Credit Memo creation (non-fatal)",
-        });
-      }
-    }
-
     // Purge cached dashboard metrics as this new document impacts credit/balance totals.
     if (resolvedDbName) {
       if (!isDraft) {

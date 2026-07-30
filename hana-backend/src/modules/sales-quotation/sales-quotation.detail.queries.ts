@@ -6,6 +6,7 @@ import { executeTenantQuery, getTenantRepository } from "@/db/tenant-query";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { SalesQuotationLineSchema } from "@/db/schemas/sales-quotation-line.schema";
 import { normalizeSAPLineData } from "@/services/sap-line-normalize";
+import { resolveCurrencyCode } from "@/services/currency-format";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
@@ -51,7 +52,7 @@ export const getSalesQuotation = async (sessionId: string, id: string, isDraft =
       Address: result.Address,
       Address2: result.Address2,
       DocTotal: result.DocTotal,
-      DocCurr: result.DocCurrency,
+      DocCurr: resolveCurrencyCode(result.DocCurrency),
       // normalizes SAP's internal string status.
       DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
@@ -160,7 +161,7 @@ export const getOpenSalesQuotationLines = async (dbName: string, cardCode: strin
       const headerDiscountPercent = Number(row["HeaderDiscountPercent"] ?? 0);
       return {
         DiscountPercent: normalized.DiscountPercent || headerDiscountPercent,
-        DocCurr: String(row["DocCurr"] ?? ""),
+        DocCurr: resolveCurrencyCode(row["DocCurr"]),
         DocDate: String(row["DocDate"] ?? ""),
         DocEntry: Number(row["DocEntry"]),
         DocNum: Number(row["DocNum"]),

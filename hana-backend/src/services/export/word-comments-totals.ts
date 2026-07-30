@@ -82,7 +82,7 @@ export function appendWordCommentsAndTotals(
       children: [
         new TextRun({ text: "Subtotal: ", size: 18, color: "64748B" }),
         new TextRun({
-          text: `${data.docCurr || ""} ${subtotal.toFixed(2)}`,
+          text: `${data.docCurr} ${subtotal.toFixed(2)}`,
           bold: true,
           size: 18,
           color: "0F172A",
@@ -103,7 +103,7 @@ export function appendWordCommentsAndTotals(
         children: [
           new TextRun({ text: discLabel, size: 18, color: "64748B" }),
           new TextRun({
-            text: `- ${data.docCurr || ""} ${discVal.toFixed(2)}`,
+            text: `- ${data.docCurr} ${discVal.toFixed(2)}`,
             bold: true,
             size: 18,
             color: "B91C1C",
@@ -129,7 +129,7 @@ export function appendWordCommentsAndTotals(
       children: [
         new TextRun({ text: "Grand Total: ", bold: true, size: 20, color: "0F172A" }),
         new TextRun({
-          text: `${data.docCurr || ""} ${data.docTotal.toFixed(2)}`,
+          text: `${data.docCurr} ${data.docTotal.toFixed(2)}`,
           bold: true,
           size: 24,
           color: "1E3A8A",

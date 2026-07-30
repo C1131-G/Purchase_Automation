@@ -28,6 +28,7 @@ import {
   notifyDocumentHydrating,
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
+import { resolveDocCurrencyForPayload } from "@/shared/utils/currency";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
 import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";
 import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
@@ -1012,11 +1013,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           Address: lookups.billToAddress.trim() || undefined,
           Address2: lookups.shipToAddress.trim() || undefined,
           CardCode: draftCardCode,
-          DocCurrency:
-            summaryCurrencyLabel !== "$" && summaryCurrencyLabel !== "MULTI" && summaryCurrencyLabel
-              ? summaryCurrencyLabel
-              : lookups.vendors.find((v) => String(v.code) === String(draftCardCode).trim())
-                  ?.currency || undefined,
+          DocCurrency: resolveDocCurrencyForPayload(
+            summaryCurrencyLabel,
+            lookups.vendors.find((v) => String(v.code) === String(draftCardCode).trim())?.currency,
+          ),
           Comments: header.comments.trim() || undefined,
           NumAtCard: header.referenceNo.trim() || undefined,
           DocDate: header.docDate,
@@ -1070,14 +1070,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             Address: lookups.billToAddress.trim() || undefined,
             Address2: lookups.shipToAddress.trim() || undefined,
             CardCode: (header.vendorCode || lookups.codeInput).trim(),
-            DocCurrency:
-              summaryCurrencyLabel !== "$" &&
-              summaryCurrencyLabel !== "MULTI" &&
-              summaryCurrencyLabel
-                ? summaryCurrencyLabel
-                : lookups.vendors.find(
-                    (v) => String(v.code) === String(header.vendorCode || lookups.codeInput).trim(),
-                  )?.currency || undefined,
+            DocCurrency: resolveDocCurrencyForPayload(
+              summaryCurrencyLabel,
+              lookups.vendors.find(
+                (v) => String(v.code) === String(header.vendorCode || lookups.codeInput).trim(),
+              )?.currency,
+            ),
             Comments: header.comments.trim() || undefined,
             NumAtCard: header.referenceNo.trim() || undefined,
             DocDate: header.docDate,

@@ -35,8 +35,8 @@ interface RequestForQuotationFormProps {
 }
 
 /**
- * RFQ seller fill — same layout as Purchase Quotation create (vendor, logistics,
- * dates, address, reference, attachments, PQ product rows).
+ * RFQ seller fill — sales-side layout like Sales Quotation (customer, logistics,
+ * dates, address, reference, attachments, product rows).
  * Only quoted qty, quoted date, price, disc %, disc amount are editable; Submit only.
  */
 export function RequestForQuotationForm({
@@ -112,19 +112,19 @@ export function RequestForQuotationForm({
           <div className="grid auto-rows-fr items-stretch gap-3 lg:grid-cols-3">
             <div
               className="h-full cursor-not-allowed"
-              onClickCapture={restrictedClick("Vendor Info")}
+              onClickCapture={restrictedClick("Customer Info")}
             >
               <div className="pointer-events-none h-full">
                 <VendorCustomerGrid
                   loading={false}
                   error={null}
-                  sectionTitle="Vendor Info"
-                  nameLabel="Vendor Name"
-                  codeLabel="Vendor Code"
-                  namePlaceholder="Vendor"
-                  codePlaceholder="Vendor code"
-                  nameInput={header.vendorName?.trim() || header.vendorCode}
-                  codeInput={header.vendorCode}
+                  sectionTitle="Customer Info"
+                  nameLabel="Customer Name"
+                  codeLabel="Customer Code"
+                  namePlaceholder="Customer"
+                  codePlaceholder="Customer code"
+                  nameInput={header.customerName?.trim() || header.sourceCompanyName?.trim() || ""}
+                  codeInput={header.customerCode?.trim() || ""}
                   nameFocused={false}
                   codeFocused={false}
                   nameSuggestions={[]}
@@ -254,7 +254,7 @@ export function RequestForQuotationForm({
                   onCommentsChange={noopStr}
                   referenceNoDisabled
                   commentsDisabled
-                  referenceLabel="VENDOR REF NO"
+                  referenceLabel="CUSTOMER REF NO"
                 />
               </div>
             </div>

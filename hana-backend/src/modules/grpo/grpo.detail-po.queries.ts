@@ -3,6 +3,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 // Data Access & Schemas
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { normalizeSAPLineData } from "@/services/sap-line-normalize";
+import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -171,7 +172,7 @@ export const getGRPO = async (sessionId: string, id: string, isDraft = false) =>
       CardCode: result.CardCode,
       CardName: result.CardName,
       Comments: result.Comments,
-      DocCurr: result.DocCurrency,
+      DocCurr: resolveCurrencyCode(result.DocCurrency),
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,

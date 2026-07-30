@@ -1,3 +1,5 @@
+import { isUnresolvedCurrency, resolveCurrencyCode } from "@/shared/utils/currency";
+
 export function formatCurrency(
   value: number | undefined | null,
   currencyCode?: string,
@@ -5,9 +7,9 @@ export function formatCurrency(
 ): string {
   if (value === undefined || value === null || isNaN(value)) return "—";
 
-  // Sanitize currencyCode if it's '$' or empty
-  const cleanCurrency = String(currencyCode || "").trim();
-  if (!cleanCurrency || cleanCurrency === "$") {
+  // Never use SAP "$" or empty — resolve via VITE_DEFAULT_CURRENCY_CODE.
+  const cleanCurrency = resolveCurrencyCode(currencyCode);
+  if (isUnresolvedCurrency(cleanCurrency)) {
     return new Intl.NumberFormat("en-US", {
       notation: isCompact ? "compact" : "standard",
       maximumFractionDigits: isCompact ? 1 : 2,
@@ -24,8 +26,7 @@ export function formatCurrency(
       minimumFractionDigits: isCompact ? 0 : 2,
     }).format(value);
   } catch {
-    // If it throws (e.g., invalid 3-letter code not recognized by Intl),
-    // fall back to standard decimal number formatting and prepend the raw currency symbol/code.
+    // Invalid ISO for Intl — show code + decimal amount (no "$" symbol).
     const formattedNum = new Intl.NumberFormat("en-US", {
       notation: isCompact ? "compact" : "standard",
       maximumFractionDigits: isCompact ? 1 : 2,

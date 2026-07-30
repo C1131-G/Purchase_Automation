@@ -1,7 +1,7 @@
 /**
- * Request For Quotation lookup layer — same TableToolbar + LookupPopup pattern as
- * purchase quotations. Doc Number, vendor, and table-value fields (PQ draft, companies,
- * companies) use suggestion chips + full-screen lookup from the loaded RFQ list.
+ * Request For Quotation lookup layer — sales-side (customer, not vendor).
+ * Doc Number, customer, and table-value fields (PQ draft, companies) use suggestion
+ * chips + full-screen lookup from the loaded RFQ list.
  * No Create button (documents are created from IC PQ draft Flow 1).
  */
 import { useQuery } from "@tanstack/react-query";
@@ -45,7 +45,7 @@ const TABLE_VALUE_COLUMNS = new Set<string>([
 ]);
 
 const LOOKUP_TITLES: Record<RfqLookupColumnId, string> = {
-  CardCode: "Search Vendor Code",
+  CardCode: "Search Customer Code",
   DocNum: "Search Doc Number",
   pqDraftDocEntry: "Search PQ Draft Entry",
   pqDraftDocNum: "Search PQ Draft No.",
@@ -54,7 +54,7 @@ const LOOKUP_TITLES: Record<RfqLookupColumnId, string> = {
 };
 
 const LOOKUP_PLACEHOLDERS: Record<RfqLookupColumnId, string> = {
-  CardCode: "Search vendor code",
+  CardCode: "Search customer code",
   DocNum: "Search document number",
   pqDraftDocEntry: "Search PQ draft entry",
   pqDraftDocNum: "Search PQ draft number",
@@ -80,8 +80,13 @@ const pickFieldValue = (row: IcRfqHeader, columnId: string): string => {
   switch (columnId) {
     case "DocNum":
       return String(formatRfqDocNumber(row.rfqNumber)).trim();
-    case "CardCode":
-      return String(row.vendorCode ?? "").trim();
+    case "CardCode": {
+      const code = row.customerCode?.trim();
+      if (code) {
+        return code;
+      }
+      return row.customerName?.trim() || row.sourceCompanyName?.trim() || "";
+    }
     case "pqDraftDocNum":
       return row.pqDraftDocNum === null || row.pqDraftDocNum === undefined
         ? ""

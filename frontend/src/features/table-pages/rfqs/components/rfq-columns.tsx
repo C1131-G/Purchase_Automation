@@ -1,7 +1,6 @@
 /**
- * Request For Quotation table columns — same chrome as purchase quotations
- * (DocNumCell, sorts, status chips). Row shape is IC RFQ header; labels mirror PQ
- * where fields align (Doc Number, Vendor, Status).
+ * Request For Quotation table columns — sales-side like sales quotations
+ * (DocNumCell, sorts, status chips). Customer = buyer BP on seller books.
  */
 import { createColumnHelper } from "@tanstack/react-table";
 
@@ -69,22 +68,32 @@ export const createRfqColumns = (options?: CreateRfqColumnsOptions) => [
     size: 14,
     sortingFn: "alphanumeric",
   }),
-  columnHelper.accessor("vendorCode", {
-    cell: (info) => info.getValue() || "—",
-    enableSorting: true,
-    filterFn: "includesString",
-    header: ({ column, table }) => (
-      <TableColumnSort
-        column={column}
-        sortingState={table.getState().sorting}
-        title="Vendor Code"
-      />
-    ),
-    id: "CardCode",
-    meta: { filterType: "text" },
-    minSize: 12,
-    size: 14,
-  }),
+  columnHelper.accessor(
+    (row) => {
+      const code = row.customerCode?.trim();
+      if (code) {
+        return code;
+      }
+      // Fallback name when mapping not resolved (still sales-side, not vendor).
+      return row.customerName?.trim() || row.sourceCompanyName?.trim() || "";
+    },
+    {
+      cell: (info) => info.getValue() || "—",
+      enableSorting: true,
+      filterFn: "includesString",
+      header: ({ column, table }) => (
+        <TableColumnSort
+          column={column}
+          sortingState={table.getState().sorting}
+          title="Customer Code"
+        />
+      ),
+      id: "CardCode",
+      meta: { filterType: "text" },
+      minSize: 12,
+      size: 14,
+    },
+  ),
   columnHelper.accessor("status", {
     cell: (info) => {
       const value = String(info.getValue() ?? "");

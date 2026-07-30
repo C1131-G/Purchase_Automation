@@ -1,6 +1,6 @@
 // Outgoing Payment Service: Manages payment transactions to vendors. Uses HANA database for listings and SAP Service Layer for payment creation.
 import { In } from "typeorm";
-import { getDisplayCurrency } from "@/services/currency-format";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 
 import { logger } from "@/core/logger/pino-logger";
 import { getTenantRepository } from "@/db/tenant-query";
@@ -57,7 +57,7 @@ export const getPayment = async (sessionId: string, id: string) => {
       CardName: result.CardName,
       CashSum: (result as unknown as Record<string, unknown>).CashSum || 0,
       CheckSum: (result as unknown as Record<string, unknown>).CheckSum || 0,
-      DocCurr: result.DocCurrency || displayCurrency,
+      DocCurr: resolveCurrencyCode(result.DocCurrency, displayCurrency),
       DocDate: result.DocDate,
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,

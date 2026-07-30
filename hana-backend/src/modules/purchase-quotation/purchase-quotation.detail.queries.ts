@@ -6,6 +6,7 @@ import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { PurchaseQuotationLineSchema } from "@/db/schemas/purchase-quotation-line.schema";
 import { normalizeSAPLineData } from "@/services/sap-line-normalize";
+import { resolveCurrencyCode } from "@/services/currency-format";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
@@ -54,7 +55,7 @@ export const getPurchaseQuotation = async (sessionId: string, id: string, isDraf
       Address: result.Address,
       Address2: result.Address2 || result.ShipToDescription || result.ShipToAddress,
       DocTotal: result.DocTotal,
-      DocCurr: result.DocCurrency,
+      DocCurr: resolveCurrencyCode(result.DocCurrency),
       DocStatus: isDraft ? "Draft" : result.DocumentStatus === "bost_Open" ? "O" : "C",
       DiscountPercent: result.DiscountPercent ?? 0,
       DiscountAmount: (result as unknown as Record<string, unknown>).TotalDiscount ?? 0,
@@ -190,7 +191,7 @@ export const getOpenPurchaseQuotationLines = async (dbName: string, cardCode: st
             : Number(normalized.Quantity);
       return {
         DiscountPercent: normalized.DiscountPercent || headerDiscountPercent,
-        DocCurr: String(row["DocCurr"] ?? ""),
+        DocCurr: resolveCurrencyCode(row["DocCurr"]),
         DocDate: String(row["DocDate"] ?? ""),
         DocEntry: Number(row["DocEntry"]),
         DocNum: Number(row["DocNum"]),

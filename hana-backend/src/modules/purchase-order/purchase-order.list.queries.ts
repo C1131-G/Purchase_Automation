@@ -6,6 +6,7 @@ import type { PurchaseOrderFilters } from "./purchase-order.types";
 // Data Access & Schemas
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFilters) => {
@@ -122,12 +123,13 @@ export const getPurchaseOrders = async (dbName: string, filters: PurchaseOrderFi
 
     const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
     const totalPages = Math.ceil(total / limit);
+    const displayCurrency = await getDisplayCurrency(dbName);
 
     return {
       data: dataRows.map((row: any) => ({
         CardCode: row.CardCode,
         CardName: row.CardName,
-        DocCurr: row.DocCurr,
+        DocCurr: resolveCurrencyCode(row.DocCurr, displayCurrency),
         DocDate: row.DocDate,
         DocNum: row.DocNum,
         DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",

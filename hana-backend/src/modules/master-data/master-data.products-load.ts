@@ -2,7 +2,7 @@ import { Brackets, In } from "typeorm";
 
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
-import { getDisplayCurrency } from "@/services/currency-format";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
 import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
@@ -189,10 +189,11 @@ export async function loadProductsForTenant(
     })(),
   ]);
 
-  let defaultCurrency = toTrimmed(adminSettings?.MainCurncy);
-  if (!defaultCurrency || defaultCurrency === "$") {
-    defaultCurrency = await getDisplayCurrency(dbName);
-  }
+  // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
+  const defaultCurrency = resolveCurrencyCode(
+    adminSettings?.MainCurncy,
+    await getDisplayCurrency(dbName),
+  );
 
   return mapProductResults({
     items,

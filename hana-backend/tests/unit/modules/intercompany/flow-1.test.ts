@@ -155,6 +155,8 @@ const createFlow1TestStack = (opts?: {
     documentMap,
     documents,
     history,
+    // Memory notifications — without this, convert falls back to live TypeORM.
+    notifications,
     partnerTax: createPartnerTaxResolver({
       company,
       masters: {

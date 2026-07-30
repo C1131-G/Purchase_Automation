@@ -6,6 +6,7 @@ import { createCompanyService } from "@/modules/intercompany/config/company/comp
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import { enrichRfqFromPqDraft } from "@/modules/intercompany/domain/rfq/enrich-rfq-from-pq-draft";
+import { withRfqCustomerDisplayList } from "@/modules/intercompany/domain/rfq/resolve-rfq-customer-display";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
@@ -61,7 +62,9 @@ export const listRfqs = async (req: Request, res: Response, next: NextFunction):
     const companyId = await resolveActorCompanyId(req);
     const rfq = createRfqService();
     const rows = await rfq.listForCompany(companyId);
-    res.status(200).json({ data: rows, success: true });
+    // Sales-side list: customer code/name (buyer on seller books), not buyer-side vendor.
+    const withCustomers = await withRfqCustomerDisplayList(rows);
+    res.status(200).json({ data: withCustomers, success: true });
   } catch (error) {
     next(error);
   }

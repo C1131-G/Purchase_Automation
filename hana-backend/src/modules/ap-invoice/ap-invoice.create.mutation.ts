@@ -124,21 +124,6 @@ export const createInvoice = async (
       sapPayload,
     )) as SAPDocumentResponse;
 
-    // After converting a draft to a real document, delete the draft.
-    if (!isDraft && draftDocEntry) {
-      try {
-        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
-        logger.info({ draftDocEntry, msg: "Deleted draft after successful AP Invoice creation" });
-      } catch (draftErr: unknown) {
-        const draftDelErr = draftErr instanceof Error ? draftErr : new Error(String(draftErr));
-        logger.warn({
-          draftDocEntry,
-          err: draftDelErr,
-          msg: "Failed to delete draft after AP Invoice creation (non-fatal)",
-        });
-      }
-    }
-
     // Cache Invalidation: Clear dashboard stats for this tenant since a new invoice affects outstanding totals.
     if (resolvedDbName) {
       if (!isDraft) {

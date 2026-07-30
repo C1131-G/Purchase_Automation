@@ -2,6 +2,7 @@ import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
 import type { InvoiceFilters } from "./ap-invoice.types";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
 
@@ -119,12 +120,13 @@ export const getInvoices = async (dbName: string, filters: InvoiceFilters) => {
 
     const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
     const totalPages = Math.ceil(total / limit);
+    const displayCurrency = await getDisplayCurrency(dbName);
 
     return {
       data: dataRows.map((row: any) => ({
         CardCode: row.CardCode,
         CardName: row.CardName,
-        DocCurr: row.DocCurr,
+        DocCurr: resolveCurrencyCode(row.DocCurr, displayCurrency),
         DocDate: row.DocDate,
         DocNum: row.DocNum,
         DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",

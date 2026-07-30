@@ -3,6 +3,7 @@ import type { GRPOFilters } from "./grpo.types";
 // Data Access & Schemas
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 
 export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
@@ -119,12 +120,13 @@ export const getGRPOs = async (dbName: string, filters: GRPOFilters) => {
 
     const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
     const totalPages = Math.ceil(total / limit);
+    const displayCurrency = await getDisplayCurrency(dbName);
 
     return {
       data: dataRows.map((row: any) => ({
         CardCode: row.CardCode,
         CardName: row.CardName,
-        DocCurr: row.DocCurr,
+        DocCurr: resolveCurrencyCode(row.DocCurr, displayCurrency),
         DocDate: row.DocDate,
         DocNum: row.DocNum,
         DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",

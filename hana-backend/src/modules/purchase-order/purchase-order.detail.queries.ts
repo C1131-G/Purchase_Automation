@@ -8,6 +8,7 @@ import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { GRPOHeaderSchema } from "@/db/schemas/grpoheader.schema";
 import { normalizeSAPLineData } from "@/services/sap-line-normalize";
+import { resolveCurrencyCode } from "@/services/currency-format";
 
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
@@ -46,7 +47,7 @@ export const getPurchaseOrder = async (sessionId: string, id: string, isDraft = 
       CardCode: result.CardCode,
       CardName: result.CardName,
       Comments: result.Comments,
-      DocCurr: result.DocCurrency,
+      DocCurr: resolveCurrencyCode(result.DocCurrency),
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,

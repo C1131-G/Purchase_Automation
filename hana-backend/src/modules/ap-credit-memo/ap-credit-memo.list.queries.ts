@@ -2,6 +2,7 @@
 
 import { executeTenantQuery } from "@/db/tenant-query";
 import type { CreditNoteFilters } from "./ap-credit-memo.types";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
@@ -119,6 +120,7 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
 
     const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
     const totalPages = Math.ceil(total / limit);
+    const displayCurrency = await getDisplayCurrency(dbName);
 
     return {
       data: dataRows.map((row: any) => {
@@ -128,7 +130,7 @@ export const getCreditNotes = async (dbName: string, filters: CreditNoteFilters)
           BalanceDue: Math.round((docTotal - paidToDate) * 100) / 100,
           CardCode: row.CardCode,
           CardName: row.CardName,
-          DocCurr: row.DocCurr,
+          DocCurr: resolveCurrencyCode(row.DocCurr, displayCurrency),
           DocDate: row.DocDate,
           DocNum: row.DocNum,
           DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",

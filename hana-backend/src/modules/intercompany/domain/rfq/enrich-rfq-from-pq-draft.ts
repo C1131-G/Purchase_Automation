@@ -16,6 +16,7 @@ import {
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
+import { withRfqCustomerDisplay } from "./resolve-rfq-customer-display";
 import type { IcRfqHeader, IcRfqLine } from "./rfq.types";
 
 const PQ_DRAFT_OBJ = "540000006";
@@ -340,12 +341,15 @@ const withEnsuredRfqRemarks = (
 /**
  * Merge buyer PQ draft / real PQ into RFQ for seller UI.
  * Failures are logged and original header is returned (never throws).
+ *
+ * Sales-side fields: customerCode / customerName (buyer on seller books).
+ * vendorCode remains the IC routing key (buyer-side vendor); do not show as customer.
  */
 export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHeader> => {
   try {
     const company = await createCompanyQueries().getById(header.sourceCompanyId);
     if (!company?.sapDbName) {
-      return withEnsuredRfqRemarks(header);
+      return withRfqCustomerDisplay(withEnsuredRfqRemarks(header));
     }
 
     const dbName = company.sapDbName;
@@ -358,10 +362,11 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
         sourceCompanyId: header.sourceCompanyId,
         status: header.status,
       });
-      return withEnsuredRfqRemarks(header);
+      return withRfqCustomerDisplay(withEnsuredRfqRemarks(header));
     }
 
     const srcHeader = source.header;
+    // Buyer-side vendor snapshot (routing audit only — not seller customer UI).
     const cardCode = toStr(srcHeader.CardCode ?? srcHeader.cardCode) ?? header.vendorCode;
     const vendorName =
       toStr(srcHeader.CardName ?? srcHeader.cardName) ??
@@ -422,7 +427,7 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
     const sourceDocNum = source.docNum;
     const pqDraftDocNum = header.pqDraftDocNum ?? sourceDocNum;
 
-    return withEnsuredRfqRemarks(
+    const merged = withEnsuredRfqRemarks(
       {
         ...header,
         billToAddress: toStr(srcHeader.Address ?? srcHeader.address),
@@ -434,13 +439,16 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
         pqDraftDocNum,
         requiredDate: toDateOnly(srcHeader.DocDueDate ?? srcHeader.docDueDate),
         shipToAddress: toStr(srcHeader.Address2 ?? srcHeader.address2),
-        vendorCode: cardCode || header.vendorCode,
+        // Keep routing vendor code from IC header when present; fall back to PQ CardCode.
+        vendorCode: header.vendorCode || cardCode || "",
         vendorName,
         vendorRefNo: draftVendorRef ?? header.vendorRefNo ?? null,
         warehouseCode: firstWh,
       },
       draftComments,
     );
+    // Seller UI: customer = buyer BP on seller books (not buyer-side vendor / RCM self).
+    return withRfqCustomerDisplay(merged);
   } catch (err: unknown) {
     logger.warn({
       err: err instanceof Error ? err : new Error(String(err)),
@@ -449,6 +457,6 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
       rfqId: header.rfqId,
       sourceCompanyId: header.sourceCompanyId,
     });
-    return withEnsuredRfqRemarks(header);
+    return withRfqCustomerDisplay(withEnsuredRfqRemarks(header));
   }
 };

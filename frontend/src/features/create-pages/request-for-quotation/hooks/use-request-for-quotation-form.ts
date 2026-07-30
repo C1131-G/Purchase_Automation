@@ -51,7 +51,9 @@ export function useRequestForQuotationForm(rfqId: number) {
     const fingerprint = [
       header.rfqId,
       header.status,
-      header.vendorName ?? "",
+      header.customerCode ?? "",
+      header.customerName ?? "",
+      header.sourceCompanyName ?? "",
       header.buyerName ?? "",
       header.docDate ?? "",
       header.docDueDate ?? "",

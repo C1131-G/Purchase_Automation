@@ -4,6 +4,7 @@ import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
 import type { PurchaseQuotationFilters } from "./purchase-quotation.types";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 
 // Fetches a filtered and paginated list of Purchase Quotations from the tenant-specific HANA database.
 
@@ -121,12 +122,13 @@ export const getPurchaseQuotations = async (dbName: string, filters: PurchaseQuo
 
     const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
     const totalPages = Math.ceil(total / limit);
+    const displayCurrency = await getDisplayCurrency(dbName);
 
     return {
       data: dataRows.map((row: any) => ({
         CardCode: row.CardCode,
         CardName: row.CardName,
-        DocCurr: row.DocCurr,
+        DocCurr: resolveCurrencyCode(row.DocCurr, displayCurrency),
         DocDate: row.DocDate,
         DocNum: row.DocNum,
         DocStatus: row.DocStatus === "O" ? "Open" : row.DocStatus === "C" ? "Closed" : "Draft",

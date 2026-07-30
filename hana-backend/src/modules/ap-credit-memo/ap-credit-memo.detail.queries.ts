@@ -6,6 +6,7 @@ import { executeTenantQuery, getTenantRepository } from "@/db/tenant-query";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
 import { normalizeSAPLineData } from "@/services/sap-line-normalize";
+import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService, type FileMetadata } from "@/modules/attachments/attachments.service";
@@ -65,7 +66,7 @@ const getCreditNoteByDocEntry = async (sessionId: string, docEntry: string, isDr
       CardCode: result.CardCode,
       CardName: result.CardName,
       Comments: result.Comments,
-      DocCurr: result.DocCurrency,
+      DocCurr: resolveCurrencyCode(result.DocCurrency),
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
       DocNum: result.DocNum,

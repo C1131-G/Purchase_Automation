@@ -4,6 +4,7 @@ import type {
   ProductLookupItem,
   ProductWarehouseStockItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
+import { isUnresolvedCurrency } from "@/shared/utils/currency";
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -58,7 +59,8 @@ export const mapVendorLookup = (item: unknown): LookupItem => {
   });
 
   const rawCurrency = String(record.Currency ?? record.currency ?? "").trim();
-  const currency = rawCurrency && rawCurrency !== "$" ? rawCurrency : undefined;
+  // SAP local "$" is not a real code — leave undefined so create flows use env/backend resolve.
+  const currency = isUnresolvedCurrency(rawCurrency) ? undefined : rawCurrency;
 
   const mappedShipTo = shipTo || billTo;
 

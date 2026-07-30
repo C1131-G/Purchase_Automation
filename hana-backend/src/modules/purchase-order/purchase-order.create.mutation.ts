@@ -6,6 +6,7 @@ import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
 // Data Access & Schemas
 import { config } from "@/config/env";
+import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPoCreated } from "@/modules/intercompany";
@@ -284,22 +285,6 @@ export const createPurchaseOrder = async (
       }
     }
 
-    if (!isDraft && Number.isFinite(draftDocEntry) && draftDocEntry > 0) {
-      try {
-        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
-        logger.info({
-          draftDocEntry,
-          msg: "Deleted converted purchase order draft",
-        });
-      } catch (delErr: any) {
-        logger.error({
-          draftDocEntry,
-          err: delErr,
-          msg: "Failed to delete draft after conversion",
-        });
-      }
-    }
-
     // Flow 2 IC: schedule only — main PO create does not wait for AR draft / notifications.
     let intercompany: IcHookResult | undefined;
     if (!isDraft && result.DocEntry) {
@@ -307,7 +292,7 @@ export const createPurchaseOrder = async (
         // Pass normalized documentLines (not raw client payload) so ItemDescription / UoM reach Flow 2.
         intercompany = await afterPoCreated({
           cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
-          currency: result.DocCurrency != null ? String(result.DocCurrency) : undefined,
+          currency: resolveCurrencyCode(result.DocCurrency) || undefined,
           dbName: resolvedDbNameFromRes || resolvedDbName,
           docDate: sapPayload.DocDate,
           docDueDate: sapPayload.DocDueDate,

@@ -472,17 +472,6 @@ export const createIcSlDocuments = (deps?: {
           statusCode: response.status,
         });
 
-        try {
-          await client.request({
-            connection,
-            endpoint: getEndpoint,
-            method: "DELETE",
-            session: slSession,
-          });
-        } catch {
-          // draft cleanup is best-effort
-        }
-
         return parseDocResult(response.data);
       } catch (err: unknown) {
         logSlFailure({

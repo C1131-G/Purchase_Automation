@@ -46,8 +46,18 @@ export type IcRfqHeader = {
   remarks: string | null;
   createdBy: string | null;
   lines?: IcRfqLine[];
-  /** Enriched from source PQ draft (ODRF) — display only. */
+  /**
+   * Buyer-side vendor code (IC routing / BP lookup key). Not shown on sales RFQ UI.
+   * Seller UI shows customerCode/customerName instead (buyer as customer on seller books).
+   */
   vendorName?: string | null;
+  /**
+   * Seller-side customer (buyer BP on seller company) — sales RFQ / SQ display.
+   * From IC_BP_MAPPING.BUYER_CUSTOMER_CODE + OCRD / source company name.
+   */
+  customerCode?: string | null;
+  customerName?: string | null;
+  /** Buyer sales employee (SlpName) from source PQ — logistics "Buyer" field. */
   buyerName?: string | null;
   buyerCode?: string | null;
   docDate?: string | null;

@@ -4,6 +4,7 @@ import { executeTenantQuery, getTenantRepository } from "@/db/tenant-query";
 import type { SalesQuotationFilters } from "./sales-quotation.types";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { getSafeDocNumLimit } from "@/services/docnum-lookup";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
 // matching the Purchase Order reference implementation.
@@ -124,12 +125,13 @@ export const getSalesQuotations = async (dbName: string, filters: SalesQuotation
 
     const total = Number(countRows[0]?.total ?? (countRows[0] as any)?.TOTAL ?? 0);
     const totalPages = Math.ceil(total / limit);
+    const displayCurrency = await getDisplayCurrency(dbName);
 
     return {
       data: dataRows.map((row: any) => ({
         CardCode: row.CardCode,
         CardName: row.CardName,
-        DocCurr: row.DocCurr,
+        DocCurr: resolveCurrencyCode(row.DocCurr, displayCurrency),
         DocDate: row.DocDate,
         DocNum: row.DocNum,
         DocStatus:

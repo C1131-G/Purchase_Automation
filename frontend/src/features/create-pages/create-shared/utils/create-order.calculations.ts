@@ -1,5 +1,6 @@
 /** Create Order Calculations: Business logic for computing totals, taxes, and line items. */
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { isUnresolvedCurrency } from "@/shared/utils/currency";
 
 const round2 = (num: number) => Math.round(num * 100 + (num >= 0 ? 1e-9 : -1e-9)) / 100;
 
@@ -101,9 +102,12 @@ export const calculateOrderTotals = (
 };
 
 export const calculateSummaryCurrency = (productRows: ProductRow[]) => {
+  // Drop empty / SAP local currency sentinel — summary must never surface that.
   const currencies = [
     ...new Set(
-      productRows.map((row) => row.currency.trim()).filter((currency) => currency.length > 0),
+      productRows
+        .map((row) => row.currency.trim())
+        .filter((currency) => !isUnresolvedCurrency(currency)),
     ),
   ];
   if (currencies.length === 1) {

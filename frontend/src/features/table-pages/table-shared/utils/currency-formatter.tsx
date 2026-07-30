@@ -1,7 +1,10 @@
 /**
  * Formats a document total value with the given currency,
  * rendering the currency code in small, light text and the amount in semi-bold text.
+ * Never shows SAP local "$" — uses VITE_DEFAULT_CURRENCY_CODE when unresolved.
  */
+import { isUnresolvedCurrency, resolveCurrencyCode } from "@/shared/utils/currency";
+
 export function formatDocTotal(value: unknown, currency?: string) {
   const rawAmount = Number.parseFloat(String(value));
   if (Number.isNaN(rawAmount)) return "-";
@@ -12,11 +15,14 @@ export function formatDocTotal(value: unknown, currency?: string) {
     minimumFractionDigits: 2,
   }).format(amount);
 
+  const displayCurrency = resolveCurrencyCode(currency);
+  const showCurrency = !isUnresolvedCurrency(displayCurrency);
+
   return (
     <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
-      {currency ? (
+      {showCurrency ? (
         <span className="text-[10px] font-light text-zinc-500 uppercase tracking-wider">
-          {currency}
+          {displayCurrency}
         </span>
       ) : null}
       <span className="font-semibold text-zinc-900">{formattedAmount}</span>

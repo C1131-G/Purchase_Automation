@@ -1,7 +1,7 @@
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
-import { getDisplayCurrency } from "@/services/currency-format";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
@@ -18,9 +18,11 @@ export const getCustomers = async (dbName: string) => {
     take: 1,
   });
   const adminSettings = settingsRows[0] ?? null;
-  const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
-  const defaultCurrency =
-    rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : await getDisplayCurrency(dbName);
+  // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
+  const defaultCurrency = resolveCurrencyCode(
+    adminSettings?.MainCurncy,
+    await getDisplayCurrency(dbName),
+  );
 
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
@@ -66,10 +68,7 @@ export const getCustomers = async (dbName: string) => {
       Address: item.Address,
       CardCode: normalizedCardCode,
       CardName: item.CardName,
-      Currency:
-        item.Currency && toTrimmed(item.Currency) !== "$"
-          ? toTrimmed(item.Currency)
-          : defaultCurrency,
+      Currency: resolveCurrencyCode(item.Currency, defaultCurrency),
       SlpCode: item.SlpCode,
       billToAddress:
         customerAddressMap.get(normalizedCardCode)?.billToAddress ?? item.Address ?? "",

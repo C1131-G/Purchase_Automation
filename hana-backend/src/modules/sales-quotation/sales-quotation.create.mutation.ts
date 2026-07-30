@@ -123,19 +123,6 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
       msg: isDraft ? "Sales quotation draft created in SAP" : "Sales quotation created in SAP",
     });
 
-    if (!isDraft && draftDocEntry) {
-      logger.info({ draftDocEntry, msg: "Deleting source draft after quotation conversion" });
-      await serviceLayerClient
-        .request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`)
-        .catch((err) => {
-          logger.error({
-            draftDocEntry,
-            err: err instanceof Error ? err : new Error(String(err)),
-            msg: "Failed to delete source draft after conversion",
-          });
-        });
-    }
-
     // Invalidate the sales dashboard cache as revenue and quotation counts have changed.
     if (resolvedDbName) {
       purgeCache(`dashboard:overview:${resolvedDbName}`);

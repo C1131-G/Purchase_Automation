@@ -160,6 +160,8 @@ describe("IC API schemas (P8A)", () => {
   it("parses RFQ DTO shapes for P8B readiness", () => {
     const rfq = icRfqHeaderSchema.parse({
       createdBy: "buyer",
+      customerCode: "C-A-ON-B",
+      customerName: "Buyer Co A",
       lines: [],
       pqDraftDocEntry: 5,
       pqDraftDocNum: 500,
@@ -176,5 +178,7 @@ describe("IC API schemas (P8A)", () => {
     expect(rfq.rfqNumber).toBe("RFQ-0007");
     expect(rfq.sourceCompanyName).toBe("Buyer Co A");
     expect(rfq.targetCompanyName).toBe("Seller Co B");
+    expect(rfq.customerCode).toBe("C-A-ON-B");
+    expect(rfq.customerName).toBe("Buyer Co A");
   });
 });

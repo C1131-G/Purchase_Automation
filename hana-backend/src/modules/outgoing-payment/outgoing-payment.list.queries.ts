@@ -1,5 +1,5 @@
 // Outgoing Payment Service: Manages payment transactions to vendors. Uses HANA database for listings and SAP Service Layer for payment creation.
-import { getDisplayCurrency } from "@/services/currency-format";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 
 import { logger } from "@/core/logger/pino-logger";
 import { getTenantRepository } from "@/db/tenant-query";
@@ -100,7 +100,7 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       data: result.data.map((data) => ({
         CardCode: data.cardCode,
         CardName: data.cardName,
-        DocCurr: data.docCurr || displayCurrency,
+        DocCurr: resolveCurrencyCode(data.docCurr, displayCurrency),
         DocDate: data.docDate,
         DocNum: data.docNum,
         DocTotal: data.docTotal,

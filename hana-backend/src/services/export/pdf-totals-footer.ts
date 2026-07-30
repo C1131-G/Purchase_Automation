@@ -50,7 +50,7 @@ export function writePdfTotalsAttachmentsAndFooter(
   doc
     .font("Helvetica-Bold")
     .fillColor("#1e293b")
-    .text(`${data.docCurr || ""} ${subtotal.toFixed(2)}`, totalsX + 80, totalsY, {
+    .text(`${data.docCurr} ${subtotal.toFixed(2)}`, totalsX + 80, totalsY, {
       align: "right",
       width: totalsW - 80,
     });
@@ -64,7 +64,7 @@ export function writePdfTotalsAttachmentsAndFooter(
     doc
       .font("Helvetica-Bold")
       .fillColor("#b91c1c")
-      .text(`- ${data.docCurr || ""} ${discVal.toFixed(2)}`, totalsX + 80, totalsY, {
+      .text(`- ${data.docCurr} ${discVal.toFixed(2)}`, totalsX + 80, totalsY, {
         align: "right",
         width: totalsW - 80,
       });
@@ -89,7 +89,7 @@ export function writePdfTotalsAttachmentsAndFooter(
     .fontSize(12)
     .font("Helvetica-Bold")
     .fillColor("#1e3a8a")
-    .text(`${data.docCurr || ""} ${data.docTotal.toFixed(2)}`, totalsX + 80, totalsY - 2, {
+    .text(`${data.docCurr} ${data.docTotal.toFixed(2)}`, totalsX + 80, totalsY - 2, {
       align: "right",
       width: totalsW - 80,
     });

@@ -7,7 +7,7 @@ import type { IcSapConnection } from "@/modules/intercompany/config/sap-connecti
 import type { IcSlSessionRecord } from "./ic-sl.types";
 
 export type IcSlHttpRequest = {
-  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  method: "GET" | "POST" | "PATCH" | "PUT";
   endpoint: string;
   body?: unknown;
   session: IcSlSessionRecord;

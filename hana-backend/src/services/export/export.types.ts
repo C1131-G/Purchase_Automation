@@ -1,5 +1,7 @@
 // Shared types for document export service.
 
+import { resolveCurrencyCode } from "@/services/currency-format";
+
 export type ExportFormat = "pdf" | "excel" | "word";
 
 export interface ExportDocumentLine {
@@ -81,7 +83,8 @@ export function normalizeToExport(raw: Record<string, unknown>, label: string): 
     address2: String(raw.Address2 ?? ""),
     numAtCard: String(raw.NumAtCard ?? ""),
     comments: String(raw.Comments ?? ""),
-    docCurr: String(raw.DocCurr ?? ""),
+    // Never export SAP local "$" — env DEFAULT_CURRENCY_CODE when unresolved.
+    docCurr: resolveCurrencyCode(raw.DocCurr),
     docTotal: Number(raw.DocTotal ?? 0),
     docStatus: String(raw.DocStatus ?? ""),
     salesPersonCode: String(raw.SalesPersonCode ?? ""),

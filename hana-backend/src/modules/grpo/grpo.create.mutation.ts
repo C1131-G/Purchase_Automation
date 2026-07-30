@@ -144,23 +144,6 @@ export const createGRPO = async (
       await reconcilePOAfterCopyTo(sessionId, dbName, lines);
     }
 
-    // Delete the draft after successful conversion to a real document.
-    if (!isDraft && Number.isFinite(draftDocEntry) && draftDocEntry > 0) {
-      try {
-        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
-        logger.info({
-          draftDocEntry,
-          msg: "Deleted converted GRPO draft",
-        });
-      } catch (delErr: any) {
-        logger.error({
-          draftDocEntry,
-          err: delErr,
-          msg: "Failed to delete draft after conversion",
-        });
-      }
-    }
-
     return {
       DocEntry: result.DocEntry,
       DocNum: result.DocNum,

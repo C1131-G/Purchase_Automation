@@ -91,7 +91,7 @@ export function writeExcelTotalsAndAttachments(
     bold: true,
     color: { argb: "FF1E3A8A" },
   };
-  worksheet.getCell(totalsRowIdx, valCol).numFmt = `"${data.docCurr || ""} " #,##0.00`;
+  worksheet.getCell(totalsRowIdx, valCol).numFmt = `"${data.docCurr} " #,##0.00`;
   worksheet.getCell(totalsRowIdx, valCol).border = {
     bottom: { style: "double", color: { argb: "FF1E3A8A" } }, // Double underline for accounting
   };

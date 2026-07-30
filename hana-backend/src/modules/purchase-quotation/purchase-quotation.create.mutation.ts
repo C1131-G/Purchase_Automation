@@ -2,7 +2,7 @@
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
-import { getDisplayCurrency } from "@/services/currency-format";
+import { getDisplayCurrency, isUnresolvedCurrency } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPqDraftSaved } from "@/modules/intercompany";
@@ -28,13 +28,13 @@ export const createPurchaseQuotation = async (
 ) => {
   try {
     const isDraft = payload.isDraft === true;
-    const draftDocEntry = Number(payload.draftDocEntry || 0);
 
     const lines = (payload.DocumentLines as Record<string, unknown>[]) || [];
     const attachments = payload.attachments as any[];
 
     let docCurrency = String(payload.DocCurrency || payload.DocCurr || "").trim();
-    if (!docCurrency || docCurrency === "$") {
+    // Never send SAP local "$" — resolve via OADM, then env DEFAULT_CURRENCY_CODE.
+    if (isUnresolvedCurrency(docCurrency)) {
       docCurrency = await getDisplayCurrency(dbName || "");
     }
 
@@ -167,22 +167,6 @@ export const createPurchaseQuotation = async (
         ? "Purchase quotation draft created in SAP"
         : "Purchase quotation created in SAP",
     });
-
-    if (!isDraft && Number.isFinite(draftDocEntry) && draftDocEntry > 0) {
-      try {
-        await serviceLayerClient.request(sessionId, "DELETE", `/Drafts(${draftDocEntry})`);
-        logger.info({
-          draftDocEntry,
-          msg: "Deleted converted purchase quotation draft",
-        });
-      } catch (delErr: any) {
-        logger.error({
-          draftDocEntry,
-          err: delErr,
-          msg: "Failed to delete draft after conversion",
-        });
-      }
-    }
 
     if (resolvedDbName) {
       purgeCache(`dashboard:overview:${resolvedDbName}`);

@@ -1,6 +1,6 @@
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository } from "@/db/tenant-query";
-import { getDisplayCurrency } from "@/services/currency-format";
+import { getDisplayCurrency, resolveCurrencyCode } from "@/services/currency-format";
 import { AdminSettingsSchema } from "@/db/schemas/admin-settings.schema";
 import { BusinessPartnerSchema } from "@/db/schemas/business-partner.schema";
 import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
@@ -74,9 +74,11 @@ export const getVendors = async (dbName: string) => {
     take: 1,
   });
   const adminSettings = settingsRows[0] ?? null;
-  const rawMainCurncy = toTrimmed(adminSettings?.MainCurncy);
-  const defaultCurrency =
-    rawMainCurncy && rawMainCurncy !== "$" ? rawMainCurncy : await getDisplayCurrency(dbName);
+  // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
+  const defaultCurrency = resolveCurrencyCode(
+    adminSettings?.MainCurncy,
+    await getDisplayCurrency(dbName),
+  );
 
   const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
     order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
@@ -123,10 +125,7 @@ export const getVendors = async (dbName: string) => {
       CardCode: normalizedCardCode,
       CardName: item.CardName,
       Address: item.Address,
-      Currency:
-        item.Currency && toTrimmed(item.Currency) !== "$"
-          ? toTrimmed(item.Currency)
-          : defaultCurrency,
+      Currency: resolveCurrencyCode(item.Currency, defaultCurrency),
       SlpCode: item.SlpCode,
       // Aliases for frontend components expecting generic keys.
       code: normalizedCardCode,

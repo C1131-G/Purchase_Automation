@@ -4,6 +4,7 @@ import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
 import { APCreditMemoHeaderSchema } from "@/db/schemas/apcreditmemoheader.schema";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { normalizeSAPLineData } from "@/services/sap-line-normalize";
+import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentLine, SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -86,7 +87,7 @@ export const getInvoice = async (
       CardCode: result.CardCode,
       CardName: result.CardName,
       Comments: result.Comments,
-      DocCurr: result.DocCurrency,
+      DocCurr: resolveCurrencyCode(result.DocCurrency),
       DocDate: result.DocDate,
       DocDueDate: result.DocDueDate,
       DocEntry: result.DocEntry,
