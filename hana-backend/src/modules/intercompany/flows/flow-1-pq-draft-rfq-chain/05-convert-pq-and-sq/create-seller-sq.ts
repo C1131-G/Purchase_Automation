@@ -19,12 +19,10 @@ export type ResolveSqLineTax = (input: {
   itemCode: string;
 }) => Promise<string>;
 
-export type ResolveSqLineWarehouse = (input: { itemCode: string }) => Promise<string | null>;
-
 /**
  * Build SQ lines for the seller company.
  * - VatGroup only when resolver returns a **seller** tax code (never buyer tax).
- * - Warehouse: never copy buyer WH; when multi-branch, set seller WH that matches document BPL.
+ * - Warehouse: never copy buyer WH; use branch default WH only (no item-WH switch).
  */
 export type BuildSqLinesResult = {
   documentLines: Record<string, unknown>[];
@@ -36,14 +34,11 @@ export const buildSalesQuotationLines = async (
   lines: IcRfqLine[],
   resolveLineTax: ResolveSqLineTax,
   options?: {
-    /** Fallback WH for the document branch (all lines). */
+    /** WH for the document branch (all lines share this). */
     branchWarehouseCode?: string | null;
-    /** Prefer item default WH when it is on the same branch. */
-    resolveLineWarehouse?: ResolveSqLineWarehouse;
   },
 ): Promise<BuildSqLinesResult> => {
   const branchWh = options?.branchWarehouseCode?.trim() || null;
-  const resolveLineWarehouse = options?.resolveLineWarehouse;
   const documentLines: Record<string, unknown>[] = [];
   const taxUsage: IcLineTaxUsage[] = [];
 
@@ -78,12 +73,8 @@ export const buildSalesQuotationLines = async (
       docLine.VatGroup = sqTaxCode;
     }
 
-    const itemWh = resolveLineWarehouse
-      ? ((await resolveLineWarehouse({ itemCode: line.itemCode ?? "" }))?.trim() ?? null)
-      : null;
-    const warehouseCode = itemWh || branchWh;
-    if (warehouseCode) {
-      docLine.WarehouseCode = warehouseCode;
+    if (branchWh) {
+      docLine.WarehouseCode = branchWh;
     }
 
     if (line.uomCode) {
@@ -99,8 +90,9 @@ export const buildSalesQuotationLines = async (
 };
 
 /**
- * When document BPL is set, resolve a seller WH on that BPL so SAP does not
- * default to an item WH on a different branch (e.g. L101 on BPL 7 vs doc BPL 1).
+ * Prefer IC_COMPANY default branch + its WH.
+ * If that branch has no active WH, switch to any branch that has an active WH.
+ * Never pick branch/WH from item default warehouse.
  */
 export const resolveSqWarehouseContext = async (params: {
   sapDbName?: string | null;
@@ -109,26 +101,49 @@ export const resolveSqWarehouseContext = async (params: {
 }): Promise<{
   branchId: number | null;
   branchWarehouseCode: string | null;
-  resolveLineWarehouse?: ResolveSqLineWarehouse;
+  /** true when we left DEFAULT_BRANCH_ID because it had no WH */
+  switchedFromDefault: boolean;
 }> => {
-  const branchIdRaw = params.defaultBranchId;
-  const branchId =
-    branchIdRaw != null && Number.isFinite(branchIdRaw) && branchIdRaw > 0
-      ? Math.trunc(branchIdRaw)
+  const preferredBranchRaw = params.defaultBranchId;
+  const preferredBranchId =
+    preferredBranchRaw != null && Number.isFinite(preferredBranchRaw) && preferredBranchRaw > 0
+      ? Math.trunc(preferredBranchRaw)
       : null;
   const sapDbName = params.sapDbName?.trim() || null;
-  if (branchId == null || !sapDbName) {
-    return { branchId, branchWarehouseCode: null };
+  if (!sapDbName) {
+    return {
+      branchId: preferredBranchId,
+      branchWarehouseCode: null,
+      switchedFromDefault: false,
+    };
   }
 
   const masters = params.warehouseMasters ?? partnerWarehouseMasters;
-  const branchWarehouseCode = await masters.getWarehouseForBranch(sapDbName, branchId);
+
+  if (preferredBranchId != null) {
+    const onDefault = await masters.getWarehouseForBranch(sapDbName, preferredBranchId);
+    if (onDefault) {
+      return {
+        branchId: preferredBranchId,
+        branchWarehouseCode: onDefault,
+        switchedFromDefault: false,
+      };
+    }
+  }
+
+  const fallback = await masters.getFirstActiveBranchWarehouse(sapDbName);
+  if (fallback) {
+    return {
+      branchId: fallback.branchId,
+      branchWarehouseCode: fallback.warehouseCode,
+      switchedFromDefault: preferredBranchId != null && preferredBranchId !== fallback.branchId,
+    };
+  }
 
   return {
-    branchId,
-    branchWarehouseCode,
-    resolveLineWarehouse: async ({ itemCode }) =>
-      masters.getItemWarehouseOnBranch(sapDbName, itemCode, branchId),
+    branchId: preferredBranchId,
+    branchWarehouseCode: null,
+    switchedFromDefault: false,
   };
 };
 
@@ -145,7 +160,7 @@ export const createSellerSq = async (params: {
   /** Buyer PQ draft vendor ref (NumAtCard) — set on seller SQ. */
   numAtCard?: string | null;
   resolveLineTax: ResolveSqLineTax;
-  /** IC_COMPANY.DEFAULT_BRANCH_ID for seller — required when multi-branch is active. */
+  /** IC_COMPANY.DEFAULT_BRANCH_ID for seller — preferred BPL when multi-branch is active. */
   defaultBranchId?: number | null;
   /** Seller SAP company DB (IC_COMPANY.SAP_DB_NAME) for OWHS lookup. */
   sapDbName?: string | null;
@@ -157,17 +172,37 @@ export const createSellerSq = async (params: {
     warehouseMasters: params.warehouseMasters,
   });
 
-  if (warehouseCtx.branchId != null && !warehouseCtx.branchWarehouseCode) {
-    icLog.warn(IC_LOG_SCOPE.FLOW1, "No active warehouse on seller branch for SQ", {
+  if (warehouseCtx.switchedFromDefault) {
+    icLog.info(IC_LOG_SCOPE.FLOW1, "SQ branch switched: default had no warehouse", {
+      check: "sq_branch_fallback",
+      defaultBranchId: params.defaultBranchId ?? null,
+      outcome: "pass",
+      resolvedBranchId: warehouseCtx.branchId,
+      resolvedWarehouse: warehouseCtx.branchWarehouseCode,
+      sapDbName: params.sapDbName ?? null,
+      sellerCompanyId: params.sellerCompanyId,
+    });
+  }
+
+  // Multi-branch: we need a WH that matches document BPL. Fail only if neither
+  // default nor any other branch has an active warehouse.
+  if (
+    (params.defaultBranchId != null || warehouseCtx.branchId != null) &&
+    !warehouseCtx.branchWarehouseCode
+  ) {
+    icLog.warn(IC_LOG_SCOPE.FLOW1, "No active warehouse on seller company for SQ", {
       check: "sq_branch_warehouse",
-      defaultBranchId: warehouseCtx.branchId,
+      defaultBranchId: params.defaultBranchId ?? null,
       outcome: "fail",
       sapDbName: params.sapDbName ?? null,
       sellerCompanyId: params.sellerCompanyId,
     });
     throw new Error(
-      `No active warehouse on branch ${warehouseCtx.branchId} in ${params.sapDbName ?? "seller DB"}; ` +
-        `cannot create SQ with BPL_IDAssignedToInvoice (set OWHS.BPLid or DEFAULT_BRANCH_ID)`,
+      `No active warehouse in ${params.sapDbName ?? "seller DB"}` +
+        (params.defaultBranchId != null
+          ? ` (default branch ${params.defaultBranchId} and no fallback BPL with OWHS)`
+          : ` (no active OWHS with BPLid)`) +
+        `; cannot create SQ with BPL_IDAssignedToInvoice`,
     );
   }
 
@@ -176,14 +211,17 @@ export const createSellerSq = async (params: {
     params.resolveLineTax,
     {
       branchWarehouseCode: warehouseCtx.branchWarehouseCode,
-      resolveLineWarehouse: warehouseCtx.resolveLineWarehouse,
     },
   );
+
+  // Use resolved branch (may be fallback) so BPL matches line WarehouseCode.
+  const documentBranchId = warehouseCtx.branchId ?? params.defaultBranchId ?? null;
 
   icLog.info(IC_LOG_SCOPE.FLOW1, "Flow 1 SQ lines prepared for seller", {
     branchWarehouseCode: warehouseCtx.branchWarehouseCode,
     check: "sq_lines_vat",
     defaultBranchId: params.defaultBranchId ?? null,
+    documentBranchId,
     lineCount: documentLines.length,
     lines: documentLines.map((line, index) => ({
       itemCode: line.ItemCode ?? null,
@@ -199,13 +237,14 @@ export const createSellerSq = async (params: {
     outcome: "pass",
     sapDbName: params.sapDbName ?? null,
     sellerCompanyId: params.sellerCompanyId,
+    switchedFromDefault: warehouseCtx.switchedFromDefault,
     taxUsage,
   });
 
   const created = await params.documents.createSalesQuotation({
     cardCode: params.buyerCustomerCode,
     companyId: params.sellerCompanyId,
-    defaultBranchId: params.defaultBranchId,
+    defaultBranchId: documentBranchId,
     lines: documentLines,
     numAtCard: params.numAtCard ?? null,
     remarks: params.remarks,

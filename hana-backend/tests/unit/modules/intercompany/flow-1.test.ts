@@ -168,7 +168,10 @@ const createFlow1TestStack = (opts?: {
     }),
     // Avoid live OWHS tenant lookup in unit tests (multi-branch SQ WH).
     warehouseMasters: {
-      getItemWarehouseOnBranch: async () => null,
+      getFirstActiveBranchWarehouse: async () => ({
+        branchId: 1,
+        warehouseCode: "WH-TEST",
+      }),
       getWarehouseForBranch: async () => "WH-TEST",
     },
     retry,

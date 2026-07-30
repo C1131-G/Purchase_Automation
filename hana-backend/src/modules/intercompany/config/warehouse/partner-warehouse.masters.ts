@@ -1,9 +1,17 @@
 /**
  * Resolve seller warehouses for multi-branch SAP companies.
  * Used when IC sets BPL_IDAssignedToInvoice — line WH must share that BPL.
+ *
+ * Policy: prefer DEFAULT_BRANCH_ID warehouse; if none, use any active branch+WH.
+ * Do not switch warehouse/branch from item default WH (OITM.DfltWH).
  */
 
 import { executeTenantQuery } from "@/db/tenant-query";
+
+export type BranchWarehouse = {
+  branchId: number;
+  warehouseCode: string;
+};
 
 export type PartnerWarehouseMasters = {
   /**
@@ -12,14 +20,10 @@ export type PartnerWarehouseMasters = {
    */
   getWarehouseForBranch: (sapDbName: string, branchId: number) => Promise<string | null>;
   /**
-   * Item default WH only when that WH is active and assigned to the branch.
-   * Prefer over generic branch WH when available.
+   * First active warehouse with a valid BPL anywhere in the company.
+   * Fallback when default branch has no active WH.
    */
-  getItemWarehouseOnBranch: (
-    sapDbName: string,
-    itemCode: string,
-    branchId: number,
-  ) => Promise<string | null>;
+  getFirstActiveBranchWarehouse: (sapDbName: string) => Promise<BranchWarehouse | null>;
 };
 
 const toWhs = (value: unknown): string | null => {
@@ -28,6 +32,11 @@ const toWhs = (value: unknown): string | null => {
   }
   const text = String(value).trim();
   return text || null;
+};
+
+const toBranchId = (value: unknown): number | null => {
+  const branchId = Math.trunc(Number(value));
+  return Number.isFinite(branchId) && branchId > 0 ? branchId : null;
 };
 
 export const createPartnerWarehouseMasters = (deps?: {
@@ -58,26 +67,27 @@ export const createPartnerWarehouseMasters = (deps?: {
       }
     },
 
-    getItemWarehouseOnBranch: async (sapDbName, itemCode, branchId) => {
+    getFirstActiveBranchWarehouse: async (sapDbName) => {
       const db = sapDbName.trim();
-      const code = itemCode.trim();
-      const bpl = Math.trunc(Number(branchId));
-      if (!db || !code || !Number.isFinite(bpl) || bpl <= 0) {
+      if (!db) {
         return null;
       }
       try {
-        // OITM.DfltWH must exist on OWHS for the document BPL.
         const rows = (await queryTenant(
           db,
-          `SELECT TOP 1 T0."DfltWH" AS "WhsCode"
-             FROM "OITM" T0
-             INNER JOIN "OWHS" T1 ON T1."WhsCode" = T0."DfltWH"
-            WHERE T0."ItemCode" = ?
-              AND T1."Inactive" = 'N'
-              AND T1."BPLid" = ?`,
-          [code, bpl],
+          `SELECT TOP 1 "WhsCode", "BPLid"
+             FROM "OWHS"
+            WHERE "Inactive" = 'N'
+              AND "BPLid" IS NOT NULL
+              AND "BPLid" > 0
+            ORDER BY "BPLid" ASC, "WhsCode" ASC`,
         )) as Array<Record<string, unknown>>;
-        return toWhs(rows[0]?.WhsCode ?? rows[0]?.whsCode ?? rows[0]?.DfltWH);
+        const warehouseCode = toWhs(rows[0]?.WhsCode ?? rows[0]?.whsCode);
+        const branchId = toBranchId(rows[0]?.BPLid ?? rows[0]?.bplId ?? rows[0]?.BPLId);
+        if (!warehouseCode || branchId == null) {
+          return null;
+        }
+        return { branchId, warehouseCode };
       } catch {
         return null;
       }

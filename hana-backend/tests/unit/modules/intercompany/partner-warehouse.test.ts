@@ -19,17 +19,14 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     expect(queryTenant).toHaveBeenCalledWith("RCM_DB", expect.stringContaining("OWHS"), [1]);
   });
 
-  it("returns item default WH only when on same BPL", async () => {
-    const queryTenant = vi.fn(async () => [{ WhsCode: "L101" }]);
+  it("returns first active branch+WH fallback", async () => {
+    const queryTenant = vi.fn(async () => [{ BPLid: 7, WhsCode: "L101" }]);
     const masters = createPartnerWarehouseMasters({ queryTenant });
 
-    const wh = await masters.getItemWarehouseOnBranch("RCM_DB", "7000000000000", 7);
+    const row = await masters.getFirstActiveBranchWarehouse("RCM_DB");
 
-    expect(wh).toBe("L101");
-    expect(queryTenant).toHaveBeenCalledWith("RCM_DB", expect.stringContaining("OITM"), [
-      "7000000000000",
-      7,
-    ]);
+    expect(row).toEqual({ branchId: 7, warehouseCode: "L101" });
+    expect(queryTenant).toHaveBeenCalledWith("RCM_DB", expect.stringContaining("OWHS"));
   });
 
   it("returns null when query fails", async () => {
@@ -40,11 +37,12 @@ describe("partner warehouse masters (branch-matched WH)", () => {
     });
 
     expect(await masters.getWarehouseForBranch("RCM_DB", 1)).toBeNull();
+    expect(await masters.getFirstActiveBranchWarehouse("RCM_DB")).toBeNull();
   });
 });
 
 describe("buildSalesQuotationLines warehouse", () => {
-  it("sets branch WH when item WH resolver returns null", async () => {
+  it("sets branch WH on all lines (no item WH switch)", async () => {
     const { documentLines, taxUsage } = await buildSalesQuotationLines(
       [
         {
@@ -60,7 +58,6 @@ describe("buildSalesQuotationLines warehouse", () => {
       async () => "S1",
       {
         branchWarehouseCode: "W-BPL1",
-        resolveLineWarehouse: async () => null,
       },
     );
 
@@ -71,39 +68,18 @@ describe("buildSalesQuotationLines warehouse", () => {
       sqTaxCode: "S1",
     });
   });
-
-  it("prefers item WH on branch over branch default", async () => {
-    const { documentLines } = await buildSalesQuotationLines(
-      [
-        {
-          discount: 0,
-          itemCode: "SKU1",
-          lineNum: 0,
-          quantity: 1,
-          unitPrice: 10,
-        },
-      ],
-      async () => "",
-      {
-        branchWarehouseCode: "W-BPL1",
-        resolveLineWarehouse: async () => "ITEM-WH",
-      },
-    );
-
-    expect(documentLines[0]?.WarehouseCode).toBe("ITEM-WH");
-  });
 });
 
 describe("createSellerSq warehouse + branch", () => {
-  it("resolves WH for branch and posts WarehouseCode on lines", async () => {
+  it("uses default branch WH when available", async () => {
     const createSalesQuotation = vi.fn(async () => ({ docEntry: 99, docNum: 5001 }));
     const documents = { createSalesQuotation } as unknown as IcSlDocuments;
     const warehouseMasters = createPartnerWarehouseMasters({
-      queryTenant: async (_db, sql) => {
-        if (String(sql).includes("OITM")) {
-          return [];
+      queryTenant: async (_db, sql, params) => {
+        if (String(sql).includes("BPLid") && Array.isArray(params) && params[0] === 1) {
+          return [{ WhsCode: "WH-ON-1" }];
         }
-        return [{ WhsCode: "WH-ON-1" }];
+        return [];
       },
     });
 
@@ -136,7 +112,51 @@ describe("createSellerSq warehouse + branch", () => {
     expect(input.lines[0]?.WarehouseCode).toBe("WH-ON-1");
   });
 
-  it("throws when branch is set but no WH exists on that BPL", async () => {
+  it("switches to available branch when default branch has no WH", async () => {
+    const createSalesQuotation = vi.fn(async () => ({ docEntry: 100, docNum: 5002 }));
+    const documents = { createSalesQuotation } as unknown as IcSlDocuments;
+    let call = 0;
+    const warehouseMasters = createPartnerWarehouseMasters({
+      queryTenant: async (_db, sql) => {
+        call += 1;
+        // 1st: getWarehouseForBranch(default) → empty
+        // 2nd: getFirstActiveBranchWarehouse → BPL 7
+        if (call === 1 && String(sql).includes("BPLid") && String(sql).includes("= ?")) {
+          return [];
+        }
+        return [{ BPLid: 7, WhsCode: "WH-ON-7" }];
+      },
+    });
+
+    await createSellerSq({
+      buyerCustomerCode: "C1105",
+      defaultBranchId: 1,
+      documents,
+      lines: [
+        {
+          discount: 0,
+          itemCode: "SKU1",
+          lineNum: 0,
+          quantity: 1,
+          unitPrice: 1,
+        },
+      ],
+      remarks: "x",
+      resolveLineTax: async () => "",
+      sapDbName: "RCM_TESTING_POS1",
+      sellerCompanyId: 9,
+      warehouseMasters,
+    });
+
+    const input = createSalesQuotation.mock.calls[0]?.[0] as {
+      defaultBranchId?: number;
+      lines: Array<Record<string, unknown>>;
+    };
+    expect(input.defaultBranchId).toBe(7);
+    expect(input.lines[0]?.WarehouseCode).toBe("WH-ON-7");
+  });
+
+  it("throws when no WH exists on default or any fallback branch", async () => {
     const documents = {
       createSalesQuotation: vi.fn(),
     } as unknown as IcSlDocuments;
@@ -164,14 +184,37 @@ describe("createSellerSq warehouse + branch", () => {
         sellerCompanyId: 9,
         warehouseMasters,
       }),
-    ).rejects.toThrow(/No active warehouse on branch 1/);
+    ).rejects.toThrow(/No active warehouse/);
   });
 
-  it("resolveSqWarehouseContext skips lookup without branch or db", async () => {
+  it("resolveSqWarehouseContext skips lookup without db", async () => {
     const ctx = await resolveSqWarehouseContext({
-      defaultBranchId: null,
-      sapDbName: "RCM",
+      defaultBranchId: 1,
+      sapDbName: null,
     });
+    expect(ctx.branchId).toBe(1);
     expect(ctx.branchWarehouseCode).toBeNull();
+    expect(ctx.switchedFromDefault).toBe(false);
+  });
+
+  it("resolveSqWarehouseContext falls back when default has no WH", async () => {
+    const masters = createPartnerWarehouseMasters({
+      queryTenant: async (_db, sql) => {
+        if (String(sql).includes("= ?")) {
+          return [];
+        }
+        return [{ BPLid: 3, WhsCode: "W3" }];
+      },
+    });
+    const ctx = await resolveSqWarehouseContext({
+      defaultBranchId: 1,
+      sapDbName: "DB",
+      warehouseMasters: masters,
+    });
+    expect(ctx).toEqual({
+      branchId: 3,
+      branchWarehouseCode: "W3",
+      switchedFromDefault: true,
+    });
   });
 });
