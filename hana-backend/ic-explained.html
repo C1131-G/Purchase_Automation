@@ -914,8 +914,8 @@
       <p class="hsub">
         The IC engine inside <code class="ic">hana-backend</code> links every SAP company in the
         group. A Purchase Quotation draft saved in Company A becomes an RFQ for Company B, converts
-        into a real PQ + Sales Quotation, and a Purchase Order becomes a partner AR Invoice
-        &mdash; automatically, with OVTG tax matching, relationship maps, audit, notification and
+        into a real PQ + Sales Quotation, and a Purchase Order becomes a partner AR Invoice &mdash;
+        automatically, with OVTG tax matching, relationship maps, audit, notification and
         self-healing retry.
       </p>
       <div class="hcta">
@@ -1004,8 +1004,8 @@
           <div class="cc">
             <div class="ct">&#128279; Partner documents</div>
             <div class="cd">
-              Real SAP documents (SQ, AR Invoice) are created inside each company's own tenant
-              DB through the <b>SAP Service Layer</b>, logged in per company via
+              Real SAP documents (SQ, AR Invoice) are created inside each company's own tenant DB
+              through the <b>SAP Service Layer</b>, logged in per company via
               <code class="ic">IC_SAP_CONNECTION</code>.
             </div>
           </div>
@@ -1024,9 +1024,9 @@
           <details class="faq-item">
             <summary>Can an IC failure block the user's PQ or PO save?</summary>
             <div class="faq-a">
-              No. Hooks <code>afterPqSaved</code> and <code>afterPoCreated</code> return
-              immediately and run flows in the background. A Service Layer timeout on the partner
-              side enqueues <code>IC_RETRY_QUEUE</code> instead of rolling back the buyer document.
+              No. Hooks <code>afterPqSaved</code> and <code>afterPoCreated</code> return immediately
+              and run flows in the background. A Service Layer timeout on the partner side enqueues
+              <code>IC_RETRY_QUEUE</code> instead of rolling back the buyer document.
             </div>
           </details>
           <details class="faq-item">
@@ -1591,8 +1591,7 @@
           ><span
             ><b>Hooks never block:</b> <code>afterPqSaved</code> and
             <code>afterPoCreated</code> return <code>"accepted"</code> immediately and run the flow
-            in the background &mdash; an IC failure can never fail the user's PQ or PO
-            save.</span
+            in the background &mdash; an IC failure can never fail the user's PQ or PO save.</span
           >
         </div>
         <div class="faq reveal">
@@ -1601,8 +1600,8 @@
             <summary>Where do I start reading Flow 1?</summary>
             <div class="faq-a">
               <code>api/hooks/after-pq-saved.hook.ts</code> &rarr;
-              <code>flows/flow-1-pq-rfq-chain/flow-1.orchestrator.ts</code> &rarr; step
-              folders 01&ndash;05. Convert logic is in
+              <code>flows/flow-1-pq-rfq-chain/flow-1.orchestrator.ts</code> &rarr; step folders
+              01&ndash;05. Convert logic is in
               <code>05-convert-pq-and-sq/convert-pq-and-sq.service.ts</code> +
               <code>create-seller-sq.ts</code>.
             </div>
@@ -1611,8 +1610,8 @@
             <summary>Where is tax resolved for SQ and AR lines?</summary>
             <div class="faq-a">
               <code>config/tax-mapping/resolve-partner-tax.service.ts</code> — called from convert
-              (Flow 1) and <code>build-ar-invoice.service.ts</code> (Flow 2). Pure rate math lives in
-              <code>map-ovtg-partner-tax.ts</code>; HANA queries in
+              (Flow 1) and <code>build-ar-invoice.service.ts</code> (Flow 2). Pure rate math lives
+              in <code>map-ovtg-partner-tax.ts</code>; HANA queries in
               <code>partner-tax.masters.ts</code>.
             </div>
           </details>
@@ -1647,8 +1646,8 @@
             <div class="ptn">1 &middot; Capture</div>
             <div class="pss sv">auto &middot; on save</div>
             <div class="pts">
-              Hook <code class="ic">afterPqSaved</code>: flag on? CardCode in IC_BP_MAPPING?
-              not already mapped? &rarr; idempotent accept.
+              Hook <code class="ic">afterPqSaved</code>: flag on? CardCode in IC_BP_MAPPING? not
+              already mapped? &rarr; idempotent accept.
             </div>
           </div>
           <div class="pst">
@@ -1858,9 +1857,9 @@
           <h2>Purchase Order &rarr; Partner AR Invoice</h2>
           <p class="ssub">
             When a <b>real (non-draft) PO</b> is posted in Company A with an IC vendor, the engine
-            immediately creates an <b>AR Invoice</b> in Company B &mdash; no RFQ chain needed.
-            Gated by <code class="ic">ENABLE_FLOW2_DIRECT_PO</code>. Both flags can be on at the
-            same time.
+            immediately creates an <b>AR Invoice</b> in Company B &mdash; no RFQ chain needed. Gated
+            by <code class="ic">ENABLE_FLOW2_DIRECT_PO</code>. Both flags can be on at the same
+            time.
           </p>
         </div>
         <div class="pf reveal">
@@ -1959,8 +1958,8 @@
           <details class="faq-item">
             <summary>What SAP object is created in Company B?</summary>
             <div class="faq-a">
-              An <b>AR Invoice</b> (ObjType 13 / ODRF), not a posted AR invoice. Finance posts
-              it manually in SAP B1 when ready. Mapping object code is <code>AR_DRAFT</code>.
+              An <b>AR Invoice</b> (ObjType 13 / ODRF), not a posted AR invoice. Finance posts it
+              manually in SAP B1 when ready. Mapping object code is <code>AR_DRAFT</code>.
             </div>
           </details>
         </div>
@@ -2011,9 +2010,8 @@ Parent typed on PQ
           <details class="faq-item">
             <summary>What RFQ number appears in remarks?</summary>
             <div class="faq-a">
-              Plain PQ doc num (e.g. <code>8000590</code>), not <code>RFQ-PQD-*</code>.
-              Matches RFQ table display via <code>formatRfqDocNumber</code> /
-              <code>parseRfqDisplayNum</code>.
+              Plain PQ doc num (e.g. <code>8000590</code>), not <code>RFQ-PQD-*</code>. Matches RFQ
+              table display via <code>formatRfqDocNumber</code> / <code>parseRfqDisplayNum</code>.
             </div>
           </details>
         </div>
