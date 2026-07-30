@@ -1,3 +1,6 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef } from "react";
+
 import { CreateProductTableRow } from "@/features/create-pages/create-shared/components/tables/create-product-table-row";
 import type { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import type {
@@ -5,7 +8,15 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
+
 // CreateProductTable: Specialized data grid for building document line items.
+// Rows are windowed with TanStack Virtual so large copy-from / multi-line docs stay responsive.
+
+/** Estimated row height (h-9 inputs + py-2 padding). Dynamic measure refines after paint. */
+const PRODUCT_ROW_ESTIMATE_PX = 56;
+const PRODUCT_ROW_OVERSCAN = 4;
+/** Cap visible viewport so many lines don't push the page forever. */
+const PRODUCT_TABLE_MAX_HEIGHT_CLASS = "max-h-[min(60vh,520px)]";
 
 interface CreateProductTableProps {
   productRows: ProductRow[];
@@ -80,100 +91,134 @@ export function CreateProductTable({
   rfqSellerFill = false,
 }: CreateProductTableProps) {
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
+  const emptyColSpan =
+    9 +
+    pqExtraCols +
+    (showSelection ? 1 : 0) +
+    (showReturnReason ? 1 : 0) +
+    (showUom ? 1 : 0) +
+    (showBinLocation ? 1 : 0) +
+    (showGLAccount ? 1 : 0);
+
+  const scrollParentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: productRows.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => PRODUCT_ROW_ESTIMATE_PX,
+    overscan: PRODUCT_ROW_OVERSCAN,
+    getItemKey: (index) => productRows[index]?.id ?? index,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+  const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
+  const paddingBottom =
+    virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;
+
   return (
-    <div className="overflow-x-auto px-2 py-2">
-      <table
-        className={`w-full table-fixed text-left text-sm text-zinc-700 ${
-          showPqLineDatesAndQtys ? "min-w-[1780px]" : "min-w-[1400px]"
-        }`}
-      >
-        <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
-          <tr>
-            {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
-            <th className={`${showUom ? "w-[12%]" : "w-[16%]"} px-2 py-2`}>Product</th>
-            <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Warehouse</th>
-            {showBinLocation && <th className="w-[10%] px-2 py-2 text-left">Bin Location</th>}
-            {showUom && <th className="w-[7%] px-2 py-2 text-left">UoM</th>}
-            {showPqLineDatesAndQtys ? (
-              <>
-                <th className="w-[8%] px-2 py-2 text-left">Required Date</th>
-                <th className="w-[8%] px-2 py-2 text-left">Quoted Date</th>
-                <th className="w-[7%] px-2 py-2 text-left">Required Qty</th>
-                <th className="w-[7%] px-2 py-2 text-left">Quoted Qty</th>
-              </>
-            ) : (
-              <th className="w-[7%] px-2 py-2 text-left">Quantity</th>
-            )}
-            <th className="w-[7%] px-2 py-2 text-left">Price</th>
-            <th className="w-[7%] px-2 py-2 text-left">Disc %</th>
-            <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
-            <th className="w-[7%] px-2 py-2 text-left text-wrap">Net Price</th>
-            <th className="w-[7%] px-2 py-2 text-left">Total</th>
-            {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
-            {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
-            <th className="w-[7%] px-2 py-2 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {productRows.length === 0 ? (
+    <div className="px-2 py-2">
+      <div ref={scrollParentRef} className={`${PRODUCT_TABLE_MAX_HEIGHT_CLASS} overflow-auto`}>
+        <table
+          className={`w-full table-fixed text-left text-sm text-zinc-700 ${
+            showPqLineDatesAndQtys ? "min-w-[1780px]" : "min-w-[1400px]"
+          }`}
+        >
+          <thead className="sticky top-0 z-10 bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
             <tr>
-              <td
-                className="px-3 py-8"
-                colSpan={
-                  9 +
-                  pqExtraCols +
-                  (showSelection ? 1 : 0) +
-                  (showReturnReason ? 1 : 0) +
-                  (showUom ? 1 : 0) +
-                  (showBinLocation ? 1 : 0) +
-                  (showGLAccount ? 1 : 0)
-                }
-              >
-                <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
-                  <div className="text-sm font-medium text-zinc-700">No products yet</div>
-                  <div className="text-xs text-zinc-500">
-                    Use <span className="font-semibold text-zinc-700">Search Products</span> to add
-                    items.
-                  </div>
-                </div>
-              </td>
+              {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
+              <th className={`${showUom ? "w-[12%]" : "w-[16%]"} px-2 py-2`}>Product</th>
+              <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Warehouse</th>
+              {showBinLocation && <th className="w-[10%] px-2 py-2 text-left">Bin Location</th>}
+              {showUom && <th className="w-[7%] px-2 py-2 text-left">UoM</th>}
+              {showPqLineDatesAndQtys ? (
+                <>
+                  <th className="w-[8%] px-2 py-2 text-left">Required Date</th>
+                  <th className="w-[8%] px-2 py-2 text-left">Quoted Date</th>
+                  <th className="w-[7%] px-2 py-2 text-left">Required Qty</th>
+                  <th className="w-[7%] px-2 py-2 text-left">Quoted Qty</th>
+                </>
+              ) : (
+                <th className="w-[7%] px-2 py-2 text-left">Quantity</th>
+              )}
+              <th className="w-[7%] px-2 py-2 text-left">Price</th>
+              <th className="w-[7%] px-2 py-2 text-left">Disc %</th>
+              <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
+              <th className="w-[7%] px-2 py-2 text-left text-wrap">Net Price</th>
+              <th className="w-[7%] px-2 py-2 text-left">Total</th>
+              {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
+              {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
+              <th className="w-[7%] px-2 py-2 text-right">Actions</th>
             </tr>
-          ) : null}
-          {productRows.map((row) => (
-            <CreateProductTableRow
-              key={row.id}
-              row={row}
-              rowDraft={productRowDrafts[row.id]}
-              enforceStockLimit={enforceStockLimit}
-              {...(maxQuantity !== undefined && { maxQuantity })}
-              {...(linkedRow !== undefined && { linkedRow })}
-              openProductPopup={openProductPopup}
-              updateProductRow={updateProductRow}
-              removeProductRow={removeProductRow}
-              setProductRowDraft={setProductRowDraft}
-              clearProductRowDraft={clearProductRowDraft}
-              prefetchProducts={prefetchProducts}
-              warehouses={warehouses}
-              warehousesLoading={warehousesLoading}
-              disableInputs={disableLineInputs}
-              onInputRestrictedClick={onLineInputRestrictedClick}
-              stockLimitReserve={stockLimitReserve}
-              minStockToSelectWarehouse={minStockToSelectWarehouse}
-              showExplicitZeroDiscount={showExplicitZeroDiscount}
-              showSelection={showSelection}
-              showReturnReason={showReturnReason}
-              nativeReturnReason={nativeReturnReason}
-              warehouseError={warehouseErrors?.[row.id]}
-              showUom={showUom}
-              uoms={uoms}
-              showBinLocation={showBinLocation}
-              showGLAccount={showGLAccount}
-              showPqLineDatesAndQtys={showPqLineDatesAndQtys}
-              rfqSellerFill={rfqSellerFill}
-            />
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {productRows.length === 0 ? (
+              <tr>
+                <td className="px-3 py-8" colSpan={emptyColSpan}>
+                  <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
+                    <div className="text-sm font-medium text-zinc-700">No products yet</div>
+                    <div className="text-xs text-zinc-500">
+                      Use <span className="font-semibold text-zinc-700">Search Products</span> to
+                      add items.
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ) : null}
+            {paddingTop > 0 ? (
+              <tr aria-hidden="true">
+                <td colSpan={emptyColSpan} style={{ height: paddingTop, padding: 0, border: 0 }} />
+              </tr>
+            ) : null}
+            {virtualRows.map((virtualRow) => {
+              const row = productRows[virtualRow.index];
+              if (!row) {
+                return null;
+              }
+              return (
+                <CreateProductTableRow
+                  key={row.id}
+                  row={row}
+                  rowDraft={productRowDrafts[row.id]}
+                  enforceStockLimit={enforceStockLimit}
+                  {...(maxQuantity !== undefined && { maxQuantity })}
+                  {...(linkedRow !== undefined && { linkedRow })}
+                  openProductPopup={openProductPopup}
+                  updateProductRow={updateProductRow}
+                  removeProductRow={removeProductRow}
+                  setProductRowDraft={setProductRowDraft}
+                  clearProductRowDraft={clearProductRowDraft}
+                  prefetchProducts={prefetchProducts}
+                  warehouses={warehouses}
+                  warehousesLoading={warehousesLoading}
+                  disableInputs={disableLineInputs}
+                  onInputRestrictedClick={onLineInputRestrictedClick}
+                  stockLimitReserve={stockLimitReserve}
+                  minStockToSelectWarehouse={minStockToSelectWarehouse}
+                  showExplicitZeroDiscount={showExplicitZeroDiscount}
+                  showSelection={showSelection}
+                  showReturnReason={showReturnReason}
+                  nativeReturnReason={nativeReturnReason}
+                  warehouseError={warehouseErrors?.[row.id]}
+                  showUom={showUom}
+                  uoms={uoms}
+                  showBinLocation={showBinLocation}
+                  showGLAccount={showGLAccount}
+                  showPqLineDatesAndQtys={showPqLineDatesAndQtys}
+                  rfqSellerFill={rfqSellerFill}
+                />
+              );
+            })}
+            {paddingBottom > 0 ? (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={emptyColSpan}
+                  style={{ height: paddingBottom, padding: 0, border: 0 }}
+                />
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

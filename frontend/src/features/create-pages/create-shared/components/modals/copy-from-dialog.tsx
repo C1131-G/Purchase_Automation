@@ -1,3 +1,4 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, ClipboardList, FileText, Loader2, StickyNote } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -32,6 +33,9 @@ const VISIBLE_LINES = 6;
 const BROWSE_INCREMENT = 10;
 const BROWSE_CAP = 100;
 const SEARCH_LIMIT = 100;
+/** Copy-from list row: py-2.5 + single-line content. */
+const DOC_ROW_ESTIMATE_PX = 44;
+const DOC_ROW_OVERSCAN = 6;
 
 interface CopyFromDialogProps {
   open: boolean;
@@ -529,6 +533,14 @@ export function CopyFromDialog({
     // Keep hover state visible until next hover
   }, []);
 
+  const rowVirtualizer = useVirtualizer({
+    count: documents.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => DOC_ROW_ESTIMATE_PX,
+    overscan: DOC_ROW_OVERSCAN,
+    getItemKey: (index) => documents[index]?.code ?? index,
+  });
+
   if (!open) {
     return null;
   }
@@ -626,46 +638,66 @@ export function CopyFromDialog({
                 </div>
               ) : (
                 <div className="flex flex-col">
-                  {documents.map((doc) => {
-                    const isSelected = selectedDocs.has(doc.code);
-                    const isCommitted = committedSet.has(doc.code);
+                  <div
+                    style={{
+                      height: `${rowVirtualizer.getTotalSize()}px`,
+                      position: "relative",
+                      width: "100%",
+                    }}
+                  >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const doc = documents[virtualRow.index];
+                      if (!doc) {
+                        return null;
+                      }
+                      const isSelected = selectedDocs.has(doc.code);
+                      const isCommitted = committedSet.has(doc.code);
 
-                    return (
-                      <button
-                        key={doc.code}
-                        type="button"
-                        onClick={() => handleToggleDocument(doc.code)}
-                        onMouseEnter={() => handleRowMouseEnter(doc)}
-                        onMouseLeave={handleRowMouseLeave}
-                        className={`relative flex w-full items-center border-t border-zinc-100 px-4 py-2.5 text-left transition cursor-pointer ${
-                          isSelected ? "bg-blue-50" : "bg-white hover:bg-zinc-50"
-                        }`}
-                      >
-                        <span className="w-[160px] shrink-0 flex items-center gap-2">
-                          <div
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
-                              isSelected
-                                ? "border-blue-500 bg-blue-500 text-white"
-                                : "border-zinc-300 bg-white"
-                            }`}
-                          >
-                            {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                          </div>
-                          <span className="text-sm font-medium text-zinc-900 truncate">
-                            {doc.code}
+                      return (
+                        <button
+                          key={doc.code}
+                          type="button"
+                          onClick={() => handleToggleDocument(doc.code)}
+                          onMouseEnter={() => handleRowMouseEnter(doc)}
+                          onMouseLeave={handleRowMouseLeave}
+                          style={{
+                            height: `${virtualRow.size}px`,
+                            left: 0,
+                            position: "absolute",
+                            top: 0,
+                            transform: `translateY(${virtualRow.start}px)`,
+                            width: "100%",
+                          }}
+                          className={`relative flex w-full items-center border-t border-zinc-100 px-4 text-left transition cursor-pointer ${
+                            isSelected ? "bg-blue-50" : "bg-white hover:bg-zinc-50"
+                          }`}
+                        >
+                          <span className="w-[160px] shrink-0 flex items-center gap-2">
+                            <div
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
+                                isSelected
+                                  ? "border-blue-500 bg-blue-500 text-white"
+                                  : "border-zinc-300 bg-white"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                            </div>
+                            <span className="text-sm font-medium text-zinc-900 truncate">
+                              {doc.code}
+                            </span>
                           </span>
-                        </span>
-                        <span className="w-28 shrink-0 pl-3 text-sm text-zinc-500 tabular-nums">
-                          {doc.docDate || "ΓÇö"}
-                        </span>
-                        {isCommitted && isSelected && (
-                          <span className="ml-auto shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                            Added
+                          <span className="w-28 shrink-0 pl-3 text-sm text-zinc-500 tabular-nums">
+                            {doc.docDate || "—"}
                           </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                          {isCommitted && isSelected && (
+                            <span className="ml-auto shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Added
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
 
                   {isLoading && documents.length > 0 && (
                     <div className="flex items-center justify-center gap-2 border-t border-zinc-100 py-3">

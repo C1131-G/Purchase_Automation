@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Calendar as CalendarIcon, Check, HandCoins, Minus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
@@ -183,6 +184,25 @@ export function CreateOutgoingPaymentForm() {
       ),
     [documentsWithPayments, tableFilters],
   );
+
+  const docsScrollRef = useRef<HTMLDivElement>(null);
+  const docsRowVirtualizer = useVirtualizer({
+    count: displayedDocuments.length,
+    getScrollElement: () => docsScrollRef.current,
+    estimateSize: () => 52,
+    overscan: 8,
+    getItemKey: (index) => {
+      const doc = displayedDocuments[index];
+      return doc ? `${doc.type}-${doc.id}` : index;
+    },
+  });
+  const virtualDocRows = docsRowVirtualizer.getVirtualItems();
+  const docsTotalSize = docsRowVirtualizer.getTotalSize();
+  const docsPaddingTop = virtualDocRows.length > 0 ? (virtualDocRows[0]?.start ?? 0) : 0;
+  const docsPaddingBottom =
+    virtualDocRows.length > 0
+      ? docsTotalSize - (virtualDocRows[virtualDocRows.length - 1]?.end ?? 0)
+      : 0;
 
   const isSelected = (docEntry: number, type: string) => !!selectedDocs[`${type}-${docEntry}`];
   const allSelected =
@@ -494,7 +514,7 @@ export function CreateOutgoingPaymentForm() {
                 />
               </div>
 
-              <div className="max-h-[400px] min-h-[300px] overflow-auto">
+              <div ref={docsScrollRef} className="max-h-[400px] min-h-[300px] overflow-auto">
                 {isLoadingInvoices || isLoadingCreditMemos ? (
                   <table className="w-full text-left text-sm">
                     <thead className="bg-white sticky top-0">
@@ -552,7 +572,7 @@ export function CreateOutgoingPaymentForm() {
                   </table>
                 ) : (
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-white sticky top-0">
+                    <thead className="bg-white sticky top-0 z-10">
                       <tr>
                         <th className="w-12 px-5 py-3 font-bold text-zinc-600">
                           <label className="relative flex cursor-pointer items-center justify-center">
@@ -603,134 +623,158 @@ export function CreateOutgoingPaymentForm() {
                           </td>
                         </tr>
                       ) : (
-                        displayedDocuments.map((doc) => {
-                          const selected = isSelected(doc.id, doc.type);
-                          return (
-                            <tr
-                              key={`${doc.type}-${doc.id}`}
-                              onClick={() => handleToggleDoc(doc.id, doc.type, doc.balanceDue)}
-                              className={`cursor-pointer transition-colors ${
-                                selected ? "bg-blue-50/50" : "hover:bg-zinc-50"
-                              }`}
-                            >
-                              <td className="px-5 py-3">
-                                <div
-                                  className={`flex h-5 w-5 items-center justify-center rounded border ${
-                                    selected
-                                      ? "bg-blue-600 border-blue-600 text-white"
-                                      : "border-zinc-300 bg-white text-transparent"
-                                  }`}
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                </div>
-                              </td>
-                              <td className="px-5 py-3 font-medium">
-                                <span
-                                  className={`text-sm ${
-                                    doc.type === "it_PurchaseInvoice"
-                                      ? "text-blue-700"
-                                      : "text-orange-700"
-                                  }`}
-                                >
-                                  {doc.label}
-                                </span>
-                              </td>
-                              <td className="px-5 py-3 text-zinc-600">{doc.docNum}</td>
-                              <td className="px-5 py-3 text-zinc-600">{toDisplayDate(doc.date)}</td>
-                              <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                                {doc.docTotal.toFixed(2)}
-                              </td>
-                              <td className="px-5 py-3 text-right font-medium text-zinc-900">
-                                {doc.balanceDue.toFixed(2)}
-                              </td>
-                              <td className="px-5 py-3 text-right">
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={
-                                    selected &&
-                                    editingAmounts[`${doc.type}-${doc.id}`] !== undefined
-                                      ? editingAmounts[`${doc.type}-${doc.id}`]
-                                      : (selected
-                                          ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ??
-                                            doc.balanceDue)
-                                          : doc.balanceDue
-                                        ).toFixed(2)
-                                  }
-                                  onFocus={() => {
-                                    if (!selected) {
-                                      return;
-                                    }
-                                    const key = `${doc.type}-${doc.id}`;
-                                    const current = (
-                                      selectedDocs[key]?.amount ?? doc.balanceDue
-                                    ).toFixed(2);
-                                    setEditingAmounts((prev) => ({
-                                      ...prev,
-                                      [key]: current,
-                                    }));
-                                  }}
-                                  onChange={(e) => {
-                                    if (!selected) {
-                                      return;
-                                    }
-                                    const raw = e.target.value.replaceAll(/[^0-9.]/g, "");
-                                    setEditingAmounts((prev) => ({
-                                      ...prev,
-                                      [`${doc.type}-${doc.id}`]: raw,
-                                    }));
-                                  }}
-                                  onBlur={() => {
-                                    if (!selected) {
-                                      return;
-                                    }
-                                    const key = `${doc.type}-${doc.id}`;
-                                    const raw = editingAmounts[key] || "";
-                                    const val = Number(raw);
-                                    if (isNaN(val) || val < 0.01) {
-                                      setSelectedDocs((prev) => ({
-                                        ...prev,
-                                        [key]: {
-                                          amount: doc.balanceDue,
-                                          type: doc.type,
-                                        },
-                                      }));
-                                    } else {
-                                      const fixed = Math.min(
-                                        Math.round(val * 100) / 100,
-                                        doc.balanceDue,
-                                      );
-                                      setSelectedDocs((prev) => ({
-                                        ...prev,
-                                        [key]: {
-                                          amount: fixed,
-                                          type: doc.type,
-                                        },
-                                      }));
-                                    }
-                                    setEditingAmounts((prev) => {
-                                      const next = { ...prev };
-                                      delete next[key];
-                                      return next;
-                                    });
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      (e.target as HTMLInputElement).blur();
-                                    }
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  disabled={!selected}
-                                  className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold text-zinc-900 outline-none transition-all ${
-                                    selected
-                                      ? "border-zinc-200 bg-white"
-                                      : "border-transparent bg-transparent"
-                                  }`}
-                                />
-                              </td>
+                        <>
+                          {docsPaddingTop > 0 ? (
+                            <tr aria-hidden="true">
+                              <td
+                                colSpan={7}
+                                style={{ height: docsPaddingTop, padding: 0, border: 0 }}
+                              />
                             </tr>
-                          );
-                        })
+                          ) : null}
+                          {virtualDocRows.map((virtualRow) => {
+                            const doc = displayedDocuments[virtualRow.index];
+                            if (!doc) {
+                              return null;
+                            }
+                            const selected = isSelected(doc.id, doc.type);
+                            return (
+                              <tr
+                                key={`${doc.type}-${doc.id}`}
+                                onClick={() => handleToggleDoc(doc.id, doc.type, doc.balanceDue)}
+                                className={`cursor-pointer transition-colors ${
+                                  selected ? "bg-blue-50/50" : "hover:bg-zinc-50"
+                                }`}
+                              >
+                                <td className="px-5 py-3">
+                                  <div
+                                    className={`flex h-5 w-5 items-center justify-center rounded border ${
+                                      selected
+                                        ? "bg-blue-600 border-blue-600 text-white"
+                                        : "border-zinc-300 bg-white text-transparent"
+                                    }`}
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                  </div>
+                                </td>
+                                <td className="px-5 py-3 font-medium">
+                                  <span
+                                    className={`text-sm ${
+                                      doc.type === "it_PurchaseInvoice"
+                                        ? "text-blue-700"
+                                        : "text-orange-700"
+                                    }`}
+                                  >
+                                    {doc.label}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-zinc-600">{doc.docNum}</td>
+                                <td className="px-5 py-3 text-zinc-600">
+                                  {toDisplayDate(doc.date)}
+                                </td>
+                                <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                                  {doc.docTotal.toFixed(2)}
+                                </td>
+                                <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                                  {doc.balanceDue.toFixed(2)}
+                                </td>
+                                <td className="px-5 py-3 text-right">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={
+                                      selected &&
+                                      editingAmounts[`${doc.type}-${doc.id}`] !== undefined
+                                        ? editingAmounts[`${doc.type}-${doc.id}`]
+                                        : (selected
+                                            ? (selectedDocs[`${doc.type}-${doc.id}`]?.amount ??
+                                              doc.balanceDue)
+                                            : doc.balanceDue
+                                          ).toFixed(2)
+                                    }
+                                    onFocus={() => {
+                                      if (!selected) {
+                                        return;
+                                      }
+                                      const key = `${doc.type}-${doc.id}`;
+                                      const current = (
+                                        selectedDocs[key]?.amount ?? doc.balanceDue
+                                      ).toFixed(2);
+                                      setEditingAmounts((prev) => ({
+                                        ...prev,
+                                        [key]: current,
+                                      }));
+                                    }}
+                                    onChange={(e) => {
+                                      if (!selected) {
+                                        return;
+                                      }
+                                      const raw = e.target.value.replaceAll(/[^0-9.]/g, "");
+                                      setEditingAmounts((prev) => ({
+                                        ...prev,
+                                        [`${doc.type}-${doc.id}`]: raw,
+                                      }));
+                                    }}
+                                    onBlur={() => {
+                                      if (!selected) {
+                                        return;
+                                      }
+                                      const key = `${doc.type}-${doc.id}`;
+                                      const raw = editingAmounts[key] || "";
+                                      const val = Number(raw);
+                                      if (isNaN(val) || val < 0.01) {
+                                        setSelectedDocs((prev) => ({
+                                          ...prev,
+                                          [key]: {
+                                            amount: doc.balanceDue,
+                                            type: doc.type,
+                                          },
+                                        }));
+                                      } else {
+                                        const fixed = Math.min(
+                                          Math.round(val * 100) / 100,
+                                          doc.balanceDue,
+                                        );
+                                        setSelectedDocs((prev) => ({
+                                          ...prev,
+                                          [key]: {
+                                            amount: fixed,
+                                            type: doc.type,
+                                          },
+                                        }));
+                                      }
+                                      setEditingAmounts((prev) => {
+                                        const next = { ...prev };
+                                        delete next[key];
+                                        return next;
+                                      });
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={!selected}
+                                    className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold text-zinc-900 outline-none transition-all ${
+                                      selected
+                                        ? "border-zinc-200 bg-white"
+                                        : "border-transparent bg-transparent"
+                                    }`}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {docsPaddingBottom > 0 ? (
+                            <tr aria-hidden="true">
+                              <td
+                                colSpan={7}
+                                style={{ height: docsPaddingBottom, padding: 0, border: 0 }}
+                              />
+                            </tr>
+                          ) : null}
+                        </>
                       )}
                     </tbody>
                   </table>

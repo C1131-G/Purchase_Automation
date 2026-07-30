@@ -19,3 +19,13 @@ node_modules/
 .vs/
 agent-tools/
 mcps/
+
+# TypeScript incremental build cache (never commit)
+*.tsbuildinfo
+
+# Leftover from husky; project uses lefthook
+.husky/
+
+# Nested package lockfiles — monorepo uses root pnpm-lock.yaml only
+frontend/pnpm-lock.yaml
+hana-backend/pnpm-lock.yaml

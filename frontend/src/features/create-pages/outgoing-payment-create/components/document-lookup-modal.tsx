@@ -1,3 +1,4 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, Loader2, Search, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -21,6 +22,9 @@ interface DocumentLookupModalProps {
   onClose: () => void;
   onToggle: (doc: DocumentLookupItem) => void;
 }
+
+const DOC_LOOKUP_ROW_ESTIMATE_PX = 44;
+const DOC_LOOKUP_ROW_OVERSCAN = 6;
 
 function rankResults(docs: DocumentLookupItem[], term: string) {
   const lower = term.toLowerCase();
@@ -159,6 +163,17 @@ function DocumentLookupResults({
   );
   const canLoadMore = !isSearchMode && visibleResults.length < cappedResults.length;
 
+  const rowVirtualizer = useVirtualizer({
+    count: visibleResults.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => DOC_LOOKUP_ROW_ESTIMATE_PX,
+    overscan: DOC_LOOKUP_ROW_OVERSCAN,
+    getItemKey: (index) => {
+      const doc = visibleResults[index];
+      return doc ? `${doc.type}-${doc.id}` : index;
+    },
+  });
+
   const handleTableScroll = useCallback(() => {
     if (!canLoadMore || loadingMore) {
       return;
@@ -202,8 +217,18 @@ function DocumentLookupResults({
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-zinc-50">
-            {visibleResults.map((doc) => {
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              position: "relative",
+              width: "100%",
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const doc = visibleResults[virtualRow.index];
+              if (!doc) {
+                return null;
+              }
               const key = `${doc.type}-${doc.id}`;
               const selected = selectedIds.has(key);
               return (
@@ -211,7 +236,15 @@ function DocumentLookupResults({
                   key={key}
                   type="button"
                   onClick={() => onToggle(doc)}
-                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
+                  style={{
+                    height: `${virtualRow.size}px`,
+                    left: 0,
+                    position: "absolute",
+                    top: 0,
+                    transform: `translateY(${virtualRow.start}px)`,
+                    width: "100%",
+                  }}
+                  className={`flex w-full items-center gap-3 border-b border-zinc-50 px-4 text-left transition ${
                     selected ? "bg-blue-50/70" : "hover:bg-zinc-50"
                   }`}
                 >
