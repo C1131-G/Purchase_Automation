@@ -293,9 +293,9 @@ export const createFlow1Orchestrator = (deps?: {
             status: "failed",
           },
           outcome: "fail",
-          title: "Flow 1 complete — failed (PQ draft remains saved)",
+          title: "Flow 1 complete — failed (buyer PQ remains saved)",
         });
-        icLog.error(IC_LOG_SCOPE.FLOW1, "Flow 1 unexpected failure; PQ draft remains saved", {
+        icLog.error(IC_LOG_SCOPE.FLOW1, "Flow 1 unexpected failure; buyer PQ remains saved", {
           ...logCtx,
           check: "unexpected",
           err: err instanceof Error ? err : new Error(message),

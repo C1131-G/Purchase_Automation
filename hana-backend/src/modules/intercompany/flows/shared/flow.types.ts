@@ -34,7 +34,7 @@ export type IcPqDraftHookInput = {
   docNum?: number | null;
   cardCode: string;
   lines?: IcDocumentLineInput[];
-  /** Optional header snapshot from PQ draft save (buyer, dates, addresses). */
+  /** Optional header snapshot from real PQ save (buyer, dates, addresses). */
   cardName?: string | null;
   salesPersonCode?: number | string | null;
   docDate?: unknown;

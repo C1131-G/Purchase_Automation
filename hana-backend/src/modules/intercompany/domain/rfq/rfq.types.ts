@@ -24,7 +24,7 @@ export type IcRfqLine = {
   warehouse: string | null;
   uomCode: string | null;
   remarks: string | null;
-  /** Buyer required qty snapshot (display / locked). Enriched from PQ draft when missing. */
+  /** Buyer required qty snapshot (display / locked). Enriched from buyer PQ when missing. */
   requiredQuantity?: number | null;
   /** Buyer required date snapshot (display / locked). */
   requiredDate?: string | null;

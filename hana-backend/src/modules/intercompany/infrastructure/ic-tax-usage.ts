@@ -12,7 +12,7 @@ export type IcLineTaxUsage = {
   sqTaxCode: string | null;
   /** Buyer PO line tax (purchase tax). */
   poTaxCode: string | null;
-  /** Seller AR invoice draft line tax (sales tax). */
+  /** Seller AR invoice line tax (sales tax). */
   arTaxCode: string | null;
 };
 

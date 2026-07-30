@@ -300,7 +300,6 @@ export const createConvertPqAndSqService = (deps?: {
         ...FLOW1_CONVERT_STEPS.APPLY_PRICES,
         ctx: logCtx,
         detail: {
-          draftEntry: pqEntry,
           lineCount: lines.length,
           lines: commercialLines.map((line) => ({
             discountPercent: line.DiscountPercent ?? null,
@@ -312,11 +311,12 @@ export const createConvertPqAndSqService = (deps?: {
             unitPrice: line.UnitPrice ?? null,
             vatGroup: line.VatGroup ?? null,
           })),
+          pqDocEntry: pqEntry,
           remarksPreview: remarksBeforePq.slice(0, 500),
         },
         title: "Flow 1 — update PQ from RFQ",
       });
-      // RFQ commercial fields update the existing direct PQ (no draft convert).
+      // RFQ commercial fields update the existing real PQ (PATCH, not draft convert).
       await applyPricesToPq({
         buyerCompanyId: header.sourceCompanyId,
         comments: remarksBeforePq,
@@ -331,16 +331,15 @@ export const createConvertPqAndSqService = (deps?: {
       };
 
       logFlowStep(LOG_SCOPE, {
-        ...FLOW1_CONVERT_STEPS.DRAFT_TO_PQ,
+        ...FLOW1_CONVERT_STEPS.PQ_UPDATED,
         ctx: logCtx,
         detail: {
-          draftEntry: pqEntry,
           lineCount: commercialLines.length,
-          note: "PQ already posted; RFQ prices applied via PATCH",
+          note: "Real PQ updated; RFQ prices applied via PATCH",
           pqDocEntry: purchaseQuotation.docEntry,
           pqDocNum: purchaseQuotation.docNum ?? null,
         },
-        title: "Flow 1 — PQ updated from RFQ (no draft convert)",
+        title: "Flow 1 — PQ updated from RFQ",
       });
 
       const remarksWithPq = buildFlow1ConvertRemarks({

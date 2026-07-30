@@ -263,7 +263,7 @@ export const createPurchaseOrder = async (
         docEntry: result.DocEntry,
         docNum: result.DocNum,
         items: poItemsForPartnerMaster,
-        msg: "PO created — ensure these ItemCodes exist in partner SAP DB before IC AR draft",
+        msg: "PO created — ensure these ItemCodes exist in partner SAP DB before IC AR invoice",
       });
     }
 
@@ -285,7 +285,7 @@ export const createPurchaseOrder = async (
       }
     }
 
-    // Flow 2 IC: schedule only — main PO create does not wait for AR draft / notifications.
+    // Flow 2 IC: schedule only — main PO create does not wait for AR invoice / notifications.
     let intercompany: IcHookResult | undefined;
     if (!isDraft && result.DocEntry) {
       try {

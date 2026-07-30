@@ -29,13 +29,13 @@ export type CreateSalesQuotationInput = {
   lines: unknown[];
   remarks?: string;
   /**
-   * Buyer PQ draft / PO vendor reference (NumAtCard). Prefer this over IC chain text.
+   * Buyer PQ / PO vendor reference (NumAtCard). Prefer this over IC chain text.
    * SAP field is short (≤100).
    */
   numAtCard?: string | null;
   /**
    * Seller multi-branch companies require BPL_IDAssignedToInvoice (OQUT.BPLId).
-   * From IC_COMPANY.DEFAULT_BRANCH_ID (same as AR draft Flow 2).
+   * From IC_COMPANY.DEFAULT_BRANCH_ID (same as Flow 2 AR invoice).
    */
   defaultBranchId?: number | null;
 };
@@ -444,7 +444,7 @@ export const createIcSlDocuments = (deps?: {
               : [],
             params.lineOverrides,
           );
-          icLog.info(SCOPE, "IC SL convert draft — merged RFQ commercial lines", {
+          icLog.info(SCOPE, "IC SL legacy Drafts convert — merged RFQ commercial lines", {
             check: "sl_convert_merge_lines",
             companyId: params.companyId,
             draftEntry: params.draftEntry,
@@ -541,7 +541,7 @@ export const createIcSlDocuments = (deps?: {
         check: "sl_create_ar_invoice_request",
         companyId: input.companyId,
         databaseName: connection.databaseName,
-        draftPayload: invoiceBody,
+        arInvoicePayload: invoiceBody,
         method: "POST",
         outcome: "pass",
       });

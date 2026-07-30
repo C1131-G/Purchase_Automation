@@ -86,7 +86,7 @@ export const mapDraftLinesToRfqLines = (
   });
 };
 
-/** IC RFQ doc number: PQ draft doc num when known, else draft entry (no RFQ-PQD- prefix). */
+/** IC RFQ doc number: buyer PQ doc num when known, else PQ DocEntry (no RFQ-PQD- prefix). */
 export const buildRfqNumber = (docEntry: number, docNum: string | null): string => {
   const trimmed = docNum != null ? String(docNum).trim() : "";
   if (trimmed) {

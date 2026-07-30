@@ -230,7 +230,7 @@ export function mapArApprovalRow(row: Record<string, unknown>): OverviewArApprov
 
 /**
  * Open AR invoice drafts from ODRF (ObjType 13).
- * Includes IC Flow 2 partner AR drafts and any manual AR invoice drafts.
+ * Includes IC Flow 2 partner AR invoices and any manual AR invoice drafts.
  * Soft-fails to empty when schema differs.
  */
 export async function loadArApprovalPending(dbName: string): Promise<OverviewArApprovalResult> {

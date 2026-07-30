@@ -17,9 +17,9 @@ import { IC_CONFIG_KEY, IC_JOB_NAME } from "@/modules/intercompany/infrastructur
 import { getIcSqlClient, type IcSqlClient } from "@/modules/intercompany/infrastructure/ic-sql";
 
 /**
- * Source of PQ draft candidates the API hook may have missed.
- * Production can inject an SL Drafts scanner; tests inject fixed candidates.
- * Default is a no-op (empty list) so the worker is safe without SL scan wiring.
+ * Source of real PQ candidates the API hook may have missed.
+ * Production can inject a scanner; tests inject fixed candidates.
+ * Default is a no-op (empty list) so the worker is safe without scan wiring.
  */
 export type MissedPqSource = {
   listForCompany: (company: IcCompany) => Promise<IcPqDraftHookInput[]>;
@@ -42,7 +42,7 @@ export type DetectMissedPqJob = {
 };
 
 /**
- * Safety-net for Flow 1: for each active company, load candidate PQ drafts and
+ * Safety-net for Flow 1: for each active company, load candidate real PQs and
  * run Flow 1 capture→create RFQ→notify. Capture/create are idempotent (no duplicate RFQ).
  */
 export const createDetectMissedPqJob = (deps?: {
@@ -80,8 +80,8 @@ export const createDetectMissedPqJob = (deps?: {
           status: "IDLE",
         });
         logger.info({
-          msg: "Detect missed PQ draft skipped — Flow 1 disabled",
-          scope: "ic.job.detect_missed_pq_draft",
+          msg: "Detect missed PQ skipped — Flow 1 disabled",
+          scope: "ic.job.detect_missed_pq",
         });
         return result;
       }
@@ -110,8 +110,8 @@ export const createDetectMissedPqJob = (deps?: {
             logger.warn({
               companyId: activeCompany.companyId,
               err: sourceErr instanceof Error ? sourceErr : new Error(message),
-              msg: "Missed PQ draft source failed for company",
-              scope: "ic.job.detect_missed_pq_draft",
+              msg: "Missed PQ source failed for company",
+              scope: "ic.job.detect_missed_pq",
             });
             result.failed += 1;
             continue;
@@ -140,7 +140,7 @@ export const createDetectMissedPqJob = (deps?: {
                 docEntry: candidate.docEntry,
                 err: runErr instanceof Error ? runErr : new Error(message),
                 msg: "Detect Flow 1 run failed for candidate",
-                scope: "ic.job.detect_missed_pq_draft",
+                scope: "ic.job.detect_missed_pq",
               });
             }
           }
@@ -155,8 +155,8 @@ export const createDetectMissedPqJob = (deps?: {
 
         logger.info({
           ...result,
-          msg: "Detect missed PQ draft complete",
-          scope: "ic.job.detect_missed_pq_draft",
+          msg: "Detect missed PQ complete",
+          scope: "ic.job.detect_missed_pq",
         });
         return result;
       } catch (err: unknown) {

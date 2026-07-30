@@ -81,7 +81,7 @@ export const getRfq = async (req: Request, res: Response, next: NextFunction): P
     if (header.sourceCompanyId !== companyId && header.targetCompanyId !== companyId) {
       throw new AppError("RFQ not visible to this company", 403, "IC_RFQ_FORBIDDEN");
     }
-    // Merge source PQ draft (vendor name, buyer, dates, addresses, line descriptions).
+    // Merge source buyer PQ (vendor name, buyer, dates, addresses, line descriptions).
     const enriched = await enrichRfqFromPqDraft(header);
     res.status(200).json({ data: enriched, success: true });
   } catch (error) {

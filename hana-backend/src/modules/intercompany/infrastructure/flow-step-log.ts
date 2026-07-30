@@ -190,10 +190,11 @@ export const FLOW1_CONVERT_STEPS = {
     total: FLOW1_TOTAL,
     title: "Flow 1 — update PQ from RFQ",
   },
-  DRAFT_TO_PQ: {
+  /** Real PQ updated from RFQ (PATCH) — not SAP draft convert. */
+  PQ_UPDATED: {
     step: 15,
     total: FLOW1_TOTAL,
-    title: "Flow 1 — PQ confirmed (updated from RFQ)",
+    title: "Flow 1 — PQ updated from RFQ",
   },
   CREATE_SQ: {
     step: 16,

@@ -86,8 +86,8 @@ describe("rfq + notification (T3.6 / T3.7 / T3.7b)", () => {
     });
     await notifications.create({
       companyId: 2,
-      documentType: "AR_DRAFT",
-      title: "AR draft",
+      documentType: "AR_INVOICE",
+      title: "AR invoice",
     });
     await notifications.create({
       companyId: 1,

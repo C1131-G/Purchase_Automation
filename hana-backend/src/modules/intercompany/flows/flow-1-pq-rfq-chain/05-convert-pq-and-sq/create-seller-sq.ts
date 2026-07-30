@@ -157,7 +157,7 @@ export const createSellerSq = async (params: {
   buyerCustomerCode: string;
   lines: IcRfqLine[];
   remarks: string;
-  /** Buyer PQ draft vendor ref (NumAtCard) — set on seller SQ. */
+  /** Buyer PQ vendor ref (NumAtCard) — set on seller SQ. */
   numAtCard?: string | null;
   resolveLineTax: ResolveSqLineTax;
   /** IC_COMPANY.DEFAULT_BRANCH_ID for seller — preferred BPL when multi-branch is active. */

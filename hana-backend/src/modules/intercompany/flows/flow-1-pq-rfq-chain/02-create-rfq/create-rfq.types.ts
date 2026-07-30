@@ -7,7 +7,7 @@ export type CreateRfqFromCaptureInput = {
   sourceDocEntry: string;
   sourceDocNum: string | null;
   remarksTag: string;
-  /** Buyer PQ draft Comments (user text) — IC chain is appended on create. */
+  /** Buyer PQ Comments (user text) — IC chain is appended on create. */
   existingRemarks?: string | null;
   lines?: IcDocumentLineInput[];
   createdBy?: string | null;

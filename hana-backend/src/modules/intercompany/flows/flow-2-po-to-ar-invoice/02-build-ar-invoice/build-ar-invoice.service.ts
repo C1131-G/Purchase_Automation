@@ -79,7 +79,7 @@ export const createBuildArInvoiceService = (deps?: {
 
       const { taxUsage, ...payload } = built;
 
-      icLog.info(IC_LOG_SCOPE.TAX, "IC partner tax summary for AR draft (dynamic)", {
+      icLog.info(IC_LOG_SCOPE.TAX, "IC partner tax summary for AR invoice (dynamic)", {
         check: "tax_resolve_summary",
         outcome: taxOmit > 0 ? "fail" : "pass",
         // Explicit PO (buyer) vs AR (seller) tax codes per line.

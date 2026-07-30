@@ -41,7 +41,7 @@ export type SellerFillRfqServiceOptions = {
   convert?: ConvertPqAndSqService;
   /**
    * When true (default), buyer notify + auto convert run after the submit HTTP
-   * response — same split as PQ draft / PO create IC hooks.
+   * response — same split as PQ / PO create IC hooks.
    * Set false in unit tests that assert notify/convert outcome on submit.
    */
   runConvertInBackground?: boolean;
@@ -299,7 +299,7 @@ export const createSellerFillRfqService = (
       });
 
       // Auto convert as buyer — draft → PQ + seller SQ (no separate buyer click).
-      // Same split as PQ draft / PO create: main response first, IC work off-request.
+      // Same split as PQ / PO create: main response first, IC work off-request.
       if (runConvertInBackground) {
         scheduleIcBackground(
           {

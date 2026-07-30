@@ -33,7 +33,7 @@ export const IC_RETRY_STATUS = {
 
 export const DEFAULT_MAX_RETRY = 2;
 
-/** SAP B1 object type for A/R Invoice (also used on AR invoice drafts via DocObjectCode). */
+/** SAP B1 object type for A/R Invoice (Flow 2 posts real /Invoices). */
 export const SAP_OBJECT_TYPE_AR_INVOICE = "13";
 
 /** Retry / history action codes. */

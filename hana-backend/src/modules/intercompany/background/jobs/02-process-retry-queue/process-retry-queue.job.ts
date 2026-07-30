@@ -104,17 +104,18 @@ const createDefaultHandlers = (deps: {
   const flow2CreateArDraft: RetryActionHandler = async (item) => {
     const payload = parsePayload(item.payloadJson);
     const sellerCompanyId = Number(payload.sellerCompanyId);
-    const draftPayload = payload.draftPayload;
+    // Prefer arInvoicePayload; keep draftPayload for older retry-queue rows.
+    const invoicePayload = payload.arInvoicePayload ?? payload.draftPayload;
     if (!Number.isFinite(sellerCompanyId) || sellerCompanyId <= 0) {
-      throw new Error("FLOW2_CREATE_AR_DRAFT payload missing sellerCompanyId");
+      throw new Error("FLOW2_CREATE_AR_INVOICE payload missing sellerCompanyId");
     }
-    if (!draftPayload || typeof draftPayload !== "object") {
-      throw new Error("FLOW2_CREATE_AR_DRAFT payload missing draftPayload");
+    if (!invoicePayload || typeof invoicePayload !== "object") {
+      throw new Error("FLOW2_CREATE_AR_INVOICE payload missing invoice body");
     }
 
     const created = await deps.documents.createArInvoiceDraft({
       companyId: sellerCompanyId,
-      draftPayload: draftPayload as Record<string, unknown>,
+      draftPayload: invoicePayload as Record<string, unknown>,
     });
 
     if (item.docMappingId) {

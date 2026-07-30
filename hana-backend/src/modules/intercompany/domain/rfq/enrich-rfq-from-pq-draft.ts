@@ -354,7 +354,7 @@ const withEnsuredRfqRemarks = (
 });
 
 /**
- * Merge buyer PQ draft / real PQ into RFQ for seller UI.
+ * Merge buyer real PQ into RFQ for seller UI (legacy ODRF fallback only if needed).
  * Failures are logged and original header is returned (never throws).
  *
  * Sales-side fields: customerCode / customerName (buyer on seller books).
@@ -371,7 +371,7 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
     const source = await resolveSourceDoc(dbName, header);
     if (!source) {
       logger.info({
-        msg: "RFQ enrich: no PQ draft or posted PQ found; returning base RFQ",
+        msg: "RFQ enrich: no buyer PQ found; returning base RFQ",
         pqDraftDocEntry: header.pqDraftDocEntry,
         rfqId: header.rfqId,
         sourceCompanyId: header.sourceCompanyId,
@@ -467,7 +467,7 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
   } catch (err: unknown) {
     logger.warn({
       err: err instanceof Error ? err : new Error(String(err)),
-      msg: "RFQ enrich from PQ draft/PQ failed; returning base RFQ",
+      msg: "RFQ enrich from buyer PQ failed; returning base RFQ",
       pqDraftDocEntry: header.pqDraftDocEntry,
       rfqId: header.rfqId,
       sourceCompanyId: header.sourceCompanyId,

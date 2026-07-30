@@ -64,9 +64,9 @@ const compactLogRow = (row: Record<string, unknown>): Record<string, unknown> =>
   return out;
 };
 
-const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
-  const lines = Array.isArray(draftPayload.DocumentLines)
-    ? (draftPayload.DocumentLines as Record<string, unknown>[])
+const summarizeArInvoicePayload = (arInvoicePayload: Record<string, unknown>) => {
+  const lines = Array.isArray(arInvoicePayload.DocumentLines)
+    ? (arInvoicePayload.DocumentLines as Record<string, unknown>[])
     : [];
   const vatGroups = [
     ...new Set(
@@ -82,7 +82,7 @@ const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
     const uomCode = line.UoMCode ?? line.UomCode;
     const uomEntry = line.UoMEntry ?? line.UomEntry;
     return compactLogRow({
-      // AR invoice tax = seller sales tax on the draft line.
+      // AR invoice tax = seller sales tax on the invoice line.
       arTaxCode: line.VatGroup == null ? undefined : String(line.VatGroup),
       itemCode: String(line.ItemCode ?? "").trim() || undefined,
       itemDescription: itemDescription || undefined,
@@ -99,15 +99,15 @@ const summarizeDraftPayload = (draftPayload: Record<string, unknown>) => {
     });
   });
   return compactLogRow({
-    cardCode: draftPayload.CardCode,
-    comments: draftPayload.Comments,
-    docDate: draftPayload.DocDate,
-    docDueDate: draftPayload.DocDueDate,
-    docObjectCode: draftPayload.DocObjectCode,
+    cardCode: arInvoicePayload.CardCode,
+    comments: arInvoicePayload.Comments,
+    docDate: arInvoicePayload.DocDate,
+    docDueDate: arInvoicePayload.DocDueDate,
+    docObjectCode: arInvoicePayload.DocObjectCode,
     items,
     lineCount: lines.length,
-    numAtCard: draftPayload.NumAtCard,
-    // Distinct AR tax codes used on this draft.
+    numAtCard: arInvoicePayload.NumAtCard,
+    // Distinct AR tax codes used on this invoice.
     arTaxCodes: vatGroups.length > 0 ? vatGroups : undefined,
     vatGroups: vatGroups.length > 0 ? vatGroups : undefined,
   });
@@ -271,6 +271,8 @@ export const createFlow2Orchestrator = (deps?: {
         maxRetry,
         nextRetryAt,
         payloadJson: JSON.stringify({
+          // New key for logs/operators; draftPayload kept for older retry workers.
+          arInvoicePayload: draftPayload,
           draftPayload,
           remarksTag: partner.remarksTag,
           sellerCompanyId: partner.partner.sellerCompany.companyId,
@@ -433,25 +435,25 @@ export const createFlow2Orchestrator = (deps?: {
           remarksTag: captured.remarksTag,
         });
 
-        const draftSummary = summarizeDraftPayload(draftPayload as Record<string, unknown>);
+        const arInvoiceSummary = summarizeArInvoicePayload(draftPayload as Record<string, unknown>);
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.BUILD,
-          check: "build_ar_draft_done",
+          check: "build_ar_invoice_done",
           ctx: logCtx,
           detail: {
-            ...draftSummary,
+            ...arInvoiceSummary,
             sellerCompanyId: captured.partner.sellerCompany.companyId,
             sellerSapDb: captured.partner.sellerCompany.sapDbName,
           },
           title: "Flow 2 build AR invoice payload — done",
         });
 
-        // One SAP body log (no duplicate items array — lines are inside draftPayload).
+        // One SAP body log (no duplicate items array — lines are inside arInvoicePayload).
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.PAYLOAD,
           ctx: logCtx,
           detail: {
-            draftPayload,
+            arInvoicePayload: draftPayload,
             sellerCompanyId: captured.partner.sellerCompany.companyId,
             sellerSapDb: captured.partner.sellerCompany.sapDbName,
           },
@@ -463,7 +465,7 @@ export const createFlow2Orchestrator = (deps?: {
             ctx: logCtx,
             detail: {
               endpoint: "/Invoices",
-              lineCount: draftSummary.lineCount,
+              lineCount: arInvoiceSummary.lineCount,
               method: "POST",
               sellerCompanyId: captured.partner.sellerCompany.companyId,
               sellerSapDb: captured.partner.sellerCompany.sapDbName,
@@ -533,8 +535,8 @@ export const createFlow2Orchestrator = (deps?: {
               sellerCompanyId: partnerSnap.sellerCompanyId,
               sellerSapDb: partnerSnap.sellerSapDb,
               vendorCode: partnerSnap.vendorCode,
-              vatGroups: draftSummary.vatGroups,
-              items: draftSummary.items,
+              vatGroups: arInvoiceSummary.vatGroups,
+              items: arInvoiceSummary.items,
             },
           });
 
@@ -553,7 +555,7 @@ export const createFlow2Orchestrator = (deps?: {
             ...logCtx,
             check: "sl_post_ar_invoice",
             err: slErr instanceof Error ? slErr : new Error(errorMessage),
-            items: draftSummary.items,
+            items: arInvoiceSummary.items,
             outcome: "fail",
             sellerCompanyId: captured.partner.sellerCompany.companyId,
             sellerSapDb: captured.partner.sellerCompany.sapDbName,
