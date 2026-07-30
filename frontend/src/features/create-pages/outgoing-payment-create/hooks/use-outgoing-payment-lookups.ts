@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 
 export function useOutgoingPaymentLookups() {
   const vendorsQuery = useQuery(createSharedQueries.vendors());
@@ -18,39 +19,6 @@ export function useOutgoingPaymentLookups() {
   const [modalMode, setModalMode] = useState<"vendor-name" | "vendor-code">("vendor-code");
 
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
-
-  const rankLookupOptions = (items: ProductLookupItem[], rawSearch: string) => {
-    const term = rawSearch.trim().toLowerCase();
-    if (!term) {
-      return items;
-    }
-
-    const score = (item: ProductLookupItem) => {
-      const code = item.code.toLowerCase();
-      const name = item.name.toLowerCase();
-      if (code === term || name === term) {
-        return 0;
-      }
-      if (code.startsWith(term) || name.startsWith(term)) {
-        return 1;
-      }
-      if (code.includes(term) || name.includes(term)) {
-        return 2;
-      }
-      return 3;
-    };
-
-    return [...items].toSorted((a, b) => {
-      const byScore = score(a) - score(b);
-      if (byScore !== 0) {
-        return byScore;
-      }
-      return a.code.localeCompare(b.code, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-    });
-  };
 
   const findVendorByCode = (value: string) =>
     (vendors as ProductLookupItem[]).find(
@@ -108,12 +76,12 @@ export function useOutgoingPaymentLookups() {
   };
 
   const nameSuggestions = useMemo(
-    () => rankLookupOptions(vendors as ProductLookupItem[], nameInput),
+    () => rankAndLimitLookupOptions(vendors as ProductLookupItem[], nameInput),
     [vendors, nameInput],
   );
 
   const codeSuggestions = useMemo(
-    () => rankLookupOptions(vendors as ProductLookupItem[], codeInput),
+    () => rankAndLimitLookupOptions(vendors as ProductLookupItem[], codeInput),
     [vendors, codeInput],
   );
 

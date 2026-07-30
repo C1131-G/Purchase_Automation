@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
+import { usePartnerAddressOptions } from "@/features/create-pages/create-shared/hooks/use-partner-address-options";
 
 import { APCreditMemoModals } from "@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-modals";
 import { APCreditMemoProductSection } from "@/features/create-pages/ap-credit-memo-create/components/ap-credit-memo-product-section";
@@ -96,27 +97,7 @@ export function APCreditMemoCreate({
     });
   };
 
-  const activeVendor = (state.vendors as any[]).find(
-    (v) => String(v.code) === String(state.vendorCodeInput),
-  );
-  const billToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "B")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
-  const shipToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "S")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
+  const { billToOptions, shipToOptions } = usePartnerAddressOptions(state.vendorCodeInput);
 
   const pageTitle = state.isEditMode
     ? `Update A/P Credit Memo ${docNum || ""}`

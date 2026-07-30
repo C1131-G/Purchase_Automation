@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
-import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import {
   getMissingMandatoryCreateFieldsTyped,
@@ -14,6 +13,10 @@ import {
   calculateSummaryCurrency,
 } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
+import {
+  resolveHydrateProductMeta,
+  scheduleHydrateWarehouseStocks,
+} from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
@@ -276,54 +279,16 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     void (async () => {
       try {
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          warehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(warehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, number>();
-
         const uniqueItemCodes = [
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-
-            const resolvedStock = warehouseCode
-              ? Number(
-                  warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                    ?.stock ?? 0,
-                )
-              : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
-
-            stockByItemCode.set(itemCode, resolvedStock);
-          }),
+        const productByCode = await resolveHydrateProductMeta(
+          queryClient,
+          uniqueItemCodes,
+          "purchase",
         );
+        const stockByItemCode = new Map<string, number>();
 
         const mappedRows = detailLines.map((line: PurchaseOrderDetailLine, index) => {
           const lineData = line as Record<string, unknown>;
@@ -408,6 +373,17 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         lookups.setShipToAddress(shipToAddress);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+
+        scheduleHydrateWarehouseStocks(queryClient, uniqueItemCodes, warehouseCode, (stocks) => {
+          productsHook.setProductRows((prev) =>
+            prev.map((row) => {
+              const nextStock = stocks.get(row.productCode);
+              return nextStock === undefined || nextStock === row.stock
+                ? row
+                : { ...row, stock: nextStock };
+            }),
+          );
+        });
 
         const rawAttachments = detail.attachments || [];
         setAttachments(
@@ -542,55 +518,17 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
         );
 
-        const productsForWarehouse =
-          warehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(warehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, number>();
-
         const allDetailLines = details.flatMap((d) => d.DocumentLines ?? []);
         const uniqueItemCodes = [
           ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-
-            const resolvedStock = warehouseCode
-              ? Number(
-                  warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                    ?.stock ?? 0,
-                )
-              : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
-
-            stockByItemCode.set(itemCode, resolvedStock);
-          }),
+        const productByCode = await resolveHydrateProductMeta(
+          queryClient,
+          uniqueItemCodes,
+          "purchase",
         );
+        const stockByItemCode = new Map<string, number>();
 
         const baseType = 540000006;
         let lineIndex = 0;
@@ -704,6 +642,17 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
         lookups.setShipToAddress(targetShipTo);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+
+        scheduleHydrateWarehouseStocks(queryClient, uniqueItemCodes, warehouseCode, (stocks) => {
+          productsHook.setProductRows((prev) =>
+            prev.map((row) => {
+              const nextStock = stocks.get(row.productCode);
+              return nextStock === undefined || nextStock === row.stock
+                ? row
+                : { ...row, stock: nextStock };
+            }),
+          );
+        });
 
         const sourceAttachments = primaryDetail.attachments || [];
         setAttachments(

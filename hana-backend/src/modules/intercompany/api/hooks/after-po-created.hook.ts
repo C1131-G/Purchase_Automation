@@ -2,7 +2,7 @@ import { logger } from "@/core/logger/pino-logger";
 import {
   createFlow2Orchestrator,
   type Flow2Orchestrator,
-} from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/flow-2.orchestrator";
+} from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/flow-2.orchestrator";
 import { acceptedResult, type IcHookResult } from "@/modules/intercompany/flows/shared/flow-result";
 import type { IcPoHookInput } from "@/modules/intercompany/flows/shared/flow.types";
 import { scheduleIcBackground } from "@/modules/intercompany/infrastructure/schedule-ic-background";

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
+import { ensureCreateMasterData } from "@/features/create-pages/create-shared/utils/ensure-create-master-data";
 import GRPOCreate from "@/features/create-pages/grpo-create/components/grpo-create";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/shared/auth/require-active-session";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_layout/purchase/create-grpo")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
+  loader: ({ context }) => ensureCreateMasterData(context.queryClient, "vendors"),
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
   validateSearch: createGRPOSearchSchema,

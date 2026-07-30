@@ -6,6 +6,7 @@ import {
   createPageHighlightSearchSchema,
   toCreatePageHighlightProps,
 } from "@/features/create-pages/create-shared/utils/create-page-highlight";
+import { ensureCreateMasterData } from "@/features/create-pages/create-shared/utils/ensure-create-master-data";
 import { PurchaseQuotationCreate } from "@/features/create-pages/purchase-quotation-create/components/purchase-quotation-create";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/shared/auth/require-active-session";
@@ -20,11 +21,13 @@ const createQuotationSearchSchema = z
 /**
  * PurchaseQuotationCreateRoute: Transactional page for drafting new purchase quotations.
  * SECURITY: Requires an active backend session before rendering the form.
+ * PERF: Loader warms vendors/warehouses/sales employees so the form hits cache.
  */
 export const Route = createFileRoute("/_layout/purchase/create-quotation")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
+  loader: ({ context }) => ensureCreateMasterData(context.queryClient, "vendors"),
   validateSearch: createQuotationSearchSchema,
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,

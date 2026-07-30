@@ -31,7 +31,11 @@ import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
-import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+import {
+  resolveHydrateProductMeta,
+  scheduleHydrateWarehouseStocks,
+  taxRatesFromProductMeta,
+} from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import {
   useCreateGRPO,
@@ -481,57 +485,17 @@ export function useGRPOCreate({
         setBillToAddress(billAddr);
         setShipToAddress(shipAddr);
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          effectiveWarehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
         const uniqueItemCodes = [
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-            stockByItemCode.set(
-              itemCode,
-              warehouseStocks.map((stock) => ({
-                code: String(stock.code ?? "").trim(),
-                stock: Number(stock.stock ?? 0),
-              })),
-            );
-          }),
-        );
-
-        const taxRateByItemCode = await resolveProductTaxRates(
+        const productByCode = await resolveHydrateProductMeta(
           queryClient,
-          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          uniqueItemCodes,
           "purchase",
         );
+        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
+        const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
         const resolvedHeaderDiscountPercent = Number(
           (detail as Record<string, unknown>).DiscountPercent ?? 0,
         );
@@ -619,6 +583,21 @@ export function useGRPOCreate({
           };
         });
         setLines(mappedLines);
+        scheduleHydrateWarehouseStocks(
+          queryClient,
+          uniqueItemCodes,
+          effectiveWarehouseCode,
+          (stocks) => {
+            setLines((prev) =>
+              prev.map((row) => {
+                const nextStock = stocks.get(row.productCode);
+                return nextStock === undefined || nextStock === row.stock
+                  ? row
+                  : { ...row, stock: nextStock };
+              }),
+            );
+          },
+        );
         const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
         const matchedWarehouseEdit = warehouses.find(
           (w) => String(w.code).trim() === editWarehouseCode,
@@ -742,57 +721,17 @@ export function useGRPOCreate({
         setBillToAddress(billAddr);
         setShipToAddress(shipAddr);
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          effectiveWarehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
         const uniqueItemCodes = [
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-            stockByItemCode.set(
-              itemCode,
-              warehouseStocks.map((stock) => ({
-                code: String(stock.code ?? "").trim(),
-                stock: Number(stock.stock ?? 0),
-              })),
-            );
-          }),
-        );
-
-        const taxRateByItemCode = await resolveProductTaxRates(
+        const productByCode = await resolveHydrateProductMeta(
           queryClient,
-          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          uniqueItemCodes,
           "purchase",
         );
+        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
+        const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
         const resolvedHeaderDiscountPercent = Number(
           (detail as Record<string, unknown>).DiscountPercent ?? 0,
         );
@@ -879,6 +818,21 @@ export function useGRPOCreate({
           };
         });
         setLines(mappedLines);
+        scheduleHydrateWarehouseStocks(
+          queryClient,
+          uniqueItemCodes,
+          effectiveWarehouseCode,
+          (stocks) => {
+            setLines((prev) =>
+              prev.map((row) => {
+                const nextStock = stocks.get(row.productCode);
+                return nextStock === undefined || nextStock === row.stock
+                  ? row
+                  : { ...row, stock: nextStock };
+              }),
+            );
+          },
+        );
         const editWarehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
         const matchedWarehouseEdit = warehouses.find(
           (w) => String(w.code).trim() === editWarehouseCode,
@@ -1049,57 +1003,17 @@ export function useGRPOCreate({
 
         // Merge all lines from all source documents
         const allDetailLines = details.flatMap((detail) => detail.DocumentLines ?? []);
-        const productsForWarehouse =
-          effectiveWarehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
         const uniqueItemCodes = [
           ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = (await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => [])) as { code: string; stock: number }[];
-            stockByItemCode.set(
-              itemCode,
-              warehouseStocks.map((stock) => ({
-                code: String(stock.code ?? "").trim(),
-                stock: Number(stock.stock ?? 0),
-              })),
-            );
-          }),
-        );
-
-        const taxRateByItemCode = await resolveProductTaxRates(
+        const productByCode = await resolveHydrateProductMeta(
           queryClient,
-          allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          uniqueItemCodes,
           "purchase",
         );
+        const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
+        const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
         const resolvedHeaderDiscountPercent = Number(
           (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
         );
@@ -1226,6 +1140,21 @@ export function useGRPOCreate({
           remarks: remarksParts,
         });
         setLines(mappedLines);
+        scheduleHydrateWarehouseStocks(
+          queryClient,
+          uniqueItemCodes,
+          effectiveWarehouseCode,
+          (stocks) => {
+            setLines((prev) =>
+              prev.map((row) => {
+                const nextStock = stocks.get(row.productCode);
+                return nextStock === undefined || nextStock === row.stock
+                  ? row
+                  : { ...row, stock: nextStock };
+              }),
+            );
+          },
+        );
 
         const sourceAttachments = primaryDetail.attachments || [];
         setAttachments(

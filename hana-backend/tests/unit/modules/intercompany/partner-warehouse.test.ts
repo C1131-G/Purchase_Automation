@@ -5,7 +5,7 @@ import {
   buildSalesQuotationLines,
   createSellerSq,
   resolveSqWarehouseContext,
-} from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/create-seller-sq";
+} from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/create-seller-sq";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 
 describe("partner warehouse masters (branch-matched WH)", () => {

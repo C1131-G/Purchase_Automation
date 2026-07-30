@@ -63,6 +63,116 @@ export const getProductWarehouseStocks = async (dbName: string, itemCode: string
   );
 };
 
+/**
+ * Batch warehouse stock for many items (document hydrate after first paint).
+ * Returns flat rows: { itemCode, code, name, stock }.
+ * Optional warehouseCode filters to a single warehouse per item.
+ */
+export const getProductWarehouseStocksBatch = async (
+  dbName: string,
+  itemCodes: string[],
+  warehouseCode?: string,
+) => {
+  const codes = [...new Set(itemCodes.map((code) => toTrimmed(code)).filter(Boolean))].slice(
+    0,
+    100,
+  );
+
+  if (codes.length === 0) {
+    return [] as Array<{ itemCode: string; code: string; name: string; stock: number }>;
+  }
+
+  const normalizedWarehouse = toTrimmed(warehouseCode);
+  const codesKey = [...codes].sort().join("|");
+  const cacheKey = `master:${dbName}:ProductWarehouseStocksBatch:v1:wh${normalizedWarehouse || "all"}:${codesKey}`;
+
+  return getCachedData(
+    cacheKey,
+    async () => {
+      const [warehouses, stockRows] = await Promise.all([
+        fetchLookup(dbName, WarehouseSchema, "Warehouses", {
+          order: { WhsCode: "ASC" } as Record<string, "ASC" | "DESC">,
+          select: ["WhsCode", "WhsName"] as const,
+          where: { Inactive: "N" } as Record<string, unknown>,
+        }),
+        (async () => {
+          const repository = await getTenantRepository(dbName, ItemWarehouseStockSchema);
+          const stockQuery = repository
+            .createQueryBuilder("stock")
+            .select(["stock.ItemCode", "stock.WhsCode", "stock.OnHand"])
+            .where("stock.ItemCode IN (:...itemCodes)", { itemCodes: codes });
+
+          if (normalizedWarehouse) {
+            stockQuery.andWhere("stock.WhsCode = :warehouseCode", {
+              warehouseCode: normalizedWarehouse,
+            });
+          }
+
+          return stockQuery.getMany();
+        })(),
+      ]);
+
+      const warehouseNameByCode = new Map<string, string>();
+      for (const warehouse of warehouses) {
+        const code = toTrimmed(warehouse.WhsCode);
+        if (code) {
+          warehouseNameByCode.set(code, toTrimmed(warehouse.WhsName));
+        }
+      }
+
+      // stockMap: itemCode -> whsCode -> onHand
+      const stockMap = new Map<string, Map<string, number>>();
+      for (const stockRow of stockRows) {
+        const itemCode = toTrimmed(stockRow.ItemCode);
+        const whsCode = toTrimmed(stockRow.WhsCode);
+        if (!itemCode || !whsCode) {
+          continue;
+        }
+        let perWhs = stockMap.get(itemCode);
+        if (!perWhs) {
+          perWhs = new Map();
+          stockMap.set(itemCode, perWhs);
+        }
+        perWhs.set(whsCode, toNumberOrZero(stockRow.OnHand));
+      }
+
+      const rows: Array<{ itemCode: string; code: string; name: string; stock: number }> = [];
+
+      if (normalizedWarehouse) {
+        const warehouseName = warehouseNameByCode.get(normalizedWarehouse) ?? normalizedWarehouse;
+        for (const itemCode of codes) {
+          rows.push({
+            itemCode,
+            code: normalizedWarehouse,
+            name: warehouseName,
+            stock: stockMap.get(itemCode)?.get(normalizedWarehouse) ?? 0,
+          });
+        }
+        return rows;
+      }
+
+      // All warehouses: emit one row per (item × active warehouse), matching single-item shape.
+      for (const itemCode of codes) {
+        const perWhs = stockMap.get(itemCode);
+        for (const warehouse of warehouses) {
+          const code = toTrimmed(warehouse.WhsCode);
+          if (!code) {
+            continue;
+          }
+          rows.push({
+            itemCode,
+            code,
+            name: toTrimmed(warehouse.WhsName),
+            stock: perWhs?.get(code) ?? 0,
+          });
+        }
+      }
+      return rows;
+    },
+    1000 * 60 * 5,
+  );
+};
+
 // Fetches active Vendors (Business Partners with type 'S' = Supplier).
 // OCRD.CardType is the source of truth ('S' for vendors/suppliers, 'C' for customers).
 // OCRD.SlpCode refers to Sales Employee (for customers) or Buyer (for vendors), both joining to OSLP.
@@ -112,8 +222,11 @@ export const getVendors = async (dbName: string) => {
     }
   }
 
+  // Defaults only — full address lists load via GET /business-partners/:code/addresses.
   const [vendorAddressMap, salesEmployeeMap] = await Promise.all([
-    fetchBusinessPartnerAddresses(dbName, vendorCodes, defaultsMap),
+    fetchBusinessPartnerAddresses(dbName, vendorCodes, defaultsMap, {
+      includeAddressList: false,
+    }),
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 
@@ -136,7 +249,6 @@ export const getVendors = async (dbName: string) => {
         vendorAddressMap.get(normalizedCardCode)?.billToAddress ??
         item.Address ??
         "",
-      addresses: vendorAddressMap.get(normalizedCardCode)?.addresses ?? [],
       salesEmployeeCode: slpCode,
       salesEmployeeName: slpCode !== undefined ? (salesEmployeeMap.get(slpCode) ?? "") : "",
     };

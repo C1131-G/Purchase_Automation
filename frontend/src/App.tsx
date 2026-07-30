@@ -9,6 +9,7 @@ import {
   CLEAR_QUERY_CACHE_EVENT,
   clearPersistedQueryCache,
   QUERY_CACHE_KEY,
+  shouldPersistQueryKey,
 } from "@/shared/utils/query-cache-persistence";
 import { type BeforeInstallPromptEvent, usePwaActions } from "@/store/pwa/pwa.store";
 
@@ -72,7 +73,15 @@ function App() {
       }
       persistTimerRef.current = window.setTimeout(() => {
         try {
-          const state = dehydrate(queryClient);
+          // Whitelist only auth + static master lookups (Phase 4) — not full dehydrate.
+          const state = dehydrate(queryClient, {
+            shouldDehydrateQuery: (query) => {
+              if (query.state.status !== "success") {
+                return false;
+              }
+              return shouldPersistQueryKey(query.queryKey);
+            },
+          });
           localStorage.setItem(QUERY_CACHE_KEY, JSON.stringify({ state, timestamp: Date.now() }));
         } catch {
           // ignore storage errors

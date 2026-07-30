@@ -43,7 +43,10 @@ import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
 } from "@/features/create-pages/create-shared/utils/lookup-search-sync";
-import { resolveProductTaxRates } from "@/features/create-pages/create-shared/utils/product-tax-rate";
+import {
+  resolveHydrateProductMeta,
+  taxRatesFromProductMeta,
+} from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import type { CreateAPInvoiceInput } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
@@ -459,41 +462,16 @@ export function useAPInvoiceCreate({
         setBillToAddress(String(detail.Address ?? "").trim());
         setShipToAddress(String((detail as Record<string, unknown>).Address2 ?? "").trim());
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          effectiveWarehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
         const uniqueItemCodes = [
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        const taxRateByItemCode = await resolveProductTaxRates(
+        const productByCode = await resolveHydrateProductMeta(
           queryClient,
-          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          uniqueItemCodes,
           "purchase",
         );
+        const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
 
         const mappedLines = (detail.DocumentLines ?? []).map((line, index) => {
           const lineData = line as Record<string, unknown>;
@@ -695,37 +673,15 @@ export function useAPInvoiceCreate({
         setBillToAddress(billAddr);
         setShipToAddress(shipAddr);
 
-        const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse = effectiveWarehouseCode
-          ? await queryClient
-              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-              .catch((): ProductLookupItem[] => [])
-          : [];
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
         const productCodes = (detail.DocumentLines ?? [])
           .map((line) => String(line.ItemCode ?? "").trim())
           .filter(Boolean);
-        const missingCodes = productCodes.filter((code) => !productByCode.has(code));
-        if (missingCodes.length > 0) {
-          await Promise.all(
-            missingCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-        const taxRateByItemCode = await resolveProductTaxRates(
+        const productByCode = await resolveHydrateProductMeta(
           queryClient,
-          detailLines.map((line) => String(line.ItemCode ?? "").trim()),
+          productCodes,
           "purchase",
         );
+        const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
 
         let lineIndex = 0;
         const mappedLines = (detail.DocumentLines ?? []).map((line) => {
@@ -957,35 +913,15 @@ export function useAPInvoiceCreate({
       const docDueDate = String(primaryDetail.DocDueDate ?? "").slice(0, 10);
 
       const allDetailLines = details.flatMap((d) => d.DocumentLines ?? []);
-      const productsForWarehouse =
-        effectiveWarehouseCode.trim().length > 0
-          ? await queryClient
-              .fetchQuery(createSharedQueries.products(effectiveWarehouseCode))
-              .catch((): ProductLookupItem[] => [])
-          : [];
-
-      const productByCode = new Map<string, ProductLookupItem>(
-        productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-      );
       const uniqueItemCodes = [
         ...new Set(allDetailLines.map((line) => String(line.ItemCode ?? "").trim())),
       ].filter(Boolean);
 
-      // Recover missing product metadata
-      const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-      if (missingItemCodes.length > 0) {
-        await Promise.all(
-          missingItemCodes.map(async (itemCode) => {
-            const res = await queryClient
-              .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-              .catch((): ProductLookupItem[] => []);
-            const matched = res.find((p) => String(p.code).trim() === itemCode);
-            if (matched) {
-              productByCode.set(itemCode, matched);
-            }
-          }),
-        );
-      }
+      const productByCode = await resolveHydrateProductMeta(
+        queryClient,
+        uniqueItemCodes,
+        "purchase",
+      );
 
       const baseType =
         currentSourceDocType === "GoodsReceiptPO"
@@ -995,11 +931,7 @@ export function useAPInvoiceCreate({
             : 22;
       const currency = String(primaryDetail.DocCurr ?? "").trim();
 
-      const taxRateByItemCode = await resolveProductTaxRates(
-        queryClient,
-        allDetailLines.map((line) => String(line.ItemCode ?? "").trim()),
-        "purchase",
-      );
+      const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
       const resolvedHeaderDiscountPercent = Number(
         (primaryDetail as Record<string, unknown>).DiscountPercent ?? 0,
       );

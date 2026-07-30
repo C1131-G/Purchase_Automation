@@ -22,6 +22,8 @@ const defaultTableParams = {
 const docNumQuickLimit = 10;
 /** Keep background warmup gentle so HANA pool stays free for Overview first paint. */
 const backgroundBatchSize = 2;
+/** Create master lookups (vendors/WH/SE) — sooner than table lists so create forms are warm. */
+const createMasterWarmupIdleTimeoutMs = 1200;
 /** Wait longer before table warmup so dashboard /overview finishes first. */
 const tableWarmupIdleTimeoutMs = 4000;
 
@@ -92,20 +94,25 @@ export const prefetchOverviewAfterLogin = async (queryClient: QueryClient) => {
 // ---------------------------------------------------------------------------
 // Background (deferred) prefetches — run during idle time after first paint.
 //
-// Overview is prefetched separately (immediate). Table/master warmup stays
-// deferred so it does not compete with /dashboard/overview on the HANA pool.
+// Overview is prefetched separately (immediate). Create master is earlier
+// (see createMasterPrefetches). Table list warmup stays more deferred so it
+// does not compete with /dashboard/overview on the HANA pool.
 // ---------------------------------------------------------------------------
 
-const backgroundPrefetches = [
+/** Party + warehouses + sales employees — used by every create form. */
+const createMasterPrefetches = [
+  createSharedQueries.vendors(),
+  createSharedQueries.customers(),
+  createSharedQueries.warehouses(),
+  createSharedQueries.salesEmployees(),
+];
+
+const backgroundTablePrefetches = [
   purchaseQuotationQueries.list(defaultTableParams),
   purchaseQuotationQueries.docNumSuggestions(undefined, docNumQuickLimit),
   purchaseOrderQueries.list(defaultTableParams),
   purchaseOrderQueries.docNumSuggestions(undefined, docNumQuickLimit),
-  createSharedQueries.customers(),
-  createSharedQueries.salesEmployees(),
   createSharedQueries.taxCodes(),
-  createSharedQueries.vendors(),
-  createSharedQueries.warehouses(),
   apCreditMemoQueries.list(defaultTableParams),
   apCreditMemoQueries.docNumSuggestions(undefined, docNumQuickLimit),
   apInvoiceQueries.list(defaultTableParams),
@@ -123,16 +130,28 @@ const backgroundPrefetches = [
 // ---------------------------------------------------------------------------
 
 /**
+ * Warm create-form master data soon after login (shorter idle than table lists).
+ * Safe if already cached by hover intent or a prior session.
+ */
+export const prefetchCreateMasterAfterLogin = async (queryClient: QueryClient) => {
+  const warmupStart = Date.now();
+  await prefetchQueryBatch(queryClient, createMasterPrefetches);
+  // eslint-disable-next-line no-console
+  console.debug(`[perf] create master warmup complete: ${Date.now() - warmupStart}ms`);
+};
+
+export const CREATE_MASTER_WARMUP_IDLE_MS = createMasterWarmupIdleTimeoutMs;
+
+/**
  * prefetchTableDataAfterLogin
  *
- * Warms table lists, doc-num suggestion caches, and master-data in the
- * background during idle time so they are ready before the user navigates
- * to any table page. Intentionally deferred — this must not compete with
- * the dashboard's own first-paint queries.
+ * Warms table lists and doc-num suggestion caches in the background during
+ * idle time. Intentionally deferred — must not compete with dashboard first paint.
+ * Create master is warmed separately via prefetchCreateMasterAfterLogin.
  */
 export const prefetchTableDataAfterLogin = async (queryClient: QueryClient) => {
   const warmupStart = Date.now();
-  await prefetchQueryBatch(queryClient, backgroundPrefetches);
+  await prefetchQueryBatch(queryClient, backgroundTablePrefetches);
   // eslint-disable-next-line no-console
   console.debug(`[perf] background table warmup complete: ${Date.now() - warmupStart}ms`);
 };

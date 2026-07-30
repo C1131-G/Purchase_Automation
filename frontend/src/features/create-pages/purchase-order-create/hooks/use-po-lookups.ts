@@ -7,6 +7,7 @@ import type { ProductLookupItem } from "@/features/create-pages/create-shared/ap
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
+import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
 import type { POHeaderState } from "@/store/create/po-create.store";
@@ -76,40 +77,6 @@ export function usePoLookups({
   const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
-  const rankLookupOptions = (items: ProductLookupItem[], rawSearch: string) => {
-    const term = rawSearch.trim().toLowerCase();
-    if (!term) {
-      return items;
-    }
-
-    const score = (item: ProductLookupItem) => {
-      const code = item.code.toLowerCase();
-      const name = item.name.toLowerCase();
-      if (code === term || name === term) {
-        return 0;
-      }
-      if (code.startsWith(term) || name.startsWith(term)) {
-        return 1;
-      }
-      if (code.includes(term) || name.includes(term)) {
-        return 2;
-      }
-      return 3;
-    };
-
-    return [...items].toSorted((a, b) => {
-      const byScore = score(a) - score(b);
-      if (byScore !== 0) {
-        return byScore;
-      }
-      return a.code.localeCompare(b.code, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-    });
-  };
-
-  const limitInlineSuggestions = (items: ProductLookupItem[]) => items;
 
   const findVendorByCode = (value: string) =>
     (vendors as ProductLookupItem[]).find(
@@ -326,23 +293,19 @@ export function usePoLookups({
   };
 
   const nameSuggestions = useMemo(() => {
-    const ranked = rankLookupOptions(vendors as ProductLookupItem[], nameInput);
-    return limitInlineSuggestions(ranked);
+    return rankAndLimitLookupOptions(vendors as ProductLookupItem[], nameInput);
   }, [vendors, nameInput]);
 
   const codeSuggestions = useMemo(() => {
-    const ranked = rankLookupOptions(vendors as ProductLookupItem[], codeInput);
-    return limitInlineSuggestions(ranked);
+    return rankAndLimitLookupOptions(vendors as ProductLookupItem[], codeInput);
   }, [vendors, codeInput]);
 
   const warehouseSuggestions = useMemo(() => {
-    const ranked = rankLookupOptions(warehouses as ProductLookupItem[], warehouseInput);
-    return limitInlineSuggestions(ranked);
+    return rankAndLimitLookupOptions(warehouses as ProductLookupItem[], warehouseInput);
   }, [warehouses, warehouseInput]);
 
   const salesEmployeeSuggestions = useMemo(() => {
-    const ranked = rankLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput);
-    return limitInlineSuggestions(ranked);
+    return rankAndLimitLookupOptions(salesEmployees as ProductLookupItem[], salesEmployeeInput);
   }, [salesEmployees, salesEmployeeInput]);
 
   // Robust Name Resolver for Hydration & Copy-From flows

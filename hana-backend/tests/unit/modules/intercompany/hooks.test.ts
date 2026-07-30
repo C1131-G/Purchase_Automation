@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { afterPoCreated } from "@/modules/intercompany/api/hooks/after-po-created.hook";
-import { afterPqDraftSaved } from "@/modules/intercompany/api/hooks/after-pq-draft-saved.hook";
+import { afterPqDraftSaved } from "@/modules/intercompany/api/hooks/after-pq-saved.hook";
 import { getIcHealth } from "@/modules/intercompany/api/ic.controller";
 import type { Request, Response } from "express";
 

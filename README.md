@@ -70,6 +70,9 @@ pnpm dev:hana-backend
 
 - [Frontend README](./frontend/README.md)
 - [HANA Backend README](./hana-backend/README.md)
+- [Intercompany (IC) module](./hana-backend/src/modules/intercompany/README.md) — architecture, Flow 1 (PQ→RFQ), Flow 2 (PO→AR Invoice)
+- [IC architecture](./hana-backend/src/modules/intercompany/docs/architecture.md)
+- [AGENTS.md](./AGENTS.md) — agent/developer conventions
 
 ## Conventions
 

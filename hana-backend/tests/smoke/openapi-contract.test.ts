@@ -20,6 +20,9 @@ const REQUIRED_PATH_PREFIXES = [
   "/attachments",
   "/master-data/vendors",
   "/master-data/products",
+  "/master-data/products-by-codes",
+  "/master-data/product-warehouse-stocks-batch",
+  "/master-data/business-partners/{cardCode}/addresses",
   "/dashboard/overview",
   "/health",
 ];

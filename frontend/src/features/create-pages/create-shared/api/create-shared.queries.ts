@@ -12,6 +12,7 @@ import {
 } from "@/features/create-pages/create-shared/api/create-shared.mapper";
 import type {
   MasterDataResponse,
+  ProductLookupItem,
   ProductWarehouseStockItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
 import { masterDataAPI } from "@/features/create-pages/create-shared/api/master-data.service";
@@ -29,20 +30,30 @@ const fetchSalesEmployees = async () =>
 
 export const createSharedKeys = {
   all: ["create-shared"] as const,
-  customers: () => [...createSharedKeys.all, "customers-v3"] as const,
+  // v4: list payload omits addresses[]; use businessPartnerAddresses for pickers.
+  customers: () => [...createSharedKeys.all, "customers-v4"] as const,
+  businessPartnerAddresses: (cardCode: string) =>
+    [...createSharedKeys.all, "business-partner-addresses", cardCode] as const,
   priceLists: () => [...createSharedKeys.all, "price-lists"] as const,
   productWarehouseStocks: () => [...createSharedKeys.all, "product-warehouse-stocks"] as const,
+  productWarehouseStocksBatch: () =>
+    [...createSharedKeys.all, "product-warehouse-stocks-batch"] as const,
   products: () => [...createSharedKeys.all, "products-v2"] as const,
+  productsByCodes: () => [...createSharedKeys.all, "products-by-codes"] as const,
   salesEmployees: () => [...createSharedKeys.all, "sales-employees"] as const,
   taxCodes: () => [...createSharedKeys.all, "tax-codes"] as const,
   uoms: () => [...createSharedKeys.all, "uoms"] as const,
-  vendors: () => [...createSharedKeys.all, "vendors-v3"] as const,
+  vendors: () => [...createSharedKeys.all, "vendors-v4"] as const,
   warehouses: () => [...createSharedKeys.all, "warehouses"] as const,
   series: (documentType: string) => [...createSharedKeys.all, "series", documentType] as const,
   warehouseBins: (warehouseCode: string) =>
     [...createSharedKeys.all, "warehouse-bins", warehouseCode] as const,
   branches: () => [...createSharedKeys.all, "branches"] as const,
 };
+
+/** Stable key segment for batch codes (order-independent). */
+const batchCodesKey = (codes: string[]) =>
+  [...new Set(codes.map((code) => code.trim()).filter(Boolean))].sort().join(",");
 
 export const createSharedQueries = {
   priceLists: () =>
@@ -61,6 +72,60 @@ export const createSharedQueries = {
       queryKey: createSharedKeys.customers(),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
+  /**
+   * Lazy address list for one vendor/customer (bill/ship pickers).
+   * List endpoints only return default billTo/shipTo strings.
+   */
+  businessPartnerAddresses: (cardCode?: string) => {
+    const code = cardCode?.trim() ?? "";
+    return queryOptions({
+      enabled: Boolean(code),
+      gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
+      queryFn: async () => {
+        if (!code) {
+          return {
+            addresses: [] as Array<{
+              addressName: string;
+              addressType: "B" | "S";
+              addressText: string;
+            }>,
+            billToAddress: "",
+            cardCode: "",
+            shipToAddress: "",
+          };
+        }
+        const response = await masterDataAPI.getBusinessPartnerAddresses(code);
+        const data =
+          response && typeof response === "object" && "data" in response
+            ? (response as { data: Record<string, unknown> }).data
+            : (response as Record<string, unknown>);
+        const record = data && typeof data === "object" ? data : {};
+        const rawAddresses = Array.isArray(record.addresses) ? record.addresses : [];
+        const addresses = rawAddresses
+          .map((addr) => {
+            const r = addr && typeof addr === "object" ? (addr as Record<string, unknown>) : {};
+            const addressTypeRaw = String(r.addressType ?? r.AddressType ?? "B")
+              .trim()
+              .toUpperCase();
+            const addressType = addressTypeRaw === "S" ? ("S" as const) : ("B" as const);
+            return {
+              addressName: String(r.addressName ?? r.AddressName ?? "").trim(),
+              addressType,
+              addressText: String(r.addressText ?? r.AddressText ?? "").trim(),
+            };
+          })
+          .filter((addr) => addr.addressText);
+        return {
+          addresses,
+          billToAddress: String(record.billToAddress ?? "").trim(),
+          cardCode: String(record.cardCode ?? code).trim(),
+          shipToAddress: String(record.shipToAddress ?? "").trim(),
+        };
+      },
+      queryKey: createSharedKeys.businessPartnerAddresses(code),
+      staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
+    });
+  },
   productWarehouseStocks: (itemCode?: string) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
@@ -73,6 +138,82 @@ export const createSharedQueries = {
       queryKey: [...createSharedKeys.productWarehouseStocks(), itemCode ?? ""],
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     }),
+  /**
+   * Batch stocks for many item codes (edit hydrate). Flat rows include itemCode.
+   * Prefer over N× productWarehouseStocks on the hydrate path.
+   */
+  productWarehouseStocksBatch: (itemCodes: string[], warehouseCode?: string) => {
+    const normalizedCodes = [
+      ...new Set(itemCodes.map((code) => String(code).trim()).filter(Boolean)),
+    ];
+    const codesKey = batchCodesKey(normalizedCodes);
+    const whKey = warehouseCode?.trim() ?? "";
+    return queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
+      queryFn: async () => {
+        if (normalizedCodes.length === 0) {
+          return [] as Array<ProductWarehouseStockItem & { itemCode: string }>;
+        }
+        const raw = unwrapMasterData(
+          await masterDataAPI.getProductWarehouseStocksBatch({
+            itemCodes: normalizedCodes,
+            ...(whKey ? { warehouseCode: whKey } : {}),
+          }),
+        );
+        return raw
+          .map((row) => {
+            const record = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+            const mapped = mapProductWarehouseStock(row);
+            return {
+              ...mapped,
+              itemCode: String(record.itemCode ?? record.ItemCode ?? "").trim(),
+            };
+          })
+          .filter((item) => item.itemCode && item.code.trim());
+      },
+      queryKey: [...createSharedKeys.productWarehouseStocksBatch(), codesKey, whKey],
+      staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
+    });
+  },
+  /**
+   * Batch product meta by exact codes (edit / copy-from hydrate).
+   * Seeds the same shape as products() search results.
+   */
+  productsByCodes: (
+    codes: string[],
+    type?: "sales" | "purchase",
+    priceList?: string,
+    warehouseCode?: string,
+  ) => {
+    const normalizedCodes = [...new Set(codes.map((code) => String(code).trim()).filter(Boolean))];
+    const codesKey = batchCodesKey(normalizedCodes);
+    return queryOptions({
+      gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
+      queryFn: async () => {
+        if (normalizedCodes.length === 0) {
+          return [] as ProductLookupItem[];
+        }
+        return unwrapMasterData(
+          await masterDataAPI.getProductsByCodes({
+            codes: normalizedCodes,
+            ...(type ? { type } : {}),
+            ...(priceList !== undefined && priceList !== "" ? { priceList } : {}),
+            ...(warehouseCode ? { warehouseCode } : {}),
+          }),
+        )
+          .map(mapProductLookup)
+          .filter((item) => item.code.trim() && item.name.trim());
+      },
+      queryKey: [
+        ...createSharedKeys.productsByCodes(),
+        codesKey,
+        type ?? "default",
+        priceList ?? "default",
+        warehouseCode ?? "",
+      ],
+      staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
+    });
+  },
   products: (
     warehouseCode?: string,
     search?: string,

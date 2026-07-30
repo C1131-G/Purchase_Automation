@@ -182,7 +182,7 @@ export type IcSlDocuments = {
   /** @deprecated Not used by Flow 1 convert (PQ already exists). */
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
   /** PATCH buyer PurchaseQuotations with RFQ commercial lines. */
-  applyPricesToDraft: (input: ApplyPricesToDraftInput) => Promise<void>;
+  applyPricesToPq: (input: ApplyPricesToDraftInput) => Promise<void>;
   /**
    * One GET for convert: parent Comments + NumAtCard from real PQ.
    * Parent remarks stay via applyPrices PATCH merge; this feeds SQ remarks + vendor ref.
@@ -303,7 +303,7 @@ export const createIcSlDocuments = (deps?: {
       return fields.comments;
     },
 
-    applyPricesToDraft: async (input) => {
+    applyPricesToPq: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       // Update real buyer PQ from RFQ commercial lines (not Drafts).
       const endpoint = `/PurchaseQuotations(${input.draftEntry})`;

@@ -1,6 +1,8 @@
 import {
   getProducts,
+  getProductsByCodes,
   getProductWarehouseStocks,
+  getProductWarehouseStocksBatch,
   getVendors,
   getCustomers,
   getTaxCodes,
@@ -12,11 +14,14 @@ import {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
+  getBusinessPartnerAddresses,
 } from "./master-data.queries";
 
 export {
   getProducts,
+  getProductsByCodes,
   getProductWarehouseStocks,
+  getProductWarehouseStocksBatch,
   getVendors,
   getCustomers,
   getTaxCodes,
@@ -28,11 +33,14 @@ export {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
+  getBusinessPartnerAddresses,
 };
 
 export const masterDataService = {
   getProducts,
+  getProductsByCodes,
   getProductWarehouseStocks,
+  getProductWarehouseStocksBatch,
   getVendors,
   getCustomers,
   getTaxCodes,
@@ -44,4 +52,5 @@ export const masterDataService = {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
+  getBusinessPartnerAddresses,
 };

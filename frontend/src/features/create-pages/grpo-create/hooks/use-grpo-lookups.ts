@@ -4,6 +4,7 @@ import type {
   LookupItem,
   ProductLookupItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
+import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
 
 interface UseGrpoLookupsProps {
   vendors: LookupItem[];
@@ -24,58 +25,20 @@ export function useGrpoLookups({
   warehouseInput,
   buyerInput,
 }: UseGrpoLookupsProps) {
-  const rankLookupOptions = (items: ProductLookupItem[], rawSearch: string) => {
-    const term = rawSearch.trim().toLowerCase();
-    if (!term) {
-      return items;
-    }
-
-    const score = (item: ProductLookupItem) => {
-      const code = item.code.toLowerCase();
-      const name = item.name.toLowerCase();
-      if (code === term || name === term) {
-        return 0;
-      }
-      if (code.startsWith(term) || name.startsWith(term)) {
-        return 1;
-      }
-      if (code.includes(term) || name.includes(term)) {
-        return 2;
-      }
-      return 3;
-    };
-
-    return [...items].toSorted((a, b) => {
-      const byScore = score(a) - score(b);
-      if (byScore !== 0) {
-        return byScore;
-      }
-      return a.code.localeCompare(b.code, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-    });
-  };
-
-  const limitInlineSuggestions = (items: ProductLookupItem[]) => items;
-
   const vendorNameSuggestions = useMemo(
-    () =>
-      limitInlineSuggestions(rankLookupOptions(vendors as ProductLookupItem[], vendorNameInput)),
+    () => rankAndLimitLookupOptions(vendors as ProductLookupItem[], vendorNameInput),
     [vendorNameInput, vendors],
   );
   const vendorCodeSuggestions = useMemo(
-    () =>
-      limitInlineSuggestions(rankLookupOptions(vendors as ProductLookupItem[], vendorCodeInput)),
+    () => rankAndLimitLookupOptions(vendors as ProductLookupItem[], vendorCodeInput),
     [vendorCodeInput, vendors],
   );
   const warehouseSuggestions = useMemo(
-    () =>
-      limitInlineSuggestions(rankLookupOptions(warehouses as ProductLookupItem[], warehouseInput)),
+    () => rankAndLimitLookupOptions(warehouses as ProductLookupItem[], warehouseInput),
     [warehouseInput, warehouses],
   );
   const buyerSuggestions = useMemo(
-    () => limitInlineSuggestions(rankLookupOptions(buyers as ProductLookupItem[], buyerInput)),
+    () => rankAndLimitLookupOptions(buyers as ProductLookupItem[], buyerInput),
     [buyerInput, buyers],
   );
 

@@ -8,6 +8,10 @@ export const MasterDataQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
   warehouseCode: z.string().optional(),
   itemCode: z.string().trim().optional(),
+  /** Comma-separated ItemCodes for products-by-codes (max 100 parsed server-side). */
+  codes: z.string().trim().optional(),
+  /** Comma-separated ItemCodes for product-warehouse-stocks-batch. */
+  itemCodes: z.string().trim().optional(),
   type: z.enum(["sales", "purchase"]).optional(),
   country: z.string().trim().optional(),
   priceList: z.coerce.number().optional(),

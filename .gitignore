@@ -3,13 +3,15 @@
 !/README.md
 !/COMMIT_MESSAGE.md
 !/AGENTS.md
+!/PRODUCT.md
 
 .env
 .zed
 .codex
 .commandcode
 .vscode
-Docs/
+# Scratch notes folder at repo root only (do not ignore **/docs/)
+/Docs/
 .pnpm-store/
 node_modules/
 dist/

@@ -1,5 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 
+import {
+  prefetchCreateMasterData,
+  type CreateMasterParty,
+} from "@/features/create-pages/create-shared/utils/ensure-create-master-data";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
@@ -23,6 +27,13 @@ const DEFAULT_TABLE_PARAMS = {
   page: 1,
 };
 
+const partyForTableRoute = (routePath: TableRoutePath): CreateMasterParty =>
+  routePath.startsWith("/sales") ? "customers" : "vendors";
+
+/**
+ * Prefetch first table page for the sidebar target (smart/orchestrated).
+ * Also warms create master lookups — the same nav item opens create routes.
+ */
 export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: TableRoutePath) => {
   const queryOptionsByPath = {
     "/purchase/ap-credit-memo": apCreditMemoQueries.list(DEFAULT_TABLE_PARAMS),
@@ -38,4 +49,6 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     queryClient,
     queryOptionsByPath[routePath] as unknown as Parameters<typeof runSmartPrefetch>[1],
   );
+
+  prefetchCreateMasterData(queryClient, partyForTableRoute(routePath));
 };

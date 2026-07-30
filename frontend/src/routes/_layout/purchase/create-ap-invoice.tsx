@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route-skeleton";
 import APInvoiceCreate from "@/features/create-pages/ap-invoice-create/components/ap-invoice-create";
+import { ensureCreateMasterData } from "@/features/create-pages/create-shared/utils/ensure-create-master-data";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { requireActiveSession } from "@/shared/auth/require-active-session";
 
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/_layout/purchase/create-ap-invoice")({
   beforeLoad: async () => {
     await requireActiveSession();
   },
+  loader: ({ context }) => ensureCreateMasterData(context.queryClient, "vendors"),
   component: RouteComponent,
   pendingComponent: CreatePageRouteSkeleton,
   validateSearch: z.object({

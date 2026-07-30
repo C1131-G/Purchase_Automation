@@ -22,11 +22,33 @@ router.get(
   masterDataController.getProductWarehouseStocks,
 );
 
+// GET /products-by-codes: Exact ItemCode list for document hydrate (O(1) network).
+router.get(
+  "/products-by-codes",
+  validateQuery(MasterDataQuerySchema),
+  masterDataController.getProductsByCodes,
+);
+
+// GET /product-warehouse-stocks-batch: Stock for many items in one HANA round-trip.
+router.get(
+  "/product-warehouse-stocks-batch",
+  validateQuery(MasterDataQuerySchema),
+  masterDataController.getProductWarehouseStocksBatch,
+);
+
 // GET /vendors: Filtered list of Vendors ('S') from the OCRD table.
+// List is slim: default bill/ship only (no full addresses[]).
 router.get("/vendors", validateQuery(MasterDataQuerySchema), masterDataController.getVendors);
 
 // GET /customers: Filtered list of Customers ('C') from the OCRD table.
+// List is slim: default bill/ship only (no full addresses[]).
 router.get("/customers", validateQuery(MasterDataQuerySchema), masterDataController.getCustomers);
+
+// GET /business-partners/:cardCode/addresses: Lazy full address list for one BP.
+router.get(
+  "/business-partners/:cardCode/addresses",
+  masterDataController.getBusinessPartnerAddresses,
+);
 
 // GET /TaxDeclarations: Retrieves active tax groups and rates for duty calculations on new documents.
 router.get("/TaxDeclarations", masterDataController.getTaxCodes);

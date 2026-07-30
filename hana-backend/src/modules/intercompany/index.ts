@@ -3,7 +3,11 @@
  */
 
 export { afterPoCreated } from "./api/hooks/after-po-created.hook";
-export { afterPqDraftSaved } from "./api/hooks/after-pq-draft-saved.hook";
+export {
+  afterPqSaved,
+  /** @deprecated Prefer `afterPqSaved`. */
+  afterPqDraftSaved,
+} from "./api/hooks/after-pq-saved.hook";
 export { icRoutes } from "./api/ic.routes";
 export type { IcHookResult } from "./flows/shared/flow-result";
 export { acceptedResult } from "./flows/shared/flow-result";

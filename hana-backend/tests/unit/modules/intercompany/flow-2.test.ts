@@ -19,10 +19,10 @@ import { createRetryMutations } from "@/modules/intercompany/domain/retry/retry.
 import { createRetryQueries } from "@/modules/intercompany/domain/retry/retry.queries";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import { createAfterPoCreated } from "@/modules/intercompany/api/hooks/after-po-created.hook";
-import { createPoCaptureService } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/01-po-capture/po-capture.service";
-import { buildArDraftPayload } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/02-build-ar-invoice-draft/build-ar-draft.payload";
-import { createBuildArDraftService } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/02-build-ar-invoice-draft/build-ar-draft.service";
-import { createFlow2Orchestrator } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/flow-2.orchestrator";
+import { createPoCaptureService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/01-po-capture/po-capture.service";
+import { buildArInvoicePayload } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/02-build-ar-invoice/build-ar-invoice.payload";
+import { createBuildArInvoiceService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/02-build-ar-invoice/build-ar-invoice.service";
+import { createFlow2Orchestrator } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/flow-2.orchestrator";
 import { IC_CONFIG_KEY, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
@@ -73,7 +73,7 @@ const createFlow2TestStack = (opts?: {
   });
 
   const documents = {
-    applyPricesToDraft: async () => {
+    applyPricesToPq: async () => {
       throw new Error("not used");
     },
     convertDraftToDocument: async () => {
@@ -93,7 +93,7 @@ const createFlow2TestStack = (opts?: {
   };
 
   const orchestrator = createFlow2Orchestrator({
-    build: createBuildArDraftService({
+    build: createBuildArInvoiceService({
       company,
       partnerTax: createPartnerTaxResolver({
         company,
@@ -123,7 +123,7 @@ const createFlow2TestStack = (opts?: {
   };
 };
 
-describe("Flow 2 PO → AR Draft (P5)", () => {
+describe("Flow 2 PO → AR Invoice (P5)", () => {
   it("T5.1 draft PO → skip", async () => {
     const { orchestrator } = createFlow2TestStack();
     const result = await orchestrator.run({
@@ -159,7 +159,7 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
   });
 
   it("T5.4 build payload tax/customer/remarks", async () => {
-    const payload = await buildArDraftPayload({
+    const payload = await buildArInvoicePayload({
       buyerCustomerCode: "C-A-ON-B",
       comments: "User note keep me",
       defaultBranchId: 1,
@@ -206,7 +206,7 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
   });
 
   it("T5.4b tax map miss → omit VatGroup (never buyer tax on seller AR)", async () => {
-    const payload = await buildArDraftPayload({
+    const payload = await buildArInvoicePayload({
       buyerCustomerCode: "C-A-ON-B",
       defaultBranchId: 1,
       lines: [
@@ -218,7 +218,7 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
           WarehouseCode: "01",
         },
       ],
-      // Same contract as Flow 1 SQ / buildArDraftService: miss → empty string.
+      // Same contract as Flow 1 SQ / buildArInvoiceService: miss → empty string.
       resolveLineTax: async () => "",
       poDocEntry: 101,
       poDocNum: 101,
@@ -230,12 +230,12 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
     expect(payload.DocumentLines[0].ItemCode).toBe("ITEM1");
   });
 
-  it("T5.4c buildArDraftService omits when item/BP miss (never buyer tax)", async () => {
+  it("T5.4c buildArInvoiceService omits when item/BP miss (never buyer tax)", async () => {
     const db = createMemoryDb();
     seedMemoryCompanyGraph(db);
     const sql = createMemorySqlClient(db);
     const company = createCompanyService(createCompanyQueries(sql));
-    const service = createBuildArDraftService({
+    const service = createBuildArInvoiceService({
       company,
       partnerTax: createPartnerTaxResolver({
         company,
@@ -293,12 +293,12 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
     expect(payload.DocumentLines[0].VatGroup).toBeUndefined();
   });
 
-  it("T5.4d buildArDraftService uses seller item sales tax dynamically", async () => {
+  it("T5.4d buildArInvoiceService uses seller item sales tax dynamically", async () => {
     const db = createMemoryDb();
     seedMemoryCompanyGraph(db);
     const sql = createMemorySqlClient(db);
     const company = createCompanyService(createCompanyQueries(sql));
-    const service = createBuildArDraftService({
+    const service = createBuildArInvoiceService({
       company,
       partnerTax: createPartnerTaxResolver({
         company,

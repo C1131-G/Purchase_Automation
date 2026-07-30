@@ -56,8 +56,11 @@ export const getCustomers = async (dbName: string) => {
     }
   }
 
+  // Defaults only — full address lists load via GET /business-partners/:code/addresses.
   const [customerAddressMap, salesEmployeeMap] = await Promise.all([
-    fetchBusinessPartnerAddresses(dbName, customerCodes, defaultsMap),
+    fetchBusinessPartnerAddresses(dbName, customerCodes, defaultsMap, {
+      includeAddressList: false,
+    }),
     fetchSalesEmployeeNames(dbName, salesEmployeeCodes),
   ]);
 
@@ -82,7 +85,6 @@ export const getCustomers = async (dbName: string) => {
         customerAddressMap.get(normalizedCardCode)?.billToAddress ??
         item.Address ??
         "",
-      addresses: customerAddressMap.get(normalizedCardCode)?.addresses ?? [],
     };
   });
 };

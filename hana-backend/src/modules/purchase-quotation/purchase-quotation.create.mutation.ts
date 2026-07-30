@@ -5,7 +5,7 @@ import { purgeCache } from "@/core/utils/cache";
 import { getDisplayCurrency, isUnresolvedCurrency } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { afterPqDraftSaved } from "@/modules/intercompany";
+import { afterPqSaved } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 const normalizeSapDateValue = (value: unknown) => {
@@ -186,7 +186,7 @@ export const createPurchaseQuotation = async (
     let intercompany: IcHookResult | undefined;
     if (!isDraft && result.DocEntry) {
       try {
-        intercompany = await afterPqDraftSaved({
+        intercompany = await afterPqSaved({
           address: payload.Address != null ? String(payload.Address) : null,
           address2: payload.Address2 != null ? String(payload.Address2) : null,
           cardCode: String(sapPayload.CardCode ?? payload.CardCode ?? ""),
@@ -222,7 +222,7 @@ export const createPurchaseQuotation = async (
       } catch (icErr: unknown) {
         logger.error({
           err: icErr instanceof Error ? icErr : new Error(String(icErr)),
-          msg: "afterPqDraftSaved threw unexpectedly; PQ remains created",
+          msg: "afterPqSaved threw unexpectedly; PQ remains created",
         });
         intercompany = {
           message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),

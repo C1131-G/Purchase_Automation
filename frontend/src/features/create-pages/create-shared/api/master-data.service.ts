@@ -12,9 +12,22 @@ interface MasterDataQuery {
   limit?: number;
   warehouseCode?: string;
   itemCode?: string;
+  /** Comma-separated or array of ItemCodes for batch hydrate endpoints. */
+  codes?: string[] | string;
+  itemCodes?: string[] | string;
   type?: "sales" | "purchase";
   priceList?: string; // price list code (e.g. "1", "-1", "-2")
 }
+
+const joinCodes = (codes: string[] | string | undefined): string => {
+  if (Array.isArray(codes)) {
+    return codes
+      .map((code) => String(code).trim())
+      .filter(Boolean)
+      .join(",");
+  }
+  return typeof codes === "string" ? codes.trim() : "";
+};
 
 export const masterDataAPI = {
   getCustomers: async (params?: MasterDataQuery) => {
@@ -37,6 +50,49 @@ export const masterDataAPI = {
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/product-warehouse-stocks?${query.toString()}`,
     );
+  },
+  /** Batch product meta by exact ItemCodes (document hydrate). */
+  getProductsByCodes: async (params: {
+    codes: string[] | string;
+    type?: "sales" | "purchase";
+    priceList?: string;
+    warehouseCode?: string;
+  }) => {
+    const query = new URLSearchParams();
+    const codes = joinCodes(params.codes);
+    if (codes) {
+      query.set("codes", codes);
+    }
+    if (params.type) {
+      query.set("type", params.type);
+    }
+    if (params.priceList !== undefined && params.priceList !== "") {
+      query.set("priceList", params.priceList);
+    }
+    if (params.warehouseCode) {
+      query.set("warehouseCode", params.warehouseCode);
+    }
+    return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
+      `/api/v1/master-data/products-by-codes?${query.toString()}`,
+    );
+  },
+  /** Batch warehouse stock for many items (post-paint hydrate). */
+  getProductWarehouseStocksBatch: async (params: {
+    itemCodes: string[] | string;
+    warehouseCode?: string;
+  }) => {
+    const query = new URLSearchParams();
+    const itemCodes = joinCodes(params.itemCodes);
+    if (itemCodes) {
+      query.set("itemCodes", itemCodes);
+    }
+    if (params.warehouseCode) {
+      query.set("warehouseCode", params.warehouseCode);
+    }
+    return apiClient<
+      | MasterDataResponse<MasterDataItem & { itemCode?: string; stock?: number }>
+      | Array<MasterDataItem & { itemCode?: string; stock?: number }>
+    >(`/api/v1/master-data/product-warehouse-stocks-batch?${query.toString()}`);
   },
   getProducts: async (params?: MasterDataQuery) => {
     const query = new URLSearchParams();
@@ -86,6 +142,23 @@ export const masterDataAPI = {
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/vendors?${query.toString()}`,
     );
+  },
+  /** Lazy full bill/ship address list for one CardCode (list endpoints omit addresses[]). */
+  getBusinessPartnerAddresses: async (cardCode: string) => {
+    const code = encodeURIComponent(cardCode.trim());
+    return apiClient<{
+      success: boolean;
+      data: {
+        cardCode: string;
+        billToAddress: string;
+        shipToAddress: string;
+        addresses: Array<{
+          addressName: string;
+          addressType: "B" | "S";
+          addressText: string;
+        }>;
+      };
+    }>(`/api/v1/master-data/business-partners/${code}/addresses`);
   },
   getWarehouses: async (params?: MasterDataQuery) => {
     const query = new URLSearchParams();

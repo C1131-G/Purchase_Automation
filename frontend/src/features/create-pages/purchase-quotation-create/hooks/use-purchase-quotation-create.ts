@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AttachmentItem } from "@/features/create-pages/create-shared/components/grids/upload-grid";
 
-import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import {
   getMissingMandatoryCreateFieldsTyped,
@@ -13,6 +12,10 @@ import {
   calculateSummaryCurrency,
 } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
+import {
+  resolveHydrateProductMeta,
+  scheduleHydrateWarehouseStocks,
+} from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
@@ -42,7 +45,6 @@ import {
 } from "@/features/create-pages/purchase-quotation-create/api/purchase-quotation-create.mutations";
 import {
   EMPTY_PRODUCT_SEARCH_FIELD_ERRORS,
-  FULL_PRODUCT_LIMIT,
   MANDATORY_ERROR_TEXT,
   REQUIRED_FIELD_LABEL_TEXT,
 } from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
@@ -383,56 +385,17 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         const shipToAddress = address2 ? reconcileAddresses(address, address2) : address;
 
         const detailLines = detail.DocumentLines ?? [];
-        const productsForWarehouse =
-          warehouseCode.trim().length > 0
-            ? await queryClient
-                .fetchQuery(
-                  createSharedQueries.products(warehouseCode, undefined, FULL_PRODUCT_LIMIT),
-                )
-                .catch((): ProductLookupItem[] => [])
-            : [];
-
-        const productByCode = new Map<string, ProductLookupItem>(
-          productsForWarehouse.map((item) => [String(item.code).trim(), item]),
-        );
-        const stockByItemCode = new Map<string, number>();
-
         const uniqueItemCodes = [
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Recover missing product metadata
-        const missingItemCodes = uniqueItemCodes.filter((itemCode) => !productByCode.has(itemCode));
-        if (missingItemCodes.length > 0) {
-          await Promise.all(
-            missingItemCodes.map(async (itemCode) => {
-              const res = await queryClient
-                .fetchQuery(createSharedQueries.products(undefined, itemCode, 1, "purchase"))
-                .catch((): ProductLookupItem[] => []);
-              const matched = res.find((p) => String(p.code).trim() === itemCode);
-              if (matched) {
-                productByCode.set(itemCode, matched);
-              }
-            }),
-          );
-        }
-
-        await Promise.all(
-          uniqueItemCodes.map(async (itemCode) => {
-            const warehouseStocks = await queryClient
-              .fetchQuery(createSharedQueries.productWarehouseStocks(itemCode))
-              .catch(() => []);
-
-            const resolvedStock = warehouseCode
-              ? Number(
-                  warehouseStocks.find((stock) => String(stock.code).trim() === warehouseCode)
-                    ?.stock ?? 0,
-                )
-              : warehouseStocks.reduce((sum, stock) => sum + Number(stock.stock ?? 0), 0);
-
-            stockByItemCode.set(itemCode, resolvedStock);
-          }),
+        // Fast hydrate: only line item codes (no FULL warehouse catalog / blocking stocks).
+        const productByCode = await resolveHydrateProductMeta(
+          queryClient,
+          uniqueItemCodes,
+          "purchase",
         );
+        const stockByItemCode = new Map<string, number>();
 
         const mappedRows = detailLines.map((line: PurchaseQuotationDetailLine, index) => {
           const itemCode = String(line.ItemCode ?? "").trim();
@@ -538,6 +501,18 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         lookups.setShipToAddress(shipToAddress);
         productsHook.setProductRows(mappedRows);
         productsHook.setProductRowDrafts({});
+
+        // Stock is display-only: fill after first paint so edit opens immediately.
+        scheduleHydrateWarehouseStocks(queryClient, uniqueItemCodes, warehouseCode, (stocks) => {
+          productsHook.setProductRows((prev) =>
+            prev.map((row) => {
+              const nextStock = stocks.get(row.productCode);
+              return nextStock === undefined || nextStock === row.stock
+                ? row
+                : { ...row, stock: nextStock };
+            }),
+          );
+        });
 
         const rawAttachments = detail.attachments || [];
         setAttachments(

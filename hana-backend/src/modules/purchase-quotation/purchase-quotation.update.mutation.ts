@@ -6,7 +6,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { afterPqDraftSaved } from "@/modules/intercompany";
+import { afterPqSaved } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
 const normalizeSapDateValue = (value: unknown) => {
   const raw = String(value ?? "").trim();
@@ -217,7 +217,7 @@ export const updatePurchaseQuotation = async (
         const lines = Array.isArray(payload.DocumentLines)
           ? (payload.DocumentLines as Record<string, unknown>[])
           : [];
-        intercompany = await afterPqDraftSaved({
+        intercompany = await afterPqSaved({
           address: payload.Address != null ? String(payload.Address) : null,
           address2: payload.Address2 != null ? String(payload.Address2) : null,
           cardCode: String(payload.CardCode ?? sapPayload.CardCode ?? ""),
@@ -248,7 +248,7 @@ export const updatePurchaseQuotation = async (
       } catch (icErr: unknown) {
         logger.error({
           err: icErr instanceof Error ? icErr : new Error(String(icErr)),
-          msg: "afterPqDraftSaved threw unexpectedly; PQ remains updated",
+          msg: "afterPqSaved threw unexpectedly; PQ remains updated",
         });
         intercompany = {
           message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),

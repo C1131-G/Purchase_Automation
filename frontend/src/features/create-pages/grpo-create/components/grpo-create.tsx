@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
+import { usePartnerAddressOptions } from "@/features/create-pages/create-shared/hooks/use-partner-address-options";
 
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
@@ -112,27 +113,7 @@ export function GRPOCreate({
     });
   };
 
-  const activeVendor = (state.vendors as any[]).find(
-    (v) => String(v.code) === String(state.vendorCodeInput),
-  );
-  const billToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "B")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
-  const shipToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "S")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
+  const { billToOptions, shipToOptions } = usePartnerAddressOptions(state.vendorCodeInput);
 
   return (
     <CreatePageWrapper

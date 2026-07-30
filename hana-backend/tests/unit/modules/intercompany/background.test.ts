@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createDetectMissedPqDraftJob } from "@/modules/intercompany/background/jobs/01-detect-missed-pq-draft/detect-missed-pq-draft.job";
+import { createDetectMissedPqJob } from "@/modules/intercompany/background/jobs/01-detect-missed-pq/detect-missed-pq.job";
 import { createProcessRetryQueueJob } from "@/modules/intercompany/background/jobs/02-process-retry-queue/process-retry-queue.job";
 import { createSessionCleanupJob } from "@/modules/intercompany/background/jobs/03-session-cleanup/session-cleanup.job";
 import { createSchedulerService } from "@/modules/intercompany/background/scheduler/scheduler.mutations";
@@ -28,7 +28,7 @@ import { createRetryService } from "@/modules/intercompany/domain/retry/retry.se
 import { createRfqMutations } from "@/modules/intercompany/domain/rfq/rfq.mutations";
 import { createRfqQueries } from "@/modules/intercompany/domain/rfq/rfq.queries";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
-import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator";
+import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/flow-1.orchestrator";
 import {
   IC_ACTION,
   IC_CONFIG_KEY,
@@ -218,7 +218,7 @@ describe("P7 background worker jobs", () => {
       },
     };
 
-    const job = createDetectMissedPqDraftJob({
+    const job = createDetectMissedPqJob({
       company: stack.company,
       configuration: stack.configuration,
       flow1: stack.flow1,
@@ -300,7 +300,7 @@ describe("P7 background worker jobs", () => {
       documentMap: stack.documentMap,
       flow1: stack.flow1,
       history: stack.history,
-      missedDraftSource: {
+      missedPqSource: {
         listForCompany: async () => [],
       },
       notifications: stack.notifications,

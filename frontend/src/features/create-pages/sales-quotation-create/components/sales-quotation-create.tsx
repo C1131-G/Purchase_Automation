@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
+import { usePartnerAddressOptions } from "@/features/create-pages/create-shared/hooks/use-partner-address-options";
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
@@ -62,13 +63,12 @@ export function SalesQuotationCreate({
       ? `Create Sales Quotation (Draft ${draftDocNum}${draftDocEntry ? ` #${draftDocEntry}` : ""})`
       : "Create Sales Quotation";
   const highlightDocRef = resolveActiveHighlightDocRef(highlightDocNum, highlightUntil);
+  // Pure create paints the shell immediately; field grids use per-query loading.
+  // Draft/edit still wait for document hydrate.
   const isFormHydrating = !state.isEditMode
     ? draftDocNum
       ? !state.isEditHydrated
-      : state.vendorsQuery.isLoading &&
-        state.warehousesQuery.isLoading &&
-        state.salesEmployeesQuery.isLoading &&
-        !state.vendorsQuery.data
+      : false
     : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleVendorRestrictedClick = state.isEditMode
@@ -79,27 +79,7 @@ export function SalesQuotationCreate({
       }
     : undefined;
 
-  const activeVendor = (state.vendors as any[]).find(
-    (v) => String(v.code) === String(state.codeInput),
-  );
-  const billToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "B")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
-  const shipToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "S")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
+  const { billToOptions, shipToOptions } = usePartnerAddressOptions(state.codeInput);
 
   return (
     <div className="contents">

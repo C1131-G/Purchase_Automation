@@ -29,18 +29,18 @@ This package owns:
 
 ## Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the backend in watch mode |
-| `pnpm build` | Type-check and compile the backend to `dist/` with tsup |
-| `pnpm start` | Run the compiled server from `dist/server.js` |
-| `pnpm test` | Run the Vitest suite in watch mode |
-| `pnpm test:run` | Run the Vitest suite once |
-| `pnpm test:unit` | Run unit tests only |
-| `pnpm test:integration` | Run integration tests only |
-| `pnpm test:smoke` | Run smoke tests only |
-| `pnpm test:coverage` | Run tests with coverage |
-| `pnpm openapi:lint` | Check the OpenAPI contract smoke test |
+| Command                 | Purpose                                                 |
+| ----------------------- | ------------------------------------------------------- |
+| `pnpm dev`              | Start the backend in watch mode                         |
+| `pnpm build`            | Type-check and compile the backend to `dist/` with tsup |
+| `pnpm start`            | Run the compiled server from `dist/server.js`           |
+| `pnpm test`             | Run the Vitest suite in watch mode                      |
+| `pnpm test:run`         | Run the Vitest suite once                               |
+| `pnpm test:unit`        | Run unit tests only                                     |
+| `pnpm test:integration` | Run integration tests only                              |
+| `pnpm test:smoke`       | Run smoke tests only                                    |
+| `pnpm test:coverage`    | Run tests with coverage                                 |
+| `pnpm openapi:lint`     | Check the OpenAPI contract smoke test                   |
 
 ## Environment Variables
 
@@ -89,46 +89,52 @@ http://localhost:4000/api-docs
 
 ## Architecture
 
-The HANA backend follows a simple layered structure:
+The HANA backend is a **modular monolith**:
 
-- `routes/` - HTTP route registration
-- `services/` - business logic and orchestration
-- `db/` - TypeORM schema definitions and data source bootstrapping
-- `modules/` - one folder per business feature (auth, purchase-order, …)
-- `validation/` - Zod schemas for request and response contracts
-- `core/` - logging, errors, middleware, and shared utilities
+| Area             | Path              | Role                                                   |
+| ---------------- | ----------------- | ------------------------------------------------------ |
+| HTTP mount       | `src/routes/`     | `/api/v1` assembly                                     |
+| Features         | `src/modules/*`   | controller → service → queries / mutations             |
+| SAP HANA schemas | `src/db/`         | TypeORM entity schemas + tenant data sources           |
+| Shared SAP I/O   | `src/services/`   | HANA pool, Service Layer client, PDF/Excel/Word export |
+| Cross-cutting    | `src/core/`       | auth middleware, errors, logging, observability        |
+| Config           | `src/config/`     | env, session, swagger, middleware                      |
+| Contracts        | `src/validation/` | env + API Zod schemas                                  |
 
 ### Request path (short)
 
 ```text
-HTTP → app.ts → routes/ → modules/<feature> → controller → service
+HTTP → app.ts → routes/api.routes.ts → modules/<feature>
+  → controller → service
   → queries (read HANA) | mutations (write Service Layer)
 ```
 
-## Folder guide
+### Intercompany
 
-Use these package-local READMEs to navigate folders and see how they connect. They are written for developers and for anyone learning the project.
+Partner automation lives only in `src/modules/intercompany/` (import public wall only).
 
-| Guide | What it covers |
-| --- | --- |
-| [src/README.md](./src/README.md) | Full `src/` map and request flow |
-| [src/config/README.md](./src/config/README.md) | Env, session, Swagger setup |
-| [src/core/README.md](./src/core/README.md) | Auth gate, errors, logs, metrics |
-| [src/db/README.md](./src/db/README.md) | TypeORM schemas and tenant DB access |
-| [src/modules/README.md](./src/modules/README.md) | Feature modules and file pattern |
-| [src/routes/README.md](./src/routes/README.md) | How `/api/v1` mounts modules |
-| [src/services/README.md](./src/services/README.md) | HANA pool, Service Layer, exports |
-| [src/shared/README.md](./src/shared/README.md) | Shared route handlers |
-| [src/types/README.md](./src/types/README.md) | Express and session types |
-| [src/validation/README.md](./src/validation/README.md) | Env and API Zod schemas |
-| [tests/README.md](./tests/README.md) | Unit, integration, and smoke tests |
+| Doc                | Path                                                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Module README      | [src/modules/intercompany/README.md](./src/modules/intercompany/README.md)                                       |
+| Architecture       | [src/modules/intercompany/docs/architecture.md](./src/modules/intercompany/docs/architecture.md)                 |
+| Data model & flows | [src/modules/intercompany/docs/data-model-and-flows.md](./src/modules/intercompany/docs/data-model-and-flows.md) |
+| Deploy / worker    | [src/modules/intercompany/docs/deploy-and-ops.md](./src/modules/intercompany/docs/deploy-and-ops.md)             |
+| Visual guide       | [ic-explained.html](./ic-explained.html)                                                                         |
+
+**Canonical flow folders**
+
+- Flow 1: `modules/intercompany/flows/flow-1-pq-rfq-chain/` (real PQ → RFQ → PQ + SQ)
+- Flow 2: `modules/intercompany/flows/flow-2-po-to-ar-invoice/` (PO → real A/R Invoice)
+
+### Feature modules (current)
+
+`auth`, `organization`, `master-data`, `purchase-quotation`, `purchase-order`, `grpo`, `ap-invoice`, `ap-credit-memo`, `sales-quotation`, `outgoing-payment`, `bank-details`, `attachments`, `dashboard`, `relationship-map`, `intercompany`.
 
 **How to navigate**
 
-1. Read this package README for setup, env, and scripts.
-2. Open [src/README.md](./src/README.md) for the folder map.
-3. Open the folder README for the area you need (for example modules or db).
-4. Use purchase-order under `modules/` as the concrete example of a full feature.
+1. This package README for setup, env, and scripts.
+2. `modules/purchase-order/` as the template document feature.
+3. `modules/intercompany/` for partner flows (see its README first).
 
 ## Runtime Flow
 

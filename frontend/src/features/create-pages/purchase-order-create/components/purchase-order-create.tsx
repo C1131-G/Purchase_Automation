@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MouseEvent } from "react";
 
 import { useDocumentDownload } from "@/features/create-pages/create-shared/hooks/use-document-download";
+import { usePartnerAddressOptions } from "@/features/create-pages/create-shared/hooks/use-partner-address-options";
 
 import { AddressGrid } from "@/features/create-pages/create-shared/components/grids/address-grid";
 import { UploadGrid } from "@/features/create-pages/create-shared/components/grids/upload-grid";
@@ -106,13 +107,11 @@ export function PurchaseOrderCreate({
       : "Create Purchase Order";
   const committedDocNums =
     !sourceCleared && sourceDocNum ? sourceDocNum.split(",").filter(Boolean) : [];
+  // Pure create paints the shell immediately; field grids use per-query loading.
+  // Source/draft/edit still gate on document hydrate.
   const isFormHydrating =
     !state.isEditMode && !draftDocNum
-      ? (state.vendorsQuery.isLoading &&
-          state.warehousesQuery.isLoading &&
-          state.salesEmployeesQuery.isLoading &&
-          !state.vendorsQuery.data) ||
-        state.isSourceHydrating
+      ? state.isSourceHydrating
       : (state.editDetailQuery.isLoading && !state.editDetailQuery.data) || !state.isEditHydrated;
 
   const handleVendorRestrictedClick = state.isEditMode
@@ -123,27 +122,7 @@ export function PurchaseOrderCreate({
       }
     : undefined;
 
-  const activeVendor = (state.vendors as any[]).find(
-    (v) => String(v.code) === String(state.codeInput),
-  );
-  const billToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "B")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
-  const shipToOptions = activeVendor?.addresses
-    ? activeVendor.addresses
-        .filter((addr: any) => addr.addressType === "S")
-        .map((addr: any) => ({
-          addressName: addr.addressName,
-          addressText: addr.addressText,
-          addressType: addr.addressType,
-        }))
-    : [];
+  const { billToOptions, shipToOptions } = usePartnerAddressOptions(state.codeInput);
 
   return (
     <CreatePageWrapper

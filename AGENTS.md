@@ -6,7 +6,14 @@ pnpm monorepo: root (orchestrator) + `hana-backend/` + `frontend/`.
 
 **HANA Backend:** Express + TypeORM + SAP HANA (`@sap/hana-client`) + file-session auth + Swagger docs.
 Entry: `hana-backend/src/server.ts` → `hana-backend/src/app.ts`.
-Key layers: `routes/` → `services/` → `dal/` → `db/`.
+Key layers: `routes/` (mount) → `modules/<feature>/` (controller → service → queries/mutations) → `db/` (TypeORM schemas) + `services/` (HANA pool, Service Layer, export).
+
+**Intercompany (IC):** modular monolith under `hana-backend/src/modules/intercompany/` (public wall `index.ts` only). Flows:
+
+- Flow 1: real PQ → RFQ → update PQ + seller SQ (`flows/flow-1-pq-rfq-chain/`)
+- Flow 2: PO → real A/R Invoice (`flows/flow-2-po-to-ar-invoice/`)
+
+IC docs: `hana-backend/src/modules/intercompany/README.md` and `docs/`.
 
 **Frontend:** React 19 + TanStack Router (file-based) + React Query + Tailwind v4 + Zustand + Zod v4 + React Compiler (babel).
 Entry: `frontend/src/main.tsx`. Routes auto-generated in `frontend/src/routeTree.gen.ts`.

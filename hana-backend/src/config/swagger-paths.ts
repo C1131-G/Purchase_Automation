@@ -98,6 +98,33 @@ export const registerAllPaths = () => {
     tags: ["Master Data"],
     responses: jsonResponses({ successDescription: "Stock rows." }),
   });
+  registerPath("/master-data/business-partners/{cardCode}/addresses", "get", {
+    security: cookieSecurity,
+    operationId: "listBusinessPartnerAddresses",
+    summary: "Business partner addresses (lazy)",
+    description:
+      "Full bill/ship address list for one CardCode. Vendor/customer list endpoints only return default bill/ship strings.",
+    tags: ["Master Data"],
+    responses: jsonResponses({ successDescription: "Partner address bundle." }),
+  });
+  registerPath("/master-data/products-by-codes", "get", {
+    security: cookieSecurity,
+    operationId: "listProductsByCodes",
+    summary: "Products by item codes (batch)",
+    description:
+      "Exact ItemCode list (codes=A,B,C) for document hydrate. Max 100 codes. Same product shape as /products.",
+    tags: ["Master Data"],
+    responses: jsonResponses({ successDescription: "Product rows for requested codes." }),
+  });
+  registerPath("/master-data/product-warehouse-stocks-batch", "get", {
+    security: cookieSecurity,
+    operationId: "listProductWarehouseStocksBatch",
+    summary: "Product warehouse stocks (batch)",
+    description:
+      "On-hand stock for many items (itemCodes=A,B). Optional warehouseCode. Flat rows with itemCode.",
+    tags: ["Master Data"],
+    responses: jsonResponses({ successDescription: "Stock rows for requested item codes." }),
+  });
 
   // --- Documents (sql-style bulk helper) ---
   registerAllDocumentModulePaths();

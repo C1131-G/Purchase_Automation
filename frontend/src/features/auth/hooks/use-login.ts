@@ -6,6 +6,8 @@ import { authKeys } from "@/features/auth/api/auth.queries";
 import { authAPI } from "@/features/auth/api/auth.service";
 import type { LoginRequest } from "@/features/auth/api/auth.service";
 import {
+  CREATE_MASTER_WARMUP_IDLE_MS,
+  prefetchCreateMasterAfterLogin,
   prefetchOverviewAfterLogin,
   prefetchTableDataAfterLogin,
   scheduleIdlePrefetch,
@@ -52,7 +54,12 @@ export function useLogin() {
         // Priority: warm Overview React Query cache so first paint is instant when ready.
         void prefetchOverviewAfterLogin(queryClient);
 
-        // Warm table caches only after idle so they do not fight Overview on the HANA pool.
+        // Create master (vendors/WH/SE) — shorter idle so open-create after login is warm.
+        scheduleIdlePrefetch(async () => {
+          await prefetchCreateMasterAfterLogin(queryClient);
+        }, CREATE_MASTER_WARMUP_IDLE_MS);
+
+        // Table list caches stay more deferred so they do not fight Overview on the HANA pool.
         scheduleIdlePrefetch(async () => {
           await prefetchTableDataAfterLogin(queryClient);
         });

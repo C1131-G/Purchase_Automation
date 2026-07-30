@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createAfterPqDraftSaved } from "@/modules/intercompany/api/hooks/after-pq-draft-saved.hook";
+import { createAfterPqSaved } from "@/modules/intercompany/api/hooks/after-pq-saved.hook";
 import { createConfigurationQueries } from "@/modules/intercompany/config/configuration/configuration.queries";
 import { createConfigurationService } from "@/modules/intercompany/config/configuration/configuration.service";
 import { createBpMappingQueries } from "@/modules/intercompany/config/bp-mapping/bp-mapping.queries";
@@ -22,11 +22,11 @@ import { createRetryService } from "@/modules/intercompany/domain/retry/retry.se
 import { createRfqMutations } from "@/modules/intercompany/domain/rfq/rfq.mutations";
 import { createRfqQueries } from "@/modules/intercompany/domain/rfq/rfq.queries";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
-import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
-import { buildRfqCommercialDocumentLines } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/apply-prices-to-draft";
-import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
-import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator";
-import { sanitizeFillLines } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/update-rfq-lines";
+import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
+import { buildRfqCommercialDocumentLines } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/apply-prices-to-pq";
+import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
+import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/flow-1.orchestrator";
+import { sanitizeFillLines } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/04-seller-fill-rfq/update-rfq-lines";
 import { mergeDocumentLinesByLineNum } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import {
   IC_CONFIG_KEY,
@@ -88,7 +88,7 @@ const createFlow1TestStack = (opts?: {
   });
 
   const documents: IcSlDocuments = {
-    applyPricesToDraft: opts?.documents?.applyPricesToDraft ?? (async () => undefined),
+    applyPricesToPq: opts?.documents?.applyPricesToPq ?? (async () => undefined),
     convertDraftToDocument:
       opts?.documents?.convertDraftToDocument ??
       (async () => ({
@@ -343,7 +343,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
 
     const { orchestrator, fill, convert, db } = createFlow1TestStack({
       documents: {
-        applyPricesToDraft: async (input) => {
+        applyPricesToPq: async (input) => {
           applied = true;
           appliedDocEntry = input.draftEntry;
           appliedLines = input.documentLines;
@@ -536,7 +536,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
 
   it("afterPqDraftSaved never throws (sync path for unit assert)", async () => {
     const { orchestrator } = createFlow1TestStack({ enableFlag: false });
-    const hook = createAfterPqDraftSaved(orchestrator, { runInBackground: false });
+    const hook = createAfterPqSaved(orchestrator, { runInBackground: false });
     await expect(hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 1 })).resolves.toMatchObject({
       status: "skipped",
     });
@@ -547,7 +547,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const { orchestrator, convert, db, rfq, notifications } = createFlow1TestStack({
       documents: {
         // Convert = update existing PQ (PATCH) + create SQ; no draft convert.
-        applyPricesToDraft: async () => {
+        applyPricesToPq: async () => {
           convertStarted = true;
         },
       },
@@ -615,7 +615,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
 
   it("afterPqDraftSaved default path accepts immediately (IC runs in background)", async () => {
     const { orchestrator } = createFlow1TestStack({ enableFlag: false });
-    const hook = createAfterPqDraftSaved(orchestrator);
+    const hook = createAfterPqSaved(orchestrator);
     await expect(hook({ cardCode: "V-B", dbName: "DB_A", docEntry: 1 })).resolves.toMatchObject({
       flow: "flow1",
       status: "accepted",

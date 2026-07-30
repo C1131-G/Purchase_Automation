@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 // Core
 import type { AuthenticatedRequest } from "@/types/express.types";
 // Services
+import { parseItemCodesParam } from "./master-data.batch-utils";
 import { masterDataService } from "./master-data.service";
 
 // Fetches the list of all available products (items) from the tenant database.
@@ -61,6 +62,55 @@ export const getProductWarehouseStocks = async (
   }
 };
 
+export const getProductsByCodes = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const codes = parseItemCodesParam(req.query.codes);
+    const warehouseCode =
+      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : undefined;
+    const type = req.query.type as "sales" | "purchase" | undefined;
+    const priceList =
+      typeof req.query.priceList === "number"
+        ? req.query.priceList
+        : typeof req.query.priceList === "string" && req.query.priceList.trim() !== ""
+          ? Number(req.query.priceList)
+          : undefined;
+    const productsResult = await masterDataService.getProductsByCodes(
+      dbName,
+      codes,
+      type,
+      priceList,
+      warehouseCode,
+    );
+    res.status(200).json({ data: productsResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getProductWarehouseStocksBatch = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const itemCodes = parseItemCodesParam(req.query.itemCodes ?? req.query.codes);
+    const warehouseCode =
+      typeof req.query.warehouseCode === "string" ? req.query.warehouseCode : undefined;
+    const stocksResult = await masterDataService.getProductWarehouseStocksBatch(
+      dbName,
+      itemCodes,
+      warehouseCode,
+    );
+    res.status(200).json({ data: stocksResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Retrieves all vendors registered in the specific SAP company database.
 export const getVendors = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
@@ -80,6 +130,28 @@ export const getCustomers = async (req: Request, res: Response, next: NextFuncti
     const { dbName } = authReq.user;
     const customersResult = await masterDataService.getCustomers(dbName);
     res.status(200).json({ data: customersResult, success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Lazy address list for one BP (bill/ship pickers on create pages). */
+export const getBusinessPartnerAddresses = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const { dbName } = authReq.user;
+    const cardCode =
+      typeof req.params.cardCode === "string"
+        ? req.params.cardCode
+        : Array.isArray(req.params.cardCode)
+          ? String(req.params.cardCode[0] ?? "")
+          : "";
+    const addressesResult = await masterDataService.getBusinessPartnerAddresses(dbName, cardCode);
+    res.status(200).json({ data: addressesResult, success: true });
   } catch (error) {
     next(error);
   }
@@ -176,10 +248,13 @@ export const getBranches = async (req: Request, res: Response, next: NextFunctio
 };
 
 export const masterDataController = {
+  getBusinessPartnerAddresses,
   getCustomers,
   getPriceLists,
   getProductWarehouseStocks,
+  getProductWarehouseStocksBatch,
   getProducts,
+  getProductsByCodes,
   getTaxCodes,
   getUOMs,
   getVendors,

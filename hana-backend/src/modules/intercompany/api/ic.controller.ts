@@ -8,8 +8,8 @@ import { createRetryService } from "@/modules/intercompany/domain/retry/retry.se
 import { enrichRfqFromPqDraft } from "@/modules/intercompany/domain/rfq/enrich-rfq-from-pq-draft";
 import { withRfqCustomerDisplayList } from "@/modules/intercompany/domain/rfq/resolve-rfq-customer-display";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
-import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
-import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
+import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
+import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
 import { IC_RETRY_STATUS } from "@/modules/intercompany/infrastructure/constants";
 
 import { SubmitRfqBodySchema, UpdateRfqBodySchema } from "./ic.schema";

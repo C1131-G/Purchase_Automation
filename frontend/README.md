@@ -77,13 +77,19 @@ http://localhost:5173
 ## Project Structure
 
 - `src/features/` - feature-oriented UI modules
+  - `auth/`, `dashboard/`, `layout/`
+  - `create-pages/` — document create/edit forms (PQ, PO, GRPO, AP, SQ, …)
+  - `table-pages/` — list tables
+  - `intercompany/` — IC notifications, RFQ client, retries (TanStack Query)
 - `src/routes/` - file-based route modules, including nested route folders under `_layout/`
 - `src/components/` - shared UI building blocks
 - `src/shared/` - shared client utilities, auth helpers, and types
-- `src/store/` - Zustand stores and store helpers
+- `src/store/` - Zustand stores and store helpers (client-only; see `src/store/README.md`)
 - `src/hooks/` - shared React hooks
 - `src/assets/` - static assets
-- `src/shared/utils/` - shared client utilities when needed
+
+Intercompany backend architecture and flows:  
+[`../hana-backend/src/modules/intercompany/README.md`](../hana-backend/src/modules/intercompany/README.md).
 
 ## Build And Deploy
 

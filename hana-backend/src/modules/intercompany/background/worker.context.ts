@@ -1,9 +1,9 @@
 import {
-  createDetectMissedPqDraftJob,
-  createEmptyMissedPqDraftSource,
-  type DetectMissedPqDraftJob,
-  type MissedPqDraftSource,
-} from "@/modules/intercompany/background/jobs/01-detect-missed-pq-draft/detect-missed-pq-draft.job";
+  createDetectMissedPqJob,
+  createEmptyMissedPqSource,
+  type DetectMissedPqJob,
+  type MissedPqSource,
+} from "@/modules/intercompany/background/jobs/01-detect-missed-pq/detect-missed-pq.job";
 import {
   createProcessRetryQueueJob,
   type ProcessRetryQueueJob,
@@ -31,8 +31,8 @@ import type { RetryService } from "@/modules/intercompany/domain/retry/retry.ser
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
-import type { Flow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator";
-import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-draft-rfq-chain/flow-1.orchestrator";
+import type { Flow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/flow-1.orchestrator";
+import { createFlow1Orchestrator } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/flow-1.orchestrator";
 import { getIcSqlClient, type IcSqlClient } from "@/modules/intercompany/infrastructure/ic-sql";
 import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
@@ -42,7 +42,7 @@ export type IcWorkerContext = {
   configuration: ConfigurationService;
   company: CompanyService;
   scheduler: SchedulerService;
-  detectMissedPqDraft: DetectMissedPqDraftJob;
+  detectMissedPq: DetectMissedPqJob;
   processRetryQueue: ProcessRetryQueueJob;
   sessionCleanup: SessionCleanupJob;
 };
@@ -58,20 +58,20 @@ export type CreateIcWorkerContextDeps = {
   rfq?: RfqService;
   documents?: IcSlDocuments;
   flow1?: Flow1Orchestrator;
-  missedDraftSource?: MissedPqDraftSource;
+  missedPqSource?: MissedPqSource;
   retryHandlers?: Partial<Record<string, RetryActionHandler>>;
   scheduler?: SchedulerService;
 };
 
 export type WorkerLoopResult = {
-  detect: Awaited<ReturnType<IcWorkerContext["detectMissedPqDraft"]["run"]>>;
+  detect: Awaited<ReturnType<IcWorkerContext["detectMissedPq"]["run"]>>;
   retry: Awaited<ReturnType<IcWorkerContext["processRetryQueue"]["run"]>>;
   session: Awaited<ReturnType<IcWorkerContext["sessionCleanup"]["run"]>>;
 };
 
 /** One full job cycle (detect → retry → session cleanup). Safe for unit tests. */
 export const runWorkerLoop = async (ctx: IcWorkerContext): Promise<WorkerLoopResult> => {
-  const detect = await ctx.detectMissedPqDraft.run();
+  const detect = await ctx.detectMissedPq.run();
   const retry = await ctx.processRetryQueue.run();
   const session = await ctx.sessionCleanup.run();
   return { detect, retry, session };
@@ -90,17 +90,17 @@ export const createIcWorkerContext = (deps?: CreateIcWorkerContextDeps): IcWorke
   const rfq = deps?.rfq ?? createRfqService();
   const documents = deps?.documents ?? createIcSlDocuments();
   const flow1 = deps?.flow1 ?? createFlow1Orchestrator();
-  const missedDraftSource = deps?.missedDraftSource ?? createEmptyMissedPqDraftSource();
+  const missedPqSource = deps?.missedPqSource ?? createEmptyMissedPqSource();
 
   return {
     company,
     configuration,
-    detectMissedPqDraft: createDetectMissedPqDraftJob({
+    detectMissedPq: createDetectMissedPqJob({
       company,
       configuration,
       flow1,
       scheduler,
-      source: missedDraftSource,
+      source: missedPqSource,
       sql,
     }),
     processRetryQueue: createProcessRetryQueueJob({

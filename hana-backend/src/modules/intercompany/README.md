@@ -1,47 +1,48 @@
 # Intercompany (IC)
 
-> **P1–P9 complete** (application).  
-> **P0 seed** remains last before go-live / live smoke (real A/B data + flags).
+Modular monolith module for partner-company automation on SAP B1 (HANA + Service Layer).
 
-## Start here
+IC **never fails** the primary portal document path. Hooks schedule work in the background and return `{ status: "accepted" }` immediately.
 
-| Doc                                                            | Purpose                                         |
-| -------------------------------------------------------------- | ----------------------------------------------- |
-| **[plan.md](./plan.md)**                                       | Master plan P0–P9                               |
-| **[IC-ARCHITECTURE-PLAN.md](./IC-ARCHITECTURE-PLAN.md)**       | Architecture, maps                              |
-| **[IC-DATA-MODEL-AND-FLOWS.md](./IC-DATA-MODEL-AND-FLOWS.md)** | Tables, DDL, flows                              |
-| **[ops/](./ops/)**                                             | Pilot export/drop SQL · company C seed appendix |
+## Current architecture (post rebuild)
 
-## Status
+| Flow       | Trigger                                    | Result on partner                                                         |
+| ---------- | ------------------------------------------ | ------------------------------------------------------------------------- |
+| **Flow 1** | Real **PQ create/update** (`afterPqSaved`) | Custom **RFQ** → seller fill → **update buyer PQ** + **create seller SQ** |
+| **Flow 2** | Real **PO create** (`afterPoCreated`)      | Partner **A/R Invoice** (`POST /Invoices`, not ODRF draft)                |
 
-| Phase                      | State                                             |
-| -------------------------- | ------------------------------------------------- |
-| P1 Clear pilot runtime     | **Done**                                          |
-| P2 Scaffold                | **Done**                                          |
-| P3 Backend core            | **Done**                                          |
-| P4 FE shell                | **Done**                                          |
-| P5 Flow 2 PO→AR            | **Done** (`ENABLE_FLOW2_DIRECT_PO`)               |
-| P6 Flow 1 RFQ APIs         | **Done** (`ENABLE_FLOW1_RFQ_CHAIN`)               |
-| P7 Background worker       | **Done**                                          |
-| P8 Notification + RFQ UI   | **Done**                                          |
-| P9 Hardening / pilot table | **Done** (schema gone; DBA drop script in `ops/`) |
-| P0 Seed `IC_*`             | **Deferred last**                                 |
+Flags (in `IC_CONFIGURATION`): `ENABLE_FLOW1_RFQ_CHAIN`, `ENABLE_FLOW2_DIRECT_PO`.
+
+## Docs
+
+| Doc                                                                                      | Purpose                                           |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **[docs/architecture.md](./docs/architecture.md)**                                       | Module layout, public wall, request vs background |
+| **[docs/data-model-and-flows.md](./docs/data-model-and-flows.md)**                       | `IC_*` tables, Flow 1 / Flow 2 steps              |
+| **[docs/deploy-and-ops.md](./docs/deploy-and-ops.md)**                                   | Seed order, worker, flags, SQL ops                |
+| **[flows/flow-1-pq-rfq-chain/README.md](./flows/flow-1-pq-rfq-chain/README.md)**         | Flow 1 steps                                      |
+| **[flows/flow-2-po-to-ar-invoice/README.md](./flows/flow-2-po-to-ar-invoice/README.md)** | Flow 2 steps                                      |
+| **[ops/](./ops/)**                                                                       | Pilot export/drop SQL · company C seed appendix   |
+| **[ic-explained.html](../../../../ic-explained.html)**                                   | Visual explainer (open in browser)                |
 
 ## Public wall
 
 ```ts
-import { afterPoCreated, afterPqDraftSaved, icRoutes } from "@/modules/intercompany";
+import { afterPoCreated, afterPqSaved, icRoutes } from "@/modules/intercompany";
 ```
 
-- `GET /api/v1/ic/health` → `{ success, data: { ok: true, module, phase: "P9" } }`
-- `afterPoCreated` → accepts immediately; Flow 2 runs in **background** (never blocks PO create)
-- `afterPqDraftSaved` → accepts immediately; Flow 1 runs in **background** (never blocks PQ draft)
-- API response `intercompany.status: "accepted"` means IC was scheduled; success/retry/skip complete off-request
-- RFQ APIs: `GET/PUT /rfqs`, `POST /rfqs/:id/submit`, `POST /rfqs/:id/convert`
-- Notification APIs: `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/:id/read`, `POST /notifications/mark-all-read`
-- Retry APIs: `GET /retries`, `POST /retries/:id/run`
+| Export           | Role                                                                 |
+| ---------------- | -------------------------------------------------------------------- |
+| `afterPqSaved`   | Flow 1 entry (real PQ). Alias: `afterPqDraftSaved` (deprecated name) |
+| `afterPoCreated` | Flow 2 entry (non-draft PO)                                          |
+| `icRoutes`       | Mounted at `/api/v1/ic/*`                                            |
 
-## Frontend surfaces (P8)
+- `GET /api/v1/ic/health` → `{ success, data: { ok: true, module, phase: "P9" } }`
+- RFQ: `GET/PUT /rfqs`, `POST /rfqs/:id/submit`, `POST /rfqs/:id/convert`
+- Notifications: `GET /notifications`, unread-count, mark read
+- Retries: `GET /retries`, `POST /retries/:id/run`
+
+## Frontend surfaces
 
 | Area                       | Route / chrome                  |
 | -------------------------- | ------------------------------- |
@@ -49,86 +50,57 @@ import { afterPoCreated, afterPqDraftSaved, icRoutes } from "@/modules/intercomp
 | Request For Quotation list | Sales → Request For Quotation   |
 | RFQ fill / convert form    | Double-click Doc Number on list |
 
-## Run API + background worker
-
-Same env as the HANA API process (HANA pool, Service Layer, session store).
-
-```bash
-# API (repo root or package)
-pnpm --filter hana-backend dev
-
-# Continuous IC worker (default interval 60s)
-pnpm --filter hana-backend worker:ic
-
-# One loop then exit (ops / smoke)
-pnpm --filter hana-backend worker:ic:once
-# or
-pnpm --filter hana-backend worker:ic -- --once
-```
-
-| Job                    | Name (`IC_SCHEDULER_JOB`) | Behavior                                   |
-| ---------------------- | ------------------------- | ------------------------------------------ |
-| Detect missed PQ draft | `DETECT_PQ_DRAFT`         | Per active company → Flow 1 (idempotent)   |
-| Process retry queue    | `PROCESS_RETRY`           | Claim due rows → re-run / requeue / `DEAD` |
-| Session cleanup        | `SESSION_CLEANUP`         | Delete expired `IC_SL_SESSION`             |
-
-| Variable                | Meaning                                 |
-| ----------------------- | --------------------------------------- |
-| `IC_WORKER_ONCE=1`      | Single loop then exit                   |
-| `IC_WORKER_INTERVAL_MS` | Loop interval (min 5000, default 60000) |
-
-## Deploy flags (after P0 seed)
-
-Keep both **off** until seed + SL login verified.
-
-| Order | Key                         | Value    | When                                 |
-| ----- | --------------------------- | -------- | ------------------------------------ |
-| 1     | Seed complete               | —        | `IC_COMPANY`, connections, BP, tax   |
-| 2     | `ENABLE_FLOW2_DIRECT_PO`    | `1`      | After PO→AR Draft smoke on A↔B       |
-| 3     | `ENABLE_FLOW1_RFQ_CHAIN`    | `1`      | After RFQ chain smoke on A↔B         |
-| —     | `MAX_RETRY_COUNT`           | `2`      | Default                              |
-| —     | `DETECT_DRAFT_CRON_MINUTES` | e.g. `5` | Worker detect cadence (config table) |
-| —     | `REMARKS_PREFIX`            | `IC-`    | SAP remarks tags                     |
-
-Recommended production order: **seed → worker process up → enable Flow 2 → smoke → enable Flow 1 → smoke**.
-
-## Security notes (P9)
-
-- All `/api/v1/ic/*` business routes resolve actor company from **session DB** → `IC_COMPANY`.
-- RFQ get/update/submit/convert enforce source/target company roles in services.
-- Notifications and retries are **company-scoped** (including `markRead` SQL filter).
-- API log persistence masks `password` / session cookie keys (`maskSecrets`).
-- Flow 1 / Flow 2 logs include a per-run `corrId` (UUID); never log SL passwords.
-
-## Pilot table (P9)
-
-| Item                                                 | Action                                                                     |
-| ---------------------------------------------------- | -------------------------------------------------------------------------- |
-| TypeORM schema `intercompany-document-map.schema.ts` | **Removed**                                                                |
-| Runtime writes                                       | None (engine uses `IC_DOCUMENT_MAPPING`)                                   |
-| Optional export                                      | [`ops/export-pilot-document-map.sql`](./ops/export-pilot-document-map.sql) |
-| DBA drop                                             | [`ops/drop-pilot-document-map.sql`](./ops/drop-pilot-document-map.sql)     |
-
-## Seed company C (appendix)
-
-See [`ops/seed-company-c-appendix.sql`](./ops/seed-company-c-appendix.sql) — company row, SL connection, BP pairs, tax pairs. Full A/B seed checklist remains **plan.md P0**.
-
-## Tree
+## Tree (folder names = architecture)
 
 ```text
 intercompany/
-  index.ts                 # public wall
-  api/                     # routes + hooks
-  config/                  # company, bp, tax, sap-connection, configuration
-  routing/                 # resolve-partner, resolve-sl-target
-  domain/                  # document-map, notification, retry, history, rfq
-  infrastructure/          # object-codes, ic-sql, SL client, api-log
-  flows/                   # Flow 1 + Flow 2
-  background/              # worker entry + jobs
-  ops/                     # DBA / seed SQL (P9)
-  testing/memory-sql.ts    # offline unit-test DB
-  db/entities/             # table name placeholders
+  index.ts                    # public wall
+  api/                        # routes, schemas, hooks
+    hooks/
+      after-pq-saved.hook.ts  # Flow 1
+      after-po-created.hook.ts
+  config/                     # company, bp, tax, sap-connection, configuration, warehouse
+  routing/                    # resolve-partner, resolve-sl-target
+  domain/                     # document-map, notification, retry, history, rfq
+  infrastructure/             # object-codes, ic-sql, SL client, api-log, remarks
+  flows/
+    flow-1-pq-rfq-chain/      # PQ → RFQ → update PQ + SQ
+    flow-2-po-to-ar-invoice/  # PO → real AR Invoice
+    shared/
+  background/
+    jobs/
+      01-detect-missed-pq/
+      02-process-retry-queue/
+      03-session-cleanup/
+    worker.entry.ts
+  ops/                        # DBA / seed SQL
+  docs/                       # architecture docs
+  db/entities/                # IC_* table placeholders
+  testing/memory-sql.ts
 ```
+
+## Run API + worker
+
+```bash
+pnpm --filter hana-backend dev
+pnpm --filter hana-backend worker:ic
+pnpm --filter hana-backend worker:ic:once
+```
+
+| Job                 | Name (`IC_SCHEDULER_JOB`) | Behavior                                   |
+| ------------------- | ------------------------- | ------------------------------------------ |
+| Detect missed PQ    | `DETECT_PQ_DRAFT`         | Per active company → Flow 1 (idempotent)   |
+| Process retry queue | `PROCESS_RETRY`           | Claim due rows → re-run / requeue / `DEAD` |
+| Session cleanup     | `SESSION_CLEANUP`         | Delete expired `IC_SL_SESSION`             |
+
+## Deploy (summary)
+
+1. Seed `IC_*` (companies, SL connections, BP map, tax) — **P0 last**
+2. Start worker
+3. Enable `ENABLE_FLOW2_DIRECT_PO` → smoke PO→AR Invoice
+4. Enable `ENABLE_FLOW1_RFQ_CHAIN` → smoke PQ→RFQ→convert
+
+Details: [docs/deploy-and-ops.md](./docs/deploy-and-ops.md).
 
 ## Tests
 
