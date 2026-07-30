@@ -6,7 +6,7 @@
     <title>Intercompany (IC) Automation - Explained</title>
     <meta
       name="description"
-      content="Technical guide to Intercompany (IC): Flow 1 PQ→RFQ→PQ+SQ, Flow 2 PO→AR Invoice, OVTG tax rate matching, IC_DOCUMENT_MAPPING relationship maps, remarks chain, retry worker."
+      content="Technical guide to Intercompany (IC): Flow 1 real PQ→RFQ→update PQ+SQ, Flow 2 PO→real AR Invoice, OVTG tax matching, IC_DOCUMENT_MAPPING, remarks chain, retry worker."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -913,8 +913,7 @@
       <h1>Intercompany Automation<br /><span>Company to Company, Zero Touch</span></h1>
       <p class="hsub">
         The IC engine inside <code class="ic">hana-backend</code> links every SAP company in the
-        group. A Purchase Quotation draft saved in Company A becomes an RFQ for Company B, converts
-        into a real PQ + Sales Quotation, and a Purchase Order becomes a partner AR Invoice &mdash;
+        group. A Purchase Quotation saved in Company A becomes an RFQ for Company B; after convert, the buyer PQ is updated and a seller Sales Quotation is created, and a Purchase Order becomes a partner AR Invoice &mdash;
         automatically, with OVTG tax matching, relationship maps, audit, notification and
         self-healing retry.
       </p>
@@ -1220,9 +1219,9 @@
             <div class="trow">
               <span class="tk">Use</span
               ><span class="tv"
-                >One RFQ per PQ Draft; lifecycle
-                <code class="ic">DRAFT &rarr; SUBMITTED &rarr; COMPLETED / CANCELLED</code>; links
-                to the buyer draft DocEntry.</span
+                >One RFQ per buyer PQ; lifecycle
+                <code class="ic">DRAFT &rarr; SUBMITTED &rarr; COMPLETED / CANCELLED</code> (RFQ status only); links
+                to the buyer PQ DocEntry (<code class="ic">PQ_DRAFT_DOC_ENTRY</code> column name is historical).</span
               >
             </div>
             <div class="trow">
@@ -1238,7 +1237,7 @@
               <span class="tk">Links</span
               ><span class="tv"
                 >IC_COMPANY (buyer + seller); 1&ndash;* IC_RFQ_LINE; mapped in IC_DOCUMENT_MAPPING
-                as target of PQ_DRAFT.</span
+                as target of buyer PQ (<code class="ic">PQ</code> / legacy map object <code class="ic">PQ_DRAFT</code>).</span
               >
             </div>
           </div>
@@ -1256,8 +1255,8 @@
             <div class="trow">
               <span class="tk">Use</span
               ><span class="tv"
-                >Stores vendor unit price, discount, delivery date; also snapshots the buyer draft
-                <code class="ic">VatGroup</code> so Convert can re-apply buyer tax to the PQ.</span
+                >Stores vendor unit price, discount, delivery date; also snapshots the buyer PQ
+                <code class="ic">VatGroup</code> so Convert can re-apply buyer tax to the same PQ.</span
               >
             </div>
             <div class="trow">
@@ -1291,8 +1290,8 @@
             <div class="trow">
               <span class="tk">Use</span
               ><span class="tv"
-                >Rows like <code class="ic">PQ_DRAFT&rarr;RFQ</code>,
-                <code class="ic">PQ&rarr;SQ</code>, <code class="ic">PO&rarr;AR_DRAFT</code> with
+                >Rows like <code class="ic">PQ&rarr;RFQ</code>,
+                <code class="ic">RFQ&rarr;SQ</code>, <code class="ic">PO&rarr;AR_INVOICE</code> (legacy maps may still show <code class="ic">PQ_DRAFT</code> / <code class="ic">AR_DRAFT</code>) with
                 status <code class="ic">PENDING / SUCCESS / ERROR</code>, error text. Remarks on SAP
                 docs use <code class="ic">Based on …</code> lines (see
                 <a href="#remarks" style="color: #a78bfa">Remarks</a>). Unique index makes flows
@@ -1517,8 +1516,8 @@
           <details class="faq-item">
             <summary>What is IC_DOCUMENT_MAPPING used for?</summary>
             <div class="faq-a">
-              It is the <b>source of truth</b> for cross-company document links: PQ_DRAFT&rarr;RFQ,
-              RFQ&rarr;PQ, RFQ&rarr;SQ, PO&rarr;AR_DRAFT. The relationship map API and frontend
+              It is the <b>source of truth</b> for cross-company document links: PQ&rarr;RFQ,
+              RFQ&rarr;SQ, PO&rarr;AR_INVOICE (legacy rows may still show PQ_DRAFT / AR_DRAFT). The relationship map API and frontend
               hover UI read these rows. Each mapping stores source/target company, object code, doc
               entry/num, status and optional error text.
             </div>
@@ -1528,7 +1527,7 @@
             <div class="faq-a">
               RFQ is a <b>custom IC workflow</b> (seller fills prices before buyer converts). It
               lives in <code>IC_RFQ_HEADER</code> / <code>IC_RFQ_LINE</code> until convert creates
-              real SAP PQ + SQ. RFQ numbers display as plain doc nums (e.g. <code>8000590</code>),
+              real SAP PQ updates + seller SQ. RFQ numbers display as plain doc nums (e.g. <code>8000590</code>),
               not <code>RFQ-PQD-*</code> prefixes.
             </div>
           </details>
@@ -1631,12 +1630,12 @@
         <div class="reveal">
           <span class="stag">04 &middot; Flow 1 &mdash; Company to Company</span>
           <div class="divider"></div>
-          <h2>PQ Draft &rarr; RFQ &rarr; Convert &rarr; Real PQ + SQ</h2>
+          <h2>Real PQ &rarr; RFQ &rarr; Update PQ + Seller SQ</h2>
           <p class="ssub">
-            A buyer in <b>Company A</b> saves a Purchase Quotation <i>draft</i> whose vendor is an
+            A buyer in <b>Company A</b> saves a <b>real Purchase Quotation</b> whose vendor is an
             intercompany vendor. The engine opens a custom RFQ for <b>Company B</b> (the seller),
-            the seller fills prices, and the buyer converts &mdash; producing a real PQ in A
-            <i>and</i> a real Sales Quotation in B. Gated by
+            the seller fills prices, and convert <b>updates that same buyer PQ</b>
+            <i>and</i> creates a real Sales Quotation in B. Gated by
             <code class="ic">ENABLE_FLOW1_RFQ_CHAIN</code>.
           </p>
         </div>
@@ -1655,8 +1654,8 @@
             <div class="ptn">2 &middot; Create RFQ</div>
             <div class="pss sv">auto</div>
             <div class="pts">
-              IC_RFQ_HEADER + IC_RFQ_LINE rows built from the draft (items, qty, buyer tax
-              snapshot). Status DRAFT.
+              IC_RFQ_HEADER + IC_RFQ_LINE rows built from the buyer PQ (items, qty, buyer tax
+              snapshot). RFQ status DRAFT.
             </div>
           </div>
           <div class="pst">
@@ -1664,7 +1663,7 @@
             <div class="ptn">3 &middot; Notify Seller</div>
             <div class="pss sv">auto</div>
             <div class="pts">
-              IC_NOTIFICATION (HIGH) to the seller company + history row. Mapping PQ_DRAFT&rarr;RFQ
+              IC_NOTIFICATION (HIGH) to the seller company + history row. Mapping PQ&rarr;RFQ
               = SUCCESS.
             </div>
           </div>
@@ -1682,7 +1681,7 @@
             <div class="ptn">5 &middot; Convert</div>
             <div class="pss sd">user &middot; Company A</div>
             <div class="pts">
-              Prices applied to draft &rarr; draft becomes real PQ; engine creates SQ in B (seller
+              RFQ prices applied to the existing buyer PQ (PATCH); engine creates SQ in B (seller
               tax + branch WH) &rarr; RFQ COMPLETED.
             </div>
           </div>
@@ -1697,7 +1696,7 @@
             </tr>
             <tr>
               <td><b>1&ndash;2</b></td>
-              <td>Save PQ Draft</td>
+              <td>Save / update real PQ</td>
               <td>
                 <code>IC_COMPANY</code> <code>IC_BP_MAPPING</code> <code>IC_CONFIGURATION</code>
               </td>
@@ -1716,7 +1715,7 @@
             </tr>
             <tr>
               <td><b>5</b></td>
-              <td>Convert + create SQ</td>
+              <td>Update PQ from RFQ + create SQ</td>
               <td>
                 <code>IC_RFQ_*</code> <code>IC_BP_MAPPING</code> <code>IC_SAP_CONNECTION</code>
                 <code>IC_COMPANY</code> + seller OITM/OCRD
@@ -1729,23 +1728,23 @@
             </tr>
           </table>
         </div>
-        <h3 class="reveal">Convert step in detail &mdash; PQ created + SQ created (diagram)</h3>
+        <h3 class="reveal">Convert step in detail &mdash; update buyer PQ + create seller SQ (diagram)</h3>
         <div class="cb reveal" style="--al: linear-gradient(90deg, #6c3de8, #f59e0b)">
-          <pre><span class="cm">  Flow 1 step 05 · action code FLOW1_CONVERT_PQ_SQ · trigger: POST /rfqs/:id/convert</span>
+          <pre><span class="cm">  Flow 1 step 05 · action code FLOW1_CONVERT_PQ_SQ · trigger: POST /rfqs/:id/convert (or auto on submit)</span>
 
  <span class="hl">COMPANY A (buyer)</span>              <span class="hl2">SBOCOMMON (IC engine)</span>              <span class="hl3">COMPANY B (seller)</span>
  <span class="cm">─────────────────              ──────────────────────              ────────────────────</span>
 
  [1] RFQ = SUBMITTED
-     buyer clicks CONVERT
+     convert / auto-convert
           <span class="cm">│</span>
           <span class="cm">▼</span>
  [2] apply seller prices  ─────►  read <span class="hl2">IC_RFQ_HEADER + IC_RFQ_LINE</span>
-     onto the SAP PQ Draft       <span class="cm">(unit price / discount / delivery)</span>
+     onto the existing real PQ   <span class="cm">(unit price / discount / delivery via PATCH)</span>
           <span class="cm">│</span>
           <span class="cm">▼</span>
- <span class="hl">[3] REAL PURCHASE</span>              map <span class="hl2">IC_DOCUMENT_MAPPING</span>
- <span class="hl">    QUOTATION (A)</span>      ─────►  <span class="cm">PQ_DRAFT → PQ = SUCCESS</span>
+ <span class="hl">[3] BUYER PURCHASE</span>              map <span class="hl2">IC_DOCUMENT_MAPPING</span>
+ <span class="hl">    QUOTATION (A) updated</span> ───►  <span class="cm">RFQ → PQ update = SUCCESS</span>
      Remarks: Based on Request For Quotation {rfq}
           <span class="cm">│</span>
           <span class="cm">├────────────────────►</span> <span class="hl2">IC_BP_MAPPING</span>       <span class="cm">seller = B + customer code</span>
@@ -1803,11 +1802,11 @@
           <span class="ni">&#128161;</span
           ><span
             ><b>Remarks chain:</b> SAP Comments append human-readable lines like
-            <code>Based on Purchase Quotation Draft 8000590</code> and
+            <code>Based on Purchase Quotation 8000590</code> and
             <code>Based on Request For Quotation 8000590</code> (see
             <a href="#remarks" style="color: #a78bfa">Remarks section</a>). Legacy
-            <code>IC | KEY: …</code> lines are still parsed for idempotency. User-typed remarks are
-            never replaced.</span
+            <code>Based on Purchase Quotation Draft …</code> and <code>IC | KEY: …</code> lines are
+            still parsed for idempotency. User-typed remarks are never replaced.</span
           >
         </div>
         <div class="faq reveal">
@@ -1816,8 +1815,9 @@
             <summary>Who can submit vs convert?</summary>
             <div class="faq-a">
               <b>Seller (Company B)</b> fills prices and submits RFQ (<code>SUBMITTED</code>).
-              <b>Buyer (Company A)</b> runs convert, which posts PQ in A and auto-creates SQ in B.
-              Role checks use session company vs RFQ source/target IDs.
+              <b>Buyer (Company A)</b> runs convert (or auto-convert on submit), which
+              <b>updates the existing buyer PQ</b> and auto-creates SQ in B. Role checks use
+              session company vs RFQ source/target IDs.
             </div>
           </details>
           <details class="faq-item">
@@ -1842,7 +1842,7 @@
             <summary>Can the same PQ create two RFQs?</summary>
             <div class="faq-a">
               No — idempotent capture checks <code>IC_DOCUMENT_MAPPING</code> for an existing
-              PQ_DRAFT&rarr;RFQ row before creating a new header. Retry replays the same RFQ id.
+              PQ&rarr;RFQ map row before creating a new header. Retry replays the same RFQ id.
             </div>
           </details>
         </div>
@@ -1894,7 +1894,7 @@
             <div class="ptn">4 &middot; Map + Notify</div>
             <div class="pss sd">auto</div>
             <div class="pts">
-              IC_DOCUMENT_MAPPING <code class="ic">PO&rarr;AR_DRAFT</code> = SUCCESS, history row,
+              IC_DOCUMENT_MAPPING <code class="ic">PO&rarr;AR_INVOICE</code> = SUCCESS, history row,
               notification to B (and A). Fail &rarr; retry queue.
             </div>
           </div>
@@ -1922,9 +1922,9 @@
             </tr>
             <tr>
               <td><b>&mdash;</b></td>
-              <td>Post final AR invoice</td>
+              <td>AR Invoice already posted by IC</td>
               <td><i>(none IC)</i></td>
-              <td>User posts the draft manually in SAP B1 &mdash; SAP only</td>
+              <td>Real <code>POST /Invoices</code> in seller company &mdash; no ODRF draft step</td>
             </tr>
           </table>
         </div>
@@ -1958,8 +1958,8 @@
           <details class="faq-item">
             <summary>What SAP object is created in Company B?</summary>
             <div class="faq-a">
-              An <b>AR Invoice</b> (ObjType 13 / ODRF), not a posted AR invoice. Finance posts it
-              manually in SAP B1 when ready. Mapping object code is <code>AR_DRAFT</code>.
+              A real <b>A/R Invoice</b> via Service Layer <code>POST /Invoices</code> (ObjType 13).
+              Mapping object code is <code>AR_INVOICE</code> (legacy rows may still show <code>AR_DRAFT</code>).
             </div>
           </details>
         </div>
@@ -1982,12 +1982,12 @@
           <pre><span class="cm"># Example SQ Comments after Flow 1 convert:</span>
 Vendor Ref No: VENDOR-REF-99
 Parent typed on PQ
-<span class="hl3">Based on Purchase Quotation Draft 8000590</span>
+<span class="hl3">Based on Purchase Quotation 8000590</span>
 <span class="hl3">Based on Request For Quotation 8000590</span>
-<span class="hl3">Based on Purchase Quotation 2042</span>
 <span class="hl3">Based on Sales Quotation 810</span>
 
-<span class="cm"># Legacy format still parsed (not written on new docs):</span>
+<span class="cm"># Legacy labels still parsed (not written on new docs):</span>
+<span class="hl2">Based on Purchase Quotation Draft 8000590</span>
 <span class="hl2">IC | RFQ: RFQ-PQD-8000590</span></pre>
         </div>
         <div class="faq reveal">
@@ -2143,7 +2143,7 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
             </tr>
             <tr>
               <td><code>FLOW1_CONVERT_PQ_SQ</code></td>
-              <td>Re-apply prices, convert draft &rarr; PQ, create seller SQ</td>
+              <td>Re-apply prices to buyer PQ, create seller SQ</td>
               <td>Flow 1 step 05</td>
             </tr>
             <tr>
@@ -2152,8 +2152,8 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
               <td>Flow 1 step 04</td>
             </tr>
             <tr>
-              <td><code>FLOW2_CREATE_AR_DRAFT</code></td>
-              <td>Re-post the AR Invoice to the partner SL</td>
+              <td><code>FLOW2_CREATE_AR_DRAFT</code> <span class="cm">(historical action code)</span></td>
+              <td>Re-post the real AR Invoice to the partner SL (<code>/Invoices</code>)</td>
               <td>Flow 2 steps 02&ndash;03</td>
             </tr>
             <tr>
@@ -2174,9 +2174,9 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
             <tr>
               <td><code>DETECT_PQ_DRAFT</code></td>
               <td>
-                <b>Safety net:</b> for each active IC_COMPANY, logs into its SL and finds new PQ
-                drafts with IC vendors; creates the RFQ if none exists (covers API downtime). Hybrid
-                design: hook is primary, worker is the net.
+                <b>Safety net:</b> for each active IC_COMPANY, finds missed real PQs
+                with IC vendors; runs Flow 1 if none exists (covers API downtime). Hybrid
+                design: hook is primary, worker is the net. Job name <code>DETECT_PQ_DRAFT</code> is historical.
               </td>
               <td><code>DETECT_DRAFT_CRON_MINUTES</code></td>
             </tr>
@@ -2315,25 +2315,25 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
               <th>How obtained</th>
             </tr>
             <tr>
-              <td><b>PQ Draft</b></td>
+              <td><b>Buyer PQ</b></td>
               <td>Buyer</td>
               <td>Purchase</td>
-              <td>UI / SAP buyer defaults</td>
+              <td>UI / SAP buyer defaults on real PQ</td>
             </tr>
             <tr>
               <td><b>RFQ line</b></td>
               <td>&mdash;</td>
               <td>Snapshot only</td>
               <td>
-                Buyer draft <code>VatGroup</code> &mdash; re-applied to the PQ only, never seller
+                Buyer PQ <code>VatGroup</code> &mdash; re-applied to the same PQ only, never seller
                 tax
               </td>
             </tr>
             <tr>
-              <td><b>PQ (after convert)</b></td>
+              <td><b>Buyer PQ (after convert)</b></td>
               <td>Buyer</td>
               <td>Purchase</td>
-              <td>RFQ snapshot = buyer tax</td>
+              <td>RFQ commercial lines + buyer tax snapshot</td>
             </tr>
             <tr>
               <td><b>SQ (seller)</b></td>
@@ -2357,10 +2357,10 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
               <td>Same OVTG + fallback chain as SQ</td>
             </tr>
             <tr>
-              <td><b>AR final (manual)</b></td>
+              <td><b>AR Invoice (IC)</b></td>
               <td>Seller</td>
               <td>Sales</td>
-              <td>User posts in SAP B1 from the draft</td>
+              <td>Posted by Flow 2 via SL <code>/Invoices</code></td>
             </tr>
           </table>
         </div>
@@ -2522,7 +2522,7 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
             <tr>
               <td><code>ENABLE_FLOW1_RFQ_CHAIN</code></td>
               <td>0</td>
-              <td>PQ Draft path creates the custom RFQ chain</td>
+              <td>Real PQ path creates the custom RFQ chain (update PQ + seller SQ on convert)</td>
             </tr>
             <tr>
               <td><code>ENABLE_FLOW2_DIRECT_PO</code></td>
