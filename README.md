@@ -1,81 +1,137 @@
 # Vendor Portal Monorepo
 
-Vendor Portal is a `pnpm` workspace monorepo with two packages:
+**VEDHA ERP / Vendor Portal** is a `pnpm` workspace monorepo for SAP Business One (HANA + Service Layer) purchase and sales workflows, including **intercompany (IC)** partner automation.
 
-- `frontend/` for the browser app
-- `hana-backend/` for SAP HANA and SAP Service Layer workflows
+| Package         | Role                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| `frontend/`     | React 19 browser app (tables, create forms, IC notifications / RFQ) |
+| `hana-backend/` | Express API: HANA reads, Service Layer writes, sessions, IC module  |
 
-The root package coordinates common development tasks, cleanup helpers, and repo-wide builds.
+Root coordinates install, lint/format, builds, and tests. Product voice and UX principles live in [`PRODUCT.md`](./PRODUCT.md). Agent/developer conventions live in [`AGENTS.md`](./AGENTS.md).
 
 ## Repository Layout
 
 ```text
 vendor-portal/
-  README.md
-  AGENTS.md
-  package.json
+  README.md                 # this file
+  AGENTS.md                 # conventions for humans and agents
+  PRODUCT.md                # product purpose and design principles
+  package.json              # workspace scripts
   pnpm-workspace.yaml
   pnpm-lock.yaml
-  frontend/
-  hana-backend/
+  oxlint.config.ts / oxfmt.config.ts
+  lefthook.yml              # git hooks
+  scripts/                  # kill-port, capture-errors helpers
+  frontend/                 # browser app
+  hana-backend/             # SAP-connected API
 ```
 
 ## Stack Overview
 
-- **Package manager:** `pnpm`
-- **Frontend:** React 19, Vite, TanStack Router, React Query, Zustand, Tailwind CSS v4, Zod v4
-- **HANA backend:** Express, TypeORM, SAP HANA client, SAP Service Layer, Swagger
+| Layer           | Technologies                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| Package manager | `pnpm` 11+ (lockfile enforced)                                                                            |
+| Frontend        | React 19, Vite 8, TanStack Router / Query / Table / Virtual, Zustand, Zod v4, Tailwind v4, React Compiler |
+| Backend         | Express, TypeORM, `@sap/hana-client`, Service Layer, file sessions, Swagger, tsup, Vitest                 |
+| Quality         | Oxlint + Oxfmt via Ultracite, Lefthook + lint-staged                                                      |
 
 ## Prerequisites
 
-- Node.js 20+
-- pnpm 11+
-- Access to SAP HANA for the HANA backend
-- Valid SAP Service Layer credentials for HANA-backed transactional flows
+- **Node.js 20+**
+- **pnpm 11+** (`packageManager` is pinned in root `package.json`)
+- SAP HANA access for the backend (tenant DBs + common DB for IC)
+- Valid SAP Service Layer credentials for transactional writes
+- For IC: seeded `IC_*` tables in `COMMON_DB` and partner SL connections
 
 ## Quick Start
 
-Install dependencies from the repository root:
-
 ```bash
 pnpm install
+
+# one package at a time
+pnpm dev:frontend          # http://localhost:5173
+pnpm dev:hana-backend      # http://localhost:4000  (Swagger: /api-docs)
+
+# IC background worker (missed PQ, retries, SL session cleanup)
+pnpm --filter hana-backend worker:ic
 ```
 
-Start the package you want to work on:
-
-```bash
-pnpm dev:frontend
-pnpm dev:hana-backend
-```
+Frontend expects `VITE_API_URL=http://localhost:4000` (see `frontend/.env`).
 
 ## Root Commands
 
-| Command                 | Purpose                                                                 |
-| ----------------------- | ----------------------------------------------------------------------- |
-| `pnpm dev:frontend`     | Stop anything on the frontend port and start the frontend dev server    |
-| `pnpm dev:hana-backend` | Stop anything on the backend port and start the HANA backend dev server |
-| `pnpm check:frontend`   | Capture frontend runtime errors                                         |
-| `pnpm check:hana`       | Capture HANA backend runtime errors                                     |
-| `pnpm build`            | Run `pnpm fix` and then build all workspace packages                    |
-| `pnpm test`             | Run all workspace tests                                                 |
-| `pnpm fix`              | Run Ultracite fix across the repo                                       |
-| `pnpm prepare`          | Install Lefthook hooks                                                  |
+| Command                 | Purpose                                             |
+| ----------------------- | --------------------------------------------------- |
+| `pnpm dev:frontend`     | Free the frontend port and start Vite               |
+| `pnpm dev:hana-backend` | Free the backend port and start the API (tsx watch) |
+| `pnpm check:frontend`   | Capture frontend runtime errors via helper script   |
+| `pnpm check:hana`       | Capture HANA backend runtime errors                 |
+| `pnpm build`            | `pnpm fix` then build all workspace packages        |
+| `pnpm test`             | Run tests in all packages                           |
+| `pnpm fix`              | Ultracite fix (Oxlint + Oxfmt) across the repo      |
+| `pnpm prepare`          | Install Lefthook hooks                              |
 
-## Local Development Ports
+Per-package commands (from package directory or `pnpm --filter <name>`):
 
-- Frontend: `http://localhost:5173`
-- HANA backend: `http://localhost:4000`
+| Package      | Dev        | Typecheck        | Build        | Test                     |
+| ------------ | ---------- | ---------------- | ------------ | ------------------------ |
+| Root         | —          | —                | `pnpm build` | `pnpm test`              |
+| HANA Backend | `pnpm dev` | `pnpm typecheck` | `pnpm build` | `pnpm test` / `test:run` |
+| Frontend     | `pnpm dev` | `pnpm typecheck` | `pnpm build` | `pnpm test` (vitest run) |
 
-## Package Docs
+## Local Ports
 
-- [Frontend README](./frontend/README.md)
-- [HANA Backend README](./hana-backend/README.md)
-- [Intercompany (IC) module](./hana-backend/src/modules/intercompany/README.md) — architecture, Flow 1 (PQ→RFQ), Flow 2 (PO→AR Invoice)
-- [IC architecture](./hana-backend/src/modules/intercompany/docs/architecture.md)
-- [AGENTS.md](./AGENTS.md) — agent/developer conventions
+| Service      | URL                              |
+| ------------ | -------------------------------- |
+| Frontend     | `http://localhost:5173`          |
+| HANA backend | `http://localhost:4000`          |
+| Swagger      | `http://localhost:4000/api-docs` |
+
+## Intercompany (IC) — short
+
+IC automates partner-company documents **without failing** the buyer’s primary PQ/PO save:
+
+| Flow       | Trigger               | Partner result                                   | Flag                     |
+| ---------- | --------------------- | ------------------------------------------------ | ------------------------ |
+| **Flow 1** | Real PQ create/update | Custom RFQ → seller fill → update PQ + create SQ | `ENABLE_FLOW1_RFQ_CHAIN` |
+| **Flow 2** | Real PO create        | Real A/R Invoice (`POST /Invoices`)              | `ENABLE_FLOW2_DIRECT_PO` |
+
+Hooks return `{ status: "accepted" }` and run orchestrators in the background. Config, maps, RFQs, notifications, and retries live in common-DB `IC_*` tables. Frontend surfaces: IC notifications/retries + Sales → Request For Quotation.
+
+Full docs: [IC module README](./hana-backend/src/modules/intercompany/README.md).
+
+## Package & Module Docs
+
+| Doc                      | Path                                                                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Frontend                 | [frontend/README.md](./frontend/README.md)                                                                                   |
+| Zustand stores           | [frontend/src/store/README.md](./frontend/src/store/README.md)                                                               |
+| HANA backend             | [hana-backend/README.md](./hana-backend/README.md)                                                                           |
+| Intercompany module      | [hana-backend/src/modules/intercompany/README.md](./hana-backend/src/modules/intercompany/README.md)                         |
+| IC architecture          | […/intercompany/docs/architecture.md](./hana-backend/src/modules/intercompany/docs/architecture.md)                          |
+| IC data model & flows    | […/intercompany/docs/data-model-and-flows.md](./hana-backend/src/modules/intercompany/docs/data-model-and-flows.md)          |
+| IC deploy / worker       | […/intercompany/docs/deploy-and-ops.md](./hana-backend/src/modules/intercompany/docs/deploy-and-ops.md)                      |
+| Flow 1 (PQ → RFQ)        | […/flows/flow-1-pq-rfq-chain/README.md](./hana-backend/src/modules/intercompany/flows/flow-1-pq-rfq-chain/README.md)         |
+| Flow 2 (PO → AR Invoice) | […/flows/flow-2-po-to-ar-invoice/README.md](./hana-backend/src/modules/intercompany/flows/flow-2-po-to-ar-invoice/README.md) |
+| Visual IC guide          | [hana-backend/ic-explained.html](./hana-backend/ic-explained.html)                                                           |
+| Product                  | [PRODUCT.md](./PRODUCT.md)                                                                                                   |
+| Conventions              | [AGENTS.md](./AGENTS.md)                                                                                                     |
 
 ## Conventions
 
-- Do not edit generated router output such as `frontend/src/routeTree.gen.ts`
-- Keep `.gitignore` focused on generated output, dependency caches, and build artifacts
-- Prefer workspace-level scripts for orchestration and package-level scripts for package-specific tasks
+- **Never edit** `frontend/src/routeTree.gen.ts` — TanStack Router generates it on dev/build.
+- HANA backend alias `@/*` → `src/*`; frontend `@/` → `/src`.
+- **Zustand** = client UI/session/drafts only; **TanStack Query** = server data.
+- IC code lives only under `hana-backend/src/modules/intercompany/`; other modules import the **public wall** (`index.ts`) only.
+- Prefer workspace scripts for orchestration; package scripts for package-local work.
+- Run `pnpm fix` (or Ultracite) before committing; Lefthook enforces quality on staged files.
+
+## Troubleshooting
+
+| Symptom                      | What to check                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| Frontend cannot call API     | `VITE_API_URL`, backend up on `:4000`, CORS/`FRONTEND_URL`                               |
+| Backend fails at boot        | Env schema in `hana-backend` (`HANA_*`, `SESSION_SECRET`, `SERVICE_LAYER_URL`, …)        |
+| IC not creating partner docs | Flags in `IC_CONFIGURATION`, BP map, worker process, `IC_DOCUMENT_MAPPING` / retry queue |
+| Route changes missing        | Restart Vite so the router plugin regenerates the tree                                   |
+| Stale build                  | Delete package `dist/` and re-run `pnpm build`                                           |

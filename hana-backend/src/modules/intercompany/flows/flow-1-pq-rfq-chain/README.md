@@ -1,17 +1,64 @@
 # Flow 1 — Real PQ → RFQ → update PQ + SQ
 
-**Path:** `flows/flow-1-pq-rfq-chain/`  
-**Trigger:** `afterPqSaved` (PQ create/update; background by default)  
-**Flag:** `ENABLE_FLOW1_RFQ_CHAIN`
+Commercial RFQ chain between partner companies. The buyer posts a **real Purchase Quotation** in the portal; IC creates a custom RFQ for the seller, then on convert updates the buyer PQ and creates the seller **Sales Quotation**.
 
-| Step | Folder                  | Responsibility                                     |
-| ---- | ----------------------- | -------------------------------------------------- |
-| 1    | `01-pq-capture/`        | Is this an IC **real PQ**? Flags / already mapped? |
-| 2    | `02-create-rfq/`        | Create custom RFQ header + lines from PQ           |
-| 3    | `03-notify-seller/`     | Notify partner company about new RFQ               |
-| 4    | `04-seller-fill-rfq/`   | Seller fills price/delivery and submits (API)      |
-| 5    | `05-convert-pq-and-sq/` | Update buyer PQ from RFQ + create partner SQ       |
+|                  |                                                          |
+| ---------------- | -------------------------------------------------------- |
+| **Path**         | `flows/flow-1-pq-rfq-chain/`                             |
+| **Trigger**      | `afterPqSaved` (PQ create/update; background by default) |
+| **Flag**         | `ENABLE_FLOW1_RFQ_CHAIN` in `IC_CONFIGURATION`           |
+| **Orchestrator** | `flow-1.orchestrator.ts`                                 |
+| **Hook**         | `api/hooks/after-pq-saved.hook.ts`                       |
 
-Orchestrator auto-runs 01→02→03 on PQ save. 04/05 are user/API-driven (submit may auto-convert).
+## Steps
 
-> Naming note: this is **not** the SAP ODRF draft path. Historical types may still say `IcPqDraftHookInput` / `afterPqDraftSaved` (deprecated alias of `afterPqSaved`).
+| Step | Folder                  | Responsibility                                                                       |
+| ---- | ----------------------- | ------------------------------------------------------------------------------------ |
+| 1    | `01-pq-capture/`        | Is this an IC **real PQ**? Flags on? Partner BP mapped? Already mapped (idempotent)? |
+| 2    | `02-create-rfq/`        | Insert custom RFQ header + lines (`IC_RFQ_*`) from PQ commercials                    |
+| 3    | `03-notify-seller/`     | Company-scoped notification for the seller about the new RFQ                         |
+| 4    | `04-seller-fill-rfq/`   | Seller fills price/delivery and submits (HTTP API)                                   |
+| 5    | `05-convert-pq-and-sq/` | Update **buyer PQ** from RFQ lines + create **partner SQ** via Service Layer         |
+
+### Who runs what
+
+```text
+PQ save (buyer portal)
+  → afterPqSaved → schedule background
+  → orchestrator: 01 → 02 → 03 automatically
+
+Seller UI / API
+  → 04 fill + submit  (submit may auto-run convert)
+
+Convert (API)
+  → 05 update buyer PQ + create seller SQ
+  → IC_DOCUMENT_MAPPING + history + notifications
+```
+
+On failure after the buyer PQ is already saved: enqueue `IC_RETRY_QUEUE` and notify — **never** fail the original PQ HTTP response.
+
+## UI
+
+| Role   | Surface                                                  |
+| ------ | -------------------------------------------------------- |
+| Seller | Sales → Request For Quotation list + `$rfqId` form       |
+| Either | Intercompany → notifications (new RFQ, convert outcomes) |
+
+## Idempotency and mapping
+
+- Document map links buyer PQ ↔ RFQ ↔ seller SQ (object codes under `infrastructure/object-codes.ts`).
+- Re-running capture/create after a successful map is a no-op.
+- Worker job `01-detect-missed-pq` re-drives Flow 1 for PQs that were missed (idempotent).
+
+## Naming notes
+
+- This is **not** the SAP ODRF draft path. Flow 1 works on **real** PQ documents.
+- Historical types/exports may still say `IcPqDraftHookInput` / `afterPqDraftSaved` (deprecated alias of `afterPqSaved`).
+- Scheduler job name `DETECT_PQ_DRAFT` is legacy naming for the missed-PQ catch-up job.
+
+## Related
+
+- Module overview: [../../README.md](../../README.md)
+- Data model detail: [../../docs/data-model-and-flows.md](../../docs/data-model-and-flows.md)
+- Architecture: [../../docs/architecture.md](../../docs/architecture.md)
+- Flow 2 (independent): [../flow-2-po-to-ar-invoice/README.md](../flow-2-po-to-ar-invoice/README.md)
