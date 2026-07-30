@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { normalizeColumnFilters } from "@/components/types/filter-utils";
@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
+import { useEditRoutePrefetch } from "@/features/table-pages/table-shared/hooks/edit-route-prefetch";
 import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
 import {
   cloneFilters,
@@ -45,7 +46,6 @@ import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 const routeApi = getRouteApi("/_layout/purchase/grpo");
 const TABLE_ID = "grpo";
 const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"];
-const EDIT_PRODUCTS_PREFETCH_LIMIT = 100;
 
 const toGRPOColumnFilters = (filters: ColumnFiltersState): GRPOColumnFilter[] => {
   const typedFilters: GRPOColumnFilter[] = [];
@@ -73,67 +73,24 @@ export function GRPOTable() {
   const clearAllFilters = useClearAllFiltersAction();
   const queryClient = useQueryClient();
 
-  /** Tracks which user action last triggered a fetch for action-specific toasts. */
-  const docNumPrefetchRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
-  const prefetchEditRouteData = useCallback(
-    (docNum: string) => {
-      const normalizedDocNum = docNum.trim();
-      if (!normalizedDocNum) {
-        return;
-      }
-      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
-        return;
-      }
-      docNumPrefetchRef.current.add(normalizedDocNum);
-
-      void queryClient
-        .fetchQuery(grpoQueries.detailByDocNum(normalizedDocNum))
-        .then((response) => {
-          void router.preloadRoute({
-            params: { docNum: normalizedDocNum },
-            to: "/purchase/grpo/$docNum/update",
-          } as never);
-          void Promise.allSettled([
-            queryClient.prefetchQuery(createSharedQueries.vendors()),
-            queryClient.prefetchQuery(createSharedQueries.warehouses()),
-            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
-          ]);
-
-          const detail = response?.data;
-          if (!detail) {
-            return;
-          }
-
-          const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-          if (warehouseCode) {
-            void queryClient.prefetchQuery(
-              createSharedQueries.products(warehouseCode, undefined, EDIT_PRODUCTS_PREFETCH_LIMIT),
-            );
-          }
-
-          const itemCodes = [
-            ...new Set(
-              (detail.DocumentLines ?? [])
-                .map((line) => String(line.ItemCode ?? "").trim())
-                .filter(Boolean),
-            ),
-          ];
-
-          for (const itemCode of itemCodes) {
-            void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(itemCode));
-          }
-        })
-        .catch(() => {
-          docNumPrefetchRef.current.delete(normalizedDocNum);
-        });
+  const { prefetchEditRouteData, prefetchEditRouteDataImmediate } = useEditRoutePrefetch({
+    getDetailQueryOptions: (docNum) => grpoQueries.detailByDocNum(docNum),
+    includeSalesEmployees: true,
+    includeWarehouses: true,
+    partner: "vendors",
+    preloadEditRoute: (docNum) => {
+      void router.preloadRoute({
+        params: { docNum },
+        to: "/purchase/grpo/$docNum/update",
+      } as never);
     },
-    [queryClient, router],
-  );
+    products: { kind: "purchase" },
+    queryClient,
+  });
 
   const columns = useMemo(
     () =>
@@ -153,7 +110,7 @@ export function GRPOTable() {
               viewTransition: true,
             } as never);
           } else {
-            prefetchEditRouteData(normalized);
+            prefetchEditRouteDataImmediate(normalized);
             void navigate({
               params: { docNum: normalized },
               to: "/purchase/grpo/$docNum/update",
@@ -169,7 +126,7 @@ export function GRPOTable() {
           prefetchEditRouteData(normalized);
         },
       }),
-    [navigate, prefetchEditRouteData],
+    [navigate, prefetchEditRouteData, prefetchEditRouteDataImmediate],
   );
   const columnIds = useMemo(
     () =>

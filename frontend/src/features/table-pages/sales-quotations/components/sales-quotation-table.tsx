@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { normalizeColumnFilters } from "@/components/types/filter-utils";
@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
+import { useEditRoutePrefetch } from "@/features/table-pages/table-shared/hooks/edit-route-prefetch";
 import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
 import {
   cloneFilters,
@@ -45,7 +46,6 @@ import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 const routeApi = getRouteApi("/_layout/sales/quotations");
 const TABLE_ID = "sales-quotations";
 const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"];
-const EDIT_PRODUCTS_PREFETCH_LIMIT = 100;
 
 const toSalesQuotationColumnFilters = (
   filters: ColumnFiltersState,
@@ -75,72 +75,24 @@ export function SalesQuotationTable() {
   const clearAllFilters = useClearAllFiltersAction();
   const queryClient = useQueryClient();
 
-  /** Tracks which user action last triggered a fetch for action-specific toasts. */
-  const docNumPrefetchRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
-  const prefetchEditRouteData = useCallback(
-    (docNum: string) => {
-      const normalizedDocNum = docNum.trim();
-      if (!normalizedDocNum) {
-        return;
-      }
-      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
-        return;
-      }
-      docNumPrefetchRef.current.add(normalizedDocNum);
-
-      void queryClient
-        .fetchQuery(salesQuotationQueries.detailByDocNum(normalizedDocNum))
-        .then((response) => {
-          // Preload edit route if needed (assuming naming convention)
-          void router.preloadRoute({
-            params: { docNum: normalizedDocNum },
-            to: "/sales/quotations/$docNum/update",
-          } as never);
-          void Promise.allSettled([
-            queryClient.prefetchQuery(createSharedQueries.customers()),
-            queryClient.prefetchQuery(createSharedQueries.warehouses()),
-            queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
-          ]);
-
-          const detail = response?.data;
-          if (!detail) {
-            return;
-          }
-
-          const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-          // Warm sales product list for edit hydrate (type must match SQ create/edit queries).
-          void queryClient.prefetchQuery(
-            createSharedQueries.products(
-              warehouseCode || undefined,
-              undefined,
-              EDIT_PRODUCTS_PREFETCH_LIMIT,
-              "sales",
-            ),
-          );
-
-          const itemCodes = [
-            ...new Set(
-              (detail.DocumentLines ?? [])
-                .map((line) => String(line.ItemCode ?? "").trim())
-                .filter(Boolean),
-            ),
-          ];
-
-          for (const itemCode of itemCodes) {
-            void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(itemCode));
-          }
-        })
-        .catch(() => {
-          docNumPrefetchRef.current.delete(normalizedDocNum);
-        });
+  const { prefetchEditRouteData, prefetchEditRouteDataImmediate } = useEditRoutePrefetch({
+    getDetailQueryOptions: (docNum) => salesQuotationQueries.detailByDocNum(docNum),
+    includeSalesEmployees: true,
+    includeWarehouses: true,
+    partner: "customers",
+    preloadEditRoute: (docNum) => {
+      void router.preloadRoute({
+        params: { docNum },
+        to: "/sales/quotations/$docNum/update",
+      } as never);
     },
-    [queryClient, router],
-  );
+    products: { allowWithoutWarehouse: true, kind: "sales" },
+    queryClient,
+  });
 
   const columns = useMemo(
     () =>
@@ -163,7 +115,7 @@ export function SalesQuotationTable() {
           if (!normalized) {
             return;
           }
-          prefetchEditRouteData(normalized);
+          prefetchEditRouteDataImmediate(normalized);
           void navigate({
             params: { docNum: normalized },
             to: "/sales/quotations/$docNum/update",
@@ -181,7 +133,7 @@ export function SalesQuotationTable() {
           prefetchEditRouteData(normalized);
         },
       }),
-    [navigate, prefetchEditRouteData],
+    [navigate, prefetchEditRouteData, prefetchEditRouteDataImmediate],
   );
   const columnIds = useMemo(
     () =>

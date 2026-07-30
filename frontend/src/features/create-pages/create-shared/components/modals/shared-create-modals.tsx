@@ -6,8 +6,6 @@ import type {
   ProductLookupItem,
   ProductWarehouseStockItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
-import { ProductPopupModal } from "@/features/create-pages/create-shared/components/modals/product-popup-modal";
-import { ProductWarehouseStockModal } from "@/features/create-pages/create-shared/components/modals/product-warehouse-stock-modal";
 import type {
   LookupOption,
   PopupMode,
@@ -17,6 +15,22 @@ const LookupPopupModal = lazy(() =>
   import("@/features/create-pages/create-shared/components/modals/lookup-popup-modal").then(
     (module) => ({
       default: module.LookupPopupModal,
+    }),
+  ),
+);
+
+const ProductPopupModal = lazy(() =>
+  import("@/features/create-pages/create-shared/components/modals/product-popup-modal").then(
+    (module) => ({
+      default: module.ProductPopupModal,
+    }),
+  ),
+);
+
+const ProductWarehouseStockModal = lazy(() =>
+  import("@/features/create-pages/create-shared/components/modals/product-warehouse-stock-modal").then(
+    (module) => ({
+      default: module.ProductWarehouseStockModal,
     }),
   ),
 );
@@ -164,52 +178,74 @@ export function SharedCreateModals({ state, entityLabels }: SharedCreateModalsPr
       ) : null}
 
       {state.productPopupOpen ? (
-        <ProductPopupModal
-          open={state.productPopupOpen}
-          warehouseCode={state.searchWarehouseCode || state.effectiveWarehouseCode}
-          search={state.productSearch}
-          results={state.products}
-          loading={state.productsQuery.isLoading}
-          backgroundLoading={state.productsQuery.isFetching && !state.productsQuery.isLoading}
-          error={
-            state.productsQuery.isError
-              ? state.productsQuery.error instanceof Error
-                ? state.productsQuery.error.message
-                : "Unable to load products"
-              : null
+        <Suspense
+          fallback={
+            <CreateModalSkeleton
+              title="Loading products"
+              panelClassName="max-w-3xl"
+              columns={2}
+              rows={8}
+            />
           }
-          onRetry={() => {
-            void state.productsQuery.refetch();
-          }}
-          onSearchChange={state.setProductSearch}
-          onReachEnd={state.loadMoreProducts}
-          onClose={() => state.setProductPopupOpen(false)}
-          onSelect={state.applyProductToRow}
-          onSelectMultiple={state.applyProductsToRows}
-          selectedProductCode={state.activeRowProductCode}
-          selectedProductRowId={state.activeProductRowId}
-        />
+        >
+          <ProductPopupModal
+            open={state.productPopupOpen}
+            warehouseCode={state.searchWarehouseCode || state.effectiveWarehouseCode}
+            search={state.productSearch}
+            results={state.products}
+            loading={state.productsQuery.isLoading}
+            backgroundLoading={state.productsQuery.isFetching && !state.productsQuery.isLoading}
+            error={
+              state.productsQuery.isError
+                ? state.productsQuery.error instanceof Error
+                  ? state.productsQuery.error.message
+                  : "Unable to load products"
+                : null
+            }
+            onRetry={() => {
+              void state.productsQuery.refetch();
+            }}
+            onSearchChange={state.setProductSearch}
+            onReachEnd={state.loadMoreProducts}
+            onClose={() => state.setProductPopupOpen(false)}
+            onSelect={state.applyProductToRow}
+            onSelectMultiple={state.applyProductsToRows}
+            selectedProductCode={state.activeRowProductCode}
+            selectedProductRowId={state.activeProductRowId}
+          />
+        </Suspense>
       ) : null}
 
       {state.stockPreviewProduct ? (
-        <ProductWarehouseStockModal
-          open={Boolean(state.stockPreviewProduct)}
-          product={state.stockPreviewProduct}
-          currentWarehouseCode={state.effectiveWarehouseCode}
-          stocks={state.productWarehouseStocksQuery.data ?? []}
-          loading={state.productWarehouseStocksQuery.isLoading}
-          error={
-            state.productWarehouseStocksQuery.isError
-              ? state.productWarehouseStocksQuery.error instanceof Error
-                ? state.productWarehouseStocksQuery.error.message
-                : "Unable to load warehouse stocks"
-              : null
+        <Suspense
+          fallback={
+            <CreateModalSkeleton
+              title="Loading warehouse stock"
+              panelClassName="max-w-xl"
+              columns={1}
+              rows={6}
+            />
           }
-          onRetry={() => {
-            void state.productWarehouseStocksQuery.refetch();
-          }}
-          onClose={() => state.setStockPreviewProduct(null)}
-        />
+        >
+          <ProductWarehouseStockModal
+            open={Boolean(state.stockPreviewProduct)}
+            product={state.stockPreviewProduct}
+            currentWarehouseCode={state.effectiveWarehouseCode}
+            stocks={state.productWarehouseStocksQuery.data ?? []}
+            loading={state.productWarehouseStocksQuery.isLoading}
+            error={
+              state.productWarehouseStocksQuery.isError
+                ? state.productWarehouseStocksQuery.error instanceof Error
+                  ? state.productWarehouseStocksQuery.error.message
+                  : "Unable to load warehouse stocks"
+                : null
+            }
+            onRetry={() => {
+              void state.productWarehouseStocksQuery.refetch();
+            }}
+            onClose={() => state.setStockPreviewProduct(null)}
+          />
+        </Suspense>
       ) : null}
     </>
   );

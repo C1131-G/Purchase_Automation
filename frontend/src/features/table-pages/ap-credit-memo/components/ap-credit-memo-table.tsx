@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { normalizeColumnFilters } from "@/components/types/filter-utils";
@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
+import { useEditRoutePrefetch } from "@/features/table-pages/table-shared/hooks/edit-route-prefetch";
 import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
 import {
   cloneFilters,
@@ -73,45 +74,25 @@ export function APCreditMemoTable() {
   const setColumnFilters = useSetColumnFiltersAction();
   const clearAllFilters = useClearAllFiltersAction();
 
-  /** Tracks which user action last triggered a fetch for action-specific toasts. */
-  const docNumPrefetchRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
   const queryClient = useQueryClient();
 
-  const prefetchEditRouteData = useCallback(
-    (docNum: string) => {
-      const normalizedDocNum = docNum.trim();
-      if (!normalizedDocNum) {
-        return;
-      }
-      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
-        return;
-      }
-      docNumPrefetchRef.current.add(normalizedDocNum);
-
-      void Promise.allSettled([
-        queryClient.prefetchQuery(createSharedQueries.warehouses()),
-        queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
-      ]);
-
-      void queryClient
-        .fetchQuery(apCreditMemoQueries.detailByDocNum(normalizedDocNum))
-        .then(() => {
-          void router.preloadRoute({
-            params: { docNum: normalizedDocNum },
-            to: "/purchase/ap-credit-memo/$docNum/update",
-          } as never);
-        })
-        .catch(() => {
-          docNumPrefetchRef.current.delete(normalizedDocNum);
-        });
+  const { prefetchEditRouteData, prefetchEditRouteDataImmediate } = useEditRoutePrefetch({
+    getDetailQueryOptions: (docNum) => apCreditMemoQueries.detailByDocNum(docNum),
+    includeSalesEmployees: true,
+    includeWarehouses: true,
+    partner: "none",
+    preloadEditRoute: (docNum) => {
+      void router.preloadRoute({
+        params: { docNum },
+        to: "/purchase/ap-credit-memo/$docNum/update",
+      } as never);
     },
-    [queryClient, router],
-  );
+    queryClient,
+  });
 
   const columns = useMemo(
     () =>
@@ -131,7 +112,7 @@ export function APCreditMemoTable() {
               viewTransition: true,
             } as never);
           } else {
-            prefetchEditRouteData(normalized);
+            prefetchEditRouteDataImmediate(normalized);
             void navigate({
               params: { docNum: normalized },
               to: "/purchase/ap-credit-memo/$docNum/update",
@@ -147,7 +128,7 @@ export function APCreditMemoTable() {
           prefetchEditRouteData(normalized);
         },
       }),
-    [navigate, prefetchEditRouteData],
+    [navigate, prefetchEditRouteData, prefetchEditRouteDataImmediate],
   );
   const columnIds = useMemo(
     () =>

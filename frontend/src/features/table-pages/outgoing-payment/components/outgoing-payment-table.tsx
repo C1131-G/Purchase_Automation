@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { normalizeColumnFilters } from "@/components/types/filter-utils";
@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
+import { useEditRoutePrefetch } from "@/features/table-pages/table-shared/hooks/edit-route-prefetch";
 import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
 import {
   cloneFilters,
@@ -74,39 +75,23 @@ export function OutgoingPaymentTable() {
   const clearAllFilters = useClearAllFiltersAction();
   const queryClient = useQueryClient();
 
-  /** Tracks which user action last triggered a fetch for action-specific toasts. */
-  const docNumPrefetchRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
-  const prefetchEditRouteData = useCallback(
-    (docNum: string) => {
-      const normalizedDocNum = docNum.trim();
-      if (!normalizedDocNum) {
-        return;
-      }
-      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
-        return;
-      }
-      docNumPrefetchRef.current.add(normalizedDocNum);
-
-      void queryClient
-        .fetchQuery(outgoingPaymentQueries.detail(normalizedDocNum))
-        .then(() => {
-          void router.preloadRoute({
-            params: { docNum: normalizedDocNum },
-            to: "/purchase/outgoing-payment/$docNum/update",
-          } as never);
-          void Promise.allSettled([queryClient.prefetchQuery(createSharedQueries.vendors())]);
-        })
-        .catch(() => {
-          docNumPrefetchRef.current.delete(normalizedDocNum);
-        });
+  const { prefetchEditRouteData, prefetchEditRouteDataImmediate } = useEditRoutePrefetch({
+    getDetailQueryOptions: (docNum) => outgoingPaymentQueries.detail(docNum),
+    includeSalesEmployees: false,
+    includeWarehouses: false,
+    partner: "vendors",
+    preloadEditRoute: (docNum) => {
+      void router.preloadRoute({
+        params: { docNum },
+        to: "/purchase/outgoing-payment/$docNum/update",
+      } as never);
     },
-    [queryClient, router],
-  );
+    queryClient,
+  });
 
   const columns = useMemo(
     () =>
@@ -116,7 +101,7 @@ export function OutgoingPaymentTable() {
           if (!normalized) {
             return;
           }
-          prefetchEditRouteData(normalized);
+          prefetchEditRouteDataImmediate(normalized);
           void navigate({
             params: { docNum: normalized },
             to: "/purchase/outgoing-payment/$docNum/update",
@@ -131,7 +116,7 @@ export function OutgoingPaymentTable() {
           prefetchEditRouteData(normalized);
         },
       }),
-    [navigate, prefetchEditRouteData],
+    [navigate, prefetchEditRouteData, prefetchEditRouteDataImmediate],
   );
   const columnIds = useMemo(
     () =>

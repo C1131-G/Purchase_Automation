@@ -16,9 +16,9 @@ import { CopyFromDropdown } from "@/features/create-pages/create-shared/componen
 import { CopyToDropdown } from "@/features/create-pages/create-shared/components/layout/copy-to-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
 import {
-  CopyFromDialog,
+  LazyCopyFromDialog,
   type SourceDocType,
-} from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
+} from "@/features/create-pages/create-shared/components/modals/lazy-copy-from-dialog";
 
 import {
   parseISODate,
@@ -178,7 +178,7 @@ export function GRPOCreate({
           </div>
         </div>
       )}
-      <CopyFromDialog
+      <LazyCopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => {
           setCopyFromDialogOpen(false);

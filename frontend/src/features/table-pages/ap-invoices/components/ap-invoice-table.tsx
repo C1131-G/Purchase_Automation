@@ -2,11 +2,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnFiltersState, SortingState, VisibilityState } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { normalizeColumnFilters } from "@/components/types/filter-utils";
-import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { mapSearchToAPInvoiceListParams } from "@/features/table-pages/ap-invoices/api/ap-invoice-query.mapper";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import type { APInvoiceListItem } from "@/features/table-pages/ap-invoices/api/ap-invoice.service";
@@ -27,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
+import { useEditRoutePrefetch } from "@/features/table-pages/table-shared/hooks/edit-route-prefetch";
 import { useTablePrefetch } from "@/features/table-pages/table-shared/hooks/use-table-prefetch";
 import {
   cloneFilters,
@@ -45,7 +45,6 @@ import { useSetVisibilityAction } from "@/store/table/table-visibility.store";
 const routeApi = getRouteApi("/_layout/purchase/ap-invoice");
 const TABLE_ID = "ap-invoices";
 const DEFAULT_COLUMN_ORDER = ["DocNum", "DocDate", "CardCode", "CardName", "DocTotal", "DocStatus"];
-const EDIT_PRODUCTS_PREFETCH_LIMIT = 100;
 
 const toAPInvoiceColumnFilters = (filters: ColumnFiltersState): APInvoiceColumnFilter[] => {
   const typedFilters: APInvoiceColumnFilter[] = [];
@@ -73,68 +72,24 @@ export function APInvoiceTable() {
   const clearAllFilters = useClearAllFiltersAction();
   const queryClient = useQueryClient();
 
-  /** Tracks which user action last triggered a fetch for action-specific toasts. */
-  const docNumPrefetchRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
 
-  const prefetchEditRouteData = useCallback(
-    (docNum: string) => {
-      const normalizedDocNum = docNum.trim();
-      if (!normalizedDocNum) {
-        return;
-      }
-      if (docNumPrefetchRef.current.has(normalizedDocNum)) {
-        return;
-      }
-      docNumPrefetchRef.current.add(normalizedDocNum);
-
-      void Promise.allSettled([
-        queryClient.prefetchQuery(createSharedQueries.vendors()),
-        queryClient.prefetchQuery(createSharedQueries.warehouses()),
-        queryClient.prefetchQuery(createSharedQueries.salesEmployees()),
-      ]);
-
-      void queryClient
-        .fetchQuery(apInvoiceQueries.detailByDocNum(normalizedDocNum))
-        .then((response) => {
-          void router.preloadRoute({
-            params: { docNum: normalizedDocNum },
-            to: "/purchase/ap-invoice/$docNum/update",
-          } as never);
-
-          const detail = response?.data;
-          if (!detail) {
-            return;
-          }
-
-          const warehouseCode = String(detail.DocumentLines?.[0]?.WarehouseCode ?? "").trim();
-          if (warehouseCode) {
-            void queryClient.prefetchQuery(
-              createSharedQueries.products(warehouseCode, undefined, EDIT_PRODUCTS_PREFETCH_LIMIT),
-            );
-          }
-
-          const itemCodes = [
-            ...new Set(
-              (detail.DocumentLines ?? [])
-                .map((line) => String(line.ItemCode ?? "").trim())
-                .filter(Boolean),
-            ),
-          ];
-
-          for (const itemCode of itemCodes) {
-            void queryClient.prefetchQuery(createSharedQueries.productWarehouseStocks(itemCode));
-          }
-        })
-        .catch(() => {
-          docNumPrefetchRef.current.delete(normalizedDocNum);
-        });
+  const { prefetchEditRouteData, prefetchEditRouteDataImmediate } = useEditRoutePrefetch({
+    getDetailQueryOptions: (docNum) => apInvoiceQueries.detailByDocNum(docNum),
+    includeSalesEmployees: true,
+    includeWarehouses: true,
+    partner: "vendors",
+    preloadEditRoute: (docNum) => {
+      void router.preloadRoute({
+        params: { docNum },
+        to: "/purchase/ap-invoice/$docNum/update",
+      } as never);
     },
-    [queryClient, router],
-  );
+    products: { kind: "purchase" },
+    queryClient,
+  });
 
   const columns = useMemo(
     () =>
@@ -152,7 +107,7 @@ export function APInvoiceTable() {
             } as never);
             return;
           }
-          prefetchEditRouteData(normalized);
+          prefetchEditRouteDataImmediate(normalized);
           void navigate({
             params: { docNum: normalized },
             to: "/purchase/ap-invoice/$docNum/update",
@@ -167,7 +122,7 @@ export function APInvoiceTable() {
           prefetchEditRouteData(normalized);
         },
       }),
-    [navigate, prefetchEditRouteData],
+    [navigate, prefetchEditRouteData, prefetchEditRouteDataImmediate],
   );
   const columnIds = useMemo(
     () =>

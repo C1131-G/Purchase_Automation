@@ -1,13 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Calendar as CalendarIcon, Check, HandCoins, Minus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactElement } from "react";
 
 import { Calendar } from "@/components/calendar/calendar";
+import { CreateModalSkeleton } from "@/components/skeleton/create-modal-skeleton";
 import { VendorCustomerGrid } from "@/features/create-pages/create-shared/components/grids/vendor-customer-grid";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
-import { LookupPopupModal } from "@/features/create-pages/create-shared/components/modals/lookup-popup-modal";
+
+const LookupPopupModal = lazy(() =>
+  import("@/features/create-pages/create-shared/components/modals/lookup-popup-modal").then(
+    (module) => ({
+      default: module.LookupPopupModal,
+    }),
+  ),
+);
 import {
   notifyActionError,
   notifyActionSuccess,
@@ -833,23 +841,35 @@ export function CreateOutgoingPaymentForm() {
           </div>
         )}
 
-        <LookupPopupModal
-          open={lookups.modalOpen}
-          mode={lookups.modalMode}
-          search={lookups.modalMode === "vendor-name" ? lookups.nameInput : lookups.codeInput}
-          results={
-            lookups.modalMode === "vendor-name" ? lookups.nameSuggestions : lookups.codeSuggestions
-          }
-          loading={lookups.vendorsQuery.isLoading}
-          error={lookups.vendorsQuery.isError ? "Failed to load vendors" : null}
-          onRetry={() => lookups.vendorsQuery.refetch()}
-          onSearchChange={(v) =>
-            lookups.modalMode === "vendor-name" ? lookups.setNameInput(v) : lookups.setCodeInput(v)
-          }
-          onSearchSync={() => {}}
-          onClose={() => lookups.setModalOpen(false)}
-          onSelect={(item) => lookups.selectVendor(item)}
-        />
+        {lookups.modalOpen ? (
+          <Suspense
+            fallback={
+              <CreateModalSkeleton title="Loading vendor lookup" panelClassName="max-w-xl" />
+            }
+          >
+            <LookupPopupModal
+              open={lookups.modalOpen}
+              mode={lookups.modalMode}
+              search={lookups.modalMode === "vendor-name" ? lookups.nameInput : lookups.codeInput}
+              results={
+                lookups.modalMode === "vendor-name"
+                  ? lookups.nameSuggestions
+                  : lookups.codeSuggestions
+              }
+              loading={lookups.vendorsQuery.isLoading}
+              error={lookups.vendorsQuery.isError ? "Failed to load vendors" : null}
+              onRetry={() => lookups.vendorsQuery.refetch()}
+              onSearchChange={(v) =>
+                lookups.modalMode === "vendor-name"
+                  ? lookups.setNameInput(v)
+                  : lookups.setCodeInput(v)
+              }
+              onSearchSync={() => {}}
+              onClose={() => lookups.setModalOpen(false)}
+              onSelect={(item) => lookups.selectVendor(item)}
+            />
+          </Suspense>
+        ) : null}
 
         <PaymentModal
           open={isPaymentModalOpen}

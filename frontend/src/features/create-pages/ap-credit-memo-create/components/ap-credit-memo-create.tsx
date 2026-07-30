@@ -19,7 +19,7 @@ import { VendorCustomerGrid } from "@/features/create-pages/create-shared/compon
 import { CopyFromDropdown } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import type { SourceDocType } from "@/features/create-pages/create-shared/components/layout/copy-from-dropdown";
 import { CreatePageWrapper } from "@/features/create-pages/create-shared/components/layout/create-page-wrapper";
-import { CopyFromDialog } from "@/features/create-pages/create-shared/components/modals/copy-from-dialog";
+import { LazyCopyFromDialog } from "@/features/create-pages/create-shared/components/modals/lazy-copy-from-dialog";
 import {
   parseISODate,
   toDisplayDate,
@@ -158,7 +158,7 @@ export function APCreditMemoCreate({
           </div>
         </div>
       )}
-      <CopyFromDialog
+      <LazyCopyFromDialog
         open={copyFromDialogOpen}
         onClose={() => {
           setCopyFromDialogOpen(false);
