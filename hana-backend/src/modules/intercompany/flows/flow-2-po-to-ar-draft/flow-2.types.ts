@@ -22,7 +22,8 @@ export type Flow2CaptureResult =
     };
 
 export type Flow2ArDraftPayload = {
-  DocObjectCode: string;
+  /** Only used by legacy draft posts; omitted for real `/Invoices`. */
+  DocObjectCode?: string;
   CardCode: string;
   DocDate?: string;
   DocDueDate?: string;

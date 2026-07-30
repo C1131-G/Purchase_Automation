@@ -17,7 +17,7 @@ export const createNotifyArCreated = (
   notifications: NotificationService = createNotificationService(),
 ) => {
   return async (params: NotifyArCreatedParams): Promise<void> => {
-    // Inter-transaction handoff only: seller receives AR draft from buyer PO.
+    // Inter-transaction handoff only: seller receives AR invoice from buyer PO.
     // Buyer does not need a confirmation notification.
     const buyerName = params.partner.buyerCompany.companyName.trim() || "Buyer";
     const poLabel = formatIcDocLabel({
@@ -34,8 +34,8 @@ export const createNotifyArCreated = (
     await notifications.create({
       companyId: params.partner.sellerCompany.companyId,
       documentId: params.targetDocEntry,
-      documentType: IC_OBJECT.AR_DRAFT,
-      flowStep: "FLOW2_AR_DRAFT_CREATED",
+      documentType: IC_OBJECT.AR_INVOICE,
+      flowStep: "FLOW2_AR_INVOICE_CREATED",
       message: `${buyerName} placed ${poLabel}. ${arLabel} was created — open ${arLabel} to review.`,
       priority: "MEDIUM",
       title: buyerName,

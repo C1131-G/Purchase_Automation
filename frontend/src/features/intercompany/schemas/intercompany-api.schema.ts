@@ -276,7 +276,7 @@ export const icSubmitRfqBodySchema = z.object({
 });
 export type IcSubmitRfqBody = z.infer<typeof icSubmitRfqBodySchema>;
 
-/** POST /api/v1/ic/rfqs/:id/convert — buyer converts submitted RFQ → PQ + SQ. */
+/** POST /api/v1/ic/rfqs/:id/convert — update buyer PQ from RFQ + create seller SQ. */
 export const icConvertRfqResponseSchema = z.object({
   data: icHookResultSchema,
   success: z.literal(true),

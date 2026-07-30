@@ -54,7 +54,7 @@ export const createNotifySellerService = (deps?: {
         action: IC_ACTION.FLOW1_CREATE_RFQ,
         companyId: params.partner.buyerCompany.companyId,
         documentEntry: params.sourceDocEntry,
-        documentType: IC_OBJECT.PQ_DRAFT,
+        documentType: IC_OBJECT.PQ,
         durationMs: params.durationMs ?? null,
         responseJson: JSON.stringify({
           rfqId: params.rfq.rfqId,

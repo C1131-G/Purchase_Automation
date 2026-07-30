@@ -182,9 +182,9 @@ export const createPurchaseQuotation = async (
       }
     }
 
-    // Flow 1 IC: schedule only — main PQ draft response does not wait for RFQ/SQ/notifications.
+    // Flow 1 IC: direct PQ only (not draft). Response does not wait for RFQ/SQ/notifications.
     let intercompany: IcHookResult | undefined;
-    if (isDraft && result.DocEntry) {
+    if (!isDraft && result.DocEntry) {
       try {
         intercompany = await afterPqDraftSaved({
           address: payload.Address != null ? String(payload.Address) : null,
@@ -222,7 +222,7 @@ export const createPurchaseQuotation = async (
       } catch (icErr: unknown) {
         logger.error({
           err: icErr instanceof Error ? icErr : new Error(String(icErr)),
-          msg: "afterPqDraftSaved threw unexpectedly; PQ draft remains saved",
+          msg: "afterPqDraftSaved threw unexpectedly; PQ remains created",
         });
         intercompany = {
           message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),

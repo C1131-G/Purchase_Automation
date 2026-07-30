@@ -210,9 +210,9 @@ export const updatePurchaseQuotation = async (
       purgeCache(`dashboard:overview:${companyDB}`);
     }
 
-    // Flow 1 IC: schedule only — main PQ draft update does not wait for partner chain.
+    // Flow 1 IC: direct PQ only (not draft). Idempotent if RFQ already exists.
     let intercompany: IcHookResult | undefined;
-    if (isDraft) {
+    if (!isDraft) {
       try {
         const lines = Array.isArray(payload.DocumentLines)
           ? (payload.DocumentLines as Record<string, unknown>[])
@@ -248,7 +248,7 @@ export const updatePurchaseQuotation = async (
       } catch (icErr: unknown) {
         logger.error({
           err: icErr instanceof Error ? icErr : new Error(String(icErr)),
-          msg: "afterPqDraftSaved threw unexpectedly; PQ draft remains updated",
+          msg: "afterPqDraftSaved threw unexpectedly; PQ remains updated",
         });
         intercompany = {
           message: (icErr instanceof Error ? icErr.message : String(icErr)).slice(0, 2000),

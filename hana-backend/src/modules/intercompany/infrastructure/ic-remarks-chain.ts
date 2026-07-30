@@ -2,19 +2,18 @@
  * IC document remarks / Comments chain.
  *
  * Format (one link per line, never replaces user text):
- *   Based on Purchase Quotation Draft 8000586
+ *   Based on Purchase Quotation 8000586
  *   Based on Request For Quotation 8000586
- *   Based on Purchase Quotation 2042
  *   Based on Sales Quotation 810
  *   Based on Purchase Order 5001328
- *   Based on AR Invoice Draft 1201
+ *   Based on AR Invoice 1201
  *
- * Legacy `IC | KEY: …` lines are still parsed for merge/idempotency.
+ * Legacy `IC | KEY: …` and PQD / AR draft labels are still parsed for merge/idempotency.
  * Existing non-IC remarks are preserved; auto lines append only if that KEY is new.
  */
 
 export type IcRemarkLink = {
-  /** Stable key for idempotent append: PQD | RFQ | PQ | SQ | PO | AR */
+  /** Stable key for idempotent append: PQ | RFQ | SQ | PO | AR (PQD legacy) */
   key: string;
   /** Document number (or entry fallback) shown after the type label. */
   text: string;
@@ -29,7 +28,7 @@ const IC_DOC_TYPE_LABEL: Record<string, string> = {
   PQ: "Purchase Quotation",
   SQ: "Sales Quotation",
   PO: "Purchase Order",
-  AR: "AR Invoice Draft",
+  AR: "AR Invoice",
 };
 
 const LABEL_TO_KEY: Record<string, string> = {
@@ -39,6 +38,7 @@ const LABEL_TO_KEY: Record<string, string> = {
   "sales quotation": "SQ",
   "purchase order": "PO",
   "ar invoice draft": "AR",
+  "ar invoice": "AR",
 };
 
 const hasDocNum = (docNum: number | null | undefined): docNum is number =>
@@ -239,11 +239,8 @@ export const formatIcDocLabel = (params: {
 
   switch (params.kind) {
     case "PQD":
-      return num != null
-        ? `PQ Draft No ${num}`
-        : entry != null
-          ? `PQ Draft Entry ${entry}`
-          : "PQ Draft";
+      // Legacy label for old maps; new flows use kind "PQ".
+      return num != null ? `PQ No ${num}` : entry != null ? `PQ Entry ${entry}` : "PQ";
     case "RFQ": {
       const rfq = params.rfqNumber?.trim();
       if (rfq) {
@@ -259,10 +256,10 @@ export const formatIcDocLabel = (params: {
       return num != null ? `PO No ${num}` : entry != null ? `PO Entry ${entry}` : "PO";
     case "AR":
       return num != null
-        ? `AR Invoice Draft No ${num}`
+        ? `AR Invoice No ${num}`
         : entry != null
-          ? `AR Invoice Draft Entry ${entry}`
-          : "AR Invoice Draft";
+          ? `AR Invoice Entry ${entry}`
+          : "AR Invoice";
     default:
       return "Document";
   }
@@ -279,13 +276,9 @@ export const buildIcCompactTag = (parts: Array<string | number | null | undefine
 
 // --- Document link helpers (type + number only) ---
 
-export const icLinkPqDraft = (
-  docNum: number | null | undefined,
-  docEntry: number,
-): IcRemarkLink => ({
-  key: "PQD",
-  text: docRef(docNum, docEntry),
-});
+/** @deprecated Prefer icLinkPq — real PQ is the Flow 1 source document. */
+export const icLinkPqDraft = (docNum: number | null | undefined, docEntry: number): IcRemarkLink =>
+  icLinkPq(docNum, docEntry);
 
 export const icLinkRfq = (
   docNum: number | null | undefined,
@@ -311,7 +304,7 @@ export const icLinkPo = (docNum: number | null | undefined, docEntry: number): I
 });
 
 /**
- * AR draft link — only when a document number or entry is known.
+ * AR invoice link — only when a document number or entry is known.
  * Never mentions Flow 1/2.
  */
 export const icLinkArDraft = (
@@ -327,9 +320,9 @@ export const icLinkArDraft = (
   return null;
 };
 
-/** Compact mapping tags (legacy-compatible + chain hint). */
+/** Compact mapping tags (legacy-compatible + chain hint). Source is real PQ. */
 export const compactPqDraftTag = (docNum: number | null | undefined, docEntry: number): string =>
-  hasDocNum(docNum) ? `IC-PQD-${docNum}` : `IC-PQD-E${docEntry}`;
+  hasDocNum(docNum) ? `IC-PQ-${docNum}` : `IC-PQ-E${docEntry}`;
 
 export const compactRfqTag = (rfqNumber: string): string => `IC-RFQ-${rfqNumber}`;
 
@@ -338,7 +331,7 @@ export const compactPoTag = (docNum: number | null | undefined, docEntry: number
 
 /**
  * RFQ header remarks at create time.
- * Keeps any prior text; adds PQ draft + RFQ lines.
+ * Keeps any prior text; adds PQ + RFQ lines.
  */
 export const buildFlow1RfqRemarks = (params: {
   existing?: string | null;
@@ -348,13 +341,13 @@ export const buildFlow1RfqRemarks = (params: {
   rfqId?: number | null;
 }): string =>
   appendIcRemarkLines(params.existing, [
-    icLinkPqDraft(params.pqDraftDocNum, params.pqDraftDocEntry),
+    icLinkPq(params.pqDraftDocNum, params.pqDraftDocEntry),
     icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
   ]);
 
 /**
  * Convert chain remarks (before SQ exists).
- * PQD → RFQ → PQ
+ * PQ → RFQ (same PQ is updated from RFQ; no second PQ link).
  */
 export const buildFlow1ConvertRemarks = (params: {
   existing?: string | null;
@@ -365,13 +358,12 @@ export const buildFlow1ConvertRemarks = (params: {
   pqDocNum?: number | null;
   pqDocEntry?: number | null;
 }): string => {
+  const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry! : params.pqDraftDocEntry;
+  const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
   const links: IcRemarkLink[] = [
-    icLinkPqDraft(params.pqDraftDocNum, params.pqDraftDocEntry),
+    icLinkPq(pqNum, pqEntry),
     icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
   ];
-  if (hasEntry(params.pqDocEntry)) {
-    links.push(icLinkPq(params.pqDocNum, params.pqDocEntry!));
-  }
   return appendIcRemarkLines(params.existing, links);
 };
 
@@ -405,7 +397,7 @@ export const ensureVendorRefInRemarks = (
 
 /**
  * Full chain for seller SQ Comments.
- * Vendor ref (user line) + PQD → RFQ → PQ → SQ
+ * Vendor ref (user line) + PQ → RFQ → SQ
  */
 export const buildFlow1SqRemarks = (params: {
   existing?: string | null;
@@ -417,14 +409,15 @@ export const buildFlow1SqRemarks = (params: {
   pqDocEntry: number;
   sqDocNum?: number | null;
   sqDocEntry?: number | null;
-  /** Buyer PQ draft NumAtCard — shown on seller SQ remarks. */
+  /** Buyer PQ NumAtCard — shown on seller SQ remarks. */
   vendorRefNo?: string | null;
 }): string => {
   const withVendorRef = ensureVendorRefInRemarks(params.existing, params.vendorRefNo);
+  const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry : params.pqDraftDocEntry;
+  const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
   const links: IcRemarkLink[] = [
-    icLinkPqDraft(params.pqDraftDocNum, params.pqDraftDocEntry),
+    icLinkPq(pqNum, pqEntry),
     icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
-    icLinkPq(params.pqDocNum, params.pqDocEntry),
   ];
   if (hasEntry(params.sqDocEntry)) {
     links.push(icLinkSq(params.sqDocNum, params.sqDocEntry));
@@ -433,7 +426,7 @@ export const buildFlow1SqRemarks = (params: {
 };
 
 /**
- * AR draft Comments: keep PO user remarks + append PO link (and AR when numbered).
+ * AR invoice Comments: keep PO user remarks + append PO link (and AR when numbered).
  */
 export const buildFlow2ArRemarks = (params: {
   existingComments?: string | null;

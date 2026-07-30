@@ -122,11 +122,11 @@ const createDefaultHandlers = (deps: {
         errorMessage: null,
         targetDocEntry: String(created.docEntry),
         targetDocNum: created.docNum != null ? String(created.docNum) : null,
-        targetObject: IC_OBJECT.AR_DRAFT,
+        targetObject: IC_OBJECT.AR_INVOICE,
       });
     }
 
-    // Retry success: notify seller only (AR draft handoff), same as live Flow 2.
+    // Retry success: notify seller only (AR invoice handoff), same as live Flow 2.
     const sourceDocEntryRaw = payload.sourceDocEntry;
     const sourceDocNumRaw = payload.sourceDocNum;
     const poLabel = formatIcDocLabel({
@@ -154,8 +154,8 @@ const createDefaultHandlers = (deps: {
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(created.docEntry),
-      documentType: IC_OBJECT.AR_DRAFT,
-      flowStep: "FLOW2_AR_DRAFT_CREATED",
+      documentType: IC_OBJECT.AR_INVOICE,
+      flowStep: "FLOW2_AR_INVOICE_CREATED",
       message: `${buyerName}: ${poLabel} created ${arLabel}.`,
       priority: "MEDIUM",
       title: buyerName,

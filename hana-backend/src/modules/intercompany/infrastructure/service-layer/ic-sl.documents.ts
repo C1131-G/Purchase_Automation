@@ -16,7 +16,10 @@ const SCOPE = IC_LOG_SCOPE.SL;
 
 export type CreateArInvoiceDraftInput = {
   companyId: number;
-  /** Full Service Layer Drafts body (DocObjectCode 13, CardCode, lines, …). */
+  /**
+   * Full Service Layer A/R Invoice body (CardCode, lines, …).
+   * Posted to `/Invoices` (real invoice, not draft). DocObjectCode is stripped if present.
+   */
   draftPayload: Record<string, unknown>;
 };
 
@@ -39,21 +42,18 @@ export type CreateSalesQuotationInput = {
 
 export type ApplyPricesToDraftInput = {
   companyId: number;
+  /** Buyer PurchaseQuotations DocEntry (column name kept for RFQ header compatibility). */
   draftEntry: number;
   documentLines: Record<string, unknown>[];
   /** Optional Comments patch (appended IC chain — does not wipe lines if caller merged). */
   comments?: string | null;
 };
 
+/** @deprecated Flow 1 no longer converts drafts; kept for tests / legacy callers. */
 export type ConvertDraftToDocumentInput = {
   companyId: number;
   draftEntry: number;
-  /** Optional full Comments to set on posted PQ (caller should merge existing + IC links). */
   comments?: string | null;
-  /**
-   * RFQ commercial line fields merged onto draft DocumentLines by LineNum before POST.
-   * Ensures posted PQ keeps quoted qty / price / disc% / tax even if draft PATCH was partial.
-   */
   lineOverrides?: Record<string, unknown>[];
 };
 
@@ -164,6 +164,7 @@ const parseDocResult = (
 
 export type GetDraftCommentsInput = {
   companyId: number;
+  /** Buyer PurchaseQuotations DocEntry. */
   draftEntry: number;
 };
 
@@ -175,12 +176,15 @@ export type DraftHeaderFields = {
 };
 
 export type IcSlDocuments = {
+  /** Create real A/R Invoice on seller (`POST /Invoices`). */
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
   createSalesQuotation: (input: CreateSalesQuotationInput) => Promise<IcSlDocumentResult>;
+  /** @deprecated Not used by Flow 1 convert (PQ already exists). */
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
+  /** PATCH buyer PurchaseQuotations with RFQ commercial lines. */
   applyPricesToDraft: (input: ApplyPricesToDraftInput) => Promise<void>;
   /**
-   * One GET for convert: parent Comments + NumAtCard.
+   * One GET for convert: parent Comments + NumAtCard from real PQ.
    * Parent remarks stay via applyPrices PATCH merge; this feeds SQ remarks + vendor ref.
    */
   getDraftHeaderFields: (input: GetDraftCommentsInput) => Promise<DraftHeaderFields>;
@@ -255,7 +259,8 @@ export const createIcSlDocuments = (deps?: {
 
   const getDraftHeaderFields = async (input: GetDraftCommentsInput): Promise<DraftHeaderFields> => {
     const { connection, session: slSession } = await withCompanySession(input.companyId);
-    const endpoint = `/Drafts(${input.draftEntry})?$select=Comments,NumAtCard`;
+    // Real PQ (Flow 1 source) — not Drafts.
+    const endpoint = `/PurchaseQuotations(${input.draftEntry})?$select=Comments,NumAtCard`;
     logSlRequest({
       companyId: input.companyId,
       endpoint,
@@ -300,7 +305,8 @@ export const createIcSlDocuments = (deps?: {
 
     applyPricesToDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
-      const endpoint = `/Drafts(${input.draftEntry})`;
+      // Update real buyer PQ from RFQ commercial lines (not Drafts).
+      const endpoint = `/PurchaseQuotations(${input.draftEntry})`;
       logSlRequest({
         companyId: input.companyId,
         endpoint,
@@ -309,7 +315,7 @@ export const createIcSlDocuments = (deps?: {
       });
 
       try {
-        // GET existing draft lines so replace-PATCH keeps tax/warehouse when RFQ omits them.
+        // GET existing PQ lines so replace-PATCH keeps tax/warehouse when RFQ omits them.
         const draftResponse = await client.request<Record<string, unknown>>({
           connection,
           endpoint,
@@ -323,14 +329,14 @@ export const createIcSlDocuments = (deps?: {
         const mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
 
         const body: Record<string, unknown> = { DocumentLines: mergedLines };
-        // Never wipe original draft Comments — merge user text + IC chain.
+        // Never wipe original PQ Comments — merge user text + IC chain.
         if (input.comments != null && String(input.comments).trim()) {
           const existingComments =
             draft.Comments === null || draft.Comments === undefined ? null : String(draft.Comments);
           body.Comments = mergeUserAndIcRemarks(existingComments, String(input.comments).trim());
         }
 
-        icLog.info(SCOPE, "IC SL apply prices to draft lines", {
+        icLog.info(SCOPE, "IC SL apply prices to PQ lines", {
           check: "sl_apply_prices_lines",
           companyId: input.companyId,
           draftEntry: input.draftEntry,
@@ -499,9 +505,11 @@ export const createIcSlDocuments = (deps?: {
 
     createArInvoiceDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
-      const endpoint = "/Drafts";
-      const lines = Array.isArray(input.draftPayload.DocumentLines)
-        ? (input.draftPayload.DocumentLines as Record<string, unknown>[])
+      // Real A/R Invoice (not Drafts).
+      const endpoint = "/Invoices";
+      const { DocObjectCode: _docObjectCode, ...invoiceBody } = input.draftPayload;
+      const lines = Array.isArray(invoiceBody.DocumentLines)
+        ? (invoiceBody.DocumentLines as Record<string, unknown>[])
         : [];
       const items = lines.map((line, index) => {
         const itemDescription = String(line.ItemDescription ?? line.Dscription ?? "").trim();
@@ -529,18 +537,18 @@ export const createIcSlDocuments = (deps?: {
         method: "POST",
       });
       // Full body only (no parallel items dump — DocumentLines already in payload).
-      icLog.info(SCOPE, "IC SL AR draft request body", {
-        check: "sl_create_ar_draft_request",
+      icLog.info(SCOPE, "IC SL AR invoice request body", {
+        check: "sl_create_ar_invoice_request",
         companyId: input.companyId,
         databaseName: connection.databaseName,
-        draftPayload: input.draftPayload,
+        draftPayload: invoiceBody,
         method: "POST",
         outcome: "pass",
       });
 
       try {
         const response = await client.request<{ DocEntry?: number; DocNum?: number }>({
-          body: input.draftPayload,
+          body: invoiceBody,
           connection,
           endpoint,
           method: "POST",
@@ -551,13 +559,13 @@ export const createIcSlDocuments = (deps?: {
           companyId: input.companyId,
           endpoint,
           method: "POST",
-          requestJson: safeJson(input.draftPayload),
+          requestJson: safeJson(invoiceBody),
           responseJson: safeJson(response.data),
           statusCode: response.status,
         });
 
-        icLog.info(SCOPE, "IC SL AR draft created", {
-          check: "sl_create_ar_draft",
+        icLog.info(SCOPE, "IC SL AR invoice created", {
+          check: "sl_create_ar_invoice",
           companyId: input.companyId,
           databaseName: connection.databaseName,
           docEntry: response.data?.DocEntry,

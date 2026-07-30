@@ -129,20 +129,20 @@ export const logFlowStep = (
 /**
  * Full Flow 1 chain — one continuous counter (n/18).
  *
- *  1–8   PQ draft → RFQ created (seller inbox)
+ *  1–8   Direct PQ → RFQ created (seller inbox)
  *  9–12  Seller update + submit RFQ
- * 13–17  Auto convert: prices → PQ → SQ → complete RFQ
+ * 13–17  Auto convert: update PQ from RFQ → SQ → complete RFQ
  * 18     Full chain done
  */
 export const FLOW1_TOTAL = 18 as const;
 
-/** Steps 1–8 — PQ draft save → RFQ created. */
+/** Steps 1–8 — direct PQ create → RFQ created. */
 export const FLOW1_STEPS = {
-  START: { step: 1, total: FLOW1_TOTAL, title: "Flow 1 — PQ draft saved" },
+  START: { step: 1, total: FLOW1_TOTAL, title: "Flow 1 — PQ created" },
   INPUT: { step: 2, total: FLOW1_TOTAL, title: "Flow 1 — input snapshot" },
   CAPTURE: { step: 3, total: FLOW1_TOTAL, title: "Flow 1 — capture & partner resolve" },
   PARTNER: { step: 4, total: FLOW1_TOTAL, title: "Flow 1 — partner companies resolved" },
-  CREATE_RFQ: { step: 5, total: FLOW1_TOTAL, title: "Flow 1 — create RFQ from draft" },
+  CREATE_RFQ: { step: 5, total: FLOW1_TOTAL, title: "Flow 1 — create RFQ from PQ" },
   RFQ_RESULT: { step: 6, total: FLOW1_TOTAL, title: "Flow 1 — RFQ + document map result" },
   NOTIFY: { step: 7, total: FLOW1_TOTAL, title: "Flow 1 — notify seller company" },
   COMPLETE: {
@@ -169,12 +169,12 @@ export const FLOW1_FILL_STEPS = {
   CONVERT_START: {
     step: 13,
     total: FLOW1_TOTAL,
-    title: "Flow 1 — auto convert start (draft→PQ + seller SQ)",
+    title: "Flow 1 — auto convert start (update PQ + seller SQ)",
   },
   COMPLETE: {
     step: 18,
     total: FLOW1_TOTAL,
-    title: "Flow 1 complete — full chain (PQ draft → RFQ → PQ → SQ)",
+    title: "Flow 1 complete — full chain (PQ → RFQ → update PQ → SQ)",
   },
 } as const;
 
@@ -188,12 +188,12 @@ export const FLOW1_CONVERT_STEPS = {
   APPLY_PRICES: {
     step: 14,
     total: FLOW1_TOTAL,
-    title: "Flow 1 — apply prices to PQ draft",
+    title: "Flow 1 — update PQ from RFQ",
   },
   DRAFT_TO_PQ: {
     step: 15,
     total: FLOW1_TOTAL,
-    title: "Flow 1 — PQ draft → real PQ",
+    title: "Flow 1 — PQ confirmed (updated from RFQ)",
   },
   CREATE_SQ: {
     step: 16,
@@ -241,9 +241,9 @@ export const FLOW2_STEPS = {
   INPUT: { step: 2, total: FLOW2_TOTAL, title: "Flow 2 input snapshot" },
   CAPTURE: { step: 3, total: FLOW2_TOTAL, title: "Flow 2 capture & partner resolve" },
   PARTNER: { step: 4, total: FLOW2_TOTAL, title: "Flow 2 partner companies resolved" },
-  BUILD: { step: 5, total: FLOW2_TOTAL, title: "Flow 2 build AR invoice draft payload" },
-  PAYLOAD: { step: 6, total: FLOW2_TOTAL, title: "Flow 2 AR draft SAP request body" },
-  POST: { step: 7, total: FLOW2_TOTAL, title: "Flow 2 post AR draft to seller SAP" },
+  BUILD: { step: 5, total: FLOW2_TOTAL, title: "Flow 2 build AR invoice payload" },
+  PAYLOAD: { step: 6, total: FLOW2_TOTAL, title: "Flow 2 AR invoice SAP request body" },
+  POST: { step: 7, total: FLOW2_TOTAL, title: "Flow 2 post AR invoice to seller SAP" },
   MAP_NOTIFY: { step: 8, total: FLOW2_TOTAL, title: "Flow 2 document map + notify" },
   COMPLETE: { step: 9, total: FLOW2_TOTAL, title: "Flow 2 complete" },
 } as const;
@@ -255,22 +255,22 @@ export const FLOW2_RETRY_STEPS = {
   START: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry post AR draft (step 7)",
+    title: "Flow 2 — retry post AR invoice (step 7)",
   },
   SUCCESS: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry AR draft success (step 7)",
+    title: "Flow 2 — retry AR invoice success (step 7)",
   },
   FAIL: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry AR draft failed (step 7)",
+    title: "Flow 2 — retry AR invoice failed (step 7)",
   },
   DEAD: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry AR draft dead (step 7)",
+    title: "Flow 2 — retry AR invoice dead (step 7)",
   },
 } as const;
 

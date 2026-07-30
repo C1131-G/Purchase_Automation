@@ -33,12 +33,19 @@ export const createCreateRfqService = (deps?: {
 
       if (existing) {
         const withLines = (await rfq.getById(existing.rfqId)) ?? existing;
-        const map = await documentMap.findBySource({
-          sourceCompanyId: input.partner.buyerCompany.companyId,
-          sourceDocEntry: input.sourceDocEntry,
-          sourceObject: IC_OBJECT.PQ_DRAFT,
-          targetObject: IC_OBJECT.RFQ,
-        });
+        const map =
+          (await documentMap.findBySource({
+            sourceCompanyId: input.partner.buyerCompany.companyId,
+            sourceDocEntry: input.sourceDocEntry,
+            sourceObject: IC_OBJECT.PQ,
+            targetObject: IC_OBJECT.RFQ,
+          })) ??
+          (await documentMap.findBySource({
+            sourceCompanyId: input.partner.buyerCompany.companyId,
+            sourceDocEntry: input.sourceDocEntry,
+            sourceObject: IC_OBJECT.PQ_DRAFT,
+            targetObject: IC_OBJECT.RFQ,
+          }));
         logFlowStep(SCOPE, {
           step: 5,
           total: 18,
@@ -89,7 +96,7 @@ export const createCreateRfqService = (deps?: {
 
       const pqDraftDocEntry = Number(input.sourceDocEntry);
       const pqDraftDocNum = input.sourceDocNum ? Number(input.sourceDocNum) : null;
-      // Line-by-line IC chain; keep any existing user remarks from PQ draft (append only).
+      // Line-by-line IC chain; keep any existing user remarks from PQ (append only).
       const chainRemarks = buildFlow1RfqRemarks({
         existing: input.existingRemarks ?? null,
         pqDraftDocEntry,
@@ -113,7 +120,7 @@ export const createCreateRfqService = (deps?: {
         sourceCompanyId: input.partner.buyerCompany.companyId,
         sourceDocEntry: input.sourceDocEntry,
         sourceDocNum: input.sourceDocNum,
-        sourceObject: IC_OBJECT.PQ_DRAFT,
+        sourceObject: IC_OBJECT.PQ,
         sourceRemarksTag: input.remarksTag,
         status: IC_DOC_MAP_STATUS.SUCCESS,
         targetCompanyId: input.partner.sellerCompany.companyId,

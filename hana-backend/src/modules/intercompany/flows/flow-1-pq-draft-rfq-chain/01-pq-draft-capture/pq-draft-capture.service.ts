@@ -126,7 +126,7 @@ export const createPqDraftCaptureService = (deps?: {
         logFlowStep(SCOPE, {
           step: 3,
           total: 18,
-          title: "Flow 1 gate — RFQ already exists for this draft",
+          title: "Flow 1 gate — RFQ already exists for this PQ",
           check: "already_rfq_exists",
           ctx: base,
           detail: {
@@ -145,12 +145,19 @@ export const createPqDraftCaptureService = (deps?: {
         };
       }
 
-      const existingMap = await documentMap.findBySource({
-        sourceCompanyId: partner.buyerCompany.companyId,
-        sourceDocEntry,
-        sourceObject: IC_OBJECT.PQ_DRAFT,
-        targetObject: IC_OBJECT.RFQ,
-      });
+      const existingMap =
+        (await documentMap.findBySource({
+          sourceCompanyId: partner.buyerCompany.companyId,
+          sourceDocEntry,
+          sourceObject: IC_OBJECT.PQ,
+          targetObject: IC_OBJECT.RFQ,
+        })) ??
+        (await documentMap.findBySource({
+          sourceCompanyId: partner.buyerCompany.companyId,
+          sourceDocEntry,
+          sourceObject: IC_OBJECT.PQ_DRAFT,
+          targetObject: IC_OBJECT.RFQ,
+        }));
 
       if (existingMap && existingMap.status === IC_DOC_MAP_STATUS.SUCCESS) {
         logFlowStep(SCOPE, {

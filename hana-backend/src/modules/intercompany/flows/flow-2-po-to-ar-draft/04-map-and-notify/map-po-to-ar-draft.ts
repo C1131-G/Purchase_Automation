@@ -18,12 +18,19 @@ export const createMapPoToArDraft = (
   documentMap: DocumentMapService = createDocumentMapService(),
 ) => {
   return async (params: MapPoToArDraftParams): Promise<IcDocumentMap> => {
-    const existing = await documentMap.findBySource({
-      sourceCompanyId: params.partner.buyerCompany.companyId,
-      sourceDocEntry: params.sourceDocEntry,
-      sourceObject: IC_OBJECT.PO,
-      targetObject: IC_OBJECT.AR_DRAFT,
-    });
+    const existing =
+      (await documentMap.findBySource({
+        sourceCompanyId: params.partner.buyerCompany.companyId,
+        sourceDocEntry: params.sourceDocEntry,
+        sourceObject: IC_OBJECT.PO,
+        targetObject: IC_OBJECT.AR_INVOICE,
+      })) ??
+      (await documentMap.findBySource({
+        sourceCompanyId: params.partner.buyerCompany.companyId,
+        sourceDocEntry: params.sourceDocEntry,
+        sourceObject: IC_OBJECT.PO,
+        targetObject: IC_OBJECT.AR_DRAFT,
+      }));
 
     if (existing && existing.status === IC_DOC_MAP_STATUS.SUCCESS) {
       return existing;
@@ -37,7 +44,7 @@ export const createMapPoToArDraft = (
           errorMessage: null,
           targetDocEntry: params.targetDocEntry,
           targetDocNum: params.targetDocNum,
-          targetObject: IC_OBJECT.AR_DRAFT,
+          targetObject: IC_OBJECT.AR_INVOICE,
         },
       );
       if (updated) {
@@ -55,7 +62,7 @@ export const createMapPoToArDraft = (
       targetCompanyId: params.partner.sellerCompany.companyId,
       targetDocEntry: params.targetDocEntry,
       targetDocNum: params.targetDocNum,
-      targetObject: IC_OBJECT.AR_DRAFT,
+      targetObject: IC_OBJECT.AR_INVOICE,
     });
   };
 };

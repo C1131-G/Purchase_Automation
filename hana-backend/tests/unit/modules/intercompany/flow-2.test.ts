@@ -23,11 +23,7 @@ import { createPoCaptureService } from "@/modules/intercompany/flows/flow-2-po-t
 import { buildArDraftPayload } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/02-build-ar-invoice-draft/build-ar-draft.payload";
 import { createBuildArDraftService } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/02-build-ar-invoice-draft/build-ar-draft.service";
 import { createFlow2Orchestrator } from "@/modules/intercompany/flows/flow-2-po-to-ar-draft/flow-2.orchestrator";
-import {
-  IC_CONFIG_KEY,
-  IC_DOC_MAP_STATUS,
-  SAP_OBJECT_TYPE_AR_INVOICE,
-} from "@/modules/intercompany/infrastructure/constants";
+import { IC_CONFIG_KEY, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import {
@@ -184,7 +180,8 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
       remarksTag: "IC-PO-100",
     });
 
-    expect(payload.DocObjectCode).toBe(SAP_OBJECT_TYPE_AR_INVOICE);
+    // Real A/R Invoice body — no DocObjectCode (Drafts only).
+    expect(payload.DocObjectCode).toBeUndefined();
     expect(payload.CardCode).toBe("C-A-ON-B");
     // Existing remarks preserved; IC chain = source PO number only (no Flow 1/2 text).
     expect(payload.Comments).toContain("User note keep me");
@@ -375,7 +372,7 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
       status: IC_DOC_MAP_STATUS.SUCCESS,
       targetCompanyId: 2,
       targetDocEntry: "800",
-      targetObject: IC_OBJECT.AR_DRAFT,
+      targetObject: IC_OBJECT.AR_INVOICE,
     });
 
     const result = await stack.orchestrator.run({
@@ -454,15 +451,16 @@ describe("Flow 2 PO → AR Draft (P5)", () => {
 
     expect(result).toMatchObject({
       status: "success",
-      targetDoc: { entry: 9001, num: 501, type: IC_OBJECT.AR_DRAFT },
+      targetDoc: { entry: 9001, num: 501, type: IC_OBJECT.AR_INVOICE },
     });
     expect(db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_DOCUMENT_MAPPING[0].TARGET_DOC_ENTRY).toBe("9001");
-    // Seller only (AR draft handoff); buyer is not notified on Flow 2 success.
+    expect(db.tables.IC_DOCUMENT_MAPPING[0].TARGET_OBJECT).toBe(IC_OBJECT.AR_INVOICE);
+    // Seller only (AR invoice handoff); buyer is not notified on Flow 2 success.
     expect(db.tables.IC_NOTIFICATION).toHaveLength(1);
     expect(db.tables.IC_NOTIFICATION[0].COMPANY_ID).toBe(2);
-    expect(db.tables.IC_NOTIFICATION[0].FLOW_STEP).toBe("FLOW2_AR_DRAFT_CREATED");
+    expect(db.tables.IC_NOTIFICATION[0].FLOW_STEP).toBe("FLOW2_AR_INVOICE_CREATED");
     expect(db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
   });
 

@@ -104,7 +104,7 @@ export const createFlow1Orchestrator = (deps?: {
           ctx: logCtx,
           detail: {
             hook: "afterPqDraftSaved",
-            sourceObject: IC_OBJECT.PQ_DRAFT,
+            sourceObject: IC_OBJECT.PQ,
             targetObject: IC_OBJECT.RFQ,
           },
         });

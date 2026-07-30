@@ -46,7 +46,6 @@ import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/servi
 import type { IcHookResult } from "@/modules/intercompany/flows/shared/flow-result";
 
 import { applyPricesToDraft, buildRfqCommercialDocumentLines } from "./apply-prices-to-draft";
-import { convertDraftToPq } from "./convert-draft-to-pq";
 import { createSellerSq } from "./create-seller-sq";
 
 const LOG_SCOPE = FLOW1_SCOPE;
@@ -137,11 +136,13 @@ export const createConvertPqAndSqService = (deps?: {
           },
           detail: { status: header.status },
         });
+        // PQ already exists (created as real document); convert only updates it + SQ.
         return {
           mappingId: undefined,
           status: "success",
           targetDoc: {
             entry: header.pqDraftDocEntry,
+            num: header.pqDraftDocNum ?? undefined,
             type: IC_OBJECT.PQ,
           },
         };
@@ -234,39 +235,40 @@ export const createConvertPqAndSqService = (deps?: {
 
       // Compact tag for IC_DOCUMENT_MAPPING; multi-line chain for SAP Comments.
       const remarksTag = compactRfqTag(header.rfqNumber);
-      const draftEntry = header.pqDraftDocEntry;
+      // Real buyer PQ DocEntry (IC_RFQ_HEADER.PQ_DRAFT_DOC_ENTRY column name is historical).
+      const pqEntry = header.pqDraftDocEntry;
 
       // One GET: parent Comments + vendor ref (NumAtCard). Parent text is also re-merged on
-      // applyPrices PATCH (the single SAP write path — keep that; no second strategy).
-      let draftComments: string | null = null;
-      let draftVendorRef: string | null = null;
+      // applyPrices PATCH (the single SAP write path for PQ update).
+      let pqComments: string | null = null;
+      let pqVendorRef: string | null = null;
       try {
-        const draftHeader = await documents.getDraftHeaderFields({
+        const pqHeader = await documents.getDraftHeaderFields({
           companyId: header.sourceCompanyId,
-          draftEntry,
+          draftEntry: pqEntry,
         });
-        draftComments = draftHeader.comments;
-        draftVendorRef = draftHeader.numAtCard;
+        pqComments = pqHeader.comments;
+        pqVendorRef = pqHeader.numAtCard;
       } catch {
-        draftComments = null;
-        draftVendorRef = null;
+        pqComments = null;
+        pqVendorRef = null;
       }
-      // Enriched RFQ may already expose vendorRefNo when draft GET is unavailable later.
+      // Enriched RFQ may already expose vendorRefNo when PQ GET is unavailable later.
       const vendorRefNo =
-        draftVendorRef?.trim() ||
+        pqVendorRef?.trim() ||
         (header.vendorRefNo != null ? String(header.vendorRefNo).trim() : "") ||
         null;
 
-      // Keep RFQ + draft user remarks; append PQD + RFQ IC lines (never drop parent text).
+      // Keep RFQ + PQ user remarks; append PQ + RFQ IC lines (never drop parent text).
       const remarksBeforePq = buildFlow1ConvertRemarks({
-        existing: mergeUserAndIcRemarks(header.remarks, draftComments),
+        existing: mergeUserAndIcRemarks(header.remarks, pqComments),
         pqDraftDocEntry: header.pqDraftDocEntry,
         pqDraftDocNum: header.pqDraftDocNum,
         rfqId: header.rfqId,
         rfqNumber: header.rfqNumber,
       });
 
-      // Full commercial snapshot from RFQ → draft PATCH + convert POST merge.
+      // Full commercial snapshot from RFQ → PQ PATCH.
       const commercialLines = buildRfqCommercialDocumentLines(lines);
       const missingCommercial = lines.filter(
         (line) =>
@@ -298,13 +300,13 @@ export const createConvertPqAndSqService = (deps?: {
         ...FLOW1_CONVERT_STEPS.APPLY_PRICES,
         ctx: logCtx,
         detail: {
-          draftEntry,
+          draftEntry: pqEntry,
           lineCount: lines.length,
           lines: commercialLines.map((line) => ({
             discountPercent: line.DiscountPercent ?? null,
             itemCode: line.ItemCode ?? null,
             lineNum: line.LineNum ?? null,
-            // Buyer PQ tax applied on draft PATCH / posted PQ.
+            // Buyer PQ tax applied on PQ PATCH.
             pqTaxCode: line.VatGroup ?? null,
             quantity: line.Quantity ?? null,
             unitPrice: line.UnitPrice ?? null,
@@ -312,33 +314,35 @@ export const createConvertPqAndSqService = (deps?: {
           })),
           remarksPreview: remarksBeforePq.slice(0, 500),
         },
+        title: "Flow 1 — update PQ from RFQ",
       });
+      // RFQ commercial fields update the existing direct PQ (no draft convert).
       await applyPricesToDraft({
         buyerCompanyId: header.sourceCompanyId,
         comments: remarksBeforePq,
         documents,
-        draftEntry,
+        draftEntry: pqEntry,
         lines,
       });
+
+      const purchaseQuotation = {
+        docEntry: pqEntry,
+        docNum: header.pqDraftDocNum ?? undefined,
+      };
 
       logFlowStep(LOG_SCOPE, {
         ...FLOW1_CONVERT_STEPS.DRAFT_TO_PQ,
         ctx: logCtx,
         detail: {
-          draftEntry,
+          draftEntry: pqEntry,
           lineCount: commercialLines.length,
+          note: "PQ already posted; RFQ prices applied via PATCH",
+          pqDocEntry: purchaseQuotation.docEntry,
+          pqDocNum: purchaseQuotation.docNum ?? null,
         },
-      });
-      // Comments were already merged onto the draft in applyPricesToDraft — do not
-      // pass them again here or mergeUserAndIcRemarks can duplicate the chain.
-      const purchaseQuotation = await convertDraftToPq({
-        buyerCompanyId: header.sourceCompanyId,
-        documents,
-        draftEntry,
-        lineOverrides: commercialLines,
+        title: "Flow 1 — PQ updated from RFQ (no draft convert)",
       });
 
-      // After PQ exists, chain includes PQ link for SQ / mapping notes.
       const remarksWithPq = buildFlow1ConvertRemarks({
         existing: remarksBeforePq,
         pqDraftDocEntry: header.pqDraftDocEntry,

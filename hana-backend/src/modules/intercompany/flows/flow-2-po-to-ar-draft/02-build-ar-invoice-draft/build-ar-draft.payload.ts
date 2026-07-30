@@ -1,8 +1,7 @@
 /**
- * Pure payload helpers for Flow 2 AR Invoice Draft (no I/O except tax resolve callback).
+ * Pure payload helpers for Flow 2 AR Invoice (no I/O except tax resolve callback).
  */
 
-import { SAP_OBJECT_TYPE_AR_INVOICE } from "@/modules/intercompany/infrastructure/constants";
 import { buildFlow2ArRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import {
   flow2LineTaxUsage,
@@ -86,7 +85,7 @@ export const mapPoLineToArLine = async (
   return { docLine, taxUsage };
 };
 
-/** Build Service Layer AR Invoice Draft body from PO capture context. */
+/** Build Service Layer A/R Invoice body from PO capture context (POST /Invoices). */
 export const buildArDraftPayload = async (
   input: BuildArDraftInput,
 ): Promise<BuildArDraftResult & { taxUsage: IcLineTaxUsage[] }> => {
@@ -110,10 +109,10 @@ export const buildArDraftPayload = async (
     poDocNum: input.poDocNum,
   });
 
+  // Real invoice body — no DocObjectCode (that is only for Drafts).
   const payload: BuildArDraftResult = {
     CardCode: input.buyerCustomerCode,
     Comments: comments,
-    DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,
     DocumentLines: documentLines,
   };
 

@@ -1,9 +1,8 @@
 /**
  * Enrich RFQ API payload from buyer-side source document.
  *
- * Prefer live PQ **draft** (ODRF/DRF1). After Flow 1 convert, the draft is gone —
- * fall back to real **PQ** (OPQT/PQT1) via IC_DOCUMENT_MAPPING RFQ→PQ so
- * SUBMITTED/COMPLETED RFQ UI still shows vendor, dates, addresses, descriptions.
+ * Prefer live **PQ** (OPQT/PQT1) at PQ_DRAFT_DOC_ENTRY (column name is historical).
+ * Legacy draft (ODRF) is a fallback only. Also uses RFQ→PQ map when present.
  */
 
 import { executeTenantQuery } from "@/db/tenant-query";
@@ -152,27 +151,28 @@ const loadVendorName = async (dbName: string, cardCode: string): Promise<string 
 
 /**
  * Resolve buyer source document for display:
- * 1) PQ draft ODRF (before convert)
- * 2) Mapped real PQ OPQT (after draft→PQ convert)
+ * 1) Real PQ OPQT at PQ_DRAFT_DOC_ENTRY (direct PQ architecture)
+ * 2) RFQ → PQ document map (after convert)
  * 3) Heuristic: OPQT with comments/remarks tag IC-RFQ-{rfqNumber}
+ * 4) Legacy PQ draft ODRF (old Flow 1 only)
  */
 const resolveSourceDoc = async (dbName: string, header: IcRfqHeader): Promise<SourceDoc | null> => {
-  const draftEntry = header.pqDraftDocEntry;
-  if (Number.isFinite(draftEntry) && draftEntry > 0) {
-    const draftHeader = await loadDraftHeader(dbName, draftEntry);
-    if (draftHeader) {
-      const lines = await loadDraftLines(dbName, draftEntry);
+  const sourceEntry = header.pqDraftDocEntry;
+  if (Number.isFinite(sourceEntry) && sourceEntry > 0) {
+    const pqHeader = await loadPqHeader(dbName, sourceEntry);
+    if (pqHeader) {
+      const lines = await loadPqLines(dbName, sourceEntry);
       return {
-        docEntry: draftEntry,
-        docNum: toNum(draftHeader.DocNum ?? draftHeader.docNum),
-        header: draftHeader,
-        kind: "draft",
+        docEntry: sourceEntry,
+        docNum: toNum(pqHeader.DocNum ?? pqHeader.docNum),
+        header: pqHeader,
+        kind: "pq",
         lines,
       };
     }
   }
 
-  // After convert: RFQ → PQ map (buyer company, target is real PQ).
+  // RFQ → PQ map (buyer company, target is real PQ).
   try {
     const map = await createDocumentMapQueries().findBySource({
       sourceCompanyId: header.sourceCompanyId,
@@ -240,6 +240,21 @@ const resolveSourceDoc = async (dbName: string, header: IcRfqHeader): Promise<So
     }
   } catch {
     // Best-effort; OPQT Comments search may be restricted.
+  }
+
+  // Legacy: old Flow 1 stored ODRF draft entry.
+  if (Number.isFinite(sourceEntry) && sourceEntry > 0) {
+    const draftHeader = await loadDraftHeader(dbName, sourceEntry);
+    if (draftHeader) {
+      const lines = await loadDraftLines(dbName, sourceEntry);
+      return {
+        docEntry: sourceEntry,
+        docNum: toNum(draftHeader.DocNum ?? draftHeader.docNum),
+        header: draftHeader,
+        kind: "draft",
+        lines,
+      };
+    }
   }
 
   return null;

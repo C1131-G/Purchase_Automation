@@ -7,7 +7,7 @@ const toFinite = (value: unknown, fallback = 0): number => {
 };
 
 /**
- * Map RFQ seller-filled commercial fields onto SAP DocumentLines shape for the buyer PQ draft.
+ * Map RFQ seller-filled commercial fields onto SAP DocumentLines shape for the buyer PQ.
  * Must include qty / price / disc% / tax so SL PATCH (replace collection) does not zero totals.
  */
 export const buildRfqCommercialDocumentLines = (lines: IcRfqLine[]): Record<string, unknown>[] =>
@@ -31,7 +31,7 @@ export const buildRfqCommercialDocumentLines = (lines: IcRfqLine[]): Record<stri
 
     const tax = line.taxCode?.trim();
     if (tax) {
-      // Buyer PQ keeps buyer purchase tax (RFQ tax snapshot from original PQ draft).
+      // Buyer PQ keeps buyer purchase tax (RFQ tax snapshot from original PQ).
       docLine.VatGroup = tax;
     }
 
@@ -61,10 +61,11 @@ export const buildRfqCommercialDocumentLines = (lines: IcRfqLine[]): Record<stri
     return docLine;
   });
 
-/** Patch buyer PQ draft lines with RFQ qty / price / disc / tax / delivery before convert. */
+/** Patch buyer PQ lines with RFQ qty / price / disc / tax / delivery (update existing PQ). */
 export const applyPricesToDraft = async (params: {
   documents: IcSlDocuments;
   buyerCompanyId: number;
+  /** Real PurchaseQuotations DocEntry. */
   draftEntry: number;
   lines: IcRfqLine[];
   /** Merged Comments (existing user text + IC chain lines). */

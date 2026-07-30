@@ -266,7 +266,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
 
     // Auto IC remarks stored on RFQ at create (Based on … format).
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).toContain("Based on Purchase Quotation Draft 9001");
+    expect(storedRemarks).toContain("Based on Purchase Quotation 9001");
     expect(storedRemarks).toContain("Based on Request For Quotation 9001");
     expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
 
@@ -321,7 +321,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     });
 
     const submitted = await fill.submit({ actorCompanyId: 2, rfqId });
-    // Submit auto-converts (draft→PQ + SQ); RFQ becomes COMPLETED on success.
+    // Submit auto-converts (update PQ + SQ); RFQ becomes COMPLETED on success.
     expect(submitted.status).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(db.tables.IC_NOTIFICATION.some((row) => row.FLOW_STEP === "FLOW1_RFQ_SUBMITTED")).toBe(
       true,
@@ -336,7 +336,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     let converted = false;
     let sqCreated = false;
     let appliedLines: Record<string, unknown>[] = [];
-    let convertOverrides: Record<string, unknown>[] | undefined;
+    let appliedDocEntry: number | undefined;
     let sqRemarks: string | undefined;
     let sqNumAtCard: string | null | undefined;
     let sqCommentsOnPatch: string | null | undefined;
@@ -345,13 +345,14 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       documents: {
         applyPricesToDraft: async (input) => {
           applied = true;
+          appliedDocEntry = input.draftEntry;
           appliedLines = input.documentLines;
           // Parent remarks path: PATCH receives merged comments (keep this one).
           sqCommentsOnPatch = input.comments ?? null;
         },
-        convertDraftToDocument: async (input) => {
+        convertDraftToDocument: async () => {
+          // Direct PQ architecture: convert must NOT draft→document.
           converted = true;
-          convertOverrides = input.lineOverrides;
           return { docEntry: 7100, docNum: 710 };
         },
         createSalesQuotation: async (input) => {
@@ -361,7 +362,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
           return { docEntry: 8100, docNum: 810 };
         },
         getDraftHeaderFields: async () => ({
-          comments: "Parent typed on PQ draft",
+          comments: "Parent typed on PQ",
           numAtCard: "VENDOR-REF-99",
         }),
       },
@@ -396,7 +397,9 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const result = await convert.convert({ actorCompanyId: 1, rfqId });
     expect(result.status).toBe("success");
     expect(applied).toBe(true);
-    expect(converted).toBe(true);
+    // Existing PQ DocEntry is updated — no draft convert.
+    expect(converted).toBe(false);
+    expect(appliedDocEntry).toBe(70);
     expect(sqCreated).toBe(true);
     // Seller-filled qty/price/disc% (+ tax from RFQ snapshot) must reach SL.
     expect(appliedLines[0]).toMatchObject({
@@ -406,18 +409,12 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       UnitPrice: 40,
       VatGroup: "IN-12.5",
     });
-    expect(convertOverrides?.[0]).toMatchObject({
-      DiscountPercent: 10,
-      Quantity: 3,
-      UnitPrice: 40,
-      VatGroup: "IN-12.5",
-    });
     // Parent remarks (one path): patch apply keeps parent text.
-    expect(sqCommentsOnPatch).toContain("Parent typed on PQ draft");
+    expect(sqCommentsOnPatch).toContain("Parent typed on PQ");
     // Vendor ref must reach seller SQ NumAtCard + remarks (was missing before).
     expect(sqNumAtCard).toBe("VENDOR-REF-99");
     expect(sqRemarks).toContain("Vendor Ref No: VENDOR-REF-99");
-    expect(sqRemarks).toContain("Parent typed on PQ draft");
+    expect(sqRemarks).toContain("Parent typed on PQ");
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(db.tables.IC_DOCUMENT_MAPPING.some((row) => row.TARGET_OBJECT === IC_OBJECT.SQ)).toBe(
       true,
@@ -549,9 +546,9 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     let convertStarted = false;
     const { orchestrator, convert, db, rfq, notifications } = createFlow1TestStack({
       documents: {
-        convertDraftToDocument: async () => {
+        // Convert = update existing PQ (PATCH) + create SQ; no draft convert.
+        applyPricesToDraft: async () => {
           convertStarted = true;
-          return { docEntry: 9100, docNum: 910 };
         },
       },
     });
