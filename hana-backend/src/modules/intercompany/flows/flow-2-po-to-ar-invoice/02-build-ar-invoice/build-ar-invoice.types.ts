@@ -1,7 +1,13 @@
 import type { Flow2ArInvoicePayload } from "../flow-2.types";
-import type { IcDocumentLineInput } from "@/modules/intercompany/flows/shared/flow.types";
 
-export type BuildArDraftLineInput = IcDocumentLineInput;
+/** Open seller SQ line used as BaseLine for AR Invoice convert. */
+export type SqBaseLineInput = {
+  LineNum: number;
+  ItemCode?: string | null;
+  Quantity?: number | null;
+  LineStatus?: string | null;
+  RemainingOpenQuantity?: number | null;
+};
 
 export type BuildArInvoiceInput = {
   buyerCustomerCode: string;
@@ -23,22 +29,25 @@ export type BuildArInvoiceInput = {
   poDocEntry: number;
   poDocNum?: number | null;
   /**
-   * IC remarks chain for AR: PQ + RFQ + SQ (CardName only).
-   * Prefer values resolved from PO Comments / document map.
+   * IC remarks chain for AR: PQ (buyer company) + RFQ/SQ (seller company).
+   * Prefer IC_COMPANY.COMPANY_NAME values.
    */
+  buyerCompanyName?: string | null;
+  sellerCompanyName?: string | null;
+  /** @deprecated Prefer buyerCompanyName + sellerCompanyName. */
   remarksCardName?: string | null;
   pqDocNum?: number | null;
   pqDocEntry?: number | null;
   rfqNumber?: string | null;
   rfqId?: number | null;
+  /** Required — AR is always copy-from this seller SQ (BaseType 23). */
   sqDocNum?: number | null;
-  sqDocEntry?: number | null;
-  lines?: BuildArDraftLineInput[];
+  sqDocEntry: number;
   /**
-   * Resolve seller sales tax for one AR line.
-   * Return seller code; empty string → omit VatGroup (never buyer tax).
+   * Seller SQ open lines. Each becomes one AR line with BaseType/BaseEntry/BaseLine.
+   * Item/tax/UoM/warehouse come from the SQ in SAP — do not rebuild free-standing lines.
    */
-  resolveLineTax: (input: { sourceTaxCode: string; itemCode: string }) => Promise<string>;
+  sqLines: SqBaseLineInput[];
 };
 
 export type BuildArInvoiceResult = Flow2ArInvoicePayload;

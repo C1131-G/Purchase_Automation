@@ -45,6 +45,15 @@ export const mapDraftLinesToRfqLines = (
       unitPriceRaw === undefined || unitPriceRaw === null ? null : Number(unitPriceRaw);
 
     const uomCode = line.UoMCode ?? line.UomCode;
+    const uomEntryRaw = line.UoMEntry ?? line.UomEntry;
+    const uomEntryNum =
+      uomEntryRaw === undefined || uomEntryRaw === null || uomEntryRaw === ""
+        ? null
+        : Number(uomEntryRaw);
+    const uomEntry =
+      uomEntryNum != null && Number.isFinite(uomEntryNum) && uomEntryNum > 0
+        ? Math.trunc(uomEntryNum)
+        : null;
     // Prefer VatGroup (SAP); accept TaxCode aliases from portal payloads.
     const taxRaw = line.VatGroup ?? line.TaxCode ?? line.taxCode ?? null;
     const taxCode = taxRaw == null ? null : String(taxRaw).trim() || null;
@@ -78,6 +87,8 @@ export const mapDraftLinesToRfqLines = (
       taxCode,
       unitPrice: Number.isFinite(unitPrice as number) ? (unitPrice as number) : null,
       uomCode: uomCode === undefined || uomCode === null || uomCode === "" ? null : String(uomCode),
+      // Not persisted on IC_RFQ_LINE yet — carried in-memory when hook payload has it.
+      uomEntry,
       warehouse:
         line.WarehouseCode === undefined || line.WarehouseCode === null
           ? null

@@ -201,6 +201,44 @@ export const resolveItemSalesUom = async (
   }
 };
 
+/**
+ * Resolve OUOM.UomEntry for a UoM code on a tenant DB.
+ * Required when posting SQ/AR with UoMCode only — without UoMEntry SAP often shows Manual.
+ */
+export const resolveUomEntryByCode = async (
+  dbName: string,
+  uomCode: string,
+): Promise<number | null> => {
+  const db = dbName.trim();
+  const code = uomCode.trim();
+  if (!db || !code) {
+    return null;
+  }
+  // Unit tests use memory IC SQL only — never open real tenant HANA for OUOM.
+  if (process.env.VITEST === "true" || process.env.NODE_ENV === "test") {
+    return null;
+  }
+  try {
+    const rows = (await executeTenantQuery(
+      db,
+      `SELECT TOP 1 "UomEntry" AS "UomEntry"
+         FROM "OUOM"
+        WHERE UPPER(TRIM("UomCode")) = UPPER(?)`,
+      [code],
+    )) as Array<Record<string, unknown>>;
+    const entryRaw = Number(rows[0]?.UomEntry ?? rows[0]?.uomEntry);
+    return Number.isFinite(entryRaw) && entryRaw > 0 ? Math.trunc(entryRaw) : null;
+  } catch (err) {
+    logger.warn({
+      db,
+      err,
+      msg: "Failed to resolve UoM entry from OUOM",
+      uomCode: code,
+    });
+    return null;
+  }
+};
+
 // Lists active warehouses available for inventory storage and transactions.
 
 export const getWarehouses = async (dbName: string) => {

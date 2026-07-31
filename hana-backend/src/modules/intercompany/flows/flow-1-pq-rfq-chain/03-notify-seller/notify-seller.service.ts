@@ -6,11 +6,10 @@ import type { NotificationService } from "@/modules/intercompany/domain/notifica
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import type { IcRfqHeader } from "@/modules/intercompany/domain/rfq/rfq.types";
 import { IC_ACTION } from "@/modules/intercompany/infrastructure/constants";
-import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import {
-  formatIcCreatedMessage,
   formatIcPartyName,
-  formatIcSubmittedMessage,
+  formatIcRfqCreatedMessage,
+  formatIcRfqSubmittedMessage,
 } from "@/modules/intercompany/infrastructure/ic-notification-copy";
 import { formatIcDocLabel } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
@@ -38,27 +37,33 @@ export const createNotifySellerService = (deps?: {
 
   return {
     notifyRfqCreated: async (params) => {
-      // Seller handoff: buyer BP CardName (never "Customer" / CardCode).
-      const partyName = formatIcPartyName(
-        await resolveBpCardName({
-          cardCode: params.partner.buyerCustomerCode,
-          preferredName: params.rfq.customerName,
-          sapDbName: params.partner.sellerCompany.sapDbName,
-        }),
-      );
+      // RFQ owner = seller; source PQ owner = buyer. Full company names only.
+      const sellerName = formatIcPartyName(params.partner.sellerCompany.companyName);
+      const buyerName = formatIcPartyName(params.partner.buyerCompany.companyName);
       const rfqLabel = formatIcDocLabel({
         kind: "RFQ",
         rfqNumber: params.rfq.rfqNumber,
         docEntry: params.rfq.rfqId,
+      });
+      const pqLabel = formatIcDocLabel({
+        kind: "PQ",
+        docEntry: params.rfq.pqDraftDocEntry,
+        docNum: params.rfq.pqDraftDocNum,
+      });
+      const message = formatIcRfqCreatedMessage({
+        buyerCompanyName: buyerName,
+        pqLabel,
+        rfqLabel,
+        sellerCompanyName: sellerName,
       });
       await notifications.create({
         companyId: params.partner.sellerCompany.companyId,
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_CREATED",
-        message: formatIcCreatedMessage(partyName, rfqLabel),
+        message,
         priority: "HIGH",
-        title: partyName || rfqLabel,
+        title: sellerName || rfqLabel,
       });
 
       await history.append({
@@ -76,28 +81,30 @@ export const createNotifySellerService = (deps?: {
     },
 
     notifyRfqSubmitted: async (params) => {
-      // Buyer handoff: seller/vendor CardName on buyer books (never "Vendor" / CardCode).
-      const buyerCompany = await company.getById(params.rfq.sourceCompanyId);
-      const partyName = formatIcPartyName(
-        await resolveBpCardName({
-          cardCode: params.rfq.vendorCode,
-          preferredName: params.rfq.vendorName,
-          sapDbName: buyerCompany?.sapDbName,
-        }),
+      // Buyer handoff: seller company submitted RFQ (seller owns RFQ).
+      const sellerCompany =
+        (await company.getById(params.rfq.targetCompanyId)) ??
+        (params.rfq.targetCompanyName ? { companyName: params.rfq.targetCompanyName } : null);
+      const sellerName = formatIcPartyName(
+        sellerCompany?.companyName ?? params.rfq.targetCompanyName,
       );
       const rfqLabel = formatIcDocLabel({
         kind: "RFQ",
         rfqNumber: params.rfq.rfqNumber,
         docEntry: params.rfq.rfqId,
       });
+      const message = formatIcRfqSubmittedMessage({
+        rfqLabel,
+        sellerCompanyName: sellerName,
+      });
       await notifications.create({
         companyId: params.rfq.sourceCompanyId,
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_SUBMITTED",
-        message: formatIcSubmittedMessage(partyName, rfqLabel),
+        message,
         priority: "MEDIUM",
-        title: partyName || rfqLabel,
+        title: sellerName || rfqLabel,
       });
 
       await history.append({

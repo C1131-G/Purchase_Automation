@@ -6,7 +6,6 @@ import { createBpMappingQueries } from "@/modules/intercompany/config/bp-mapping
 import { createBpMappingService } from "@/modules/intercompany/config/bp-mapping/bp-mapping.service";
 import { createCompanyQueries } from "@/modules/intercompany/config/company/company.queries";
 import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
-import { createPartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
 import { createDocumentMapMutations } from "@/modules/intercompany/domain/document-map/document-map.mutations";
 import { createDocumentMapQueries } from "@/modules/intercompany/domain/document-map/document-map.queries";
 import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
@@ -25,12 +24,17 @@ import { createBuildArInvoiceService } from "@/modules/intercompany/flows/flow-2
 import { createFlow2Orchestrator } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/flow-2.orchestrator";
 import { IC_CONFIG_KEY, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
+import { SAP_OBJ_SALES_QUOTATION } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import {
   createMemoryDb,
   createMemorySqlClient,
   seedMemoryCompanyGraph,
 } from "@/modules/intercompany/testing/memory-sql";
+
+/** IC remarks line that carries seller SQ DocNum for Flow 2 resolve. */
+const remarksWithSq = (sqDocNum = 810): string =>
+  `buyer notes\nAuto Generated Based on RCM Trading Sales Quotation ${sqDocNum}`;
 
 const enableFlow2 = (db: ReturnType<typeof createMemoryDb>): void => {
   db.tables.IC_CONFIGURATION.push({
@@ -41,9 +45,26 @@ const enableFlow2 = (db: ReturnType<typeof createMemoryDb>): void => {
   });
 };
 
+const defaultSqSnapshot = {
+  cardCode: "C-A-ON-B",
+  docEntry: 810,
+  docNum: 810,
+  documentLines: [
+    {
+      ItemCode: "ITEM1",
+      LineNum: 0,
+      LineStatus: "bost_Open",
+      Quantity: 3,
+      RemainingOpenQuantity: 3,
+    },
+  ],
+};
+
 const createFlow2TestStack = (opts?: {
   enableFlag?: boolean;
   slCreate?: () => Promise<{ docEntry: number; docNum?: number }>;
+  getSalesQuotation?: () => Promise<typeof defaultSqSnapshot>;
+  findSalesQuotationByDocNum?: () => Promise<typeof defaultSqSnapshot | null>;
 }) => {
   const db = createMemoryDb();
   seedMemoryCompanyGraph(db);
@@ -88,8 +109,10 @@ const createFlow2TestStack = (opts?: {
     createSalesQuotation: async () => {
       throw new Error("not used");
     },
+    findSalesQuotationByDocNum: opts?.findSalesQuotationByDocNum ?? (async () => defaultSqSnapshot),
     getDraftComments: async () => null,
     getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
+    getSalesQuotation: opts?.getSalesQuotation ?? (async () => defaultSqSnapshot),
   };
 
   const warehouseMasters = {
@@ -103,17 +126,8 @@ const createFlow2TestStack = (opts?: {
 
   const orchestrator = createFlow2Orchestrator({
     build: createBuildArInvoiceService({
-      company,
       documentMap,
-      partnerTax: createPartnerTaxResolver({
-        company,
-        masters: {
-          getBpTax: async () => null,
-          getItemTax: async () => null,
-          getOvtgTax: async () => null,
-          listOvtgTaxes: async () => [],
-        },
-      }),
+      documents,
       warehouseMasters,
     }),
     configuration,
@@ -128,13 +142,14 @@ const createFlow2TestStack = (opts?: {
   return {
     db,
     documentMap,
+    documents,
     orchestrator,
     resolvePartner,
     sql,
   };
 };
 
-describe("Flow 2 PO → AR Invoice (P5)", () => {
+describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
   it("T5.1 draft PO → skip", async () => {
     const { orchestrator } = createFlow2TestStack();
     const result = await orchestrator.run({
@@ -169,111 +184,96 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
     expect(result).toMatchObject({ reason: "flow2_disabled", status: "skipped" });
   });
 
-  it("T5.4 build payload tax/customer/remarks", async () => {
-    const payload = await buildArInvoicePayload({
+  it("T5.4 build payload is SQ base convert (BaseType 23) + remarks", () => {
+    const payload = buildArInvoicePayload({
       buyerCustomerCode: "C-A-ON-B",
       comments: "User note keep me",
       defaultBranchId: 1,
       docDate: "20260315",
-      lines: [
-        {
-          ItemCode: "ITEM1",
-          ItemDescription: "Widget A",
-          Quantity: 2,
-          UnitPrice: 10,
-          VatGroup: "IN-12.5",
-          WarehouseCode: "01",
-        },
-      ],
-      resolveLineTax: async ({ sourceTaxCode }) => (sourceTaxCode === "IN-12.5" ? "GSTO" : ""),
       poDocEntry: 100,
       poDocNum: 100,
       pqDocEntry: 55,
       pqDocNum: 2042,
-      remarksCardName: "AJAX Industries",
+      buyerCompanyName: "AJAX Industries",
+      sellerCompanyName: "RCM Trading",
       remarksTag: "IC-PO-100",
       rfqId: 9,
       rfqNumber: "9001",
       sqDocEntry: 810,
       sqDocNum: 810,
+      sqLines: [
+        {
+          ItemCode: "ITEM1",
+          LineNum: 0,
+          Quantity: 2,
+          RemainingOpenQuantity: 2,
+        },
+      ],
     });
 
     // Real A/R Invoice body — no DocObjectCode (Drafts only).
     expect(payload.DocObjectCode).toBeUndefined();
     expect(payload.CardCode).toBe("C-A-ON-B");
-    // Existing remarks preserved; AR IC chain = PQ + RFQ + SQ with CardName (not PO/AR/CardCode).
+    // Existing remarks preserved; AR IC chain = PQ (buyer) + RFQ/SQ (seller).
     expect(payload.Comments).toContain("User note keep me");
     expect(payload.Comments).toContain(
       "Auto Generated Based on AJAX Industries Purchase Quotation 2042",
     );
     expect(payload.Comments).toContain(
-      "Auto Generated Based on AJAX Industries Request For Quotation 9001",
+      "Auto Generated Based on RCM Trading Request For Quotation 9001",
     );
-    expect(payload.Comments).toContain(
-      "Auto Generated Based on AJAX Industries Sales Quotation 810",
-    );
+    expect(payload.Comments).toContain("Auto Generated Based on RCM Trading Sales Quotation 810");
     expect(payload.Comments).not.toContain("Purchase Order");
     expect(payload.Comments).not.toContain("C-A-ON-B");
     expect(payload.Comments).not.toMatch(/Flow\s*[12]/i);
-    expect(payload.Comments).not.toContain("Based on AR Invoice Draft");
     expect(payload.NumAtCard).toBe("IC-PO-100");
     expect(payload.BPL_IDAssignedToInvoice).toBe(1);
     expect(payload.DocDate).toBe("2026-03-15");
     expect(payload.DocumentLines).toHaveLength(1);
-    expect(payload.DocumentLines[0].VatGroup).toBe("GSTO");
-    expect(payload.DocumentLines[0].ItemCode).toBe("ITEM1");
-    expect(payload.DocumentLines[0].ItemDescription).toBe("Widget A");
-    // Explicit PO vs AR tax fields for ops visibility.
-    expect(payload.taxUsage).toEqual([
-      expect.objectContaining({
-        arTaxCode: "GSTO",
-        itemCode: "ITEM1",
-        poTaxCode: "IN-12.5",
-      }),
-    ]);
-  });
-
-  it("T5.4b tax map miss → omit VatGroup (never buyer tax on seller AR)", async () => {
-    const payload = await buildArInvoicePayload({
-      buyerCustomerCode: "C-A-ON-B",
-      defaultBranchId: 1,
-      lines: [
-        {
-          ItemCode: "ITEM1",
-          Quantity: 1,
-          UnitPrice: 10,
-          VatGroup: "BUYER-ONLY-TAX",
-          WarehouseCode: "01",
-        },
-      ],
-      // Same contract as Flow 1 SQ / buildArInvoiceService: miss → empty string.
-      resolveLineTax: async () => "",
-      poDocEntry: 101,
-      poDocNum: 101,
-      remarksTag: "IC-PO-101",
+    // Convert-from SQ — not free-standing ItemCode/VatGroup.
+    expect(payload.DocumentLines[0]).toEqual({
+      BaseEntry: 810,
+      BaseLine: 0,
+      BaseType: SAP_OBJ_SALES_QUOTATION,
+      Quantity: 2,
     });
-
-    expect(payload.DocumentLines).toHaveLength(1);
+    expect(payload.DocumentLines[0].ItemCode).toBeUndefined();
     expect(payload.DocumentLines[0].VatGroup).toBeUndefined();
-    expect(payload.DocumentLines[0].ItemCode).toBe("ITEM1");
   });
 
-  it("T5.4c buildArInvoiceService omits when item/BP miss (never buyer tax)", async () => {
-    const db = createMemoryDb();
-    seedMemoryCompanyGraph(db);
-    const sql = createMemorySqlClient(db);
-    const company = createCompanyService(createCompanyQueries(sql));
-    const service = createBuildArInvoiceService({
-      company,
-      partnerTax: createPartnerTaxResolver({
-        company,
-        masters: {
-          getBpTax: async () => null,
-          getItemTax: async () => null,
-          getOvtgTax: async () => null,
-          listOvtgTaxes: async () => [],
-        },
+  it("T5.4b skips closed SQ lines; fails when none open", () => {
+    expect(() =>
+      buildArInvoicePayload({
+        buyerCustomerCode: "C-A-ON-B",
+        defaultBranchId: 1,
+        poDocEntry: 101,
+        remarksTag: "IC-PO-101",
+        sqDocEntry: 810,
+        sqLines: [
+          {
+            LineNum: 0,
+            LineStatus: "bost_Close",
+            Quantity: 1,
+          },
+        ],
       }),
+    ).toThrow(/no open lines/i);
+  });
+
+  it("T5.4c service requires seller SQ (no free-standing AR from PO)", async () => {
+    const service = createBuildArInvoiceService({
+      documents: {
+        applyPricesToPq: async () => undefined,
+        convertDraftToDocument: async () => ({ docEntry: 1 }),
+        createArInvoiceDraft: async () => ({ docEntry: 1 }),
+        createSalesQuotation: async () => ({ docEntry: 1 }),
+        findSalesQuotationByDocNum: async () => null,
+        getDraftComments: async () => null,
+        getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
+        getSalesQuotation: async () => {
+          throw new Error("should not load SQ without entry");
+        },
+      },
       warehouseMasters: {
         getFirstActiveBranchWarehouse: async () => ({
           branchId: 1,
@@ -306,46 +306,34 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
       bpMappingId: 1,
     };
 
-    const payload = await service.build({
-      input: {
-        cardCode: "V-B",
-        docEntry: 200,
-        docNum: 200,
-        isDraft: false,
-        lines: [
-          {
-            ItemCode: "ITEM1",
-            Quantity: 1,
-            UnitPrice: 9,
-            VatGroup: "BUYER-ONLY-TAX",
-            WarehouseCode: "01",
-          },
-        ],
-      },
-      partner,
-      remarksTag: "IC-PO-200",
-    });
-
-    expect(payload.DocumentLines[0].VatGroup).toBeUndefined();
+    await expect(
+      service.build({
+        input: {
+          cardCode: "V-B",
+          docEntry: 200,
+          docNum: 200,
+          isDraft: false,
+          lines: [{ ItemCode: "ITEM1", Quantity: 1, UnitPrice: 9, WarehouseCode: "01" }],
+          remarks: "no SQ link here",
+        },
+        partner,
+        remarksTag: "IC-PO-200",
+      }),
+    ).rejects.toThrow(/Sales Quotation not found/i);
   });
 
-  it("T5.4d buildArInvoiceService uses seller item sales tax dynamically", async () => {
-    const db = createMemoryDb();
-    seedMemoryCompanyGraph(db);
-    const sql = createMemorySqlClient(db);
-    const company = createCompanyService(createCompanyQueries(sql));
+  it("T5.4d service loads SQ and posts BaseType 23 lines", async () => {
     const service = createBuildArInvoiceService({
-      company,
-      partnerTax: createPartnerTaxResolver({
-        company,
-        masters: {
-          getBpTax: async () => "BP-TAX",
-          getItemTax: async (_db, itemCode, side) =>
-            side === "sales" && itemCode === "ITEM1" ? "ITEM-SA-TAX" : null,
-          getOvtgTax: async () => null,
-          listOvtgTaxes: async () => [],
-        },
-      }),
+      documents: {
+        applyPricesToPq: async () => undefined,
+        convertDraftToDocument: async () => ({ docEntry: 1 }),
+        createArInvoiceDraft: async () => ({ docEntry: 1 }),
+        createSalesQuotation: async () => ({ docEntry: 1 }),
+        findSalesQuotationByDocNum: async () => defaultSqSnapshot,
+        getDraftComments: async () => null,
+        getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
+        getSalesQuotation: async () => defaultSqSnapshot,
+      },
       warehouseMasters: {
         getFirstActiveBranchWarehouse: async () => ({
           branchId: 1,
@@ -360,7 +348,7 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
       buyerCompany: {
         companyCode: "A",
         companyId: 1,
-        companyName: "A",
+        companyName: "Company A",
         defaultBranchId: null,
         isActive: true,
         sapDbName: "DB_A",
@@ -369,7 +357,7 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
       sellerCompany: {
         companyCode: "B",
         companyId: 2,
-        companyName: "B",
+        companyName: "Company B",
         defaultBranchId: 1,
         isActive: true,
         sapDbName: "DB_B",
@@ -384,21 +372,22 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
         docEntry: 202,
         docNum: 202,
         isDraft: false,
-        lines: [
-          {
-            ItemCode: "ITEM1",
-            Quantity: 1,
-            UnitPrice: 9,
-            VatGroup: "BUYER-ONLY-TAX",
-            WarehouseCode: "01",
-          },
-        ],
+        lines: [{ ItemCode: "ITEM1", Quantity: 3, UnitPrice: 12, WarehouseCode: "01" }],
+        remarks: remarksWithSq(810),
       },
       partner,
       remarksTag: "IC-PO-202",
     });
 
-    expect(payload.DocumentLines[0].VatGroup).toBe("ITEM-SA-TAX");
+    expect(payload.DocumentLines).toEqual([
+      {
+        BaseEntry: 810,
+        BaseLine: 0,
+        BaseType: SAP_OBJ_SALES_QUOTATION,
+        Quantity: 3,
+      },
+    ]);
+    expect(payload.CardCode).toBe("C-A-ON-B");
   });
 
   it("T5.5 idempotent: existing SUCCESS map → skip create", async () => {
@@ -426,6 +415,7 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
       docNum: 100,
       isDraft: false,
       lines: [{ ItemCode: "X", Quantity: 1, UnitPrice: 1 }],
+      remarks: remarksWithSq(),
     });
 
     expect(result.status).toBe("skipped");
@@ -458,6 +448,7 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
           WarehouseCode: "01",
         },
       ],
+      remarks: remarksWithSq(),
     });
 
     expect(result.status).toBe("queued_retry");
@@ -471,10 +462,25 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
     expect(db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("happy path A→B creates map + notifications", async () => {
-    const { orchestrator, db } = createFlow2TestStack();
+  it("happy path A→B converts SQ → AR map + notifications", async () => {
+    let postedPayload: Record<string, unknown> | null = null;
+    const stack = createFlow2TestStack({
+      slCreate: async () => ({ docEntry: 9001, docNum: 501 }),
+    });
 
-    const result = await orchestrator.run({
+    const docs = stack.documents as {
+      createArInvoiceDraft: (input: {
+        companyId: number;
+        draftPayload: Record<string, unknown>;
+      }) => Promise<{ docEntry: number; docNum?: number }>;
+    };
+    const originalCreate = docs.createArInvoiceDraft;
+    docs.createArInvoiceDraft = async (input) => {
+      postedPayload = input.draftPayload;
+      return originalCreate(input);
+    };
+
+    const result = await stack.orchestrator.run({
       cardCode: "V-B",
       dbName: "DB_A",
       docDate: "2026-03-20",
@@ -490,22 +496,32 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
           WarehouseCode: "01",
         },
       ],
-      remarks: "buyer notes",
+      remarks: remarksWithSq(810),
     });
 
     expect(result).toMatchObject({
       status: "success",
       targetDoc: { entry: 9001, num: 501, type: IC_OBJECT.AR_INVOICE },
     });
-    expect(db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
-    expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
-    expect(db.tables.IC_DOCUMENT_MAPPING[0].TARGET_DOC_ENTRY).toBe("9001");
-    expect(db.tables.IC_DOCUMENT_MAPPING[0].TARGET_OBJECT).toBe(IC_OBJECT.AR_INVOICE);
+    expect(stack.db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
+    expect(stack.db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
+    expect(stack.db.tables.IC_DOCUMENT_MAPPING[0].TARGET_DOC_ENTRY).toBe("9001");
+    expect(stack.db.tables.IC_DOCUMENT_MAPPING[0].TARGET_OBJECT).toBe(IC_OBJECT.AR_INVOICE);
     // Seller only (AR invoice handoff); buyer is not notified on Flow 2 success.
-    expect(db.tables.IC_NOTIFICATION).toHaveLength(1);
-    expect(db.tables.IC_NOTIFICATION[0].COMPANY_ID).toBe(2);
-    expect(db.tables.IC_NOTIFICATION[0].FLOW_STEP).toBe("FLOW2_AR_INVOICE_CREATED");
-    expect(db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
+    expect(stack.db.tables.IC_NOTIFICATION).toHaveLength(1);
+    expect(stack.db.tables.IC_NOTIFICATION[0].COMPANY_ID).toBe(2);
+    expect(stack.db.tables.IC_NOTIFICATION[0].FLOW_STEP).toBe("FLOW2_AR_INVOICE_CREATED");
+    expect(stack.db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
+
+    expect(postedPayload).not.toBeNull();
+    const lines = postedPayload?.DocumentLines as Record<string, unknown>[];
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      BaseEntry: 810,
+      BaseLine: 0,
+      BaseType: SAP_OBJ_SALES_QUOTATION,
+    });
+    expect(lines[0].ItemCode).toBeUndefined();
   });
 
   it("afterPoCreated never throws (sync path for unit assert)", async () => {

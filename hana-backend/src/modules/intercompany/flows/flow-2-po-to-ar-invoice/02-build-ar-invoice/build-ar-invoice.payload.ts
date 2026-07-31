@@ -1,25 +1,16 @@
 /**
- * Pure payload helpers for Flow 2 AR Invoice (no I/O except tax resolve callback).
+ * Pure payload helpers for Flow 2 AR Invoice.
+ * AR is always converted from seller Sales Quotation (BaseType 23) — never free-standing PO lines.
  */
 
 import { buildFlow2ArRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
-import {
-  flow2LineTaxUsage,
-  type IcLineTaxUsage,
-} from "@/modules/intercompany/infrastructure/ic-tax-usage";
-import type { IcDocumentLineInput } from "@/modules/intercompany/flows/shared/flow.types";
+import { SAP_OBJ_SALES_QUOTATION } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 
-import type { BuildArInvoiceInput, BuildArInvoiceResult } from "./build-ar-invoice.types";
-
-export type ResolveArLineTax = (input: {
-  sourceTaxCode: string;
-  itemCode: string;
-}) => Promise<string>;
-
-export type MapPoLineToArResult = {
-  docLine: Record<string, unknown>;
-  taxUsage: IcLineTaxUsage;
-};
+import type {
+  BuildArInvoiceInput,
+  BuildArInvoiceResult,
+  SqBaseLineInput,
+} from "./build-ar-invoice.types";
 
 export const formatSapDate = (value: unknown): string | undefined => {
   if (value == null) {
@@ -35,75 +26,80 @@ export const formatSapDate = (value: unknown): string | undefined => {
   return raw;
 };
 
-export const mapPoLineToArLine = async (
-  line: IcDocumentLineInput,
-  resolveLineTax: ResolveArLineTax,
-): Promise<MapPoLineToArResult> => {
-  // PO tax = buyer purchase VatGroup on the PO line.
-  const poTaxCode = line.VatGroup == null ? "" : String(line.VatGroup).trim();
-  const itemCode = line.ItemCode == null ? "" : String(line.ItemCode).trim();
-  // Always resolve (map → item → BP → omit), even when buyer tax is empty.
-  const arTaxCode = (await resolveLineTax({ itemCode, sourceTaxCode: poTaxCode })).trim();
-
-  const docLine: Record<string, unknown> = {
-    DiscountPercent: Number(line.DiscountPercent ?? 0),
-    ItemCode: line.ItemCode as string,
-    Quantity: line.Quantity as number,
-    UnitPrice: (line.UnitPrice ?? line.Price) as number,
-    VatGroup: arTaxCode || undefined,
-    WarehouseCode: line.WarehouseCode as string,
-  };
-
-  const itemDescription = String(line.ItemDescription ?? line.ItemName ?? "").trim();
-  if (itemDescription) {
-    docLine.ItemDescription = itemDescription;
+/** True when SAP SQ line is still open for convert (closed lines skipped). */
+export const isSqLineOpenForConvert = (line: SqBaseLineInput): boolean => {
+  const status = line.LineStatus == null ? "" : String(line.LineStatus).trim().toLowerCase();
+  if (status === "bost_close" || status === "c" || status === "closed") {
+    return false;
   }
-
-  if (line.LineNum !== undefined && line.LineNum !== null) {
-    docLine.LineNum = Number(line.LineNum);
+  const openQty = line.RemainingOpenQuantity;
+  if (openQty != null && Number.isFinite(Number(openQty)) && Number(openQty) <= 0) {
+    return false;
   }
-
-  const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
-  if (Number.isFinite(uomEntry) && uomEntry > 0) {
-    docLine.UoMEntry = Math.trunc(uomEntry);
-    docLine.UseBaseUnit = "tNO";
-  } else {
-    const uomCode = line.UoMCode ?? line.UomCode;
-    if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
-      docLine.UoMCode = uomCode as string | number;
-      docLine.UseBaseUnit = "tNO";
-    }
-  }
-
-  const taxUsage = flow2LineTaxUsage({
-    arTaxCode,
-    itemCode,
-    lineNum: line.LineNum != null ? Number(line.LineNum) : 0,
-    poTaxCode,
-  });
-
-  return { docLine, taxUsage };
+  return true;
 };
 
-/** Build Service Layer A/R Invoice body from PO capture context (POST /Invoices). */
-export const buildArInvoicePayload = async (
-  input: BuildArInvoiceInput,
-): Promise<BuildArInvoiceResult & { taxUsage: IcLineTaxUsage[] }> => {
-  const lines = Array.isArray(input.lines) ? input.lines : [];
-  const documentLines: Record<string, unknown>[] = [];
-  const taxUsage: IcLineTaxUsage[] = [];
-  for (const line of lines) {
-    const mapped = await mapPoLineToArLine(line, input.resolveLineTax);
-    documentLines.push(mapped.docLine);
-    taxUsage.push(mapped.taxUsage);
+/**
+ * Map one open SQ line → AR Invoice DocumentLine based on SQ (SAP copy-to).
+ * SAP pulls ItemCode, price, tax, UoM, warehouse from the base SQ line.
+ */
+export const mapSqLineToArBaseLine = (params: {
+  sqDocEntry: number;
+  line: SqBaseLineInput;
+}): Record<string, unknown> => {
+  const lineNum = Math.trunc(Number(params.line.LineNum));
+  if (!Number.isFinite(lineNum) || lineNum < 0) {
+    throw new Error(`IC AR convert: invalid SQ LineNum=${String(params.line.LineNum)}`);
   }
+  const baseEntry = Math.trunc(Number(params.sqDocEntry));
+  if (!Number.isFinite(baseEntry) || baseEntry <= 0) {
+    throw new Error(`IC AR convert: invalid SQ DocEntry=${String(params.sqDocEntry)}`);
+  }
+
+  const docLine: Record<string, unknown> = {
+    BaseEntry: baseEntry,
+    BaseLine: lineNum,
+    BaseType: SAP_OBJ_SALES_QUOTATION,
+  };
+
+  // Prefer remaining open qty when partial convert; else full line qty.
+  const openQty = params.line.RemainingOpenQuantity;
+  const qty = params.line.Quantity;
+  if (openQty != null && Number.isFinite(Number(openQty)) && Number(openQty) > 0) {
+    docLine.Quantity = Number(openQty);
+  } else if (qty != null && Number.isFinite(Number(qty)) && Number(qty) > 0) {
+    docLine.Quantity = Number(qty);
+  }
+
+  return docLine;
+};
+
+/** Build Service Layer A/R Invoice body: convert seller SQ → POST /Invoices. */
+export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoiceResult => {
+  const sqDocEntry = Math.trunc(Number(input.sqDocEntry));
+  if (!Number.isFinite(sqDocEntry) || sqDocEntry <= 0) {
+    throw new Error("IC Flow 2 requires seller SQ DocEntry to convert to A/R Invoice");
+  }
+
+  const openLines = (Array.isArray(input.sqLines) ? input.sqLines : []).filter(
+    isSqLineOpenForConvert,
+  );
+  if (openLines.length === 0) {
+    throw new Error(
+      `IC Flow 2: seller SQ DocEntry=${sqDocEntry} has no open lines to convert to A/R Invoice`,
+    );
+  }
+
+  const documentLines = openLines.map((line) => mapSqLineToArBaseLine({ line, sqDocEntry }));
 
   const docDate = formatSapDate(input.docDate);
   const docDueDate = formatSapDate(input.docDueDate) ?? docDate;
   const numAtCardRaw = input.numAtCard == null ? "" : String(input.numAtCard).trim();
 
-  // Keep existing PO comments (user + PQ/RFQ from PQ→PO); ensure PQ + RFQ + SQ with CardName.
+  // Keep existing PO comments; ensure PQ (buyer) + RFQ (seller) + SQ (seller).
   const comments = buildFlow2ArRemarks({
+    buyerCompanyName: input.buyerCompanyName,
+    sellerCompanyName: input.sellerCompanyName,
     cardName: input.remarksCardName,
     existingComments: input.comments,
     pqDocEntry: input.pqDocEntry,
@@ -115,6 +111,7 @@ export const buildArInvoicePayload = async (
   });
 
   // Real invoice body — no DocObjectCode (that is only for Drafts).
+  // Lines are BaseType 23 only — not free-standing ItemCode/VatGroup rows.
   const payload: BuildArInvoiceResult = {
     CardCode: input.buyerCustomerCode,
     Comments: comments,
@@ -134,12 +131,11 @@ export const buildArInvoicePayload = async (
     payload.NumAtCard = (input.remarksTag || "").slice(0, 100);
   }
 
-  // Branch only — never rewrite line WarehouseCode / UoM on create.
-  // Prefer documentBranchId (from WH lookup) else DEFAULT_BRANCH_ID.
+  // Branch only — line WH/UoM/tax come from base SQ.
   const branchRaw = input.documentBranchId ?? input.defaultBranchId;
   if (branchRaw != null && Number.isFinite(branchRaw) && branchRaw > 0) {
     payload.BPL_IDAssignedToInvoice = Math.trunc(branchRaw);
   }
 
-  return { ...payload, taxUsage };
+  return payload;
 };

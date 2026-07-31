@@ -87,6 +87,34 @@ describe("buildSalesQuotationLines warehouse", () => {
     });
   });
 
+  it("keeps RFQ UoM and resolves UoMEntry so SQ is not Manual", async () => {
+    const { documentLines } = await buildSalesQuotationLines(
+      [
+        {
+          deliveryDate: null,
+          description: null,
+          discount: 0,
+          itemCode: "I1",
+          lineNum: 0,
+          quantity: 1,
+          remarks: null,
+          rfqId: 1,
+          rfqLineId: 1,
+          taxCode: null,
+          unitPrice: 1,
+          uomCode: "Each",
+          uomEntry: 5,
+          warehouse: null,
+        },
+      ],
+      async () => "",
+      { branchWarehouseCode: "WH01" },
+    );
+    expect(documentLines[0]?.UoMCode).toBe("Each");
+    expect(documentLines[0]?.UoMEntry).toBe(5);
+    expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
+  });
+
   it("keeps RFQ UoM when warehouse is set (does not drop or rewrite UoM)", async () => {
     const { documentLines } = await buildSalesQuotationLines(
       [

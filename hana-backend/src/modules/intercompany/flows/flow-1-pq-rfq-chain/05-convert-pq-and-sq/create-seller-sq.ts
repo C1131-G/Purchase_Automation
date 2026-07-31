@@ -13,6 +13,7 @@ import type {
   IcSlDocuments,
 } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { resolveDocumentSeries } from "@/modules/master-data/master-data.service";
+import { resolveUomEntryByCode } from "@/modules/master-data/master-data.warehouses-series.queries";
 
 /** Resolve seller VatGroup for one SQ line (empty string → omit field). */
 export type ResolveSqLineTax = (input: {
@@ -51,11 +52,23 @@ export const buildSalesQuotationLines = async (
   options?: {
     /** WH for the document branch (all lines share this). */
     branchWarehouseCode?: string | null;
+    /**
+     * Seller SAP DB — when set, resolve UoMEntry from OUOM for the source UoMCode.
+     * Without UoMEntry, Service Layer often posts Manual instead of Each/NOS/etc.
+     */
+    sapDbName?: string | null;
+    /** Optional UoMEntry resolver (injectable in unit tests). */
+    resolveUomEntry?: (uomCode: string) => Promise<number | null>;
   },
 ): Promise<BuildSqLinesResult> => {
   const branchWh = options?.branchWarehouseCode?.trim() || null;
   const documentLines: Record<string, unknown>[] = [];
   const taxUsage: IcLineTaxUsage[] = [];
+  const sapDbName = options?.sapDbName?.trim() || null;
+  const resolveUomEntry =
+    options?.resolveUomEntry ??
+    (async (uomCode: string): Promise<number | null> =>
+      sapDbName ? resolveUomEntryByCode(sapDbName, uomCode) : null);
 
   for (const line of lines) {
     // PQ tax = buyer RFQ/PQ purchase tax (source snapshot; never posted on seller SQ).
@@ -94,9 +107,21 @@ export const buildSalesQuotationLines = async (
     }
 
     // Keep source PQ/RFQ UoM. Do not overwrite with seller item SalUnitMsr.
+    // Prefer UoMEntry (stable across companies); fall back to OUOM lookup by code.
+    // Without UoMEntry, SAP often defaults the line UoM to Manual.
     const sourceUom = line.uomCode?.trim() || null;
-    if (sourceUom) {
-      docLine.UoMCode = sourceUom;
+    const knownEntry =
+      line.uomEntry != null && Number.isFinite(Number(line.uomEntry)) && Number(line.uomEntry) > 0
+        ? Math.trunc(Number(line.uomEntry))
+        : null;
+    if (sourceUom || knownEntry != null) {
+      if (sourceUom) {
+        docLine.UoMCode = sourceUom;
+      }
+      const resolvedEntry = knownEntry ?? (sourceUom ? await resolveUomEntry(sourceUom) : null);
+      if (resolvedEntry != null) {
+        docLine.UoMEntry = resolvedEntry;
+      }
       docLine.UseBaseUnit = "tNO";
     }
     if (line.deliveryDate) {
@@ -267,6 +292,7 @@ export const createSellerSq = async (params: {
     params.resolveLineTax,
     {
       branchWarehouseCode: warehouseCtx.branchWarehouseCode,
+      sapDbName: params.sapDbName,
     },
   );
 

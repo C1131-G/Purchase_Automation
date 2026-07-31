@@ -12,9 +12,10 @@ import {
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 
 describe("ic-remarks-chain", () => {
-  it("RFQ open remarks are PQ only with CardName (not CardCode)", () => {
+  it("RFQ open remarks are PQ only with buyer company name (PQ owner)", () => {
     const merged = buildFlow1RfqRemarks({
-      cardName: "AJAX Industries",
+      buyerCompanyName: "AJAX Industries",
+      sellerCompanyName: "RCM Trading",
       existing: "Please match last quote\nUrgent for plant B",
       pqDraftDocEntry: 55,
       pqDraftDocNum: 9001,
@@ -24,6 +25,7 @@ describe("ic-remarks-chain", () => {
     expect(merged).toContain("Please match last quote");
     expect(merged).toContain("Urgent for plant B");
     expect(merged).toContain("Auto Generated Based on AJAX Industries Purchase Quotation 9001");
+    expect(merged).not.toContain("RCM Trading Purchase Quotation");
     expect(merged).not.toContain("Request For Quotation");
     expect(merged).not.toMatch(/Flow\s*[12]/i);
     expect(merged).not.toContain("IC |");
@@ -31,9 +33,10 @@ describe("ic-remarks-chain", () => {
     expect(merged).not.toContain("V-B");
   });
 
-  it("after RFQ submit convert remarks are PQ + RFQ with distinct numbers", () => {
+  it("after RFQ submit convert remarks are PQ (buyer) + RFQ (seller)", () => {
     const remarks = buildFlow1ConvertRemarks({
-      cardName: "AJAX Industries",
+      buyerCompanyName: "AJAX Industries",
+      sellerCompanyName: "RCM Trading",
       existing: "User note",
       pqDraftDocEntry: 55,
       pqDraftDocNum: 2042,
@@ -43,7 +46,8 @@ describe("ic-remarks-chain", () => {
       rfqNumber: "9001",
     });
     expect(remarks).toContain("Auto Generated Based on AJAX Industries Purchase Quotation 2042");
-    expect(remarks).toContain("Auto Generated Based on AJAX Industries Request For Quotation 9001");
+    expect(remarks).toContain("Auto Generated Based on RCM Trading Request For Quotation 9001");
+    expect(remarks).not.toContain("AJAX Industries Request For Quotation");
     expect(remarks).not.toContain("Sales Quotation");
   });
 
@@ -76,9 +80,10 @@ describe("ic-remarks-chain", () => {
     expect(merged).toBe(chain);
   });
 
-  it("buildFlow2ArRemarks keeps PO user comments and PQ+RFQ+SQ with CardName", () => {
+  it("buildFlow2ArRemarks keeps PO user comments and PQ buyer + RFQ/SQ seller", () => {
     const comments = buildFlow2ArRemarks({
-      cardName: "AJAX Industries",
+      buyerCompanyName: "AJAX Industries",
+      sellerCompanyName: "RCM Trading",
       existingComments: "Ship to dock 3",
       pqDocEntry: 55,
       pqDocNum: 2042,
@@ -89,10 +94,8 @@ describe("ic-remarks-chain", () => {
     });
     expect(comments).toContain("Ship to dock 3");
     expect(comments).toContain("Auto Generated Based on AJAX Industries Purchase Quotation 2042");
-    expect(comments).toContain(
-      "Auto Generated Based on AJAX Industries Request For Quotation 9001",
-    );
-    expect(comments).toContain("Auto Generated Based on AJAX Industries Sales Quotation 810");
+    expect(comments).toContain("Auto Generated Based on RCM Trading Request For Quotation 9001");
+    expect(comments).toContain("Auto Generated Based on RCM Trading Sales Quotation 810");
     expect(comments).not.toContain("Purchase Order");
     expect(comments).not.toContain("AR Invoice");
   });
@@ -118,9 +121,10 @@ describe("ic-remarks-chain", () => {
     expect(second).toBe(first);
   });
 
-  it("buildFlow1SqRemarks is PQ + RFQ only (two details) with CardName", () => {
+  it("buildFlow1SqRemarks is PQ buyer + RFQ seller only (two details)", () => {
     const remarks = buildFlow1SqRemarks({
-      cardName: "AJAX Industries",
+      buyerCompanyName: "AJAX Industries",
+      sellerCompanyName: "RCM Trading",
       existing: "Ship ASAP",
       pqDraftDocEntry: 55,
       pqDraftDocNum: 9001,
@@ -135,7 +139,7 @@ describe("ic-remarks-chain", () => {
     expect(remarks).toContain("Ship ASAP");
     expect(remarks).toContain("Vendor Ref No: BUYER-REF-42");
     expect(remarks).toContain("Auto Generated Based on AJAX Industries Purchase Quotation 2042");
-    expect(remarks).toContain("Auto Generated Based on AJAX Industries Request For Quotation 9001");
+    expect(remarks).toContain("Auto Generated Based on RCM Trading Request For Quotation 9001");
     // SQ does not self-link even when sqDocEntry is passed.
     expect(remarks).not.toContain("Sales Quotation");
     expect(remarks).not.toContain("Purchase Quotation Draft");
@@ -143,7 +147,7 @@ describe("ic-remarks-chain", () => {
     expect(remarks.indexOf("Vendor Ref No")).toBeLessThan(remarks.indexOf("Auto Generated"));
   });
 
-  it("parses multi-word CardName Based on lines for merge/idempotency", () => {
+  it("parses multi-word company name Based on lines for merge/idempotency", () => {
     const first = appendIcRemarkLines("Note", [
       { cardName: "AJAX Industries", key: "PQ", text: "132424" },
     ]);

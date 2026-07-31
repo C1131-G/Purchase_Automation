@@ -29,9 +29,8 @@ import {
   FLOW2_RETRY_STEPS,
   logFlowStep,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
-import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import {
-  formatIcCreatedMessage,
+  formatIcArCreatedMessage,
   formatIcPartyName,
 } from "@/modules/intercompany/infrastructure/ic-notification-copy";
 import {
@@ -138,23 +137,33 @@ const createDefaultHandlers = (deps: {
       docEntry: created.docEntry,
       docNum: created.docNum ?? null,
     });
-    const customerCode =
-      payload.buyerCustomerCode != null ? String(payload.buyerCustomerCode).trim() : "";
+    const poLabel = formatIcDocLabel({
+      kind: "PO",
+      docEntry:
+        payload.sourceDocEntry != null ? String(payload.sourceDocEntry) : item.sourceDocument,
+      docNum: payload.sourceDocNum != null ? String(payload.sourceDocNum) : null,
+    });
     const sellerCompany = await deps.company.getById(sellerCompanyId);
-    const partyName = formatIcPartyName(
-      await resolveBpCardName({
-        cardCode: customerCode || null,
-        sapDbName: sellerCompany?.sapDbName,
-      }),
-    );
+    const buyerCompanyId =
+      payload.buyerCompanyId != null ? Number(payload.buyerCompanyId) : item.companyId;
+    const buyerCompany = Number.isFinite(buyerCompanyId)
+      ? await deps.company.getById(buyerCompanyId)
+      : null;
+    const sellerName = formatIcPartyName(sellerCompany?.companyName);
+    const buyerName = formatIcPartyName(buyerCompany?.companyName);
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(created.docEntry),
       documentType: IC_OBJECT.AR_INVOICE,
       flowStep: "FLOW2_AR_INVOICE_CREATED",
-      message: formatIcCreatedMessage(partyName, arLabel),
+      message: formatIcArCreatedMessage({
+        arLabel,
+        buyerCompanyName: buyerName,
+        poLabel,
+        sellerCompanyName: sellerName,
+      }),
       priority: "MEDIUM",
-      title: partyName || arLabel,
+      title: sellerName || arLabel,
     });
 
     await deps.history.append({
@@ -226,14 +235,10 @@ const createDefaultHandlers = (deps: {
           : null;
     const sellerCompany = await deps.company.getById(sellerCompanyId);
     const buyerCompany = await deps.company.getById(header.sourceCompanyId);
-    const remarksCardName = await resolveBpCardName({
-      cardCode: header.vendorCode,
-      preferredName: header.vendorName,
-      sapDbName: buyerCompany?.sapDbName,
-    });
-    // SQ: PQ + RFQ only (CardName, never CardCode).
+    // SQ: PQ (buyer company) + RFQ (seller company) only — never BP CardCode.
     const sqRemarks = buildFlow1SqRemarks({
-      cardName: remarksCardName,
+      buyerCompanyName: buyerCompany?.companyName ?? header.sourceCompanyName,
+      sellerCompanyName: sellerCompany?.companyName ?? header.targetCompanyName,
       existing: remarksFromPayload ?? header.remarks,
       pqDraftDocEntry: header.pqDraftDocEntry,
       pqDraftDocNum: header.pqDraftDocNum,

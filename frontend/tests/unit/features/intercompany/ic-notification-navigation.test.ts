@@ -26,7 +26,7 @@ describe("ic-notification-navigation", () => {
       documentId: "42",
       documentType: "RFQ",
       flowStep: "FLOW1_RFQ_CREATED",
-      message: "AJAX Industries created RFQ 10042",
+      message: "RCM Trading: RFQ 10042 created automatically from AJAX Industries PQ No 2042",
     });
 
     const links = parseIcNotificationDocLinks(notification);
@@ -43,7 +43,7 @@ describe("ic-notification-navigation", () => {
       documentId: "2042",
       documentType: "PQ",
       flowStep: "FLOW1_PQ_CREATED",
-      message: "AJAX Industries · PQ No 2042",
+      message: "AJAX Industries: PQ No 2042 updated from RFQ 9001",
     });
 
     const primary = getIcNotificationPrimaryLink(notification);
@@ -57,7 +57,7 @@ describe("ic-notification-navigation", () => {
       documentId: "810",
       documentType: "SQ",
       flowStep: "FLOW1_SQ_CREATED",
-      message: "AJAX Industries · SQ No 810",
+      message: "RCM Trading: SQ No 810 created automatically",
     });
 
     const primary = getIcNotificationPrimaryLink(notification);

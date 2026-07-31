@@ -181,10 +181,47 @@ export type DraftHeaderFields = {
   cardName?: string | null;
 };
 
+/** Seller SQ line snapshot for Flow 2 base conversion (POST /Invoices from OQUT). */
+export type IcSalesQuotationLine = {
+  LineNum: number;
+  ItemCode?: string | null;
+  Quantity?: number | null;
+  /** SAP SL: bost_Open | bost_Close (omit → treat as open). */
+  LineStatus?: string | null;
+  RemainingOpenQuantity?: number | null;
+};
+
+export type IcSalesQuotationSnapshot = {
+  docEntry: number;
+  docNum?: number;
+  cardCode?: string | null;
+  documentLines: IcSalesQuotationLine[];
+};
+
+export type GetSalesQuotationInput = {
+  companyId: number;
+  /** Seller OQUT DocEntry (BaseEntry for AR convert). */
+  docEntry: number;
+};
+
+export type FindSalesQuotationByDocNumInput = {
+  companyId: number;
+  docNum: number;
+};
+
 export type IcSlDocuments = {
   /** Create real A/R Invoice on seller (`POST /Invoices`). */
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
   createSalesQuotation: (input: CreateSalesQuotationInput) => Promise<IcSlDocumentResult>;
+  /**
+   * GET seller Sales Quotation for Flow 2 convert (BaseType 23).
+   * Used so AR Invoice is copy-from SQ, not a free-standing invoice.
+   */
+  getSalesQuotation: (input: GetSalesQuotationInput) => Promise<IcSalesQuotationSnapshot>;
+  /** Resolve seller SQ DocEntry when remarks only carry DocNum. */
+  findSalesQuotationByDocNum: (
+    input: FindSalesQuotationByDocNumInput,
+  ) => Promise<IcSalesQuotationSnapshot | null>;
   /** @deprecated Not used by Flow 1 convert (PQ already exists). */
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
   /** PATCH buyer PurchaseQuotations with RFQ commercial lines. */
@@ -197,6 +234,9 @@ export type IcSlDocuments = {
   /** @deprecated Prefer getDraftHeaderFields — kept for older call sites / tests. */
   getDraftComments: (input: GetDraftCommentsInput) => Promise<string | null>;
 };
+
+/** SAP BoObjectTypes: Sales Quotation (OQUT). Used as BaseType on AR Invoice lines. */
+export const SAP_OBJ_SALES_QUOTATION = 23;
 
 export const createIcSlDocuments = (deps?: {
   resolveSlTarget?: ResolveSlTargetService;
@@ -514,9 +554,161 @@ export const createIcSlDocuments = (deps?: {
       }
     },
 
+    getSalesQuotation: async (input) => {
+      const { connection, session: slSession } = await withCompanySession(input.companyId);
+      const docEntry = Math.trunc(Number(input.docEntry));
+      if (!Number.isFinite(docEntry) || docEntry <= 0) {
+        throw new Error("IC getSalesQuotation requires a positive DocEntry");
+      }
+      const endpoint = `/Quotations(${docEntry})`;
+      logSlRequest({
+        companyId: input.companyId,
+        endpoint,
+        method: "GET",
+      });
+      try {
+        const response = await client.request<Record<string, unknown>>({
+          connection,
+          endpoint,
+          method: "GET",
+          session: slSession,
+        });
+        const data = response.data ?? {};
+        const entry = Number(data.DocEntry ?? docEntry);
+        const docNumRaw = data.DocNum;
+        const docNum =
+          docNumRaw === undefined || docNumRaw === null ? undefined : Number(docNumRaw);
+        const cardCodeRaw = data.CardCode;
+        const cardCode =
+          cardCodeRaw === null || cardCodeRaw === undefined
+            ? null
+            : String(cardCodeRaw).trim() || null;
+        const rawLines = Array.isArray(data.DocumentLines)
+          ? (data.DocumentLines as Record<string, unknown>[])
+          : [];
+        const documentLines: IcSalesQuotationLine[] = rawLines.map((line, index) => {
+          const lineNum = Number(line.LineNum);
+          return {
+            ItemCode: line.ItemCode == null ? null : String(line.ItemCode).trim() || null,
+            LineNum: Number.isFinite(lineNum) ? Math.trunc(lineNum) : index,
+            LineStatus: line.LineStatus == null ? null : String(line.LineStatus).trim() || null,
+            Quantity:
+              line.Quantity == null || !Number.isFinite(Number(line.Quantity))
+                ? null
+                : Number(line.Quantity),
+            RemainingOpenQuantity:
+              line.RemainingOpenQuantity == null ||
+              !Number.isFinite(Number(line.RemainingOpenQuantity))
+                ? null
+                : Number(line.RemainingOpenQuantity),
+          };
+        });
+        icLog.info(SCOPE, "IC SL sales quotation loaded for AR convert", {
+          check: "sl_get_sales_quotation",
+          companyId: input.companyId,
+          databaseName: connection.databaseName,
+          docEntry: entry,
+          docNum: Number.isFinite(docNum) ? docNum : undefined,
+          lineCount: documentLines.length,
+          outcome: "pass",
+        });
+        return {
+          cardCode,
+          docEntry: Number.isFinite(entry) && entry > 0 ? Math.trunc(entry) : docEntry,
+          docNum: Number.isFinite(docNum) ? docNum : undefined,
+          documentLines,
+        };
+      } catch (err: unknown) {
+        logSlFailure({
+          companyId: input.companyId,
+          endpoint,
+          err,
+          method: "GET",
+        });
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+
+    findSalesQuotationByDocNum: async (input) => {
+      const { connection, session: slSession } = await withCompanySession(input.companyId);
+      const docNum = Math.trunc(Number(input.docNum));
+      if (!Number.isFinite(docNum) || docNum <= 0) {
+        return null;
+      }
+      // Prefer exact DocNum match; top 1 (DocNum unique per series, may collide across series).
+      const endpoint = `/Quotations?$filter=DocNum eq ${docNum}&$select=DocEntry,DocNum,CardCode&$top=1`;
+      logSlRequest({
+        companyId: input.companyId,
+        endpoint,
+        method: "GET",
+      });
+      try {
+        const response = await client.request<{
+          value?: Array<Record<string, unknown>>;
+        }>({
+          connection,
+          endpoint,
+          method: "GET",
+          session: slSession,
+        });
+        const rows = Array.isArray(response.data?.value) ? response.data.value : [];
+        const first = rows[0];
+        const entry = Number(first?.DocEntry);
+        if (!Number.isFinite(entry) || entry <= 0) {
+          return null;
+        }
+        // Reuse full GET for DocumentLines (filter select is header-only).
+        const full = await (async () => {
+          const fullEndpoint = `/Quotations(${Math.trunc(entry)})`;
+          const fullResponse = await client.request<Record<string, unknown>>({
+            connection,
+            endpoint: fullEndpoint,
+            method: "GET",
+            session: slSession,
+          });
+          return fullResponse.data ?? {};
+        })();
+        const rawLines = Array.isArray(full.DocumentLines)
+          ? (full.DocumentLines as Record<string, unknown>[])
+          : [];
+        const documentLines: IcSalesQuotationLine[] = rawLines.map((line, index) => {
+          const lineNum = Number(line.LineNum);
+          return {
+            ItemCode: line.ItemCode == null ? null : String(line.ItemCode).trim() || null,
+            LineNum: Number.isFinite(lineNum) ? Math.trunc(lineNum) : index,
+            LineStatus: line.LineStatus == null ? null : String(line.LineStatus).trim() || null,
+            Quantity:
+              line.Quantity == null || !Number.isFinite(Number(line.Quantity))
+                ? null
+                : Number(line.Quantity),
+            RemainingOpenQuantity:
+              line.RemainingOpenQuantity == null ||
+              !Number.isFinite(Number(line.RemainingOpenQuantity))
+                ? null
+                : Number(line.RemainingOpenQuantity),
+          };
+        });
+        const cardCodeRaw = full.CardCode ?? first?.CardCode;
+        return {
+          cardCode: cardCodeRaw == null ? null : String(cardCodeRaw).trim() || null,
+          docEntry: Math.trunc(entry),
+          docNum,
+          documentLines,
+        };
+      } catch (err: unknown) {
+        logSlFailure({
+          companyId: input.companyId,
+          endpoint,
+          err,
+          method: "GET",
+        });
+        return null;
+      }
+    },
+
     createArInvoiceDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
-      // Real A/R Invoice (not Drafts).
+      // Real A/R Invoice (not Drafts) — preferably based on seller SQ (BaseType 23).
       const endpoint = "/Invoices";
       const { DocObjectCode: _docObjectCode, ...invoiceBody } = input.draftPayload;
       const lines = Array.isArray(invoiceBody.DocumentLines)

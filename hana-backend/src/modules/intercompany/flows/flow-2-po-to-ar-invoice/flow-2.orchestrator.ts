@@ -82,7 +82,10 @@ const summarizeArInvoicePayload = (arInvoicePayload: Record<string, unknown>) =>
     const uomCode = line.UoMCode ?? line.UomCode;
     const uomEntry = line.UoMEntry ?? line.UomEntry;
     return compactLogRow({
-      // AR invoice tax = seller sales tax on the invoice line.
+      // SQ convert: BaseType 23 + BaseEntry/BaseLine (item/tax/UoM from base SQ in SAP).
+      baseEntry: line.BaseEntry,
+      baseLine: line.BaseLine,
+      baseType: line.BaseType,
       arTaxCode: line.VatGroup == null ? undefined : String(line.VatGroup),
       itemCode: String(line.ItemCode ?? "").trim() || undefined,
       itemDescription: itemDescription || undefined,
@@ -98,6 +101,13 @@ const summarizeArInvoicePayload = (arInvoicePayload: Record<string, unknown>) =>
       warehouseCode: line.WarehouseCode,
     });
   });
+  const baseTypes = [
+    ...new Set(
+      lines
+        .map((line) => (line.BaseType == null ? "" : String(line.BaseType)))
+        .filter((code) => code.length > 0),
+    ),
+  ];
   return compactLogRow({
     cardCode: arInvoicePayload.CardCode,
     comments: arInvoicePayload.Comments,
@@ -107,7 +117,9 @@ const summarizeArInvoicePayload = (arInvoicePayload: Record<string, unknown>) =>
     items,
     lineCount: lines.length,
     numAtCard: arInvoicePayload.NumAtCard,
-    // Distinct AR tax codes used on this invoice.
+    // SQ convert markers (23 = Sales Quotation).
+    baseTypes: baseTypes.length > 0 ? baseTypes : undefined,
+    // Distinct AR tax codes used on this invoice (usually empty on convert — from base SQ).
     arTaxCodes: vatGroups.length > 0 ? vatGroups : undefined,
     vatGroups: vatGroups.length > 0 ? vatGroups : undefined,
   });
@@ -143,12 +155,19 @@ export const createFlow2Orchestrator = (deps?: {
       resolvePartner: deps?.resolvePartner ?? createResolvePartnerService(),
     });
 
-  const build = deps?.build ?? createBuildArInvoiceService();
+  const documents = deps?.documents ?? createIcSlDocuments();
+
+  const build =
+    deps?.build ??
+    createBuildArInvoiceService({
+      documentMap,
+      documents,
+    });
 
   const post =
     deps?.post ??
     createPostArInvoiceService({
-      documents: deps?.documents ?? createIcSlDocuments(),
+      documents,
     });
 
   const mapAndNotify =

@@ -1,8 +1,7 @@
 import type { NotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
-import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import {
-  formatIcCreatedMessage,
+  formatIcArCreatedMessage,
   formatIcPartyName,
 } from "@/modules/intercompany/infrastructure/ic-notification-copy";
 import { formatIcDocLabel } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
@@ -22,17 +21,24 @@ export const createNotifyArCreated = (
   notifications: NotificationService = createNotificationService(),
 ) => {
   return async (params: NotifyArCreatedParams): Promise<void> => {
-    // Seller handoff: buyer BP CardName only (never "Customer" / CardCode).
-    const partyName = formatIcPartyName(
-      await resolveBpCardName({
-        cardCode: params.partner.buyerCustomerCode,
-        sapDbName: params.partner.sellerCompany.sapDbName,
-      }),
-    );
+    // AR owner = seller; PO owner = buyer. Full company names only.
+    const sellerName = formatIcPartyName(params.partner.sellerCompany.companyName);
+    const buyerName = formatIcPartyName(params.partner.buyerCompany.companyName);
     const arLabel = formatIcDocLabel({
       kind: "AR",
       docEntry: params.targetDocEntry,
       docNum: params.targetDocNum,
+    });
+    const poLabel = formatIcDocLabel({
+      kind: "PO",
+      docEntry: params.sourceDocEntry,
+      docNum: params.sourceDocNum,
+    });
+    const message = formatIcArCreatedMessage({
+      arLabel,
+      buyerCompanyName: buyerName,
+      poLabel,
+      sellerCompanyName: sellerName,
     });
 
     await notifications.create({
@@ -40,9 +46,9 @@ export const createNotifyArCreated = (
       documentId: params.targetDocEntry,
       documentType: IC_OBJECT.AR_INVOICE,
       flowStep: "FLOW2_AR_INVOICE_CREATED",
-      message: formatIcCreatedMessage(partyName, arLabel),
+      message,
       priority: "MEDIUM",
-      title: partyName || arLabel,
+      title: sellerName || arLabel,
     });
   };
 };

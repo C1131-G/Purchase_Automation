@@ -1,7 +1,3 @@
-import type { PartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
-import { createPartnerTaxResolver } from "@/modules/intercompany/config/tax-mapping/resolve-partner-tax.service";
-import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
-import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import {
   partnerWarehouseMasters,
   type PartnerWarehouseMasters,
@@ -10,15 +6,16 @@ import type { DocumentMapService } from "@/modules/intercompany/domain/document-
 import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
-import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import { parseIcRemarkLinks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
+import type { IcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
+import { createIcSlDocuments } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import type { ResolvePartnerResult } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.types";
 import type { IcPoHookInput } from "@/modules/intercompany/flows/shared/flow.types";
 
 import { buildArInvoicePayload } from "./build-ar-invoice.payload";
-import type { BuildArInvoiceResult } from "./build-ar-invoice.types";
+import type { BuildArInvoiceResult, SqBaseLineInput } from "./build-ar-invoice.types";
 
 const toPositiveInt = (value: string | number | null | undefined): number | null => {
   if (value === null || value === undefined || value === "") {
@@ -29,8 +26,8 @@ const toPositiveInt = (value: string | number | null | undefined): number | null
 };
 
 /**
- * Resolve PQ + RFQ + SQ for AR remarks from PO Comments IC lines + document map.
- * Best-effort — never throws.
+ * Resolve PQ + RFQ + SQ for AR remarks / convert base from PO Comments + document map.
+ * Best-effort for PQ/RFQ; SQ DocEntry is required by the caller after this returns.
  */
 const resolveArRemarksChain = async (params: {
   buyerCompanyId: number;
@@ -44,7 +41,6 @@ const resolveArRemarksChain = async (params: {
   rfqId: number | null;
   sqDocNum: number | null;
   sqDocEntry: number | null;
-  cardNameFromRemarks: string | null;
 }> => {
   const links = parseIcRemarkLinks(params.existingComments);
   const byKey = new Map(links.map((link) => [link.key.toUpperCase(), link]));
@@ -58,58 +54,52 @@ const resolveArRemarksChain = async (params: {
   let rfqId: number | null = null;
   let sqDocNum = toPositiveInt(sqLink?.text ?? null);
   let sqDocEntry: number | null = null;
-  const cardNameFromRemarks =
-    pqLink?.cardName?.trim() || rfqLink?.cardName?.trim() || sqLink?.cardName?.trim() || null;
 
-  // Unit tests use memory IC SQL only when deps are injected; default services hit live HANA.
-  const allowLiveLookup = process.env.VITEST !== "true";
-  if (allowLiveLookup) {
-    try {
-      // Prefer RFQ found by source PQ entry when Comments only carried PQ DocNum as RFQ number.
-      if (pqDocNum != null) {
-        const byDraft = await params.rfq.findBySourceDraft(params.buyerCompanyId, pqDocNum);
-        // findBySourceDraft keys on DocEntry; try entry when number equals entry (common pilot).
-        if (byDraft) {
-          rfqId = byDraft.rfqId;
-          rfqNumber = byDraft.rfqNumber || rfqNumber;
-          pqDocEntry = byDraft.pqDraftDocEntry || pqDocEntry;
-          pqDocNum = byDraft.pqDraftDocNum ?? pqDocNum;
-        }
+  try {
+    // Prefer RFQ found by source PQ entry when Comments only carried PQ DocNum as RFQ number.
+    if (pqDocNum != null) {
+      const byDraft = await params.rfq.findBySourceDraft(params.buyerCompanyId, pqDocNum);
+      // findBySourceDraft keys on DocEntry; try entry when number equals entry (common pilot).
+      if (byDraft) {
+        rfqId = byDraft.rfqId;
+        rfqNumber = byDraft.rfqNumber || rfqNumber;
+        pqDocEntry = byDraft.pqDraftDocEntry || pqDocEntry;
+        pqDocNum = byDraft.pqDraftDocNum ?? pqDocNum;
       }
-
-      if (rfqId == null && rfqNumber) {
-        // RFQ number often mirrors PQ DocNum — try as PQ entry lookup fallback.
-        const asEntry = toPositiveInt(rfqNumber);
-        if (asEntry != null) {
-          const byEntry = await params.rfq.findBySourceDraft(params.buyerCompanyId, asEntry);
-          if (byEntry) {
-            rfqId = byEntry.rfqId;
-            rfqNumber = byEntry.rfqNumber || rfqNumber;
-            pqDocEntry = byEntry.pqDraftDocEntry || pqDocEntry;
-            pqDocNum = byEntry.pqDraftDocNum ?? pqDocNum;
-          }
-        }
-      }
-
-      if (rfqId != null && sqDocEntry == null && sqDocNum == null) {
-        const sqMap = await params.documentMap.findBySource({
-          sourceCompanyId: params.buyerCompanyId,
-          sourceDocEntry: String(rfqId),
-          sourceObject: IC_OBJECT.RFQ,
-          targetObject: IC_OBJECT.SQ,
-        });
-        if (sqMap) {
-          sqDocEntry = toPositiveInt(sqMap.targetDocEntry);
-          sqDocNum = toPositiveInt(sqMap.targetDocNum);
-        }
-      }
-    } catch {
-      // Best-effort chain enrichment only.
     }
+
+    if (rfqId == null && rfqNumber) {
+      // RFQ number often mirrors PQ DocNum — try as PQ entry lookup fallback.
+      const asEntry = toPositiveInt(rfqNumber);
+      if (asEntry != null) {
+        const byEntry = await params.rfq.findBySourceDraft(params.buyerCompanyId, asEntry);
+        if (byEntry) {
+          rfqId = byEntry.rfqId;
+          rfqNumber = byEntry.rfqNumber || rfqNumber;
+          pqDocEntry = byEntry.pqDraftDocEntry || pqDocEntry;
+          pqDocNum = byEntry.pqDraftDocNum ?? pqDocNum;
+        }
+      }
+    }
+
+    // Flow 1 maps RFQ → SQ (source = buyer company / RFQ id).
+    if (rfqId != null && sqDocEntry == null) {
+      const sqMap = await params.documentMap.findBySource({
+        sourceCompanyId: params.buyerCompanyId,
+        sourceDocEntry: String(rfqId),
+        sourceObject: IC_OBJECT.RFQ,
+        targetObject: IC_OBJECT.SQ,
+      });
+      if (sqMap) {
+        sqDocEntry = toPositiveInt(sqMap.targetDocEntry);
+        sqDocNum = toPositiveInt(sqMap.targetDocNum) ?? sqDocNum;
+      }
+    }
+  } catch {
+    // Best-effort chain enrichment only — missing SQ fails later with a clear error.
   }
 
   return {
-    cardNameFromRemarks,
     pqDocEntry,
     pqDocNum,
     rfqId,
@@ -130,6 +120,7 @@ export type BuildArInvoiceService = {
 /**
  * Align document BPL to first line warehouse when that WH exists on seller.
  * Does not change WarehouseCode or UoM on lines — only branch.
+ * For SQ convert, branch still comes from PO lines (same WH as IC chain) or default.
  */
 export const resolveArDocumentBranch = async (params: {
   sapDbName?: string | null;
@@ -170,30 +161,23 @@ export const resolveArDocumentBranch = async (params: {
 };
 
 export const createBuildArInvoiceService = (deps?: {
-  company?: CompanyService;
-  partnerTax?: PartnerTaxResolver;
   warehouseMasters?: PartnerWarehouseMasters;
   documentMap?: DocumentMapService;
   rfq?: RfqService;
+  documents?: IcSlDocuments;
 }): BuildArInvoiceService => {
-  const company = deps?.company ?? createCompanyService();
-  const partnerTax =
-    deps?.partnerTax ??
-    createPartnerTaxResolver({
-      company,
-    });
   const warehouseMasters = deps?.warehouseMasters ?? partnerWarehouseMasters;
   const documentMap = deps?.documentMap ?? createDocumentMapService();
   const rfq = deps?.rfq ?? createRfqService();
+  const documents = deps?.documents ?? createIcSlDocuments();
 
   return {
     build: async ({ partner, input, remarksTag }) => {
       const targetCompanyId = partner.sellerCompany.companyId;
       const targetSapDbName = partner.sellerCompany.sapDbName;
-      const targetCardCode = partner.buyerCustomerCode;
       const defaultBranchId = partner.sellerCompany.defaultBranchId;
 
-      // Branch from WH when WH exists on seller; else DEFAULT_BRANCH_ID. Never rewrite WH/UoM.
+      // Branch from WH when WH exists on seller; else DEFAULT_BRANCH_ID.
       const branchCtx = await resolveArDocumentBranch({
         defaultBranchId,
         lines: input.lines ?? [],
@@ -207,80 +191,84 @@ export const createBuildArInvoiceService = (deps?: {
         existingComments: input.remarks,
         rfq,
       });
-      // AR customer is buyer BP on seller books — prefer that CardName for remarks.
-      const remarksCardName = await resolveBpCardName({
-        cardCode: partner.buyerCustomerCode,
-        preferredName: chain.cardNameFromRemarks,
-        sapDbName: targetSapDbName,
-      });
 
-      let taxItem = 0;
-      let taxBp = 0;
-      let taxOmit = 0;
-      const resolvedPairs = new Set<string>();
+      let sqDocEntry = chain.sqDocEntry;
+      let sqDocNum = chain.sqDocNum;
+      let sqLines: SqBaseLineInput[] = [];
 
-      const built = await buildArInvoicePayload({
+      // Resolve SQ DocEntry when remarks only carried DocNum.
+      if (sqDocEntry == null && sqDocNum != null) {
+        const byNum = await documents.findSalesQuotationByDocNum({
+          companyId: targetCompanyId,
+          docNum: sqDocNum,
+        });
+        if (byNum) {
+          sqDocEntry = byNum.docEntry;
+          sqDocNum = byNum.docNum ?? sqDocNum;
+          sqLines = byNum.documentLines;
+        }
+      }
+
+      if (sqDocEntry == null) {
+        throw new Error(
+          "IC Flow 2: seller Sales Quotation not found for this PO — cannot convert SQ to A/R Invoice (complete Flow 1 RFQ→SQ first, or ensure PO remarks include SQ)",
+        );
+      }
+
+      // Load open SQ lines when not already fetched by DocNum lookup.
+      if (sqLines.length === 0) {
+        const salesQuotation = await documents.getSalesQuotation({
+          companyId: targetCompanyId,
+          docEntry: sqDocEntry,
+        });
+        sqDocEntry = salesQuotation.docEntry;
+        sqDocNum = salesQuotation.docNum ?? sqDocNum;
+        sqLines = salesQuotation.documentLines;
+        if (salesQuotation.cardCode && salesQuotation.cardCode !== partner.buyerCustomerCode) {
+          icLog.warn(IC_LOG_SCOPE.FLOW2, "SQ CardCode differs from mapped buyer customer", {
+            check: "sq_cardcode_mismatch",
+            mappedBuyerCustomer: partner.buyerCustomerCode,
+            outcome: "fail",
+            sqCardCode: salesQuotation.cardCode,
+            sqDocEntry,
+            targetCompanyId,
+          });
+        }
+      }
+
+      const payload = buildArInvoicePayload({
+        buyerCompanyName: partner.buyerCompany.companyName,
         buyerCustomerCode: partner.buyerCustomerCode,
         comments: input.remarks,
         defaultBranchId,
         documentBranchId: branchCtx.branchId,
         docDate: input.docDate,
         docDueDate: input.docDueDate,
-        lines: input.lines,
-        pqDocEntry: chain.pqDocEntry,
-        pqDocNum: chain.pqDocNum,
-        remarksCardName,
-        resolveLineTax: async ({ itemCode, sourceTaxCode }) => {
-          const resolved = await partnerTax.resolve({
-            docSide: "sales",
-            itemCode,
-            sourceCompanyId: partner.buyerCompany.companyId,
-            sourceSapDbName: partner.buyerCompany.sapDbName,
-            sourceTaxCode,
-            targetCardCode,
-            targetCompanyId,
-            targetSapDbName,
-          });
-          if (resolved.source === "ovtg_rate") {
-            taxItem += 1;
-            resolvedPairs.add(`${sourceTaxCode}->${resolved.taxCode}(ovtg)`);
-          } else if (resolved.source === "item") {
-            taxItem += 1;
-            resolvedPairs.add(`${itemCode}->${resolved.taxCode}(item)`);
-          } else if (resolved.source === "bp") {
-            taxBp += 1;
-            resolvedPairs.add(`${targetCardCode}->${resolved.taxCode}(bp)`);
-          } else {
-            taxOmit += 1;
-          }
-          return resolved.taxCode;
-        },
-        rfqId: chain.rfqId,
-        rfqNumber: chain.rfqNumber,
         numAtCard: input.numAtCard,
         poDocEntry: input.docEntry,
         poDocNum: input.docNum ?? null,
+        pqDocEntry: chain.pqDocEntry,
+        pqDocNum: chain.pqDocNum,
         remarksTag,
+        rfqId: chain.rfqId,
+        rfqNumber: chain.rfqNumber,
         sapDbName: targetSapDbName,
-        sqDocEntry: chain.sqDocEntry,
-        sqDocNum: chain.sqDocNum,
+        sellerCompanyName: partner.sellerCompany.companyName,
+        sqDocEntry,
+        sqDocNum,
+        sqLines,
       });
 
-      const { taxUsage, ...payload } = built;
-
-      icLog.info(IC_LOG_SCOPE.TAX, "IC partner tax summary for AR invoice (dynamic)", {
+      icLog.info(IC_LOG_SCOPE.FLOW2, "IC AR invoice built from seller SQ convert", {
         branchId: branchCtx.branchId,
         branchSource: branchCtx.source,
-        check: "tax_resolve_summary",
+        check: "ar_from_sq_convert",
         defaultBranchId,
-        outcome: taxOmit > 0 ? "fail" : "pass",
-        // Explicit PO (buyer) vs AR (seller) tax codes per line.
-        resolvedPairs: [...resolvedPairs],
+        lineCount: payload.DocumentLines.length,
+        outcome: "pass",
+        sqDocEntry,
+        sqDocNum,
         targetCompanyId,
-        taxBp,
-        taxItem,
-        taxOmit,
-        taxUsage,
       });
 
       return payload;

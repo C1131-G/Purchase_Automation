@@ -3,17 +3,19 @@
  *
  * Format (one link per line, never replaces user text):
  *   Auto Generated Based on AJAX Industries Purchase Quotation 8000586
- *   Auto Generated Based on AJAX Industries Request For Quotation 8000586
- *   Auto Generated Based on AJAX Industries Sales Quotation 810
+ *   Auto Generated Based on RCM Trading Request For Quotation 8000586
+ *   Auto Generated Based on RCM Trading Sales Quotation 810
  *
- * Use CardName only — never CardCode / BP code.
+ * Names are IC company display names (document owners), not BP CardCode:
+ *   PQ / PO  → buyer company (who created PQ first, e.g. AJAX)
+ *   RFQ / SQ / AR → seller company (e.g. RCM)
  *
  * Staged chain by document:
- *   RFQ open (create)     → PQ only
- *   PQ after RFQ submit   → PQ + RFQ
- *   SQ                    → PQ + RFQ
+ *   RFQ open (create)     → PQ only (buyer name)
+ *   PQ after RFQ submit   → PQ (buyer) + RFQ (seller)
+ *   SQ                    → PQ (buyer) + RFQ (seller)
  *   PO (from PQ)          → PQ + RFQ (inherited)
- *   AR invoice            → PQ + RFQ + SQ
+ *   AR invoice            → PQ (buyer) + RFQ (seller) + SQ (seller)
  *
  * Code/name is optional. Legacy lines without "Auto Generated" still parse:
  *   Based on Purchase Quotation 8000586
@@ -31,10 +33,40 @@ export type IcRemarkLink = {
   /** Document number (or entry fallback) shown after the type label. */
   text: string;
   /**
-   * Business partner CardName shown before the document type
-   * (e.g. "AJAX Industries"). Never CardCode.
+   * Document-owner company display name before the document type
+   * (e.g. "AJAX Industries" for PQ, "RCM Trading" for RFQ). Never CardCode.
    */
   cardName?: string;
+};
+
+/** Buyer owns PQ/PO; seller owns RFQ/SQ/AR. Prefer IC_COMPANY.COMPANY_NAME. */
+export type IcDocOwnerNames = {
+  /** Buyer company display name (PQ / PO owner). */
+  buyerCompanyName?: string | null;
+  /** Seller company display name (RFQ / SQ / AR owner). */
+  sellerCompanyName?: string | null;
+  /**
+   * @deprecated Single name for every link — prefer buyerCompanyName + sellerCompanyName.
+   */
+  cardName?: string | null;
+};
+
+const resolveOwnerNames = (
+  params: IcDocOwnerNames,
+): { buyer: string | undefined; seller: string | undefined } => {
+  const fallback =
+    params.cardName != null && String(params.cardName).trim()
+      ? String(params.cardName).trim()
+      : undefined;
+  const buyer =
+    params.buyerCompanyName != null && String(params.buyerCompanyName).trim()
+      ? String(params.buyerCompanyName).trim()
+      : fallback;
+  const seller =
+    params.sellerCompanyName != null && String(params.sellerCompanyName).trim()
+      ? String(params.sellerCompanyName).trim()
+      : fallback;
+  return { buyer, seller };
 };
 
 const LEGACY_IC_LINE_RE = /^IC\s*\|\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/i;
@@ -439,41 +471,45 @@ export const compactPoTag = (docNum: number | null | undefined, docEntry: number
 
 /**
  * RFQ header remarks at create / open time.
- * Keeps any prior user text; adds **PQ only** (RFQ line added after submit on PQ/SQ).
- * cardName → buyer-side vendor CardName on auto lines (never CardCode).
+ * Keeps any prior user text; adds **PQ only** (buyer owner name).
+ * RFQ line is added after submit on PQ/SQ.
  */
-export const buildFlow1RfqRemarks = (params: {
-  existing?: string | null;
-  pqDraftDocNum: number | null | undefined;
-  pqDraftDocEntry: number;
-  rfqNumber?: string;
-  rfqId?: number | null;
-  /** Buyer-side vendor CardName for "Based on …" lines. Never CardCode. */
-  cardName?: string | null;
-}): string =>
-  appendIcRemarkLines(params.existing, [
-    icLinkPq(params.pqDraftDocNum, params.pqDraftDocEntry, params.cardName),
+export const buildFlow1RfqRemarks = (
+  params: {
+    existing?: string | null;
+    pqDraftDocNum: number | null | undefined;
+    pqDraftDocEntry: number;
+    rfqNumber?: string;
+    rfqId?: number | null;
+  } & IcDocOwnerNames,
+): string => {
+  const { buyer } = resolveOwnerNames(params);
+  return appendIcRemarkLines(params.existing, [
+    icLinkPq(params.pqDraftDocNum, params.pqDraftDocEntry, buyer),
   ]);
+};
 
 /**
  * Convert chain remarks after RFQ submit (PQ updated).
- * PQ (buyer PQ number) + RFQ (RFQ number) — no SQ yet.
+ * PQ (buyer owner) + RFQ (seller owner) — no SQ yet.
  */
-export const buildFlow1ConvertRemarks = (params: {
-  existing?: string | null;
-  pqDraftDocNum: number | null | undefined;
-  pqDraftDocEntry: number;
-  rfqNumber: string;
-  rfqId: number;
-  pqDocNum?: number | null;
-  pqDocEntry?: number | null;
-  cardName?: string | null;
-}): string => {
+export const buildFlow1ConvertRemarks = (
+  params: {
+    existing?: string | null;
+    pqDraftDocNum: number | null | undefined;
+    pqDraftDocEntry: number;
+    rfqNumber: string;
+    rfqId: number;
+    pqDocNum?: number | null;
+    pqDocEntry?: number | null;
+  } & IcDocOwnerNames,
+): string => {
+  const { buyer, seller } = resolveOwnerNames(params);
   const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry! : params.pqDraftDocEntry;
   const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
   const links: IcRemarkLink[] = [
-    icLinkPq(pqNum, pqEntry, params.cardName),
-    icLinkRfq(params.rfqNumber, params.rfqId, params.cardName),
+    icLinkPq(pqNum, pqEntry, buyer),
+    icLinkRfq(params.rfqNumber, params.rfqId, seller),
   ];
   return appendIcRemarkLines(params.existing, links);
 };
@@ -507,72 +543,74 @@ export const ensureVendorRefInRemarks = (
 };
 
 /**
- * Seller SQ Comments: vendor ref (user line) + PQ + RFQ only (two IC details).
+ * Seller SQ Comments: vendor ref (user line) + PQ (buyer) + RFQ (seller) only.
  */
-export const buildFlow1SqRemarks = (params: {
-  existing?: string | null;
-  pqDraftDocNum: number | null | undefined;
-  pqDraftDocEntry: number;
-  rfqNumber: string;
-  rfqId: number;
-  pqDocNum?: number | null;
-  pqDocEntry: number;
-  sqDocNum?: number | null;
-  sqDocEntry?: number | null;
-  /** Buyer PQ NumAtCard — shown on seller SQ remarks. */
-  vendorRefNo?: string | null;
-  /** Buyer-side vendor CardName for "Based on …" lines. Never CardCode. */
-  cardName?: string | null;
-}): string => {
+export const buildFlow1SqRemarks = (
+  params: {
+    existing?: string | null;
+    pqDraftDocNum: number | null | undefined;
+    pqDraftDocEntry: number;
+    rfqNumber: string;
+    rfqId: number;
+    pqDocNum?: number | null;
+    pqDocEntry: number;
+    sqDocNum?: number | null;
+    sqDocEntry?: number | null;
+    /** Buyer PQ NumAtCard — shown on seller SQ remarks. */
+    vendorRefNo?: string | null;
+  } & IcDocOwnerNames,
+): string => {
+  const { buyer, seller } = resolveOwnerNames(params);
   const withVendorRef = ensureVendorRefInRemarks(params.existing, params.vendorRefNo);
   const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry : params.pqDraftDocEntry;
   const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
   // SQ only carries PQ + RFQ (two details). SQ self-link is not written here.
   const links: IcRemarkLink[] = [
-    icLinkPq(pqNum, pqEntry, params.cardName),
-    icLinkRfq(params.rfqNumber, params.rfqId, params.cardName),
+    icLinkPq(pqNum, pqEntry, buyer),
+    icLinkRfq(params.rfqNumber, params.rfqId, seller),
   ];
   return appendIcRemarkLines(withVendorRef, links);
 };
 
 /**
- * AR invoice Comments: keep PO user remarks + ensure PQ + RFQ + SQ.
+ * AR invoice Comments: keep PO user remarks + ensure PQ (buyer) + RFQ (seller) + SQ (seller).
  * Does not append PO or AR self-links.
- * cardName → BP CardName on auto lines (never CardCode).
  */
-export const buildFlow2ArRemarks = (params: {
-  existingComments?: string | null;
-  /** Prefer explicit chain when known; otherwise existing Comments IC lines are kept. */
-  pqDocNum?: number | null;
-  pqDocEntry?: number | null;
-  rfqNumber?: string | null;
-  rfqId?: number | null;
-  sqDocNum?: number | null;
-  sqDocEntry?: number | null;
-  /** @deprecated PO is not part of AR IC chain — ignored. */
-  poDocNum?: number | null | undefined;
-  /** @deprecated PO is not part of AR IC chain — ignored. */
-  poDocEntry?: number | null | undefined;
-  /** @deprecated AR self-link is not written — ignored. */
-  arDocEntry?: number | null;
-  /** @deprecated AR self-link is not written — ignored. */
-  arDocNum?: number | null;
-  cardName?: string | null;
-}): string => {
+export const buildFlow2ArRemarks = (
+  params: {
+    existingComments?: string | null;
+    /** Prefer explicit chain when known; otherwise existing Comments IC lines are kept. */
+    pqDocNum?: number | null;
+    pqDocEntry?: number | null;
+    rfqNumber?: string | null;
+    rfqId?: number | null;
+    sqDocNum?: number | null;
+    sqDocEntry?: number | null;
+    /** @deprecated PO is not part of AR IC chain — ignored. */
+    poDocNum?: number | null | undefined;
+    /** @deprecated PO is not part of AR IC chain — ignored. */
+    poDocEntry?: number | null | undefined;
+    /** @deprecated AR self-link is not written — ignored. */
+    arDocEntry?: number | null;
+    /** @deprecated AR self-link is not written — ignored. */
+    arDocNum?: number | null;
+  } & IcDocOwnerNames,
+): string => {
+  const { buyer, seller } = resolveOwnerNames(params);
   const links: IcRemarkLink[] = [];
   if (hasDocNum(params.pqDocNum)) {
-    links.push(icLinkPq(params.pqDocNum, params.pqDocEntry ?? params.pqDocNum, params.cardName));
+    links.push(icLinkPq(params.pqDocNum, params.pqDocEntry ?? params.pqDocNum, buyer));
   } else if (hasEntry(params.pqDocEntry)) {
-    links.push(icLinkPq(null, params.pqDocEntry, params.cardName));
+    links.push(icLinkPq(null, params.pqDocEntry, buyer));
   }
   const rfqNum = params.rfqNumber != null ? String(params.rfqNumber).trim() : "";
   if (rfqNum || hasEntry(params.rfqId)) {
-    links.push(icLinkRfq(rfqNum || null, params.rfqId, params.cardName));
+    links.push(icLinkRfq(rfqNum || null, params.rfqId, seller));
   }
   if (hasDocNum(params.sqDocNum)) {
-    links.push(icLinkSq(params.sqDocNum, params.sqDocEntry ?? params.sqDocNum, params.cardName));
+    links.push(icLinkSq(params.sqDocNum, params.sqDocEntry ?? params.sqDocNum, seller));
   } else if (hasEntry(params.sqDocEntry)) {
-    links.push(icLinkSq(null, params.sqDocEntry, params.cardName));
+    links.push(icLinkSq(null, params.sqDocEntry, seller));
   }
   return appendIcRemarkLines(params.existingComments, links);
 };

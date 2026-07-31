@@ -88,7 +88,7 @@ const loadDraftLines = async (dbName: string, docEntry: number): Promise<SourceL
     `SELECT
        "LineNum", "ItemCode", "Dscription",
        "Quantity", "PQTReqQty", "PQTReqDate", "ShipDate",
-       "Price", "PriceBefDi", "DiscPrcnt", "VatGroup", "WhsCode", "UomCode"
+       "Price", "PriceBefDi", "DiscPrcnt", "VatGroup", "WhsCode", "UomCode", "UomEntry"
      FROM "DRF1"
      WHERE "DocEntry" = ?
      ORDER BY "LineNum"`,
@@ -117,7 +117,7 @@ const loadPqLines = async (dbName: string, docEntry: number): Promise<SourceLine
     `SELECT
        "LineNum", "ItemCode", "Dscription",
        "Quantity", "PQTReqQty", "PQTReqDate", "ShipDate",
-       "Price", "PriceBefDi", "DiscPrcnt", "VatGroup", "WhsCode", "UomCode"
+       "Price", "PriceBefDi", "DiscPrcnt", "VatGroup", "WhsCode", "UomCode", "UomEntry"
      FROM "PQT1"
      WHERE "DocEntry" = ?
      ORDER BY "LineNum"`,
@@ -314,6 +314,13 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
     toStr(line.warehouse) ?? toStr(source.WhsCode ?? source.whsCode ?? source.WarehouseCode);
 
   const uomCode = toStr(line.uomCode) ?? toStr(source.UomCode ?? source.uomCode ?? source.UoMCode);
+  const uomEntryRaw = toNum(source?.UomEntry ?? source?.uomEntry ?? source?.UoMEntry);
+  const uomEntry =
+    line.uomEntry != null && Number.isFinite(Number(line.uomEntry)) && Number(line.uomEntry) > 0
+      ? Math.trunc(Number(line.uomEntry))
+      : uomEntryRaw != null && uomEntryRaw > 0
+        ? Math.trunc(uomEntryRaw)
+        : null;
 
   const taxCode =
     toStr(line.taxCode) ??
@@ -334,13 +341,14 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
     sqTaxCode: toStr(line.sqTaxCode) ?? null,
     unitPrice,
     uomCode,
+    uomEntry,
     warehouse,
   };
 };
 
 /**
  * Ensure RFQ always exposes auto IC remarks for open view.
- * RFQ open = PQ only. CardName only (vendorName when enriched; never CardCode).
+ * RFQ open = PQ only with buyer company name (PQ owner), never vendor CardCode.
  */
 const withEnsuredRfqRemarks = (
   header: IcRfqHeader,
@@ -348,7 +356,8 @@ const withEnsuredRfqRemarks = (
 ): IcRfqHeader => ({
   ...header,
   remarks: buildFlow1RfqRemarks({
-    cardName: header.vendorName?.trim() || null,
+    buyerCompanyName: header.sourceCompanyName?.trim() || null,
+    sellerCompanyName: header.targetCompanyName?.trim() || null,
     existing: mergeUserAndIcRemarks(draftComments, header.remarks),
     pqDraftDocEntry: header.pqDraftDocEntry,
     pqDraftDocNum: header.pqDraftDocNum,
@@ -432,6 +441,10 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
               sqTaxCode: null,
               unitPrice: toNum(row.Price ?? row.PriceBefDi),
               uomCode: toStr(row.UomCode),
+              uomEntry: (() => {
+                const entry = toNum(row.UomEntry ?? row.uomEntry);
+                return entry != null && entry > 0 ? Math.trunc(entry) : null;
+              })(),
               warehouse: toStr(row.WhsCode),
             } satisfies IcRfqLine;
           });

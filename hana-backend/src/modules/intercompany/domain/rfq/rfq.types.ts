@@ -23,6 +23,8 @@ export type IcRfqLine = {
   deliveryDate: string | null;
   warehouse: string | null;
   uomCode: string | null;
+  /** SAP OUOM.UomEntry when known (from PQ); preferred when posting SQ. */
+  uomEntry?: number | null;
   remarks: string | null;
   /** Buyer required qty snapshot (display / locked). Enriched from buyer PQ when missing. */
   requiredQuantity?: number | null;
@@ -89,6 +91,7 @@ export type CreateRfqFromDraftInput = {
     deliveryDate?: string | null;
     warehouse?: string | null;
     uomCode?: string | null;
+    uomEntry?: number | null;
     remarks?: string | null;
     requiredQuantity?: number | null;
     requiredDate?: string | null;

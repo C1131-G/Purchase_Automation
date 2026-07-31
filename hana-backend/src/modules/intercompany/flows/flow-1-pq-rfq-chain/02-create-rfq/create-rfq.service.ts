@@ -4,7 +4,6 @@ import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { logFlowStep } from "@/modules/intercompany/infrastructure/flow-step-log";
-import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import { buildFlow1RfqRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
@@ -97,14 +96,10 @@ export const createCreateRfqService = (deps?: {
 
       const pqDraftDocEntry = Number(input.sourceDocEntry);
       const pqDraftDocNum = input.sourceDocNum ? Number(input.sourceDocNum) : null;
-      // RFQ open: PQ remarks only. CardName only (never vendor CardCode).
-      const cardName = await resolveBpCardName({
-        cardCode: input.partner.vendorCode,
-        preferredName: input.cardName,
-        sapDbName: input.partner.buyerCompany.sapDbName,
-      });
+      // RFQ open: PQ remarks only — buyer company owns PQ (never vendor CardCode).
       const chainRemarks = buildFlow1RfqRemarks({
-        cardName,
+        buyerCompanyName: input.partner.buyerCompany.companyName,
+        sellerCompanyName: input.partner.sellerCompany.companyName,
         existing: input.existingRemarks ?? null,
         pqDraftDocEntry,
         pqDraftDocNum,
