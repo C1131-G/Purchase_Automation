@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 
 import type {
   IcNotificationsListParams,
   IcRetriesListParams,
 } from "@/features/intercompany/api/intercompany.service";
+import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
 import { intercompanyAPI } from "./intercompany.service";
 
@@ -21,6 +22,28 @@ export const intercompanyKeys = {
   rfqs: () => [...intercompanyKeys.all, "rfqs"] as const,
   rfqList: () => [...intercompanyKeys.rfqs(), "list"] as const,
   rfqDetail: (rfqId: number) => [...intercompanyKeys.rfqs(), "detail", rfqId] as const,
+};
+
+/**
+ * Shared RFQ query options — used by hooks, login/sidebar/route prefetch, and table hover.
+ * Matches other document tables (queryOptions + tableList cache policy).
+ */
+export const icRfqQueries = {
+  list: () =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.tableList.gcTime,
+      placeholderData: keepPreviousData,
+      queryFn: () => intercompanyAPI.listRfqs(),
+      queryKey: intercompanyKeys.rfqList(),
+      staleTime: QUERY_CACHE_POLICY.tableList.staleTime,
+    }),
+  detail: (rfqId: number) =>
+    queryOptions({
+      gcTime: QUERY_CACHE_POLICY.detail.gcTime,
+      queryFn: () => intercompanyAPI.getRfq(rfqId),
+      queryKey: intercompanyKeys.rfqDetail(rfqId),
+      staleTime: QUERY_CACHE_POLICY.detail.staleTime,
+    }),
 };
 
 /** Optional health query for the shell placeholder page. */
@@ -85,33 +108,15 @@ export function useIcPendingRetryCount(enabled = true) {
 /** Session-company RFQ list (filter/sort/page client-side on the table). */
 export function useIcRfqs(enabled = true) {
   return useQuery({
+    ...icRfqQueries.list(),
     enabled,
-    queryFn: () => intercompanyAPI.listRfqs(),
-    queryKey: intercompanyKeys.rfqList(),
-    staleTime: 15_000,
   });
 }
 
-/** RFQ detail (Phase 2 form + optional table prefetch). */
+/** RFQ detail (Phase 2 form + table/hover prefetch). */
 export function useIcRfq(rfqId: number, enabled = true) {
   return useQuery({
+    ...icRfqQueries.detail(rfqId),
     enabled: enabled && Number.isFinite(rfqId) && rfqId > 0,
-    queryFn: () => intercompanyAPI.getRfq(rfqId),
-    queryKey: intercompanyKeys.rfqDetail(rfqId),
-    staleTime: 15_000,
   });
 }
-
-/** Query options for imperative prefetch from the RFQ table. */
-export const icRfqQueries = {
-  list: () => ({
-    queryFn: () => intercompanyAPI.listRfqs(),
-    queryKey: intercompanyKeys.rfqList(),
-    staleTime: 15_000,
-  }),
-  detail: (rfqId: number) => ({
-    queryFn: () => intercompanyAPI.getRfq(rfqId),
-    queryKey: intercompanyKeys.rfqDetail(rfqId),
-    staleTime: 15_000,
-  }),
-};

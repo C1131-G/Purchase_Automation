@@ -230,6 +230,7 @@ const createDefaultHandlers = (deps: {
           ? String(header.vendorRefNo).trim()
           : null;
     const sqRemarks = buildFlow1SqRemarks({
+      companyCode: buyerCustomerCode?.trim() || null,
       existing: remarksFromPayload ?? header.remarks,
       pqDraftDocEntry: header.pqDraftDocEntry,
       pqDraftDocNum: header.pqDraftDocNum,

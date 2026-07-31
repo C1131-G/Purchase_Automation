@@ -128,7 +128,6 @@ export function APInvoiceCreate({
         sourceDocNum: docNums,
         sourceDocType: docType as "PurchaseOrder" | "GoodsReceiptPO" | "PurchaseQuotation",
       },
-      viewTransition: true,
     });
   };
 

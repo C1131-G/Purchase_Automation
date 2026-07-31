@@ -1,5 +1,7 @@
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { lazy, Suspense } from "react";
 import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
-import { GRPOTable } from "@/features/table-pages/grpo/components/grpo-table";
+
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { grpoSearchSchema } from "@/features/table-pages/grpo/schemas/grpo-search.schema";
 
@@ -7,7 +9,14 @@ import { grpoSearchSchema } from "@/features/table-pages/grpo/schemas/grpo-searc
  * PurchaseGRPORoute: Goods Receipt PO listing and management.
  * Synchronizes grid state with URL parameters for shareable views.
  */
+const GRPOTable = lazy(() =>
+  import("@/features/table-pages/grpo/components/grpo-table").then((m) => ({
+    default: m.GRPOTable,
+  })),
+);
+
 export const Route = createFileRoute("/_layout/purchase/grpo")({
+  pendingComponent: TableSkeleton,
   component: RouteComponent,
   validateSearch: (search) => grpoSearchSchema.parse(search),
 });
@@ -23,7 +32,9 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <GRPOTable />
+      <Suspense fallback={<TableSkeleton />}>
+        <GRPOTable />
+      </Suspense>
     </div>
   );
 }

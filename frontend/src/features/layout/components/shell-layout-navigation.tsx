@@ -53,7 +53,8 @@ export function ShellLayoutNavigation({
               <Link
                 to="/dashboard"
                 preload="intent"
-                viewTransition
+                preloadDelay={0}
+                startTransition
                 className={cn(
                   "flex w-full items-center gap-3 rounded-xl p-2.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 cursor-pointer",
                   "hover:bg-blue-50 hover:text-blue-600 text-zinc-500",
@@ -177,6 +178,9 @@ export function ShellLayoutNavigation({
                 <SidebarMenuSubButton
                   to="/sales/request-for-quotations"
                   search={{ limit: 10, page: 1 } as never}
+                  onMouseEnter={() => onTableNavIntent("/sales/request-for-quotations")}
+                  onFocus={() => onTableNavIntent("/sales/request-for-quotations")}
+                  onTouchStart={() => onTableNavIntent("/sales/request-for-quotations")}
                   isActive={
                     pathname === "/sales/request-for-quotations" ||
                     pathname.startsWith("/sales/request-for-quotations/")

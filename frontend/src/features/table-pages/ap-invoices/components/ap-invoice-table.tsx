@@ -103,7 +103,6 @@ export function APInvoiceTable() {
             void navigate({
               to: "/purchase/create-ap-invoice",
               search: { draftDocNum: normalized, draftDocEntry: String(id) },
-              viewTransition: true,
             } as never);
             return;
           }
@@ -111,7 +110,6 @@ export function APInvoiceTable() {
           void navigate({
             params: { docNum: normalized },
             to: "/purchase/ap-invoice/$docNum/update",
-            viewTransition: true,
           } as never);
         },
         onDocNumHover: (docNum) => {

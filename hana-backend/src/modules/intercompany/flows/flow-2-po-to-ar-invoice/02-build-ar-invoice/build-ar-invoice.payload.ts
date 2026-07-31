@@ -102,8 +102,9 @@ export const buildArInvoicePayload = async (
   const docDueDate = formatSapDate(input.docDueDate) ?? docDate;
   const numAtCardRaw = input.numAtCard == null ? "" : String(input.numAtCard).trim();
 
-  // Keep existing PO comments; append IC | PO No … only (no Flow 1/2 wording).
+  // Keep existing PO comments; append PO link with buyer BP/company code (e.g. C1105).
   const comments = buildFlow2ArRemarks({
+    companyCode: input.buyerCustomerCode,
     existingComments: input.comments,
     poDocEntry: input.poDocEntry,
     poDocNum: input.poDocNum,
@@ -129,9 +130,11 @@ export const buildArInvoicePayload = async (
     payload.NumAtCard = (input.remarksTag || "").slice(0, 100);
   }
 
-  const branchId = input.defaultBranchId;
-  if (branchId != null && Number.isFinite(branchId) && branchId > 0) {
-    payload.BPL_IDAssignedToInvoice = Math.trunc(branchId);
+  // Branch only — never rewrite line WarehouseCode / UoM on create.
+  // Prefer documentBranchId (from WH lookup) else DEFAULT_BRANCH_ID.
+  const branchRaw = input.documentBranchId ?? input.defaultBranchId;
+  if (branchRaw != null && Number.isFinite(branchRaw) && branchRaw > 0) {
+    payload.BPL_IDAssignedToInvoice = Math.trunc(branchRaw);
   }
 
   return { ...payload, taxUsage };

@@ -2,9 +2,17 @@
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
+import { attachmentsService } from "@/modules/attachments/attachments.service";
+import {
+  resolveDocumentSeries,
+  resolveItemSalesUom,
+} from "@/modules/master-data/master-data.service";
+import {
+  applyPoBranchToSapPayload,
+  resolvePoBranchId,
+} from "@/modules/purchase-order/temp-assign-po-branch";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
-import { attachmentsService } from "@/modules/attachments/attachments.service";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
@@ -57,36 +65,54 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
       DocDate: payload.DocDate,
       DocDueDate: payload.DocDueDate,
       AttachmentEntry: absoluteEntry ?? undefined,
-      DocumentLines: lines.map((line) => {
-        const docLine: Record<string, unknown> = {
-          ItemCode: line.ItemCode as string,
-          Quantity: line.Quantity as number,
-          UnitPrice: (line.UnitPrice || line.Price) as number,
-          DiscountPercent: Number(line.DiscountPercent ?? 0),
-          UoMEntry: (line.UoMEntry ?? line.UomEntry) as number | undefined,
-          VatGroup: line.VatGroup as string,
-          WarehouseCode: line.WarehouseCode as string,
-        };
-        const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
-        if (Number.isFinite(uomEntry) && uomEntry > 0) {
-          docLine.UoMEntry = Math.trunc(uomEntry);
-          docLine.UseBaseUnit = "tNO";
-        } else {
-          const uomCode = line.UoMCode ?? line.UomCode;
-          if (typeof uomCode === "number" || (typeof uomCode === "string" && uomCode.trim())) {
-            docLine.UoMCode = uomCode as string | number;
+      DocumentLines: await Promise.all(
+        lines.map(async (line) => {
+          const itemCode = String(line.ItemCode ?? "").trim();
+          const docLine: Record<string, unknown> = {
+            ItemCode: itemCode,
+            Quantity: line.Quantity as number,
+            UnitPrice: (line.UnitPrice || line.Price) as number,
+            DiscountPercent: Number(line.DiscountPercent ?? 0),
+            VatGroup: line.VatGroup as string,
+            WarehouseCode: line.WarehouseCode as string,
+          };
+
+          // Prefer client UoMEntry; else resolve mother/sales UoM from OITM (do not invent from WH).
+          const uomEntry = Number(line.UoMEntry ?? line.UomEntry);
+          if (Number.isFinite(uomEntry) && uomEntry > 0) {
+            docLine.UoMEntry = Math.trunc(uomEntry);
             docLine.UseBaseUnit = "tNO";
+          } else {
+            const uomCodeRaw = line.UoMCode ?? line.UomCode;
+            const uomCode =
+              typeof uomCodeRaw === "number" ||
+              (typeof uomCodeRaw === "string" && uomCodeRaw.trim())
+                ? String(uomCodeRaw).trim()
+                : "";
+            if (uomCode) {
+              docLine.UoMCode = uomCode;
+              docLine.UseBaseUnit = "tNO";
+            } else if (itemCode && resolvedDbName) {
+              const mother = await resolveItemSalesUom(resolvedDbName, itemCode);
+              if (mother?.uomEntry != null) {
+                docLine.UoMEntry = mother.uomEntry;
+                docLine.UseBaseUnit = "tNO";
+              } else if (mother?.uomCode) {
+                docLine.UoMCode = mother.uomCode;
+                docLine.UseBaseUnit = "tNO";
+              }
+            }
           }
-        }
 
-        if (Number.isFinite(line.BaseEntry) && Number.isFinite(line.BaseLine)) {
-          docLine.BaseType = line.BaseType;
-          docLine.BaseEntry = line.BaseEntry;
-          docLine.BaseLine = line.BaseLine;
-        }
+          if (Number.isFinite(line.BaseEntry) && Number.isFinite(line.BaseLine)) {
+            docLine.BaseType = line.BaseType;
+            docLine.BaseEntry = line.BaseEntry;
+            docLine.BaseLine = line.BaseLine;
+          }
 
-        return docLine;
-      }),
+          return docLine;
+        }),
+      ),
       SalesPersonCode: payload.SalesPersonCode,
       Rounding: payload.Rounding,
       RoundingDiffAmount: payload.RoundingDiffAmount,
@@ -95,6 +121,46 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
     if (isDraft) {
       sapPayload.DocObjectCode = "23";
     }
+
+    // Multi-branch: prefer warehouse BPLid over default/payload branch when WH is set.
+    // Do not rewrite line WarehouseCode or UoM — only align document BPL + series.
+    const documentLines = sapPayload.DocumentLines as Record<string, unknown>[];
+    const firstWh = String(documentLines[0]?.WarehouseCode ?? "").trim() || null;
+    // Warehouse first so default branch (e.g. 1) switches when WH.BPLid differs.
+    let branchResolve = await resolvePoBranchId({
+      dbName: resolvedDbName,
+      payloadBranchId: null,
+      warehouseCode: firstWh,
+    });
+    if (branchResolve.branchId == null) {
+      branchResolve = await resolvePoBranchId({
+        dbName: resolvedDbName,
+        payloadBranchId:
+          payload.BPL_IDAssignedToInvoice ?? payload.BPLId ?? payload.branchId ?? null,
+        warehouseCode: null,
+      });
+    }
+    applyPoBranchToSapPayload(sapPayload, branchResolve.branchId);
+
+    // Number series: align DocNum with SAP NNM1.NextNumber for this object + branch.
+    const seriesResolve = await resolveDocumentSeries(resolvedDbName, "23", {
+      branchId: branchResolve.branchId,
+      payloadSeries: payload.Series ?? payload.series,
+    });
+    if (seriesResolve) {
+      sapPayload.Series = seriesResolve.series;
+    }
+
+    logger.info({
+      branchId: branchResolve.branchId,
+      branchSource: branchResolve.source,
+      companyDB: resolvedDbName,
+      msg: "Sales quotation branch + series assignment",
+      series: seriesResolve?.series ?? null,
+      seriesNextNumber: seriesResolve?.nextNumber ?? null,
+      seriesSource: seriesResolve?.source ?? null,
+      warehouseCode: firstWh,
+    });
 
     // Standardize date into ISO format (YYYY-MM-DD) for Service Layer ingestion.
     const docDate = sapPayload.DocDate as string;

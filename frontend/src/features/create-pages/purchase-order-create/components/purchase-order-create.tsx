@@ -87,7 +87,6 @@ export function PurchaseOrderCreate({
       router.navigate({
         to: "/purchase/create-order",
         search: {},
-        viewTransition: true,
       });
       return;
     }
@@ -96,7 +95,6 @@ export function PurchaseOrderCreate({
     router.navigate({
       to: "/purchase/create-order",
       search: { sourceDocNum: docNums, sourceDocType: docType as "PurchaseQuotation" },
-      viewTransition: true,
     });
   };
 

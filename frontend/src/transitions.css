@@ -1,13 +1,50 @@
-/* Vendor Portal Transitions: Defines global entry/exit animations for premium UI experience. */
+/* Vendor Portal Transitions
+ *
+ * View Transition API fades to opacity 0 caused white empty frames on heavy
+ * ERP pages. Disable VT animations; route skeletons handle loading UX.
+ */
 
-/* Suppress the browser's default root crossfade so it doesn't compete with
-   the Motion.js AnimatePresence page transitions in ShellLayout. */
 ::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
+::view-transition-new(root),
+::view-transition-old(tab-content),
+::view-transition-new(tab-content) {
+  animation: none !important;
 }
 
-/* Container for the transitioning content */
+html.vt-slide-left::view-transition-old(tab-content),
+html.vt-slide-left::view-transition-new(tab-content),
+html.vt-slide-right::view-transition-old(tab-content),
+html.vt-slide-right::view-transition-new(tab-content),
+html.vt-slide-up::view-transition-old(tab-content),
+html.vt-slide-up::view-transition-new(tab-content),
+html.vt-slide-down::view-transition-old(tab-content),
+html.vt-slide-down::view-transition-new(tab-content) {
+  animation: none !important;
+}
+
+@keyframes nav-progress {
+  0% {
+    transform: translateX(-100%) scaleX(0.35);
+  }
+  50% {
+    transform: translateX(20%) scaleX(0.55);
+  }
+  100% {
+    transform: translateX(120%) scaleX(0.35);
+  }
+}
+
+.animate-nav-progress {
+  animation: nav-progress 0.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-nav-progress {
+    animation: none;
+  }
+}
+
+/* Container for named VT (legacy). */
 [view-transition-name="tab-content"] {
   height: 100%;
   width: 100%;

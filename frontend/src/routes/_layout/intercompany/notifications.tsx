@@ -1,3 +1,4 @@
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { IcNotificationTable } from "@/features/intercompany/components/notifications/ic-notification-table";
@@ -5,6 +6,7 @@ import { icNotificationSearchSchema } from "@/features/intercompany/schemas/ic-n
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export const Route = createFileRoute("/_layout/intercompany/notifications")({
+  pendingComponent: TableSkeleton,
   component: IntercompanyNotificationsRoute,
   validateSearch: (search) => icNotificationSearchSchema.parse(search),
 });

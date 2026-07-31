@@ -91,11 +91,7 @@ export function CreatePageWrapper({
       <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
         <span className="text-zinc-500">{section}</span>
         <ChevronRight className="size-3 text-zinc-300" />
-        <Link
-          to={dashboardUrl}
-          className="text-zinc-400 transition-colors hover:text-blue-600"
-          viewTransition
-        >
+        <Link to={dashboardUrl} className="text-zinc-400 transition-colors hover:text-blue-600">
           Dashboard
         </Link>
         <ChevronRight className="size-3 text-zinc-300" />
@@ -104,7 +100,6 @@ export function CreatePageWrapper({
           search={breadcrumbParent.search || { limit: 10, page: 1 }}
           className="text-zinc-400 transition-colors hover:text-blue-600"
           onMouseEnter={breadcrumbParent.onMouseEnter}
-          viewTransition
         >
           {breadcrumbParent.label}
         </Link>

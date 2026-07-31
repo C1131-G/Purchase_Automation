@@ -109,14 +109,12 @@ export function PurchaseQuotationTable() {
                 draftDocEntry: docEntry ? String(docEntry) : undefined,
               },
               to: "/purchase/create-quotation",
-              viewTransition: true,
             } as never);
           } else {
             prefetchEditRouteDataImmediate(normalized);
             void navigate({
               params: { docNum: normalized },
               to: "/purchase/quotations/$docNum/update",
-              viewTransition: true,
             } as never);
           }
         },

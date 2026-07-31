@@ -93,7 +93,6 @@ export function APCreditMemoCreate({
         sourceDocNum: docNums,
         sourceDocType: docType,
       },
-      viewTransition: true,
     });
   };
 

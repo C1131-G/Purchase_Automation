@@ -5,9 +5,9 @@
  *   `REF123 | user message`
  *
  * IC automation appends multi-line chain lines:
- *   Based on Purchase Quotation Draft …
- *   Based on Request For Quotation …
- * Legacy `IC | PQD: …` lines are still recognized.
+ *   Auto Generated Based on Purchase Quotation Draft …
+ *   Auto Generated Based on Request For Quotation …
+ * Legacy `Based on …` and `IC | PQD: …` lines are still recognized.
  * Splitting those on " | " steals parent typed text into Ref No — never do that.
  */
 
@@ -17,7 +17,8 @@ export type HeaderNotesFields = {
 };
 
 const LEGACY_IC_REMARK_LINE_RE = /^IC\s*\|\s*[A-Za-z0-9_-]+\s*:/im;
-const BASED_ON_REFERENCE_LINE_RE = /^based on /im;
+/** Current "Auto Generated Based on …" and legacy "Based on …". */
+const BASED_ON_REFERENCE_LINE_RE = /^(?:auto\s+generated\s+)?based on /im;
 
 /** True when Comments contain IC automation chain lines. */
 export const hasIcRemarkLines = (comments: string | null | undefined): boolean => {

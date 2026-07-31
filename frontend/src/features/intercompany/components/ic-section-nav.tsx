@@ -47,7 +47,6 @@ export function IcSectionNav({ active, trailing, className }: IcSectionNavProps)
         to="/intercompany/notifications"
         search={NOTIFICATIONS_SEARCH}
         preload="intent"
-        viewTransition
         aria-current={active === "notifications" ? "page" : undefined}
         className={cn(
           "inline-flex items-center gap-1.5 truncate transition-colors hover:text-blue-600",
@@ -64,7 +63,6 @@ export function IcSectionNav({ active, trailing, className }: IcSectionNavProps)
         to="/intercompany/retries"
         search={RETRIES_SEARCH}
         preload="intent"
-        viewTransition
         aria-current={active === "retries" ? "page" : undefined}
         className={cn(
           "inline-flex items-center gap-1.5 truncate transition-colors hover:text-blue-600",

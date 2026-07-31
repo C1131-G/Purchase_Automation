@@ -1,5 +1,7 @@
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { lazy, Suspense } from "react";
 import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
-import { PurchaseOrderTable } from "@/features/table-pages/purchase-orders/components/purchase-order-table";
+
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { purchaseOrderSearchSchema } from "@/features/table-pages/purchase-orders/schemas/purchase-order-search.schema";
 
@@ -7,7 +9,14 @@ import { purchaseOrderSearchSchema } from "@/features/table-pages/purchase-order
  * PurchaseOrdersRoute: Main listing for procurement documents.
  * Validates grid state (pagination, sorting, filters) via URL search schema.
  */
+const PurchaseOrderTable = lazy(() =>
+  import("@/features/table-pages/purchase-orders/components/purchase-order-table").then((m) => ({
+    default: m.PurchaseOrderTable,
+  })),
+);
+
 export const Route = createFileRoute("/_layout/purchase/orders")({
+  pendingComponent: TableSkeleton,
   component: RouteComponent,
   validateSearch: (search) => purchaseOrderSearchSchema.parse(search),
 });
@@ -23,7 +32,9 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <PurchaseOrderTable />
+      <Suspense fallback={<TableSkeleton />}>
+        <PurchaseOrderTable />
+      </Suspense>
     </div>
   );
 }

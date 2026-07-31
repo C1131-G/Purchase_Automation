@@ -1,8 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Outlet, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
-import React from "react";
-
-import { getTransitionDirection } from "@/shared/utils/route-transition";
+import {
+  Outlet,
+  useLocation,
+  useNavigate,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
+import React, { Suspense } from "react";
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/sidebar";
 import { useLogout } from "@/features/auth/hooks/use-logout";
@@ -14,45 +18,39 @@ import { useSetSidebarAction } from "@/store/sidebar/sidebar.store";
 
 import { useSidebarNavigation } from "../hooks/use-sidebar-navigation";
 import type { SectionKey } from "../utils/shell-layout.types";
+import { NavigationProgress } from "./navigation-progress";
+import { RoutePendingFallback } from "./route-pending-fallback";
 import { ShellLayoutBrandHeader } from "./shell-layout-brand-header";
 import { ShellLayoutLogout } from "./shell-layout-logout";
 import { ShellLayoutNavigation } from "./shell-layout-navigation";
 
 /**
- * PageTransition manages the native View Transition CSS classes on the html element
- * and provides the named view-transition container for page content.
+ * Always paint a skeleton during route load / React.lazy Suspense.
+ * Never leave a white empty shell.
  */
 function PageTransition() {
-  const location = useLocation();
-  const prevPathnameRef = React.useRef<string>(location.pathname);
-
-  // Synchronously compute direction and apply class on the html element.
-  if (prevPathnameRef.current !== location.pathname) {
-    const dir = getTransitionDirection(prevPathnameRef.current, location.pathname);
-    prevPathnameRef.current = location.pathname;
-
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.remove(
-        "vt-slide-left",
-        "vt-slide-right",
-        "vt-slide-up",
-        "vt-slide-down",
-      );
-      document.documentElement.classList.add(`vt-${dir}`);
-    }
-  }
+  const pathname = useLocation({ select: (loc) => loc.pathname });
+  const isLoading = useRouterState({ select: (state) => state.isLoading });
+  const nextPathname = useRouterState({ select: (state) => state.location.pathname });
+  const skeletonPath = isLoading ? nextPathname || pathname : pathname;
 
   return (
-    <div
-      className="h-full w-full overflow-hidden bg-zinc-50"
-      style={{ viewTransitionName: "tab-content" }}
-    >
-      <Outlet />
+    <div className="relative h-full w-full overflow-hidden bg-white">
+      <NavigationProgress />
+      <Suspense fallback={<RoutePendingFallback pathname={skeletonPath} />}>
+        <div className="h-full w-full">
+          <Outlet />
+        </div>
+      </Suspense>
+      {isLoading ? (
+        <div className="absolute inset-0 z-20 overflow-hidden bg-white">
+          <RoutePendingFallback pathname={skeletonPath} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-// ShellLayout: Persistent Sidebar & Header Layout with Sapphire & White theme.
 export function ShellLayout() {
   useSidebarNavigation();
 
@@ -105,7 +103,6 @@ export function ShellLayout() {
         replace: true,
         search: { reason: "session_ended" },
         to: "/login",
-        viewTransition: true,
       });
       return;
     }
@@ -115,15 +112,13 @@ export function ShellLayout() {
         replace: true,
         search: { reason: "logged_out" },
         to: "/login",
-        viewTransition: true,
       });
       return;
     }
 
-    void navigate({ replace: true, to: "/login", viewTransition: true });
+    void navigate({ replace: true, to: "/login" });
   }, [isAuthenticated, isAuthLoading, logoutReason, navigate]);
 
-  // Accordion Logic: current section from URL.
   const activeSection = React.useMemo<SectionKey>(() => {
     if (location.pathname.startsWith("/dashboard")) {
       return "dashboard";
@@ -146,7 +141,6 @@ export function ShellLayout() {
   >();
   const transitionTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup timeout on unmount
   React.useEffect(
     () => () => {
       if (transitionTimeoutRef.current) {
@@ -169,7 +163,6 @@ export function ShellLayout() {
     [activeSection, expandedSectionOverride],
   );
 
-  // Accordion behavior: ensure current section closes before opening next one for smooth transitions.
   const handleToggle = React.useCallback(
     (section: SectionKey) => {
       setSidebarOpen(true);
@@ -188,13 +181,12 @@ export function ShellLayout() {
         return;
       }
 
-      // If another section is open, close it first then wait before opening new one
       if (currentlyEffective !== null) {
         setExpandedSectionOverride(null);
         transitionTimeoutRef.current = setTimeout(() => {
           setExpandedSectionOverride(section);
           transitionTimeoutRef.current = null;
-        }, 300); // Matches SidebarMenuCollapsible transition duration
+        }, 300);
       } else {
         setExpandedSectionOverride(section);
       }

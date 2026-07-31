@@ -124,7 +124,6 @@ function CopyToPanel({
             key={option.label}
             to={option.to}
             search={{ sourceDocNum: docNum, sourceDocType: sourceDocType as any }}
-            viewTransition
             className={cn(
               "group/row relative flex items-start gap-3 px-3 py-2.5 transition-all duration-150",
               "hover:bg-zinc-50",

@@ -97,7 +97,9 @@ export const createCreateRfqService = (deps?: {
       const pqDraftDocEntry = Number(input.sourceDocEntry);
       const pqDraftDocNum = input.sourceDocNum ? Number(input.sourceDocNum) : null;
       // Line-by-line IC chain; keep any existing user remarks from PQ (append only).
+      // companyCode = buyer customer on seller books (e.g. C1105).
       const chainRemarks = buildFlow1RfqRemarks({
+        companyCode: input.partner.buyerCustomerCode?.trim() || null,
         existing: input.existingRemarks ?? null,
         pqDraftDocEntry,
         pqDraftDocNum,

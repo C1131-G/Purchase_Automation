@@ -180,7 +180,6 @@ export function ActionsPopoverContent({
             key={target}
             to={getTargetRoute(target)}
             search={{ sourceDocNum: copyToDocNum, sourceDocType: copyToSourceDocType as any }}
-            viewTransition
             onClick={() => setOpen(false)}
             className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none no-underline"
           >
@@ -864,7 +863,6 @@ export function BaseProductSection({
                       onClick={() => {
                         void navigate({
                           to: "/dashboard",
-                          viewTransition: true,
                         });
                       }}
                       className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
@@ -886,7 +884,6 @@ export function BaseProductSection({
                         void navigate({
                           to: backToUrl,
                           search: { limit: 10, page: 1 },
-                          viewTransition: true,
                         });
                       }}
                       className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
@@ -909,9 +906,7 @@ export function BaseProductSection({
                 type="button"
                 size="md"
                 variant="outline"
-                onClick={() =>
-                  navigate({ search: { limit: 10, page: 1 }, to: backToUrl, viewTransition: true })
-                }
+                onClick={() => navigate({ search: { limit: 10, page: 1 }, to: backToUrl })}
                 className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
               >
                 <span className="inline-flex items-center gap-2">

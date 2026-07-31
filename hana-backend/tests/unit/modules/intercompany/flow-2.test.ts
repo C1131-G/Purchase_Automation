@@ -183,9 +183,9 @@ describe("Flow 2 PO → AR Invoice (P5)", () => {
     // Real A/R Invoice body — no DocObjectCode (Drafts only).
     expect(payload.DocObjectCode).toBeUndefined();
     expect(payload.CardCode).toBe("C-A-ON-B");
-    // Existing remarks preserved; IC chain = source PO number only (no Flow 1/2 text).
+    // Existing remarks preserved; IC chain = company/BP + source PO number (no Flow 1/2 text).
     expect(payload.Comments).toContain("User note keep me");
-    expect(payload.Comments).toContain("Based on Purchase Order 100");
+    expect(payload.Comments).toContain("Auto Generated Based on C-A-ON-B Purchase Order 100");
     expect(payload.Comments).not.toMatch(/Flow\s*[12]/i);
     expect(payload.Comments).not.toContain("Based on AR Invoice Draft");
     expect(payload.NumAtCard).toBe("IC-PO-100");

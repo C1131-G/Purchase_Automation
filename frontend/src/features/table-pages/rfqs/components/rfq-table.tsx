@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/features/table-pages/table-shared/components/core/table-root";
+import { runSmartPrefetch } from "@/features/table-pages/table-shared/hooks/prefetch-orchestrator";
 import {
   cloneFilters,
   cloneOrder,
@@ -103,7 +104,7 @@ export function RfqTable() {
         return;
       }
       detailPrefetchRef.current.add(rfq.rfqId);
-      void queryClient.prefetchQuery(icRfqQueries.detail(rfq.rfqId)).catch(() => {
+      void runSmartPrefetch(queryClient, icRfqQueries.detail(rfq.rfqId)).catch(() => {
         detailPrefetchRef.current.delete(rfq.rfqId);
       });
       void router.preloadRoute({
@@ -125,7 +126,6 @@ export function RfqTable() {
           void navigate({
             params: { rfqId: String(rfq.rfqId) },
             to: "/sales/request-for-quotations/$rfqId",
-            viewTransition: true,
           } as never);
         },
         onDocNumHover: (rfq) => {

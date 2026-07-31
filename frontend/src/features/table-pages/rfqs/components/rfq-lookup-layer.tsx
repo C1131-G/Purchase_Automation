@@ -4,12 +4,10 @@
  * chips + full-screen lookup from the loaded RFQ list.
  * No Create button (documents are created from IC PQ draft Flow 1).
  */
-import { useQuery } from "@tanstack/react-query";
 import type { useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import { LookupPopup } from "@/components/lookup/lookup-popup";
-import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import type { LookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import type { IcRfqHeader } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { formatRfqDocNumber } from "@/features/table-pages/rfqs/utils/format-rfq-doc-number";
@@ -131,9 +129,6 @@ export interface RfqLookupLayerProps {
 export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLayerProps) {
   const setActiveFilter = useSetActiveFilterAction();
 
-  const vendorsQuery = useQuery(createSharedQueries.vendors());
-  const vendors = useMemo(() => vendorsQuery.data ?? [], [vendorsQuery.data]);
-
   const {
     lookupPopupOpen,
     lookupColumnId,
@@ -153,7 +148,12 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
     onSetActiveFilter: (nextTableId, columnId) => setActiveFilter(nextTableId, columnId),
   });
 
+  // All lookup values come from the already-loaded RFQ list — no extra master-data fetch on mount.
   const docNumSuggestions = useMemo(() => buildSuggestionsFromRows(allRows, "DocNum"), [allRows]);
+  const customerSuggestions = useMemo(
+    () => buildSuggestionsFromRows(allRows, "CardCode"),
+    [allRows],
+  );
 
   const lookupSearchTerm = useMemo(
     () => debouncedLookupSearch.trim().toLowerCase(),
@@ -162,14 +162,14 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
 
   const isTableValueLookup = TABLE_VALUE_COLUMNS.has(lookupColumnId);
   const isDocNumLookup = lookupColumnId === "DocNum";
-  const isVendorLookup = lookupColumnId === "CardCode";
+  const isCustomerLookup = lookupColumnId === "CardCode";
 
   const tableColumnSuggestions = useMemo(() => {
-    if (!isTableValueLookup && !isDocNumLookup) {
+    if (!isTableValueLookup && !isDocNumLookup && !isCustomerLookup) {
       return [] as LookupItem[];
     }
     return buildSuggestionsFromRows(allRows, lookupColumnId || "DocNum");
-  }, [allRows, isDocNumLookup, isTableValueLookup, lookupColumnId]);
+  }, [allRows, isCustomerLookup, isDocNumLookup, isTableValueLookup, lookupColumnId]);
 
   const filteredTableLookupResults = useMemo(() => {
     if (!lookupSearchTerm) {
@@ -180,11 +180,7 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
       .slice(0, DOC_NUM_BACKGROUND_LIMIT);
   }, [lookupSearchTerm, tableColumnSuggestions]);
 
-  const popupResults = isVendorLookup
-    ? vendors
-    : isDocNumLookup || isTableValueLookup
-      ? filteredTableLookupResults
-      : vendors;
+  const popupResults = filteredTableLookupResults;
 
   const popupTitle =
     lookupColumnId && lookupColumnId in LOOKUP_TITLES
@@ -204,7 +200,7 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
         onReset={onReset}
         hideCreate
         breadcrumb={REQUEST_FOR_QUOTATION_BREADCRUMB}
-        lookupSuggestions={vendors}
+        lookupSuggestions={customerSuggestions}
         docNumSuggestions={docNumSuggestions}
         enableDocNumPopup
         preserveDocNumSuggestionOrder
@@ -216,24 +212,22 @@ export function RfqLookupLayer({ tableId, table, onReset, allRows }: RfqLookupLa
       <LookupPopup
         open={lookupPopupOpen}
         mode="vendor-code"
-        showCodeOnly={isDocNumLookup || isTableValueLookup}
+        showCodeOnly
         search={lookupSearch}
         results={popupResults}
-        loading={isVendorLookup ? vendorsQuery.isFetching : false}
-        error={isVendorLookup && vendorsQuery.isError ? "Failed to load vendors" : null}
-        onRetry={() => {
-          if (isVendorLookup) {
-            void vendorsQuery.refetch();
-          }
-        }}
+        loading={false}
+        error={null}
+        onRetry={() => undefined}
         title={popupTitle}
         searchPlaceholder={popupPlaceholder}
         codeLabel={
           isDocNumLookup
             ? "Doc Number"
-            : isTableValueLookup
-              ? popupTitle.replace(/^Search\s+/i, "")
-              : "Code"
+            : isCustomerLookup
+              ? "Customer Code"
+              : isTableValueLookup
+                ? popupTitle.replace(/^Search\s+/i, "")
+                : "Code"
         }
         onSearchChange={handleLookupSearchChange}
         onClose={handleLookupPopupClose}

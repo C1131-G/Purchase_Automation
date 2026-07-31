@@ -2,8 +2,11 @@
  * Resolve seller warehouses for multi-branch SAP companies.
  * Used when IC sets BPL_IDAssignedToInvoice — line WH must share that BPL.
  *
- * Policy: prefer DEFAULT_BRANCH_ID warehouse; if none, use any active branch+WH.
- * Do not switch warehouse/branch from item default WH (OITM.DfltWH).
+ * SQ policy:
+ * 1. Prefer buyer PQ warehouse when that WhsCode exists on seller OWHS → switch BPL to WH.BPLid
+ * 2. Else DEFAULT_BRANCH_ID (e.g. 1) warehouse
+ * 3. Else any active branch+WH (default branch may change when WH not found)
+ * Never invent warehouse from item default WH (OITM.DfltWH). Never rewrite UoM for WH.
  */
 
 import { executeTenantQuery } from "@/db/tenant-query";
@@ -19,6 +22,14 @@ export type PartnerWarehouseMasters = {
    * Used as document-level default for auto SQ lines.
    */
   getWarehouseForBranch: (sapDbName: string, branchId: number) => Promise<string | null>;
+  /**
+   * If WhsCode exists and is active on seller books, return its BPLid (and code).
+   * Used to align SQ branch with PQ warehouse when the code is shared across companies.
+   */
+  resolveWarehouseIfExists: (
+    sapDbName: string,
+    warehouseCode: string,
+  ) => Promise<BranchWarehouse | null>;
   /**
    * First active warehouse with a valid BPL anywhere in the company.
    * Fallback when default branch has no active WH.
@@ -62,6 +73,34 @@ export const createPartnerWarehouseMasters = (deps?: {
           [bpl],
         )) as Array<Record<string, unknown>>;
         return toWhs(rows[0]?.WhsCode ?? rows[0]?.whsCode);
+      } catch {
+        return null;
+      }
+    },
+
+    resolveWarehouseIfExists: async (sapDbName, warehouseCode) => {
+      const db = sapDbName.trim();
+      const whs = String(warehouseCode ?? "").trim();
+      if (!db || !whs) {
+        return null;
+      }
+      try {
+        const rows = (await queryTenant(
+          db,
+          `SELECT TOP 1 "WhsCode", "BPLid"
+             FROM "OWHS"
+            WHERE "Inactive" = 'N'
+              AND "WhsCode" = ?
+              AND "BPLid" IS NOT NULL
+              AND "BPLid" > 0`,
+          [whs],
+        )) as Array<Record<string, unknown>>;
+        const code = toWhs(rows[0]?.WhsCode ?? rows[0]?.whsCode) ?? whs;
+        const branchId = toBranchId(rows[0]?.BPLid ?? rows[0]?.bplId ?? rows[0]?.BPLId);
+        if (branchId == null) {
+          return null;
+        }
+        return { branchId, warehouseCode: code };
       } catch {
         return null;
       }

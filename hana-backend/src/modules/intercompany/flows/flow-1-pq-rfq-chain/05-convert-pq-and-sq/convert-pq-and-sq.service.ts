@@ -260,7 +260,10 @@ export const createConvertPqAndSqService = (deps?: {
         null;
 
       // Keep RFQ + PQ user remarks; append PQ + RFQ IC lines (never drop parent text).
+      // companyCode = buyer customer on seller books (e.g. C1105) for auto remarks.
+      const remarksCompanyCode = bpMap.buyerCustomerCode?.trim() || null;
       const remarksBeforePq = buildFlow1ConvertRemarks({
+        companyCode: remarksCompanyCode,
         existing: mergeUserAndIcRemarks(header.remarks, pqComments),
         pqDraftDocEntry: header.pqDraftDocEntry,
         pqDraftDocNum: header.pqDraftDocNum,
@@ -343,6 +346,7 @@ export const createConvertPqAndSqService = (deps?: {
       });
 
       const remarksWithPq = buildFlow1ConvertRemarks({
+        companyCode: remarksCompanyCode,
         existing: remarksBeforePq,
         pqDraftDocEntry: header.pqDraftDocEntry,
         pqDraftDocNum: header.pqDraftDocNum,
@@ -394,6 +398,7 @@ export const createConvertPqAndSqService = (deps?: {
         });
         // SQ Comments: vendor ref + chain PQD → RFQ → PQ (SQ entry appended after create for maps).
         const sqRemarksBefore = buildFlow1SqRemarks({
+          companyCode: remarksCompanyCode,
           existing: remarksWithPq,
           pqDraftDocEntry: header.pqDraftDocEntry,
           pqDraftDocNum: header.pqDraftDocNum,

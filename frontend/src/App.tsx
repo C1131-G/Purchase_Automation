@@ -4,6 +4,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 import { GlobalErrorBoundary } from "@/components/error-boundary";
+import { RoutePendingFallback } from "@/features/layout/components/route-pending-fallback";
 import { routeTree } from "@/routeTree.gen";
 import {
   CLEAR_QUERY_CACHE_EVENT,
@@ -47,13 +48,24 @@ const restoreQueryCache = () => {
 
 restoreQueryCache();
 
+function DefaultPendingComponent() {
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/dashboard";
+  return <RoutePendingFallback pathname={pathname} />;
+}
+
 // 2. Create the router and inject the queryClient into its context
 const router = createRouter({
   context: {
     queryClient,
   },
   routeTree,
-  defaultPendingMs: 200,
+  // Skeletons immediately — never a blank white frame while a route loads.
+  defaultPendingMs: 0,
+  defaultPendingComponent: DefaultPendingComponent,
+  // View Transitions caused white intermediate frames on heavy pages.
+  defaultViewTransition: false,
+  defaultPreload: "intent",
+  defaultPreloadDelay: 0,
 });
 
 // 3. Register the router instance for type safety

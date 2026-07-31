@@ -1,12 +1,23 @@
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { lazy, Suspense } from "react";
 import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
 
-import { RfqTable } from "@/features/table-pages/rfqs/components/rfq-table";
+import { icRfqQueries } from "@/features/intercompany/api/intercompany.queries";
 import { rfqSearchSchema } from "@/features/table-pages/rfqs/schemas/rfq-search.schema";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
+const RfqTable = lazy(() =>
+  import("@/features/table-pages/rfqs/components/rfq-table").then((m) => ({ default: m.RfqTable })),
+);
+
 export const Route = createFileRoute("/_layout/sales/request-for-quotations")({
+  pendingComponent: TableSkeleton,
   component: RouteComponent,
   validateSearch: (search) => rfqSearchSchema.parse(search),
+  /** Start RFQ list fetch as soon as the route matches (parallel with lazy chunk). */
+  loader: ({ context }) => {
+    void context.queryClient.prefetchQuery(icRfqQueries.list());
+  },
 });
 
 function RouteComponent() {
@@ -22,7 +33,9 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <RfqTable />
+      <Suspense fallback={<TableSkeleton />}>
+        <RfqTable />
+      </Suspense>
     </div>
   );
 }

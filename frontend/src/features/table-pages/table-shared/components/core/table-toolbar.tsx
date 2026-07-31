@@ -132,7 +132,6 @@ export function TableToolbar<TData>({
               <Link
                 to="/dashboard"
                 preload="intent"
-                viewTransition
                 className="text-zinc-400 transition-colors hover:text-blue-600"
               >
                 Dashboard
@@ -141,7 +140,6 @@ export function TableToolbar<TData>({
               <Link
                 to={breadcrumb.href}
                 preload="intent"
-                viewTransition
                 className="font-semibold text-zinc-800 transition-colors hover:text-blue-600"
               >
                 {breadcrumb.page}
@@ -188,7 +186,6 @@ export function TableToolbar<TData>({
                 to={createLink}
                 preload="intent"
                 preloadDelay={0}
-                viewTransition
                 onPointerEnter={triggerCreatePrefetch}
                 onMouseEnter={triggerCreatePrefetch}
                 onFocus={triggerCreatePrefetch}

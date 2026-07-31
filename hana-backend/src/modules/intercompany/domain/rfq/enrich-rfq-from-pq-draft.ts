@@ -345,6 +345,7 @@ const withEnsuredRfqRemarks = (
 ): IcRfqHeader => ({
   ...header,
   remarks: buildFlow1RfqRemarks({
+    companyCode: header.customerCode?.trim() || null,
     existing: mergeUserAndIcRemarks(draftComments, header.remarks),
     pqDraftDocEntry: header.pqDraftDocEntry,
     pqDraftDocNum: header.pqDraftDocNum,

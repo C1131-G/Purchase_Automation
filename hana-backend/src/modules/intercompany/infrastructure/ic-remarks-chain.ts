@@ -2,25 +2,32 @@
  * IC document remarks / Comments chain.
  *
  * Format (one link per line, never replaces user text):
+ *   Auto Generated Based on C1105 Purchase Quotation 8000586
+ *   Auto Generated Based on C1105 Request For Quotation 8000586
+ *   Auto Generated Based on C1105 Sales Quotation 810
+ *   Auto Generated Based on C1105 Purchase Order 5001328
+ *   Auto Generated Based on C1105 AR Invoice 1201
+ *
+ * Company/BP code is optional. Legacy lines without "Auto Generated" still parse:
  *   Based on Purchase Quotation 8000586
- *   Based on Request For Quotation 8000586
- *   Based on Sales Quotation 810
- *   Based on Purchase Order 5001328
- *   Based on AR Invoice 1201
  *
  * Legacy `IC | KEY: …` and PQD / AR draft labels are still parsed for merge/idempotency.
  * Existing non-IC remarks are preserved; auto lines append only if that KEY is new.
  */
+
+/** Prefix on every system-generated IC remarks line. */
+export const AUTO_GENERATED_REMARK_PREFIX = "Auto Generated";
 
 export type IcRemarkLink = {
   /** Stable key for idempotent append: PQ | RFQ | SQ | PO | AR (PQD legacy) */
   key: string;
   /** Document number (or entry fallback) shown after the type label. */
   text: string;
+  /** Company / BP code shown before the document type (e.g. C1105). */
+  companyCode?: string;
 };
 
 const LEGACY_IC_LINE_RE = /^IC\s*\|\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/i;
-const BASED_ON_LINE_RE = /^Based on (.+?)\s+(\S+)\s*$/i;
 
 const IC_DOC_TYPE_LABEL: Record<string, string> = {
   PQD: "Purchase Quotation Draft",
@@ -39,6 +46,43 @@ const LABEL_TO_KEY: Record<string, string> = {
   "purchase order": "PO",
   "ar invoice draft": "AR",
   "ar invoice": "AR",
+};
+
+/** Longest labels first so "Purchase Quotation Draft" wins over "Purchase Quotation". */
+const LABEL_ENTRIES_SORTED = Object.entries(LABEL_TO_KEY).toSorted(
+  (left, right) => right[0].length - left[0].length,
+);
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Parse "Auto Generated Based on [companyCode] <Label> <docRef>" lines.
+ * Also accepts legacy "Based on …" without the Auto Generated prefix.
+ */
+const parseBasedOnLine = (
+  trimmed: string,
+): { companyCode?: string; key: string; text: string } | null => {
+  const withoutAutoPrefix = trimmed.replace(/^auto\s+generated\s+/i, "").trim();
+  if (!/^based on\s+/i.test(withoutAutoPrefix)) {
+    return null;
+  }
+  const rest = withoutAutoPrefix.replace(/^based on\s+/i, "").trim();
+  if (!rest) {
+    return null;
+  }
+  for (const [label, key] of LABEL_ENTRIES_SORTED) {
+    const pattern = new RegExp(`^(?:(\\S+)\\s+)?${escapeRegExp(label)}\\s+(\\S+)\\s*$`, "i");
+    const match = rest.match(pattern);
+    if (match?.[2]) {
+      const companyCode = match[1]?.trim();
+      return {
+        companyCode: companyCode || undefined,
+        key,
+        text: match[2].trim(),
+      };
+    }
+  }
+  return null;
 };
 
 const hasDocNum = (docNum: number | null | undefined): docNum is number =>
@@ -64,11 +108,20 @@ const extractDocRefFromLegacyText = (text: string): string => {
 };
 
 const isAutoRemarkLine = (trimmed: string): boolean =>
-  LEGACY_IC_LINE_RE.test(trimmed) || BASED_ON_LINE_RE.test(trimmed);
+  LEGACY_IC_LINE_RE.test(trimmed) || parseBasedOnLine(trimmed) != null;
 
-export const formatIcRemarkLine = (key: string, docRefText: string): string => {
+export const formatIcRemarkLine = (
+  key: string,
+  docRefText: string,
+  companyCode?: string | null,
+): string => {
   const label = IC_DOC_TYPE_LABEL[key.toUpperCase()] ?? key;
-  return `Based on ${label} ${docRefText.trim()}`;
+  const code = companyCode != null ? String(companyCode).trim() : "";
+  const basedOn =
+    code.length > 0
+      ? `Based on ${code} ${label} ${docRefText.trim()}`
+      : `Based on ${label} ${docRefText.trim()}`;
+  return `${AUTO_GENERATED_REMARK_PREFIX} ${basedOn}`;
 };
 
 /** Collect IC keys already present in comments (legacy + Based on formats). */
@@ -84,12 +137,9 @@ export const parseIcRemarkKeys = (remarks: string | null | undefined): Set<strin
       keys.add(legacy[1].toUpperCase());
       continue;
     }
-    const basedOn = trimmed.match(BASED_ON_LINE_RE);
-    if (basedOn?.[1]) {
-      const mapped = LABEL_TO_KEY[basedOn[1].trim().toLowerCase()];
-      if (mapped) {
-        keys.add(mapped);
-      }
+    const basedOn = parseBasedOnLine(trimmed);
+    if (basedOn?.key) {
+      keys.add(basedOn.key);
     }
   }
   return keys;
@@ -111,12 +161,13 @@ export const parseIcRemarkLinks = (remarks: string | null | undefined): IcRemark
       });
       continue;
     }
-    const basedOn = trimmed.match(BASED_ON_LINE_RE);
-    if (basedOn?.[1] && basedOn[2]) {
-      const mapped = LABEL_TO_KEY[basedOn[1].trim().toLowerCase()];
-      if (mapped) {
-        links.push({ key: mapped, text: basedOn[2].trim() });
-      }
+    const basedOn = parseBasedOnLine(trimmed);
+    if (basedOn) {
+      links.push({
+        companyCode: basedOn.companyCode,
+        key: basedOn.key,
+        text: basedOn.text,
+      });
     }
   }
   return links;
@@ -140,7 +191,7 @@ export const appendIcRemarkLines = (
     if (!key || !text || have.has(key)) {
       continue;
     }
-    toAdd.push(formatIcRemarkLine(key, text));
+    toAdd.push(formatIcRemarkLine(key, text, link.companyCode));
     have.add(key);
   }
 
@@ -204,8 +255,11 @@ export const mergeUserAndIcRemarks = (
 
   const icByKey = new Map<string, IcRemarkLink>();
   for (const link of [...parseIcRemarkLinks(primaryTrim), ...parseIcRemarkLinks(secondaryTrim)]) {
-    icByKey.set(link.key.trim().toUpperCase(), {
-      key: link.key.trim().toUpperCase(),
+    const key = link.key.trim().toUpperCase();
+    const prev = icByKey.get(key);
+    icByKey.set(key, {
+      companyCode: link.companyCode?.trim() || prev?.companyCode,
+      key,
       text: link.text.trim(),
     });
   }
@@ -276,32 +330,71 @@ export const buildIcCompactTag = (parts: Array<string | number | null | undefine
 
 // --- Document link helpers (type + number only) ---
 
+type IcLinkCompanyCode = string | null | undefined;
+
+const withCompanyCode = (link: IcRemarkLink, companyCode?: IcLinkCompanyCode): IcRemarkLink => {
+  const code = companyCode != null ? String(companyCode).trim() : "";
+  return code ? { ...link, companyCode: code } : link;
+};
+
 /** @deprecated Prefer icLinkPq — real PQ is the Flow 1 source document. */
-export const icLinkPqDraft = (docNum: number | null | undefined, docEntry: number): IcRemarkLink =>
-  icLinkPq(docNum, docEntry);
+export const icLinkPqDraft = (
+  docNum: number | null | undefined,
+  docEntry: number,
+  companyCode?: IcLinkCompanyCode,
+): IcRemarkLink => icLinkPq(docNum, docEntry, companyCode);
 
 export const icLinkRfq = (
   docNum: number | null | undefined,
   docEntry?: number | null,
-): IcRemarkLink => ({
-  key: "RFQ",
-  text: hasDocNum(docNum) ? String(docNum) : hasEntry(docEntry) ? String(docEntry) : "",
-});
+  companyCode?: IcLinkCompanyCode,
+): IcRemarkLink =>
+  withCompanyCode(
+    {
+      key: "RFQ",
+      text: hasDocNum(docNum) ? String(docNum) : hasEntry(docEntry) ? String(docEntry) : "",
+    },
+    companyCode,
+  );
 
-export const icLinkPq = (docNum: number | null | undefined, docEntry: number): IcRemarkLink => ({
-  key: "PQ",
-  text: docRef(docNum, docEntry),
-});
+export const icLinkPq = (
+  docNum: number | null | undefined,
+  docEntry: number,
+  companyCode?: IcLinkCompanyCode,
+): IcRemarkLink =>
+  withCompanyCode(
+    {
+      key: "PQ",
+      text: docRef(docNum, docEntry),
+    },
+    companyCode,
+  );
 
-export const icLinkSq = (docNum: number | null | undefined, docEntry: number): IcRemarkLink => ({
-  key: "SQ",
-  text: docRef(docNum, docEntry),
-});
+export const icLinkSq = (
+  docNum: number | null | undefined,
+  docEntry: number,
+  companyCode?: IcLinkCompanyCode,
+): IcRemarkLink =>
+  withCompanyCode(
+    {
+      key: "SQ",
+      text: docRef(docNum, docEntry),
+    },
+    companyCode,
+  );
 
-export const icLinkPo = (docNum: number | null | undefined, docEntry: number): IcRemarkLink => ({
-  key: "PO",
-  text: docRef(docNum, docEntry),
-});
+export const icLinkPo = (
+  docNum: number | null | undefined,
+  docEntry: number,
+  companyCode?: IcLinkCompanyCode,
+): IcRemarkLink =>
+  withCompanyCode(
+    {
+      key: "PO",
+      text: docRef(docNum, docEntry),
+    },
+    companyCode,
+  );
 
 /**
  * AR invoice link — only when a document number or entry is known.
@@ -310,12 +403,13 @@ export const icLinkPo = (docNum: number | null | undefined, docEntry: number): I
 export const icLinkArDraft = (
   docEntry?: number | null,
   docNum?: number | null,
+  companyCode?: IcLinkCompanyCode,
 ): IcRemarkLink | null => {
   if (hasDocNum(docNum)) {
-    return { key: "AR", text: String(docNum) };
+    return withCompanyCode({ key: "AR", text: String(docNum) }, companyCode);
   }
   if (hasEntry(docEntry)) {
-    return { key: "AR", text: String(docEntry) };
+    return withCompanyCode({ key: "AR", text: String(docEntry) }, companyCode);
   }
   return null;
 };
@@ -332,6 +426,7 @@ export const compactPoTag = (docNum: number | null | undefined, docEntry: number
 /**
  * RFQ header remarks at create time.
  * Keeps any prior text; adds PQ + RFQ lines.
+ * companyCode → BP/company shown on auto lines (e.g. C1105).
  */
 export const buildFlow1RfqRemarks = (params: {
   existing?: string | null;
@@ -339,10 +434,12 @@ export const buildFlow1RfqRemarks = (params: {
   pqDraftDocEntry: number;
   rfqNumber: string;
   rfqId?: number | null;
+  /** Buyer BP / company code for "Based on C1105 …" lines. */
+  companyCode?: string | null;
 }): string =>
   appendIcRemarkLines(params.existing, [
-    icLinkPq(params.pqDraftDocNum, params.pqDraftDocEntry),
-    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
+    icLinkPq(params.pqDraftDocNum, params.pqDraftDocEntry, params.companyCode),
+    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry, params.companyCode),
   ]);
 
 /**
@@ -357,12 +454,13 @@ export const buildFlow1ConvertRemarks = (params: {
   rfqId: number;
   pqDocNum?: number | null;
   pqDocEntry?: number | null;
+  companyCode?: string | null;
 }): string => {
   const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry! : params.pqDraftDocEntry;
   const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
   const links: IcRemarkLink[] = [
-    icLinkPq(pqNum, pqEntry),
-    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
+    icLinkPq(pqNum, pqEntry, params.companyCode),
+    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry, params.companyCode),
   ];
   return appendIcRemarkLines(params.existing, links);
 };
@@ -411,22 +509,25 @@ export const buildFlow1SqRemarks = (params: {
   sqDocEntry?: number | null;
   /** Buyer PQ NumAtCard — shown on seller SQ remarks. */
   vendorRefNo?: string | null;
+  /** Buyer BP / company code for "Based on C1105 …" lines. */
+  companyCode?: string | null;
 }): string => {
   const withVendorRef = ensureVendorRefInRemarks(params.existing, params.vendorRefNo);
   const pqEntry = hasEntry(params.pqDocEntry) ? params.pqDocEntry : params.pqDraftDocEntry;
   const pqNum = hasEntry(params.pqDocEntry) ? params.pqDocNum : params.pqDraftDocNum;
   const links: IcRemarkLink[] = [
-    icLinkPq(pqNum, pqEntry),
-    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry),
+    icLinkPq(pqNum, pqEntry, params.companyCode),
+    icLinkRfq(params.pqDraftDocNum, params.pqDraftDocEntry, params.companyCode),
   ];
   if (hasEntry(params.sqDocEntry)) {
-    links.push(icLinkSq(params.sqDocNum, params.sqDocEntry));
+    links.push(icLinkSq(params.sqDocNum, params.sqDocEntry, params.companyCode));
   }
   return appendIcRemarkLines(withVendorRef, links);
 };
 
 /**
  * AR invoice Comments: keep PO user remarks + append PO link (and AR when numbered).
+ * companyCode → buyer BP code on auto lines (e.g. Based on C1105 Purchase Order 188).
  */
 export const buildFlow2ArRemarks = (params: {
   existingComments?: string | null;
@@ -434,9 +535,10 @@ export const buildFlow2ArRemarks = (params: {
   poDocEntry: number;
   arDocEntry?: number | null;
   arDocNum?: number | null;
+  companyCode?: string | null;
 }): string => {
-  const links: IcRemarkLink[] = [icLinkPo(params.poDocNum, params.poDocEntry)];
-  const arLink = icLinkArDraft(params.arDocEntry, params.arDocNum);
+  const links: IcRemarkLink[] = [icLinkPo(params.poDocNum, params.poDocEntry, params.companyCode)];
+  const arLink = icLinkArDraft(params.arDocEntry, params.arDocNum, params.companyCode);
   if (arLink) {
     links.push(arLink);
   }

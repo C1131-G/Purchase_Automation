@@ -107,14 +107,12 @@ export function PurchaseOrderTable() {
                 draftDocEntry: docEntry ? String(docEntry) : undefined,
               },
               to: "/purchase/create-order",
-              viewTransition: true,
             } as never);
           } else {
             prefetchEditRouteDataImmediate(normalized);
             void navigate({
               params: { docNum: normalized },
               to: "/purchase/orders/$docNum/update",
-              viewTransition: true,
             } as never);
           }
         },

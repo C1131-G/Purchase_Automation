@@ -105,7 +105,6 @@ export function OutgoingPaymentTable() {
           void navigate({
             params: { docNum: normalized },
             to: "/purchase/outgoing-payment/$docNum/update",
-            viewTransition: true,
           } as never);
         },
         onDocNumHover: (docNum) => {

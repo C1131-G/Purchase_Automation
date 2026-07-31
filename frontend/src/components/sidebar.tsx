@@ -404,7 +404,8 @@ export function SidebarMenuSubButton({
   return (
     <Link
       preload="intent"
-      viewTransition
+      preloadDelay={0}
+      startTransition
       className={cn(
         "relative flex w-full items-center text-[13px] py-1.5 text-zinc-400 hover:text-blue-600 transition-colors duration-150 text-left cursor-pointer bg-transparent",
         isActive && "text-blue-600 font-bold",

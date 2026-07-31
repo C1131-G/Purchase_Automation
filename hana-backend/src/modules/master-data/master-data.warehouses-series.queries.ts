@@ -11,9 +11,10 @@ export const getSeries = async (dbName: string, documentType: string) => {
     cacheKey,
     async () => {
       try {
+        // Prefer NextNumber so clients can show SAP's next DocNum for each series.
         const rows = (await executeTenantQuery(
           dbName,
-          `SELECT "Series", "SeriesName", "ObjectCode", "Locked"
+          `SELECT "Series", "SeriesName", "ObjectCode", "Locked", "NextNumber"
            FROM NNM1
            WHERE "ObjectCode" = '${documentType}'
              AND "Locked" = 'N'
@@ -23,17 +24,22 @@ export const getSeries = async (dbName: string, documentType: string) => {
           SeriesName: unknown;
           ObjectCode: unknown;
           Locked: unknown;
+          NextNumber: unknown;
         }>;
 
         return rows
           .filter((row) => row.SeriesName && String(row.SeriesName).trim())
-          .map((row) => ({
-            Series: Number(row.Series),
-            Name: toTrimmed(row.SeriesName),
-            code: String(row.Series ?? ""),
-            id: String(row.Series ?? ""),
-            name: toTrimmed(row.SeriesName),
-          }));
+          .map((row) => {
+            const nextRaw = Number(row.NextNumber);
+            return {
+              Series: Number(row.Series),
+              Name: toTrimmed(row.SeriesName),
+              NextNumber: Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null,
+              code: String(row.Series ?? ""),
+              id: String(row.Series ?? ""),
+              name: toTrimmed(row.SeriesName),
+            };
+          });
       } catch (err) {
         logger.warn({
           db: dbName,
@@ -46,6 +52,153 @@ export const getSeries = async (dbName: string, documentType: string) => {
     },
     1000 * 60 * 10,
   );
+};
+
+export type ResolvedDocumentSeries = {
+  series: number;
+  seriesName: string | null;
+  nextNumber: number | null;
+  /** How the series was chosen. */
+  source: "payload" | "branch" | "company_default";
+};
+
+/**
+ * Pick the SAP numbering series for a marketing document so DocNum follows NNM1.NextNumber.
+ * Prefer an unlocked non-manual series for the document branch (NNM1.BPLId) when present;
+ * otherwise company default series for the object type.
+ *
+ * Object codes: SQ=23, PQ=23 drafts share series with finals in some DBs, PO=22, etc.
+ */
+export const resolveDocumentSeries = async (
+  dbName: string,
+  objectCode: string,
+  options?: { branchId?: number | null; payloadSeries?: unknown },
+): Promise<ResolvedDocumentSeries | null> => {
+  const payloadSeries = Number(options?.payloadSeries);
+  if (Number.isFinite(payloadSeries) && payloadSeries > 0) {
+    return {
+      nextNumber: null,
+      series: Math.trunc(payloadSeries),
+      seriesName: null,
+      source: "payload",
+    };
+  }
+
+  const db = dbName.trim();
+  const obj = String(objectCode ?? "").trim();
+  if (!db || !obj) {
+    return null;
+  }
+
+  const branchId =
+    options?.branchId != null && Number.isFinite(Number(options.branchId))
+      ? Math.trunc(Number(options.branchId))
+      : null;
+
+  const mapRow = (
+    row: Record<string, unknown> | undefined,
+    source: ResolvedDocumentSeries["source"],
+  ): ResolvedDocumentSeries | null => {
+    if (!row) {
+      return null;
+    }
+    const series = Math.trunc(Number(row.Series ?? row.series));
+    if (!Number.isFinite(series) || series <= 0) {
+      return null;
+    }
+    const nextRaw = Number(row.NextNumber ?? row.nextNumber);
+    return {
+      nextNumber: Number.isFinite(nextRaw) && nextRaw > 0 ? Math.trunc(nextRaw) : null,
+      series,
+      seriesName: toTrimmed(row.SeriesName ?? row.seriesName) || null,
+      source,
+    };
+  };
+
+  // Multi-branch: prefer series bound to document BPL (when NNM1.BPLId exists).
+  if (branchId != null && branchId > 0) {
+    try {
+      const rows = (await executeTenantQuery(
+        db,
+        `SELECT TOP 1 "Series", "SeriesName", "NextNumber"
+           FROM NNM1
+          WHERE "ObjectCode" = ?
+            AND "Locked" = 'N'
+            AND ("IsManual" = 'N' OR "IsManual" IS NULL)
+            AND "BPLId" = ?
+          ORDER BY "Series" ASC`,
+        [obj, branchId],
+      )) as Array<Record<string, unknown>>;
+      const matched = mapRow(rows[0], "branch");
+      if (matched) {
+        return matched;
+      }
+    } catch {
+      // BPLId / IsManual may be missing on older DBs — fall through to company default.
+    }
+  }
+
+  try {
+    const rows = (await executeTenantQuery(
+      db,
+      `SELECT TOP 1 "Series", "SeriesName", "NextNumber"
+         FROM NNM1
+        WHERE "ObjectCode" = ?
+          AND "Locked" = 'N'
+          AND ("IsManual" = 'N' OR "IsManual" IS NULL)
+        ORDER BY "Series" ASC`,
+      [obj],
+    )) as Array<Record<string, unknown>>;
+    return mapRow(rows[0], "company_default");
+  } catch (err) {
+    logger.warn({
+      branchId,
+      db,
+      err,
+      msg: "Failed to resolve document series from NNM1",
+      objectCode: obj,
+    });
+    return null;
+  }
+};
+
+/** Seller sales (mother) UoM for an item — OITM.SalUnitMsr + OUOM.UomEntry. */
+export const resolveItemSalesUom = async (
+  dbName: string,
+  itemCode: string,
+): Promise<{ uomCode: string; uomEntry: number | null } | null> => {
+  const db = dbName.trim();
+  const code = itemCode.trim();
+  if (!db || !code) {
+    return null;
+  }
+  try {
+    const rows = (await executeTenantQuery(
+      db,
+      `SELECT TOP 1 i."SalUnitMsr" AS "UomCode", ouom."UomEntry" AS "UomEntry"
+         FROM "OITM" i
+         LEFT JOIN "OUOM" ouom ON ouom."UomCode" = i."SalUnitMsr"
+        WHERE i."ItemCode" = ?`,
+      [code],
+    )) as Array<Record<string, unknown>>;
+    const uomCode = toTrimmed(rows[0]?.UomCode ?? rows[0]?.uomCode);
+    if (!uomCode) {
+      return null;
+    }
+    const entryRaw = Number(rows[0]?.UomEntry ?? rows[0]?.uomEntry);
+    return {
+      uomCode,
+      uomEntry: Number.isFinite(entryRaw) && entryRaw > 0 ? Math.trunc(entryRaw) : null,
+    };
+  } catch (err) {
+    logger.warn({
+      db,
+      err,
+      itemCode: code,
+      msg: "Failed to resolve item sales UoM from OITM",
+    });
+    return null;
+  }
 };
 
 // Lists active warehouses available for inventory storage and transactions.

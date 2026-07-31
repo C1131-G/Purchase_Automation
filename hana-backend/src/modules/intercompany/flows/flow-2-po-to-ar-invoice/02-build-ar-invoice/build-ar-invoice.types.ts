@@ -6,7 +6,15 @@ export type BuildArDraftLineInput = IcDocumentLineInput;
 export type BuildArInvoiceInput = {
   buyerCustomerCode: string;
   remarksTag: string;
+  /**
+   * IC_COMPANY.DEFAULT_BRANCH_ID (e.g. 1). Used when line warehouse is missing
+   * or not found on seller OWHS. Document BPL may switch to WH.BPLid when WH exists.
+   */
   defaultBranchId: number | null;
+  /** Seller SAP DB — optional; when set, align BPL from line warehouse without changing WH/UoM. */
+  sapDbName?: string | null;
+  /** Optional override: resolved branch after warehouse lookup. */
+  documentBranchId?: number | null;
   docDate?: unknown;
   docDueDate?: unknown;
   numAtCard?: unknown;

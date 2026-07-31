@@ -107,7 +107,6 @@ export function SalesQuotationTable() {
                 draftDocEntry: String(row.id),
               }),
               to: "/sales/create-quotation",
-              viewTransition: true,
             });
             return;
           }
@@ -119,7 +118,6 @@ export function SalesQuotationTable() {
           void navigate({
             params: { docNum: normalized },
             to: "/sales/quotations/$docNum/update",
-            viewTransition: true,
           } as never);
         },
         onDocNumHover: (docNum, draftDocEntry) => {

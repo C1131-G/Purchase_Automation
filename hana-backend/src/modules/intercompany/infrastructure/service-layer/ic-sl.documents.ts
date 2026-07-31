@@ -38,6 +38,10 @@ export type CreateSalesQuotationInput = {
    * From IC_COMPANY.DEFAULT_BRANCH_ID (same as Flow 2 AR invoice).
    */
   defaultBranchId?: number | null;
+  /**
+   * NNM1.Series for Sales Quotation (Obj 23). When set, SAP assigns DocNum from that series' NextNumber.
+   */
+  series?: number | null;
 };
 
 export type ApplyPricesToDraftInput = {
@@ -619,6 +623,11 @@ export const createIcSlDocuments = (deps?: {
       if (branchId != null && Number.isFinite(branchId) && branchId > 0) {
         body.BPL_IDAssignedToInvoice = Math.trunc(branchId);
       }
+      // Align DocNum with SAP NNM1.NextNumber for the chosen series (branch-specific when set).
+      const series = input.series != null ? Math.trunc(Number(input.series)) : null;
+      if (series != null && Number.isFinite(series) && series > 0) {
+        body.Series = series;
+      }
       const lineSnap = Array.isArray(input.lines)
         ? input.lines.map((line, index) => {
             const row = line as Record<string, unknown>;
@@ -627,6 +636,8 @@ export const createIcSlDocuments = (deps?: {
               lineNum: index,
               quantity: row.Quantity ?? null,
               unitPrice: row.UnitPrice ?? null,
+              uomCode: row.UoMCode ?? row.UomCode ?? null,
+              uomEntry: row.UoMEntry ?? row.UomEntry ?? null,
               vatGroup: row.VatGroup ?? null,
               warehouseCode: row.WarehouseCode ?? null,
             };
@@ -648,6 +659,7 @@ export const createIcSlDocuments = (deps?: {
         numAtCard: body.NumAtCard ?? null,
         outcome: "pass",
         remarks: input.remarks,
+        series: body.Series ?? null,
       });
 
       try {

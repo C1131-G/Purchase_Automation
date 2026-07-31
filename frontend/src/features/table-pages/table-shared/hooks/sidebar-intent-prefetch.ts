@@ -4,6 +4,7 @@ import {
   prefetchCreateMasterData,
   type CreateMasterParty,
 } from "@/features/create-pages/create-shared/utils/ensure-create-master-data";
+import { icRfqQueries } from "@/features/intercompany/api/intercompany.queries";
 import { apCreditMemoQueries } from "@/features/table-pages/ap-credit-memo/api/ap-credit-memo.queries";
 import { apInvoiceQueries } from "@/features/table-pages/ap-invoices/api/ap-invoice.queries";
 import { grpoQueries } from "@/features/table-pages/grpo/api/grpo.queries";
@@ -20,7 +21,8 @@ export type TableRoutePath =
   | "/purchase/ap-invoice"
   | "/purchase/ap-credit-memo"
   | "/purchase/outgoing-payment"
-  | "/sales/quotations";
+  | "/sales/quotations"
+  | "/sales/request-for-quotations";
 
 const DEFAULT_TABLE_PARAMS = {
   limit: 10,
@@ -33,6 +35,7 @@ const partyForTableRoute = (routePath: TableRoutePath): CreateMasterParty =>
 /**
  * Prefetch first table page for the sidebar target (smart/orchestrated).
  * Also warms create master lookups — the same nav item opens create routes.
+ * RFQ has no create form from this nav item, so skip master warmup for it.
  */
 export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: TableRoutePath) => {
   const queryOptionsByPath = {
@@ -43,6 +46,7 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     "/purchase/quotations": purchaseQuotationQueries.list(DEFAULT_TABLE_PARAMS),
     "/purchase/outgoing-payment": outgoingPaymentQueries.list(DEFAULT_TABLE_PARAMS),
     "/sales/quotations": salesQuotationQueries.list(DEFAULT_TABLE_PARAMS),
+    "/sales/request-for-quotations": icRfqQueries.list(),
   };
 
   void runSmartPrefetch(
@@ -50,5 +54,7 @@ export const prefetchTableRouteIntent = (queryClient: QueryClient, routePath: Ta
     queryOptionsByPath[routePath] as unknown as Parameters<typeof runSmartPrefetch>[1],
   );
 
-  prefetchCreateMasterData(queryClient, partyForTableRoute(routePath));
+  if (routePath !== "/sales/request-for-quotations") {
+    prefetchCreateMasterData(queryClient, partyForTableRoute(routePath));
+  }
 };

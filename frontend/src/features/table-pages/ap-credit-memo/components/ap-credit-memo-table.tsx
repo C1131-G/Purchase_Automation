@@ -109,14 +109,12 @@ export function APCreditMemoTable() {
                 draftDocEntry: docEntry ? String(docEntry) : undefined,
               },
               to: "/purchase/create-ap-credit-memo",
-              viewTransition: true,
             } as never);
           } else {
             prefetchEditRouteDataImmediate(normalized);
             void navigate({
               params: { docNum: normalized },
               to: "/purchase/ap-credit-memo/$docNum/update",
-              viewTransition: true,
             } as never);
           }
         },

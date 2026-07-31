@@ -129,10 +129,14 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     headerWarehouseCode: header.warehouseCode ?? "",
     setHeader,
     onWarehouseSelected: (warehouseCode: string) => {
+      // Change line warehouse only — keep mother/sales UoM and other line fields.
       productsHook.setProductRows((prev) =>
         prev.map((row) => ({
           ...row,
           warehouseCode,
+          // Explicit preserve: UoM must not reset when WH/branch differs.
+          uomCode: row.uomCode,
+          uomEntry: row.uomEntry,
         })),
       );
     },

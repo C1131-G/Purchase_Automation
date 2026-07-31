@@ -1,9 +1,18 @@
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
+import { lazy, Suspense } from "react";
 import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
-import { SalesQuotationTable } from "@/features/table-pages/sales-quotations/components/sales-quotation-table";
+
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { salesQuotationSearchSchema } from "@/features/table-pages/sales-quotations/schemas/sales-quotation-search.schema";
 
+const SalesQuotationTable = lazy(() =>
+  import("@/features/table-pages/sales-quotations/components/sales-quotation-table").then((m) => ({
+    default: m.SalesQuotationTable,
+  })),
+);
+
 export const Route = createFileRoute("/_layout/sales/quotations")({
+  pendingComponent: TableSkeleton,
   component: RouteComponent,
   validateSearch: (search) => salesQuotationSearchSchema.parse(search),
 });
@@ -19,7 +28,9 @@ function RouteComponent() {
 
   return (
     <div className="h-full w-full">
-      <SalesQuotationTable />
+      <Suspense fallback={<TableSkeleton />}>
+        <SalesQuotationTable />
+      </Suspense>
     </div>
   );
 }

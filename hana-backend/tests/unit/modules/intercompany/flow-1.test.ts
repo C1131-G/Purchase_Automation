@@ -264,10 +264,10 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
 
-    // Auto IC remarks stored on RFQ at create (Based on … format).
+    // Auto IC remarks stored on RFQ at create (Auto Generated Based on <companyCode> …).
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).toContain("Based on Purchase Quotation 9001");
-    expect(storedRemarks).toContain("Based on Request For Quotation 9001");
+    expect(storedRemarks).toContain("Auto Generated Based on C-A-ON-B Purchase Quotation 9001");
+    expect(storedRemarks).toContain("Auto Generated Based on C-A-ON-B Request For Quotation 9001");
     expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
 
     const second = await orchestrator.run(input);

@@ -97,7 +97,6 @@ export function GRPOCreate({
       router.navigate({
         to: "/purchase/create-grpo",
         search: {},
-        viewTransition: true,
       });
       return;
     }
@@ -109,7 +108,6 @@ export function GRPOCreate({
         sourceDocNum: docNums,
         sourceDocType: docType as "PurchaseOrder" | "PurchaseQuotation",
       },
-      viewTransition: true,
     });
   };
 

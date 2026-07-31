@@ -73,7 +73,6 @@ export function useDocumentSaveActions({
       replace: true,
       search: {},
       to: defaultUrl,
-      viewTransition: true,
     });
   }, [resetForm, defaultUrl, router]);
 
@@ -99,7 +98,6 @@ export function useDocumentSaveActions({
           replace: true,
           search: {},
           to: tableUrl || defaultUrl,
-          viewTransition: true,
         });
         return;
       }
@@ -123,7 +121,6 @@ export function useDocumentSaveActions({
           replace: true,
           search: {},
           to: defaultUrl,
-          viewTransition: true,
         });
       } else if (action === "close") {
         toast.success(`${docLabel} created`, { id: toastId });
@@ -134,7 +131,6 @@ export function useDocumentSaveActions({
         scrollToTop();
         void router.navigate({
           to: "/dashboard",
-          viewTransition: true,
         });
       } else if (action === "view") {
         toast.success(`${docLabel} saved`, { id: toastId });

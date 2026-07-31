@@ -118,6 +118,10 @@ export const CreateSalesQuotationInputSchema = z.object({
   DocumentLines: z.array(SalesQuotationLineItemSchema).min(1),
   NumAtCard: z.string().optional(),
   SalesPersonCode: z.coerce.number().int().optional(),
+  /** Explicit numbering series (NNM1.Series). When omitted, backend resolves SAP next series for branch. */
+  Series: z.coerce.number().int().positive().optional(),
+  /** Multi-branch document BPL. When omitted, backend maps from line warehouse OWHS.BPLid. */
+  BPL_IDAssignedToInvoice: z.coerce.number().int().positive().optional(),
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),

@@ -14,6 +14,8 @@ import {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
+  resolveDocumentSeries,
+  resolveItemSalesUom,
   getBusinessPartnerAddresses,
 } from "./master-data.queries";
 
@@ -33,6 +35,8 @@ export {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
+  resolveDocumentSeries,
+  resolveItemSalesUom,
   getBusinessPartnerAddresses,
 };
 
@@ -52,5 +56,7 @@ export const masterDataService = {
   getSalesEmployees,
   getWarehouseBranch,
   getDefaultBranch,
+  resolveDocumentSeries,
+  resolveItemSalesUom,
   getBusinessPartnerAddresses,
 };

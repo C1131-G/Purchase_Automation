@@ -1,3 +1,4 @@
+import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { IcRetryTable } from "@/features/intercompany/components/retries/ic-retry-table";
@@ -5,6 +6,7 @@ import { icRetrySearchSchema } from "@/features/intercompany/schemas/ic-retry-se
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export const Route = createFileRoute("/_layout/intercompany/retries")({
+  pendingComponent: TableSkeleton,
   component: IntercompanyRetriesRoute,
   validateSearch: (search) => icRetrySearchSchema.parse(search),
 });

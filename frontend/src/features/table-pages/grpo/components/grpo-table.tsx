@@ -107,14 +107,12 @@ export function GRPOTable() {
                 draftDocEntry: docEntry ? String(docEntry) : undefined,
               },
               to: "/purchase/create-grpo",
-              viewTransition: true,
             } as never);
           } else {
             prefetchEditRouteDataImmediate(normalized);
             void navigate({
               params: { docNum: normalized },
               to: "/purchase/grpo/$docNum/update",
-              viewTransition: true,
             } as never);
           }
         },
