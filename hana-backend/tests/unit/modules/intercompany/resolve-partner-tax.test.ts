@@ -64,6 +64,35 @@ describe("resolvePartnerTax (OVTG rate + fallbacks)", () => {
     expect(result).toEqual({ docSide: "sales", source: "ovtg_rate", taxCode: "OUT-12.5" });
   });
 
+  it("prefers OUT-12.5 over GSTO on seller when both share rate (AJAX)", async () => {
+    const { resolver } = setup({
+      getBpTax: async () => null,
+      getItemTax: async () => "SHOULD-NOT-USE",
+      getOvtgTax: async (_db, code) =>
+        code === "IN-12.5"
+          ? { category: OVTG_CATEGORY_PURCHASE, code: "IN-12.5", rate: 12.5 }
+          : null,
+      listOvtgTaxes: async (db) =>
+        db === "DB_B"
+          ? [
+              { category: OVTG_CATEGORY_SALES, code: "GSTO", rate: 12.5 },
+              { category: OVTG_CATEGORY_SALES, code: "OUT-12.5", rate: 12.5 },
+            ]
+          : [],
+    });
+
+    const result = await resolver.resolve({
+      docSide: "sales",
+      itemCode: "SKU1",
+      sourceCompanyId: 1,
+      sourceTaxCode: "IN-12.5",
+      targetCardCode: "C-A-ON-B",
+      targetCompanyId: 2,
+    });
+
+    expect(result).toEqual({ docSide: "sales", source: "ovtg_rate", taxCode: "OUT-12.5" });
+  });
+
   it("uses seller item sales tax when OVTG rate match misses", async () => {
     const { resolver } = setup({
       getBpTax: async () => "BP-TAX",

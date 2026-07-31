@@ -42,6 +42,7 @@ export interface CreateIcNotificationColumnsOptions {
   markReadPendingId: number | null;
   onMarkRead: (notificationId: number) => void;
   onNavigate?: (notification: IcNotification, link: IcNotificationDocLink) => void;
+  onPrefetch?: (notification: IcNotification, link: IcNotificationDocLink) => void;
 }
 
 /**
@@ -69,12 +70,13 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
   columnHelper.accessor("message", {
     cell: (info) => {
       const notification = info.row.original;
-      if (options.onNavigate) {
-        return (
-          <IcNotificationMessage notification={notification} onNavigate={options.onNavigate} />
-        );
-      }
-      return <IcNotificationMessage notification={notification} />;
+      return (
+        <IcNotificationMessage
+          notification={notification}
+          {...(options.onNavigate ? { onNavigate: options.onNavigate } : {})}
+          {...(options.onPrefetch ? { onPrefetch: options.onPrefetch } : {})}
+        />
+      );
     },
     enableColumnFilter: false,
     enableSorting: true,

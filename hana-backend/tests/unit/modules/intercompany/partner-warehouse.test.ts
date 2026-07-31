@@ -78,12 +78,35 @@ describe("buildSalesQuotationLines warehouse", () => {
 
     expect(documentLines[0]?.WarehouseCode).toBe("W-BPL1");
     expect(documentLines[0]?.VatGroup).toBe("S1");
-    // Without seller DB, falls back to RFQ UoM code.
+    // Always keep PQ/RFQ UoM — never OITM sales default.
     expect(documentLines[0]?.UoMCode).toBe("BUYER-UOM");
+    expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
     expect(taxUsage[0]).toMatchObject({
       pqTaxCode: "BUYER-PU",
       sqTaxCode: "S1",
     });
+  });
+
+  it("keeps RFQ UoM when warehouse is set (does not drop or rewrite UoM)", async () => {
+    const { documentLines } = await buildSalesQuotationLines(
+      [
+        {
+          discount: 0,
+          itemCode: "ITEM-A",
+          lineNum: 0,
+          quantity: 5,
+          unitPrice: 12,
+          uomCode: "BOX",
+          warehouse: "WH-PQ",
+        },
+      ],
+      async () => "",
+      { branchWarehouseCode: "WH-PQ" },
+    );
+
+    expect(documentLines[0]?.WarehouseCode).toBe("WH-PQ");
+    expect(documentLines[0]?.UoMCode).toBe("BOX");
+    expect(documentLines[0]?.UoMEntry).toBeUndefined();
   });
 });
 

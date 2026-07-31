@@ -6,7 +6,8 @@
  * 1. Prefer buyer PQ warehouse when that WhsCode exists on seller OWHS → switch BPL to WH.BPLid
  * 2. Else DEFAULT_BRANCH_ID (e.g. 1) warehouse
  * 3. Else any active branch+WH (default branch may change when WH not found)
- * Never invent warehouse from item default WH (OITM.DfltWH). Never rewrite UoM for WH.
+ * Never invent warehouse from item default WH (OITM.DfltWH).
+ * UoM is independent: SQ keeps PQ/RFQ line UoM (not OITM.SalUnitMsr).
  */
 
 import { executeTenantQuery } from "@/db/tenant-query";

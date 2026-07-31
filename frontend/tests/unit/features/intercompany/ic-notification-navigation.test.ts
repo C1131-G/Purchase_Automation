@@ -26,7 +26,7 @@ describe("ic-notification-navigation", () => {
       documentId: "42",
       documentType: "RFQ",
       flowStep: "FLOW1_RFQ_CREATED",
-      message: "Acme sent RFQ 10042. Open RFQ 10042 to enter your prices.",
+      message: "Customer C-A-ON-B created RFQ 10042",
     });
 
     const links = parseIcNotificationDocLinks(notification);
@@ -43,7 +43,7 @@ describe("ic-notification-navigation", () => {
       documentId: "2042",
       documentType: "PQ",
       flowStep: "FLOW1_PQ_CREATED",
-      message: "PQ No 2042 created from RFQ 10042. Open PQ No 2042 to review.",
+      message: "Vendor V-B · PQ No 2042",
     });
 
     const primary = getIcNotificationPrimaryLink(notification);
@@ -57,7 +57,7 @@ describe("ic-notification-navigation", () => {
       documentId: "810",
       documentType: "SQ",
       flowStep: "FLOW1_SQ_CREATED",
-      message: "Buyer Co converted RFQ 10042. SQ No 810 is ready — open SQ No 810.",
+      message: "Customer C-A-ON-B · SQ No 810",
     });
 
     const primary = getIcNotificationPrimaryLink(notification);

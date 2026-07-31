@@ -30,6 +30,10 @@ import {
   logFlowStep,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
 import {
+  formatIcCreatedMessage,
+  formatIcCustomerParty,
+} from "@/modules/intercompany/infrastructure/ic-notification-copy";
+import {
   buildFlow1SqRemarks,
   formatIcDocLabel,
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
@@ -128,38 +132,22 @@ const createDefaultHandlers = (deps: {
     }
 
     // Retry success: notify seller only (AR invoice handoff), same as live Flow 2.
-    const sourceDocEntryRaw = payload.sourceDocEntry;
-    const sourceDocNumRaw = payload.sourceDocNum;
-    const poLabel = formatIcDocLabel({
-      kind: "PO",
-      docEntry:
-        sourceDocEntryRaw === null || sourceDocEntryRaw === undefined
-          ? null
-          : typeof sourceDocEntryRaw === "string" || typeof sourceDocEntryRaw === "number"
-            ? sourceDocEntryRaw
-            : String(sourceDocEntryRaw),
-      docNum:
-        sourceDocNumRaw === null || sourceDocNumRaw === undefined
-          ? null
-          : typeof sourceDocNumRaw === "string" || typeof sourceDocNumRaw === "number"
-            ? sourceDocNumRaw
-            : String(sourceDocNumRaw),
-    });
     const arLabel = formatIcDocLabel({
       kind: "AR",
       docEntry: created.docEntry,
       docNum: created.docNum ?? null,
     });
-    const buyer = await deps.company.getById(item.companyId);
-    const buyerName = buyer?.companyName?.trim() || "Buyer";
+    const customerCode =
+      payload.buyerCustomerCode != null ? String(payload.buyerCustomerCode).trim() : "";
+    const customerParty = formatIcCustomerParty(customerCode || null);
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(created.docEntry),
       documentType: IC_OBJECT.AR_INVOICE,
       flowStep: "FLOW2_AR_INVOICE_CREATED",
-      message: `${buyerName}: ${poLabel} created ${arLabel}.`,
+      message: formatIcCreatedMessage(customerParty, arLabel),
       priority: "MEDIUM",
-      title: buyerName,
+      title: customerParty,
     });
 
     await deps.history.append({
@@ -230,7 +218,8 @@ const createDefaultHandlers = (deps: {
           ? String(header.vendorRefNo).trim()
           : null;
     const sqRemarks = buildFlow1SqRemarks({
-      companyCode: buyerCustomerCode?.trim() || null,
+      // Same single vendor BP as RFQ create (not seller-side customer code).
+      companyCode: header.vendorCode?.trim() || null,
       existing: remarksFromPayload ?? header.remarks,
       pqDraftDocEntry: header.pqDraftDocEntry,
       pqDraftDocNum: header.pqDraftDocNum,

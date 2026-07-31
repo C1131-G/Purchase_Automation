@@ -338,14 +338,15 @@ const mergeLine = (line: IcRfqLine, source: SourceLineRow | undefined): IcRfqLin
   };
 };
 
-/** Ensure RFQ always exposes auto IC remarks (PQD + RFQ), even without SAP enrich. */
+/** Ensure RFQ always exposes auto IC remarks (PQ + RFQ), even without SAP enrich. */
 const withEnsuredRfqRemarks = (
   header: IcRfqHeader,
   draftComments?: string | null,
 ): IcRfqHeader => ({
   ...header,
   remarks: buildFlow1RfqRemarks({
-    companyCode: header.customerCode?.trim() || null,
+    // Buyer-side vendor code only — do not put seller customer code in remarks.
+    companyCode: header.vendorCode?.trim() || null,
     existing: mergeUserAndIcRemarks(draftComments, header.remarks),
     pqDraftDocEntry: header.pqDraftDocEntry,
     pqDraftDocNum: header.pqDraftDocNum,

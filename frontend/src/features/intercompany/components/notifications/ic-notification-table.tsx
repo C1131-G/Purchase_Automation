@@ -1,4 +1,5 @@
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { getRouteApi, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   flexRender,
   getCoreRowModel,
@@ -26,7 +27,14 @@ import {
 } from "@/features/intercompany/components/notifications/ic-notification-columns";
 import { IcNotificationToolbar } from "@/features/intercompany/components/notifications/ic-notification-toolbar";
 import type { IcNotification } from "@/features/intercompany/schemas/intercompany-api.schema";
-import type { IcNotificationDocLink } from "@/features/intercompany/utils/ic-notification-navigation";
+import {
+  prefetchIcNotificationDocLink,
+  warmIcNotificationCreateTargets,
+} from "@/features/intercompany/utils/ic-notification-doc-prefetch";
+import {
+  getIcNotificationPrimaryLink,
+  type IcNotificationDocLink,
+} from "@/features/intercompany/utils/ic-notification-navigation";
 import {
   icNotificationColumnFilterSchema,
   type IcNotificationColumnFilter,
@@ -89,10 +97,15 @@ const filterValueToString = (value: unknown): string | undefined => {
  * Session-company IC notifications grid.
  * URL-first chrome (page, filters, sort); filtering/sort/page are client-side over the list API.
  */
+/** Cap idle warm-up so a long notification list does not fan out dozens of detail fetches. */
+const IDLE_DOC_PREFETCH_LIMIT = 12;
+
 export function IcNotificationTable() {
   const searchParams = routeApi.useSearch();
   const navigate = useNavigate();
   const navigateRoute = routeApi.useNavigate();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const setSorting = useSetSortingAction();
   const setVisibility = useSetVisibilityAction();
   const setOrder = useSetOrderAction();
@@ -109,6 +122,11 @@ export function IcNotificationTable() {
   useEffect(() => {
     window.scrollTo({ behavior: "smooth", top: 0 });
   }, []);
+
+  // Warm create master data + route chunks while the list is open (not on click).
+  useEffect(() => {
+    warmIcNotificationCreateTargets(queryClient, router);
+  }, [queryClient, router]);
 
   const handleMarkRead = useCallback(
     (notificationId: number) => {
@@ -150,8 +168,17 @@ export function IcNotificationTable() {
     });
   }, [markAllMutation]);
 
+  const handleNotificationPrefetch = useCallback(
+    (_notification: IcNotification, link: IcNotificationDocLink) => {
+      prefetchIcNotificationDocLink(queryClient, router, link);
+    },
+    [queryClient, router],
+  );
+
   const handleNotificationNavigate = useCallback(
     (notification: IcNotification, link: IcNotificationDocLink) => {
+      // Start warm before navigation so route loaders hit cache (table create pattern).
+      prefetchIcNotificationDocLink(queryClient, router, link);
       if (!notification.isRead) {
         markReadMutation.mutate(notification.notificationId);
       }
@@ -161,7 +188,7 @@ export function IcNotificationTable() {
         to: link.to,
       } as never);
     },
-    [markReadMutation, navigate],
+    [markReadMutation, navigate, queryClient, router],
   );
 
   const columns = useMemo(
@@ -170,8 +197,9 @@ export function IcNotificationTable() {
         markReadPendingId,
         onMarkRead: handleMarkRead,
         onNavigate: handleNotificationNavigate,
+        onPrefetch: handleNotificationPrefetch,
       }),
-    [handleMarkRead, handleNotificationNavigate, markReadPendingId],
+    [handleMarkRead, handleNotificationNavigate, handleNotificationPrefetch, markReadPendingId],
   );
 
   const columnIds = useMemo(
@@ -237,6 +265,45 @@ export function IcNotificationTable() {
 
   const rows = useMemo(() => listQuery.data?.data ?? [], [listQuery.data?.data]);
   const showInitialSkeleton = listQuery.isLoading && !listQuery.data;
+
+  // Idle-warm primary targets for the first page of notifications (hover is faster after this).
+  useEffect(() => {
+    if (rows.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) {
+        return;
+      }
+      for (const notification of rows.slice(0, IDLE_DOC_PREFETCH_LIMIT)) {
+        const link = getIcNotificationPrimaryLink(notification);
+        if (link) {
+          prefetchIcNotificationDocLink(queryClient, router, link);
+        }
+      }
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      const handle = idleWindow.requestIdleCallback(run, { timeout: 1500 });
+      return () => {
+        cancelled = true;
+        idleWindow.cancelIdleCallback?.(handle);
+      };
+    }
+
+    const timeoutId = window.setTimeout(run, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [queryClient, router, rows]);
 
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table returns non-memoizable functions
   const table = useReactTable<IcNotification>({

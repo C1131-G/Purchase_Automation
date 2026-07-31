@@ -31,6 +31,11 @@ import {
   logFlowStep,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
 import {
+  formatIcCustomerParty,
+  formatIcPartyDocMessage,
+  formatIcVendorParty,
+} from "@/modules/intercompany/infrastructure/ic-notification-copy";
+import {
   appendIcRemarkLines,
   buildFlow1ConvertRemarks,
   buildFlow1SqRemarks,
@@ -260,8 +265,8 @@ export const createConvertPqAndSqService = (deps?: {
         null;
 
       // Keep RFQ + PQ user remarks; append PQ + RFQ IC lines (never drop parent text).
-      // companyCode = buyer customer on seller books (e.g. C1105) for auto remarks.
-      const remarksCompanyCode = bpMap.buyerCustomerCode?.trim() || null;
+      // companyCode = buyer-side vendor BP only (e.g. V-B) — same one code on every auto line.
+      const remarksCompanyCode = header.vendorCode?.trim() || null;
       const remarksBeforePq = buildFlow1ConvertRemarks({
         companyCode: remarksCompanyCode,
         existing: mergeUserAndIcRemarks(header.remarks, pqComments),
@@ -448,13 +453,8 @@ export const createConvertPqAndSqService = (deps?: {
 
         await rfq.complete(rfqId);
 
-        const buyer = await company.getById(header.sourceCompanyId);
-        const rfqLabel = formatIcDocLabel({
-          kind: "RFQ",
-          rfqNumber: header.rfqNumber,
-          docEntry: header.rfqId,
-        });
-        const buyerName = buyer?.companyName?.trim() || "Buyer";
+        const vendorParty = formatIcVendorParty(header.vendorCode);
+        const customerParty = formatIcCustomerParty(bpMap.buyerCustomerCode);
         const pqLabel = formatIcDocLabel({
           kind: "PQ",
           docEntry: purchaseQuotation.docEntry,
@@ -466,14 +466,15 @@ export const createConvertPqAndSqService = (deps?: {
           docNum: salesQuotation.docNum ?? null,
         });
 
+        // Buyer: vendor code + PQ to open. Seller: customer code + SQ to open.
         await notifications.create({
           companyId: header.sourceCompanyId,
           documentId: String(purchaseQuotation.docNum ?? purchaseQuotation.docEntry),
           documentType: IC_OBJECT.PQ,
           flowStep: "FLOW1_PQ_CREATED",
-          message: `${pqLabel} created from ${rfqLabel}. Open ${pqLabel} to review.`,
+          message: formatIcPartyDocMessage(vendorParty, pqLabel),
           priority: "MEDIUM",
-          title: "Purchase quotation ready",
+          title: vendorParty,
         });
 
         await notifications.create({
@@ -481,9 +482,9 @@ export const createConvertPqAndSqService = (deps?: {
           documentId: String(salesQuotation.docNum ?? salesQuotation.docEntry),
           documentType: IC_OBJECT.SQ,
           flowStep: "FLOW1_SQ_CREATED",
-          message: `${buyerName} converted ${rfqLabel}. ${sqLabel} is ready — open ${sqLabel}.`,
+          message: formatIcPartyDocMessage(customerParty, sqLabel),
           priority: "MEDIUM",
-          title: buyerName,
+          title: customerParty,
         });
 
         await history.append({

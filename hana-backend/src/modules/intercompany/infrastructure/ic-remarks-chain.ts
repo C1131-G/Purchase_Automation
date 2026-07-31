@@ -2,13 +2,14 @@
  * IC document remarks / Comments chain.
  *
  * Format (one link per line, never replaces user text):
- *   Auto Generated Based on C1105 Purchase Quotation 8000586
- *   Auto Generated Based on C1105 Request For Quotation 8000586
- *   Auto Generated Based on C1105 Sales Quotation 810
- *   Auto Generated Based on C1105 Purchase Order 5001328
- *   Auto Generated Based on C1105 AR Invoice 1201
+ *   Auto Generated Based on V-B Purchase Quotation 8000586
+ *   Auto Generated Based on V-B Request For Quotation 8000586
+ *   Auto Generated Based on V-B Sales Quotation 810
+ *   Auto Generated Based on V-B Purchase Order 5001328
+ *   Auto Generated Based on V-B AR Invoice 1201
  *
- * Company/BP code is optional. Legacy lines without "Auto Generated" still parse:
+ * Flow 1 uses the buyer-side vendor code only (not seller customer code).
+ * Code is optional. Legacy lines without "Auto Generated" still parse:
  *   Based on Purchase Quotation 8000586
  *
  * Legacy `IC | KEY: …` and PQD / AR draft labels are still parsed for merge/idempotency.
@@ -426,7 +427,7 @@ export const compactPoTag = (docNum: number | null | undefined, docEntry: number
 /**
  * RFQ header remarks at create time.
  * Keeps any prior text; adds PQ + RFQ lines.
- * companyCode → BP/company shown on auto lines (e.g. C1105).
+ * companyCode → buyer-side vendor BP shown on auto lines (e.g. V-B), never seller code.
  */
 export const buildFlow1RfqRemarks = (params: {
   existing?: string | null;
@@ -434,7 +435,7 @@ export const buildFlow1RfqRemarks = (params: {
   pqDraftDocEntry: number;
   rfqNumber: string;
   rfqId?: number | null;
-  /** Buyer BP / company code for "Based on C1105 …" lines. */
+  /** Buyer-side vendor code for "Based on V-B …" lines (one code for the chain). */
   companyCode?: string | null;
 }): string =>
   appendIcRemarkLines(params.existing, [
@@ -509,7 +510,7 @@ export const buildFlow1SqRemarks = (params: {
   sqDocEntry?: number | null;
   /** Buyer PQ NumAtCard — shown on seller SQ remarks. */
   vendorRefNo?: string | null;
-  /** Buyer BP / company code for "Based on C1105 …" lines. */
+  /** Buyer-side vendor code for "Based on V-B …" lines (one code for the chain). */
   companyCode?: string | null;
 }): string => {
   const withVendorRef = ensureVendorRefInRemarks(params.existing, params.vendorRefNo);

@@ -2,8 +2,9 @@
  * Company-local partner tax resolution (no IC_TAX_MAPPING table).
  *
  * Cross-company IC (PQ→SQ, PO→AR):
- *   1. OVTG rate match — buyer purchase tax (Category I) → seller sales tax (Category O)
- *      at the same Rate (e.g. IN-12.5 @ 12.5% → OUT-12.5 @ 12.5%).
+ *   1. OVTG from both DBs — same Rate + target Category (I/O), then prefer dynamic
+ *      IN-* ↔ OUT-* mirror (e.g. IN-12.5 → OUT-12.5). Deprioritizes RCM/GSTO when a
+ *      standard OUT/IN code exists at that rate on the target company.
  *
  * Fallback on target company:
  *   2. Item tax (OITM)

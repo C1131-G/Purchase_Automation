@@ -12,10 +12,7 @@ import type {
   IcSlDocumentResult,
   IcSlDocuments,
 } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
-import {
-  resolveDocumentSeries,
-  resolveItemSalesUom,
-} from "@/modules/master-data/master-data.service";
+import { resolveDocumentSeries } from "@/modules/master-data/master-data.service";
 
 /** Resolve seller VatGroup for one SQ line (empty string → omit field). */
 export type ResolveSqLineTax = (input: {
@@ -28,7 +25,8 @@ export type ResolveSqLineTax = (input: {
  * - VatGroup only when resolver returns a **seller** tax code (never buyer tax).
  * - Warehouse: resolved once (PQ WH if on seller, else default/fallback branch WH).
  *   Do not change warehouse again after resolve. No item-WH switch.
- * - UoM: mother sales UoM (or RFQ UoM fallback). Never rewrite UoM when WH/branch changes.
+ * - UoM: keep buyer PQ/RFQ line UoM only. Never replace with OITM.SalUnitMsr
+ *   (item sales default) when WH/branch is resolved — that was rewriting UoM.
  */
 export type BuildSqLinesResult = {
   documentLines: Record<string, unknown>[];
@@ -53,12 +51,9 @@ export const buildSalesQuotationLines = async (
   options?: {
     /** WH for the document branch (all lines share this). */
     branchWarehouseCode?: string | null;
-    /** Seller SAP DB — resolve mother sales UoM from OITM. */
-    sapDbName?: string | null;
   },
 ): Promise<BuildSqLinesResult> => {
   const branchWh = options?.branchWarehouseCode?.trim() || null;
-  const sapDbName = options?.sapDbName?.trim() || null;
   const documentLines: Record<string, unknown>[] = [];
   const taxUsage: IcLineTaxUsage[] = [];
 
@@ -98,24 +93,10 @@ export const buildSalesQuotationLines = async (
       docLine.WarehouseCode = branchWh;
     }
 
-    // Mother / sales UoM on seller. WH/branch switch must not invent a different UoM.
-    const itemCode = String(line.itemCode ?? "").trim();
-    let appliedMotherUom = false;
-    if (sapDbName && itemCode) {
-      const mother = await resolveItemSalesUom(sapDbName, itemCode);
-      if (mother?.uomEntry != null) {
-        docLine.UoMEntry = mother.uomEntry;
-        docLine.UseBaseUnit = "tNO";
-        appliedMotherUom = true;
-      } else if (mother?.uomCode) {
-        docLine.UoMCode = mother.uomCode;
-        docLine.UseBaseUnit = "tNO";
-        appliedMotherUom = true;
-      }
-    }
-    // Fallback only when seller item master has no sales UoM.
-    if (!appliedMotherUom && line.uomCode) {
-      docLine.UoMCode = line.uomCode;
+    // Keep source PQ/RFQ UoM. Do not overwrite with seller item SalUnitMsr.
+    const sourceUom = line.uomCode?.trim() || null;
+    if (sourceUom) {
+      docLine.UoMCode = sourceUom;
       docLine.UseBaseUnit = "tNO";
     }
     if (line.deliveryDate) {
@@ -286,7 +267,6 @@ export const createSellerSq = async (params: {
     params.resolveLineTax,
     {
       branchWarehouseCode: warehouseCtx.branchWarehouseCode,
-      sapDbName: params.sapDbName,
     },
   );
 

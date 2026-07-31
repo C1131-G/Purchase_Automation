@@ -12,6 +12,8 @@ export interface IcNotificationMessageProps {
   notification: IcNotification;
   className?: string;
   onNavigate?: (notification: IcNotification, link: IcNotificationDocLink) => void;
+  /** Hover/focus intent — warm create/update route data before click. */
+  onPrefetch?: (notification: IcNotification, link: IcNotificationDocLink) => void;
 }
 
 const linkButtonClassName =
@@ -21,6 +23,7 @@ export function IcNotificationMessage({
   notification,
   className,
   onNavigate,
+  onPrefetch,
 }: IcNotificationMessageProps) {
   const message = notification.message?.trim();
   const links = parseIcNotificationDocLinks(notification);
@@ -41,6 +44,16 @@ export function IcNotificationMessage({
           className,
         )}
         disabled={!canNavigate}
+        onMouseEnter={() => {
+          if (primaryLink && onPrefetch) {
+            onPrefetch(notification, primaryLink);
+          }
+        }}
+        onFocus={() => {
+          if (primaryLink && onPrefetch) {
+            onPrefetch(notification, primaryLink);
+          }
+        }}
         onClick={() => {
           if (primaryLink && onNavigate) {
             onNavigate(notification, primaryLink);
@@ -65,6 +78,12 @@ export function IcNotificationMessage({
         key={`${link.start}-${link.label}`}
         type="button"
         className={linkButtonClassName}
+        onMouseEnter={() => {
+          onPrefetch?.(notification, link);
+        }}
+        onFocus={() => {
+          onPrefetch?.(notification, link);
+        }}
         onClick={(event) => {
           event.stopPropagation();
           onNavigate?.(notification, link);

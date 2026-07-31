@@ -264,10 +264,11 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
 
-    // Auto IC remarks stored on RFQ at create (Auto Generated Based on <companyCode> …).
+    // Auto IC remarks: buyer vendor code only (V-B), never seller customer (C-A-ON-B).
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).toContain("Auto Generated Based on C-A-ON-B Purchase Quotation 9001");
-    expect(storedRemarks).toContain("Auto Generated Based on C-A-ON-B Request For Quotation 9001");
+    expect(storedRemarks).toContain("Auto Generated Based on V-B Purchase Quotation 9001");
+    expect(storedRemarks).toContain("Auto Generated Based on V-B Request For Quotation 9001");
+    expect(storedRemarks).not.toContain("C-A-ON-B");
     expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
 
     const second = await orchestrator.run(input);
@@ -593,22 +594,19 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       false,
     );
 
-    // Flush setImmediate so background notify + convert can complete.
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
-    // Allow promise chain to settle.
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
-    await new Promise<void>((resolve) => {
-      setImmediate(resolve);
-    });
+    // Background notify + convert may take multiple ticks (tenant DS, SL mocks).
+    const deadline = Date.now() + 5000;
+    let after = await rfq.getById(rfqId);
+    while (after?.status !== IC_RFQ_STATUS.COMPLETED && Date.now() < deadline) {
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve);
+      });
+      after = await rfq.getById(rfqId);
+    }
 
     expect(db.tables.IC_NOTIFICATION.some((row) => row.FLOW_STEP === "FLOW1_RFQ_SUBMITTED")).toBe(
       true,
     );
-    const after = await rfq.getById(rfqId);
     expect(after?.status).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(convertStarted).toBe(true);
   });
