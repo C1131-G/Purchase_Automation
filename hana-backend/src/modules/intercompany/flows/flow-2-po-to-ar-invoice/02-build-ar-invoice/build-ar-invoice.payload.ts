@@ -102,12 +102,16 @@ export const buildArInvoicePayload = async (
   const docDueDate = formatSapDate(input.docDueDate) ?? docDate;
   const numAtCardRaw = input.numAtCard == null ? "" : String(input.numAtCard).trim();
 
-  // Keep existing PO comments; append PO link with buyer BP/company code (e.g. C1105).
+  // Keep existing PO comments (user + PQ/RFQ from PQ→PO); ensure PQ + RFQ + SQ with CardName.
   const comments = buildFlow2ArRemarks({
-    companyCode: input.buyerCustomerCode,
+    cardName: input.remarksCardName,
     existingComments: input.comments,
-    poDocEntry: input.poDocEntry,
-    poDocNum: input.poDocNum,
+    pqDocEntry: input.pqDocEntry,
+    pqDocNum: input.pqDocNum,
+    rfqId: input.rfqId,
+    rfqNumber: input.rfqNumber,
+    sqDocEntry: input.sqDocEntry,
+    sqDocNum: input.sqDocNum,
   });
 
   // Real invoice body — no DocObjectCode (that is only for Drafts).

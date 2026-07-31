@@ -74,7 +74,7 @@ function StripChip({ item, currency }: { item: StripItem; currency: string }) {
   const Icon = item.Icon;
 
   const className = cn(
-    "group flex flex-col gap-3 rounded-2xl border px-5 py-5 text-left shadow-sm shadow-zinc-100/60",
+    "group flex cursor-pointer flex-col gap-3 rounded-2xl border px-5 py-5 text-left shadow-sm shadow-zinc-100/60",
     "transition-[transform,border-color,box-shadow] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
     "active:scale-[0.98]",
     "motion-safe:hover:-translate-y-px",
@@ -167,12 +167,13 @@ export function OpenWorkStrip({
     },
     {
       key: "ar",
-      label: "AR drafts",
+      // Open A/R invoices (OINV) — listed on the dashboard panel (no separate route).
+      label: "Open AR",
       count: arPending.count,
       openValue: arPending.openValue,
       onClick: onArClick,
       warnWhenPositive: true,
-      ariaLabel: `AR invoice drafts, ${arPending.count} open`,
+      ariaLabel: `Open AR invoices, ${arPending.count} open — show list on this page`,
       tone: "amber",
       Icon: ShieldAlert,
     },

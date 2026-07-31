@@ -64,7 +64,7 @@ export function ConnectedPartners({
               type="button"
               onClick={onSelectAll}
               className={cn(
-                "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm",
+                "flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm",
                 "transition-[transform,background-color,box-shadow,color] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
                 "active:scale-[0.99]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50",
@@ -96,7 +96,7 @@ export function ConnectedPartners({
                     type="button"
                     onClick={() => onSelectPartner(partner)}
                     className={cn(
-                      "flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left",
+                      "flex w-full cursor-pointer items-start gap-3 rounded-xl px-3 py-3 text-left",
                       "transition-[transform,background-color,box-shadow,color] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
                       "active:scale-[0.99]",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50",

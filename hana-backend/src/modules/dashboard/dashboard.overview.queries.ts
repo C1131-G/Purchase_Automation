@@ -1,4 +1,4 @@
-// Overview Dashboard: open KPIs + IC partners + AR OWDD + statement (P1–P4).
+// Overview Dashboard: open KPIs + IC partners + open AR (OINV) + statement (P1–P4).
 
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";
@@ -268,7 +268,7 @@ export const getOverviewDashboard = async (dbName: string): Promise<OverviewDash
           db: dbName,
           durationMs,
           partnerCount: connected.partners.length,
-          arDraftCount: arApproval.count,
+          openArCount: arApproval.count,
           msg: "Overview dashboard built",
         });
 

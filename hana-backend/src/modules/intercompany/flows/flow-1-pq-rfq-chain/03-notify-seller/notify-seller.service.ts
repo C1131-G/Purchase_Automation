@@ -1,14 +1,16 @@
+import type { CompanyService } from "@/modules/intercompany/config/company/company.service";
+import { createCompanyService } from "@/modules/intercompany/config/company/company.service";
 import type { HistoryService } from "@/modules/intercompany/domain/history/history.service";
 import { createHistoryService } from "@/modules/intercompany/domain/history/history.service";
 import type { NotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import { createNotificationService } from "@/modules/intercompany/domain/notification/notification.service";
 import type { IcRfqHeader } from "@/modules/intercompany/domain/rfq/rfq.types";
 import { IC_ACTION } from "@/modules/intercompany/infrastructure/constants";
+import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import {
   formatIcCreatedMessage,
-  formatIcCustomerParty,
+  formatIcPartyName,
   formatIcSubmittedMessage,
-  formatIcVendorParty,
 } from "@/modules/intercompany/infrastructure/ic-notification-copy";
 import { formatIcDocLabel } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
@@ -28,14 +30,22 @@ export type NotifySellerService = {
 export const createNotifySellerService = (deps?: {
   notifications?: NotificationService;
   history?: HistoryService;
+  company?: CompanyService;
 }): NotifySellerService => {
   const notifications = deps?.notifications ?? createNotificationService();
   const history = deps?.history ?? createHistoryService();
+  const company = deps?.company ?? createCompanyService();
 
   return {
     notifyRfqCreated: async (params) => {
-      // Seller handoff: customer (buyer BP on seller books) created RFQ.
-      const customerParty = formatIcCustomerParty(params.partner.buyerCustomerCode);
+      // Seller handoff: buyer BP CardName (never "Customer" / CardCode).
+      const partyName = formatIcPartyName(
+        await resolveBpCardName({
+          cardCode: params.partner.buyerCustomerCode,
+          preferredName: params.rfq.customerName,
+          sapDbName: params.partner.sellerCompany.sapDbName,
+        }),
+      );
       const rfqLabel = formatIcDocLabel({
         kind: "RFQ",
         rfqNumber: params.rfq.rfqNumber,
@@ -46,9 +56,9 @@ export const createNotifySellerService = (deps?: {
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_CREATED",
-        message: formatIcCreatedMessage(customerParty, rfqLabel),
+        message: formatIcCreatedMessage(partyName, rfqLabel),
         priority: "HIGH",
-        title: customerParty,
+        title: partyName || rfqLabel,
       });
 
       await history.append({
@@ -66,8 +76,15 @@ export const createNotifySellerService = (deps?: {
     },
 
     notifyRfqSubmitted: async (params) => {
-      // Buyer handoff: vendor (seller BP on buyer books) submitted RFQ.
-      const vendorParty = formatIcVendorParty(params.rfq.vendorCode);
+      // Buyer handoff: seller/vendor CardName on buyer books (never "Vendor" / CardCode).
+      const buyerCompany = await company.getById(params.rfq.sourceCompanyId);
+      const partyName = formatIcPartyName(
+        await resolveBpCardName({
+          cardCode: params.rfq.vendorCode,
+          preferredName: params.rfq.vendorName,
+          sapDbName: buyerCompany?.sapDbName,
+        }),
+      );
       const rfqLabel = formatIcDocLabel({
         kind: "RFQ",
         rfqNumber: params.rfq.rfqNumber,
@@ -78,9 +95,9 @@ export const createNotifySellerService = (deps?: {
         documentId: String(params.rfq.rfqId),
         documentType: IC_OBJECT.RFQ,
         flowStep: "FLOW1_RFQ_SUBMITTED",
-        message: formatIcSubmittedMessage(vendorParty, rfqLabel),
+        message: formatIcSubmittedMessage(partyName, rfqLabel),
         priority: "MEDIUM",
-        title: vendorParty,
+        title: partyName || rfqLabel,
       });
 
       await history.append({

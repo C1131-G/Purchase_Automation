@@ -1,26 +1,40 @@
 /**
- * Short IC notification copy: who (vendor/customer code) + navigable doc label.
- * No “open to review” fluff — the doc token is the highlight/navigation target.
+ * Short IC notification copy: CardName + navigable doc label.
+ * Never says “Vendor” / “Customer” and never prefers CardCode over CardName.
  */
 
-export const formatIcVendorParty = (vendorCode: string | null | undefined): string => {
-  const code = vendorCode != null ? String(vendorCode).trim() : "";
-  return code ? `Vendor ${code}` : "Vendor";
+/** BP display name only (no role prefix). Empty when name unknown. */
+export const formatIcPartyName = (cardName: string | null | undefined): string => {
+  if (cardName == null) {
+    return "";
+  }
+  return String(cardName).trim();
 };
 
-export const formatIcCustomerParty = (customerCode: string | null | undefined): string => {
-  const code = customerCode != null ? String(customerCode).trim() : "";
-  return code ? `Customer ${code}` : "Customer";
+/**
+ * @deprecated Prefer formatIcPartyName — same result (CardName only, no "Vendor" label).
+ */
+export const formatIcVendorParty = formatIcPartyName;
+
+/**
+ * @deprecated Prefer formatIcPartyName — same result (CardName only, no "Customer" label).
+ */
+export const formatIcCustomerParty = formatIcPartyName;
+
+/** e.g. "AJAX Industries created RFQ 9001" */
+export const formatIcCreatedMessage = (party: string, docLabel: string): string => {
+  const name = party.trim();
+  return name ? `${name} created ${docLabel}` : `Created ${docLabel}`;
 };
 
-/** e.g. "Customer C-A-ON-B created RFQ 9001" */
-export const formatIcCreatedMessage = (party: string, docLabel: string): string =>
-  `${party} created ${docLabel}`;
+/** e.g. "AJAX Industries submitted RFQ 9001" */
+export const formatIcSubmittedMessage = (party: string, docLabel: string): string => {
+  const name = party.trim();
+  return name ? `${name} submitted ${docLabel}` : `Submitted ${docLabel}`;
+};
 
-/** e.g. "Vendor V-B submitted RFQ 9001" */
-export const formatIcSubmittedMessage = (party: string, docLabel: string): string =>
-  `${party} submitted ${docLabel}`;
-
-/** e.g. "Vendor V-B · PQ No 2042" (party + single navigable doc) */
-export const formatIcPartyDocMessage = (party: string, docLabel: string): string =>
-  `${party} · ${docLabel}`;
+/** e.g. "AJAX Industries · PQ No 2042" (party + single navigable doc) */
+export const formatIcPartyDocMessage = (party: string, docLabel: string): string => {
+  const name = party.trim();
+  return name ? `${name} · ${docLabel}` : docLabel;
+};

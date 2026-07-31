@@ -183,6 +183,7 @@ export const createFlow1Orchestrator = (deps?: {
         });
 
         const created = await createRfq.create({
+          cardName: input.cardName ?? null,
           existingRemarks: input.comments ?? null,
           lines: input.lines,
           partner: captured.partner,

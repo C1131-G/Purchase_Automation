@@ -123,7 +123,7 @@ export function OverviewDashboard() {
               onClick={() => void refetch()}
               disabled={isFetching}
               className={cn(
-                "inline-flex size-9 items-center justify-center rounded-xl border border-sky-200/80 bg-white text-sky-700 shadow-sm",
+                "inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-sky-200/80 bg-white text-sky-700 shadow-sm",
                 "transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
                 "hover:bg-sky-50 hover:text-sky-900 active:scale-[0.97]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50",

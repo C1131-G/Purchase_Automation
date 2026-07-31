@@ -29,9 +29,10 @@ import {
   FLOW2_RETRY_STEPS,
   logFlowStep,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
+import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import {
   formatIcCreatedMessage,
-  formatIcCustomerParty,
+  formatIcPartyName,
 } from "@/modules/intercompany/infrastructure/ic-notification-copy";
 import {
   buildFlow1SqRemarks,
@@ -139,15 +140,21 @@ const createDefaultHandlers = (deps: {
     });
     const customerCode =
       payload.buyerCustomerCode != null ? String(payload.buyerCustomerCode).trim() : "";
-    const customerParty = formatIcCustomerParty(customerCode || null);
+    const sellerCompany = await deps.company.getById(sellerCompanyId);
+    const partyName = formatIcPartyName(
+      await resolveBpCardName({
+        cardCode: customerCode || null,
+        sapDbName: sellerCompany?.sapDbName,
+      }),
+    );
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(created.docEntry),
       documentType: IC_OBJECT.AR_INVOICE,
       flowStep: "FLOW2_AR_INVOICE_CREATED",
-      message: formatIcCreatedMessage(customerParty, arLabel),
+      message: formatIcCreatedMessage(partyName, arLabel),
       priority: "MEDIUM",
-      title: customerParty,
+      title: partyName || arLabel,
     });
 
     await deps.history.append({
@@ -217,9 +224,16 @@ const createDefaultHandlers = (deps: {
         : header.vendorRefNo != null
           ? String(header.vendorRefNo).trim()
           : null;
+    const sellerCompany = await deps.company.getById(sellerCompanyId);
+    const buyerCompany = await deps.company.getById(header.sourceCompanyId);
+    const remarksCardName = await resolveBpCardName({
+      cardCode: header.vendorCode,
+      preferredName: header.vendorName,
+      sapDbName: buyerCompany?.sapDbName,
+    });
+    // SQ: PQ + RFQ only (CardName, never CardCode).
     const sqRemarks = buildFlow1SqRemarks({
-      // Same single vendor BP as RFQ create (not seller-side customer code).
-      companyCode: header.vendorCode?.trim() || null,
+      cardName: remarksCardName,
       existing: remarksFromPayload ?? header.remarks,
       pqDraftDocEntry: header.pqDraftDocEntry,
       pqDraftDocNum: header.pqDraftDocNum,
@@ -229,8 +243,6 @@ const createDefaultHandlers = (deps: {
       rfqNumber: header.rfqNumber,
       vendorRefNo,
     });
-
-    const sellerCompany = await deps.company.getById(sellerCompanyId);
     const salesQuotation = await createSellerSq({
       buyerCustomerCode,
       defaultBranchId: sellerCompany?.defaultBranchId ?? null,

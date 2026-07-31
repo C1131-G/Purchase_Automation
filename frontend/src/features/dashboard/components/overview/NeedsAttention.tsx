@@ -29,11 +29,11 @@ function docLabel(item: OverviewArApprovalItem): string {
   if (item.docNum !== null && item.docNum > 0) {
     return String(item.docNum);
   }
-  return item.isDraft ? `Draft ${item.docEntry}` : String(item.docEntry);
+  return item.isDraft ? `Draft ${item.docEntry}` : `Entry ${item.docEntry}`;
 }
 
 /**
- * AR invoice drafts (ODRF) and approval-pending items for the overview panel.
+ * Open A/R invoices (OINV) for the overview panel — no separate sales route.
  */
 export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
   const hasMore = items.length > OVERVIEW_AR_VISIBLE_ROWS;
@@ -41,18 +41,22 @@ export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
 
   return (
     <section
-      aria-label="AR invoice drafts"
+      aria-label="Open AR invoices"
       className="flex w-full flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm shadow-amber-50/80"
     >
       <div className="border-b border-amber-100/90 bg-gradient-to-r from-amber-50/90 via-white to-white px-5 py-4">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold tracking-tight text-amber-950">
-              AR invoice drafts pending review
+              Open AR invoices
             </h2>
             {hasMore ? (
               <p className="mt-1 text-xs text-amber-800/70">Scroll the list for more</p>
-            ) : null}
+            ) : (
+              <p className="mt-1 text-xs text-amber-800/70">
+                Open A/R (including IC Flow 2) · no separate page
+              </p>
+            )}
           </div>
           {items.length > 0 ? (
             <span className="shrink-0 rounded-lg bg-amber-100 px-2 py-1 text-[11px] font-semibold tabular-nums text-amber-900">
@@ -66,10 +70,10 @@ export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
         <div
           className={cn("flex flex-1 flex-col justify-center px-5 py-8", overviewMotionClass.empty)}
         >
-          <p className="text-sm font-medium text-zinc-700">No AR invoice drafts waiting.</p>
+          <p className="text-sm font-medium text-zinc-700">No open AR invoices.</p>
           <p className="mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-500">
-            Open AR invoice drafts from ODRF (including IC Flow 2 partner drafts) appear here,
-            newest first.
+            Open A/R invoices (OINV) for this company appear here, including IC Flow 2 partner
+            invoices. No separate navigation page is required.
           </p>
         </div>
       ) : (
@@ -88,8 +92,8 @@ export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
             role="list"
             aria-label={
               hasMore
-                ? `AR invoice drafts, showing ${OVERVIEW_AR_VISIBLE_ROWS} at a time, ${items.length} total`
-                : `AR invoice drafts, ${items.length} total`
+                ? `Open AR invoices, showing ${OVERVIEW_AR_VISIBLE_ROWS} at a time, ${items.length} total`
+                : `Open AR invoices, ${items.length} total`
             }
           >
             {items.map((item) => {
@@ -108,7 +112,6 @@ export function NeedsAttention({ items, currency }: NeedsAttentionProps) {
                       {docLabel(item)}
                     </p>
                     <p className="mt-0.5 truncate text-[11px] text-zinc-400">
-                      {item.isDraft ? "Draft · " : ""}
                       {formatDocDate(item.docDate)}
                     </p>
                   </div>

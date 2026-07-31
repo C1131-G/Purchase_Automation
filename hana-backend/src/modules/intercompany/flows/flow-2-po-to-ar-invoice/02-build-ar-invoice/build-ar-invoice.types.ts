@@ -19,9 +19,20 @@ export type BuildArInvoiceInput = {
   docDueDate?: unknown;
   numAtCard?: unknown;
   comments?: string;
-  /** Buyer PO identity for IC remarks chain. */
+  /** Buyer PO identity (NumAtCard / tags only — not written as AR IC remarks). */
   poDocEntry: number;
   poDocNum?: number | null;
+  /**
+   * IC remarks chain for AR: PQ + RFQ + SQ (CardName only).
+   * Prefer values resolved from PO Comments / document map.
+   */
+  remarksCardName?: string | null;
+  pqDocNum?: number | null;
+  pqDocEntry?: number | null;
+  rfqNumber?: string | null;
+  rfqId?: number | null;
+  sqDocNum?: number | null;
+  sqDocEntry?: number | null;
   lines?: BuildArDraftLineInput[];
   /**
    * Resolve seller sales tax for one AR line.

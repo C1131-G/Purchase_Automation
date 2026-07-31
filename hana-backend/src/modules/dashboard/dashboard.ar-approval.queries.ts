@@ -1,9 +1,10 @@
-// AR invoice drafts (ODRF ObjType 13) for Overview Needs attention panel.
+// Open AR invoices (OINV DocStatus=O) for Overview open-work KPI + panel.
+// Flow 2 posts real A/R invoices — not ODRF drafts — so the list tracks open OINV.
 
 import { logger } from "@/core/logger/pino-logger";
 import { executeTenantQuery } from "@/db/tenant-query";
 
-/** One AR invoice draft row for the Needs attention table. */
+/** One open AR invoice row for the Overview panel. */
 export type OverviewArApprovalItem = {
   docEntry: number;
   docNum: number | null;
@@ -12,9 +13,9 @@ export type OverviewArApprovalItem = {
   cardName: string;
   docTotal: number;
   docDate: string | null;
-  /** Stable list key (DocEntry for ODRF drafts). */
+  /** Stable list key (DocEntry for OINV). */
   wddCode: number;
-  /** Display status (e.g. Draft). */
+  /** Display status (e.g. Open). */
   status: string;
   ageDays: number;
   requester: string | null;
@@ -26,11 +27,11 @@ export type OverviewArApprovalResult = {
   openValue: number;
 };
 
-/** AR Invoice object type in ODRF / OWDD. */
+/** AR Invoice object type in ODRF / OWDD (legacy draft path). */
 const AR_INVOICE_OBJ_TYPE = "13";
 
-/** Cap list size for Overview attention panel. */
-const AR_DRAFT_LIST_LIMIT = 50;
+/** Cap list size for Overview open AR panel. */
+const AR_OPEN_LIST_LIMIT = 50;
 
 /** SAP OWDD.Status values treated as still awaiting action (OWDD legacy path). */
 const PENDING_OWDD_STATUSES = new Set(["W"]);
@@ -229,28 +230,65 @@ export function mapArApprovalRow(row: Record<string, unknown>): OverviewArApprov
 }
 
 /**
- * Open AR invoice drafts from ODRF (ObjType 13).
- * Includes IC Flow 2 partner AR invoices and any manual AR invoice drafts.
- * Soft-fails to empty when schema differs.
+ * Map a raw open OINV row into the overview list shape.
+ */
+export function mapArOpenInvoiceRow(row: Record<string, unknown>): OverviewArApprovalItem | null {
+  const docEntry = toCount(pickRowField(row, "DocEntry", "docEntry"));
+  if (docEntry <= 0) {
+    return null;
+  }
+
+  const docNumRaw = pickRowField(row, "DocNum", "docNum");
+  const docNumParsed =
+    docNumRaw === null || docNumRaw === undefined || docNumRaw === "" ? null : toCount(docNumRaw);
+  const docNum = docNumParsed !== null && docNumParsed > 0 ? docNumParsed : null;
+
+  const cardCode = String(pickRowField(row, "CardCode", "cardCode") ?? "").trim();
+  const cardName = String(pickRowField(row, "CardName", "cardName") ?? "").trim();
+  const docTotal = toMoney(pickRowField(row, "DocTotal", "docTotal"));
+  const docDate = toIsoDate(pickRowField(row, "DocDate", "docDate"));
+  const ageFromSql = pickRowField(row, "AgeDays", "ageDays");
+  const ageDays =
+    ageFromSql !== undefined && ageFromSql !== null && Number.isFinite(Number(ageFromSql))
+      ? Math.max(0, Math.trunc(Number(ageFromSql)))
+      : computeAgeDays(docDate, null);
+
+  return {
+    docEntry,
+    docNum,
+    isDraft: false,
+    cardCode,
+    cardName: cardName || cardCode || "—",
+    docTotal,
+    docDate,
+    wddCode: docEntry,
+    status: "Open",
+    ageDays,
+    requester: null,
+  };
+}
+
+/**
+ * Open A/R invoices (OINV DocStatus = O).
+ * Includes IC Flow 2 partner AR invoices and any open customer invoices.
+ * Soft-fails to empty when schema differs. No portal route — listed on the dashboard.
  */
 export async function loadArApprovalPending(dbName: string): Promise<OverviewArApprovalResult> {
   try {
     const sql = `
       SELECT
-        d."DocEntry" AS "DocEntry",
-        d."DocNum" AS "DocNum",
-        d."CardCode" AS "CardCode",
-        d."CardName" AS "CardName",
-        d."DocTotal" AS "DocTotal",
-        d."DocDate" AS "DocDate",
-        d."CreateDate" AS "CreateDate",
-        d."UserSign" AS "UserSign",
-        DAYS_BETWEEN(COALESCE(d."DocDate", d."CreateDate"), CURRENT_DATE) AS "AgeDays"
-      FROM "ODRF" d
-      WHERE CAST(d."ObjType" AS NVARCHAR) = '${AR_INVOICE_OBJ_TYPE}'
-        AND UPPER(IFNULL(d."CANCELED", 'N')) <> 'Y'
-      ORDER BY d."CreateDate" DESC, d."DocEntry" DESC
-      LIMIT ${AR_DRAFT_LIST_LIMIT}
+        i."DocEntry" AS "DocEntry",
+        i."DocNum" AS "DocNum",
+        i."CardCode" AS "CardCode",
+        i."CardName" AS "CardName",
+        i."DocTotal" AS "DocTotal",
+        i."DocDate" AS "DocDate",
+        DAYS_BETWEEN(i."DocDate", CURRENT_DATE) AS "AgeDays"
+      FROM "OINV" i
+      WHERE i."DocStatus" = 'O'
+        AND UPPER(IFNULL(i."CANCELED", 'N')) <> 'Y'
+      ORDER BY i."DocDate" DESC, i."DocEntry" DESC
+      LIMIT ${AR_OPEN_LIST_LIMIT}
     `;
 
     const raw = (await executeTenantQuery(dbName, sql, [])) as unknown;
@@ -259,16 +297,39 @@ export async function loadArApprovalPending(dbName: string): Promise<OverviewArA
     const items: OverviewArApprovalItem[] = [];
     for (const row of rows) {
       if (!row || typeof row !== "object") continue;
-      const mapped = mapArInvoiceDraftRow(row as Record<string, unknown>);
+      const mapped = mapArOpenInvoiceRow(row as Record<string, unknown>);
       if (!mapped) continue;
       items.push(mapped);
     }
 
-    const openValue = toMoney(items.reduce((sum, item) => sum + item.docTotal, 0));
+    // Full open total for KPI (not only the capped list page).
+    let openCount = items.length;
+    let openValue = toMoney(items.reduce((sum, item) => sum + item.docTotal, 0));
+    try {
+      const statsRaw = (await executeTenantQuery(
+        dbName,
+        `
+          SELECT COUNT(*) AS "OpenCount",
+                 SUM(i."DocTotal") AS "OpenValue"
+            FROM "OINV" i
+           WHERE i."DocStatus" = 'O'
+             AND UPPER(IFNULL(i."CANCELED", 'N')) <> 'Y'
+        `,
+        [],
+      )) as unknown;
+      const statsRows = Array.isArray(statsRaw) ? (statsRaw as Record<string, unknown>[]) : [];
+      const stats = statsRows[0];
+      if (stats) {
+        openCount = toCount(pickRowField(stats, "OpenCount", "openCount"));
+        openValue = toMoney(pickRowField(stats, "OpenValue", "openValue"));
+      }
+    } catch {
+      // Keep list-derived totals when aggregate fails.
+    }
 
     return {
       items,
-      count: items.length,
+      count: openCount,
       openValue,
     };
   } catch (err: unknown) {
@@ -276,13 +337,13 @@ export async function loadArApprovalPending(dbName: string): Promise<OverviewArA
     logger.warn({
       db: dbName,
       err: caughtError,
-      msg: "Overview: AR invoice drafts (ODRF) load failed; returning empty list",
+      msg: "Overview: open AR invoices (OINV) load failed; returning empty list",
     });
     return { items: [], count: 0, openValue: 0 };
   }
 }
 
-/** @deprecated OWDD path retained for tests only — overview uses ODRF drafts via loadArApprovalPending. */
+/** @deprecated OWDD path retained for tests only — overview uses open OINV via loadArApprovalPending. */
 export async function loadArApprovalPendingFromOwdd(
   dbName: string,
 ): Promise<OverviewArApprovalResult> {
@@ -317,7 +378,7 @@ export async function loadArApprovalPendingFromOwdd(
       WHERE CAST(w."ObjType" AS NVARCHAR) = '${AR_INVOICE_OBJ_TYPE}'
         AND UPPER(TRIM(CAST(w."Status" AS NVARCHAR))) = 'W'
       ORDER BY w."CreateDate" ASC, w."WddCode" ASC
-      LIMIT ${AR_DRAFT_LIST_LIMIT}
+      LIMIT ${AR_OPEN_LIST_LIMIT}
     `;
 
     const raw = (await executeTenantQuery(dbName, sql, [])) as unknown;

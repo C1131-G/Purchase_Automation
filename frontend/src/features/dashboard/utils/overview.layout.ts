@@ -1,4 +1,4 @@
-/** Shared layout constants for overview AR draft list + matching skeleton. */
+/** Shared layout constants for overview open AR list + matching skeleton. */
 export const OVERVIEW_AR_VISIBLE_ROWS = 5;
 export const OVERVIEW_AR_ROW_HEIGHT_REM = 3.25;
 

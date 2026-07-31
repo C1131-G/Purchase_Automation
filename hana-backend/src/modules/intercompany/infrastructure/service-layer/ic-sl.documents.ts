@@ -177,6 +177,8 @@ export type DraftHeaderFields = {
   comments: string | null;
   /** Buyer vendor ref no (NumAtCard) — must carry to seller SQ. */
   numAtCard: string | null;
+  /** Buyer vendor CardName from PQ (for IC remarks — never CardCode). */
+  cardName?: string | null;
 };
 
 export type IcSlDocuments = {
@@ -264,7 +266,7 @@ export const createIcSlDocuments = (deps?: {
   const getDraftHeaderFields = async (input: GetDraftCommentsInput): Promise<DraftHeaderFields> => {
     const { connection, session: slSession } = await withCompanySession(input.companyId);
     // Real PQ (Flow 1 source) — not Drafts.
-    const endpoint = `/PurchaseQuotations(${input.draftEntry})?$select=Comments,NumAtCard`;
+    const endpoint = `/PurchaseQuotations(${input.draftEntry})?$select=Comments,NumAtCard,CardName`;
     logSlRequest({
       companyId: input.companyId,
       endpoint,
@@ -279,6 +281,7 @@ export const createIcSlDocuments = (deps?: {
       });
       const commentsRaw = response.data?.Comments;
       const numAtCardRaw = response.data?.NumAtCard;
+      const cardNameRaw = response.data?.CardName;
       const comments =
         commentsRaw === null || commentsRaw === undefined
           ? null
@@ -287,7 +290,11 @@ export const createIcSlDocuments = (deps?: {
         numAtCardRaw === null || numAtCardRaw === undefined
           ? null
           : String(numAtCardRaw).trim() || null;
-      return { comments, numAtCard };
+      const cardName =
+        cardNameRaw === null || cardNameRaw === undefined
+          ? null
+          : String(cardNameRaw).trim() || null;
+      return { cardName, comments, numAtCard };
     } catch (err: unknown) {
       logSlFailure({
         companyId: input.companyId,
@@ -296,7 +303,7 @@ export const createIcSlDocuments = (deps?: {
         method: "GET",
       });
       // Best-effort: convert can still proceed with RFQ remarks only.
-      return { comments: null, numAtCard: null };
+      return { cardName: null, comments: null, numAtCard: null };
     }
   };
 

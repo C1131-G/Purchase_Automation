@@ -173,6 +173,7 @@ const createFlow1TestStack = (opts?: {
         warehouseCode: "WH-TEST",
       }),
       getWarehouseForBranch: async () => "WH-TEST",
+      resolveWarehouseIfExists: async () => null,
     },
     retry,
     rfq,
@@ -243,6 +244,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const { orchestrator, db, rfq } = createFlow1TestStack();
     const input = {
       cardCode: "V-B",
+      cardName: "AJAX Industries",
       dbName: "DB_A",
       docEntry: 55,
       docNum: 9001,
@@ -264,10 +266,13 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
 
-    // Auto IC remarks: buyer vendor code only (V-B), never seller customer (C-A-ON-B).
+    // RFQ open: PQ only with CardName; never CardCode (V-B) or seller customer (C-A-ON-B).
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).toContain("Auto Generated Based on V-B Purchase Quotation 9001");
-    expect(storedRemarks).toContain("Auto Generated Based on V-B Request For Quotation 9001");
+    expect(storedRemarks).toContain(
+      "Auto Generated Based on AJAX Industries Purchase Quotation 9001",
+    );
+    expect(storedRemarks).not.toContain("Request For Quotation");
+    expect(storedRemarks).not.toContain("V-B");
     expect(storedRemarks).not.toContain("C-A-ON-B");
     expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
 
@@ -410,12 +415,19 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       UnitPrice: 40,
       VatGroup: "IN-12.5",
     });
-    // Parent remarks (one path): patch apply keeps parent text.
+    // Parent remarks (one path): patch apply keeps parent text + PQ/RFQ after submit.
     expect(sqCommentsOnPatch).toContain("Parent typed on PQ");
+    expect(sqCommentsOnPatch).toContain("Auto Generated Based on Purchase Quotation 70");
+    expect(sqCommentsOnPatch).toContain("Auto Generated Based on Request For Quotation 70");
     // Vendor ref must reach seller SQ NumAtCard + remarks (was missing before).
     expect(sqNumAtCard).toBe("VENDOR-REF-99");
     expect(sqRemarks).toContain("Vendor Ref No: VENDOR-REF-99");
     expect(sqRemarks).toContain("Parent typed on PQ");
+    // SQ remarks: PQ + RFQ only (two details), never CardCode or SQ self-link.
+    expect(sqRemarks).toContain("Auto Generated Based on Purchase Quotation 70");
+    expect(sqRemarks).toContain("Auto Generated Based on Request For Quotation 70");
+    expect(sqRemarks).not.toContain("Sales Quotation");
+    expect(sqRemarks).not.toContain("V-B");
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(db.tables.IC_DOCUMENT_MAPPING.some((row) => row.TARGET_OBJECT === IC_OBJECT.SQ)).toBe(
       true,

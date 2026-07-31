@@ -9,6 +9,8 @@ export type CreateRfqFromCaptureInput = {
   remarksTag: string;
   /** Buyer PQ Comments (user text) — IC chain is appended on create. */
   existingRemarks?: string | null;
+  /** Buyer vendor CardName from PQ (OCRD); never CardCode in remarks. */
+  cardName?: string | null;
   lines?: IcDocumentLineInput[];
   createdBy?: string | null;
 };

@@ -26,7 +26,7 @@ describe("ic-notification-navigation", () => {
       documentId: "42",
       documentType: "RFQ",
       flowStep: "FLOW1_RFQ_CREATED",
-      message: "Customer C-A-ON-B created RFQ 10042",
+      message: "AJAX Industries created RFQ 10042",
     });
 
     const links = parseIcNotificationDocLinks(notification);
@@ -43,7 +43,7 @@ describe("ic-notification-navigation", () => {
       documentId: "2042",
       documentType: "PQ",
       flowStep: "FLOW1_PQ_CREATED",
-      message: "Vendor V-B · PQ No 2042",
+      message: "AJAX Industries · PQ No 2042",
     });
 
     const primary = getIcNotificationPrimaryLink(notification);
@@ -57,7 +57,7 @@ describe("ic-notification-navigation", () => {
       documentId: "810",
       documentType: "SQ",
       flowStep: "FLOW1_SQ_CREATED",
-      message: "Customer C-A-ON-B · SQ No 810",
+      message: "AJAX Industries · SQ No 810",
     });
 
     const primary = getIcNotificationPrimaryLink(notification);

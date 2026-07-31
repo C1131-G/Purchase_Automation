@@ -31,17 +31,15 @@ import {
   logFlowStep,
 } from "@/modules/intercompany/infrastructure/flow-step-log";
 import {
-  formatIcCustomerParty,
   formatIcPartyDocMessage,
-  formatIcVendorParty,
+  formatIcPartyName,
 } from "@/modules/intercompany/infrastructure/ic-notification-copy";
+import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
 import {
-  appendIcRemarkLines,
   buildFlow1ConvertRemarks,
   buildFlow1SqRemarks,
   compactRfqTag,
   formatIcDocLabel,
-  icLinkSq,
   mergeUserAndIcRemarks,
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
@@ -243,10 +241,11 @@ export const createConvertPqAndSqService = (deps?: {
       // Real buyer PQ DocEntry (IC_RFQ_HEADER.PQ_DRAFT_DOC_ENTRY column name is historical).
       const pqEntry = header.pqDraftDocEntry;
 
-      // One GET: parent Comments + vendor ref (NumAtCard). Parent text is also re-merged on
-      // applyPrices PATCH (the single SAP write path for PQ update).
+      // One GET: parent Comments + vendor ref (NumAtCard) + CardName. Parent text is also
+      // re-merged on applyPrices PATCH (the single SAP write path for PQ update).
       let pqComments: string | null = null;
       let pqVendorRef: string | null = null;
+      let pqCardName: string | null = null;
       try {
         const pqHeader = await documents.getDraftHeaderFields({
           companyId: header.sourceCompanyId,
@@ -254,9 +253,11 @@ export const createConvertPqAndSqService = (deps?: {
         });
         pqComments = pqHeader.comments;
         pqVendorRef = pqHeader.numAtCard;
+        pqCardName = pqHeader.cardName ?? null;
       } catch {
         pqComments = null;
         pqVendorRef = null;
+        pqCardName = null;
       }
       // Enriched RFQ may already expose vendorRefNo when PQ GET is unavailable later.
       const vendorRefNo =
@@ -265,10 +266,14 @@ export const createConvertPqAndSqService = (deps?: {
         null;
 
       // Keep RFQ + PQ user remarks; append PQ + RFQ IC lines (never drop parent text).
-      // companyCode = buyer-side vendor BP only (e.g. V-B) — same one code on every auto line.
-      const remarksCompanyCode = header.vendorCode?.trim() || null;
+      // CardName only — never vendor CardCode on auto lines.
+      const remarksCardName = await resolveBpCardName({
+        cardCode: header.vendorCode,
+        preferredName: pqCardName || header.vendorName,
+        sapDbName: buyerCompany.sapDbName,
+      });
       const remarksBeforePq = buildFlow1ConvertRemarks({
-        companyCode: remarksCompanyCode,
+        cardName: remarksCardName,
         existing: mergeUserAndIcRemarks(header.remarks, pqComments),
         pqDraftDocEntry: header.pqDraftDocEntry,
         pqDraftDocNum: header.pqDraftDocNum,
@@ -351,7 +356,7 @@ export const createConvertPqAndSqService = (deps?: {
       });
 
       const remarksWithPq = buildFlow1ConvertRemarks({
-        companyCode: remarksCompanyCode,
+        cardName: remarksCardName,
         existing: remarksBeforePq,
         pqDraftDocEntry: header.pqDraftDocEntry,
         pqDraftDocNum: header.pqDraftDocNum,
@@ -401,9 +406,9 @@ export const createConvertPqAndSqService = (deps?: {
             sellerCompanyId: header.targetCompanyId,
           },
         });
-        // SQ Comments: vendor ref + chain PQD → RFQ → PQ (SQ entry appended after create for maps).
-        const sqRemarksBefore = buildFlow1SqRemarks({
-          companyCode: remarksCompanyCode,
+        // SQ Comments: vendor ref + PQ + RFQ only (two IC details; no SQ self-link).
+        const sqRemarks = buildFlow1SqRemarks({
+          cardName: remarksCardName,
           existing: remarksWithPq,
           pqDraftDocEntry: header.pqDraftDocEntry,
           pqDraftDocNum: header.pqDraftDocNum,
@@ -420,16 +425,12 @@ export const createConvertPqAndSqService = (deps?: {
           documents,
           lines,
           numAtCard: vendorRefNo,
-          remarks: sqRemarksBefore,
+          remarks: sqRemarks,
           resolveLineTax,
           sapDbName: sellerCompany.sapDbName,
           sellerCompanyId: header.targetCompanyId,
           warehouseMasters,
         });
-
-        const sqRemarksFinal = appendIcRemarkLines(sqRemarksBefore, [
-          icLinkSq(salesQuotation.docNum ?? null, salesQuotation.docEntry),
-        ]);
 
         const sqMap = await documentMap.create({
           sourceCompanyId: header.sourceCompanyId,
@@ -447,14 +448,20 @@ export const createConvertPqAndSqService = (deps?: {
         icLog.info(LOG_SCOPE, "Flow 1 remarks chain (SQ)", {
           check: "remarks_chain",
           outcome: "pass",
-          remarks: sqRemarksFinal.slice(0, 1000),
+          remarks: sqRemarks.slice(0, 1000),
           rfqId,
         });
 
         await rfq.complete(rfqId);
 
-        const vendorParty = formatIcVendorParty(header.vendorCode);
-        const customerParty = formatIcCustomerParty(bpMap.buyerCustomerCode);
+        // CardName only — never "Vendor"/"Customer" or CardCode.
+        const vendorParty = formatIcPartyName(remarksCardName);
+        const customerParty = formatIcPartyName(
+          await resolveBpCardName({
+            cardCode: bpMap.buyerCustomerCode,
+            sapDbName: sellerCompany.sapDbName,
+          }),
+        );
         const pqLabel = formatIcDocLabel({
           kind: "PQ",
           docEntry: purchaseQuotation.docEntry,
@@ -466,7 +473,7 @@ export const createConvertPqAndSqService = (deps?: {
           docNum: salesQuotation.docNum ?? null,
         });
 
-        // Buyer: vendor code + PQ to open. Seller: customer code + SQ to open.
+        // Buyer: partner name + PQ. Seller: partner name + SQ.
         await notifications.create({
           companyId: header.sourceCompanyId,
           documentId: String(purchaseQuotation.docNum ?? purchaseQuotation.docEntry),
@@ -474,7 +481,7 @@ export const createConvertPqAndSqService = (deps?: {
           flowStep: "FLOW1_PQ_CREATED",
           message: formatIcPartyDocMessage(vendorParty, pqLabel),
           priority: "MEDIUM",
-          title: vendorParty,
+          title: vendorParty || pqLabel,
         });
 
         await notifications.create({
@@ -484,7 +491,7 @@ export const createConvertPqAndSqService = (deps?: {
           flowStep: "FLOW1_SQ_CREATED",
           message: formatIcPartyDocMessage(customerParty, sqLabel),
           priority: "MEDIUM",
-          title: customerParty,
+          title: customerParty || sqLabel,
         });
 
         await history.append({

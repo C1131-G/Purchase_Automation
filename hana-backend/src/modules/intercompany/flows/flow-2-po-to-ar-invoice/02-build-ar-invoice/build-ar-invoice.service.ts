@@ -6,12 +6,118 @@ import {
   partnerWarehouseMasters,
   type PartnerWarehouseMasters,
 } from "@/modules/intercompany/config/warehouse/partner-warehouse.masters";
+import type { DocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
+import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
+import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
+import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
+import { resolveBpCardName } from "@/modules/intercompany/infrastructure/ic-bp-card-name";
+import { parseIcRemarkLinks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
+import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 import type { ResolvePartnerResult } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.types";
 import type { IcPoHookInput } from "@/modules/intercompany/flows/shared/flow.types";
 
 import { buildArInvoicePayload } from "./build-ar-invoice.payload";
 import type { BuildArInvoiceResult } from "./build-ar-invoice.types";
+
+const toPositiveInt = (value: string | number | null | undefined): number | null => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? Math.trunc(num) : null;
+};
+
+/**
+ * Resolve PQ + RFQ + SQ for AR remarks from PO Comments IC lines + document map.
+ * Best-effort — never throws.
+ */
+const resolveArRemarksChain = async (params: {
+  buyerCompanyId: number;
+  existingComments?: string | null;
+  documentMap: DocumentMapService;
+  rfq: RfqService;
+}): Promise<{
+  pqDocNum: number | null;
+  pqDocEntry: number | null;
+  rfqNumber: string | null;
+  rfqId: number | null;
+  sqDocNum: number | null;
+  sqDocEntry: number | null;
+  cardNameFromRemarks: string | null;
+}> => {
+  const links = parseIcRemarkLinks(params.existingComments);
+  const byKey = new Map(links.map((link) => [link.key.toUpperCase(), link]));
+  const pqLink = byKey.get("PQ");
+  const rfqLink = byKey.get("RFQ");
+  const sqLink = byKey.get("SQ");
+
+  let pqDocNum = toPositiveInt(pqLink?.text ?? null);
+  let pqDocEntry: number | null = null;
+  let rfqNumber = rfqLink?.text?.trim() || null;
+  let rfqId: number | null = null;
+  let sqDocNum = toPositiveInt(sqLink?.text ?? null);
+  let sqDocEntry: number | null = null;
+  const cardNameFromRemarks =
+    pqLink?.cardName?.trim() || rfqLink?.cardName?.trim() || sqLink?.cardName?.trim() || null;
+
+  // Unit tests use memory IC SQL only when deps are injected; default services hit live HANA.
+  const allowLiveLookup = process.env.VITEST !== "true";
+  if (allowLiveLookup) {
+    try {
+      // Prefer RFQ found by source PQ entry when Comments only carried PQ DocNum as RFQ number.
+      if (pqDocNum != null) {
+        const byDraft = await params.rfq.findBySourceDraft(params.buyerCompanyId, pqDocNum);
+        // findBySourceDraft keys on DocEntry; try entry when number equals entry (common pilot).
+        if (byDraft) {
+          rfqId = byDraft.rfqId;
+          rfqNumber = byDraft.rfqNumber || rfqNumber;
+          pqDocEntry = byDraft.pqDraftDocEntry || pqDocEntry;
+          pqDocNum = byDraft.pqDraftDocNum ?? pqDocNum;
+        }
+      }
+
+      if (rfqId == null && rfqNumber) {
+        // RFQ number often mirrors PQ DocNum — try as PQ entry lookup fallback.
+        const asEntry = toPositiveInt(rfqNumber);
+        if (asEntry != null) {
+          const byEntry = await params.rfq.findBySourceDraft(params.buyerCompanyId, asEntry);
+          if (byEntry) {
+            rfqId = byEntry.rfqId;
+            rfqNumber = byEntry.rfqNumber || rfqNumber;
+            pqDocEntry = byEntry.pqDraftDocEntry || pqDocEntry;
+            pqDocNum = byEntry.pqDraftDocNum ?? pqDocNum;
+          }
+        }
+      }
+
+      if (rfqId != null && sqDocEntry == null && sqDocNum == null) {
+        const sqMap = await params.documentMap.findBySource({
+          sourceCompanyId: params.buyerCompanyId,
+          sourceDocEntry: String(rfqId),
+          sourceObject: IC_OBJECT.RFQ,
+          targetObject: IC_OBJECT.SQ,
+        });
+        if (sqMap) {
+          sqDocEntry = toPositiveInt(sqMap.targetDocEntry);
+          sqDocNum = toPositiveInt(sqMap.targetDocNum);
+        }
+      }
+    } catch {
+      // Best-effort chain enrichment only.
+    }
+  }
+
+  return {
+    cardNameFromRemarks,
+    pqDocEntry,
+    pqDocNum,
+    rfqId,
+    rfqNumber,
+    sqDocEntry,
+    sqDocNum,
+  };
+};
 
 export type BuildArInvoiceService = {
   build: (params: {
@@ -67,6 +173,8 @@ export const createBuildArInvoiceService = (deps?: {
   company?: CompanyService;
   partnerTax?: PartnerTaxResolver;
   warehouseMasters?: PartnerWarehouseMasters;
+  documentMap?: DocumentMapService;
+  rfq?: RfqService;
 }): BuildArInvoiceService => {
   const company = deps?.company ?? createCompanyService();
   const partnerTax =
@@ -75,6 +183,8 @@ export const createBuildArInvoiceService = (deps?: {
       company,
     });
   const warehouseMasters = deps?.warehouseMasters ?? partnerWarehouseMasters;
+  const documentMap = deps?.documentMap ?? createDocumentMapService();
+  const rfq = deps?.rfq ?? createRfqService();
 
   return {
     build: async ({ partner, input, remarksTag }) => {
@@ -91,6 +201,19 @@ export const createBuildArInvoiceService = (deps?: {
         warehouseMasters,
       });
 
+      const chain = await resolveArRemarksChain({
+        buyerCompanyId: partner.buyerCompany.companyId,
+        documentMap,
+        existingComments: input.remarks,
+        rfq,
+      });
+      // AR customer is buyer BP on seller books — prefer that CardName for remarks.
+      const remarksCardName = await resolveBpCardName({
+        cardCode: partner.buyerCustomerCode,
+        preferredName: chain.cardNameFromRemarks,
+        sapDbName: targetSapDbName,
+      });
+
       let taxItem = 0;
       let taxBp = 0;
       let taxOmit = 0;
@@ -104,6 +227,9 @@ export const createBuildArInvoiceService = (deps?: {
         docDate: input.docDate,
         docDueDate: input.docDueDate,
         lines: input.lines,
+        pqDocEntry: chain.pqDocEntry,
+        pqDocNum: chain.pqDocNum,
+        remarksCardName,
         resolveLineTax: async ({ itemCode, sourceTaxCode }) => {
           const resolved = await partnerTax.resolve({
             docSide: "sales",
@@ -129,11 +255,15 @@ export const createBuildArInvoiceService = (deps?: {
           }
           return resolved.taxCode;
         },
+        rfqId: chain.rfqId,
+        rfqNumber: chain.rfqNumber,
         numAtCard: input.numAtCard,
         poDocEntry: input.docEntry,
         poDocNum: input.docNum ?? null,
         remarksTag,
         sapDbName: targetSapDbName,
+        sqDocEntry: chain.sqDocEntry,
+        sqDocNum: chain.sqDocNum,
       });
 
       const { taxUsage, ...payload } = built;

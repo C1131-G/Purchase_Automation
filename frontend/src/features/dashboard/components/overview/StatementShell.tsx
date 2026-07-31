@@ -188,7 +188,7 @@ export function StatementShell({
             <button
               type="button"
               onClick={() => exportStatementCsv(statement, currency, asOf)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
             >
               <Download className="size-3.5" aria-hidden />
               Export CSV
@@ -312,7 +312,7 @@ export function StatementShell({
                         <Link
                           to={tableLink.to}
                           search={tableLink.search as never}
-                          className="min-w-0 flex-1 text-left transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2"
+                          className="min-w-0 flex-1 cursor-pointer text-left transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2"
                           aria-label={`View ${openDocsLabel} for ${roleLabel} ${partner.cardName}`}
                         >
                           <p className="truncate text-sm font-medium text-zinc-900">

@@ -4,12 +4,38 @@ import {
   isPendingOwddStatus,
   mapArApprovalRow,
   mapArInvoiceDraftRow,
+  mapArOpenInvoiceRow,
   mapOwddStatusLabel,
   pickRowField,
 } from "@/modules/dashboard/dashboard.ar-approval.queries";
 
-describe("overview AR invoice draft mapping", () => {
-  it("maps ODRF AR invoice draft row", () => {
+describe("overview open AR invoice mapping", () => {
+  it("maps open OINV row", () => {
+    const item = mapArOpenInvoiceRow({
+      DocEntry: 501,
+      DocNum: 12045,
+      CardCode: "C1000",
+      CardName: "Ajax Trading",
+      DocTotal: 1500.5,
+      DocDate: "2026-07-01",
+      AgeDays: 3,
+    });
+
+    expect(item).toMatchObject({
+      docEntry: 501,
+      docNum: 12045,
+      isDraft: false,
+      cardCode: "C1000",
+      cardName: "Ajax Trading",
+      docTotal: 1500.5,
+      docDate: "2026-07-01",
+      status: "Open",
+      ageDays: 3,
+      wddCode: 501,
+    });
+  });
+
+  it("maps legacy ODRF draft row (still supported)", () => {
     const item = mapArInvoiceDraftRow({
       DocEntry: 9001,
       DocNum: 12045,
@@ -26,12 +52,7 @@ describe("overview AR invoice draft mapping", () => {
       docEntry: 9001,
       docNum: 12045,
       isDraft: true,
-      cardCode: "C1000",
-      cardName: "Ajax Trading",
-      docTotal: 1500.5,
-      docDate: "2026-07-01",
       status: "Draft",
-      ageDays: 3,
       wddCode: 9001,
     });
   });

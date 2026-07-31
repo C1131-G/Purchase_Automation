@@ -274,9 +274,11 @@ export const createSellerSq = async (params: {
   const documentBranchId = warehouseCtx.branchId ?? params.defaultBranchId ?? null;
 
   // Number series for SQ (Obj 23) on document branch → SAP NextNumber alignment.
-  const seriesResolve = params.sapDbName
-    ? await resolveDocumentSeries(params.sapDbName, "23", { branchId: documentBranchId })
-    : null;
+  // Skip live NNM1 under Vitest (memory IC SQL only; tenant HANA hangs/fails).
+  const seriesResolve =
+    params.sapDbName && process.env.VITEST !== "true"
+      ? await resolveDocumentSeries(params.sapDbName, "23", { branchId: documentBranchId })
+      : null;
 
   icLog.info(IC_LOG_SCOPE.FLOW1, "Flow 1 SQ lines prepared for seller", {
     branchWarehouseCode: warehouseCtx.branchWarehouseCode,

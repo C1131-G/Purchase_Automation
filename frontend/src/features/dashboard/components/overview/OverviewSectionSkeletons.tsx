@@ -15,7 +15,7 @@ function Pulse({ className }: { className: string }) {
 export function NeedsAttentionSkeleton() {
   return (
     <section
-      aria-label="AR invoice drafts"
+      aria-label="Open AR invoices"
       aria-busy="true"
       className="flex w-full flex-col overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm shadow-amber-50/80"
     >
