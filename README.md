@@ -21,7 +21,6 @@ vendor-portal/
   pnpm-lock.yaml
   oxlint.config.ts / oxfmt.config.ts
   lefthook.yml              # git hooks
-  scripts/                  # kill-port, capture-errors helpers
   frontend/                 # browser app
   hana-backend/             # SAP-connected API
 ```

@@ -4,10 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:frontend": "node scripts/kill-port.js frontend && cd frontend && pnpm dev",
-    "dev:hana-backend": "node scripts/kill-port.js backend && cd hana-backend && pnpm dev",
-    "check:frontend": "node scripts/capture-errors.js frontend",
-    "check:hana": "node scripts/capture-errors.js hana-backend",
+    "dev:frontend": "pnpm --dir frontend dev",
+    "dev:hana-backend": "pnpm --dir hana-backend dev",
     "build": "pnpm fix && pnpm -r build",
     "test": "pnpm -r test",
     "fix": "pnpm dlx ultracite fix",

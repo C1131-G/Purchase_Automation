@@ -29,3 +29,7 @@ mcps/
 # Nested package lockfiles — monorepo uses root pnpm-lock.yaml only
 frontend/pnpm-lock.yaml
 hana-backend/pnpm-lock.yaml
+
+# Local utility scripts (not versioned)
+/scripts/
+/frontend/scripts/
