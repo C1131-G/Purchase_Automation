@@ -4,7 +4,10 @@
 
 import type { ApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
 import { createApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
-import { mergeUserAndIcRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
+import {
+  clampSapDocumentComments,
+  mergeUserAndIcRemarks,
+} from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import type { ResolveSlTargetService } from "@/modules/intercompany/routing/resolve-sl-target/resolve-sl-target.service";
 import { createResolveSlTargetService } from "@/modules/intercompany/routing/resolve-sl-target/resolve-sl-target.service";
@@ -384,7 +387,9 @@ export const createIcSlDocuments = (deps?: {
         if (input.comments != null && String(input.comments).trim()) {
           const existingComments =
             draft.Comments === null || draft.Comments === undefined ? null : String(draft.Comments);
-          body.Comments = mergeUserAndIcRemarks(existingComments, String(input.comments).trim());
+          body.Comments = clampSapDocumentComments(
+            mergeUserAndIcRemarks(existingComments, String(input.comments).trim()),
+          );
         }
 
         icLog.info(SCOPE, "IC SL apply prices to PQ lines", {
@@ -480,9 +485,8 @@ export const createIcSlDocuments = (deps?: {
         if (params.comments != null && String(params.comments).trim()) {
           const existingComments =
             rest.Comments === null || rest.Comments === undefined ? null : String(rest.Comments);
-          (rest as Record<string, unknown>).Comments = mergeUserAndIcRemarks(
-            existingComments,
-            String(params.comments).trim(),
+          (rest as Record<string, unknown>).Comments = clampSapDocumentComments(
+            mergeUserAndIcRemarks(existingComments, String(params.comments).trim()),
           );
         }
 
@@ -711,6 +715,10 @@ export const createIcSlDocuments = (deps?: {
       // Real A/R Invoice (not Drafts) — preferably based on seller SQ (BaseType 23).
       const endpoint = "/Invoices";
       const { DocObjectCode: _docObjectCode, ...invoiceBody } = input.draftPayload;
+      // SAP ODOC.Comments max 254 — clamp even if caller/retry payload is older/longer.
+      if (invoiceBody.Comments != null) {
+        invoiceBody.Comments = clampSapDocumentComments(String(invoiceBody.Comments));
+      }
       const lines = Array.isArray(invoiceBody.DocumentLines)
         ? (invoiceBody.DocumentLines as Record<string, unknown>[])
         : [];
@@ -805,7 +813,7 @@ export const createIcSlDocuments = (deps?: {
     createSalesQuotation: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = "/Quotations";
-      const remarksFull = input.remarks?.trim() || "";
+      const remarksFull = clampSapDocumentComments(input.remarks?.trim() || "");
       // Prefer buyer vendor ref (parent NumAtCard). Never stuff full IC remarks into NumAtCard.
       const vendorRef = input.numAtCard != null ? String(input.numAtCard).trim() : "";
       const numAtCard = (vendorRef || "").slice(0, 100);

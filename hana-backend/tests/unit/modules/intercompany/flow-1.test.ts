@@ -270,10 +270,11 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(db.tables.IC_NOTIFICATION.length).toBeGreaterThanOrEqual(1);
 
-    // RFQ open: PQ only with buyer company name (Company A); never CardCode (V-B).
+    // RFQ open: PQ only (short); never CardCode (V-B).
     const storedRemarks = String(db.tables.IC_RFQ_HEADER[0].REMARKS ?? "");
-    expect(storedRemarks).toContain("Auto Generated Based on Company A Purchase Quotation 9001");
-    expect(storedRemarks).not.toContain("Request For Quotation");
+    expect(storedRemarks).toContain("PQ 9001");
+    expect(storedRemarks).not.toContain("RFQ ");
+    expect(storedRemarks).not.toContain("Auto Generated");
     expect(storedRemarks).not.toContain("V-B");
     expect(storedRemarks).not.toContain("C-A-ON-B");
     expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
@@ -419,18 +420,17 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     });
     // Parent remarks (one path): patch apply keeps parent text + PQ/RFQ after submit.
     expect(sqCommentsOnPatch).toContain("Parent typed on PQ");
-    expect(sqCommentsOnPatch).toContain("Auto Generated Based on Company A Purchase Quotation 70");
-    expect(sqCommentsOnPatch).toContain(
-      "Auto Generated Based on Company B Request For Quotation 70",
-    );
+    expect(sqCommentsOnPatch).toContain("PQ 70");
+    expect(sqCommentsOnPatch).toContain("RFQ 70");
     // Vendor ref must reach seller SQ NumAtCard + remarks (was missing before).
     expect(sqNumAtCard).toBe("VENDOR-REF-99");
     expect(sqRemarks).toContain("Vendor Ref No: VENDOR-REF-99");
     expect(sqRemarks).toContain("Parent typed on PQ");
-    // SQ remarks: PQ (buyer) + RFQ (seller) only, never CardCode or SQ self-link.
-    expect(sqRemarks).toContain("Auto Generated Based on Company A Purchase Quotation 70");
-    expect(sqRemarks).toContain("Auto Generated Based on Company B Request For Quotation 70");
-    expect(sqRemarks).not.toContain("Sales Quotation");
+    // SQ remarks: PQ + RFQ only (short), never CardCode or SQ self-link.
+    expect(sqRemarks).toContain("PQ 70");
+    expect(sqRemarks).toContain("RFQ 70");
+    expect(sqRemarks).not.toContain("SQ ");
+    expect(sqRemarks).not.toContain("Auto Generated");
     expect(sqRemarks).not.toContain("V-B");
     expect(db.tables.IC_RFQ_HEADER[0].STATUS).toBe(IC_RFQ_STATUS.COMPLETED);
     expect(db.tables.IC_DOCUMENT_MAPPING.some((row) => row.TARGET_OBJECT === IC_OBJECT.SQ)).toBe(

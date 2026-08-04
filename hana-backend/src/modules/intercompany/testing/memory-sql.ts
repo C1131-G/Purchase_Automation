@@ -371,6 +371,33 @@ export const createMemorySqlClient = (
       return [] as T[];
     }
 
+    // Remark-ref resolve: entry OR DocNum OR RFQ_NUMBER (Flow 2 PO comments).
+    if (
+      statement.includes('FROM "IC_RFQ_HEADER"') &&
+      statement.includes("PQ_DRAFT_DOC_NUM") &&
+      statement.includes("RFQ_NUMBER")
+    ) {
+      const sourceCompanyId = params[0];
+      const entryRef = params[1];
+      const numRef = params.length >= 4 ? params[2] : undefined;
+      const rfqNum = params.length >= 4 ? String(params[3]) : String(params[1]);
+      return withRfqCompanyNames(
+        db,
+        db.tables.IC_RFQ_HEADER.filter((row) => {
+          if (row.SOURCE_COMPANY_ID !== sourceCompanyId) {
+            return false;
+          }
+          if (entryRef !== undefined && row.PQ_DRAFT_DOC_ENTRY === entryRef) {
+            return true;
+          }
+          if (numRef !== undefined && row.PQ_DRAFT_DOC_NUM === numRef) {
+            return true;
+          }
+          return String(row.RFQ_NUMBER ?? "") === rfqNum;
+        }).sort((left, right) => Number(right.RFQ_ID) - Number(left.RFQ_ID)),
+      ) as T[];
+    }
+
     if (statement.includes('FROM "IC_RFQ_HEADER"') && statement.includes("PQ_DRAFT_DOC_ENTRY")) {
       const [sourceCompanyId, pqDraftDocEntry] = params;
       return withRfqCompanyNames(

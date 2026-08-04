@@ -3,7 +3,10 @@
  * AR is always converted from seller Sales Quotation (BaseType 23) — never free-standing PO lines.
  */
 
-import { buildFlow2ArRemarks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
+import {
+  buildFlow2ArRemarks,
+  clampSapDocumentComments,
+} from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { SAP_OBJ_SALES_QUOTATION } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 
 import type {
@@ -97,18 +100,21 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
   const numAtCardRaw = input.numAtCard == null ? "" : String(input.numAtCard).trim();
 
   // Keep existing PO comments; ensure PQ (buyer) + RFQ (seller) + SQ (seller).
-  const comments = buildFlow2ArRemarks({
-    buyerCompanyName: input.buyerCompanyName,
-    sellerCompanyName: input.sellerCompanyName,
-    cardName: input.remarksCardName,
-    existingComments: input.comments,
-    pqDocEntry: input.pqDocEntry,
-    pqDocNum: input.pqDocNum,
-    rfqId: input.rfqId,
-    rfqNumber: input.rfqNumber,
-    sqDocEntry: input.sqDocEntry,
-    sqDocNum: input.sqDocNum,
-  });
+  // SAP Document.Comments is max 254 — long company names + chain easily overflow.
+  const comments = clampSapDocumentComments(
+    buildFlow2ArRemarks({
+      buyerCompanyName: input.buyerCompanyName,
+      sellerCompanyName: input.sellerCompanyName,
+      cardName: input.remarksCardName,
+      existingComments: input.comments,
+      pqDocEntry: input.pqDocEntry,
+      pqDocNum: input.pqDocNum,
+      rfqId: input.rfqId,
+      rfqNumber: input.rfqNumber,
+      sqDocEntry: input.sqDocEntry,
+      sqDocNum: input.sqDocNum,
+    }),
+  );
 
   // Real invoice body — no DocObjectCode (that is only for Drafts).
   // Lines are BaseType 23 only — not free-standing ItemCode/VatGroup rows.

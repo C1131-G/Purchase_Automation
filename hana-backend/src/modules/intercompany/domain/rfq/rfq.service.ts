@@ -11,6 +11,14 @@ export type RfqService = {
     sourceCompanyId: number,
     pqDraftDocEntry: number,
   ) => Promise<IcRfqHeader | null>;
+  /**
+   * Resolve RFQ from PO/PQ remarks refs (DocNum preferred in SAP comments).
+   * Falls back across PQ entry, PQ num, and RFQ_NUMBER.
+   */
+  findBySourceRemarkRef: (
+    sourceCompanyId: number,
+    remarkRef: number | string,
+  ) => Promise<IcRfqHeader | null>;
   /** Seller inbox — only RFQs where company is target (not buyer). */
   listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
   updateLines: (rfqId: number, lines: UpdateRfqLineInput[]) => Promise<IcRfqHeader | null>;
@@ -41,6 +49,9 @@ export const createRfqService = (deps?: {
 
     findBySourceDraft: (sourceCompanyId, pqDraftDocEntry) =>
       queries.findBySourceDraft(sourceCompanyId, pqDraftDocEntry),
+
+    findBySourceRemarkRef: (sourceCompanyId, remarkRef) =>
+      queries.findBySourceRemarkRef(sourceCompanyId, remarkRef),
 
     getById: (rfqId) => queries.getById(rfqId, true),
 

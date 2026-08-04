@@ -4,10 +4,10 @@
  * Legacy portal format sometimes stored both in Comments as:
  *   `REF123 | user message`
  *
- * IC automation appends multi-line chain lines:
- *   Auto Generated Based on Purchase Quotation Draft …
- *   Auto Generated Based on Request For Quotation …
- * Legacy `Based on …` and `IC | PQD: …` lines are still recognized.
+ * IC automation appends multi-line chain lines (short form):
+ *   PQ 8000586
+ *   RFQ 8000586
+ * Legacy long "Auto Generated Based on …", "Based on …", and `IC | PQD: …` still recognized.
  * Splitting those on " | " steals parent typed text into Ref No — never do that.
  */
 
@@ -17,13 +17,19 @@ export type HeaderNotesFields = {
 };
 
 const LEGACY_IC_REMARK_LINE_RE = /^IC\s*\|\s*[A-Za-z0-9_-]+\s*:/im;
-/** Current "Auto Generated Based on …" and legacy "Based on …". */
+/** Legacy "Auto Generated Based on …" / "Based on …". */
 const BASED_ON_REFERENCE_LINE_RE = /^(?:auto\s+generated\s+)?based on /im;
+/** Short IC chain: PQ / RFQ / SQ / PO / AR + doc ref. */
+const SHORT_IC_REMARK_LINE_RE = /^(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+\S+/im;
 
 /** True when Comments contain IC automation chain lines. */
 export const hasIcRemarkLines = (comments: string | null | undefined): boolean => {
   const raw = String(comments ?? "");
-  return LEGACY_IC_REMARK_LINE_RE.test(raw) || BASED_ON_REFERENCE_LINE_RE.test(raw);
+  return (
+    LEGACY_IC_REMARK_LINE_RE.test(raw) ||
+    BASED_ON_REFERENCE_LINE_RE.test(raw) ||
+    SHORT_IC_REMARK_LINE_RE.test(raw)
+  );
 };
 
 /**

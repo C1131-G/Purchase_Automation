@@ -56,29 +56,30 @@ const resolveArRemarksChain = async (params: {
   let sqDocEntry: number | null = null;
 
   try {
-    // Prefer RFQ found by source PQ entry when Comments only carried PQ DocNum as RFQ number.
+    // Remarks write PQ/RFQ DocNum (e.g. 8000603), not SAP DocEntry. Resolve RFQ by
+    // entry OR num OR RFQ_NUMBER so Flow 2 can load the RFQ→SQ document map.
+    const remarkCandidates: Array<number | string> = [];
     if (pqDocNum != null) {
-      const byDraft = await params.rfq.findBySourceDraft(params.buyerCompanyId, pqDocNum);
-      // findBySourceDraft keys on DocEntry; try entry when number equals entry (common pilot).
-      if (byDraft) {
-        rfqId = byDraft.rfqId;
-        rfqNumber = byDraft.rfqNumber || rfqNumber;
-        pqDocEntry = byDraft.pqDraftDocEntry || pqDocEntry;
-        pqDocNum = byDraft.pqDraftDocNum ?? pqDocNum;
-      }
+      remarkCandidates.push(pqDocNum);
+    }
+    if (rfqNumber) {
+      remarkCandidates.push(rfqNumber);
+    }
+    const asRfqEntry = toPositiveInt(rfqNumber);
+    if (asRfqEntry != null && asRfqEntry !== pqDocNum) {
+      remarkCandidates.push(asRfqEntry);
     }
 
-    if (rfqId == null && rfqNumber) {
-      // RFQ number often mirrors PQ DocNum — try as PQ entry lookup fallback.
-      const asEntry = toPositiveInt(rfqNumber);
-      if (asEntry != null) {
-        const byEntry = await params.rfq.findBySourceDraft(params.buyerCompanyId, asEntry);
-        if (byEntry) {
-          rfqId = byEntry.rfqId;
-          rfqNumber = byEntry.rfqNumber || rfqNumber;
-          pqDocEntry = byEntry.pqDraftDocEntry || pqDocEntry;
-          pqDocNum = byEntry.pqDraftDocNum ?? pqDocNum;
-        }
+    for (const candidate of remarkCandidates) {
+      if (rfqId != null) {
+        break;
+      }
+      const found = await params.rfq.findBySourceRemarkRef(params.buyerCompanyId, candidate);
+      if (found) {
+        rfqId = found.rfqId;
+        rfqNumber = found.rfqNumber || rfqNumber;
+        pqDocEntry = found.pqDraftDocEntry || pqDocEntry;
+        pqDocNum = found.pqDraftDocNum ?? pqDocNum;
       }
     }
 
@@ -210,6 +211,17 @@ export const createBuildArInvoiceService = (deps?: {
       }
 
       if (sqDocEntry == null) {
+        icLog.warn(IC_LOG_SCOPE.FLOW2, "seller SQ not resolved from PO remarks / RFQ map", {
+          check: "sq_resolve_failed",
+          outcome: "fail",
+          pqDocEntry: chain.pqDocEntry,
+          pqDocNum: chain.pqDocNum,
+          remarksPreview: String(input.remarks ?? "").slice(0, 500),
+          rfqId: chain.rfqId,
+          rfqNumber: chain.rfqNumber,
+          sqDocNum: chain.sqDocNum,
+          targetCompanyId,
+        });
         throw new Error(
           "IC Flow 2: seller Sales Quotation not found for this PO — cannot convert SQ to A/R Invoice (complete Flow 1 RFQ→SQ first, or ensure PO remarks include SQ)",
         );

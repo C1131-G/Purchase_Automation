@@ -17,6 +17,9 @@ import { createNotificationService } from "@/modules/intercompany/domain/notific
 import { createRetryMutations } from "@/modules/intercompany/domain/retry/retry.mutations";
 import { createRetryQueries } from "@/modules/intercompany/domain/retry/retry.queries";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
+import { createRfqMutations } from "@/modules/intercompany/domain/rfq/rfq.mutations";
+import { createRfqQueries } from "@/modules/intercompany/domain/rfq/rfq.queries";
+import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createAfterPoCreated } from "@/modules/intercompany/api/hooks/after-po-created.hook";
 import { createPoCaptureService } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/01-po-capture/po-capture.service";
 import { buildArInvoicePayload } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/02-build-ar-invoice/build-ar-invoice.payload";
@@ -33,8 +36,7 @@ import {
 } from "@/modules/intercompany/testing/memory-sql";
 
 /** IC remarks line that carries seller SQ DocNum for Flow 2 resolve. */
-const remarksWithSq = (sqDocNum = 810): string =>
-  `buyer notes\nAuto Generated Based on RCM Trading Sales Quotation ${sqDocNum}`;
+const remarksWithSq = (sqDocNum = 810): string => `buyer notes\nSQ ${sqDocNum}`;
 
 const enableFlow2 = (db: ReturnType<typeof createMemoryDb>): void => {
   db.tables.IC_CONFIGURATION.push({
@@ -214,16 +216,12 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
     // Real A/R Invoice body — no DocObjectCode (Drafts only).
     expect(payload.DocObjectCode).toBeUndefined();
     expect(payload.CardCode).toBe("C-A-ON-B");
-    // Existing remarks preserved; AR IC chain = PQ (buyer) + RFQ/SQ (seller).
+    // Existing remarks preserved; AR IC chain = PQ + RFQ + SQ (short).
     expect(payload.Comments).toContain("User note keep me");
-    expect(payload.Comments).toContain(
-      "Auto Generated Based on AJAX Industries Purchase Quotation 2042",
-    );
-    expect(payload.Comments).toContain(
-      "Auto Generated Based on RCM Trading Request For Quotation 9001",
-    );
-    expect(payload.Comments).toContain("Auto Generated Based on RCM Trading Sales Quotation 810");
-    expect(payload.Comments).not.toContain("Purchase Order");
+    expect(payload.Comments).toContain("PQ 2042");
+    expect(payload.Comments).toContain("RFQ 9001");
+    expect(payload.Comments).toContain("SQ 810");
+    expect(payload.Comments).not.toContain("Auto Generated");
     expect(payload.Comments).not.toContain("C-A-ON-B");
     expect(payload.Comments).not.toMatch(/Flow\s*[12]/i);
     expect(payload.NumAtCard).toBe("IC-PO-100");
@@ -388,6 +386,106 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
       },
     ]);
     expect(payload.CardCode).toBe("C-A-ON-B");
+  });
+
+  it("T5.4e resolves SQ via PQ DocNum remarks + RFQ→SQ map (not DocEntry)", async () => {
+    // Production case: PO Comments carry PQ/RFQ DocNum (e.g. 8000603), never SQ line.
+    // IC_RFQ stores real PQ DocEntry separately; old lookup treated DocNum as entry and missed.
+    const db = createMemoryDb();
+    seedMemoryCompanyGraph(db);
+    const sql = createMemorySqlClient(db);
+    const documentMap = createDocumentMapService({
+      mutations: createDocumentMapMutations(sql),
+      queries: createDocumentMapQueries(sql),
+    });
+    const rfq = createRfqService({
+      mutations: createRfqMutations(sql),
+      queries: createRfqQueries(sql),
+    });
+
+    const header = await rfq.createFromDraft({
+      createdBy: "test",
+      lines: [{ itemCode: "ITEM1", lineNum: 0, quantity: 3 }],
+      pqDraftDocEntry: 1234,
+      pqDraftDocNum: 8000603,
+      rfqNumber: "8000603",
+      sourceCompanyId: 1,
+      targetCompanyId: 2,
+      vendorCode: "V-B",
+    });
+
+    await documentMap.create({
+      sourceCompanyId: 1,
+      sourceDocEntry: String(header.rfqId),
+      sourceObject: IC_OBJECT.RFQ,
+      status: IC_DOC_MAP_STATUS.SUCCESS,
+      targetCompanyId: 2,
+      targetDocEntry: "810",
+      targetDocNum: "810",
+      targetObject: IC_OBJECT.SQ,
+    });
+
+    const service = createBuildArInvoiceService({
+      documentMap,
+      documents: {
+        applyPricesToPq: async () => undefined,
+        convertDraftToDocument: async () => ({ docEntry: 1 }),
+        createArInvoiceDraft: async () => ({ docEntry: 1 }),
+        createSalesQuotation: async () => ({ docEntry: 1 }),
+        findSalesQuotationByDocNum: async () => null,
+        getDraftComments: async () => null,
+        getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
+        getSalesQuotation: async () => defaultSqSnapshot,
+      },
+      rfq,
+      warehouseMasters: {
+        getFirstActiveBranchWarehouse: async () => ({
+          branchId: 1,
+          warehouseCode: "01",
+        }),
+        getWarehouseForBranch: async () => "01",
+        resolveWarehouseIfExists: async () => null,
+      },
+    });
+
+    const payload = await service.build({
+      input: {
+        cardCode: "V-B",
+        docEntry: 5549,
+        docNum: 8001330,
+        isDraft: false,
+        lines: [{ ItemCode: "ITEM1", Quantity: 3, UnitPrice: 10, WarehouseCode: "01" }],
+        remarks:
+          "Auto Generated Based on Ajax Spurway Fasteners Pte Ltd Purchase Quotation 8000603\rAuto Generated Based on RC Manubhai & Co. Pte Ltd Request For Quotation 8000603",
+      },
+      partner: {
+        buyerCompany: {
+          companyCode: "A",
+          companyId: 1,
+          companyName: "Ajax Spurway Fasteners Pte Ltd",
+          defaultBranchId: null,
+          isActive: true,
+          sapDbName: "DB_A",
+        },
+        buyerCustomerCode: "C-A-ON-B",
+        sellerCompany: {
+          companyCode: "B",
+          companyId: 2,
+          companyName: "RC Manubhai & Co. Pte Ltd",
+          defaultBranchId: 1,
+          isActive: true,
+          sapDbName: "DB_B",
+        },
+        vendorCode: "V-B",
+        bpMappingId: 1,
+      },
+      remarksTag: "IC-PO-8001330",
+    });
+
+    expect(payload.DocumentLines[0]).toMatchObject({
+      BaseEntry: 810,
+      BaseType: SAP_OBJ_SALES_QUOTATION,
+    });
   });
 
   it("T5.5 idempotent: existing SUCCESS map → skip create", async () => {

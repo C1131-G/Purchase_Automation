@@ -1,30 +1,28 @@
 /**
  * IC document remarks / Comments chain.
  *
- * Format (one link per line, never replaces user text):
- *   Auto Generated Based on AJAX Industries Purchase Quotation 8000586
- *   Auto Generated Based on RCM Trading Request For Quotation 8000586
- *   Auto Generated Based on RCM Trading Sales Quotation 810
- *
- * Names are IC company display names (document owners), not BP CardCode:
- *   PQ / PO  → buyer company (who created PQ first, e.g. AJAX)
- *   RFQ / SQ / AR → seller company (e.g. RCM)
+ * Current format (short, one link per line — fits SAP Comments 254):
+ *   PQ 8000586
+ *   RFQ 8000586
+ *   SQ 810
  *
  * Staged chain by document:
- *   RFQ open (create)     → PQ only (buyer name)
- *   PQ after RFQ submit   → PQ (buyer) + RFQ (seller)
- *   SQ                    → PQ (buyer) + RFQ (seller)
+ *   RFQ open (create)     → PQ only
+ *   PQ after RFQ submit   → PQ + RFQ
+ *   SQ                    → PQ + RFQ
  *   PO (from PQ)          → PQ + RFQ (inherited)
- *   AR invoice            → PQ (buyer) + RFQ (seller) + SQ (seller)
+ *   AR invoice            → PQ + RFQ + SQ
  *
- * Code/name is optional. Legacy lines without "Auto Generated" still parse:
+ * Legacy still parsed for merge/idempotency (never re-written unless key missing):
+ *   Auto Generated Based on AJAX Industries Purchase Quotation 8000586
  *   Based on Purchase Quotation 8000586
+ *   IC | PQ: …
  *
- * Legacy `IC | KEY: …` and PQD / AR draft labels are still parsed for merge/idempotency.
  * Existing non-IC remarks are preserved; auto lines append only if that KEY is new.
+ * Company / BP names are not written on new lines (keeps Comments short).
  */
 
-/** Prefix on every system-generated IC remarks line. */
+/** @deprecated Old long-form prefix; new lines use short `PQ 123` style. */
 export const AUTO_GENERATED_REMARK_PREFIX = "Auto Generated";
 
 export type IcRemarkLink = {
@@ -33,8 +31,8 @@ export type IcRemarkLink = {
   /** Document number (or entry fallback) shown after the type label. */
   text: string;
   /**
-   * Document-owner company display name before the document type
-   * (e.g. "AJAX Industries" for PQ, "RCM Trading" for RFQ). Never CardCode.
+   * Optional owner name — ignored when formatting new short lines.
+   * Still read from legacy "Based on {name} …" for merge.
    */
   cardName?: string;
 };
@@ -71,15 +69,7 @@ const resolveOwnerNames = (
 
 const LEGACY_IC_LINE_RE = /^IC\s*\|\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/i;
 
-const IC_DOC_TYPE_LABEL: Record<string, string> = {
-  PQD: "Purchase Quotation Draft",
-  RFQ: "Request For Quotation",
-  PQ: "Purchase Quotation",
-  SQ: "Sales Quotation",
-  PO: "Purchase Order",
-  AR: "AR Invoice",
-};
-
+/** Labels used only when parsing legacy "Based on …" lines. */
 const LABEL_TO_KEY: Record<string, string> = {
   "purchase quotation draft": "PQD",
   "request for quotation": "RFQ",
@@ -97,9 +87,32 @@ const LABEL_ENTRIES_SORTED = Object.entries(LABEL_TO_KEY).toSorted(
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** Normalize legacy PQD → PQ so short + long formats share one key. */
+const normalizeRemarkKey = (key: string): string => {
+  const upper = key.trim().toUpperCase();
+  return upper === "PQD" ? "PQ" : upper;
+};
+
 /**
- * Parse "Auto Generated Based on [CardName] <Label> <docRef>" lines.
- * CardName may contain spaces. Also accepts legacy "Based on …" without Auto Generated.
+ * Short IC line: `PQ 8000586`, `RFQ: 9001`, `SQ 810`.
+ * Intentional — not free text (must be KEY + single token ref only).
+ */
+const parseShortIcLine = (
+  trimmed: string,
+): { cardName?: string; key: string; text: string } | null => {
+  const match = trimmed.match(/^(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+(\S+)\s*$/i);
+  if (!match?.[1] || !match[2]) {
+    return null;
+  }
+  return {
+    key: normalizeRemarkKey(match[1]),
+    text: match[2].trim(),
+  };
+};
+
+/**
+ * Parse legacy "Auto Generated Based on [CardName] <Label> <docRef>" lines.
+ * CardName may contain spaces. Also accepts "Based on …" without Auto Generated.
  */
 const parseBasedOnLine = (
   trimmed: string,
@@ -120,7 +133,7 @@ const parseBasedOnLine = (
       const cardName = match[1]?.trim();
       return {
         cardName: cardName || undefined,
-        key,
+        key: normalizeRemarkKey(key),
         text: match[2].trim(),
       };
     }
@@ -151,23 +164,24 @@ const extractDocRefFromLegacyText = (text: string): string => {
 };
 
 const isAutoRemarkLine = (trimmed: string): boolean =>
-  LEGACY_IC_LINE_RE.test(trimmed) || parseBasedOnLine(trimmed) != null;
+  LEGACY_IC_LINE_RE.test(trimmed) ||
+  parseShortIcLine(trimmed) != null ||
+  parseBasedOnLine(trimmed) != null;
 
+/**
+ * Format one IC chain line — short and plain: `PQ 8000586`.
+ * `cardName` is ignored (kept for API compatibility; long company names blew SAP 254).
+ */
 export const formatIcRemarkLine = (
   key: string,
   docRefText: string,
-  cardName?: string | null,
+  _cardName?: string | null,
 ): string => {
-  const label = IC_DOC_TYPE_LABEL[key.toUpperCase()] ?? key;
-  const name = cardName != null ? String(cardName).trim() : "";
-  const basedOn =
-    name.length > 0
-      ? `Based on ${name} ${label} ${docRefText.trim()}`
-      : `Based on ${label} ${docRefText.trim()}`;
-  return `${AUTO_GENERATED_REMARK_PREFIX} ${basedOn}`;
+  const code = normalizeRemarkKey(key);
+  return `${code} ${docRefText.trim()}`;
 };
 
-/** Collect IC keys already present in comments (legacy + Based on formats). */
+/** Collect IC keys already present in comments (short + legacy + Based on). */
 export const parseIcRemarkKeys = (remarks: string | null | undefined): Set<string> => {
   const keys = new Set<string>();
   if (!remarks) {
@@ -177,7 +191,12 @@ export const parseIcRemarkKeys = (remarks: string | null | undefined): Set<strin
     const trimmed = raw.trim();
     const legacy = trimmed.match(LEGACY_IC_LINE_RE);
     if (legacy?.[1]) {
-      keys.add(legacy[1].toUpperCase());
+      keys.add(normalizeRemarkKey(legacy[1]));
+      continue;
+    }
+    const short = parseShortIcLine(trimmed);
+    if (short?.key) {
+      keys.add(short.key);
       continue;
     }
     const basedOn = parseBasedOnLine(trimmed);
@@ -199,8 +218,16 @@ export const parseIcRemarkLinks = (remarks: string | null | undefined): IcRemark
     const legacy = trimmed.match(LEGACY_IC_LINE_RE);
     if (legacy?.[1] && legacy[2] !== undefined && legacy[2].trim()) {
       links.push({
-        key: legacy[1].toUpperCase(),
+        key: normalizeRemarkKey(legacy[1]),
         text: extractDocRefFromLegacyText(legacy[2]),
+      });
+      continue;
+    }
+    const short = parseShortIcLine(trimmed);
+    if (short) {
+      links.push({
+        key: short.key,
+        text: short.text,
       });
       continue;
     }
@@ -229,7 +256,7 @@ export const appendIcRemarkLines = (
   const toAdd: string[] = [];
 
   for (const link of links) {
-    const key = link.key.trim().toUpperCase();
+    const key = normalizeRemarkKey(link.key);
     const text = link.text.trim();
     if (!key || !text || have.has(key)) {
       continue;
@@ -245,6 +272,59 @@ export const appendIcRemarkLines = (
     return toAdd.join("\n");
   }
   return `${base}\n${toAdd.join("\n")}`;
+};
+
+/**
+ * SAP B1 `Document.Comments` / ODOC.Comments max length (Service Layer rejects longer values).
+ */
+export const SAP_DOCUMENT_COMMENTS_MAX_LEN = 254;
+
+/**
+ * Fit remarks into SAP Document.Comments (254 chars).
+ * Prefer IC auto-lines (chain); shrink free-text first; drop company names on IC lines if needed;
+ * hard-cut only as last resort.
+ */
+export const clampSapDocumentComments = (
+  value: string | null | undefined,
+  maxLen: number = SAP_DOCUMENT_COMMENTS_MAX_LEN,
+): string => {
+  const raw = normalizeRemarkNewlines(value ?? "").trimEnd();
+  if (raw.length <= maxLen) {
+    return raw;
+  }
+
+  const userText = collectUserRemarkLines(raw).join("\n");
+  const icLinks = parseIcRemarkLinks(raw);
+  let icBlock = appendIcRemarkLines("", icLinks);
+
+  if (icBlock.length > maxLen) {
+    // Long company names — rebuild without cardName.
+    icBlock = appendIcRemarkLines(
+      "",
+      icLinks.map((link) => ({ key: link.key, text: link.text })),
+    );
+  }
+  if (icBlock.length > maxLen) {
+    return icBlock.slice(0, maxLen);
+  }
+
+  if (!userText) {
+    return icBlock;
+  }
+  if (!icBlock) {
+    return userText.slice(0, maxLen).trimEnd();
+  }
+
+  const sep = "\n";
+  const budget = maxLen - icBlock.length - sep.length;
+  if (budget <= 0) {
+    return icBlock;
+  }
+  const clippedUser = userText.slice(0, budget).trimEnd();
+  if (!clippedUser) {
+    return icBlock;
+  }
+  return `${clippedUser}${sep}${icBlock}`;
 };
 
 const collectUserRemarkLines = (remarks: string | null | undefined): string[] => {
@@ -298,7 +378,7 @@ export const mergeUserAndIcRemarks = (
 
   const icByKey = new Map<string, IcRemarkLink>();
   for (const link of [...parseIcRemarkLinks(primaryTrim), ...parseIcRemarkLinks(secondaryTrim)]) {
-    const key = link.key.trim().toUpperCase();
+    const key = normalizeRemarkKey(link.key);
     const prev = icByKey.get(key);
     icByKey.set(key, {
       cardName: link.cardName?.trim() || prev?.cardName,

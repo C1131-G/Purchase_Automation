@@ -106,6 +106,14 @@ export type RfqQueries = {
     sourceCompanyId: number,
     pqDraftDocEntry: number,
   ) => Promise<IcRfqHeader | null>;
+  /**
+   * Resolve RFQ from IC remarks text (PQ/RFQ DocNum, or PQ DocEntry).
+   * Remarks write DocNum when known; Flow 1 stores PQ_DRAFT_DOC_ENTRY separately.
+   */
+  findBySourceRemarkRef: (
+    sourceCompanyId: number,
+    remarkRef: number | string,
+  ) => Promise<IcRfqHeader | null>;
   listForCompany: (companyId: number) => Promise<IcRfqHeader[]>;
 };
 
@@ -115,6 +123,29 @@ export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQuerie
       `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
         WHERE h."SOURCE_COMPANY_ID" = ? AND h."PQ_DRAFT_DOC_ENTRY" = ?`,
       [sourceCompanyId, pqDraftDocEntry],
+    );
+    return rows[0] ? mapRfqHeaderRow(rows[0]) : null;
+  },
+
+  findBySourceRemarkRef: async (sourceCompanyId, remarkRef) => {
+    const asText = String(remarkRef).trim();
+    if (!asText) {
+      return null;
+    }
+    const asNum = Number(asText);
+    const hasNum = Number.isFinite(asNum) && asNum > 0;
+    // Prefer exact entry match, then DocNum / RFQ_NUMBER (remarks usually carry DocNum).
+    const rows = await sql.query(
+      `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
+        WHERE h."SOURCE_COMPANY_ID" = ?
+          AND (
+            ${hasNum ? `h."PQ_DRAFT_DOC_ENTRY" = ? OR h."PQ_DRAFT_DOC_NUM" = ? OR ` : ""}
+            h."RFQ_NUMBER" = ?
+          )
+        ORDER BY h."RFQ_ID" DESC`,
+      hasNum
+        ? [sourceCompanyId, Math.trunc(asNum), Math.trunc(asNum), asText]
+        : [sourceCompanyId, asText],
     );
     return rows[0] ? mapRfqHeaderRow(rows[0]) : null;
   },
