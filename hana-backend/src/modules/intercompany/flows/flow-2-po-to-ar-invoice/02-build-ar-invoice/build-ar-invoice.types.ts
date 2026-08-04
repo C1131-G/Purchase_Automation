@@ -23,9 +23,10 @@ export type BuildArInvoiceInput = {
   documentBranchId?: number | null;
   docDate?: unknown;
   docDueDate?: unknown;
+  /** Real Customer Ref from buyer PO only — never IC-PO auto tags. */
   numAtCard?: unknown;
   comments?: string;
-  /** Buyer PO identity (NumAtCard / tags only — not written as AR IC remarks). */
+  /** Buyer PO identity (mapping tags only — not AR remarks / NumAtCard). */
   poDocEntry: number;
   poDocNum?: number | null;
   /**

@@ -4,10 +4,10 @@
  * Legacy portal format sometimes stored both in Comments as:
  *   `REF123 | user message`
  *
- * IC automation appends multi-line chain lines (short form):
- *   PQ 8000586
- *   RFQ 8000586
- * Legacy long "Auto Generated Based on …", "Based on …", and `IC | PQD: …` still recognized.
+ * IC automation appends multi-line chain lines:
+ *   Based on PQ 8000586
+ *   Based on RFQ 8000586
+ * Legacy `PQ 8000586`, long "Auto Generated Based on …", and `IC | PQD: …` still recognized.
  * Splitting those on " | " steals parent typed text into Ref No — never do that.
  */
 

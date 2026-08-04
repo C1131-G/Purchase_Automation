@@ -77,6 +77,11 @@ export const mapSqLineToArBaseLine = (params: {
   return docLine;
 };
 
+/** True when value is an IC system tag (must not fill Customer Ref No). */
+const isIcAutoNumAtCard = (value: string): boolean =>
+  /^IC[-|]?(PQ|PO|RFQ|SQ|AR)\b/i.test(value.trim()) ||
+  /^(?:auto\s+generated\s+)?based on\s+/i.test(value.trim());
+
 /** Build Service Layer A/R Invoice body: convert seller SQ → POST /Invoices. */
 export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoiceResult => {
   const sqDocEntry = Math.trunc(Number(input.sqDocEntry));
@@ -130,11 +135,9 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
   if (docDueDate) {
     payload.DocDueDate = docDueDate;
   }
-  // NumAtCard: keep buyer PO ref if present; else compact IC-PO tag.
-  if (numAtCardRaw) {
+  // Customer Ref No (NumAtCard): only real buyer PO vendor ref — never IC-PO auto tags.
+  if (numAtCardRaw && !isIcAutoNumAtCard(numAtCardRaw)) {
     payload.NumAtCard = numAtCardRaw.slice(0, 100);
-  } else {
-    payload.NumAtCard = (input.remarksTag || "").slice(0, 100);
   }
 
   // Branch only — line WH/UoM/tax come from base SQ.

@@ -2,9 +2,9 @@
  * IC document remarks / Comments chain.
  *
  * Current format (short, one link per line — fits SAP Comments 254):
- *   PQ 8000586
- *   RFQ 8000586
- *   SQ 810
+ *   Based on PQ 8000586
+ *   Based on RFQ 8000586
+ *   Based on SQ 810
  *
  * Staged chain by document:
  *   RFQ open (create)     → PQ only
@@ -14,6 +14,7 @@
  *   AR invoice            → PQ + RFQ + SQ
  *
  * Legacy still parsed for merge/idempotency (never re-written unless key missing):
+ *   PQ 8000586
  *   Auto Generated Based on AJAX Industries Purchase Quotation 8000586
  *   Based on Purchase Quotation 8000586
  *   IC | PQ: …
@@ -22,7 +23,7 @@
  * Company / BP names are not written on new lines (keeps Comments short).
  */
 
-/** @deprecated Old long-form prefix; new lines use short `PQ 123` style. */
+/** @deprecated Old long-form prefix; new lines use `Based on PQ 123`. */
 export const AUTO_GENERATED_REMARK_PREFIX = "Auto Generated";
 
 export type IcRemarkLink = {
@@ -94,7 +95,7 @@ const normalizeRemarkKey = (key: string): string => {
 };
 
 /**
- * Short IC line: `PQ 8000586`, `RFQ: 9001`, `SQ 810`.
+ * Bare short IC line: `PQ 8000586`, `RFQ: 9001`, `SQ 810` (legacy compact).
  * Intentional — not free text (must be KEY + single token ref only).
  */
 const parseShortIcLine = (
@@ -111,12 +112,33 @@ const parseShortIcLine = (
 };
 
 /**
+ * Current form: `Based on PQ 8000586` (optional Auto Generated prefix).
+ */
+const parseBasedOnShortLine = (
+  trimmed: string,
+): { cardName?: string; key: string; text: string } | null => {
+  const withoutAutoPrefix = trimmed.replace(/^auto\s+generated\s+/i, "").trim();
+  const match = withoutAutoPrefix.match(/^(?:based on\s+)(PQD|PQ|RFQ|SQ|PO|AR)\s*:?\s+(\S+)\s*$/i);
+  if (!match?.[1] || !match[2]) {
+    return null;
+  }
+  return {
+    key: normalizeRemarkKey(match[1]),
+    text: match[2].trim(),
+  };
+};
+
+/**
  * Parse legacy "Auto Generated Based on [CardName] <Label> <docRef>" lines.
  * CardName may contain spaces. Also accepts "Based on …" without Auto Generated.
  */
 const parseBasedOnLine = (
   trimmed: string,
 ): { cardName?: string; key: string; text: string } | null => {
+  const short = parseBasedOnShortLine(trimmed);
+  if (short) {
+    return short;
+  }
   const withoutAutoPrefix = trimmed.replace(/^auto\s+generated\s+/i, "").trim();
   if (!/^based on\s+/i.test(withoutAutoPrefix)) {
     return null;
@@ -169,7 +191,7 @@ const isAutoRemarkLine = (trimmed: string): boolean =>
   parseBasedOnLine(trimmed) != null;
 
 /**
- * Format one IC chain line — short and plain: `PQ 8000586`.
+ * Format one IC chain line: `Based on PQ 8000586`.
  * `cardName` is ignored (kept for API compatibility; long company names blew SAP 254).
  */
 export const formatIcRemarkLine = (
@@ -178,7 +200,7 @@ export const formatIcRemarkLine = (
   _cardName?: string | null,
 ): string => {
   const code = normalizeRemarkKey(key);
-  return `${code} ${docRefText.trim()}`;
+  return `Based on ${code} ${docRefText.trim()}`;
 };
 
 /** Collect IC keys already present in comments (short + legacy + Based on). */

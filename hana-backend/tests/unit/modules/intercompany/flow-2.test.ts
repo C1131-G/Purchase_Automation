@@ -224,7 +224,8 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
     expect(payload.Comments).not.toContain("Auto Generated");
     expect(payload.Comments).not.toContain("C-A-ON-B");
     expect(payload.Comments).not.toMatch(/Flow\s*[12]/i);
-    expect(payload.NumAtCard).toBe("IC-PO-100");
+    // Customer Ref No is not filled with IC-PO auto tags.
+    expect(payload.NumAtCard).toBeUndefined();
     expect(payload.BPL_IDAssignedToInvoice).toBe(1);
     expect(payload.DocDate).toBe("2026-03-15");
     expect(payload.DocumentLines).toHaveLength(1);
