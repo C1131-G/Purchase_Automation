@@ -8,6 +8,10 @@
     "dev:hana-backend": "pnpm --dir hana-backend dev",
     "build": "pnpm fix && pnpm -r build",
     "test": "pnpm -r test",
+    "lint": "pnpm dlx ultracite check",
+    "lint:fix": "pnpm dlx ultracite fix",
+    "typecheck": "pnpm -r typecheck",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
     "fix": "pnpm dlx ultracite fix",
     "prepare": "pnpm exec lefthook install"
   },
