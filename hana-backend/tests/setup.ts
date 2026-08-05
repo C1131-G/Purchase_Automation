@@ -1,6 +1,20 @@
 process.env.NODE_ENV = process.env.NODE_ENV || "test";
 process.env.OTEL_SDK_DISABLED = "true";
 
+// Set fallback mock environment variables for unit/smoke tests if not provided
+process.env.HANA_HOST = process.env.HANA_HOST || "localhost";
+process.env.HANA_PORT = process.env.HANA_PORT || "30015";
+process.env.HANA_USER = process.env.HANA_USER || "SYSTEM";
+process.env.HANA_PASSWORD = process.env.HANA_PASSWORD || "TestPassword123!";
+process.env.SESSION_SECRET =
+  process.env.SESSION_SECRET ||
+  "0123456789012345678901234567890123456789012345678901234567890123456789";
+process.env.SERVICE_LAYER_URL = process.env.SERVICE_LAYER_URL || "http://localhost:50000";
+process.env.ATTACHMENTS_BASE_PATH = process.env.ATTACHMENTS_BASE_PATH || "/tmp/attachments";
+process.env.COMMON_DB = process.env.COMMON_DB || "SBOCOMMON";
+process.env.ORGANIZATION_TABLE = process.env.ORGANIZATION_TABLE || "ORGC";
+process.env.DEFAULT_CURRENCY_CODE = process.env.DEFAULT_CURRENCY_CODE || "USD";
+
 // Background HANA client pipe errors can surface when the Express app is
 // imported without a live HANA instance. Swallow only those known noise errors
 // so unit/integration suites stay green offline.
