@@ -105,9 +105,13 @@ export const resolveRfqCustomerDisplay = async (
   const vendorCode = toStr(header.vendorCode) ?? "";
 
   try {
-    const mapping = vendorCode
-      ? await createBpMappingQueries().findByBuyerAndVendorCode(header.sourceCompanyId, vendorCode)
-      : null;
+    // BP mapping + seller company in parallel (independent IC metadata lookups).
+    const [mapping, seller] = await Promise.all([
+      vendorCode
+        ? createBpMappingQueries().findByBuyerAndVendorCode(header.sourceCompanyId, vendorCode)
+        : Promise.resolve(null),
+      createCompanyQueries().getById(header.targetCompanyId),
+    ]);
 
     const customerCode = toStr(mapping?.buyerCustomerCode) ?? null;
 
@@ -120,7 +124,6 @@ export const resolveRfqCustomerDisplay = async (
     }
 
     // Prefer CardName on seller SAP DB (target company).
-    const seller = await createCompanyQueries().getById(header.targetCompanyId);
     const sellerDb = seller?.sapDbName?.trim() || "";
     const cardName = sellerDb ? await loadCustomerName(sellerDb, customerCode) : null;
 

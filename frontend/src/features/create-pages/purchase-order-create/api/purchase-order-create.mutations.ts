@@ -2,6 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createSharedKeys } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { invalidateIcCaches } from "@/features/intercompany/api/ic-cache-invalidation";
 import { purchaseOrderKeys } from "@/features/table-pages/purchase-orders/api/purchase-order.queries";
 import { purchaseOrderAPI } from "@/features/table-pages/purchase-orders/api/purchase-order.service";
 
@@ -35,6 +36,8 @@ export function useCreatePurchaseOrder() {
           queryKey: createSharedKeys.salesEmployees(),
           refetchType: "active",
         }),
+        // Flow 2: IC may create peer A/R invoice + notify + update relationship map.
+        invalidateIcCaches(queryClient, ["notifications", "relationshipMaps", "retries"]),
       ]);
     },
   });

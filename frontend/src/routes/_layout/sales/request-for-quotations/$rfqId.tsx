@@ -6,6 +6,7 @@ import {
   toCreatePageHighlightProps,
 } from "@/features/create-pages/create-shared/utils/create-page-highlight";
 import { RequestForQuotationForm } from "@/features/create-pages/request-for-quotation/components/request-for-quotation-form";
+import { relationshipMapQueries } from "@/features/create-shared/api/relationship-map.queries";
 import { icRfqQueries, useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import { formatRfqDocNumber } from "@/features/table-pages/rfqs/utils/format-rfq-doc-number";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -16,13 +17,18 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
  */
 export const Route = createFileRoute("/_layout/sales/request-for-quotations/$rfqId")({
   component: RequestForQuotationDetailRoute,
-  /** Same pattern as other document edit routes — detail warm before paint. */
+  /** Detail + relationship map in parallel before paint (cuts sequential wait after form mounts). */
   loader: ({ context, params }) => {
     const rfqId = Number(params.rfqId);
     if (!Number.isFinite(rfqId) || rfqId <= 0) {
       return;
     }
-    return context.queryClient.ensureQueryData(icRfqQueries.detail(rfqId));
+    return Promise.all([
+      context.queryClient.ensureQueryData(icRfqQueries.detail(rfqId)),
+      context.queryClient.ensureQueryData(
+        relationshipMapQueries.map("request-for-quotation", rfqId),
+      ),
+    ]);
   },
   pendingComponent: CreatePageRouteSkeleton,
   validateSearch: createPageHighlightSearchSchema,

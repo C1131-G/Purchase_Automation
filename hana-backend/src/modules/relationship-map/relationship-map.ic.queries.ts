@@ -95,7 +95,8 @@ export const getIcRfqRelationshipMap = async (
 ): Promise<RelationshipMapResult> => {
   const { documentMap, rfq } = resolveDeps(deps);
   const result = emptySalesRelationshipMap();
-  const header = await rfq.getById(rfqId);
+  // Header only — relationship map does not need RFQ lines.
+  const header = await rfq.getById(rfqId, false);
   if (!header) {
     return result;
   }

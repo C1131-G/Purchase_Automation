@@ -151,20 +151,22 @@ export const createRfqQueries = (sql: IcSqlClient = getIcSqlClient()): RfqQuerie
   },
 
   getById: async (rfqId, withLines = true) => {
-    const rows = await sql.query(
-      `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
+    // Header + lines in parallel when lines are needed (RFQ open path).
+    const [rows, lineRows] = await Promise.all([
+      sql.query(
+        `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
         WHERE h."RFQ_ID" = ?`,
-      [rfqId],
-    );
+        [rfqId],
+      ),
+      withLines
+        ? sql.query(`SELECT * FROM "IC_RFQ_LINE" WHERE "RFQ_ID" = ? ORDER BY "LINE_NUM"`, [rfqId])
+        : Promise.resolve([] as Record<string, unknown>[]),
+    ]);
     if (!rows[0]) {
       return null;
     }
     const header = mapRfqHeaderRow(rows[0]);
     if (withLines) {
-      const lineRows = await sql.query(
-        `SELECT * FROM "IC_RFQ_LINE" WHERE "RFQ_ID" = ? ORDER BY "LINE_NUM"`,
-        [rfqId],
-      );
       header.lines = lineRows.map(mapRfqLineRow);
     }
     return header;

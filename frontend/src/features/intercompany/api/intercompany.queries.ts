@@ -1,4 +1,5 @@
-import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import type {
   IcNotificationsListParams,
@@ -6,23 +7,16 @@ import type {
 } from "@/features/intercompany/api/intercompany.service";
 import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 
+import {
+  IC_RFQ_IN_FLIGHT_POLL_MS,
+  invalidateIcCaches,
+  isIcRfqConvertInFlight,
+  isIcRfqConvertTerminal,
+} from "./ic-cache-invalidation";
+import { intercompanyKeys } from "./intercompany.keys";
 import { intercompanyAPI } from "./intercompany.service";
 
-export const intercompanyKeys = {
-  all: ["intercompany"] as const,
-  health: () => [...intercompanyKeys.all, "health"] as const,
-  notifications: () => [...intercompanyKeys.all, "notifications"] as const,
-  notificationList: (params: IcNotificationsListParams = {}) =>
-    [...intercompanyKeys.notifications(), "list", params] as const,
-  unreadCount: () => [...intercompanyKeys.notifications(), "unread-count"] as const,
-  retries: () => [...intercompanyKeys.all, "retries"] as const,
-  retryList: (params: IcRetriesListParams = {}) =>
-    [...intercompanyKeys.retries(), "list", params] as const,
-  pendingRetryCount: () => [...intercompanyKeys.retries(), "pending-count"] as const,
-  rfqs: () => [...intercompanyKeys.all, "rfqs"] as const,
-  rfqList: () => [...intercompanyKeys.rfqs(), "list"] as const,
-  rfqDetail: (rfqId: number) => [...intercompanyKeys.rfqs(), "detail", rfqId] as const,
-};
+export { intercompanyKeys };
 
 /**
  * Shared RFQ query options — used by hooks, login/sidebar/route prefetch, and table hover.
@@ -67,9 +61,16 @@ export function useIcNotifications(params: IcNotificationsListParams = {}, enabl
   });
 }
 
-/** Unread count for shell badge — short stale so mark-read stays snappy. */
+/**
+ * Unread count for shell badge — short stale so mark-read stays snappy.
+ * When count rises (peer company / background job wrote a notification), refresh
+ * IC-related document lists/maps so RFQ/PQ/SQ/PO tables show new docs without a full reload.
+ */
 export function useIcUnreadCount(enabled = true) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const previousCountRef = useRef<number | null>(null);
+
+  const query = useQuery({
     enabled,
     queryFn: () => intercompanyAPI.getUnreadCount(),
     queryKey: intercompanyKeys.unreadCount(),
@@ -78,6 +79,23 @@ export function useIcUnreadCount(enabled = true) {
     refetchInterval: 60_000,
     staleTime: 15_000,
   });
+
+  const count = query.data?.data.count;
+
+  useEffect(() => {
+    if (typeof count !== "number") {
+      return;
+    }
+    const previous = previousCountRef.current;
+    previousCountRef.current = count;
+    // First observation only seeds the baseline (no peer refresh on mount).
+    if (previous == null || count <= previous) {
+      return;
+    }
+    void invalidateIcCaches(queryClient, ["peerDocuments"]);
+  }, [count, queryClient]);
+
+  return query;
 }
 
 /** Session-company retry queue (optional status CSV). */
@@ -113,10 +131,47 @@ export function useIcRfqs(enabled = true) {
   });
 }
 
-/** RFQ detail (Phase 2 form + table/hover prefetch). */
+/**
+ * RFQ detail (Phase 2 form + table/hover prefetch).
+ * Status-gated poll while convert is in flight (SUBMITTED); stops on terminal statuses.
+ * When status leaves in-flight for COMPLETED/CANCELLED, invalidate Flow 1 doc caches once.
+ */
 export function useIcRfq(rfqId: number, enabled = true) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const previousStatusRef = useRef<string | null>(null);
+
+  const query = useQuery({
     ...icRfqQueries.detail(rfqId),
     enabled: enabled && Number.isFinite(rfqId) && rfqId > 0,
+    refetchInterval: (current) => {
+      const status = current.state.data?.data?.status;
+      return isIcRfqConvertInFlight(status) ? IC_RFQ_IN_FLIGHT_POLL_MS : false;
+    },
   });
+
+  const status = query.data?.data?.status;
+
+  useEffect(() => {
+    if (status == null) {
+      return;
+    }
+    const normalized = String(status).trim().toUpperCase();
+    const previous = previousStatusRef.current;
+    previousStatusRef.current = normalized;
+
+    if (previous == null) {
+      return;
+    }
+    if (!isIcRfqConvertInFlight(previous) || !isIcRfqConvertTerminal(normalized)) {
+      return;
+    }
+    // Convert finished while user stayed on the form — surface PQ/SQ + map + badge.
+    void invalidateIcCaches(
+      queryClient,
+      ["rfq", "flow1Documents", "relationshipMaps", "notifications", "retries"],
+      { rfqId },
+    );
+  }, [status, queryClient, rfqId]);
+
+  return query;
 }

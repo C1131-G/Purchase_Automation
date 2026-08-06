@@ -6,7 +6,8 @@ import type { CreateRfqFromDraftInput, IcRfqHeader, UpdateRfqLineInput } from ".
 
 export type RfqService = {
   createFromDraft: (input: CreateRfqFromDraftInput) => Promise<IcRfqHeader>;
-  getById: (rfqId: number) => Promise<IcRfqHeader | null>;
+  /** @param withLines default true; pass false for header-only (e.g. relationship map). */
+  getById: (rfqId: number, withLines?: boolean) => Promise<IcRfqHeader | null>;
   findBySourceDraft: (
     sourceCompanyId: number,
     pqDraftDocEntry: number,
@@ -53,7 +54,7 @@ export const createRfqService = (deps?: {
     findBySourceRemarkRef: (sourceCompanyId, remarkRef) =>
       queries.findBySourceRemarkRef(sourceCompanyId, remarkRef),
 
-    getById: (rfqId) => queries.getById(rfqId, true),
+    getById: (rfqId, withLines = true) => queries.getById(rfqId, withLines),
 
     listForCompany: (companyId) => queries.listForCompany(companyId),
 

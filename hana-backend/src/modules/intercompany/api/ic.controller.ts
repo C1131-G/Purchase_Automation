@@ -72,9 +72,12 @@ export const listRfqs = async (req: Request, res: Response, next: NextFunction):
 
 export const getRfq = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const companyId = await resolveActorCompanyId(req);
     const rfqId = parseIdParam(String(req.params.id));
-    const header = await createRfqService().getById(rfqId);
+    // Session company + RFQ header/lines in parallel (auth check before response).
+    const [companyId, header] = await Promise.all([
+      resolveActorCompanyId(req),
+      createRfqService().getById(rfqId),
+    ]);
     if (!header) {
       throw new AppError("RFQ not found", 404, "IC_RFQ_NOT_FOUND");
     }

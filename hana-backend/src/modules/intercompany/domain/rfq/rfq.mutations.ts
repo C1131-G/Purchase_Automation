@@ -22,19 +22,18 @@ const loadHeaderWithLines = async (
   sql: IcSqlClient,
   rfqId: number,
 ): Promise<IcRfqHeader | null> => {
-  const rows = await sql.query(
-    `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
+  const [rows, lineRows] = await Promise.all([
+    sql.query(
+      `${RFQ_HEADER_SELECT_WITH_COMPANY_NAMES}
       WHERE h."RFQ_ID" = ?`,
-    [rfqId],
-  );
+      [rfqId],
+    ),
+    sql.query(`SELECT * FROM "IC_RFQ_LINE" WHERE "RFQ_ID" = ? ORDER BY "LINE_NUM"`, [rfqId]),
+  ]);
   if (!rows[0]) {
     return null;
   }
   const header = mapRfqHeaderRow(rows[0]);
-  const lineRows = await sql.query(
-    `SELECT * FROM "IC_RFQ_LINE" WHERE "RFQ_ID" = ? ORDER BY "LINE_NUM"`,
-    [rfqId],
-  );
   header.lines = lineRows.map(mapRfqLineRow);
   return header;
 };

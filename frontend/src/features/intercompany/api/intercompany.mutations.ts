@@ -1,26 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { IcUpdateRfqBody } from "./intercompany.service";
-import { intercompanyKeys } from "./intercompany.queries";
+import { invalidateIcCaches } from "./ic-cache-invalidation";
 import { intercompanyAPI } from "./intercompany.service";
-
-const invalidateNotificationCaches = (queryClient: ReturnType<typeof useQueryClient>) =>
-  Promise.all([
-    queryClient.invalidateQueries({ queryKey: intercompanyKeys.notifications() }),
-    queryClient.invalidateQueries({ queryKey: intercompanyKeys.unreadCount() }),
-  ]);
-
-const invalidateRetryCaches = (queryClient: ReturnType<typeof useQueryClient>) =>
-  queryClient.invalidateQueries({ queryKey: intercompanyKeys.retries() });
-
-const invalidateRfqCaches = (queryClient: ReturnType<typeof useQueryClient>, rfqId?: number) =>
-  Promise.all([
-    queryClient.invalidateQueries({ queryKey: intercompanyKeys.rfqList() }),
-    rfqId != null
-      ? queryClient.invalidateQueries({ queryKey: intercompanyKeys.rfqDetail(rfqId) })
-      : queryClient.invalidateQueries({ queryKey: intercompanyKeys.rfqs() }),
-    invalidateNotificationCaches(queryClient),
-  ]);
 
 /** PATCH one notification read → refresh list + badge. */
 export function useMarkIcNotificationRead() {
@@ -29,7 +11,7 @@ export function useMarkIcNotificationRead() {
   return useMutation({
     mutationFn: (notificationId: number) => intercompanyAPI.markNotificationRead(notificationId),
     onSuccess: () => {
-      void invalidateNotificationCaches(queryClient);
+      void invalidateIcCaches(queryClient, ["notifications"]);
     },
   });
 }
@@ -41,22 +23,19 @@ export function useMarkAllIcNotificationsRead() {
   return useMutation({
     mutationFn: () => intercompanyAPI.markAllNotificationsRead(),
     onSuccess: () => {
-      void invalidateNotificationCaches(queryClient);
+      void invalidateIcCaches(queryClient, ["notifications"]);
     },
   });
 }
 
-/** POST retries/:id/run → refresh retry list (and notifications if a job emits one). */
+/** POST retries/:id/run → refresh retry queue + peer docs if a job finished a flow step. */
 export function useRunIcRetry() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (retryId: number) => intercompanyAPI.runRetry(retryId),
     onSuccess: () => {
-      void Promise.all([
-        invalidateRetryCaches(queryClient),
-        invalidateNotificationCaches(queryClient),
-      ]);
+      void invalidateIcCaches(queryClient, ["retries", "notifications", "peerDocuments"]);
     },
   });
 }
@@ -69,32 +48,50 @@ export function useUpdateIcRfq() {
     mutationFn: ({ body, rfqId }: { rfqId: number; body: IcUpdateRfqBody }) =>
       intercompanyAPI.updateRfq(rfqId, body),
     onSuccess: (_data, variables) => {
-      void invalidateRfqCaches(queryClient, variables.rfqId);
+      void invalidateIcCaches(queryClient, ["rfq"], { rfqId: variables.rfqId });
     },
   });
 }
 
-/** POST /rfqs/:id/submit — seller submits DRAFT RFQ (optional lines in same request). */
+/**
+ * POST /rfqs/:id/submit — seller submits DRAFT RFQ (optional lines in same request).
+ * Server may flip to COMPLETED immediately or leave SUBMITTED while PQ+SQ convert in background.
+ */
 export function useSubmitIcRfq() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ body, rfqId }: { rfqId: number; body?: IcUpdateRfqBody }) =>
       intercompanyAPI.submitRfq(rfqId, body),
-    onSuccess: (_data, variables) => {
-      void invalidateRfqCaches(queryClient, variables.rfqId);
+    onSuccess: (data, variables) => {
+      const status = String(data.data?.status ?? "")
+        .trim()
+        .toUpperCase();
+      // COMPLETED = convert finished same request; SUBMITTED = poll will finish the rest.
+      const scopes =
+        status === "COMPLETED"
+          ? (["rfq", "flow1Documents", "relationshipMaps", "notifications", "retries"] as const)
+          : (["rfq", "notifications", "retries"] as const);
+      void invalidateIcCaches(queryClient, scopes, { rfqId: variables.rfqId });
     },
   });
 }
 
-/** POST /rfqs/:id/convert — buyer converts SUBMITTED RFQ. */
+/**
+ * POST /rfqs/:id/convert — buyer/seller converts SUBMITTED RFQ → updated PQ + seller SQ.
+ * Always touch Flow 1 document families; retry queue if convert queued.
+ */
 export function useConvertIcRfq() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (rfqId: number) => intercompanyAPI.convertRfq(rfqId),
     onSuccess: (_data, rfqId) => {
-      void invalidateRfqCaches(queryClient, rfqId);
+      void invalidateIcCaches(
+        queryClient,
+        ["rfq", "flow1Documents", "relationshipMaps", "notifications", "retries"],
+        { rfqId },
+      );
     },
   });
 }

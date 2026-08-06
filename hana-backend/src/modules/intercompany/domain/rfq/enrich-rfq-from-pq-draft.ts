@@ -15,7 +15,7 @@ import {
 } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
-import { withRfqCustomerDisplay } from "./resolve-rfq-customer-display";
+import { resolveRfqCustomerDisplay, withRfqCustomerDisplay } from "./resolve-rfq-customer-display";
 import type { IcRfqHeader, IcRfqLine } from "./rfq.types";
 
 const PQ_DRAFT_OBJ = "540000006";
@@ -125,6 +125,35 @@ const loadPqLines = async (dbName: string, docEntry: number): Promise<SourceLine
   )) as SourceLineRow[];
 };
 
+/** Header + lines in parallel — one connection warmup, half the round-trips. */
+const loadPqDoc = async (
+  dbName: string,
+  docEntry: number,
+): Promise<{ header: SourceHeaderRow; lines: SourceLineRow[] } | null> => {
+  const [header, lines] = await Promise.all([
+    loadPqHeader(dbName, docEntry),
+    loadPqLines(dbName, docEntry),
+  ]);
+  if (!header) {
+    return null;
+  }
+  return { header, lines };
+};
+
+const loadDraftDoc = async (
+  dbName: string,
+  docEntry: number,
+): Promise<{ header: SourceHeaderRow; lines: SourceLineRow[] } | null> => {
+  const [header, lines] = await Promise.all([
+    loadDraftHeader(dbName, docEntry),
+    loadDraftLines(dbName, docEntry),
+  ]);
+  if (!header) {
+    return null;
+  }
+  return { header, lines };
+};
+
 const loadBuyerName = async (dbName: string, slpCode: number | null): Promise<string | null> => {
   if (slpCode === null || !Number.isFinite(slpCode)) {
     return null;
@@ -158,16 +187,16 @@ const loadVendorName = async (dbName: string, cardCode: string): Promise<string 
  */
 const resolveSourceDoc = async (dbName: string, header: IcRfqHeader): Promise<SourceDoc | null> => {
   const sourceEntry = header.pqDraftDocEntry;
+  // Happy path: direct PQ DocEntry (modern Flow 1) — header + lines in parallel.
   if (Number.isFinite(sourceEntry) && sourceEntry > 0) {
-    const pqHeader = await loadPqHeader(dbName, sourceEntry);
-    if (pqHeader) {
-      const lines = await loadPqLines(dbName, sourceEntry);
+    const pqDoc = await loadPqDoc(dbName, sourceEntry);
+    if (pqDoc) {
       return {
         docEntry: sourceEntry,
-        docNum: toNum(pqHeader.DocNum ?? pqHeader.docNum),
-        header: pqHeader,
+        docNum: toNum(pqDoc.header.DocNum ?? pqDoc.header.docNum),
+        header: pqDoc.header,
         kind: "pq",
-        lines,
+        lines: pqDoc.lines,
       };
     }
   }
@@ -183,9 +212,8 @@ const resolveSourceDoc = async (dbName: string, header: IcRfqHeader): Promise<So
     if (map?.targetDocEntry) {
       const pqEntry = Number(map.targetDocEntry);
       if (Number.isFinite(pqEntry) && pqEntry > 0) {
-        const pqHeader = await loadPqHeader(dbName, pqEntry);
-        if (pqHeader) {
-          const lines = await loadPqLines(dbName, pqEntry);
+        const pqDoc = await loadPqDoc(dbName, pqEntry);
+        if (pqDoc) {
           const mappedNum =
             map.targetDocNum != null && map.targetDocNum !== "" ? Number(map.targetDocNum) : null;
           return {
@@ -193,10 +221,10 @@ const resolveSourceDoc = async (dbName: string, header: IcRfqHeader): Promise<So
             docNum:
               mappedNum != null && Number.isFinite(mappedNum)
                 ? mappedNum
-                : toNum(pqHeader.DocNum ?? pqHeader.docNum),
-            header: pqHeader,
+                : toNum(pqDoc.header.DocNum ?? pqDoc.header.docNum),
+            header: pqDoc.header,
             kind: "pq",
-            lines,
+            lines: pqDoc.lines,
           };
         }
       }
@@ -244,15 +272,14 @@ const resolveSourceDoc = async (dbName: string, header: IcRfqHeader): Promise<So
 
   // Legacy: old Flow 1 stored ODRF draft entry.
   if (Number.isFinite(sourceEntry) && sourceEntry > 0) {
-    const draftHeader = await loadDraftHeader(dbName, sourceEntry);
-    if (draftHeader) {
-      const lines = await loadDraftLines(dbName, sourceEntry);
+    const draft = await loadDraftDoc(dbName, sourceEntry);
+    if (draft) {
       return {
         docEntry: sourceEntry,
-        docNum: toNum(draftHeader.DocNum ?? draftHeader.docNum),
-        header: draftHeader,
+        docNum: toNum(draft.header.DocNum ?? draft.header.docNum),
+        header: draft.header,
         kind: "draft",
-        lines,
+        lines: draft.lines,
       };
     }
   }
@@ -373,11 +400,26 @@ const withEnsuredRfqRemarks = (
  * Sales-side fields: customerCode / customerName (buyer on seller books).
  * vendorCode remains the IC routing key (buyer-side vendor); do not show as customer.
  */
+const attachCustomerDisplay = (
+  header: IcRfqHeader,
+  customer: Awaited<ReturnType<typeof resolveRfqCustomerDisplay>>,
+): IcRfqHeader => ({
+  ...header,
+  customerCode: customer.customerCode,
+  customerName: customer.customerName,
+});
+
 export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHeader> => {
   try {
-    const company = await createCompanyQueries().getById(header.sourceCompanyId);
+    // Customer display (BP map + seller OCRD) does not need buyer PQ — run in parallel
+    // with source-company lookup to cut serial HANA round-trips on RFQ open.
+    const [company, customerDisplay] = await Promise.all([
+      createCompanyQueries().getById(header.sourceCompanyId),
+      resolveRfqCustomerDisplay(header),
+    ]);
+
     if (!company?.sapDbName) {
-      return withRfqCustomerDisplay(withEnsuredRfqRemarks(header));
+      return attachCustomerDisplay(withEnsuredRfqRemarks(header), customerDisplay);
     }
 
     const dbName = company.sapDbName;
@@ -390,19 +432,20 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
         sourceCompanyId: header.sourceCompanyId,
         status: header.status,
       });
-      return withRfqCustomerDisplay(withEnsuredRfqRemarks(header));
+      return attachCustomerDisplay(withEnsuredRfqRemarks(header), customerDisplay);
     }
 
     const srcHeader = source.header;
     // Buyer-side vendor snapshot (routing audit only — not seller customer UI).
     const cardCode = toStr(srcHeader.CardCode ?? srcHeader.cardCode) ?? header.vendorCode;
-    const vendorName =
-      toStr(srcHeader.CardName ?? srcHeader.cardName) ??
-      (await loadVendorName(dbName, cardCode)) ??
-      null;
-
+    const headerVendorName = toStr(srcHeader.CardName ?? srcHeader.cardName);
     const slpCode = toNum(srcHeader.SlpCode ?? srcHeader.slpCode);
-    const buyerName = await loadBuyerName(dbName, slpCode);
+
+    // Buyer name + optional vendor OCRD fallback in parallel (same tenant DB).
+    const [vendorName, buyerName] = await Promise.all([
+      headerVendorName ? Promise.resolve(headerVendorName) : loadVendorName(dbName, cardCode ?? ""),
+      loadBuyerName(dbName, slpCode),
+    ]);
 
     const sourceByLineNum = new Map<number, SourceLineRow>();
     for (const row of source.lines) {
@@ -480,7 +523,7 @@ export const enrichRfqFromPqDraft = async (header: IcRfqHeader): Promise<IcRfqHe
       draftComments,
     );
     // Seller UI: customer = buyer BP on seller books (not buyer-side vendor / RCM self).
-    return withRfqCustomerDisplay(merged);
+    return attachCustomerDisplay(merged, customerDisplay);
   } catch (err: unknown) {
     logger.warn({
       err: err instanceof Error ? err : new Error(String(err)),

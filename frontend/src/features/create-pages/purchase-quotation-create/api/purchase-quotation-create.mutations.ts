@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { createSharedKeys } from "@/features/create-pages/create-shared/api/create-shared.queries";
+import { invalidateIcCaches } from "@/features/intercompany/api/ic-cache-invalidation";
 import { purchaseQuotationKeys } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.queries";
 import { purchaseQuotationAPI } from "@/features/table-pages/purchase-quotations/api/purchase-quotation.service";
 
@@ -34,6 +35,8 @@ export function useCreatePurchaseQuotation() {
           queryKey: createSharedKeys.salesEmployees(),
           refetchType: "active",
         }),
+        // Flow 1: IC may spawn RFQ for the peer company + link map nodes.
+        invalidateIcCaches(queryClient, ["notifications", "relationshipMaps"]),
       ]);
     },
   });
