@@ -167,13 +167,13 @@ export function OpenWorkStrip({
     },
     {
       key: "ar",
-      // Open A/R invoices (OINV) — listed on the dashboard panel (no separate route).
-      label: "Open AR",
+      // A/R Invoice Drafts (ODRF) — listed on the dashboard panel (no separate route).
+      label: "Open AR drafts",
       count: arPending.count,
       openValue: arPending.openValue,
       onClick: onArClick,
       warnWhenPositive: true,
-      ariaLabel: `Open AR invoices, ${arPending.count} open — show list on this page`,
+      ariaLabel: `Open AR drafts, ${arPending.count} open — show list on this page`,
       tone: "amber",
       Icon: ShieldAlert,
     },

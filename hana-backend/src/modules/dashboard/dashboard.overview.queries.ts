@@ -1,4 +1,4 @@
-// Overview Dashboard: open KPIs + IC partners + open AR (OINV) + statement (P1–P4).
+// Overview Dashboard: open KPIs + IC partners + AR Invoice Drafts (ODRF) + statement (P1–P4).
 
 import { logger } from "@/core/logger/pino-logger";
 import { getCachedData } from "@/core/utils/cache";

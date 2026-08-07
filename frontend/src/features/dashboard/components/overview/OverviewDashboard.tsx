@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 
@@ -5,6 +6,7 @@ import { SectionErrorState } from "@/components/section-error-state";
 import { cn } from "@/shared/utils/cn";
 
 import { useOverviewDashboard } from "../../queries/queries";
+import { dashboardKeys } from "../../queries/queryKeys";
 import type {
   OverviewConnectedPartner,
   OverviewPartnerSelection,
@@ -32,8 +34,14 @@ function formatAsOf(iso: string | undefined): string | null {
 }
 
 export function OverviewDashboard() {
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, isFetching, refetch, error } = useOverviewDashboard();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  const refreshOverview = () => {
+    void refetch();
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.arInvoiceDrafts() });
+  };
 
   const scrollToAttention = () => {
     document.getElementById("overview-needs-attention")?.scrollIntoView({
@@ -120,7 +128,7 @@ export function OverviewDashboard() {
             ) : null}
             <button
               type="button"
-              onClick={() => void refetch()}
+              onClick={refreshOverview}
               disabled={isFetching}
               className={cn(
                 "inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-sky-200/80 bg-white text-sky-700 shadow-sm",
@@ -143,7 +151,7 @@ export function OverviewDashboard() {
             <SectionErrorState
               title="Couldn't load overview"
               message={errorMessage}
-              onRetry={() => void refetch()}
+              onRetry={refreshOverview}
               className="min-h-[280px] rounded-2xl border border-rose-200/80 bg-white shadow-sm"
             />
           ) : isLoading || !data ? (
@@ -167,7 +175,11 @@ export function OverviewDashboard() {
               >
                 <div className="flex min-h-0 lg:col-span-3">
                   <div className={cn("flex w-full min-h-0 flex-1", overviewMotionClass.enter)}>
-                    <NeedsAttention items={data.arApprovalPending} currency={data.currency} />
+                    <NeedsAttention
+                      kpi={data.kpis.arApprovalPending}
+                      currency={data.currency}
+                      initialItems={data.arApprovalPending}
+                    />
                   </div>
                 </div>
                 <div className="flex min-h-0 lg:col-span-2">

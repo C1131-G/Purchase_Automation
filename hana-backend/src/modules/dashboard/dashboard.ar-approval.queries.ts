@@ -1,10 +1,10 @@
-// Open AR invoices (OINV DocStatus=O) for Overview open-work KPI + panel.
-// Posted OINV only — IC Flow 2 creates A/R Invoice Drafts (ODRF), not open OINV rows.
+// A/R Invoice Drafts (ODRF ObjType 13) for Overview open-work KPI + virtualized list.
+// IC Flow 2 posts POST /Drafts — not open OINV rows.
 
 import { logger } from "@/core/logger/pino-logger";
 import { executeTenantQuery } from "@/db/tenant-query";
 
-/** One open AR invoice row for the Overview panel. */
+/** One A/R Invoice Draft row for the Overview panel. */
 export type OverviewArApprovalItem = {
   docEntry: number;
   docNum: number | null;
@@ -13,9 +13,9 @@ export type OverviewArApprovalItem = {
   cardName: string;
   docTotal: number;
   docDate: string | null;
-  /** Stable list key (DocEntry for OINV). */
+  /** Stable list key (DocEntry for ODRF). */
   wddCode: number;
-  /** Display status (e.g. Open). */
+  /** Display status (e.g. Draft). */
   status: string;
   ageDays: number;
   requester: string | null;
@@ -27,11 +27,38 @@ export type OverviewArApprovalResult = {
   openValue: number;
 };
 
-/** AR Invoice object type in ODRF / OWDD (legacy draft path). */
+export type OverviewArDraftsPageResult = {
+  items: OverviewArApprovalItem[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+  count: number;
+  openValue: number;
+};
+
+/** AR Invoice object type in ODRF / OWDD. */
 const AR_INVOICE_OBJ_TYPE = "13";
 
-/** Cap list size for Overview open AR panel. */
-const AR_OPEN_LIST_LIMIT = 50;
+/** Default page size for infinite-scroll AR draft list (not a hard total cap). */
+export const AR_DRAFT_PAGE_DEFAULT = 40;
+/** Max page size accepted by the paginated drafts endpoint. */
+export const AR_DRAFT_PAGE_MAX = 100;
+
+/** First page embedded on overview payload (list continues via paginated API). */
+const AR_OVERVIEW_EMBED_LIMIT = AR_DRAFT_PAGE_DEFAULT;
+
+export function clampArDraftPageParams(input: { offset?: number; limit?: number }): {
+  offset: number;
+  limit: number;
+} {
+  const offsetRaw = Number(input.offset ?? 0);
+  const limitRaw = Number(input.limit ?? AR_DRAFT_PAGE_DEFAULT);
+  const offset = Number.isFinite(offsetRaw) ? Math.max(0, Math.trunc(offsetRaw)) : 0;
+  const limitUncapped = Number.isFinite(limitRaw) ? Math.trunc(limitRaw) : AR_DRAFT_PAGE_DEFAULT;
+  const limit = Math.min(AR_DRAFT_PAGE_MAX, Math.max(1, limitUncapped));
+  return { offset, limit };
+}
 
 /** SAP OWDD.Status values treated as still awaiting action (OWDD legacy path). */
 const PENDING_OWDD_STATUSES = new Set(["W"]);
@@ -268,82 +295,140 @@ export function mapArOpenInvoiceRow(row: Record<string, unknown>): OverviewArApp
   };
 }
 
+const AR_DRAFT_WHERE = `
+  CAST(d."ObjType" AS NVARCHAR) = '${AR_INVOICE_OBJ_TYPE}'
+  AND UPPER(IFNULL(d."CANCELED", 'N')) <> 'Y'
+`;
+
+async function loadArInvoiceDraftStats(
+  dbName: string,
+): Promise<{ count: number; openValue: number }> {
+  try {
+    const statsRaw = (await executeTenantQuery(
+      dbName,
+      `
+        SELECT COUNT(*) AS "OpenCount",
+               SUM(d."DocTotal") AS "OpenValue"
+          FROM "ODRF" d
+         WHERE ${AR_DRAFT_WHERE}
+      `,
+      [],
+    )) as unknown;
+    const statsRows = Array.isArray(statsRaw) ? (statsRaw as Record<string, unknown>[]) : [];
+    const stats = statsRows[0];
+    if (!stats) {
+      return { count: 0, openValue: 0 };
+    }
+    return {
+      count: toCount(pickRowField(stats, "OpenCount", "openCount")),
+      openValue: toMoney(pickRowField(stats, "OpenValue", "openValue")),
+    };
+  } catch {
+    return { count: 0, openValue: 0 };
+  }
+}
+
+function mapArDraftRows(raw: unknown): OverviewArApprovalItem[] {
+  const rows = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
+  const items: OverviewArApprovalItem[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const mapped = mapArInvoiceDraftRow(row as Record<string, unknown>);
+    if (!mapped) continue;
+    items.push(mapped);
+  }
+  return items;
+}
+
 /**
- * Open A/R invoices (OINV DocStatus = O).
- * Posted customer invoices only (not IC Flow 2 ODRF drafts).
- * Soft-fails to empty when schema differs. No portal route — listed on the dashboard.
+ * Paginated A/R Invoice Drafts (ODRF ObjType 13). No total-row hard cap — use offset pages.
+ * Soft-fails to empty when schema differs. Listed on the dashboard (virtual infinite scroll).
  */
-export async function loadArApprovalPending(dbName: string): Promise<OverviewArApprovalResult> {
+export async function loadArInvoiceDraftsPage(
+  dbName: string,
+  params: { offset?: number; limit?: number } = {},
+): Promise<OverviewArDraftsPageResult> {
+  const { offset, limit } = clampArDraftPageParams(params);
   try {
     const sql = `
       SELECT
-        i."DocEntry" AS "DocEntry",
-        i."DocNum" AS "DocNum",
-        i."CardCode" AS "CardCode",
-        i."CardName" AS "CardName",
-        i."DocTotal" AS "DocTotal",
-        i."DocDate" AS "DocDate",
-        DAYS_BETWEEN(i."DocDate", CURRENT_DATE) AS "AgeDays"
-      FROM "OINV" i
-      WHERE i."DocStatus" = 'O'
-        AND UPPER(IFNULL(i."CANCELED", 'N')) <> 'Y'
-      ORDER BY i."DocDate" DESC, i."DocEntry" DESC
-      LIMIT ${AR_OPEN_LIST_LIMIT}
+        d."DocEntry" AS "DocEntry",
+        d."DocNum" AS "DocNum",
+        d."CardCode" AS "CardCode",
+        d."CardName" AS "CardName",
+        d."DocTotal" AS "DocTotal",
+        d."DocDate" AS "DocDate",
+        d."CreateDate" AS "CreateDate",
+        d."UserSign" AS "UserSign",
+        DAYS_BETWEEN(COALESCE(d."DocDate", d."CreateDate"), CURRENT_DATE) AS "AgeDays"
+      FROM "ODRF" d
+      WHERE ${AR_DRAFT_WHERE}
+      ORDER BY d."DocDate" DESC, d."DocEntry" DESC
+      LIMIT ? OFFSET ?
     `;
 
-    const raw = (await executeTenantQuery(dbName, sql, [])) as unknown;
-    const rows = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
-
-    const items: OverviewArApprovalItem[] = [];
-    for (const row of rows) {
-      if (!row || typeof row !== "object") continue;
-      const mapped = mapArOpenInvoiceRow(row as Record<string, unknown>);
-      if (!mapped) continue;
-      items.push(mapped);
-    }
-
-    // Full open total for KPI (not only the capped list page).
-    let openCount = items.length;
-    let openValue = toMoney(items.reduce((sum, item) => sum + item.docTotal, 0));
-    try {
-      const statsRaw = (await executeTenantQuery(
-        dbName,
-        `
-          SELECT COUNT(*) AS "OpenCount",
-                 SUM(i."DocTotal") AS "OpenValue"
-            FROM "OINV" i
-           WHERE i."DocStatus" = 'O'
-             AND UPPER(IFNULL(i."CANCELED", 'N')) <> 'Y'
-        `,
-        [],
-      )) as unknown;
-      const statsRows = Array.isArray(statsRaw) ? (statsRaw as Record<string, unknown>[]) : [];
-      const stats = statsRows[0];
-      if (stats) {
-        openCount = toCount(pickRowField(stats, "OpenCount", "openCount"));
-        openValue = toMoney(pickRowField(stats, "OpenValue", "openValue"));
-      }
-    } catch {
-      // Keep list-derived totals when aggregate fails.
-    }
+    const raw = (await executeTenantQuery(dbName, sql, [limit, offset])) as unknown;
+    const items = mapArDraftRows(raw);
+    const stats = await loadArInvoiceDraftStats(dbName);
+    const nextOffset = offset + items.length;
+    const hasMore =
+      items.length === limit && (stats.count > 0 ? nextOffset < stats.count : items.length > 0);
 
     return {
       items,
-      count: openCount,
-      openValue,
+      offset,
+      limit,
+      hasMore,
+      nextOffset: hasMore ? nextOffset : null,
+      count: stats.count > 0 ? stats.count : offset + items.length,
+      openValue: stats.openValue,
     };
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
     logger.warn({
       db: dbName,
       err: caughtError,
-      msg: "Overview: open AR invoices (OINV) load failed; returning empty list",
+      msg: "Overview: AR invoice drafts (ODRF) page load failed; returning empty list",
+    });
+    return {
+      items: [],
+      offset,
+      limit,
+      hasMore: false,
+      nextOffset: null,
+      count: 0,
+      openValue: 0,
+    };
+  }
+}
+
+/**
+ * Overview KPI + first embed page of A/R Invoice Drafts (ODRF).
+ * Full list continues via loadArInvoiceDraftsPage (infinite scroll) — no hard 50 cap.
+ */
+export async function loadArApprovalPending(dbName: string): Promise<OverviewArApprovalResult> {
+  try {
+    const page = await loadArInvoiceDraftsPage(dbName, {
+      limit: AR_OVERVIEW_EMBED_LIMIT,
+      offset: 0,
+    });
+    return {
+      items: page.items,
+      count: page.count,
+      openValue: page.openValue,
+    };
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    logger.warn({
+      db: dbName,
+      err: caughtError,
+      msg: "Overview: AR invoice drafts (ODRF) load failed; returning empty list",
     });
     return { items: [], count: 0, openValue: 0 };
   }
 }
 
-/** @deprecated OWDD path retained for tests only — overview uses open OINV via loadArApprovalPending. */
+/** @deprecated OWDD path retained for tests only — overview uses ODRF drafts via loadArApprovalPending. */
 export async function loadArApprovalPendingFromOwdd(
   dbName: string,
 ): Promise<OverviewArApprovalResult> {
@@ -378,7 +463,7 @@ export async function loadArApprovalPendingFromOwdd(
       WHERE CAST(w."ObjType" AS NVARCHAR) = '${AR_INVOICE_OBJ_TYPE}'
         AND UPPER(TRIM(CAST(w."Status" AS NVARCHAR))) = 'W'
       ORDER BY w."CreateDate" ASC, w."WddCode" ASC
-      LIMIT ${AR_OPEN_LIST_LIMIT}
+      LIMIT ${AR_DRAFT_PAGE_DEFAULT}
     `;
 
     const raw = (await executeTenantQuery(dbName, sql, [])) as unknown;

@@ -9,7 +9,7 @@ export type OverviewArKpi = {
   openValue: number;
 };
 
-/** One open AR invoice (OINV DocStatus=O) for the overview panel. */
+/** One A/R Invoice Draft (ODRF ObjType 13) for the overview panel. */
 export type OverviewArApprovalItem = {
   docEntry: number;
   docNum: number | null;
@@ -22,6 +22,22 @@ export type OverviewArApprovalItem = {
   status: string;
   ageDays: number;
   requester: string | null;
+};
+
+/** Paginated AR Invoice Drafts for virtualized infinite scroll. */
+export type OverviewArDraftsPage = {
+  items: OverviewArApprovalItem[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+  count: number;
+  openValue: number;
+};
+
+export type OverviewArDraftsPageResponse = {
+  success: boolean;
+  data: OverviewArDraftsPage;
 };
 
 export type OverviewConnectedPartner = {

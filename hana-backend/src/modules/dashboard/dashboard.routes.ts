@@ -10,5 +10,6 @@ const router = express.Router();
 router.use(validateSession);
 
 router.get("/overview", dashboardController.getOverviewDashboard);
+router.get("/ar-invoice-drafts", dashboardController.getArInvoiceDrafts);
 
 export const dashboardRoutes = router;

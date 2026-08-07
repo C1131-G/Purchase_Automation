@@ -1,4 +1,5 @@
 import { timedDashboardSection } from "@/core/observability/dashboard";
+import { loadArInvoiceDraftsPage } from "./dashboard.ar-approval.queries";
 import {
   getOverviewDashboard as getOverviewDashboardRaw,
   warmOverviewDashboard as warmOverviewDashboardRaw,
@@ -15,7 +16,14 @@ export const getOverviewDashboard = instrumentSection("overview", getOverviewDas
 
 export const warmOverviewDashboard = warmOverviewDashboardRaw;
 
+export const getArInvoiceDraftsPage = instrumentSection(
+  "ar-invoice-drafts",
+  async (dbName: string, params: { offset?: number; limit?: number }) =>
+    loadArInvoiceDraftsPage(dbName, params),
+);
+
 export const dashboardService = {
   getOverviewDashboard,
   warmOverviewDashboard,
+  getArInvoiceDraftsPage,
 };

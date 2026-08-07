@@ -1,16 +1,46 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  clampArDraftPageParams,
   isPendingOwddStatus,
   mapArApprovalRow,
   mapArInvoiceDraftRow,
   mapArOpenInvoiceRow,
   mapOwddStatusLabel,
   pickRowField,
+  AR_DRAFT_PAGE_DEFAULT,
+  AR_DRAFT_PAGE_MAX,
 } from "@/modules/dashboard/dashboard.ar-approval.queries";
 
-describe("overview open AR invoice mapping", () => {
-  it("maps open OINV row", () => {
+describe("overview AR invoice draft mapping", () => {
+  it("maps ODRF AR invoice draft row", () => {
+    const item = mapArInvoiceDraftRow({
+      DocEntry: 9001,
+      DocNum: 12045,
+      CardCode: "C1000",
+      CardName: "Ajax Trading",
+      DocTotal: 1500.5,
+      DocDate: "2026-07-01",
+      CreateDate: "2026-07-01",
+      UserSign: 3,
+      AgeDays: 3,
+    });
+
+    expect(item).toMatchObject({
+      docEntry: 9001,
+      docNum: 12045,
+      isDraft: true,
+      status: "Draft",
+      wddCode: 9001,
+      cardCode: "C1000",
+      cardName: "Ajax Trading",
+      docTotal: 1500.5,
+      docDate: "2026-07-01",
+      ageDays: 3,
+    });
+  });
+
+  it("maps open OINV row (legacy mapper retained)", () => {
     const item = mapArOpenInvoiceRow({
       DocEntry: 501,
       DocNum: 12045,
@@ -35,25 +65,18 @@ describe("overview open AR invoice mapping", () => {
     });
   });
 
-  it("maps legacy ODRF draft row (still supported)", () => {
-    const item = mapArInvoiceDraftRow({
-      DocEntry: 9001,
-      DocNum: 12045,
-      CardCode: "C1000",
-      CardName: "Ajax Trading",
-      DocTotal: 1500.5,
-      DocDate: "2026-07-01",
-      CreateDate: "2026-07-01",
-      UserSign: 3,
-      AgeDays: 3,
+  it("clamps AR draft page params (no hard total cap; max page size)", () => {
+    expect(clampArDraftPageParams({})).toEqual({
+      offset: 0,
+      limit: AR_DRAFT_PAGE_DEFAULT,
     });
-
-    expect(item).toMatchObject({
-      docEntry: 9001,
-      docNum: 12045,
-      isDraft: true,
-      status: "Draft",
-      wddCode: 9001,
+    expect(clampArDraftPageParams({ offset: -5, limit: 0 })).toEqual({
+      offset: 0,
+      limit: 1,
+    });
+    expect(clampArDraftPageParams({ offset: 80, limit: 500 })).toEqual({
+      offset: 80,
+      limit: AR_DRAFT_PAGE_MAX,
     });
   });
 });
