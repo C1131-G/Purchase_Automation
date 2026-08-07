@@ -1,3 +1,40 @@
+/**
+ * Resolve line UoM for create/edit hydrate.
+ * SAP often returns UoMCode "Manual" when UseBaseUnits is on; prefer real code
+ * from UoMEntry match or product sales/purchase UoM (same as RFQ "Each").
+ */
+export const resolveLineUomCode = (params: {
+  lineUomCode?: string | null | undefined;
+  lineUomEntry?: number | null | undefined;
+  product?: {
+    uomCode?: string | null | undefined;
+    purchaseUomCode?: string | null | undefined;
+    uomList?: Array<{ code: string; name?: string; uomEntry?: number | undefined }> | undefined;
+  } | null;
+}): string => {
+  const raw = String(params.lineUomCode ?? "").trim();
+  const isManual = !raw || /^manual$/i.test(raw);
+  if (!isManual) {
+    return raw;
+  }
+  const entry = Number(params.lineUomEntry);
+  if (Number.isFinite(entry) && entry > 0) {
+    const match = params.product?.uomList?.find((uom) => uom.uomEntry === entry);
+    if (match?.code) {
+      return String(match.code).trim();
+    }
+  }
+  const sales = String(params.product?.uomCode ?? "").trim();
+  if (sales && !/^manual$/i.test(sales)) {
+    return sales;
+  }
+  const purchase = String(params.product?.purchaseUomCode ?? "").trim();
+  if (purchase && !/^manual$/i.test(purchase)) {
+    return purchase;
+  }
+  return raw;
+};
+
 export const parseISODate = (value: string | undefined) => {
   if (!value) {
     return new Date();

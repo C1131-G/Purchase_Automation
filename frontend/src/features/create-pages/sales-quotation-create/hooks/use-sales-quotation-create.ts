@@ -25,6 +25,7 @@ import type {
 import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
+  resolveLineUomCode,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import {
   notifyCreateApiError,
@@ -358,26 +359,36 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
                 : Number(productMeta?.taxRate ?? 0),
             uomCode: (() => {
               const rawLine = line as any;
-              const code = String(
-                rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode ?? "",
-              ).trim();
-              if (code) return code;
               const entry = Number(rawLine.UoMEntry ?? rawLine.uomEntry ?? rawLine.UomEntry);
-              if (Number.isFinite(entry) && entry > 0) {
-                const match = productMeta?.uomList?.find((u) => u.uomEntry === entry);
-                if (match?.code) return match.code;
-              }
-              return String(productMeta?.uomCode ?? "").trim();
+              return resolveLineUomCode({
+                lineUomCode: rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode,
+                lineUomEntry: Number.isFinite(entry) ? entry : undefined,
+                product: productMeta
+                  ? {
+                      purchaseUomCode: productMeta.purchaseUomCode,
+                      uomCode: productMeta.uomCode,
+                      uomList: productMeta.uomList,
+                    }
+                  : null,
+              });
             })(),
             uomEntry: (() => {
               const rawLine = line as any;
               const entry = Number(rawLine.UoMEntry ?? rawLine.uomEntry ?? rawLine.UomEntry);
               if (Number.isFinite(entry) && entry > 0) return entry;
-              const code = String(
-                rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode ?? "",
-              ).trim();
-              if (code) {
-                const match = productMeta?.uomList?.find((u) => u.code === code);
+              const displayCode = resolveLineUomCode({
+                lineUomCode: rawLine.UoMCode ?? rawLine.uomCode ?? rawLine.UomCode,
+                lineUomEntry: Number.isFinite(entry) ? entry : undefined,
+                product: productMeta
+                  ? {
+                      purchaseUomCode: productMeta.purchaseUomCode,
+                      uomCode: productMeta.uomCode,
+                      uomList: productMeta.uomList,
+                    }
+                  : null,
+              });
+              if (displayCode) {
+                const match = productMeta?.uomList?.find((u) => u.code === displayCode);
                 if (match?.uomEntry !== undefined) return match.uomEntry;
               }
               return productMeta?.uomEntry;

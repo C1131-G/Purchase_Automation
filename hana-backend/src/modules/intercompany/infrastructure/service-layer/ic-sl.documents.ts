@@ -114,6 +114,7 @@ export const mergeDocumentLinesByLineNum = (
     "ItemDescription",
     "WarehouseCode",
     "UoMCode",
+    "UoMEntry",
     "UseBaseUnit",
     "ItemCode",
   ] as const;

@@ -13,7 +13,10 @@ import type {
   IcSlDocuments,
 } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { resolveDocumentSeries } from "@/modules/master-data/master-data.service";
-import { resolveUomEntryByCode } from "@/modules/master-data/master-data.warehouses-series.queries";
+import {
+  resolveUomOnTenant,
+  type ResolvedTenantUom,
+} from "@/modules/master-data/master-data.warehouses-series.queries";
 
 /** Resolve seller VatGroup for one SQ line (empty string → omit field). */
 export type ResolveSqLineTax = (input: {
@@ -53,11 +56,19 @@ export const buildSalesQuotationLines = async (
     /** WH for the document branch (all lines share this). */
     branchWarehouseCode?: string | null;
     /**
-     * Seller SAP DB — when set, resolve UoMEntry from OUOM for the source UoMCode.
+     * Seller SAP DB — when set, resolve UoMEntry on seller books for the RFQ UoMCode.
      * Without UoMEntry, Service Layer often posts Manual instead of Each/NOS/etc.
      */
     sapDbName?: string | null;
-    /** Optional UoMEntry resolver (injectable in unit tests). */
+    /**
+     * Optional UoM resolver (injectable in unit tests).
+     * Buyer UoMEntry is never trusted — always resolve on seller.
+     */
+    resolveUom?: (input: {
+      itemCode: string;
+      uomCode: string;
+    }) => Promise<ResolvedTenantUom | null>;
+    /** @deprecated Prefer resolveUom — kept for older unit tests. */
     resolveUomEntry?: (uomCode: string) => Promise<number | null>;
   },
 ): Promise<BuildSqLinesResult> => {
@@ -65,10 +76,20 @@ export const buildSalesQuotationLines = async (
   const documentLines: Record<string, unknown>[] = [];
   const taxUsage: IcLineTaxUsage[] = [];
   const sapDbName = options?.sapDbName?.trim() || null;
-  const resolveUomEntry =
-    options?.resolveUomEntry ??
-    (async (uomCode: string): Promise<number | null> =>
-      sapDbName ? resolveUomEntryByCode(sapDbName, uomCode) : null);
+  const resolveUom =
+    options?.resolveUom ??
+    (async (input: { itemCode: string; uomCode: string }): Promise<ResolvedTenantUom | null> => {
+      if (options?.resolveUomEntry) {
+        const entry = await options.resolveUomEntry(input.uomCode);
+        return {
+          uomCode: input.uomCode,
+          uomEntry: entry != null && entry > 0 ? entry : null,
+        };
+      }
+      return sapDbName
+        ? resolveUomOnTenant(sapDbName, { itemCode: input.itemCode, uomCode: input.uomCode })
+        : null;
+    });
 
   for (const line of lines) {
     // PQ tax = buyer RFQ/PQ purchase tax (source snapshot; never posted on seller SQ).
@@ -106,21 +127,18 @@ export const buildSalesQuotationLines = async (
       docLine.WarehouseCode = branchWh;
     }
 
-    // Keep source PQ/RFQ UoM. Do not overwrite with seller item SalUnitMsr.
-    // Prefer UoMEntry (stable across companies); fall back to OUOM lookup by code.
-    // Without UoMEntry, SAP often defaults the line UoM to Manual.
+    // Keep RFQ/PQ UoM code, but always re-resolve UoMEntry on seller SAP.
+    // Buyer UoMEntry is not portable; missing seller UoMEntry → SAP posts Manual.
     const sourceUom = line.uomCode?.trim() || null;
-    const knownEntry =
-      line.uomEntry != null && Number.isFinite(Number(line.uomEntry)) && Number(line.uomEntry) > 0
-        ? Math.trunc(Number(line.uomEntry))
-        : null;
-    if (sourceUom || knownEntry != null) {
-      if (sourceUom) {
-        docLine.UoMCode = sourceUom;
-      }
-      const resolvedEntry = knownEntry ?? (sourceUom ? await resolveUomEntry(sourceUom) : null);
-      if (resolvedEntry != null) {
-        docLine.UoMEntry = resolvedEntry;
+    if (sourceUom) {
+      const resolved = await resolveUom({
+        itemCode: String(line.itemCode ?? "").trim(),
+        uomCode: sourceUom,
+      });
+      const sellerCode = resolved?.uomCode?.trim() || sourceUom;
+      docLine.UoMCode = sellerCode;
+      if (resolved?.uomEntry != null && resolved.uomEntry > 0) {
+        docLine.UoMEntry = resolved.uomEntry;
       }
       docLine.UseBaseUnit = "tNO";
     }

@@ -28,4 +28,17 @@ describe("normalizeSAPLineData", () => {
     // PriceBefDi is preferred; normalized pre-discount price is exposed as Price
     expect(result.Price).toBe(100);
   });
+
+  it("replaces Manual UoMCode with MeasureUnit (inventory unit)", () => {
+    const result = normalizeSAPLineData({
+      ItemCode: "A001",
+      Quantity: 1,
+      Price: 10,
+      UoMCode: "Manual",
+      UoMEntry: -1,
+      MeasureUnit: "Each",
+    });
+
+    expect(result.UoMCode).toBe("Each");
+  });
 });

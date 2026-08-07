@@ -146,6 +146,8 @@ export const getOpenSalesQuotationLines = async (dbName: string, cardCode: strin
         '"l"."WhsCode"    AS "WarehouseCode"',
         '"l"."UomCode"    AS "UoMCode"',
         '"l"."UomEntry"   AS "UoMEntry"',
+        // Inventory / display unit when UomCode is Manual (UseBaseUnits).
+        '"l"."unitMsr"    AS "MeasureUnit"',
         '"l"."DiscPrcnt"  AS "DiscountPercent"',
         '"l"."LineTotal"  AS "LineTotal"',
       ])

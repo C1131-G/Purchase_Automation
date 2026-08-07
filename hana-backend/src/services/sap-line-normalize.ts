@@ -110,7 +110,29 @@ export const normalizeSAPLineData = (line: Record<string, unknown>) => {
     VatPrcnt: Number(
       line.TaxPercentagePerRow ?? line.TaxPercentagePerRow ?? line.VatPrcnt ?? line.vatPrcnt ?? 0,
     ),
-    UoMCode: line.UoMCode ?? line.uomCode ?? line.UomCode,
+    // Prefer real UoM code. SAP often returns UoMCode="Manual" (UoMEntry=-1) when
+    // UseBaseUnits is on; MeasureUnit / UnitsOfMeasurment still hold Each/NOS/etc.
+    UoMCode: (() => {
+      const raw = line.UoMCode ?? line.uomCode ?? line.UomCode;
+      const code = raw === undefined || raw === null ? "" : String(raw).trim();
+      if (code && !/^manual$/i.test(code)) {
+        return code;
+      }
+      const measure = String(
+        line.MeasureUnit ??
+          line.measureUnit ??
+          line.UnitsOfMeasurment ??
+          line.unitsOfMeasurment ??
+          line.InventoryUOM ??
+          line.inventoryUOM ??
+          line.unitMsr ??
+          "",
+      ).trim();
+      if (measure && !/^manual$/i.test(measure)) {
+        return measure;
+      }
+      return code || raw;
+    })(),
     UoMEntry:
       line.UoMEntry !== undefined || line.uomEntry !== undefined || line.UomEntry !== undefined
         ? Number(line.UoMEntry ?? line.uomEntry ?? line.UomEntry)

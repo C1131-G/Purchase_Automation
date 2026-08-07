@@ -103,12 +103,16 @@ describe("buildSalesQuotationLines warehouse", () => {
           taxCode: null,
           unitPrice: 1,
           uomCode: "Each",
-          uomEntry: 5,
+          // Buyer UoMEntry must not be trusted — seller resolver supplies entry.
+          uomEntry: 99,
           warehouse: null,
         },
       ],
       async () => "",
-      { branchWarehouseCode: "WH01" },
+      {
+        branchWarehouseCode: "WH01",
+        resolveUom: async ({ uomCode }) => ({ uomCode, uomEntry: 5 }),
+      },
     );
     expect(documentLines[0]?.UoMCode).toBe("Each");
     expect(documentLines[0]?.UoMEntry).toBe(5);
@@ -134,7 +138,32 @@ describe("buildSalesQuotationLines warehouse", () => {
 
     expect(documentLines[0]?.WarehouseCode).toBe("WH-PQ");
     expect(documentLines[0]?.UoMCode).toBe("BOX");
+    // No seller sapDbName / resolveUom → code only (entry resolved at create with sapDbName).
     expect(documentLines[0]?.UoMEntry).toBeUndefined();
+    expect(documentLines[0]?.UseBaseUnit).toBe("tNO");
+  });
+
+  it("does not trust buyer UoMEntry; uses seller-resolved entry only", async () => {
+    const { documentLines } = await buildSalesQuotationLines(
+      [
+        {
+          discount: 0,
+          itemCode: "SKU1",
+          lineNum: 0,
+          quantity: 1,
+          unitPrice: 10,
+          uomCode: "Each",
+          uomEntry: 1, // buyer books — must not pass through
+        },
+      ],
+      async () => "S1",
+      {
+        branchWarehouseCode: "W1",
+        resolveUom: async () => ({ uomCode: "Each", uomEntry: 42 }),
+      },
+    );
+    expect(documentLines[0]?.UoMCode).toBe("Each");
+    expect(documentLines[0]?.UoMEntry).toBe(42);
   });
 });
 

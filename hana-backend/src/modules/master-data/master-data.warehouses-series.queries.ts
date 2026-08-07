@@ -202,40 +202,118 @@ export const resolveItemSalesUom = async (
 };
 
 /**
- * Resolve OUOM.UomEntry for a UoM code on a tenant DB.
+ * Resolve OUOM.UomEntry for a UoM code (or name) on a tenant DB.
  * Required when posting SQ/AR with UoMCode only — without UoMEntry SAP often shows Manual.
  */
 export const resolveUomEntryByCode = async (
   dbName: string,
   uomCode: string,
 ): Promise<number | null> => {
+  const resolved = await resolveUomOnTenant(dbName, { uomCode });
+  return resolved?.uomEntry ?? null;
+};
+
+export type ResolvedTenantUom = {
+  uomCode: string;
+  uomEntry: number | null;
+};
+
+/**
+ * Resolve a line UoM on a specific SAP company DB (seller for IC SQ/AR).
+ * Buyer UoMEntry is not portable across companies — always re-resolve here.
+ *
+ * Order:
+ * 1) Item UoM group (UGP1) match by UoM code/name
+ * 2) Global OUOM by code/name
+ * 3) Item sales UoM (SalUnitMsr) when preferred code missing/unusable
+ */
+export const resolveUomOnTenant = async (
+  dbName: string,
+  params: { itemCode?: string | null; uomCode?: string | null },
+): Promise<ResolvedTenantUom | null> => {
   const db = dbName.trim();
-  const code = uomCode.trim();
-  if (!db || !code) {
+  const preferred = String(params.uomCode ?? "").trim();
+  const itemCode = String(params.itemCode ?? "").trim();
+  if (!db) {
     return null;
   }
   // Unit tests use memory IC SQL only — never open real tenant HANA for OUOM.
   if (process.env.VITEST === "true" || process.env.NODE_ENV === "test") {
     return null;
   }
+
+  const toResolved = (row: Record<string, unknown> | undefined): ResolvedTenantUom | null => {
+    if (!row) {
+      return null;
+    }
+    const code = toTrimmed(row.UomCode ?? row.uomCode);
+    const entryRaw = Number(row.UomEntry ?? row.uomEntry);
+    const uomEntry = Number.isFinite(entryRaw) && entryRaw > 0 ? Math.trunc(entryRaw) : null;
+    if (!code && uomEntry == null) {
+      return null;
+    }
+    return { uomCode: code || preferred, uomEntry };
+  };
+
   try {
-    const rows = (await executeTenantQuery(
-      db,
-      `SELECT TOP 1 "UomEntry" AS "UomEntry"
-         FROM "OUOM"
-        WHERE UPPER(TRIM("UomCode")) = UPPER(?)`,
-      [code],
-    )) as Array<Record<string, unknown>>;
-    const entryRaw = Number(rows[0]?.UomEntry ?? rows[0]?.uomEntry);
-    return Number.isFinite(entryRaw) && entryRaw > 0 ? Math.trunc(entryRaw) : null;
+    // 1) Prefer UoM that belongs to the item's UoM group on this company.
+    if (itemCode && preferred) {
+      const groupRows = (await executeTenantQuery(
+        db,
+        `SELECT TOP 1 ouom."UomEntry" AS "UomEntry", ouom."UomCode" AS "UomCode"
+           FROM "OITM" i
+           INNER JOIN "UGP1" ugp ON ugp."UgpEntry" = i."UgpEntry"
+           INNER JOIN "OUOM" ouom ON ouom."UomEntry" = ugp."UomEntry"
+          WHERE i."ItemCode" = ?
+            AND i."UgpEntry" IS NOT NULL
+            AND i."UgpEntry" > 0
+            AND (
+              UPPER(TRIM(ouom."UomCode")) = UPPER(?)
+              OR UPPER(TRIM(IFNULL(ouom."UomName", ''))) = UPPER(?)
+            )`,
+        [itemCode, preferred, preferred],
+      )) as Array<Record<string, unknown>>;
+      const fromGroup = toResolved(groupRows[0]);
+      if (fromGroup?.uomEntry != null) {
+        return fromGroup;
+      }
+    }
+
+    // 2) Global OUOM by code or name.
+    if (preferred) {
+      const ouomRows = (await executeTenantQuery(
+        db,
+        `SELECT TOP 1 "UomEntry" AS "UomEntry", "UomCode" AS "UomCode"
+           FROM "OUOM"
+          WHERE UPPER(TRIM("UomCode")) = UPPER(?)
+             OR UPPER(TRIM(IFNULL("UomName", ''))) = UPPER(?)`,
+        [preferred, preferred],
+      )) as Array<Record<string, unknown>>;
+      const fromOuom = toResolved(ouomRows[0]);
+      if (fromOuom?.uomEntry != null) {
+        return fromOuom;
+      }
+      // Keep code even when entry missing so caller can still post UoMCode.
+      if (fromOuom?.uomCode) {
+        return fromOuom;
+      }
+    }
+
+    // 3) Item sales default when preferred UoM cannot be mapped on seller.
+    if (itemCode) {
+      return resolveItemSalesUom(db, itemCode);
+    }
+
+    return preferred ? { uomCode: preferred, uomEntry: null } : null;
   } catch (err) {
     logger.warn({
       db,
       err,
-      msg: "Failed to resolve UoM entry from OUOM",
-      uomCode: code,
+      itemCode: itemCode || null,
+      msg: "Failed to resolve UoM on tenant",
+      uomCode: preferred || null,
     });
-    return null;
+    return preferred ? { uomCode: preferred, uomEntry: null } : null;
   }
 };
 
