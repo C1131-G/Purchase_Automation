@@ -36,12 +36,6 @@ export const DEFAULT_MAX_RETRY = 2;
 /** SAP B1 object type for A/R Invoice (Flow 2 posts /Drafts with this DocObjectCode). */
 export const SAP_OBJECT_TYPE_AR_INVOICE = "13";
 
-/**
- * Marketing-doc UDF U_Origin (OPQT / OQUT / OINV / …).
- * Stamped on every IC auto create/update via Service Layer.
- */
-export const IC_SAP_DOC_ORIGIN_PORTAL = "Portal";
-
 /** Retry / history action codes. */
 export const IC_ACTION = {
   FLOW1_CONVERT_PQ_SQ: "FLOW1_CONVERT_PQ_SQ",

@@ -3,10 +3,7 @@
  * Draft is always converted from seller Sales Quotation (BaseType 23) — never free-standing PO lines.
  */
 
-import {
-  IC_SAP_DOC_ORIGIN_PORTAL,
-  SAP_OBJECT_TYPE_AR_INVOICE,
-} from "@/modules/intercompany/infrastructure/constants";
+import { SAP_OBJECT_TYPE_AR_INVOICE } from "@/modules/intercompany/infrastructure/constants";
 import {
   buildFlow2ArRemarks,
   clampSapDocumentComments,
@@ -127,13 +124,11 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
 
   // A/R Invoice Draft body (POST /Drafts). DocObjectCode 13 = A/R Invoice object type.
   // Lines are BaseType 23 only — not free-standing ItemCode/VatGroup rows.
-  // U_Origin marks IC auto drafts as Portal-origin (same UDF as marketing docs).
   const payload: BuildArInvoiceResult = {
     CardCode: input.buyerCustomerCode,
     Comments: comments,
     DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,
     DocumentLines: documentLines,
-    U_Origin: IC_SAP_DOC_ORIGIN_PORTAL,
   };
 
   if (docDate) {
