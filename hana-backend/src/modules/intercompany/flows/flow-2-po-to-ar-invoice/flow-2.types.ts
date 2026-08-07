@@ -30,6 +30,8 @@ export type Flow2ArInvoicePayload = {
   Comments: string;
   NumAtCard?: string;
   BPL_IDAssignedToInvoice?: number;
+  /** OINV.U_Origin — Portal for IC auto-created A/R invoices. */
+  U_Origin: string;
   DocumentLines: Record<string, unknown>[];
 };
 

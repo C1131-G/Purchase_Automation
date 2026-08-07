@@ -4,6 +4,7 @@
 
 import type { ApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
 import { createApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
+import { IC_SAP_DOC_ORIGIN_PORTAL } from "@/modules/intercompany/infrastructure/constants";
 import {
   clampSapDocumentComments,
   mergeUserAndIcRemarks,
@@ -16,6 +17,14 @@ import { createIcSlClient, type IcSlClient } from "./ic-sl.client";
 import { createIcSlSessionService, type IcSlSessionService } from "./ic-sl.session";
 
 const SCOPE = IC_LOG_SCOPE.SL;
+
+/** Stamp U_Origin on every IC auto-written SAP marketing document (OPQT/OQUT/OINV/…). */
+const withPortalOrigin = <T extends Record<string, unknown>>(
+  body: T,
+): T & { U_Origin: string } => ({
+  ...body,
+  U_Origin: IC_SAP_DOC_ORIGIN_PORTAL,
+});
 
 export type CreateArInvoiceDraftInput = {
   companyId: number;
@@ -382,7 +391,9 @@ export const createIcSlDocuments = (deps?: {
           : [];
         const mergedLines = mergeDocumentLinesByLineNum(existingLines, input.documentLines);
 
-        const body: Record<string, unknown> = { DocumentLines: mergedLines };
+        const body: Record<string, unknown> = withPortalOrigin({
+          DocumentLines: mergedLines,
+        });
         // Never wipe original PQ Comments — merge user text + IC chain.
         if (input.comments != null && String(input.comments).trim()) {
           const existingComments =
@@ -517,7 +528,7 @@ export const createIcSlDocuments = (deps?: {
 
         const postEndpoint = "/PurchaseQuotations";
         const response = await client.request<{ DocEntry?: number; DocNum?: number }>({
-          body: rest,
+          body: withPortalOrigin(rest as Record<string, unknown>),
           connection,
           endpoint: postEndpoint,
           method: "POST",
@@ -714,7 +725,8 @@ export const createIcSlDocuments = (deps?: {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       // Real A/R Invoice (not Drafts) — preferably based on seller SQ (BaseType 23).
       const endpoint = "/Invoices";
-      const { DocObjectCode: _docObjectCode, ...invoiceBody } = input.draftPayload;
+      const { DocObjectCode: _docObjectCode, ...invoiceBodyRaw } = input.draftPayload;
+      const invoiceBody = withPortalOrigin({ ...invoiceBodyRaw });
       // SAP ODOC.Comments max 254 — clamp even if caller/retry payload is older/longer.
       if (invoiceBody.Comments != null) {
         invoiceBody.Comments = clampSapDocumentComments(String(invoiceBody.Comments));
@@ -817,11 +829,11 @@ export const createIcSlDocuments = (deps?: {
       // Prefer buyer vendor ref (parent NumAtCard). Never stuff full IC remarks into NumAtCard.
       const vendorRef = input.numAtCard != null ? String(input.numAtCard).trim() : "";
       const numAtCard = (vendorRef || "").slice(0, 100);
-      const body: Record<string, unknown> = {
+      const body: Record<string, unknown> = withPortalOrigin({
         CardCode: input.cardCode,
         Comments: remarksFull,
         DocumentLines: input.lines,
-      };
+      });
       if (numAtCard) {
         body.NumAtCard = numAtCard;
       }
@@ -867,6 +879,7 @@ export const createIcSlDocuments = (deps?: {
         outcome: "pass",
         remarks: input.remarks,
         series: body.Series ?? null,
+        uOrigin: body.U_Origin ?? null,
       });
 
       try {

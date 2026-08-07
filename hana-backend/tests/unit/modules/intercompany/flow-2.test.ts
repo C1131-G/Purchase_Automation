@@ -216,6 +216,8 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
     // Real A/R Invoice body — no DocObjectCode (Drafts only).
     expect(payload.DocObjectCode).toBeUndefined();
     expect(payload.CardCode).toBe("C-A-ON-B");
+    // OINV.U_Origin marks IC auto-created invoice as Portal.
+    expect(payload.U_Origin).toBe("Portal");
     // Existing remarks preserved; AR IC chain = PQ + RFQ + SQ (short).
     expect(payload.Comments).toContain("User note keep me");
     expect(payload.Comments).toContain("PQ 2042");

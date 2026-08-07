@@ -3,6 +3,7 @@
  * AR is always converted from seller Sales Quotation (BaseType 23) — never free-standing PO lines.
  */
 
+import { IC_SAP_DOC_ORIGIN_PORTAL } from "@/modules/intercompany/infrastructure/constants";
 import {
   buildFlow2ArRemarks,
   clampSapDocumentComments,
@@ -123,10 +124,12 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
 
   // Real invoice body — no DocObjectCode (that is only for Drafts).
   // Lines are BaseType 23 only — not free-standing ItemCode/VatGroup rows.
+  // U_Origin → OINV.U_Origin so SAP marks IC auto posts as Portal-origin.
   const payload: BuildArInvoiceResult = {
     CardCode: input.buyerCustomerCode,
     Comments: comments,
     DocumentLines: documentLines,
+    U_Origin: IC_SAP_DOC_ORIGIN_PORTAL,
   };
 
   if (docDate) {
