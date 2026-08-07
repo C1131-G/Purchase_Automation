@@ -10,7 +10,7 @@ Finance, purchasing, and sales operators at companies running SAP Business One. 
 
 ## Product Purpose
 
-**VEDHA ERP / Vendor Portal** is a modular monorepo (HANA backend + React frontend) that automates purchase document workflows against SAP HANA/Service Layer, with an intercompany (IC) module that chains **real buyer PQ → partner RFQ → PQ/SQ conversion** and **PO → partner A/R Invoice**—without ever failing the primary PO/PQ create path. Success looks like: operators complete IC flows from the portal (not Postman), unread IC activity is visible in the shell, and failed partner posts are recoverable via retry—not silent data loss.
+**VEDHA ERP / Vendor Portal** is a modular monorepo (HANA backend + React frontend) that automates purchase document workflows against SAP HANA/Service Layer, with an intercompany (IC) module that chains **real buyer PQ → partner RFQ → PQ/SQ conversion** and **PO → partner A/R Invoice Draft**—without ever failing the primary PO/PQ create path. Success looks like: operators complete IC flows from the portal (not Postman), unread IC activity is visible in the shell, and failed partner posts are recoverable via retry—not silent data loss.
 
 ## Brand Personality
 

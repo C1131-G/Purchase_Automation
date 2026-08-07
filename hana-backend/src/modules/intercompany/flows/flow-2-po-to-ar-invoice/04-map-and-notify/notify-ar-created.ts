@@ -44,8 +44,8 @@ export const createNotifyArCreated = (
     await notifications.create({
       companyId: params.partner.sellerCompany.companyId,
       documentId: params.targetDocEntry,
-      documentType: IC_OBJECT.AR_INVOICE,
-      flowStep: "FLOW2_AR_INVOICE_CREATED",
+      documentType: IC_OBJECT.AR_DRAFT,
+      flowStep: "FLOW2_AR_DRAFT_CREATED",
       message,
       priority: "MEDIUM",
       title: sellerName || arLabel,

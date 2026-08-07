@@ -19,13 +19,13 @@ Keep flow flags **off** until seed + SL login are verified.
 
 ## Feature flags (`IC_CONFIGURATION`)
 
-| Key                         | Value         | When                        |
-| --------------------------- | ------------- | --------------------------- |
-| `ENABLE_FLOW2_DIRECT_PO`    | `1`           | After PO → AR Invoice smoke |
-| `ENABLE_FLOW1_RFQ_CHAIN`    | `1`           | After RFQ chain smoke       |
-| `MAX_RETRY_COUNT`           | `2` (default) | Retry ceiling               |
-| `DETECT_DRAFT_CRON_MINUTES` | e.g. `5`      | Worker detect cadence       |
-| `REMARKS_PREFIX`            | `IC-`         | SAP remarks tags            |
+| Key                         | Value         | When                              |
+| --------------------------- | ------------- | --------------------------------- |
+| `ENABLE_FLOW2_DIRECT_PO`    | `1`           | After PO → AR Invoice Draft smoke |
+| `ENABLE_FLOW1_RFQ_CHAIN`    | `1`           | After RFQ chain smoke             |
+| `MAX_RETRY_COUNT`           | `2` (default) | Retry ceiling                     |
+| `DETECT_DRAFT_CRON_MINUTES` | e.g. `5`      | Worker detect cadence             |
+| `REMARKS_PREFIX`            | `IC-`         | SAP remarks tags                  |
 
 Recommended production order: **seed → worker up → enable Flow 2 → smoke → enable Flow 1 → smoke**.
 

@@ -11,7 +11,7 @@ Key layers: `routes/` (mount) → `modules/<feature>/` (controller → service �
 **Intercompany (IC):** modular monolith under `hana-backend/src/modules/intercompany/` (public wall `index.ts` only). Flows:
 
 - Flow 1: real PQ → RFQ → update PQ + seller SQ (`flows/flow-1-pq-rfq-chain/`)
-- Flow 2: PO → real A/R Invoice (`flows/flow-2-po-to-ar-invoice/`)
+- Flow 2: PO → partner A/R Invoice Draft (`flows/flow-2-po-to-ar-invoice/`)
 
 IC docs: `hana-backend/src/modules/intercompany/README.md` and `docs/`.
 

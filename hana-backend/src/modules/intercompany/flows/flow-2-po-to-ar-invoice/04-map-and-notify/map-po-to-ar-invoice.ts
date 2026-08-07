@@ -18,18 +18,19 @@ export const createMapPoToArInvoice = (
   documentMap: DocumentMapService = createDocumentMapService(),
 ) => {
   return async (params: MapPoToArInvoiceParams): Promise<IcDocumentMap> => {
+    // Prefer AR_DRAFT (current Flow 2); also find legacy AR_INVOICE map rows.
     const existing =
       (await documentMap.findBySource({
         sourceCompanyId: params.partner.buyerCompany.companyId,
         sourceDocEntry: params.sourceDocEntry,
         sourceObject: IC_OBJECT.PO,
-        targetObject: IC_OBJECT.AR_INVOICE,
+        targetObject: IC_OBJECT.AR_DRAFT,
       })) ??
       (await documentMap.findBySource({
         sourceCompanyId: params.partner.buyerCompany.companyId,
         sourceDocEntry: params.sourceDocEntry,
         sourceObject: IC_OBJECT.PO,
-        targetObject: IC_OBJECT.AR_DRAFT,
+        targetObject: IC_OBJECT.AR_INVOICE,
       }));
 
     if (existing && existing.status === IC_DOC_MAP_STATUS.SUCCESS) {
@@ -44,7 +45,7 @@ export const createMapPoToArInvoice = (
           errorMessage: null,
           targetDocEntry: params.targetDocEntry,
           targetDocNum: params.targetDocNum,
-          targetObject: IC_OBJECT.AR_INVOICE,
+          targetObject: IC_OBJECT.AR_DRAFT,
         },
       );
       if (updated) {
@@ -62,7 +63,7 @@ export const createMapPoToArInvoice = (
       targetCompanyId: params.partner.sellerCompany.companyId,
       targetDocEntry: params.targetDocEntry,
       targetDocNum: params.targetDocNum,
-      targetObject: IC_OBJECT.AR_INVOICE,
+      targetObject: IC_OBJECT.AR_DRAFT,
     });
   };
 };

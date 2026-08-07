@@ -1,6 +1,6 @@
 # HANA Backend
 
-SAP-connected Express service for Vendor Portal. It reads SAP HANA via TypeORM and `@sap/hana-client`, writes through SAP Service Layer, authenticates with file-backed sessions, exposes OpenAPI/Swagger, and hosts the **intercompany (IC)** modular feature (partner RFQ / A/R Invoice automation).
+SAP-connected Express service for Vendor Portal. It reads SAP HANA via TypeORM and `@sap/hana-client`, writes through SAP Service Layer, authenticates with file-backed sessions, exposes OpenAPI/Swagger, and hosts the **intercompany (IC)** modular feature (partner RFQ / A/R Invoice Draft automation).
 
 ## Purpose
 
@@ -176,10 +176,10 @@ Partner automation lives **only** in `src/modules/intercompany/`. Other modules 
 import { afterPoCreated, afterPqSaved, icRoutes } from "@/modules/intercompany";
 ```
 
-| Flow   | Trigger          | Partner outcome                   | Flag                     |
-| ------ | ---------------- | --------------------------------- | ------------------------ |
-| Flow 1 | `afterPqSaved`   | RFQ → update buyer PQ + seller SQ | `ENABLE_FLOW1_RFQ_CHAIN` |
-| Flow 2 | `afterPoCreated` | Real A/R Invoice                  | `ENABLE_FLOW2_DIRECT_PO` |
+| Flow   | Trigger          | Partner outcome                    | Flag                     |
+| ------ | ---------------- | ---------------------------------- | ------------------------ |
+| Flow 1 | `afterPqSaved`   | RFQ → update buyer PQ + seller SQ  | `ENABLE_FLOW1_RFQ_CHAIN` |
+| Flow 2 | `afterPoCreated` | A/R Invoice Draft (`POST /Drafts`) | `ENABLE_FLOW2_DIRECT_PO` |
 
 IC never fails the primary portal document save. Work is scheduled in the background (`accepted`).
 

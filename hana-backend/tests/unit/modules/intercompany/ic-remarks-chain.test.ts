@@ -132,7 +132,7 @@ describe("ic-remarks-chain", () => {
   it("formatIcDocLabel prefers document numbers", () => {
     expect(formatIcDocLabel({ kind: "PO", docNum: 188, docEntry: 88 })).toBe("PO No 188");
     expect(formatIcDocLabel({ kind: "RFQ", rfqNumber: "9001" })).toBe("RFQ 9001");
-    expect(formatIcDocLabel({ kind: "AR", docEntry: 9001 })).toBe("AR Invoice Entry 9001");
+    expect(formatIcDocLabel({ kind: "AR", docEntry: 9001 })).toBe("AR Invoice Draft Entry 9001");
   });
 
   it("ensureVendorRefInRemarks adds vendor ref once without dropping parent text", () => {

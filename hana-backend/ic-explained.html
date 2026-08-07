@@ -6,7 +6,7 @@
     <title>Intercompany (IC) Automation - Explained</title>
     <meta
       name="description"
-      content="Technical guide to Intercompany (IC): Flow 1 real PQ→RFQ→update PQ+SQ, Flow 2 PO→real AR Invoice, OVTG tax matching, IC_DOCUMENT_MAPPING, remarks chain, retry worker."
+      content="Technical guide to Intercompany (IC): Flow 1 real PQ→RFQ→update PQ+SQ, Flow 2 PO→AR Invoice Draft, OVTG tax matching, IC_DOCUMENT_MAPPING, remarks chain, retry worker."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -915,8 +915,8 @@
         The IC engine inside <code class="ic">hana-backend</code> links every SAP company in the
         group. A Purchase Quotation saved in Company A becomes an RFQ for Company B; after convert,
         the buyer PQ is updated and a seller Sales Quotation is created, and a Purchase Order
-        becomes a partner AR Invoice &mdash; automatically, with OVTG tax matching, relationship
-        maps, audit, notification and self-healing retry.
+        becomes a partner AR Invoice Draft &mdash; automatically, with OVTG tax matching,
+        relationship maps, audit, notification and self-healing retry.
       </p>
       <div class="hcta">
         <a href="#flow1" class="btn-p">See Flow 1 (RFQ Chain)</a>
@@ -1004,8 +1004,8 @@
           <div class="cc">
             <div class="ct">&#128279; Partner documents</div>
             <div class="cd">
-              Real SAP documents (SQ, AR Invoice) are created inside each company's own tenant DB
-              through the <b>SAP Service Layer</b>, logged in per company via
+              Real SAP documents (SQ, AR Invoice Draft) are created inside each company's own tenant
+              DB through the <b>SAP Service Layer</b>, logged in per company via
               <code class="ic">IC_SAP_CONNECTION</code>.
             </div>
           </div>
@@ -1297,8 +1297,8 @@
               <span class="tk">Use</span
               ><span class="tv"
                 >Rows like <code class="ic">PQ&rarr;RFQ</code>, <code class="ic">RFQ&rarr;SQ</code>,
-                <code class="ic">PO&rarr;AR_INVOICE</code> (legacy maps may still show
-                <code class="ic">PQ_DRAFT</code> / <code class="ic">AR_DRAFT</code>) with status
+                <code class="ic">PO&rarr;AR_DRAFT</code> (legacy maps may still show
+                <code class="ic">PQ_DRAFT</code> / <code class="ic">AR_INVOICE</code>) with status
                 <code class="ic">PENDING / SUCCESS / ERROR</code>, error text. Remarks on SAP docs
                 use <code class="ic">Based on …</code> lines (see
                 <a href="#remarks" style="color: #a78bfa">Remarks</a>). Unique index makes flows
@@ -1410,8 +1410,8 @@
             <div class="trow">
               <span class="tk">Use</span
               ><span class="tv"
-                >Written at each flow step (RFQ created, submitted, converted, AR Invoice posted,
-                retry attempted); read by ops/dashboards.</span
+                >Written at each flow step (RFQ created, submitted, converted, AR Invoice Draft
+                created, retry attempted); read by ops/dashboards.</span
               >
             </div>
             <div class="trow">
@@ -1435,7 +1435,8 @@
             <div class="trow">
               <span class="tk">Use</span
               ><span class="tv"
-                >Debugging failed SQ / AR Invoice creation; secrets are masked (<code class="ic"
+                >Debugging failed SQ / AR Invoice Draft creation; secrets are masked (<code
+                  class="ic"
                   >maskSecrets</code
                 >
                 strips passwords &amp; session cookies before persist).</span
@@ -1524,7 +1525,7 @@
             <summary>What is IC_DOCUMENT_MAPPING used for?</summary>
             <div class="faq-a">
               It is the <b>source of truth</b> for cross-company document links: PQ&rarr;RFQ,
-              RFQ&rarr;SQ, PO&rarr;AR_INVOICE (legacy rows may still show PQ_DRAFT / AR_DRAFT). The
+              RFQ&rarr;SQ, PO&rarr;AR_DRAFT (legacy rows may still show PQ_DRAFT / AR_INVOICE). The
               relationship map API and frontend hover UI read these rows. Each mapping stores
               source/target company, object code, doc entry/num, status and optional error text.
             </div>
@@ -1797,7 +1798,7 @@
 <span class="cm">                    └────────┬─────────┘</span>
                              <span class="cm">▼</span>
 <span class="cm">                    ┌──────────────────┐
-                    │</span> <span class="hl3">Service Layer</span>    <span class="cm">│</span>  <span class="cm">create SQ / AR Invoice in partner DB</span>
+                    │</span> <span class="hl3">Service Layer</span>    <span class="cm">│</span>  <span class="cm">create SQ / AR Invoice Draft in partner DB</span>
 <span class="cm">                    └────────┬─────────┘</span>
               ┌──────────────┴──────────────┐
               ▼                             ▼
@@ -1863,12 +1864,14 @@
         <div class="reveal">
           <span class="stag">05 &middot; Flow 2 &mdash; Direct PO Path</span>
           <div class="divider"></div>
-          <h2>Purchase Order &rarr; Partner AR Invoice</h2>
+          <h2>Purchase Order &rarr; Partner AR Invoice Draft</h2>
           <p class="ssub">
             When a <b>real (non-draft) PO</b> is posted in Company A with an IC vendor, the engine
-            immediately creates an <b>AR Invoice</b> in Company B &mdash; no RFQ chain needed. Gated
-            by <code class="ic">ENABLE_FLOW2_DIRECT_PO</code>. Both flags can be on at the same
-            time.
+            converts the seller Sales Quotation into an <b>AR Invoice Draft</b> in Company B (<code
+              class="ic"
+              >POST /Drafts</code
+            >, DocObjectCode 13). Gated by <code class="ic">ENABLE_FLOW2_DIRECT_PO</code>. Both
+            flags can be on at the same time.
           </p>
         </div>
         <div class="pf reveal">
@@ -1892,10 +1895,11 @@
           </div>
           <div class="pst">
             <div class="pi">&#128640;</div>
-            <div class="ptn">3 &middot; Post AR Invoice</div>
+            <div class="ptn">3 &middot; Post AR Invoice Draft</div>
             <div class="pss sv">auto</div>
             <div class="pts">
-              Service Layer creates the AR Invoice in Company B (session from IC_SL_SESSION).
+              Service Layer <code class="ic">POST /Drafts</code> creates the AR Invoice Draft in
+              Company B (session from IC_SL_SESSION), based on seller SQ.
             </div>
           </div>
           <div class="pst">
@@ -1903,7 +1907,7 @@
             <div class="ptn">4 &middot; Map + Notify</div>
             <div class="pss sd">auto</div>
             <div class="pts">
-              IC_DOCUMENT_MAPPING <code class="ic">PO&rarr;AR_INVOICE</code> = SUCCESS, history row,
+              IC_DOCUMENT_MAPPING <code class="ic">PO&rarr;AR_DRAFT</code> = SUCCESS, history row,
               notification to B (and A). Fail &rarr; retry queue.
             </div>
           </div>
@@ -1918,10 +1922,10 @@
             </tr>
             <tr>
               <td><b>1&ndash;3</b></td>
-              <td>PO create &rarr; AR Invoice</td>
+              <td>PO create &rarr; AR Invoice Draft</td>
               <td>
                 <code>IC_CONFIGURATION</code> <code>IC_COMPANY</code> <code>IC_BP_MAPPING</code>
-                <code>IC_SAP_CONNECTION</code> + seller OITM/OCRD tax
+                <code>IC_SAP_CONNECTION</code> + seller OITM/OCRD tax + seller SQ
               </td>
               <td>
                 <code>IC_DOCUMENT_MAPPING</code> <code>IC_NOTIFICATION</code>
@@ -1931,9 +1935,11 @@
             </tr>
             <tr>
               <td><b>&mdash;</b></td>
-              <td>AR Invoice already posted by IC</td>
+              <td>AR Invoice Draft already created by IC</td>
               <td><i>(none IC)</i></td>
-              <td>Real <code>POST /Invoices</code> in seller company &mdash; no ODRF draft step</td>
+              <td>
+                Seller SL <code>POST /Drafts</code> (ODRF ObjType 13) &mdash; not a posted OINV
+              </td>
             </tr>
           </table>
         </div>
@@ -1951,12 +1957,13 @@
           <details class="faq-item">
             <summary>Does Flow 2 need a prior RFQ?</summary>
             <div class="faq-a">
-              No. Flow 2 is independent: any posted PO with an IC vendor triggers AR Invoice
-              creation on the seller. Flow 1 and Flow 2 can both be enabled.
+              Flow 2 triggers on any posted PO with an IC vendor, but the draft body is
+              <b>copy-from seller SQ</b> (BaseType 23). Complete Flow 1 (or ensure PO remarks
+              include SQ) so open SQ lines exist. Flow 1 and Flow 2 can both be enabled.
             </div>
           </details>
           <details class="faq-item">
-            <summary>How is PO line tax mapped to AR Invoice?</summary>
+            <summary>How is PO line tax mapped to AR Invoice Draft?</summary>
             <div class="faq-a">
               Same OVTG rate engine as PQ&rarr;SQ: read buyer PO <code>VatGroup</code> on Company A
               OVTG (Category <code>I</code>), find seller OVTG with same <code>Rate</code> and
@@ -1967,9 +1974,9 @@
           <details class="faq-item">
             <summary>What SAP object is created in Company B?</summary>
             <div class="faq-a">
-              A real <b>A/R Invoice</b> via Service Layer <code>POST /Invoices</code> (ObjType 13).
-              Mapping object code is <code>AR_INVOICE</code> (legacy rows may still show
-              <code>AR_DRAFT</code>).
+              An <b>A/R Invoice Draft</b> via Service Layer <code>POST /Drafts</code> with
+              <code>DocObjectCode</code> 13 (ODRF, not posted OINV). Mapping object code is
+              <code>AR_DRAFT</code> (legacy rows may still show <code>AR_INVOICE</code>).
             </div>
           </details>
         </div>
@@ -2107,8 +2114,9 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
           <div class="cc">
             <div class="ct">&#128737;&#65039; What raises one</div>
             <div class="cd">
-              New RFQ for seller, RFQ submitted for buyer, SQ created, AR Invoice created, and every
-              retry attempt/exhaustion &mdash; each with PRIORITY (HIGH/MEDIUM) and a FLOW_STEP like
+              New RFQ for seller, RFQ submitted for buyer, SQ created, AR Invoice Draft created, and
+              every retry attempt/exhaustion &mdash; each with PRIORITY (HIGH/MEDIUM) and a
+              FLOW_STEP like
               <code class="ic">FLOW1_RFQ_CREATED</code>.
             </div>
           </div>
@@ -2163,9 +2171,9 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
             </tr>
             <tr>
               <td>
-                <code>FLOW2_CREATE_AR_DRAFT</code> <span class="cm">(historical action code)</span>
+                <code>FLOW2_CREATE_AR_DRAFT</code>
               </td>
-              <td>Re-post the real AR Invoice to the partner SL (<code>/Invoices</code>)</td>
+              <td>Re-post the AR Invoice Draft to the partner SL (<code>/Drafts</code>)</td>
               <td>Flow 2 steps 02&ndash;03</td>
             </tr>
             <tr>
@@ -2304,7 +2312,7 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
 
 <span class="cm"># Find seller sales tax on Company B with same rate:</span>
 <span class="hl3">SELECT "Code" FROM "OVTG" WHERE "Category" = 'O' AND "Rate" = 12.5</span>
-  → e.g. <span class="hl3">OUT-12.5</span> used on SQ / AR Invoice line
+  → e.g. <span class="hl3">OUT-12.5</span> used on SQ / AR Invoice Draft line
 
 <span class="cm"># Pure logic: map-ovtg-partner-tax.ts · HANA: partner-tax.masters.ts</span></pre>
         </div>
@@ -2363,16 +2371,16 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
               <td>Normal buyer PO posting</td>
             </tr>
             <tr>
-              <td><b>AR Invoice</b></td>
+              <td><b>AR Invoice Draft</b></td>
               <td>Seller</td>
               <td>Sales</td>
               <td>Same OVTG + fallback chain as SQ</td>
             </tr>
             <tr>
-              <td><b>AR Invoice (IC)</b></td>
+              <td><b>AR Invoice Draft (IC)</b></td>
               <td>Seller</td>
               <td>Sales</td>
-              <td>Posted by Flow 2 via SL <code>/Invoices</code></td>
+              <td>Created by Flow 2 via SL <code>/Drafts</code> (Obj 13)</td>
             </tr>
           </table>
         </div>
@@ -2437,7 +2445,7 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
             <div class="pss sv">IC_COMPANY</div>
             <div class="pts">
               <code class="ic">DEFAULT_BRANCH_ID</code> of the seller company &rarr; set as
-              <code class="ic">BPL_IDAssignedToInvoice</code> on the SQ / AR Invoice header.
+              <code class="ic">BPL_IDAssignedToInvoice</code> on the SQ / AR Invoice Draft header.
             </div>
           </div>
           <div class="pst">
@@ -2539,7 +2547,7 @@ relationship-map-hover.tsx       <span class="cm">table doc-number hover popup</
             <tr>
               <td><code>ENABLE_FLOW2_DIRECT_PO</code></td>
               <td>0</td>
-              <td>PO creates an AR Invoice even without a prior RFQ chain</td>
+              <td>PO creates an AR Invoice Draft (from seller SQ) on the partner company</td>
             </tr>
             <tr>
               <td><code>MAX_RETRY_COUNT</code></td>

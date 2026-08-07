@@ -1,9 +1,12 @@
 /**
- * Pure payload helpers for Flow 2 AR Invoice.
- * AR is always converted from seller Sales Quotation (BaseType 23) — never free-standing PO lines.
+ * Pure payload helpers for Flow 2 AR Invoice Draft.
+ * Draft is always converted from seller Sales Quotation (BaseType 23) — never free-standing PO lines.
  */
 
-import { IC_SAP_DOC_ORIGIN_PORTAL } from "@/modules/intercompany/infrastructure/constants";
+import {
+  IC_SAP_DOC_ORIGIN_PORTAL,
+  SAP_OBJECT_TYPE_AR_INVOICE,
+} from "@/modules/intercompany/infrastructure/constants";
 import {
   buildFlow2ArRemarks,
   clampSapDocumentComments,
@@ -44,7 +47,7 @@ export const isSqLineOpenForConvert = (line: SqBaseLineInput): boolean => {
 };
 
 /**
- * Map one open SQ line → AR Invoice DocumentLine based on SQ (SAP copy-to).
+ * Map one open SQ line → AR Invoice Draft DocumentLine based on SQ (SAP copy-to).
  * SAP pulls ItemCode, price, tax, UoM, warehouse from the base SQ line.
  */
 export const mapSqLineToArBaseLine = (params: {
@@ -53,11 +56,11 @@ export const mapSqLineToArBaseLine = (params: {
 }): Record<string, unknown> => {
   const lineNum = Math.trunc(Number(params.line.LineNum));
   if (!Number.isFinite(lineNum) || lineNum < 0) {
-    throw new Error(`IC AR convert: invalid SQ LineNum=${String(params.line.LineNum)}`);
+    throw new Error(`IC AR draft convert: invalid SQ LineNum=${String(params.line.LineNum)}`);
   }
   const baseEntry = Math.trunc(Number(params.sqDocEntry));
   if (!Number.isFinite(baseEntry) || baseEntry <= 0) {
-    throw new Error(`IC AR convert: invalid SQ DocEntry=${String(params.sqDocEntry)}`);
+    throw new Error(`IC AR draft convert: invalid SQ DocEntry=${String(params.sqDocEntry)}`);
   }
 
   const docLine: Record<string, unknown> = {
@@ -83,11 +86,11 @@ const isIcAutoNumAtCard = (value: string): boolean =>
   /^IC[-|]?(PQ|PO|RFQ|SQ|AR)\b/i.test(value.trim()) ||
   /^(?:auto\s+generated\s+)?based on\s+/i.test(value.trim());
 
-/** Build Service Layer A/R Invoice body: convert seller SQ → POST /Invoices. */
+/** Build Service Layer A/R Invoice Draft body: convert seller SQ → POST /Drafts. */
 export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoiceResult => {
   const sqDocEntry = Math.trunc(Number(input.sqDocEntry));
   if (!Number.isFinite(sqDocEntry) || sqDocEntry <= 0) {
-    throw new Error("IC Flow 2 requires seller SQ DocEntry to convert to A/R Invoice");
+    throw new Error("IC Flow 2 requires seller SQ DocEntry to convert to A/R Invoice Draft");
   }
 
   const openLines = (Array.isArray(input.sqLines) ? input.sqLines : []).filter(
@@ -95,7 +98,7 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
   );
   if (openLines.length === 0) {
     throw new Error(
-      `IC Flow 2: seller SQ DocEntry=${sqDocEntry} has no open lines to convert to A/R Invoice`,
+      `IC Flow 2: seller SQ DocEntry=${sqDocEntry} has no open lines to convert to A/R Invoice Draft`,
     );
   }
 
@@ -122,12 +125,13 @@ export const buildArInvoicePayload = (input: BuildArInvoiceInput): BuildArInvoic
     }),
   );
 
-  // Real invoice body — no DocObjectCode (that is only for Drafts).
+  // A/R Invoice Draft body (POST /Drafts). DocObjectCode 13 = A/R Invoice object type.
   // Lines are BaseType 23 only — not free-standing ItemCode/VatGroup rows.
-  // U_Origin → OINV.U_Origin so SAP marks IC auto posts as Portal-origin.
+  // U_Origin marks IC auto drafts as Portal-origin (same UDF as marketing docs).
   const payload: BuildArInvoiceResult = {
     CardCode: input.buyerCustomerCode,
     Comments: comments,
+    DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,
     DocumentLines: documentLines,
     U_Origin: IC_SAP_DOC_ORIGIN_PORTAL,
   };

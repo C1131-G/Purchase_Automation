@@ -4,7 +4,10 @@
 
 import type { ApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
 import { createApiLogService } from "@/modules/intercompany/infrastructure/api-log/api-log.service";
-import { IC_SAP_DOC_ORIGIN_PORTAL } from "@/modules/intercompany/infrastructure/constants";
+import {
+  IC_SAP_DOC_ORIGIN_PORTAL,
+  SAP_OBJECT_TYPE_AR_INVOICE,
+} from "@/modules/intercompany/infrastructure/constants";
 import {
   clampSapDocumentComments,
   mergeUserAndIcRemarks,
@@ -29,8 +32,8 @@ const withPortalOrigin = <T extends Record<string, unknown>>(
 export type CreateArInvoiceDraftInput = {
   companyId: number;
   /**
-   * Full Service Layer A/R Invoice body (CardCode, lines, …).
-   * Posted to `/Invoices` (real invoice, not draft). DocObjectCode is stripped if present.
+   * Full Service Layer A/R Invoice Draft body (CardCode, lines, …).
+   * Posted to `/Drafts` with DocObjectCode 13 (A/R Invoice Draft). Not a real OINV post.
    */
   draftPayload: Record<string, unknown>;
 };
@@ -47,7 +50,7 @@ export type CreateSalesQuotationInput = {
   numAtCard?: string | null;
   /**
    * Seller multi-branch companies require BPL_IDAssignedToInvoice (OQUT.BPLId).
-   * From IC_COMPANY.DEFAULT_BRANCH_ID (same as Flow 2 AR invoice).
+   * From IC_COMPANY.DEFAULT_BRANCH_ID (same as Flow 2 AR invoice draft).
    */
   defaultBranchId?: number | null;
   /**
@@ -194,7 +197,7 @@ export type DraftHeaderFields = {
   cardName?: string | null;
 };
 
-/** Seller SQ line snapshot for Flow 2 base conversion (POST /Invoices from OQUT). */
+/** Seller SQ line snapshot for Flow 2 base conversion (POST /Drafts from OQUT). */
 export type IcSalesQuotationLine = {
   LineNum: number;
   ItemCode?: string | null;
@@ -223,12 +226,12 @@ export type FindSalesQuotationByDocNumInput = {
 };
 
 export type IcSlDocuments = {
-  /** Create real A/R Invoice on seller (`POST /Invoices`). */
+  /** Create A/R Invoice Draft on seller (`POST /Drafts`, DocObjectCode 13). */
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
   createSalesQuotation: (input: CreateSalesQuotationInput) => Promise<IcSlDocumentResult>;
   /**
    * GET seller Sales Quotation for Flow 2 convert (BaseType 23).
-   * Used so AR Invoice is copy-from SQ, not a free-standing invoice.
+   * Used so AR Invoice Draft is copy-from SQ, not a free-standing invoice.
    */
   getSalesQuotation: (input: GetSalesQuotationInput) => Promise<IcSalesQuotationSnapshot>;
   /** Resolve seller SQ DocEntry when remarks only carry DocNum. */
@@ -248,7 +251,7 @@ export type IcSlDocuments = {
   getDraftComments: (input: GetDraftCommentsInput) => Promise<string | null>;
 };
 
-/** SAP BoObjectTypes: Sales Quotation (OQUT). Used as BaseType on AR Invoice lines. */
+/** SAP BoObjectTypes: Sales Quotation (OQUT). Used as BaseType on AR Invoice Draft lines. */
 export const SAP_OBJ_SALES_QUOTATION = 23;
 
 export const createIcSlDocuments = (deps?: {
@@ -724,10 +727,14 @@ export const createIcSlDocuments = (deps?: {
 
     createArInvoiceDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
-      // Real A/R Invoice (not Drafts) — preferably based on seller SQ (BaseType 23).
-      const endpoint = "/Invoices";
-      const { DocObjectCode: _docObjectCode, ...invoiceBodyRaw } = input.draftPayload;
-      const invoiceBody = withPortalOrigin({ ...invoiceBodyRaw });
+      // A/R Invoice Draft (ODRF) — preferably based on seller SQ (BaseType 23).
+      // Not a real posted invoice: human posts from draft in SAP / portal later.
+      const endpoint = "/Drafts";
+      const invoiceBody: Record<string, unknown> = withPortalOrigin({
+        ...input.draftPayload,
+        // SAP draft object type for A/R Invoice Draft (ODRF ObjType 13 / oInvoices).
+        DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,
+      });
       // SAP ODOC.Comments max 254 — clamp even if caller/retry payload is older/longer.
       if (invoiceBody.Comments != null) {
         invoiceBody.Comments = clampSapDocumentComments(String(invoiceBody.Comments));
@@ -738,6 +745,9 @@ export const createIcSlDocuments = (deps?: {
       const items = lines.map((line, index) => {
         const itemDescription = String(line.ItemDescription ?? line.Dscription ?? "").trim();
         const row: Record<string, unknown> = {
+          baseEntry: line.BaseEntry,
+          baseLine: line.BaseLine,
+          baseType: line.BaseType,
           itemCode: String(line.ItemCode ?? "").trim(),
           lineNum: line.LineNum ?? index,
           quantity: line.Quantity,
@@ -761,11 +771,12 @@ export const createIcSlDocuments = (deps?: {
         method: "POST",
       });
       // Full body only (no parallel items dump — DocumentLines already in payload).
-      icLog.info(SCOPE, "IC SL AR invoice request body", {
-        check: "sl_create_ar_invoice_request",
+      icLog.info(SCOPE, "IC SL AR invoice draft request body", {
+        check: "sl_create_ar_invoice_draft_request",
         companyId: input.companyId,
         databaseName: connection.databaseName,
-        arInvoicePayload: invoiceBody,
+        arInvoiceDraftPayload: invoiceBody,
+        docObjectCode: invoiceBody.DocObjectCode ?? null,
         method: "POST",
         outcome: "pass",
       });
@@ -788,8 +799,8 @@ export const createIcSlDocuments = (deps?: {
           statusCode: response.status,
         });
 
-        icLog.info(SCOPE, "IC SL AR invoice created", {
-          check: "sl_create_ar_invoice",
+        icLog.info(SCOPE, "IC SL AR invoice draft created", {
+          check: "sl_create_ar_invoice_draft",
           companyId: input.companyId,
           databaseName: connection.databaseName,
           docEntry: response.data?.DocEntry,

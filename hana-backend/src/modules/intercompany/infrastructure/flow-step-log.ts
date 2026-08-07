@@ -242,36 +242,36 @@ export const FLOW2_STEPS = {
   INPUT: { step: 2, total: FLOW2_TOTAL, title: "Flow 2 input snapshot" },
   CAPTURE: { step: 3, total: FLOW2_TOTAL, title: "Flow 2 capture & partner resolve" },
   PARTNER: { step: 4, total: FLOW2_TOTAL, title: "Flow 2 partner companies resolved" },
-  BUILD: { step: 5, total: FLOW2_TOTAL, title: "Flow 2 build AR invoice payload" },
-  PAYLOAD: { step: 6, total: FLOW2_TOTAL, title: "Flow 2 AR invoice SAP request body" },
-  POST: { step: 7, total: FLOW2_TOTAL, title: "Flow 2 post AR invoice to seller SAP" },
-  MAP_NOTIFY: { step: 8, total: FLOW2_TOTAL, title: "Flow 2 document map + notify" },
-  COMPLETE: { step: 9, total: FLOW2_TOTAL, title: "Flow 2 complete" },
+  BUILD: { step: 5, total: FLOW2_TOTAL, title: "Flow 2 build AR invoice draft payload" },
+  PAYLOAD: { step: 6, total: FLOW2_TOTAL, title: "Flow 2 AR invoice draft SAP request body" },
+  POST: { step: 7, total: FLOW2_TOTAL, title: "Flow 2 post AR invoice draft to seller SAP" },
+  MAP_NOTIFY: { step: 8, total: FLOW2_TOTAL, title: "Flow 2 document map + notify (AR draft)" },
+  COMPLETE: { step: 9, total: FLOW2_TOTAL, title: "Flow 2 complete — AR invoice draft" },
 } as const;
 
 /**
- * Retry of failed Flow 2 SL post (step 7). Same number as original failure.
+ * Retry of failed Flow 2 SL draft post (step 7). Same number as original failure.
  */
 export const FLOW2_RETRY_STEPS = {
   START: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry post AR invoice (step 7)",
+    title: "Flow 2 — retry post AR invoice draft (step 7)",
   },
   SUCCESS: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry AR invoice success (step 7)",
+    title: "Flow 2 — retry AR invoice draft success (step 7)",
   },
   FAIL: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry AR invoice failed (step 7)",
+    title: "Flow 2 — retry AR invoice draft failed (step 7)",
   },
   DEAD: {
     step: 7,
     total: FLOW2_TOTAL,
-    title: "Flow 2 — retry AR invoice dead (step 7)",
+    title: "Flow 2 — retry AR invoice draft dead (step 7)",
   },
 } as const;
 

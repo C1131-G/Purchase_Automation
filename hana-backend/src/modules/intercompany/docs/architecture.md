@@ -46,13 +46,13 @@ Unit tests can pass `{ runInBackground: false }` to run the orchestrator synchro
 
 ## Flow folder naming (canonical)
 
-| Folder                                 | Meaning                                      |
-| -------------------------------------- | -------------------------------------------- |
-| `flows/flow-1-pq-rfq-chain/`           | Real **PQ** → RFQ chain (not SAP draft)      |
-| `flows/flow-2-po-to-ar-invoice/`       | **PO** → real **A/R Invoice** (not AR draft) |
-| `api/hooks/after-pq-saved.hook.ts`     | Flow 1 trigger                               |
-| `api/hooks/after-po-created.hook.ts`   | Flow 2 trigger                               |
-| `background/jobs/01-detect-missed-pq/` | Worker catch-up for missed Flow 1            |
+| Folder                                 | Meaning                                                             |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| `flows/flow-1-pq-rfq-chain/`           | Real **PQ** → RFQ chain (not SAP draft)                             |
+| `flows/flow-2-po-to-ar-invoice/`       | **PO** → **A/R Invoice Draft** (`POST /Drafts`, based on seller SQ) |
+| `api/hooks/after-pq-saved.hook.ts`     | Flow 1 trigger                                                      |
+| `api/hooks/after-po-created.hook.ts`   | Flow 2 trigger                                                      |
+| `background/jobs/01-detect-missed-pq/` | Worker catch-up for missed Flow 1                                   |
 
 Legacy names (`*-draft*`, `afterPqDraftSaved`) may appear in historical map rows / deprecated exports; prefer the table above.
 

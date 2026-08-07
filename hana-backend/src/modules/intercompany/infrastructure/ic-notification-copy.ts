@@ -116,8 +116,8 @@ export const formatIcSqCreatedMessage = (params: {
 };
 
 /**
- * Seller AR invoice auto-created after buyer PO.
- * e.g. "RCM Trading: AR Invoice No 55 created automatically from AJAX Industries PO No 188"
+ * Seller AR invoice draft auto-created after buyer PO.
+ * e.g. "RCM Trading: AR Invoice Draft No 55 created automatically from AJAX Industries PO No 188"
  */
 export const formatIcArCreatedMessage = (params: {
   sellerCompanyName: string;

@@ -108,13 +108,14 @@ const createDefaultHandlers = (deps: {
   const flow2CreateArDraft: RetryActionHandler = async (item) => {
     const payload = parsePayload(item.payloadJson);
     const sellerCompanyId = Number(payload.sellerCompanyId);
-    // Prefer arInvoicePayload; keep draftPayload for older retry-queue rows.
-    const invoicePayload = payload.arInvoicePayload ?? payload.draftPayload;
+    // Prefer draft-named key; keep arInvoicePayload/draftPayload for older retry-queue rows.
+    const invoicePayload =
+      payload.arInvoiceDraftPayload ?? payload.arInvoicePayload ?? payload.draftPayload;
     if (!Number.isFinite(sellerCompanyId) || sellerCompanyId <= 0) {
-      throw new Error("FLOW2_CREATE_AR_INVOICE payload missing sellerCompanyId");
+      throw new Error("FLOW2_CREATE_AR_DRAFT payload missing sellerCompanyId");
     }
     if (!invoicePayload || typeof invoicePayload !== "object") {
-      throw new Error("FLOW2_CREATE_AR_INVOICE payload missing invoice body");
+      throw new Error("FLOW2_CREATE_AR_DRAFT payload missing AR invoice draft body");
     }
 
     const created = await deps.documents.createArInvoiceDraft({
@@ -127,11 +128,11 @@ const createDefaultHandlers = (deps: {
         errorMessage: null,
         targetDocEntry: String(created.docEntry),
         targetDocNum: created.docNum != null ? String(created.docNum) : null,
-        targetObject: IC_OBJECT.AR_INVOICE,
+        targetObject: IC_OBJECT.AR_DRAFT,
       });
     }
 
-    // Retry success: notify seller only (AR invoice handoff), same as live Flow 2.
+    // Retry success: notify seller only (AR draft handoff), same as live Flow 2.
     const arLabel = formatIcDocLabel({
       kind: "AR",
       docEntry: created.docEntry,
@@ -154,8 +155,8 @@ const createDefaultHandlers = (deps: {
     await deps.notifications.create({
       companyId: sellerCompanyId,
       documentId: String(created.docEntry),
-      documentType: IC_OBJECT.AR_INVOICE,
-      flowStep: "FLOW2_AR_INVOICE_CREATED",
+      documentType: IC_OBJECT.AR_DRAFT,
+      flowStep: "FLOW2_AR_DRAFT_CREATED",
       message: formatIcArCreatedMessage({
         arLabel,
         buyerCompanyName: buyerName,

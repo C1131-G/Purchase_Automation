@@ -26,7 +26,7 @@ const toPositiveInt = (value: string | number | null | undefined): number | null
 };
 
 /**
- * Resolve PQ + RFQ + SQ for AR remarks / convert base from PO Comments + document map.
+ * Resolve PQ + RFQ + SQ for AR draft remarks / convert base from PO Comments + document map.
  * Best-effort for PQ/RFQ; SQ DocEntry is required by the caller after this returns.
  */
 const resolveArRemarksChain = async (params: {
@@ -223,7 +223,7 @@ export const createBuildArInvoiceService = (deps?: {
           targetCompanyId,
         });
         throw new Error(
-          "IC Flow 2: seller Sales Quotation not found for this PO — cannot convert SQ to A/R Invoice (complete Flow 1 RFQ→SQ first, or ensure PO remarks include SQ)",
+          "IC Flow 2: seller Sales Quotation not found for this PO — cannot convert SQ to A/R Invoice Draft (complete Flow 1 RFQ→SQ first, or ensure PO remarks include SQ)",
         );
       }
 
@@ -271,10 +271,10 @@ export const createBuildArInvoiceService = (deps?: {
         sqLines,
       });
 
-      icLog.info(IC_LOG_SCOPE.FLOW2, "IC AR invoice built from seller SQ convert", {
+      icLog.info(IC_LOG_SCOPE.FLOW2, "IC AR invoice draft built from seller SQ convert", {
         branchId: branchCtx.branchId,
         branchSource: branchCtx.source,
-        check: "ar_from_sq_convert",
+        check: "ar_draft_from_sq_convert",
         defaultBranchId,
         lineCount: payload.DocumentLines.length,
         outcome: "pass",

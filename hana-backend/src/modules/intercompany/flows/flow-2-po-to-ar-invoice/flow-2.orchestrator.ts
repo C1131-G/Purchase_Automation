@@ -119,7 +119,7 @@ const summarizeArInvoicePayload = (arInvoicePayload: Record<string, unknown>) =>
     numAtCard: arInvoicePayload.NumAtCard,
     // SQ convert markers (23 = Sales Quotation).
     baseTypes: baseTypes.length > 0 ? baseTypes : undefined,
-    // Distinct AR tax codes used on this invoice (usually empty on convert — from base SQ).
+    // Distinct AR tax codes on this draft (usually empty on convert — from base SQ).
     arTaxCodes: vatGroups.length > 0 ? vatGroups : undefined,
     vatGroups: vatGroups.length > 0 ? vatGroups : undefined,
   });
@@ -191,8 +191,8 @@ export const createFlow2Orchestrator = (deps?: {
     logFlowStep(LOG_SCOPE, {
       step: 7,
       total: 9,
-      title: "Flow 2 post AR invoice failed — recovery",
-      check: "sl_post_ar_invoice_fail",
+      title: "Flow 2 post AR invoice draft failed — recovery",
+      check: "sl_post_ar_invoice_draft_fail",
       ctx: logCtx,
       detail: {
         errorMessage: errorMessage.slice(0, 2000),
@@ -205,17 +205,24 @@ export const createFlow2Orchestrator = (deps?: {
 
     let mappingId: number | undefined;
     try {
-      const existing = await documentMap.findBySource({
-        sourceCompanyId: partner.partner.buyerCompany.companyId,
-        sourceDocEntry: partner.sourceDocEntry,
-        sourceObject: IC_OBJECT.PO,
-        targetObject: IC_OBJECT.AR_INVOICE,
-      });
+      const existing =
+        (await documentMap.findBySource({
+          sourceCompanyId: partner.partner.buyerCompany.companyId,
+          sourceDocEntry: partner.sourceDocEntry,
+          sourceObject: IC_OBJECT.PO,
+          targetObject: IC_OBJECT.AR_DRAFT,
+        })) ??
+        (await documentMap.findBySource({
+          sourceCompanyId: partner.partner.buyerCompany.companyId,
+          sourceDocEntry: partner.sourceDocEntry,
+          sourceObject: IC_OBJECT.PO,
+          targetObject: IC_OBJECT.AR_INVOICE,
+        }));
 
       if (existing) {
         await documentMap.updateStatus(existing.mappingId, IC_DOC_MAP_STATUS.ERROR, {
           errorMessage: errorMessage.slice(0, 2000),
-          targetObject: IC_OBJECT.AR_INVOICE,
+          targetObject: IC_OBJECT.AR_DRAFT,
         });
         mappingId = existing.mappingId;
         logFlowStep(LOG_SCOPE, {
@@ -237,7 +244,7 @@ export const createFlow2Orchestrator = (deps?: {
           sourceRemarksTag: partner.remarksTag,
           status: IC_DOC_MAP_STATUS.ERROR,
           targetCompanyId: partner.partner.sellerCompany.companyId,
-          targetObject: IC_OBJECT.AR_INVOICE,
+          targetObject: IC_OBJECT.AR_DRAFT,
         });
         mappingId = created.mappingId;
         logFlowStep(LOG_SCOPE, {
@@ -290,7 +297,8 @@ export const createFlow2Orchestrator = (deps?: {
         maxRetry,
         nextRetryAt,
         payloadJson: JSON.stringify({
-          // New key for logs/operators; draftPayload kept for older retry workers.
+          // Prefer arInvoiceDraftPayload; arInvoicePayload/draftPayload kept for older retry workers.
+          arInvoiceDraftPayload: draftPayload,
           arInvoicePayload: draftPayload,
           draftPayload,
           remarksTag: partner.remarksTag,
@@ -371,7 +379,7 @@ export const createFlow2Orchestrator = (deps?: {
             hook: "afterPoCreated",
             isDraft: input.isDraft ?? false,
             sourceObject: IC_OBJECT.PO,
-            targetObject: IC_OBJECT.AR_INVOICE,
+            targetObject: IC_OBJECT.AR_DRAFT,
           },
         });
 
@@ -457,22 +465,22 @@ export const createFlow2Orchestrator = (deps?: {
         const arInvoiceSummary = summarizeArInvoicePayload(draftPayload as Record<string, unknown>);
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.BUILD,
-          check: "build_ar_invoice_done",
+          check: "build_ar_invoice_draft_done",
           ctx: logCtx,
           detail: {
             ...arInvoiceSummary,
             sellerCompanyId: captured.partner.sellerCompany.companyId,
             sellerSapDb: captured.partner.sellerCompany.sapDbName,
           },
-          title: "Flow 2 build AR invoice payload — done",
+          title: "Flow 2 build AR invoice draft payload — done",
         });
 
-        // One SAP body log (no duplicate items array — lines are inside arInvoicePayload).
+        // One SAP body log (no duplicate items array — lines are inside draft payload).
         logFlowStep(LOG_SCOPE, {
           ...FLOW2_STEPS.PAYLOAD,
           ctx: logCtx,
           detail: {
-            arInvoicePayload: draftPayload,
+            arInvoiceDraftPayload: draftPayload,
             sellerCompanyId: captured.partner.sellerCompany.companyId,
             sellerSapDb: captured.partner.sellerCompany.sapDbName,
           },
@@ -483,7 +491,8 @@ export const createFlow2Orchestrator = (deps?: {
             ...FLOW2_STEPS.POST,
             ctx: logCtx,
             detail: {
-              endpoint: "/Invoices",
+              endpoint: "/Drafts",
+              docObjectCode: "13",
               lineCount: arInvoiceSummary.lineCount,
               method: "POST",
               sellerCompanyId: captured.partner.sellerCompany.companyId,
@@ -498,13 +507,13 @@ export const createFlow2Orchestrator = (deps?: {
 
           logFlowStep(LOG_SCOPE, {
             ...FLOW2_STEPS.POST,
-            check: "sl_post_ar_invoice_done",
+            check: "sl_post_ar_invoice_draft_done",
             ctx: logCtx,
             detail: {
               targetDocEntry: created.docEntry,
               targetDocNum: created.docNum ?? null,
             },
-            title: "Flow 2 post AR invoice to seller SAP — done",
+            title: "Flow 2 post AR invoice draft to seller SAP — done",
           });
 
           logFlowStep(LOG_SCOPE, {
@@ -530,15 +539,16 @@ export const createFlow2Orchestrator = (deps?: {
 
           logFlowStep(LOG_SCOPE, {
             ...FLOW2_STEPS.MAP_NOTIFY,
-            check: "map_notify_done",
+            check: "map_notify_ar_draft_done",
             ctx: logCtx,
             detail: {
               mappingId: mapping.mappingId,
               mappingStatus: mapping.status,
               targetDocEntry: created.docEntry,
               targetDocNum: created.docNum ?? null,
+              targetObject: IC_OBJECT.AR_DRAFT,
             },
-            title: "Flow 2 document map + notify — done",
+            title: "Flow 2 document map + notify AR invoice draft — done",
           });
 
           logFlowStep(LOG_SCOPE, {
@@ -565,14 +575,14 @@ export const createFlow2Orchestrator = (deps?: {
             targetDoc: {
               entry: created.docEntry,
               num: created.docNum,
-              type: IC_OBJECT.AR_INVOICE,
+              type: IC_OBJECT.AR_DRAFT,
             },
           };
         } catch (slErr: unknown) {
           const errorMessage = slErr instanceof Error ? slErr.message : String(slErr);
-          icLog.error(LOG_SCOPE, "Flow 2 AR invoice post failed; PO remains created", {
+          icLog.error(LOG_SCOPE, "Flow 2 AR invoice draft post failed; PO remains created", {
             ...logCtx,
-            check: "sl_post_ar_invoice",
+            check: "sl_post_ar_invoice_draft",
             err: slErr instanceof Error ? slErr : new Error(errorMessage),
             items: arInvoiceSummary.items,
             outcome: "fail",

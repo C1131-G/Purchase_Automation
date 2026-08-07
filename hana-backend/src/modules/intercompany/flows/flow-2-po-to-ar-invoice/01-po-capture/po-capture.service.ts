@@ -130,20 +130,20 @@ export const createPoCaptureService = (deps?: {
           sourceCompanyId: partner.buyerCompany.companyId,
           sourceDocEntry,
           sourceObject: IC_OBJECT.PO,
-          targetObject: IC_OBJECT.AR_INVOICE,
+          targetObject: IC_OBJECT.AR_DRAFT,
         })) ??
         (await documentMap.findBySource({
           sourceCompanyId: partner.buyerCompany.companyId,
           sourceDocEntry,
           sourceObject: IC_OBJECT.PO,
-          targetObject: IC_OBJECT.AR_DRAFT,
+          targetObject: IC_OBJECT.AR_INVOICE,
         }));
 
       if (existing && existing.status === IC_DOC_MAP_STATUS.SUCCESS) {
         logFlowStep(SCOPE, {
           step: 3,
           total: 9,
-          title: "Flow 2 gate — AR invoice already mapped SUCCESS",
+          title: "Flow 2 gate — AR invoice draft already mapped SUCCESS",
           check: "already_mapped_success",
           ctx: base,
           detail: {

@@ -1,5 +1,5 @@
 // Open AR invoices (OINV DocStatus=O) for Overview open-work KPI + panel.
-// Flow 2 posts real A/R invoices — not ODRF drafts — so the list tracks open OINV.
+// Posted OINV only — IC Flow 2 creates A/R Invoice Drafts (ODRF), not open OINV rows.
 
 import { logger } from "@/core/logger/pino-logger";
 import { executeTenantQuery } from "@/db/tenant-query";
@@ -270,7 +270,7 @@ export function mapArOpenInvoiceRow(row: Record<string, unknown>): OverviewArApp
 
 /**
  * Open A/R invoices (OINV DocStatus = O).
- * Includes IC Flow 2 partner AR invoices and any open customer invoices.
+ * Posted customer invoices only (not IC Flow 2 ODRF drafts).
  * Soft-fails to empty when schema differs. No portal route — listed on the dashboard.
  */
 export async function loadArApprovalPending(dbName: string): Promise<OverviewArApprovalResult> {

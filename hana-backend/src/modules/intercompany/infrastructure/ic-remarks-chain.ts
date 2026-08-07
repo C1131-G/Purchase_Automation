@@ -11,7 +11,7 @@
  *   PQ after RFQ submit   → PQ + RFQ
  *   SQ                    → PQ + RFQ
  *   PO (from PQ)          → PQ + RFQ (inherited)
- *   AR invoice            → PQ + RFQ + SQ
+ *   AR invoice draft      → PQ + RFQ + SQ
  *
  * Legacy still parsed for merge/idempotency (never re-written unless key missing):
  *   PQ 8000586
@@ -455,10 +455,10 @@ export const formatIcDocLabel = (params: {
       return num != null ? `PO No ${num}` : entry != null ? `PO Entry ${entry}` : "PO";
     case "AR":
       return num != null
-        ? `AR Invoice No ${num}`
+        ? `AR Invoice Draft No ${num}`
         : entry != null
-          ? `AR Invoice Entry ${entry}`
-          : "AR Invoice";
+          ? `AR Invoice Draft Entry ${entry}`
+          : "AR Invoice Draft";
     default:
       return "Document";
   }
@@ -545,7 +545,7 @@ export const icLinkPo = (
   );
 
 /**
- * AR invoice link — only when a document number or entry is known.
+ * AR invoice draft link — only when a document number or entry is known.
  * Never mentions Flow 1/2.
  */
 export const icLinkArDraft = (
@@ -675,7 +675,7 @@ export const buildFlow1SqRemarks = (
 };
 
 /**
- * AR invoice Comments: keep PO user remarks + ensure PQ (buyer) + RFQ (seller) + SQ (seller).
+ * AR invoice draft Comments: keep PO user remarks + ensure PQ (buyer) + RFQ (seller) + SQ (seller).
  * Does not append PO or AR self-links.
  */
 export const buildFlow2ArRemarks = (

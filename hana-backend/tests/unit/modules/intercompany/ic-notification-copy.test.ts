@@ -59,12 +59,14 @@ describe("ic-notification-copy", () => {
 
     expect(
       formatIcArCreatedMessage({
-        arLabel: "AR Invoice No 55",
+        arLabel: "AR Invoice Draft No 55",
         buyerCompanyName: "AJAX Industries",
         poLabel: "PO No 188",
         sellerCompanyName: "RCM Trading",
       }),
-    ).toBe("RCM Trading: AR Invoice No 55 created automatically from AJAX Industries PO No 188");
+    ).toBe(
+      "RCM Trading: AR Invoice Draft No 55 created automatically from AJAX Industries PO No 188",
+    );
   });
 
   it("keeps legacy short helpers without Vendor/Customer", () => {

@@ -93,7 +93,7 @@ IC automates partner-company documents **without failing** the buyer’s primary
 | Flow       | Trigger               | Partner result                                   | Flag                     |
 | ---------- | --------------------- | ------------------------------------------------ | ------------------------ |
 | **Flow 1** | Real PQ create/update | Custom RFQ → seller fill → update PQ + create SQ | `ENABLE_FLOW1_RFQ_CHAIN` |
-| **Flow 2** | Real PO create        | Real A/R Invoice (`POST /Invoices`)              | `ENABLE_FLOW2_DIRECT_PO` |
+| **Flow 2** | Real PO create        | A/R Invoice Draft (`POST /Drafts`, Obj 13)       | `ENABLE_FLOW2_DIRECT_PO` |
 
 Hooks return `{ status: "accepted" }` and run orchestrators in the background. Config, maps, RFQs, notifications, and retries live in common-DB `IC_*` tables. Frontend surfaces: IC notifications/retries + Sales → Request For Quotation.
 
@@ -101,20 +101,20 @@ Full docs: [IC module README](./hana-backend/src/modules/intercompany/README.md)
 
 ## Package & Module Docs
 
-| Doc                      | Path                                                                                                                         |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Frontend                 | [frontend/README.md](./frontend/README.md)                                                                                   |
-| Zustand stores           | [frontend/src/store/README.md](./frontend/src/store/README.md)                                                               |
-| HANA backend             | [hana-backend/README.md](./hana-backend/README.md)                                                                           |
-| Intercompany module      | [hana-backend/src/modules/intercompany/README.md](./hana-backend/src/modules/intercompany/README.md)                         |
-| IC architecture          | […/intercompany/docs/architecture.md](./hana-backend/src/modules/intercompany/docs/architecture.md)                          |
-| IC data model & flows    | […/intercompany/docs/data-model-and-flows.md](./hana-backend/src/modules/intercompany/docs/data-model-and-flows.md)          |
-| IC deploy / worker       | […/intercompany/docs/deploy-and-ops.md](./hana-backend/src/modules/intercompany/docs/deploy-and-ops.md)                      |
-| Flow 1 (PQ → RFQ)        | […/flows/flow-1-pq-rfq-chain/README.md](./hana-backend/src/modules/intercompany/flows/flow-1-pq-rfq-chain/README.md)         |
-| Flow 2 (PO → AR Invoice) | […/flows/flow-2-po-to-ar-invoice/README.md](./hana-backend/src/modules/intercompany/flows/flow-2-po-to-ar-invoice/README.md) |
-| Visual IC guide          | [hana-backend/ic-explained.html](./hana-backend/ic-explained.html)                                                           |
-| Product                  | [PRODUCT.md](./PRODUCT.md)                                                                                                   |
-| Conventions              | [AGENTS.md](./AGENTS.md)                                                                                                     |
+| Doc                            | Path                                                                                                                         |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Frontend                       | [frontend/README.md](./frontend/README.md)                                                                                   |
+| Zustand stores                 | [frontend/src/store/README.md](./frontend/src/store/README.md)                                                               |
+| HANA backend                   | [hana-backend/README.md](./hana-backend/README.md)                                                                           |
+| Intercompany module            | [hana-backend/src/modules/intercompany/README.md](./hana-backend/src/modules/intercompany/README.md)                         |
+| IC architecture                | […/intercompany/docs/architecture.md](./hana-backend/src/modules/intercompany/docs/architecture.md)                          |
+| IC data model & flows          | […/intercompany/docs/data-model-and-flows.md](./hana-backend/src/modules/intercompany/docs/data-model-and-flows.md)          |
+| IC deploy / worker             | […/intercompany/docs/deploy-and-ops.md](./hana-backend/src/modules/intercompany/docs/deploy-and-ops.md)                      |
+| Flow 1 (PQ → RFQ)              | […/flows/flow-1-pq-rfq-chain/README.md](./hana-backend/src/modules/intercompany/flows/flow-1-pq-rfq-chain/README.md)         |
+| Flow 2 (PO → AR Invoice Draft) | […/flows/flow-2-po-to-ar-invoice/README.md](./hana-backend/src/modules/intercompany/flows/flow-2-po-to-ar-invoice/README.md) |
+| Visual IC guide                | [hana-backend/ic-explained.html](./hana-backend/ic-explained.html)                                                           |
+| Product                        | [PRODUCT.md](./PRODUCT.md)                                                                                                   |
+| Conventions                    | [AGENTS.md](./AGENTS.md)                                                                                                     |
 
 ## Conventions
 

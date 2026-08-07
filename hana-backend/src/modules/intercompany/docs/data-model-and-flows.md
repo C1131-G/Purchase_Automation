@@ -36,21 +36,21 @@ Tax: **no static tax code table**. Seller tax is resolved from **OVTG rate match
 Trigger: `afterPqSaved` on PQ create/update (background by default).  
 Orchestrator auto-runs 01→02→03. Steps 04/05 are user/API driven (submit may auto-convert).
 
-## Flow 2 — PO → A/R Invoice
+## Flow 2 — PO → A/R Invoice Draft
 
 **Folder:** `flows/flow-2-po-to-ar-invoice/`
 
-| Step | Folder                 | What                                          |
-| ---- | ---------------------- | --------------------------------------------- |
-| 01   | `01-po-capture/`       | Non-draft PO, IC vendor, flags, map check     |
-| 02   | `02-build-ar-invoice/` | Pure payload (customer, tax, branch, remarks) |
-| 03   | `03-post-ar-invoice/`  | Partner SL `POST /Invoices` (real invoice)    |
-| 04   | `04-map-and-notify/`   | Map `PO → AR_INVOICE`, history, notify        |
+| Step | Folder                 | What                                                  |
+| ---- | ---------------------- | ----------------------------------------------------- |
+| 01   | `01-po-capture/`       | Non-draft PO, IC vendor, flags, map check             |
+| 02   | `02-build-ar-invoice/` | SQ-based draft payload (customer, branch, remarks)    |
+| 03   | `03-post-ar-invoice/`  | Partner SL `POST /Drafts` (A/R Invoice Draft, Obj 13) |
+| 04   | `04-map-and-notify/`   | Map `PO → AR_DRAFT`, history, notify                  |
 
 Trigger: `afterPoCreated` after portal PO create (background by default).  
 Does **not** require a prior RFQ. Independent of Flow 1.
 
-Object codes: `IC_OBJECT.PO`, `IC_OBJECT.AR_INVOICE` (legacy map rows may still reference `AR_DRAFT`).
+Object codes: `IC_OBJECT.PO`, `IC_OBJECT.AR_DRAFT` (legacy map rows may still reference `AR_INVOICE`).
 
 ## Idempotency
 
@@ -58,4 +58,4 @@ Both flows check `IC_DOCUMENT_MAPPING` before creating partner docs. Successful 
 
 ## Remarks chain
 
-Human-readable IC lineage is appended into SAP `Comments` / portal remarks via `infrastructure/ic-remarks-chain.ts` (PQ ↔ RFQ ↔ SQ ↔ PO ↔ AR Invoice labels).
+Human-readable IC lineage is appended into SAP `Comments` / portal remarks via `infrastructure/ic-remarks-chain.ts` (PQ ↔ RFQ ↔ SQ ↔ PO ↔ AR Invoice Draft labels).

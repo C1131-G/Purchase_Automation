@@ -151,7 +151,7 @@ const createFlow2TestStack = (opts?: {
   };
 };
 
-describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
+describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
   it("T5.1 draft PO → skip", async () => {
     const { orchestrator } = createFlow2TestStack();
     const result = await orchestrator.run({
@@ -213,10 +213,10 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
       ],
     });
 
-    // Real A/R Invoice body — no DocObjectCode (Drafts only).
-    expect(payload.DocObjectCode).toBeUndefined();
+    // A/R Invoice Draft body — DocObjectCode 13 for POST /Drafts.
+    expect(payload.DocObjectCode).toBe("13");
     expect(payload.CardCode).toBe("C-A-ON-B");
-    // OINV.U_Origin marks IC auto-created invoice as Portal.
+    // U_Origin marks IC auto-created draft as Portal.
     expect(payload.U_Origin).toBe("Portal");
     // Existing remarks preserved; AR IC chain = PQ + RFQ + SQ (short).
     expect(payload.Comments).toContain("User note keep me");
@@ -602,16 +602,16 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice", () => {
 
     expect(result).toMatchObject({
       status: "success",
-      targetDoc: { entry: 9001, num: 501, type: IC_OBJECT.AR_INVOICE },
+      targetDoc: { entry: 9001, num: 501, type: IC_OBJECT.AR_DRAFT },
     });
     expect(stack.db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
     expect(stack.db.tables.IC_DOCUMENT_MAPPING[0].STATUS).toBe(IC_DOC_MAP_STATUS.SUCCESS);
     expect(stack.db.tables.IC_DOCUMENT_MAPPING[0].TARGET_DOC_ENTRY).toBe("9001");
-    expect(stack.db.tables.IC_DOCUMENT_MAPPING[0].TARGET_OBJECT).toBe(IC_OBJECT.AR_INVOICE);
-    // Seller only (AR invoice handoff); buyer is not notified on Flow 2 success.
+    expect(stack.db.tables.IC_DOCUMENT_MAPPING[0].TARGET_OBJECT).toBe(IC_OBJECT.AR_DRAFT);
+    // Seller only (AR draft handoff); buyer is not notified on Flow 2 success.
     expect(stack.db.tables.IC_NOTIFICATION).toHaveLength(1);
     expect(stack.db.tables.IC_NOTIFICATION[0].COMPANY_ID).toBe(2);
-    expect(stack.db.tables.IC_NOTIFICATION[0].FLOW_STEP).toBe("FLOW2_AR_INVOICE_CREATED");
+    expect(stack.db.tables.IC_NOTIFICATION[0].FLOW_STEP).toBe("FLOW2_AR_DRAFT_CREATED");
     expect(stack.db.tables.IC_SYNC_HISTORY.length).toBeGreaterThanOrEqual(1);
 
     expect(postedPayload).not.toBeNull();

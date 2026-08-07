@@ -1,7 +1,8 @@
 /** Object codes used in IC_DOCUMENT_MAPPING, notifications, retry actions. */
 export const IC_OBJECT = {
-  /** @deprecated Prefer AR_INVOICE — kept for legacy document-map rows. */
+  /** Flow 2 target: A/R Invoice Draft (ODRF ObjType 13). */
   AR_DRAFT: "AR_DRAFT",
+  /** @deprecated Prefer AR_DRAFT — kept for legacy real-invoice map rows. */
   AR_INVOICE: "AR_INVOICE",
   PO: "PO",
   PQ: "PQ",

@@ -1,6 +1,6 @@
 import type { Flow2ArInvoicePayload } from "../flow-2.types";
 
-/** Open seller SQ line used as BaseLine for AR Invoice convert. */
+/** Open seller SQ line used as BaseLine for AR Invoice Draft convert. */
 export type SqBaseLineInput = {
   LineNum: number;
   ItemCode?: string | null;
@@ -41,11 +41,11 @@ export type BuildArInvoiceInput = {
   pqDocEntry?: number | null;
   rfqNumber?: string | null;
   rfqId?: number | null;
-  /** Required — AR is always copy-from this seller SQ (BaseType 23). */
+  /** Required — AR draft is always copy-from this seller SQ (BaseType 23). */
   sqDocNum?: number | null;
   sqDocEntry: number;
   /**
-   * Seller SQ open lines. Each becomes one AR line with BaseType/BaseEntry/BaseLine.
+   * Seller SQ open lines. Each becomes one AR draft line with BaseType/BaseEntry/BaseLine.
    * Item/tax/UoM/warehouse come from the SQ in SAP — do not rebuild free-standing lines.
    */
   sqLines: SqBaseLineInput[];

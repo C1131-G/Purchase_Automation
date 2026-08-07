@@ -11,7 +11,7 @@ Two companies trade as buyer/seller. Operators work only in the portal; IC posts
 | Flow       | Buyer action                               | Partner result                                                                                              |
 | ---------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | **Flow 1** | Create/update **real Purchase Quotation**  | Custom **RFQ** in common DB → seller fills prices → **update buyer PQ** + **create seller Sales Quotation** |
-| **Flow 2** | Create **real Purchase Order** (non-draft) | Partner **A/R Invoice** via Service Layer `POST /Invoices` (not ODRF / AR draft)                            |
+| **Flow 2** | Create **real Purchase Order** (non-draft) | Partner **A/R Invoice Draft** via Service Layer `POST /Drafts` (`DocObjectCode` 13, based on seller SQ)     |
 
 Flows are **independent**: Flow 2 does not require a prior RFQ. Feature flags live in `IC_CONFIGURATION`.
 
@@ -92,7 +92,7 @@ Unit tests may pass `{ runInBackground: false }` to run the orchestrator synchro
 
 ### Flow 2 (fully automated)
 
-01 capture → 02 build payload → 03 `POST /Invoices` → 04 map + notify.
+01 capture → 02 build payload → 03 `POST /Drafts` (AR invoice draft) → 04 map + notify.
 
 ## Data model (common DB)
 
@@ -132,7 +132,7 @@ intercompany/
   infrastructure/               # object-codes, ic-sql, SL client, api-log, remarks
   flows/
     flow-1-pq-rfq-chain/        # PQ → RFQ → update PQ + SQ
-    flow-2-po-to-ar-invoice/    # PO → real AR Invoice
+    flow-2-po-to-ar-invoice/    # PO → AR Invoice Draft
     shared/
   background/
     jobs/
@@ -177,7 +177,7 @@ Worker env: `IC_WORKER_ONCE`, `IC_WORKER_INTERVAL_MS` (see [deploy-and-ops.md](.
 
 1. Seed `IC_*` (companies, SL connections, BP map) — flow flags **off** until verified
 2. Start API + worker
-3. Enable `ENABLE_FLOW2_DIRECT_PO` → smoke PO → AR Invoice
+3. Enable `ENABLE_FLOW2_DIRECT_PO` → smoke PO → AR Invoice Draft
 4. Enable `ENABLE_FLOW1_RFQ_CHAIN` → smoke PQ → RFQ → convert
 
 Details: [docs/deploy-and-ops.md](./docs/deploy-and-ops.md).
@@ -187,7 +187,7 @@ Details: [docs/deploy-and-ops.md](./docs/deploy-and-ops.md).
 - IC does not build the buyer’s primary PO/PQ SAP payload (document modules own that)
 - IC does not use TypeORM for live `IC_*` queries (raw SQL + entity placeholders only)
 - Pilot `intercompany-document-map` schema was removed; production map is `IC_DOCUMENT_MAPPING`
-- Flow 1 is **not** the SAP ODRF draft path; Flow 2 is **not** A/R Invoice Draft
+- Flow 1 is **not** the SAP ODRF draft path; Flow 2 posts **A/R Invoice Draft** only (`POST /Drafts`), not a real posted OINV
 
 ## Tests
 

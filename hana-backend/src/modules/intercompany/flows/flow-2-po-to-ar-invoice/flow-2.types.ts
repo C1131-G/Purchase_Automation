@@ -22,15 +22,15 @@ export type Flow2CaptureResult =
     };
 
 export type Flow2ArInvoicePayload = {
-  /** Only used by legacy draft posts; omitted for real `/Invoices`. */
-  DocObjectCode?: string;
+  /** Required for `POST /Drafts` — SAP object type 13 = A/R Invoice Draft. */
+  DocObjectCode: string;
   CardCode: string;
   DocDate?: string;
   DocDueDate?: string;
   Comments: string;
   NumAtCard?: string;
   BPL_IDAssignedToInvoice?: number;
-  /** OINV.U_Origin — Portal for IC auto-created A/R invoices. */
+  /** U_Origin — Portal for IC auto-created A/R invoice drafts. */
   U_Origin: string;
   DocumentLines: Record<string, unknown>[];
 };
