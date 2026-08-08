@@ -14,6 +14,7 @@ export {
 export {
   getSeries,
   getWarehouses,
+  getBusinessPlaces,
   getWarehouseBins,
   getSalesEmployees,
   getWarehouseBranch,

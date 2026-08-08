@@ -15,12 +15,15 @@ export interface GRPOHeaderState {
   docDate: string;
   docDueDate: string;
   warehouseCode: string;
+  /** SAP business place (BPLId). Auto from warehouse on multi-branch companies. */
+  branchId: number | null;
   referenceNo: string;
   remarks: string;
   referenceAutoFilled: boolean;
 }
 
 const getDefaultHeader = (): GRPOHeaderState => ({
+  branchId: null,
   docDate: getTodayISO(),
   docDueDate: getAutoDocDueDate(getTodayISO()),
   referenceAutoFilled: false,

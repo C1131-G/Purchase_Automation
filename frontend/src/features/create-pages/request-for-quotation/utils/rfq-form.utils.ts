@@ -207,7 +207,7 @@ export const discountPercentFromAmount = (
 
 /**
  * Build PUT body for seller fill.
- * - `requireAllPrices: true` (submit): every line must have a non-negative unit price + qty.
+ * - `requireAllPrices: true` (submit): every line needs unit price > 0, quoted qty > 0, quoted date.
  * - `requireAllPrices: false` (save): only lines with a unit price are sent (partial OK).
  */
 export const buildUpdateRfqLinesPayload = (
@@ -220,14 +220,11 @@ export const buildUpdateRfqLinesPayload = (
 
   for (const line of lines) {
     const unitPrice = parseOptionalNumber(line.unitPrice);
-    if (unitPrice === null) {
+    // Unchanged / empty price maps to null — 0 is not a filled quote price.
+    if (unitPrice === null || unitPrice <= 0) {
       if (requireAllPrices) {
         errors.push(`Line ${line.lineNum}: unit price is required`);
       }
-      continue;
-    }
-    if (unitPrice < 0) {
-      errors.push(`Line ${line.lineNum}: unit price cannot be negative`);
       continue;
     }
 
@@ -244,6 +241,11 @@ export const buildUpdateRfqLinesPayload = (
     }
 
     const deliveryDate = line.deliveryDate.trim();
+    if (requireAllPrices && !deliveryDate) {
+      errors.push(`Line ${line.lineNum}: quoted date is required`);
+      continue;
+    }
+
     payload.push({
       deliveryDate: deliveryDate || null,
       discount,
@@ -271,15 +273,12 @@ export const buildUpdateRfqLinesPayloadFromProductRows = (
 
   for (const row of rows) {
     const lineNum = row.lineNum ?? 0;
+    // Product rows default null SAP price to 0 — treat 0 as "not filled" on submit.
     const unitPrice = Number(row.price);
-    if (!Number.isFinite(unitPrice)) {
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
       if (requireAllPrices) {
         errors.push(`Line ${lineNum}: unit price is required`);
       }
-      continue;
-    }
-    if (unitPrice < 0) {
-      errors.push(`Line ${lineNum}: unit price cannot be negative`);
       continue;
     }
 
@@ -296,6 +295,11 @@ export const buildUpdateRfqLinesPayloadFromProductRows = (
     }
 
     const deliveryDate = String(row.quotedDate ?? "").trim();
+    if (requireAllPrices && !deliveryDate) {
+      errors.push(`Line ${lineNum}: quoted date is required`);
+      continue;
+    }
+
     payload.push({
       deliveryDate: deliveryDate || null,
       discount: Number.isFinite(discount) ? discount : 0,
@@ -309,7 +313,46 @@ export const buildUpdateRfqLinesPayloadFromProductRows = (
     errors.push("Enter at least one unit price before saving.");
   }
 
+  if (requireAllPrices && rows.length > 0 && payload.length === 0 && errors.length === 0) {
+    errors.push("Fill quoted quantity, quoted date, and price on all lines before submit.");
+  }
+
   return { errors, lines: payload };
+};
+
+/** True when every RFQ line has quoted qty, quoted date, and price for submit. */
+export const isRfqReadyToSubmit = (rows: ProductRow[]): boolean => {
+  if (rows.length === 0) {
+    return false;
+  }
+  return (
+    buildUpdateRfqLinesPayloadFromProductRows(rows, { requireAllPrices: true }).errors.length === 0
+  );
+};
+
+export type RfqSellerRequiredField = "price" | "quantity" | "quotedDate";
+
+/** Per-line missing quote fields (for red borders after submit attempt). */
+export type RfqLineFieldErrors = Record<string, Partial<Record<RfqSellerRequiredField, true>>>;
+
+export const getRfqLineFieldErrors = (rows: ProductRow[]): RfqLineFieldErrors => {
+  const result: RfqLineFieldErrors = {};
+  for (const row of rows) {
+    const fields: Partial<Record<RfqSellerRequiredField, true>> = {};
+    if (!Number.isFinite(Number(row.price)) || Number(row.price) <= 0) {
+      fields.price = true;
+    }
+    if (!Number.isFinite(Number(row.quantity)) || Number(row.quantity) <= 0) {
+      fields.quantity = true;
+    }
+    if (!String(row.quotedDate ?? "").trim()) {
+      fields.quotedDate = true;
+    }
+    if (Object.keys(fields).length > 0) {
+      result[row.id] = fields;
+    }
+  }
+  return result;
 };
 
 export const computeRfqProductTotals = (rows: ProductRow[]) => calculateOrderTotals(rows);

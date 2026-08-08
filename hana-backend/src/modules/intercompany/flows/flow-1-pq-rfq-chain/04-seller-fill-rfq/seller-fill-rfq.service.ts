@@ -259,22 +259,35 @@ export const createSellerFillRfqService = (
       });
 
       const lines = header.lines ?? [];
-      const missingPrice = lines.some(
-        (line) => line.unitPrice === null || line.unitPrice === undefined,
-      );
-      if (missingPrice) {
+      const incompleteLine = lines.find((line) => {
+        const unitPrice = line.unitPrice;
+        const quantity = Number(line.quantity);
+        const quotedDate = String(line.deliveryDate ?? "").trim();
+        const priceMissing =
+          unitPrice === null ||
+          unitPrice === undefined ||
+          !Number.isFinite(Number(unitPrice)) ||
+          Number(unitPrice) <= 0;
+        const qtyMissing = !Number.isFinite(quantity) || quantity <= 0;
+        const dateMissing = quotedDate.length === 0;
+        return priceMissing || qtyMissing || dateMissing;
+      });
+      if (incompleteLine) {
         logFlowStep(FLOW1_SCOPE, {
           ...FLOW1_FILL_STEPS.SUBMIT_START,
-          check: "rfq_missing_price",
+          check: "rfq_incomplete_quote",
           ctx: logCtx,
-          detail: { reason: "IC_RFQ_MISSING_PRICE" },
+          detail: {
+            lineNum: incompleteLine.lineNum,
+            reason: "IC_RFQ_INCOMPLETE_QUOTE",
+          },
           outcome: "fail",
-          title: "Flow 1 — seller submit blocked (missing price)",
+          title: "Flow 1 — seller submit blocked (incomplete quote)",
         });
         throw new AppError(
-          "All RFQ lines must have a unit price before submit",
+          "All RFQ lines must have quoted quantity, quoted date, and unit price before submit",
           400,
-          "IC_RFQ_MISSING_PRICE",
+          "IC_RFQ_INCOMPLETE_QUOTE",
         );
       }
 

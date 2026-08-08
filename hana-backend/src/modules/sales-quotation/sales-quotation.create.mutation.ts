@@ -7,10 +7,7 @@ import {
   resolveDocumentSeries,
   resolveItemSalesUom,
 } from "@/modules/master-data/master-data.service";
-import {
-  applyPoBranchToSapPayload,
-  resolvePoBranchId,
-} from "@/modules/purchase-order/temp-assign-po-branch";
+import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 
@@ -122,25 +119,16 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
       sapPayload.DocObjectCode = "23";
     }
 
-    // Multi-branch: prefer warehouse BPLid over default/payload branch when WH is set.
-    // Do not rewrite line WarehouseCode or UoM — only align document BPL + series.
+    // Multi-branch: payload → warehouse BPLid → default OBPL. Align series to branch.
     const documentLines = sapPayload.DocumentLines as Record<string, unknown>[];
     const firstWh = String(documentLines[0]?.WarehouseCode ?? "").trim() || null;
-    // Warehouse first so default branch (e.g. 1) switches when WH.BPLid differs.
-    let branchResolve = await resolvePoBranchId({
+    const branchResolve = await assignDocumentBranch({
       dbName: resolvedDbName,
-      payloadBranchId: null,
+      sapPayload,
+      clientPayload: payload,
       warehouseCode: firstWh,
+      logLabel: "Sales quotation branch assignment",
     });
-    if (branchResolve.branchId == null) {
-      branchResolve = await resolvePoBranchId({
-        dbName: resolvedDbName,
-        payloadBranchId:
-          payload.BPL_IDAssignedToInvoice ?? payload.BPLId ?? payload.branchId ?? null,
-        warehouseCode: null,
-      });
-    }
-    applyPoBranchToSapPayload(sapPayload, branchResolve.branchId);
 
     // Number series: align DocNum with SAP NNM1.NextNumber for this object + branch.
     const seriesResolve = await resolveDocumentSeries(resolvedDbName, "23", {
@@ -153,9 +141,8 @@ export const createSalesQuotation = async (sessionId: string, payload: Record<st
 
     logger.info({
       branchId: branchResolve.branchId,
-      branchSource: branchResolve.source,
       companyDB: resolvedDbName,
-      msg: "Sales quotation branch + series assignment",
+      msg: "Sales quotation series assignment",
       series: seriesResolve?.series ?? null,
       seriesNextNumber: seriesResolve?.nextNumber ?? null,
       seriesSource: seriesResolve?.source ?? null,

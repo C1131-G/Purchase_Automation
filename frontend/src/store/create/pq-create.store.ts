@@ -13,6 +13,8 @@ export interface PQHeaderState {
   /** Header Required Date (SAP RequriedDate) + line ReqDate source. Future dates only in UI. */
   requiredDate: string;
   warehouseCode: string;
+  /** SAP business place (BPLId). Auto from warehouse on multi-branch companies. */
+  branchId: number | null;
   referenceNo: string;
   comments: string;
 }
@@ -29,6 +31,7 @@ const getDefaultHeader = (): PQHeaderState => {
     docDate: today,
     docDueDate: autoDue,
     requiredDate: autoDue,
+    branchId: null,
     referenceNo: "",
     vendorCode: "",
     vendorName: "",

@@ -2,6 +2,7 @@
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
+import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
@@ -96,6 +97,14 @@ export const createCreditNote = async (
     if (isDraft) {
       sapPayload.DocObjectCode = "19";
     }
+
+    // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
+    await assignDocumentBranch({
+      dbName: resolvedDbName,
+      sapPayload,
+      clientPayload: payload,
+      logLabel: "AP Credit Memo branch assignment",
+    });
 
     // Date normalization to ensure SAP acceptance (YYYY-MM-DD).
     const docDate = sapPayload.DocDate as string;

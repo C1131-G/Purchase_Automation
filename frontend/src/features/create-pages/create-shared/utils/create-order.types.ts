@@ -5,7 +5,7 @@ import type {
   ProductLookupItem,
 } from "@/features/create-pages/create-shared/api/create-shared.types";
 
-export type PopupMode = "vendor-name" | "vendor-code" | "warehouse" | "sales-employee";
+export type PopupMode = "vendor-name" | "vendor-code" | "warehouse" | "sales-employee" | "branch";
 export type ActiveDatePicker = "doc" | "delivery" | "required" | null;
 
 export type CreateLookupOption = Pick<

@@ -268,6 +268,18 @@ export function GRPOCreate({
               warehouseErrorText={state.fieldErrors.warehouseCode}
               warehouseDisabled={state.isEditMode}
               warehouseCode={state.effectiveWarehouseCode}
+              showBranch={state.showBranch}
+              branchInput={state.branchInput}
+              branchesLoading={state.branchesQuery?.isLoading || isFormHydrating}
+              branchFocused={state.branchFocused}
+              branchSuggestions={state.branchSuggestions}
+              onBranchChange={state.handleBranchChange}
+              onBranchFocus={() => state.setBranchFocused(true)}
+              onBranchBlur={() => setTimeout(() => state.setBranchFocused(false), 120)}
+              onOpenBranchPopup={() => state.openPopup("branch")}
+              onSelectBranch={state.selectBranch}
+              branchPlaceholder={state.branchPlaceholder ?? "No Branch"}
+              branchDisabled={state.isEditMode || Boolean(state.branchDisabled)}
             />
           </div>
         </div>

@@ -4,7 +4,7 @@ import {
 } from "@/modules/intercompany/infrastructure/constants";
 import {
   getIcSqlClient,
-  toNumber,
+  insertAndReadIdentity,
   type IcSqlClient,
 } from "@/modules/intercompany/infrastructure/ic-sql";
 
@@ -40,7 +40,8 @@ export const createRetryMutations = (sql: IcSqlClient = getIcSqlClient()): Retry
   },
 
   insert: async (input) => {
-    await sql.query(
+    const retryId = await insertAndReadIdentity(
+      sql,
       `INSERT INTO "IC_RETRY_QUEUE"
         ("COMPANY_ID","DOC_MAPPING_ID","SOURCE_DOCUMENT","TARGET_DOCUMENT",
          "ACTION_CODE","PAYLOAD_JSON","ERROR_MESSAGE","RETRY_COUNT","MAX_RETRY",
@@ -58,8 +59,6 @@ export const createRetryMutations = (sql: IcSqlClient = getIcSqlClient()): Retry
         input.nextRetryAt ?? null,
       ],
     );
-    const idRows = await sql.query(`SELECT CURRENT_IDENTITY_VALUE() AS "ID" FROM DUMMY`);
-    const retryId = toNumber(idRows[0]?.ID ?? idRows[0]?.id);
     const created = await fetch(sql, retryId);
     if (!created) {
       throw new Error(`IC_RETRY_QUEUE insert failed id=${retryId}`);

@@ -214,6 +214,17 @@ export type FindSalesQuotationByDocNumInput = {
   docNum: number;
 };
 
+export type FindSalesQuotationByIcChainInput = {
+  companyId: number;
+  /** Seller-side customer (buyer BP on seller company). */
+  cardCode: string;
+  /**
+   * Tokens expected in SQ Comments (e.g. PQ DocNum, RFQ number, "Based on PQ 5001106").
+   * First match wins (newest DocEntry first).
+   */
+  remarkTokens: string[];
+};
+
 export type IcSlDocuments = {
   /** Create A/R Invoice Draft on seller (`POST /Drafts`, DocObjectCode 13). */
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
@@ -226,6 +237,13 @@ export type IcSlDocuments = {
   /** Resolve seller SQ DocEntry when remarks only carry DocNum. */
   findSalesQuotationByDocNum: (
     input: FindSalesQuotationByDocNumInput,
+  ) => Promise<IcSalesQuotationSnapshot | null>;
+  /**
+   * Best-effort Flow 2 recovery: find seller SQ by customer + IC remarks chain tokens
+   * when IC_DOCUMENT_MAPPING RFQ→SQ is missing or ERROR without target.
+   */
+  findSalesQuotationByIcChain: (
+    input: FindSalesQuotationByIcChainInput,
   ) => Promise<IcSalesQuotationSnapshot | null>;
   /** @deprecated Not used by Flow 1 convert (PQ already exists). */
   convertDraftToDocument: (params: ConvertDraftToDocumentInput) => Promise<IcSlDocumentResult>;
@@ -712,6 +730,130 @@ export const createIcSlDocuments = (deps?: {
         });
         return null;
       }
+    },
+
+    findSalesQuotationByIcChain: async (input) => {
+      const cardCode = String(input.cardCode ?? "").trim();
+      const tokens = (input.remarkTokens ?? [])
+        .map((token) => String(token ?? "").trim())
+        .filter((token) => token.length > 0);
+      if (!cardCode || tokens.length === 0) {
+        return null;
+      }
+
+      const escapeODataString = (value: string): string => value.replace(/'/g, "''");
+      const cardEsc = escapeODataString(cardCode);
+      const { connection, session: slSession } = await withCompanySession(input.companyId);
+
+      const loadByEntry = async (docEntry: number): Promise<IcSalesQuotationSnapshot | null> => {
+        try {
+          const fullEndpoint = `/Quotations(${Math.trunc(docEntry)})`;
+          const fullResponse = await client.request<Record<string, unknown>>({
+            connection,
+            endpoint: fullEndpoint,
+            method: "GET",
+            session: slSession,
+          });
+          const full = fullResponse.data ?? {};
+          const entry = Number(full.DocEntry ?? docEntry);
+          if (!Number.isFinite(entry) || entry <= 0) {
+            return null;
+          }
+          const docNumRaw = full.DocNum;
+          const docNum =
+            docNumRaw === undefined || docNumRaw === null ? undefined : Number(docNumRaw);
+          const rawLines = Array.isArray(full.DocumentLines)
+            ? (full.DocumentLines as Record<string, unknown>[])
+            : [];
+          const documentLines: IcSalesQuotationLine[] = rawLines.map((line, index) => {
+            const lineNum = Number(line.LineNum);
+            return {
+              ItemCode: line.ItemCode == null ? null : String(line.ItemCode).trim() || null,
+              LineNum: Number.isFinite(lineNum) ? Math.trunc(lineNum) : index,
+              LineStatus: line.LineStatus == null ? null : String(line.LineStatus).trim() || null,
+              Quantity:
+                line.Quantity == null || !Number.isFinite(Number(line.Quantity))
+                  ? null
+                  : Number(line.Quantity),
+              RemainingOpenQuantity:
+                line.RemainingOpenQuantity == null ||
+                !Number.isFinite(Number(line.RemainingOpenQuantity))
+                  ? null
+                  : Number(line.RemainingOpenQuantity),
+            };
+          });
+          const cardCodeRaw = full.CardCode;
+          return {
+            cardCode: cardCodeRaw == null ? null : String(cardCodeRaw).trim() || null,
+            docEntry: Math.trunc(entry),
+            docNum: Number.isFinite(docNum) ? docNum : undefined,
+            documentLines,
+          };
+        } catch {
+          return null;
+        }
+      };
+
+      // Prefer contains (newer SL); fall back to substringof (older B1 OData).
+      for (const token of tokens) {
+        const tokenEsc = escapeODataString(token);
+        const filterVariants = [
+          `CardCode eq '${cardEsc}' and contains(Comments,'${tokenEsc}')`,
+          `CardCode eq '${cardEsc}' and substringof('${tokenEsc}',Comments)`,
+        ];
+        for (const filter of filterVariants) {
+          const endpoint = `/Quotations?$filter=${filter}&$select=DocEntry,DocNum,CardCode,Comments&$orderby=DocEntry desc&$top=10`;
+          logSlRequest({
+            companyId: input.companyId,
+            endpoint,
+            method: "GET",
+          });
+          try {
+            const response = await client.request<{
+              value?: Array<Record<string, unknown>>;
+            }>({
+              connection,
+              endpoint,
+              method: "GET",
+              session: slSession,
+            });
+            const rows = Array.isArray(response.data?.value) ? response.data.value : [];
+            const tokenLower = token.toLowerCase();
+            for (const row of rows) {
+              const comments = String(row.Comments ?? "").toLowerCase();
+              if (comments && !comments.includes(tokenLower)) {
+                continue;
+              }
+              const entry = Number(row.DocEntry);
+              if (!Number.isFinite(entry) || entry <= 0) {
+                continue;
+              }
+              const loaded = await loadByEntry(entry);
+              if (loaded) {
+                icLog.info(SCOPE, "IC SL sales quotation resolved via remarks chain", {
+                  check: "sl_find_sq_by_ic_chain",
+                  companyId: input.companyId,
+                  docEntry: loaded.docEntry,
+                  docNum: loaded.docNum ?? null,
+                  outcome: "pass",
+                  token,
+                });
+                return loaded;
+              }
+            }
+          } catch (err: unknown) {
+            // Variant may be unsupported on this SL version — try the next.
+            logSlFailure({
+              companyId: input.companyId,
+              endpoint,
+              err,
+              method: "GET",
+            });
+          }
+        }
+      }
+
+      return null;
     },
 
     createArInvoiceDraft: async (input) => {

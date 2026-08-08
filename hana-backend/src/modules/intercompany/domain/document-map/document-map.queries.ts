@@ -68,13 +68,19 @@ export const createDocumentMapQueries = (
   },
 
   findBySource: async ({ sourceCompanyId, sourceObject, sourceDocEntry, targetObject }) => {
+    // Prefer SUCCESS + non-null target entry. Failed Flow 1 SQ rows (ERROR, empty
+    // TARGET_DOC_ENTRY) must not shadow a later SUCCESS map for the same RFQ→SQ key.
     if (targetObject) {
       const rows = await sql.query(
         `SELECT * FROM "IC_DOCUMENT_MAPPING"
           WHERE "SOURCE_COMPANY_ID" = ?
             AND "SOURCE_OBJECT" = ?
             AND "SOURCE_DOC_ENTRY" = ?
-            AND "TARGET_OBJECT" = ?`,
+            AND "TARGET_OBJECT" = ?
+          ORDER BY
+            CASE WHEN "STATUS" = 'SUCCESS' THEN 0 ELSE 1 END,
+            CASE WHEN "TARGET_DOC_ENTRY" IS NOT NULL AND "TARGET_DOC_ENTRY" <> '' THEN 0 ELSE 1 END,
+            "MAPPING_ID" DESC`,
         [sourceCompanyId, sourceObject, sourceDocEntry, targetObject],
       );
       return rows[0] ? mapDocumentMapRow(rows[0]) : null;
@@ -84,7 +90,10 @@ export const createDocumentMapQueries = (
         WHERE "SOURCE_COMPANY_ID" = ?
           AND "SOURCE_OBJECT" = ?
           AND "SOURCE_DOC_ENTRY" = ?
-        ORDER BY "MAPPING_ID" DESC`,
+        ORDER BY
+          CASE WHEN "STATUS" = 'SUCCESS' THEN 0 ELSE 1 END,
+          CASE WHEN "TARGET_DOC_ENTRY" IS NOT NULL AND "TARGET_DOC_ENTRY" <> '' THEN 0 ELSE 1 END,
+          "MAPPING_ID" DESC`,
       [sourceCompanyId, sourceObject, sourceDocEntry],
     );
     return rows[0] ? mapDocumentMapRow(rows[0]) : null;

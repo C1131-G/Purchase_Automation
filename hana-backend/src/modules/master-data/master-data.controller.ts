@@ -229,18 +229,12 @@ export const getWarehouseBins = async (req: Request, res: Response, next: NextFu
   }
 };
 
+/** SAP business places (OBPL.BPLId) for multi-branch document header. */
 export const getBranches = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
-    const { sessionId } = authReq.user;
-    const { serviceLayerClient } = await import("@/services/service-layer.service");
-    const distributionRulesResponse = await serviceLayerClient.request<{
-      value: Array<{ FactorCode: string; FactorDescription: string }>;
-    }>(sessionId, "GET", "/DistributionRules?$select=FactorCode,FactorDescription");
-    const branchOptions = distributionRulesResponse.value.map((row) => ({
-      Code: row.FactorCode,
-      Name: row.FactorDescription,
-    }));
+    const { dbName } = authReq.user;
+    const branchOptions = await masterDataService.getBusinessPlaces(dbName);
     res.status(200).json({ data: branchOptions, success: true });
   } catch (error) {
     next(error);

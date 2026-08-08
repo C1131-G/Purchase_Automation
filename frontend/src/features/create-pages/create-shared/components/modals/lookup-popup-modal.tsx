@@ -37,6 +37,7 @@ export function LookupPopupModal({
   onSelect,
 }: LookupPopupModalProps) {
   const modeMap: Record<PopupMode, LookupPopupMode> = {
+    branch: "branch",
     "sales-employee": "sales-employee",
     "vendor-code": "vendor-code",
     "vendor-name": "vendor-name",

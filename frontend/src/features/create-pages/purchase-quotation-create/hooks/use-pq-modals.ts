@@ -27,6 +27,9 @@ export function usePqModals() {
     if (mode === "sales-employee") {
       setModalSearch(getters.salesEmployeeInput || "");
     }
+    if (mode === "branch") {
+      setModalSearch(getters.branchInput || "");
+    }
     setModalOpen(true);
   };
 

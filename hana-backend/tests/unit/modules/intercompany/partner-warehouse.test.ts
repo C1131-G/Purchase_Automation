@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createPartnerWarehouseMasters } from "@/modules/intercompany/config/warehouse/partner-warehouse.masters";
+import {
+  createPartnerWarehouseMasters,
+  type PartnerWarehouseMasters,
+} from "@/modules/intercompany/config/warehouse/partner-warehouse.masters";
 import {
   buildSalesQuotationLines,
   createSellerSq,
@@ -51,7 +54,26 @@ describe("partner warehouse masters (branch-matched WH)", () => {
 
     expect(await masters.getWarehouseForBranch("RCM_DB", 1)).toBeNull();
     expect(await masters.getFirstActiveBranchWarehouse("RCM_DB")).toBeNull();
+    expect(await masters.getFirstActiveWarehouse("RCM_DB")).toBeNull();
+    expect(await masters.getDefaultObplBranch("RCM_DB")).toBeNull();
     expect(await masters.resolveWarehouseIfExists("RCM_DB", "X")).toBeNull();
+  });
+
+  it("any active WH works without BPLid (Ajax-style)", async () => {
+    const masters = createPartnerWarehouseMasters({
+      queryTenant: async () => [{ BPLid: null, WhsCode: "01" }],
+    });
+    await expect(masters.getFirstActiveWarehouse("AJAX_POS_DB")).resolves.toEqual({
+      branchId: null,
+      warehouseCode: "01",
+    });
+  });
+
+  it("getDefaultObplBranch reads first enabled place", async () => {
+    const masters = createPartnerWarehouseMasters({
+      queryTenant: async () => [{ BPLId: 2 }],
+    });
+    await expect(masters.getDefaultObplBranch("AJAX_POS_DB")).resolves.toBe(2);
   });
 });
 
@@ -413,5 +435,24 @@ describe("createSellerSq warehouse + branch", () => {
       source: "pq_warehouse",
       switchedFromDefault: true,
     });
+  });
+
+  it("resolveSqWarehouseContext uses any WH when buyer WH missing and no BPL on OWHS", async () => {
+    const masters: PartnerWarehouseMasters = {
+      getDefaultObplBranch: async () => null,
+      getFirstActiveBranchWarehouse: async () => null,
+      getFirstActiveWarehouse: async () => ({ branchId: null, warehouseCode: "01" }),
+      getWarehouseForBranch: async () => null,
+      resolveWarehouseIfExists: async () => null,
+    };
+    const ctx = await resolveSqWarehouseContext({
+      defaultBranchId: null,
+      pqWarehouseCode: "L101",
+      sapDbName: "AJAX_POS_DB",
+      warehouseMasters: masters,
+    });
+    expect(ctx.branchWarehouseCode).toBe("01");
+    expect(ctx.source).toBe("any_warehouse");
+    expect(ctx.branchId).toBeNull();
   });
 });

@@ -9,6 +9,7 @@ import type {
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import type { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import { notifyEditRestrictedField } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
+import type { RfqLineFieldErrors } from "@/features/create-pages/request-for-quotation/utils/rfq-form.utils";
 
 interface RfqProductSectionProps {
   productRows: ProductRow[];
@@ -23,7 +24,9 @@ interface RfqProductSectionProps {
   canEdit: boolean;
   canSubmit: boolean;
   isSubmitting: boolean;
+  /** API / network errors only — validation uses red field borders. */
   formError: string | null;
+  lineFieldErrors: RfqLineFieldErrors;
   onSubmit: () => void;
 }
 
@@ -45,6 +48,7 @@ export function RfqProductSection({
   canSubmit,
   isSubmitting,
   formError,
+  lineFieldErrors,
   onSubmit,
 }: RfqProductSectionProps) {
   const restricted = () => {
@@ -64,7 +68,7 @@ export function RfqProductSection({
         prefetchProducts={prefetchProducts}
         totals={totals}
         summaryCurrencyLabel={null}
-        createError={formError}
+        createError={null}
         warehouses={[]}
         warehousesLoading={false}
         enforceStockLimit={false}
@@ -75,6 +79,7 @@ export function RfqProductSection({
         rfqSellerFill
         disableLineInputs={!canEdit}
         onLineInputRestrictedClick={restricted}
+        lineFieldErrors={lineFieldErrors}
       />
 
       <div className="border-t border-zinc-100 px-4 py-3">
@@ -119,7 +124,7 @@ export function RfqProductSection({
               variant="outline"
               disabled={isSubmitting || productRows.length === 0}
               onClick={onSubmit}
-              className="group h-11 w-52 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer normal-case tracking-normal"
+              className="group h-11 w-52 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer normal-case tracking-normal disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? (
                 <>

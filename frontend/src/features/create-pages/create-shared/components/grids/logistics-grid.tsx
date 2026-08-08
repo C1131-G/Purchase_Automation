@@ -42,6 +42,23 @@ interface LogisticsGridProps {
   warehousePlaceholder?: string | undefined;
   warehouseDisabled?: boolean | undefined;
   warehouseCode?: string | undefined;
+
+  /** Multi-branch (OBPL): branch field; free lookup; empty when unset. */
+  showBranch?: boolean | undefined;
+  branchInput?: string | undefined;
+  branchesLoading?: boolean | undefined;
+  branchFocused?: boolean | undefined;
+  branchSuggestions?: CreateLookupOption[] | undefined;
+  onBranchChange?: ((value: string) => void) | undefined;
+  onBranchFocus?: (() => void) | undefined;
+  onBranchBlur?: (() => void) | undefined;
+  onOpenBranchPopup?: (() => void) | undefined;
+  onSelectBranch?: ((item: CreateLookupOption) => void) | undefined;
+  branchInvalid?: boolean | undefined;
+  branchErrorText?: string | undefined;
+  branchLabel?: string | undefined;
+  branchPlaceholder?: string | undefined;
+  branchDisabled?: boolean | undefined;
 }
 
 export function LogisticsGrid({
@@ -80,7 +97,24 @@ export function LogisticsGrid({
   warehousePlaceholder = "Select Warehouse",
   warehouseDisabled = false,
   warehouseCode: _warehouseCode,
+
+  showBranch = false,
+  branchInput = "",
+  branchesLoading = false,
+  branchFocused = false,
+  branchSuggestions = [],
+  onBranchChange = () => {},
+  onBranchFocus = () => {},
+  onBranchBlur = () => {},
+  onOpenBranchPopup = () => {},
+  onSelectBranch = () => {},
+  branchInvalid = false,
+  branchErrorText,
+  branchLabel = "BRANCH",
+  branchPlaceholder = "No Branch",
+  branchDisabled = false,
 }: LogisticsGridProps) {
+  // Order: Branch → Warehouse → Employee (doc number only when warehouse is hidden)
   return (
     <SectionCard title="DOCUMENT DETAILS" className="lg:col-span-1">
       {error ? (
@@ -89,6 +123,34 @@ export function LogisticsGrid({
         </div>
       ) : null}
       <div className="flex flex-col gap-4">
+        {showBranch ? (
+          <div className="relative">
+            <FieldBlock
+              label={branchLabel}
+              placeholder={branchPlaceholder}
+              value={branchInput}
+              onChange={onBranchChange}
+              onFocus={onBranchFocus}
+              onBlur={onBranchBlur}
+              onOpenPopup={onOpenBranchPopup}
+              loading={branchesLoading}
+              invalid={branchInvalid}
+              errorText={branchErrorText}
+              disabled={branchDisabled}
+              uniformReadOnlyAppearance={uniformReadOnlyAppearance}
+            />
+            {branchFocused ? (
+              <SuggestionList
+                items={branchSuggestions}
+                onSelect={onSelectBranch}
+                floating
+                showCode
+                query={branchInput}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
         {showWarehouseInsteadOfDocNum ? (
           <div className="relative">
             <FieldBlock

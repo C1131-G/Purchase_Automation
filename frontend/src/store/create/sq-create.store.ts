@@ -11,6 +11,8 @@ export interface SQHeaderState {
   docDate: string;
   docDueDate: string;
   warehouseCode: string;
+  /** SAP business place (BPLId). Auto from warehouse on multi-branch companies. */
+  branchId: number | null;
   referenceNo: string;
   comments: string;
 }
@@ -20,6 +22,7 @@ export interface SQHeaderState {
  * Store owns header only — no dead lines APIs.
  */
 const getDefaultHeader = (): SQHeaderState => ({
+  branchId: null,
   comments: "",
   docDate: getTodayISO(),
   docDueDate: getAutoDocDueDate(getTodayISO()),

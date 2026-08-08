@@ -1,7 +1,7 @@
 import { IC_RFQ_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import {
   getIcSqlClient,
-  toNumber,
+  insertAndReadIdentity,
   type IcSqlClient,
 } from "@/modules/intercompany/infrastructure/ic-sql";
 
@@ -40,7 +40,8 @@ const loadHeaderWithLines = async (
 
 export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMutations => ({
   insertFromDraft: async (input) => {
-    await sql.query(
+    const rfqId = await insertAndReadIdentity(
+      sql,
       `INSERT INTO "IC_RFQ_HEADER"
         ("RFQ_NUMBER","SOURCE_COMPANY_ID","TARGET_COMPANY_ID","PQ_DRAFT_DOC_ENTRY",
          "PQ_DRAFT_DOC_NUM","VENDOR_CODE","STATUS","REMARKS","CREATED_BY")
@@ -56,8 +57,6 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
         input.createdBy ?? null,
       ],
     );
-    const idRows = await sql.query(`SELECT CURRENT_IDENTITY_VALUE() AS "ID" FROM DUMMY`);
-    const rfqId = toNumber(idRows[0]?.ID ?? idRows[0]?.id);
 
     for (const line of input.lines) {
       await sql.query(

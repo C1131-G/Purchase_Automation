@@ -194,6 +194,8 @@ interface CreateProductTableRowProps {
    * Buyer snapshot fields (product, WH, UoM, required date/qty) stay locked.
    */
   rfqSellerFill?: boolean;
+  /** RFQ submit: highlight missing quoted qty / date / price (vendor-style red border). */
+  lineFieldInvalid?: { price?: boolean; quantity?: boolean; quotedDate?: boolean } | undefined;
 }
 
 export function CreateProductTableRow({
@@ -225,7 +227,14 @@ export function CreateProductTableRow({
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
   rfqSellerFill = false,
+  lineFieldInvalid,
 }: CreateProductTableRowProps) {
+  const invalidFieldClass =
+    "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200";
+  const normalFieldClass =
+    "border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200";
+  const normalTransparentFieldClass =
+    "border-transparent bg-zinc-50 hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200";
   const [warehouseInput, setWarehouseInput] = React.useState("");
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState("");
   const [warehouseFocused, setWarehouseFocused] = React.useState(false);
@@ -324,14 +333,20 @@ export function CreateProductTableRow({
       return;
     }
     const rect = anchor.getBoundingClientRect();
-    const calendarHeight = 320;
-    const calendarWidth = 280;
-    const margin = 6;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUpward = spaceBelow < calendarHeight && rect.top > calendarHeight;
-    const top = openUpward
-      ? Math.max(margin, rect.top - calendarHeight - margin)
-      : rect.bottom + margin;
+    // Prefer measured portal size after paint so the full calendar (6 weeks) fits.
+    const measured = lineCalendarPortalRef.current?.getBoundingClientRect();
+    const calendarHeight = measured && measured.height > 0 ? measured.height : 380;
+    const calendarWidth = measured && measured.width > 0 ? measured.width : 288;
+    const margin = 8;
+    // Product-row dates always open upward so the table/footer never covers days.
+    let top = rect.top - calendarHeight - margin;
+    const maxTop = Math.max(margin, window.innerHeight - calendarHeight - margin);
+    if (top < margin) {
+      top = margin;
+    }
+    if (top > maxTop) {
+      top = maxTop;
+    }
     const left = Math.max(margin, Math.min(rect.left, window.innerWidth - calendarWidth - margin));
     setLineCalendarStyle({
       position: "fixed",
@@ -346,6 +361,11 @@ export function CreateProductTableRow({
       return;
     }
     updateLineCalendarPosition();
+    // Second pass after portal paint for accurate height (avoids clipping last week).
+    const frameId = window.requestAnimationFrame(() => {
+      updateLineCalendarPosition();
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [lineDatePicker, row.requiredDate, row.quotedDate, updateLineCalendarPosition]);
 
   React.useEffect(() => {
@@ -1023,7 +1043,10 @@ export function CreateProductTableRow({
                     onClick={() => {
                       setLineDatePicker((prev) => (prev === "quoted" ? null : "quoted"));
                     }}
-                    className="relative flex h-9 w-full cursor-pointer items-center justify-start rounded-lg border border-zinc-200 bg-zinc-50 pl-2 pr-8 text-left text-xs text-zinc-800 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                    aria-invalid={lineFieldInvalid?.quotedDate === true}
+                    className={`relative flex h-9 w-full cursor-pointer items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs text-zinc-800 outline-none transition hover:bg-white ${
+                      lineFieldInvalid?.quotedDate ? invalidFieldClass : normalFieldClass
+                    }`}
                   >
                     <span className={row.quotedDate ? "text-zinc-800" : "text-zinc-400"}>
                       {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
@@ -1122,6 +1145,7 @@ export function CreateProductTableRow({
                 min={0}
                 step="any"
                 placeholder="0"
+                aria-invalid={lineFieldInvalid?.quantity === true}
                 value={
                   rowDraft?.quantity !== undefined
                     ? rowDraft.quantity
@@ -1144,7 +1168,9 @@ export function CreateProductTableRow({
                   });
                   clearProductRowDraft(row.id, "quantity");
                 }}
-                className="h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-zinc-800 outline-none transition ${
+                  lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
+                }`}
               />
             ) : (
               <input
@@ -1331,6 +1357,7 @@ export function CreateProductTableRow({
             step="0.01"
             inputMode="decimal"
             placeholder="0"
+            aria-invalid={lineFieldInvalid?.price === true}
             value={
               // Draft string while typing (so "0" is removable); otherwise show 0, not blank.
               rowDraft?.price !== undefined ? rowDraft.price : String(row.price ?? 0)
@@ -1360,7 +1387,9 @@ export function CreateProductTableRow({
               });
               clearProductRowDraft(row.id, "price");
             }}
-            className="h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+            className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-zinc-800 outline-none transition ${
+              lineFieldInvalid?.price ? invalidFieldClass : normalTransparentFieldClass
+            }`}
           />
         ) : (
           <span className="whitespace-nowrap text-left text-sm text-zinc-700">

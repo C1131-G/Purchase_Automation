@@ -6,6 +6,7 @@ import type { IcSapConnection } from "@/modules/intercompany/config/sap-connecti
 import { extractSessionId } from "@/core/utils/cookie-parser";
 import {
   getIcSqlClient,
+  insertAndReadIdentity,
   toNullableNumber,
   toNumber,
   toString,
@@ -59,7 +60,8 @@ export const createSqlSessionStore = (sql: IcSqlClient = getIcSqlClient()): IcSl
   },
 
   save: async (input) => {
-    await sql.query(
+    const sessionId = await insertAndReadIdentity(
+      sql,
       `INSERT INTO "IC_SL_SESSION"
         ("COMPANY_ID","CONNECTION_ID","SESSION_TOKEN","ROUTE_ID","LOGIN_TIME","EXPIRY_TIME")
        VALUES (?,?,?,?,?,?)`,
@@ -72,8 +74,6 @@ export const createSqlSessionStore = (sql: IcSqlClient = getIcSqlClient()): IcSl
         input.expiryTime.toISOString(),
       ],
     );
-    const idRows = await sql.query(`SELECT CURRENT_IDENTITY_VALUE() AS "ID" FROM DUMMY`);
-    const sessionId = toNumber(idRows[0]?.ID ?? idRows[0]?.id);
     return {
       companyId: input.companyId,
       connectionId: input.connectionId,

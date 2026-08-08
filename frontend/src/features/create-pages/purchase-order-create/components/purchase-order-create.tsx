@@ -270,6 +270,18 @@ export function PurchaseOrderCreate({
               warehouseInvalid={Boolean(state.productSearchFieldErrors.warehouseCode)}
               warehouseErrorText={state.productSearchFieldErrors.warehouseCode}
               warehouseDisabled={state.isClosed}
+              showBranch={state.showBranch}
+              branchInput={state.branchInput}
+              branchesLoading={state.branchesQuery?.isLoading || isFormHydrating}
+              branchFocused={state.branchFocused}
+              branchSuggestions={state.branchSuggestions}
+              onBranchChange={state.handleBranchChange}
+              onBranchFocus={() => state.setBranchFocused(true)}
+              onBranchBlur={() => setTimeout(() => state.setBranchFocused(false), 120)}
+              onOpenBranchPopup={() => state.openPopup("branch")}
+              onSelectBranch={state.selectBranch}
+              branchPlaceholder={state.branchPlaceholder ?? "No Branch"}
+              branchDisabled={state.isClosed || Boolean(state.branchDisabled)}
             />
           </div>
         </div>

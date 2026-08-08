@@ -32,6 +32,8 @@ import {
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
+import { documentBranchPayload } from "@/features/create-pages/create-shared/utils/document-branch";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -141,6 +143,24 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         })),
       );
     },
+  });
+
+  const setBranchId = useCallback(
+    (branchId: number | null) => {
+      setHeader({ branchId });
+    },
+    [setHeader],
+  );
+
+  const branchField = useDocumentBranchField({
+    warehouses: lookups.warehouses as Array<{
+      code: string;
+      name?: string;
+      branchId?: number | null;
+    }>,
+    warehouseCode: header.warehouseCode ?? lookups.effectiveWarehouseCode,
+    branchId: header.branchId,
+    setBranchId,
   });
 
   const productsHook = useSqProducts({
@@ -501,7 +521,9 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         ? lookups.vendors
         : modals.modalMode === "warehouse"
           ? lookups.warehouses
-          : lookups.salesEmployees
+          : modals.modalMode === "branch"
+            ? branchField.branches
+            : lookups.salesEmployees
     ) as ProductLookupItem[];
     if (!term) {
       return source;
@@ -534,12 +556,14 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     lookups.vendors,
     lookups.warehouses,
     lookups.salesEmployees,
+    branchField.branches,
     modals.modalSearch,
     modals.modalMode,
   ]);
 
   const openPopupWithContext = (mode: PopupMode) => {
     modals.openPopup(mode, {
+      branchInput: branchField.branchInput,
       codeInput: lookups.codeInput,
       nameInput: lookups.nameInput,
       salesEmployeeInput: lookups.salesEmployeeInput,
@@ -552,6 +576,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       return;
     }
     const nextSearch = getLookupInlineSearchByMode(modals.modalMode, {
+      branch: branchField.branchInput,
       salesEmployee: lookups.salesEmployeeInput,
       vendorCode: lookups.codeInput,
       vendorName: lookups.nameInput,
@@ -561,6 +586,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
       modals.setModalSearch(nextSearch);
     }
   }, [
+    branchField.branchInput,
     lookups.codeInput,
     lookups.nameInput,
     lookups.salesEmployeeInput,
@@ -570,6 +596,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
+      onBranch: branchField.handleBranchChange,
       onSalesEmployee: lookups.handleSalesEmployeeChange,
       onVendorCode: lookups.handleVendorCodeChange,
       onVendorName: lookups.handleVendorNameChange,
@@ -763,6 +790,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
       }));
 
+    const branchFields = documentBranchPayload(header.branchId ?? branchField.effectiveBranchId);
     const payload = isUpdating
       ? {
           Comments: header.comments.trim() || undefined,
@@ -776,6 +804,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             freeText: att.freeText || "",
             attachmentDate: att.attachmentDate || "",
           })),
+          ...branchFields,
         }
       : {
           Address: lookups.billToAddress.trim() || undefined,
@@ -794,6 +823,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             freeText: att.freeText || "",
             attachmentDate: att.attachmentDate || "",
           })),
+          ...branchFields,
         };
 
     const trackingAction = isDraftAction
@@ -1052,10 +1082,20 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
     ? !draftDocNum || hydratedDocNum === `${draftDocNum}_${draftDocEntry ?? ""}`
     : !editDocNum || hydratedDocNum === editDocNum;
 
+  const selectBranch = useCallback(
+    (item: { code: string; name: string }) => {
+      branchField.selectBranch(item);
+      modals.setModalOpen(false);
+    },
+    [branchField, modals],
+  );
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
+    ...branchField,
+    selectBranch,
     activeDatePicker,
     applyProductToRow: (product: ProductLookupItem) =>
       productsHook.applyProductToRow(product, {

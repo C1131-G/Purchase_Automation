@@ -1,6 +1,6 @@
 import {
   getIcSqlClient,
-  toNumber,
+  insertAndReadIdentity,
   type IcSqlClient,
 } from "@/modules/intercompany/infrastructure/ic-sql";
 
@@ -12,7 +12,8 @@ export type HistoryMutations = {
 
 export const createHistoryMutations = (sql: IcSqlClient = getIcSqlClient()): HistoryMutations => ({
   insert: async (input) => {
-    await sql.query(
+    const syncId = await insertAndReadIdentity(
+      sql,
       `INSERT INTO "IC_SYNC_HISTORY"
         ("COMPANY_ID","ACTION","DOCUMENT_TYPE","DOCUMENT_ENTRY","STATUS","DURATION_MS","RESPONSE_JSON")
        VALUES (?,?,?,?,?,?,?)`,
@@ -26,8 +27,6 @@ export const createHistoryMutations = (sql: IcSqlClient = getIcSqlClient()): His
         input.responseJson ?? null,
       ],
     );
-    const idRows = await sql.query(`SELECT CURRENT_IDENTITY_VALUE() AS "ID" FROM DUMMY`);
-    const syncId = toNumber(idRows[0]?.ID ?? idRows[0]?.id);
     return {
       action: input.action,
       companyId: input.companyId,

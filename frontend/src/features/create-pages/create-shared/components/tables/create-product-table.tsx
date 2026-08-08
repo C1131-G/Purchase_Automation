@@ -58,6 +58,10 @@ interface CreateProductTableProps {
    * Product, warehouse, UoM, required date/qty stay locked.
    */
   rfqSellerFill?: boolean;
+  /**
+   * RFQ submit validation: red borders on missing quoted qty / date / price per row id.
+   */
+  lineFieldErrors?: Record<string, { price?: boolean; quantity?: boolean; quotedDate?: boolean }>;
 }
 
 export function CreateProductTable({
@@ -89,6 +93,7 @@ export function CreateProductTable({
   showGLAccount = false,
   showPqLineDatesAndQtys = false,
   rfqSellerFill = false,
+  lineFieldErrors,
 }: CreateProductTableProps) {
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   const emptyColSpan =
@@ -205,6 +210,7 @@ export function CreateProductTable({
                   showGLAccount={showGLAccount}
                   showPqLineDatesAndQtys={showPqLineDatesAndQtys}
                   rfqSellerFill={rfqSellerFill}
+                  lineFieldInvalid={lineFieldErrors?.[row.id]}
                 />
               );
             })}

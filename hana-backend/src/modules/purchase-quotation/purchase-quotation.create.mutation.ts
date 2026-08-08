@@ -2,6 +2,7 @@
 
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
+import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 import { getDisplayCurrency, isUnresolvedCurrency } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
@@ -133,6 +134,14 @@ export const createPurchaseQuotation = async (
     if (isDraft) {
       sapPayload.DocObjectCode = "540000006";
     }
+
+    // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
+    await assignDocumentBranch({
+      dbName: resolvedDbName,
+      sapPayload,
+      clientPayload: payload,
+      logLabel: "PQ branch assignment",
+    });
 
     const docDate = sapPayload.DocDate as string;
     if (docDate && docDate.length === 8) {

@@ -12,10 +12,7 @@ import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPoCreated } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
-import {
-  applyPoBranchToSapPayload,
-  resolvePoBranchId,
-} from "@/modules/purchase-order/temp-assign-po-branch";
+import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const createPurchaseOrder = async (
@@ -144,21 +141,13 @@ export const createPurchaseOrder = async (
       sapPayload.DocObjectCode = "22";
     }
 
-    // TEMP: multi-branch companies (e.g. RCM) require BPL on PO; Ajax often has none → omit.
-    // See temp-assign-po-branch.ts — decide create-page vs auto later.
-    const firstWh = String(documentLines[0]?.WarehouseCode ?? "").trim() || null;
-    const branchResolve = await resolvePoBranchId({
+    // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL; omit when none (Ajax).
+    await assignDocumentBranch({
       dbName: resolvedDbName,
-      payloadBranchId: payload.BPL_IDAssignedToInvoice ?? payload.BPLId ?? payload.branchId ?? null,
-      warehouseCode: firstWh,
-    });
-    applyPoBranchToSapPayload(sapPayload, branchResolve.branchId);
-    logger.info({
-      branchId: branchResolve.branchId,
-      branchSource: branchResolve.source,
-      companyDB: resolvedDbName,
-      msg: "TEMP PO branch assignment",
-      warehouseCode: firstWh,
+      sapPayload,
+      clientPayload: payload,
+      warehouseCode: String(documentLines[0]?.WarehouseCode ?? "").trim() || null,
+      logLabel: "PO branch assignment",
     });
 
     // Formats DocDate into SAP-compliant YYYY-MM-DD.

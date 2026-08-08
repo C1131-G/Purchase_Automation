@@ -126,7 +126,18 @@ export const createMemorySqlClient = (
           row.SOURCE_OBJECT === sourceObject &&
           row.SOURCE_DOC_ENTRY === String(sourceDocEntry) &&
           row.TARGET_OBJECT === targetObject,
-      ).map(clone) as T[];
+      )
+        .sort((left, right) => {
+          const statusRank = (row: Row) => (row.STATUS === "SUCCESS" ? 0 : 1);
+          const targetRank = (row: Row) =>
+            row.TARGET_DOC_ENTRY != null && String(row.TARGET_DOC_ENTRY).trim() !== "" ? 0 : 1;
+          return (
+            statusRank(left) - statusRank(right) ||
+            targetRank(left) - targetRank(right) ||
+            Number(right.MAPPING_ID) - Number(left.MAPPING_ID)
+          );
+        })
+        .map(clone) as T[];
     }
 
     if (
@@ -140,7 +151,16 @@ export const createMemorySqlClient = (
           row.SOURCE_OBJECT === sourceObject &&
           row.SOURCE_DOC_ENTRY === String(sourceDocEntry),
       )
-        .sort((left, right) => Number(right.MAPPING_ID) - Number(left.MAPPING_ID))
+        .sort((left, right) => {
+          const statusRank = (row: Row) => (row.STATUS === "SUCCESS" ? 0 : 1);
+          const targetRank = (row: Row) =>
+            row.TARGET_DOC_ENTRY != null && String(row.TARGET_DOC_ENTRY).trim() !== "" ? 0 : 1;
+          return (
+            statusRank(left) - statusRank(right) ||
+            targetRank(left) - targetRank(right) ||
+            Number(right.MAPPING_ID) - Number(left.MAPPING_ID)
+          );
+        })
         .map(clone) as T[];
     }
 
@@ -277,6 +297,31 @@ export const createMemorySqlClient = (
         }
         return true;
       }).map(clone) as T[];
+    }
+
+    // Pool-safe reload after insert: TOP 1 by company + document keys
+    if (
+      statement.includes('FROM "IC_NOTIFICATION"') &&
+      statement.includes("DOCUMENT_TYPE") &&
+      statement.includes("ORDER BY")
+    ) {
+      const [companyId, documentType, documentId, flowStep] = params;
+      const docId = documentId == null ? "" : String(documentId);
+      const step = flowStep == null ? "" : String(flowStep);
+      return db.tables.IC_NOTIFICATION.filter((row) => {
+        if (row.COMPANY_ID !== companyId) {
+          return false;
+        }
+        if (row.DOCUMENT_TYPE !== documentType) {
+          return false;
+        }
+        const rowDoc = row.DOCUMENT_ID == null ? "" : String(row.DOCUMENT_ID);
+        const rowStep = row.FLOW_STEP == null ? "" : String(row.FLOW_STEP);
+        return rowDoc === docId && rowStep === step;
+      })
+        .sort((left, right) => Number(right.NOTIFICATION_ID) - Number(left.NOTIFICATION_ID))
+        .slice(0, 1)
+        .map(clone) as T[];
     }
 
     if (statement.includes('FROM "IC_NOTIFICATION"') && statement.includes("COMPANY_ID")) {

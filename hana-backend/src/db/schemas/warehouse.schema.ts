@@ -10,6 +10,8 @@ export interface Warehouse {
   WhsName: string; // Name of the warehouse.
   Inactive?: string; // Status flag.
   BinActivat?: string; // Whether bins are enabled (Y/N)
+  /** SAP business place (branch). Multi-branch companies (e.g. RCM) require this on docs. */
+  BPLid?: number | null;
 }
 
 export const WarehouseSchema = new EntitySchema<Warehouse>({
@@ -25,6 +27,11 @@ export const WarehouseSchema = new EntitySchema<Warehouse>({
       length: 1,
       name: "BinActivat",
       type: "nvarchar" as HANAColumnType,
+    },
+    BPLid: {
+      name: "BPLid",
+      nullable: true,
+      type: "int" as HANAColumnType,
     },
     WhsCode: {
       length: 50,

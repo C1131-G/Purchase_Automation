@@ -151,10 +151,11 @@ export const buildSalesQuotationLines = async (
 };
 
 /**
- * SQ warehouse + branch:
- * 1. If PQ warehouse exists on seller OWHS → use it and switch document BPL to WH.BPLid
- * 2. Else DEFAULT_BRANCH_ID warehouse (config, often 1)
- * 3. Else first active branch+WH (default branch may change when WH not found)
+ * SQ warehouse + branch (buyer WH codes rarely exist on seller books):
+ * 1. If PQ warehouse exists on seller OWHS → use it (BPL from WH when set)
+ * 2. Else DEFAULT_BRANCH_ID / OBPL default warehouse
+ * 3. Else first active branch+WH with BPLid
+ * 4. Else any active WH (BPL optional — Ajax-style single-branch)
  * Never pick from item default warehouse.
  */
 export const resolveSqWarehouseContext = async (params: {
@@ -169,10 +170,16 @@ export const resolveSqWarehouseContext = async (params: {
   /** true when document BPL is not DEFAULT_BRANCH_ID */
   switchedFromDefault: boolean;
   /** How warehouse was chosen */
-  source: "pq_warehouse" | "default_branch" | "fallback_branch" | "none";
+  source:
+    | "pq_warehouse"
+    | "default_branch"
+    | "fallback_branch"
+    | "any_warehouse"
+    | "obpl_default"
+    | "none";
 }> => {
   const preferredBranchRaw = params.defaultBranchId;
-  const preferredBranchId =
+  let preferredBranchId =
     preferredBranchRaw != null && Number.isFinite(preferredBranchRaw) && preferredBranchRaw > 0
       ? Math.trunc(preferredBranchRaw)
       : null;
@@ -190,41 +197,71 @@ export const resolveSqWarehouseContext = async (params: {
 
   const masters = params.warehouseMasters ?? partnerWarehouseMasters;
 
+  // 0) IC_COMPANY.DEFAULT_BRANCH_ID may be unset — use first active OBPL on seller DB.
+  if (preferredBranchId == null && masters.getDefaultObplBranch) {
+    preferredBranchId = await masters.getDefaultObplBranch(sapDbName);
+  }
+
   // 1) PQ warehouse on seller → switch branch to match that WH (keep mother default on IC_COMPANY).
   if (pqWarehouseCode) {
     const fromPq = await masters.resolveWarehouseIfExists(sapDbName, pqWarehouseCode);
     if (fromPq) {
       return {
-        branchId: fromPq.branchId,
+        branchId: fromPq.branchId ?? preferredBranchId,
         branchWarehouseCode: fromPq.warehouseCode,
         source: "pq_warehouse",
-        switchedFromDefault: preferredBranchId != null && preferredBranchId !== fromPq.branchId,
+        switchedFromDefault:
+          preferredBranchId != null &&
+          fromPq.branchId != null &&
+          preferredBranchId !== fromPq.branchId,
       };
     }
   }
 
-  // 2) Default branch (e.g. 1) warehouse.
+  // 2) Default branch (IC_COMPANY or OBPL) warehouse.
   if (preferredBranchId != null) {
     const onDefault = await masters.getWarehouseForBranch(sapDbName, preferredBranchId);
     if (onDefault) {
       return {
         branchId: preferredBranchId,
         branchWarehouseCode: onDefault,
-        source: "default_branch",
+        source:
+          params.defaultBranchId != null && Number(params.defaultBranchId) === preferredBranchId
+            ? "default_branch"
+            : "obpl_default",
         switchedFromDefault: false,
       };
     }
   }
 
-  // 3) No WH on default (or no default) → change branch to first active WH.
+  // 3) First active WH that has a BPL (multi-branch sellers).
   const fallback = await masters.getFirstActiveBranchWarehouse(sapDbName);
   if (fallback) {
     return {
       branchId: fallback.branchId,
       branchWarehouseCode: fallback.warehouseCode,
       source: "fallback_branch",
-      switchedFromDefault: preferredBranchId != null && preferredBranchId !== fallback.branchId,
+      switchedFromDefault:
+        preferredBranchId != null &&
+        fallback.branchId != null &&
+        preferredBranchId !== fallback.branchId,
     };
+  }
+
+  // 4) Any active WH — single-branch / BPLid-null OWHS (common on Ajax).
+  if (masters.getFirstActiveWarehouse) {
+    const anyWh = await masters.getFirstActiveWarehouse(sapDbName);
+    if (anyWh) {
+      return {
+        branchId: anyWh.branchId ?? preferredBranchId,
+        branchWarehouseCode: anyWh.warehouseCode,
+        source: "any_warehouse",
+        switchedFromDefault:
+          preferredBranchId != null &&
+          anyWh.branchId != null &&
+          preferredBranchId !== anyWh.branchId,
+      };
+    }
   }
 
   return {
@@ -281,27 +318,24 @@ export const createSellerSq = async (params: {
     });
   }
 
-  // Multi-branch: we need a WH that matches document BPL. Fail only if neither
-  // PQ, default, nor any other branch has an active warehouse.
-  if (
-    (params.defaultBranchId != null || warehouseCtx.branchId != null || pqWarehouseCode) &&
-    !warehouseCtx.branchWarehouseCode
-  ) {
+  // Need a seller-side warehouse for inventory lines. Buyer PQ WH is only a hint —
+  // when it is missing on seller, fallbacks above must supply any active OWHS.
+  // BPL may stay null on single-branch tenants (Ajax); SL omits BPL_IDAssignedToInvoice then.
+  if (!warehouseCtx.branchWarehouseCode) {
     icLog.warn(IC_LOG_SCOPE.FLOW1, "No active warehouse on seller company for SQ", {
       check: "sq_branch_warehouse",
       defaultBranchId: params.defaultBranchId ?? null,
       outcome: "fail",
       pqWarehouseCode,
+      resolvedBranchId: warehouseCtx.branchId,
       sapDbName: params.sapDbName ?? null,
       sellerCompanyId: params.sellerCompanyId,
+      source: warehouseCtx.source,
     });
     throw new Error(
       `No active warehouse in ${params.sapDbName ?? "seller DB"}` +
-        (pqWarehouseCode ? ` (PQ WH ${pqWarehouseCode} not found; ` : " (") +
-        (params.defaultBranchId != null
-          ? `default branch ${params.defaultBranchId} and no fallback BPL with OWHS)`
-          : "no active OWHS with BPLid)") +
-        `; cannot create SQ with BPL_IDAssignedToInvoice`,
+        (pqWarehouseCode ? ` (PQ WH ${pqWarehouseCode} not on seller; ` : " (") +
+        `no active OWHS after default/OBPL/fallback); cannot create seller SQ`,
     );
   }
 

@@ -71,4 +71,76 @@ describe("document-map (T3.5)", () => {
     expect(map?.sourceDocEntry).toBe("42");
     expect(map?.sourceDocNum).toBe("9001");
   });
+
+  it("findBySource prefers SUCCESS with target over earlier ERROR empty row", async () => {
+    const db = createMemoryDb();
+    const sql = createMemorySqlClient(db);
+    const mutations = createDocumentMapMutations(sql);
+    const queries = createDocumentMapQueries(sql);
+
+    await mutations.insert({
+      errorMessage: "SQ failed",
+      sourceCompanyId: 1,
+      sourceDocEntry: "25",
+      sourceObject: IC_OBJECT.RFQ,
+      status: IC_DOC_MAP_STATUS.ERROR,
+      targetCompanyId: 2,
+      targetObject: IC_OBJECT.SQ,
+    });
+    await mutations.insert({
+      sourceCompanyId: 1,
+      sourceDocEntry: "25",
+      sourceObject: IC_OBJECT.RFQ,
+      status: IC_DOC_MAP_STATUS.SUCCESS,
+      targetCompanyId: 2,
+      targetDocEntry: "910",
+      targetDocNum: "5001",
+      targetObject: IC_OBJECT.SQ,
+    });
+
+    const map = await queries.findBySource({
+      sourceCompanyId: 1,
+      sourceDocEntry: "25",
+      sourceObject: IC_OBJECT.RFQ,
+      targetObject: IC_OBJECT.SQ,
+    });
+
+    expect(map?.status).toBe(IC_DOC_MAP_STATUS.SUCCESS);
+    expect(map?.targetDocEntry).toBe("910");
+  });
+
+  it("create SUCCESS repairs existing ERROR row instead of inserting a second map", async () => {
+    const db = createMemoryDb();
+    const sql = createMemorySqlClient(db);
+    const service = createDocumentMapService({
+      mutations: createDocumentMapMutations(sql),
+      queries: createDocumentMapQueries(sql),
+    });
+
+    const failed = await service.create({
+      errorMessage: "SL timeout",
+      sourceCompanyId: 1,
+      sourceDocEntry: "25",
+      sourceObject: IC_OBJECT.RFQ,
+      status: IC_DOC_MAP_STATUS.ERROR,
+      targetCompanyId: 2,
+      targetObject: IC_OBJECT.SQ,
+    });
+
+    const repaired = await service.create({
+      sourceCompanyId: 1,
+      sourceDocEntry: "25",
+      sourceObject: IC_OBJECT.RFQ,
+      status: IC_DOC_MAP_STATUS.SUCCESS,
+      targetCompanyId: 2,
+      targetDocEntry: "910",
+      targetDocNum: "5001",
+      targetObject: IC_OBJECT.SQ,
+    });
+
+    expect(repaired.mappingId).toBe(failed.mappingId);
+    expect(repaired.status).toBe(IC_DOC_MAP_STATUS.SUCCESS);
+    expect(repaired.targetDocEntry).toBe("910");
+    expect(db.tables.IC_DOCUMENT_MAPPING).toHaveLength(1);
+  });
 });

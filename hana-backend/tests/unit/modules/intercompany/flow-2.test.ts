@@ -112,6 +112,7 @@ const createFlow2TestStack = (opts?: {
       throw new Error("not used");
     },
     findSalesQuotationByDocNum: opts?.findSalesQuotationByDocNum ?? (async () => defaultSqSnapshot),
+    findSalesQuotationByIcChain: async () => null,
     getDraftComments: async () => null,
     getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
     getSalesQuotation: opts?.getSalesQuotation ?? (async () => defaultSqSnapshot),
@@ -269,6 +270,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
         createArInvoiceDraft: async () => ({ docEntry: 1 }),
         createSalesQuotation: async () => ({ docEntry: 1 }),
         findSalesQuotationByDocNum: async () => null,
+        findSalesQuotationByIcChain: async () => null,
         getDraftComments: async () => null,
         getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
         getSalesQuotation: async () => {
@@ -331,6 +333,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
         createArInvoiceDraft: async () => ({ docEntry: 1 }),
         createSalesQuotation: async () => ({ docEntry: 1 }),
         findSalesQuotationByDocNum: async () => defaultSqSnapshot,
+        findSalesQuotationByIcChain: async () => null,
         getDraftComments: async () => null,
         getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
         getSalesQuotation: async () => defaultSqSnapshot,
@@ -436,6 +439,7 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
         createArInvoiceDraft: async () => ({ docEntry: 1 }),
         createSalesQuotation: async () => ({ docEntry: 1 }),
         findSalesQuotationByDocNum: async () => null,
+        findSalesQuotationByIcChain: async () => null,
         getDraftComments: async () => null,
         getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
         getSalesQuotation: async () => defaultSqSnapshot,
@@ -489,6 +493,103 @@ describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
       BaseEntry: 810,
       BaseType: SAP_OBJ_SALES_QUOTATION,
     });
+  });
+
+  it("T5.4f recovers seller SQ via SL remarks chain when RFQ→SQ map is missing", async () => {
+    // Production case (RCM→Ajax): PO remarks only "Based on PQ …"; RFQ found; map empty.
+    const db = createMemoryDb();
+    seedMemoryCompanyGraph(db);
+    const sql = createMemorySqlClient(db);
+    const documentMap = createDocumentMapService({
+      mutations: createDocumentMapMutations(sql),
+      queries: createDocumentMapQueries(sql),
+    });
+    const rfq = createRfqService({
+      mutations: createRfqMutations(sql),
+      queries: createRfqQueries(sql),
+    });
+
+    const header = await rfq.createFromDraft({
+      createdBy: "test",
+      lines: [{ itemCode: "ITEM1", lineNum: 0, quantity: 3 }],
+      pqDraftDocEntry: 24454,
+      pqDraftDocNum: 5001106,
+      rfqNumber: "5001106",
+      sourceCompanyId: 1,
+      targetCompanyId: 2,
+      vendorCode: "V-B",
+    });
+
+    const service = createBuildArInvoiceService({
+      documentMap,
+      documents: {
+        applyPricesToPq: async () => undefined,
+        convertDraftToDocument: async () => ({ docEntry: 1 }),
+        createArInvoiceDraft: async () => ({ docEntry: 1 }),
+        createSalesQuotation: async () => ({ docEntry: 1 }),
+        findSalesQuotationByDocNum: async () => null,
+        findSalesQuotationByIcChain: async () => defaultSqSnapshot,
+        getDraftComments: async () => null,
+        getDraftHeaderFields: async () => ({ comments: null, numAtCard: null }),
+        getSalesQuotation: async () => defaultSqSnapshot,
+      },
+      rfq,
+      warehouseMasters: {
+        getFirstActiveBranchWarehouse: async () => ({
+          branchId: 1,
+          warehouseCode: "01",
+        }),
+        getWarehouseForBranch: async () => "01",
+        resolveWarehouseIfExists: async () => null,
+      },
+    });
+
+    const payload = await service.build({
+      input: {
+        cardCode: "V-B",
+        docEntry: 35282,
+        docNum: 5001330,
+        isDraft: false,
+        lines: [{ ItemCode: "ITEM1", Quantity: 3, UnitPrice: 10, WarehouseCode: "01" }],
+        remarks: "Based on PQ 5001106",
+      },
+      partner: {
+        buyerCompany: {
+          companyCode: "A",
+          companyId: 1,
+          companyName: "RCM",
+          defaultBranchId: null,
+          isActive: true,
+          sapDbName: "RCM_TESTING_POS1",
+        },
+        buyerCustomerCode: "C-A-ON-B",
+        sellerCompany: {
+          companyCode: "B",
+          companyId: 2,
+          companyName: "Ajax",
+          defaultBranchId: 1,
+          isActive: true,
+          sapDbName: "DB_B",
+        },
+        vendorCode: "V-B",
+        bpMappingId: 1,
+      },
+      remarksTag: "IC-PO-5001330",
+    });
+
+    expect(payload.DocumentLines[0]).toMatchObject({
+      BaseEntry: 810,
+      BaseType: SAP_OBJ_SALES_QUOTATION,
+    });
+    // Map repaired for next PO / relationship map.
+    const mapAfter = await documentMap.findBySource({
+      sourceCompanyId: 1,
+      sourceDocEntry: String(header.rfqId),
+      sourceObject: IC_OBJECT.RFQ,
+      targetObject: IC_OBJECT.SQ,
+    });
+    expect(mapAfter?.status).toBe(IC_DOC_MAP_STATUS.SUCCESS);
+    expect(mapAfter?.targetDocEntry).toBe("810");
   });
 
   it("T5.5 idempotent: existing SUCCESS map → skip create", async () => {

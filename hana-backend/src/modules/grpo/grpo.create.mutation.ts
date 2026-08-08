@@ -1,5 +1,6 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
+import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 // Data Access & Schemas
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
@@ -100,6 +101,14 @@ export const createGRPO = async (
     if (isDraft) {
       sapPayload.DocObjectCode = "20";
     }
+
+    // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
+    await assignDocumentBranch({
+      dbName: resolvedDbName,
+      sapPayload,
+      clientPayload: payload,
+      logLabel: "GRPO branch assignment",
+    });
 
     // Standardizes date format for SAP.
     const docDate = sapPayload.DocDate as string;

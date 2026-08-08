@@ -1,6 +1,6 @@
 import {
   getIcSqlClient,
-  toNumber,
+  insertAndReadIdentity,
   type IcSqlClient,
 } from "@/modules/intercompany/infrastructure/ic-sql";
 
@@ -29,7 +29,8 @@ export const createApiLogMutations = (sql: IcSqlClient = getIcSqlClient()): ApiL
   insert: async (input) => {
     const requestJson = maskSecrets(input.requestJson);
     const responseJson = maskSecrets(input.responseJson);
-    await sql.query(
+    const logId = await insertAndReadIdentity(
+      sql,
       `INSERT INTO "IC_API_LOG"
         ("COMPANY_ID","METHOD","ENDPOINT","REQUEST_JSON","RESPONSE_JSON","STATUS_CODE")
        VALUES (?,?,?,?,?,?)`,
@@ -42,11 +43,10 @@ export const createApiLogMutations = (sql: IcSqlClient = getIcSqlClient()): ApiL
         input.statusCode ?? null,
       ],
     );
-    const idRows = await sql.query(`SELECT CURRENT_IDENTITY_VALUE() AS "ID" FROM DUMMY`);
     return {
       companyId: input.companyId ?? null,
       endpoint: input.endpoint,
-      logId: toNumber(idRows[0]?.ID ?? idRows[0]?.id),
+      logId,
       method: input.method,
       requestJson,
       responseJson,

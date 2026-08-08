@@ -105,6 +105,7 @@ const createFlow1TestStack = (opts?: {
         docNum: 801,
       })),
     findSalesQuotationByDocNum: async () => null,
+    findSalesQuotationByIcChain: async () => null,
     getDraftComments: opts?.documents?.getDraftComments ?? (async () => null),
     getDraftHeaderFields:
       opts?.documents?.getDraftHeaderFields ??
@@ -325,7 +326,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
 
     await fill.updateLines({
       actorCompanyId: 2,
-      lines: [{ lineNum: 0, unitPrice: 25, deliveryDate: "2026-05-01" }],
+      lines: [{ deliveryDate: "2026-05-01", lineNum: 0, quantity: 1, unitPrice: 25 }],
       rfqId,
     });
 
@@ -397,7 +398,15 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const rfqId = Number(db.tables.IC_RFQ_HEADER[0].RFQ_ID);
     await fill.updateLines({
       actorCompanyId: 2,
-      lines: [{ discount: 10, lineNum: 0, quantity: 3, unitPrice: 40 }],
+      lines: [
+        {
+          deliveryDate: "2026-05-15",
+          discount: 10,
+          lineNum: 0,
+          quantity: 3,
+          unitPrice: 40,
+        },
+      ],
       rfqId,
     });
     // Submit auto-runs convert (no separate buyer convert click).
@@ -516,7 +525,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const rfqId = Number(db.tables.IC_RFQ_HEADER[0].RFQ_ID);
     await fill.updateLines({
       actorCompanyId: 2,
-      lines: [{ lineNum: 0, unitPrice: 9 }],
+      lines: [{ deliveryDate: "2026-05-20", lineNum: 0, quantity: 1, unitPrice: 9 }],
       rfqId,
     });
     // Auto-convert on submit fails SQ → retry queue; RFQ remains SUBMITTED.
@@ -537,7 +546,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const rfqId = Number(db.tables.IC_RFQ_HEADER[0].RFQ_ID);
     await fill.updateLines({
       actorCompanyId: 2,
-      lines: [{ lineNum: 0, unitPrice: 5 }],
+      lines: [{ deliveryDate: "2026-05-25", lineNum: 0, quantity: 1, unitPrice: 5 }],
       rfqId,
     });
     await fill.submit({ actorCompanyId: 2, rfqId });
@@ -600,7 +609,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     const submitted = await fillBg.submit({
       actorCompanyId: 2,
       // One-shot fill+submit (production frontend path).
-      lines: [{ lineNum: 0, unitPrice: 15 }],
+      lines: [{ deliveryDate: "2026-06-01", lineNum: 0, quantity: 1, unitPrice: 15 }],
       rfqId,
     });
     // Main path only — notify + convert not finished yet (scheduled via setImmediate).

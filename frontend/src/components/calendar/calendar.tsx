@@ -181,7 +181,8 @@ function Calendar({
         </button>
       </div>
 
-      <div className="h-57 relative">
+      {/* h-72 fits 6 week rows (h-9 days + gaps + weekday labels); h-57 clipped late-month days e.g. Aug 30 */}
+      <div className="relative h-72">
         <div
           className={cn(
             "absolute inset-0 transition-all transform",

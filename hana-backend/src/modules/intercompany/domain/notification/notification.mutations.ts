@@ -1,5 +1,6 @@
 import {
   getIcSqlClient,
+  insertAndReadIdentity,
   toNumber,
   type IcSqlClient,
 } from "@/modules/intercompany/infrastructure/ic-sql";
@@ -15,11 +16,46 @@ export type NotificationMutations = {
   markAllReadForCompany: (companyId: number) => Promise<number>;
 };
 
+const loadById = async (
+  sql: IcSqlClient,
+  notificationId: number,
+): Promise<IcNotification | null> => {
+  if (notificationId <= 0) {
+    return null;
+  }
+  const rows = await sql.query(`SELECT * FROM "IC_NOTIFICATION" WHERE "NOTIFICATION_ID" = ?`, [
+    notificationId,
+  ]);
+  return rows[0] ? mapNotificationRow(rows[0]) : null;
+};
+
+/**
+ * Pool-safe reload when identity cannot be read: most recent matching row.
+ * CURRENT_IDENTITY_VALUE is connection-scoped; if insert committed on another
+ * connection this still finds the row after a successful INSERT.
+ */
+const loadLatestMatch = async (
+  sql: IcSqlClient,
+  input: CreateNotificationInput,
+): Promise<IcNotification | null> => {
+  const rows = await sql.query(
+    `SELECT TOP 1 * FROM "IC_NOTIFICATION"
+      WHERE "COMPANY_ID" = ?
+        AND "DOCUMENT_TYPE" = ?
+        AND COALESCE("DOCUMENT_ID", '') = COALESCE(?, '')
+        AND COALESCE("FLOW_STEP", '') = COALESCE(?, '')
+      ORDER BY "NOTIFICATION_ID" DESC`,
+    [input.companyId, input.documentType, input.documentId ?? null, input.flowStep ?? null],
+  );
+  return rows[0] ? mapNotificationRow(rows[0]) : null;
+};
+
 export const createNotificationMutations = (
   sql: IcSqlClient = getIcSqlClient(),
 ): NotificationMutations => ({
   insert: async (input) => {
-    await sql.query(
+    const notificationId = await insertAndReadIdentity(
+      sql,
       `INSERT INTO "IC_NOTIFICATION"
         ("COMPANY_ID","DOCUMENT_TYPE","DOCUMENT_ID","TITLE","MESSAGE","PRIORITY","IS_READ","FLOW_STEP")
        VALUES (?,?,?,?,?,?,0,?)`,
@@ -33,15 +69,12 @@ export const createNotificationMutations = (
         input.flowStep ?? null,
       ],
     );
-    const idRows = await sql.query(`SELECT CURRENT_IDENTITY_VALUE() AS "ID" FROM DUMMY`);
-    const notificationId = toNumber(idRows[0]?.ID ?? idRows[0]?.id);
-    const rows = await sql.query(`SELECT * FROM "IC_NOTIFICATION" WHERE "NOTIFICATION_ID" = ?`, [
-      notificationId,
-    ]);
-    if (!rows[0]) {
+
+    const created = (await loadById(sql, notificationId)) ?? (await loadLatestMatch(sql, input));
+    if (!created) {
       throw new Error(`IC_NOTIFICATION insert failed id=${notificationId}`);
     }
-    return mapNotificationRow(rows[0]);
+    return created;
   },
 
   markAllReadForCompany: async (companyId) => {

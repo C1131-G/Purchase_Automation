@@ -12,12 +12,19 @@ export type LookupPopupMode =
   | "customer-name"
   | "customer-code"
   | "warehouse"
-  | "sales-employee";
+  | "sales-employee"
+  | "branch";
 
 const MODE_CONFIG: Record<
   LookupPopupMode,
   { title: string; placeholder: string; entity: string; field: string }
 > = {
+  branch: {
+    entity: "Branch",
+    field: "Code/Name",
+    placeholder: "Search branch code or name...",
+    title: "Select Branch",
+  },
   "customer-code": {
     entity: "Customer",
     field: "Code",

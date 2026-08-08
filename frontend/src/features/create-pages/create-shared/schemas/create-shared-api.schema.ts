@@ -17,6 +17,9 @@ export const lookupItemSchema = z.object({
   addresses: z.array(vendorAddressSchema).optional(),
   currency: z.string().optional(),
   uomEntry: z.number().optional(),
+  /** SAP business place (OWHS.BPLid / OBPL.BPLId) when present. */
+  branchId: z.number().nullable().optional(),
+  enableBinLocations: z.boolean().optional(),
 });
 
 export const productLookupItemSchema = lookupItemSchema.extend({

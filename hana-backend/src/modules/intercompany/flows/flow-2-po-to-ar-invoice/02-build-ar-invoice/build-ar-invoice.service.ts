@@ -6,6 +6,7 @@ import type { DocumentMapService } from "@/modules/intercompany/domain/document-
 import { createDocumentMapService } from "@/modules/intercompany/domain/document-map/document-map.service";
 import type { RfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
+import { IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { parseIcRemarkLinks } from "@/modules/intercompany/infrastructure/ic-remarks-chain";
 import { IC_LOG_SCOPE, icLog } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
@@ -31,16 +32,22 @@ const toPositiveInt = (value: string | number | null | undefined): number | null
  */
 const resolveArRemarksChain = async (params: {
   buyerCompanyId: number;
+  buyerCustomerCode?: string | null;
   existingComments?: string | null;
   documentMap: DocumentMapService;
+  documents: IcSlDocuments;
   rfq: RfqService;
+  sellerCompanyId: number;
 }): Promise<{
   pqDocNum: number | null;
   pqDocEntry: number | null;
   rfqNumber: string | null;
   rfqId: number | null;
+  rfqStatus: string | null;
   sqDocNum: number | null;
   sqDocEntry: number | null;
+  sqMapStatus: string | null;
+  sqResolveSource: "remarks" | "document_map" | "sl_chain" | null;
 }> => {
   const links = parseIcRemarkLinks(params.existingComments);
   const byKey = new Map(links.map((link) => [link.key.toUpperCase(), link]));
@@ -52,8 +59,12 @@ const resolveArRemarksChain = async (params: {
   let pqDocEntry: number | null = null;
   let rfqNumber = rfqLink?.text?.trim() || null;
   let rfqId: number | null = null;
+  let rfqStatus: string | null = null;
   let sqDocNum = toPositiveInt(sqLink?.text ?? null);
   let sqDocEntry: number | null = null;
+  let sqMapStatus: string | null = null;
+  let sqResolveSource: "remarks" | "document_map" | "sl_chain" | null =
+    sqDocNum != null ? "remarks" : null;
 
   try {
     // Remarks write PQ/RFQ DocNum (e.g. 8000603), not SAP DocEntry. Resolve RFQ by
@@ -80,10 +91,11 @@ const resolveArRemarksChain = async (params: {
         rfqNumber = found.rfqNumber || rfqNumber;
         pqDocEntry = found.pqDraftDocEntry || pqDocEntry;
         pqDocNum = found.pqDraftDocNum ?? pqDocNum;
+        rfqStatus = found.status != null ? String(found.status) : null;
       }
     }
 
-    // Flow 1 maps RFQ → SQ (source = buyer company / RFQ id).
+    // Flow 1 maps RFQ → SQ (source = buyer company / RFQ id). Prefer SUCCESS + target.
     if (rfqId != null && sqDocEntry == null) {
       const sqMap = await params.documentMap.findBySource({
         sourceCompanyId: params.buyerCompanyId,
@@ -92,12 +104,81 @@ const resolveArRemarksChain = async (params: {
         targetObject: IC_OBJECT.SQ,
       });
       if (sqMap) {
+        sqMapStatus = sqMap.status;
         sqDocEntry = toPositiveInt(sqMap.targetDocEntry);
         sqDocNum = toPositiveInt(sqMap.targetDocNum) ?? sqDocNum;
+        if (sqDocEntry != null) {
+          sqResolveSource = "document_map";
+        } else {
+          icLog.warn(IC_LOG_SCOPE.FLOW2, "RFQ→SQ map found without target DocEntry", {
+            check: "sq_map_empty_target",
+            mappingId: sqMap.mappingId,
+            outcome: "fail",
+            rfqId,
+            status: sqMap.status,
+            targetCompanyId: sqMap.targetCompanyId,
+          });
+        }
       }
     }
-  } catch {
-    // Best-effort chain enrichment only — missing SQ fails later with a clear error.
+
+    // Recovery: seller SQ exists in SAP but IC map missing / ERROR without target.
+    // Match customer + Comments tokens (PQ DocNum / RFQ number / "Based on PQ …").
+    if (sqDocEntry == null) {
+      const tokens: string[] = [];
+      if (pqDocNum != null) {
+        tokens.push(`Based on PQ ${pqDocNum}`, String(pqDocNum));
+      }
+      if (rfqNumber) {
+        tokens.push(`Based on RFQ ${rfqNumber}`, rfqNumber);
+      }
+      const cardCode = String(params.buyerCustomerCode ?? "").trim();
+      if (cardCode && tokens.length > 0) {
+        const byChain = await params.documents.findSalesQuotationByIcChain({
+          cardCode,
+          companyId: params.sellerCompanyId,
+          remarkTokens: tokens,
+        });
+        if (byChain) {
+          sqDocEntry = byChain.docEntry;
+          sqDocNum = byChain.docNum ?? sqDocNum;
+          sqResolveSource = "sl_chain";
+          icLog.info(IC_LOG_SCOPE.FLOW2, "seller SQ resolved via SL remarks chain", {
+            check: "sq_resolve_sl_chain",
+            outcome: "pass",
+            pqDocNum,
+            rfqId,
+            rfqNumber,
+            sqDocEntry,
+            sqDocNum,
+          });
+          // Best-effort repair of RFQ→SQ map for the next PO / relationship map.
+          if (rfqId != null) {
+            try {
+              await params.documentMap.create({
+                sourceCompanyId: params.buyerCompanyId,
+                sourceDocEntry: String(rfqId),
+                sourceDocNum: rfqNumber,
+                sourceObject: IC_OBJECT.RFQ,
+                status: IC_DOC_MAP_STATUS.SUCCESS,
+                targetCompanyId: params.sellerCompanyId,
+                targetDocEntry: String(byChain.docEntry),
+                targetDocNum: byChain.docNum != null ? String(byChain.docNum) : null,
+                targetObject: IC_OBJECT.SQ,
+              });
+            } catch {
+              // non-fatal
+            }
+          }
+        }
+      }
+    }
+  } catch (err: unknown) {
+    icLog.warn(IC_LOG_SCOPE.FLOW2, "SQ chain resolve threw (best-effort continues)", {
+      check: "sq_chain_resolve_error",
+      err: err instanceof Error ? err.message : String(err),
+      outcome: "fail",
+    });
   }
 
   return {
@@ -105,8 +186,11 @@ const resolveArRemarksChain = async (params: {
     pqDocNum,
     rfqId,
     rfqNumber,
+    rfqStatus,
     sqDocEntry,
     sqDocNum,
+    sqMapStatus,
+    sqResolveSource,
   };
 };
 
@@ -188,9 +272,12 @@ export const createBuildArInvoiceService = (deps?: {
 
       const chain = await resolveArRemarksChain({
         buyerCompanyId: partner.buyerCompany.companyId,
+        buyerCustomerCode: partner.buyerCustomerCode,
         documentMap,
+        documents,
         existingComments: input.remarks,
         rfq,
+        sellerCompanyId: targetCompanyId,
       });
 
       let sqDocEntry = chain.sqDocEntry;
@@ -211,6 +298,14 @@ export const createBuildArInvoiceService = (deps?: {
       }
 
       if (sqDocEntry == null) {
+        const rfqHint =
+          chain.rfqStatus != null
+            ? ` RFQ status=${chain.rfqStatus}`
+            : chain.rfqId != null
+              ? " RFQ found but no seller SQ map"
+              : " RFQ not found from PO remarks";
+        const mapHint =
+          chain.sqMapStatus != null ? ` mapStatus=${chain.sqMapStatus}` : " no RFQ→SQ map row";
         icLog.warn(IC_LOG_SCOPE.FLOW2, "seller SQ not resolved from PO remarks / RFQ map", {
           check: "sq_resolve_failed",
           outcome: "fail",
@@ -219,11 +314,14 @@ export const createBuildArInvoiceService = (deps?: {
           remarksPreview: String(input.remarks ?? "").slice(0, 500),
           rfqId: chain.rfqId,
           rfqNumber: chain.rfqNumber,
+          rfqStatus: chain.rfqStatus,
           sqDocNum: chain.sqDocNum,
+          sqMapStatus: chain.sqMapStatus,
+          sqResolveSource: chain.sqResolveSource,
           targetCompanyId,
         });
         throw new Error(
-          "IC Flow 2: seller Sales Quotation not found for this PO — cannot convert SQ to A/R Invoice Draft (complete Flow 1 RFQ→SQ first, or ensure PO remarks include SQ)",
+          `IC Flow 2: seller Sales Quotation not found for this PO — cannot convert SQ to A/R Invoice Draft (complete Flow 1 RFQ→SQ first, or ensure PO remarks include SQ).${rfqHint};${mapHint}`,
         );
       }
 

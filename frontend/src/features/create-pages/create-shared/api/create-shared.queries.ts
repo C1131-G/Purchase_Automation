@@ -299,12 +299,16 @@ export const createSharedQueries = {
       gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
       queryFn: async () =>
         normalizeLookups(
-          unwrapMasterData(await masterDataAPI.getWarehouses()).map((w: any) => ({
-            ...mapLookup(w),
-            enableBinLocations: w.enableBinLocations,
-          })),
+          unwrapMasterData(await masterDataAPI.getWarehouses()).map((w: unknown) => {
+            const record = w && typeof w === "object" ? (w as Record<string, unknown>) : {};
+            return {
+              ...mapLookup(w),
+              enableBinLocations: Boolean(record.enableBinLocations),
+            };
+          }),
         ),
-      queryKey: createSharedKeys.warehouses(),
+      // v2: warehouses include branchId (OWHS.BPLid)
+      queryKey: [...createSharedKeys.warehouses(), "v2"] as const,
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
   series: (documentType: string) =>
@@ -324,32 +328,44 @@ export const createSharedQueries = {
         const response = await masterDataAPI.getWarehouseBins(warehouseCode);
         const data = unwrapMasterData(response);
         return normalizeLookups(
-          data.map((item: any) => ({
-            code: String(item.AbsEntry),
-            name: item.BinCode,
-          })),
+          data.map((item: unknown) => {
+            const record =
+              item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+            return {
+              code: String(record.AbsEntry ?? ""),
+              name: String(record.BinCode ?? ""),
+            };
+          }),
         );
       },
       queryKey: createSharedKeys.warehouseBins(warehouseCode),
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
+  /** SAP business places (OBPL) — document BPLId, not distribution rules. */
   branches: () =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.createStaticLookup.gcTime,
       queryFn: async () => {
         const response = await masterDataAPI.getBranches();
-        if ("data" in response) {
-          return (response.data as { Code: string; Name: string }[]).map((i) => ({
-            code: i.Code,
-            name: i.Name,
-          }));
-        }
-        return (response as { Code: string; Name: string }[]).map((i) => ({
-          code: i.Code,
-          name: i.Name,
-        }));
+        const rows = unwrapMasterData(response);
+        return normalizeLookups(
+          rows.map((item: unknown) => {
+            const mapped = mapLookup(item);
+            const record =
+              item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+            const branchId =
+              mapped.branchId ??
+              (Number.isFinite(Number(record.BPLId ?? record.branchId ?? mapped.code))
+                ? Math.trunc(Number(record.BPLId ?? record.branchId ?? mapped.code))
+                : null);
+            return {
+              ...mapped,
+              branchId: branchId != null && branchId > 0 ? branchId : mapped.branchId,
+            };
+          }),
+        );
       },
-      queryKey: createSharedKeys.branches(),
+      queryKey: [...createSharedKeys.branches(), "obpl-v1"] as const,
       staleTime: QUERY_CACHE_POLICY.createStaticLookup.staleTime,
     }),
 };

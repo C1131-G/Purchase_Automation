@@ -1,5 +1,6 @@
 import { logger } from "@/core/logger/pino-logger";
 import { purgeCache } from "@/core/utils/cache";
+import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
@@ -93,6 +94,14 @@ export const createInvoice = async (
   if (isDraft) {
     sapPayload.DocObjectCode = "18";
   }
+
+  // Multi-branch (e.g. RCM): BPL from payload → line warehouse → default OBPL.
+  await assignDocumentBranch({
+    dbName: resolvedDbName,
+    sapPayload,
+    clientPayload: payload,
+    logLabel: "AP Invoice branch assignment",
+  });
 
   // Resolve base document quantities for copy-to flows before submitting to SAP.
   // Lines exceeding their base open quantity will have their base linkage stripped

@@ -34,10 +34,17 @@ export const unwrapMasterData = (response: unknown): unknown[] => {
 
 export const mapLookup = (item: unknown): LookupItem => {
   const record = asRecord(item) ?? {};
+  const rawBranch = record.branchId ?? record.BPLid ?? record.BPLId ?? record.bplId;
+  let branchId: number | null | undefined;
+  if (rawBranch != null && rawBranch !== "") {
+    const num = Number(rawBranch);
+    branchId = Number.isFinite(num) && num > 0 ? Math.trunc(num) : null;
+  }
   return {
     code: String(record.code ?? record.Code ?? record.CardCode ?? record.ItemCode ?? ""),
     name: String(record.name ?? record.Name ?? record.CardName ?? record.ItemName ?? ""),
     rate: Number(record.rate ?? record.Rate ?? 0),
+    ...(branchId !== undefined ? { branchId } : {}),
   };
 };
 

@@ -170,6 +170,19 @@ export function RequestForQuotationForm({
                   salesEmployeeDisabled
                   readOnly
                   uniformReadOnlyAppearance
+                  showBranch
+                  branchLabel="BRANCH"
+                  branchPlaceholder="No Branch"
+                  branchInput={state.branchInput}
+                  branchesLoading={state.branchesLoading}
+                  branchFocused={false}
+                  branchSuggestions={[]}
+                  onBranchChange={noopStr}
+                  onBranchFocus={noop}
+                  onBranchBlur={noop}
+                  onOpenBranchPopup={noop}
+                  onSelectBranch={noop}
+                  branchDisabled
                   showWarehouseInsteadOfDocNum
                   warehouseLabel="Warehouse"
                   warehouseInput={header.warehouseCode?.trim() || state.defaultWarehouseCode || ""}
@@ -289,6 +302,7 @@ export function RequestForQuotationForm({
               canSubmit={state.canSubmit}
               isSubmitting={state.isSubmitting}
               formError={state.formError}
+              lineFieldErrors={state.lineFieldErrors}
               onSubmit={() => {
                 void state.handleSubmit();
               }}

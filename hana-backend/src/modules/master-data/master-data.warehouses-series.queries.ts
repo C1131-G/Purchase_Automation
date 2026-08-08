@@ -319,21 +319,83 @@ export const resolveUomOnTenant = async (
 
 // Lists active warehouses available for inventory storage and transactions.
 
+const toPositiveBranchId = (value: unknown): number | null => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) {
+    return null;
+  }
+  return Math.trunc(num);
+};
+
 export const getWarehouses = async (dbName: string) => {
-  const results = await fetchLookup(dbName, WarehouseSchema, "Warehouses", {
+  // v2: include OWHS.BPLid so create UI can auto-select document branch from warehouse.
+  const results = await fetchLookup(dbName, WarehouseSchema, "Warehouses:v2", {
     order: { WhsCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["WhsCode", "WhsName", "BinActivat"] as const,
+    select: ["WhsCode", "WhsName", "BinActivat", "BPLid"] as const,
     where: { Inactive: "N" } as Record<string, unknown>,
   });
 
-  return results.map((item) => ({
-    Code: item.WhsCode,
-    Name: item.WhsName,
-    code: item.WhsCode,
-    id: item.WhsCode,
-    name: item.WhsName,
-    enableBinLocations: item.BinActivat === "Y",
-  }));
+  return results.map((item) => {
+    const branchId = toPositiveBranchId(item.BPLid);
+    return {
+      Code: item.WhsCode,
+      Name: item.WhsName,
+      code: item.WhsCode,
+      id: item.WhsCode,
+      name: item.WhsName,
+      enableBinLocations: item.BinActivat === "Y",
+      branchId,
+      BPLid: branchId,
+    };
+  });
+};
+
+/**
+ * Active SAP business places (OBPL) — real BPLId used on marketing documents.
+ * Not dimension distribution rules.
+ */
+export const getBusinessPlaces = async (dbName: string) => {
+  const cacheKey = `master:${dbName}:BusinessPlaces:v1`;
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const rows = (await executeTenantQuery(
+          dbName,
+          `SELECT "BPLId", "BPLName"
+             FROM OBPL
+            WHERE "Disabled" = 'N'
+            ORDER BY "BPLId" ASC`,
+        )) as Array<{ BPLId: unknown; BPLName: unknown }>;
+
+        return rows
+          .map((row) => {
+            const branchId = toPositiveBranchId(row.BPLId);
+            if (branchId == null) {
+              return null;
+            }
+            const name = String(row.BPLName ?? "").trim() || `Branch ${branchId}`;
+            return {
+              Code: String(branchId),
+              Name: name,
+              code: String(branchId),
+              name,
+              branchId,
+              BPLId: branchId,
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row != null);
+      } catch (err) {
+        logger.warn({
+          db: dbName,
+          err,
+          msg: "Failed to fetch business places from OBPL",
+        });
+        return [];
+      }
+    },
+    1000 * 60 * 10,
+  );
 };
 
 // Fetches bin locations for a warehouse directly from OBIN via HANA.

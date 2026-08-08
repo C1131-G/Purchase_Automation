@@ -27,6 +27,8 @@ import {
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
+import { documentBranchPayload } from "@/features/create-pages/create-shared/utils/document-branch";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -269,6 +271,21 @@ export function useGRPOCreate({
     }
     return effectiveWarehouseCode || undefined;
   }, [activeProductRowId, rows, effectiveWarehouseCode]);
+
+  const setBranchId = useCallback(
+    (branchId: number | null) => {
+      setHeader({ branchId });
+    },
+    [setHeader],
+  );
+
+  const branchField = useDocumentBranchField({
+    warehouses: warehouses as Array<{ code: string; name?: string; branchId?: number | null }>,
+    warehouseCode: header.warehouseCode || effectiveWarehouseCode,
+    branchId: header.branchId,
+    setBranchId,
+    disabled: isEditMode,
+  });
 
   const vendorSelected = Boolean(vendorCodeInput) || Boolean(vendorNameInput);
   const vendorLookupToken = `${vendorCodeInput.trim().toLowerCase()}::${vendorNameInput.trim().toLowerCase()}`;
@@ -1218,7 +1235,9 @@ export function useGRPOCreate({
         ? vendors
         : modalMode === "warehouse"
           ? warehouses
-          : salesEmployees
+          : modalMode === "branch"
+            ? branchField.branches
+            : salesEmployees
     ) as ProductLookupItem[];
     if (!term) {
       return source;
@@ -1247,7 +1266,7 @@ export function useGRPOCreate({
         sensitivity: "base",
       });
     });
-  }, [vendors, warehouses, salesEmployees, modalSearch, modalMode]);
+  }, [vendors, warehouses, salesEmployees, branchField.branches, modalSearch, modalMode]);
 
   const openPopupByMode = (mode: PopupMode) => {
     const searchVal =
@@ -1257,7 +1276,9 @@ export function useGRPOCreate({
           : vendorCodeInput
         : mode === "warehouse"
           ? warehouseInput
-          : buyerInput;
+          : mode === "branch"
+            ? branchField.branchInput
+            : buyerInput;
 
     setModalMode(mode);
     setModalSearch(searchVal);
@@ -1269,6 +1290,7 @@ export function useGRPOCreate({
       return;
     }
     const nextSearch = getLookupInlineSearchByMode(modalMode, {
+      branch: branchField.branchInput,
       salesEmployee: buyerInput,
       vendorCode: vendorCodeInput,
       vendorName: vendorNameInput,
@@ -1278,6 +1300,7 @@ export function useGRPOCreate({
       setModalSearch(nextSearch);
     }
   }, [
+    branchField.branchInput,
     buyerInput,
     modalMode,
     modalOpen,
@@ -1290,6 +1313,7 @@ export function useGRPOCreate({
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
+      onBranch: branchField.handleBranchChange,
       onSalesEmployee: handleBuyerChange,
       onVendorCode: handleVendorCodeChange,
       onVendorName: handleVendorNameChange,
@@ -1997,6 +2021,7 @@ export function useGRPOCreate({
             freeText: att.freeText || "",
             attachmentDate: att.attachmentDate || "",
           })),
+          ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
         };
     return JSON.stringify(payload);
   }, [
@@ -2007,6 +2032,8 @@ export function useGRPOCreate({
     header.docDueDate,
     header.docDate,
     header.referenceNo,
+    header.branchId,
+    branchField.effectiveBranchId,
     vendorCodeInput,
     filteredRows,
     resolvedSalesEmployeeCode,
@@ -2095,6 +2122,7 @@ export function useGRPOCreate({
           })),
           isDraft: true,
           draftDocEntry: loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined,
+          ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
         }
       : (() => {
           const parsed = JSON.parse(getPayloadString());
@@ -2295,6 +2323,15 @@ export function useGRPOCreate({
     warehouseFocused,
     setWarehouseFocused,
     resetWarehouse,
+    ...branchField,
+    selectBranch: (item: LookupItem) => {
+      if (isEditMode) {
+        notifyRestricted("Branch");
+        return;
+      }
+      branchField.selectBranch(item);
+      setModalOpen(false);
+    },
     docDate: header.docDate,
     docDueDate: header.docDueDate,
     referenceNo: header.referenceNo,

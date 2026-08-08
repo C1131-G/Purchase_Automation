@@ -33,8 +33,10 @@ import {
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { resolveDocCurrencyForPayload } from "@/shared/utils/currency";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
+import { useDocumentBranchField } from "@/features/create-pages/create-shared/hooks/use-document-branch-field";
 import { useEditDirtyState } from "@/features/create-pages/create-shared/hooks/use-edit-dirty-state";
 import { reconcileAddresses } from "@/features/create-pages/create-shared/utils/address.utils";
+import { documentBranchPayload } from "@/features/create-pages/create-shared/utils/document-branch";
 import {
   getLookupInlineSearchByMode,
   syncLookupSearchByMode,
@@ -254,6 +256,24 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         })),
       );
     },
+  });
+
+  const setBranchId = useCallback(
+    (branchId: number | null) => {
+      setHeader({ branchId });
+    },
+    [setHeader],
+  );
+
+  const branchField = useDocumentBranchField({
+    warehouses: lookups.warehouses as Array<{
+      code: string;
+      name?: string;
+      branchId?: number | null;
+    }>,
+    warehouseCode: header.warehouseCode ?? lookups.effectiveWarehouseCode,
+    branchId: header.branchId,
+    setBranchId,
   });
 
   const productsHook = usePqProducts({
@@ -587,7 +607,9 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
         ? lookups.vendors
         : modals.modalMode === "warehouse"
           ? lookups.warehouses
-          : lookups.salesEmployees
+          : modals.modalMode === "branch"
+            ? branchField.branches
+            : lookups.salesEmployees
     ) as ProductLookupItem[];
     if (!term) {
       return source;
@@ -620,12 +642,14 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     lookups.vendors,
     lookups.warehouses,
     lookups.salesEmployees,
+    branchField.branches,
     modals.modalSearch,
     modals.modalMode,
   ]);
 
   const openPopupWithContext = (mode: PopupMode) => {
     modals.openPopup(mode, {
+      branchInput: branchField.branchInput,
       codeInput: lookups.codeInput,
       nameInput: lookups.nameInput,
       salesEmployeeInput: lookups.salesEmployeeInput,
@@ -638,6 +662,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       return;
     }
     const nextSearch = getLookupInlineSearchByMode(modals.modalMode, {
+      branch: branchField.branchInput,
       salesEmployee: lookups.salesEmployeeInput,
       vendorCode: lookups.codeInput,
       vendorName: lookups.nameInput,
@@ -647,6 +672,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       modals.setModalSearch(nextSearch);
     }
   }, [
+    branchField.branchInput,
     lookups.codeInput,
     lookups.nameInput,
     lookups.salesEmployeeInput,
@@ -656,6 +682,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
 
   const handleLookupModalSearchSync = (mode: PopupMode, value: string) =>
     syncLookupSearchByMode(mode, value, {
+      onBranch: branchField.handleBranchChange,
       onSalesEmployee: lookups.handleSalesEmployeeChange,
       onVendorCode: lookups.handleVendorCodeChange,
       onVendorName: lookups.handleVendorNameChange,
@@ -912,6 +939,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           mapPqDocumentLine(row, effectiveRequiredDate, lookups.effectiveWarehouseCode.trim()),
         ),
         SalesPersonCode: resolvedSalesEmployeeCode,
+        ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
       };
       return JSON.stringify(payload);
     },
@@ -1009,6 +1037,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
             attachmentDate: att.attachmentDate || "",
           })),
           isDraft: true,
+          ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
         }
       : isEditMode
         ? {
@@ -1040,6 +1069,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
               freeText: att.freeText || "",
               attachmentDate: att.attachmentDate || "",
             })),
+            ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
           }
         : {
             Address: lookups.billToAddress.trim() || undefined,
@@ -1068,6 +1098,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
               attachmentDate: att.attachmentDate || "",
             })),
             draftDocEntry: loadedDraftDocEntry ? Number(loadedDraftDocEntry) : undefined,
+            ...documentBranchPayload(header.branchId ?? branchField.effectiveBranchId),
           };
 
     const isDraftUpdate = isDraftAction && loadedDraftDocEntry !== undefined;
@@ -1305,10 +1336,20 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       ? Boolean(draftDocNum) && hydratedDocNum === `${draftDocNum}_${draftDocEntry ?? ""}`
       : true;
 
+  const selectBranch = useCallback(
+    (item: { code: string; name: string }) => {
+      branchField.selectBranch(item);
+      modals.setModalOpen(false);
+    },
+    [branchField, modals],
+  );
+
   return {
     ...lookups,
     ...modals,
     ...productsHook,
+    ...branchField,
+    selectBranch,
     activeDatePicker,
     applyProductToRow: (product: ProductLookupItem) =>
       productsHook.applyProductToRow(product, {

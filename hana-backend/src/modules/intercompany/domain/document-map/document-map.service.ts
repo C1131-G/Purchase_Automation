@@ -46,6 +46,7 @@ export const createDocumentMapService = (deps?: {
     findByTarget: (params) => queries.findByTarget(params),
 
     create: async (input) => {
+      const status = input.status ?? IC_DOC_MAP_STATUS.PENDING;
       const existing = await queries.findBySource({
         sourceCompanyId: input.sourceCompanyId,
         sourceDocEntry: input.sourceDocEntry,
@@ -57,13 +58,31 @@ export const createDocumentMapService = (deps?: {
         return existing;
       }
 
-      if (existing && existing.status === (input.status ?? "PENDING")) {
+      // Repair ERROR/PENDING → SUCCESS (or fill target) instead of a second shadow row.
+      if (
+        existing &&
+        status === IC_DOC_MAP_STATUS.SUCCESS &&
+        (existing.status === IC_DOC_MAP_STATUS.ERROR ||
+          existing.status === IC_DOC_MAP_STATUS.PENDING)
+      ) {
+        const repaired = await mutations.updateStatus(existing.mappingId, status, {
+          errorMessage: input.errorMessage ?? null,
+          targetDocEntry: input.targetDocEntry ?? null,
+          targetDocNum: input.targetDocNum ?? null,
+          targetObject: input.targetObject ?? null,
+        });
+        if (repaired) {
+          return repaired;
+        }
+      }
+
+      if (existing && existing.status === status) {
         return existing;
       }
 
       return mutations.insert({
         ...input,
-        status: input.status ?? IC_DOC_MAP_STATUS.PENDING,
+        status,
       });
     },
 

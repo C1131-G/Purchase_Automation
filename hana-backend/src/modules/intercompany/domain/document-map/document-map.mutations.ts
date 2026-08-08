@@ -1,6 +1,6 @@
 import {
   getIcSqlClient,
-  toNumber,
+  insertAndReadIdentity,
   type IcSqlClient,
 } from "@/modules/intercompany/infrastructure/ic-sql";
 
@@ -32,7 +32,8 @@ export const createDocumentMapMutations = (
   sql: IcSqlClient = getIcSqlClient(),
 ): DocumentMapMutations => ({
   insert: async (input) => {
-    await sql.query(
+    const mappingId = await insertAndReadIdentity(
+      sql,
       `INSERT INTO "IC_DOCUMENT_MAPPING"
         ("SOURCE_COMPANY_ID","TARGET_COMPANY_ID","SOURCE_OBJECT","SOURCE_DOC_ENTRY",
          "SOURCE_DOC_NUM","TARGET_OBJECT","TARGET_DOC_ENTRY","TARGET_DOC_NUM",
@@ -52,8 +53,6 @@ export const createDocumentMapMutations = (
         input.sourceRemarksTag ?? null,
       ],
     );
-    const idRows = await sql.query(`SELECT CURRENT_IDENTITY_VALUE() AS "ID" FROM DUMMY`);
-    const mappingId = toNumber(idRows[0]?.ID ?? idRows[0]?.id);
     const created = await fetchById(sql, mappingId);
     if (!created) {
       throw new Error(`IC_DOCUMENT_MAPPING insert failed to reload id=${mappingId}`);

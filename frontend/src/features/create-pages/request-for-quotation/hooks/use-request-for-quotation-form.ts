@@ -1,10 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  useConvertIcRfq,
-  useSubmitIcRfq,
-} from "@/features/intercompany/api/intercompany.mutations";
-import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
+import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import {
   notifyActionError,
   notifyActionSuccess,
@@ -14,15 +11,29 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
+import {
+  branchIdFromWarehouse,
+  formatBranchDisplay,
+  toPositiveBranchId,
+  type BranchLookupItem,
+  type WarehouseWithBranch,
+} from "@/features/create-pages/create-shared/utils/document-branch";
+import {
+  useConvertIcRfq,
+  useSubmitIcRfq,
+} from "@/features/intercompany/api/intercompany.mutations";
+import { useIcRfq } from "@/features/intercompany/api/intercompany.queries";
 import { toSafeErrorMessage } from "@/shared/utils/error-message";
 
 import {
   buildUpdateRfqLinesPayloadFromProductRows,
   computeRfqProductTotals,
+  getRfqLineFieldErrors,
   isRfqDraft,
   isRfqSubmitted,
   mapRfqLinesToProductRows,
   productRowsFingerprint,
+  type RfqLineFieldErrors,
   type RfqSellerProductPatch,
 } from "../utils/rfq-form.utils";
 
@@ -30,10 +41,16 @@ export function useRequestForQuotationForm(rfqId: number) {
   const detailQuery = useIcRfq(rfqId, Number.isFinite(rfqId) && rfqId > 0);
   const header = detailQuery.data?.data;
 
+  // Seller company masters — resolve RFQ warehouse → branch (OWHS.BPLid / OBPL) for display.
+  const warehousesQuery = useQuery(createSharedQueries.warehouses());
+  const branchesQuery = useQuery(createSharedQueries.branches());
+
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [hydratedKey, setHydratedKey] = useState<string>("");
   const [formError, setFormError] = useState<string | null>(null);
+  /** After submit click: show red borders on missing quote fields (no letter). */
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const requiredQtyByIdRef = useRef<Record<string, number>>({});
 
   const submitMutation = useSubmitIcRfq();
@@ -42,6 +59,11 @@ export function useRequestForQuotationForm(rfqId: number) {
   const canEditLines = isRfqDraft(header?.status);
   const canSubmit = canEditLines;
   const canConvert = isRfqSubmitted(header?.status);
+
+  const lineFieldErrors: RfqLineFieldErrors = useMemo(
+    () => (submitAttempted ? getRfqLineFieldErrors(productRows) : {}),
+    [productRows, submitAttempted],
+  );
 
   // Re-hydrate product rows when server detail changes.
   useEffect(() => {
@@ -81,6 +103,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     setProductRowDrafts({});
     setHydratedKey(fingerprint);
     setFormError(null);
+    setSubmitAttempted(false);
   }, [header, hydratedKey]);
 
   const totals = useMemo(() => computeRfqProductTotals(productRows), [productRows]);
@@ -185,12 +208,14 @@ export function useRequestForQuotationForm(rfqId: number) {
       return;
     }
 
+    setSubmitAttempted(true);
+    setFormError(null);
+
     const { errors, lines: payloadLines } = buildUpdateRfqLinesPayloadFromProductRows(productRows, {
       requireAllPrices: true,
     });
-    if (errors.length > 0) {
-      const message = errors[0] ?? "Fix line validation errors before submit.";
-      setFormError(message);
+    if (errors.length > 0 || payloadLines.length === 0) {
+      // Missing quote fields: red borders only (same idea as vendor name/code).
       return;
     }
 
@@ -199,7 +224,7 @@ export function useRequestForQuotationForm(rfqId: number) {
       // run server-side in background — do not PUT then POST.
       const submitted = await submitMutation.mutateAsync({
         rfqId: header.rfqId,
-        ...(payloadLines.length > 0 ? { body: { lines: payloadLines } } : {}),
+        body: { lines: payloadLines },
       });
       const status = String(submitted.data?.status ?? "").toUpperCase();
       notifyActionSuccess(
@@ -209,6 +234,7 @@ export function useRequestForQuotationForm(rfqId: number) {
         "rfq-submit",
       );
       setFormError(null);
+      setSubmitAttempted(false);
     } catch (error) {
       const message = toSafeErrorMessage(
         error instanceof Error ? error.message : undefined,
@@ -256,7 +282,25 @@ export function useRequestForQuotationForm(rfqId: number) {
 
   const defaultWarehouseCode = header?.warehouseCode?.trim() || productRows[0]?.warehouseCode || "";
 
+  /** Read-only branch for logistics: WH BPLid → OBPL name; empty → "No Branch". */
+  const branchDisplay = useMemo(() => {
+    const warehouses = (warehousesQuery.data ?? []) as WarehouseWithBranch[];
+    const branches = (branchesQuery.data ?? []) as BranchLookupItem[];
+    const branchId = branchIdFromWarehouse(warehouses, defaultWarehouseCode);
+    if (branchId == null) {
+      return { branchId: null as number | null, branchInput: "" };
+    }
+    const matched = branches.find((b) => toPositiveBranchId(b.branchId ?? b.code) === branchId);
+    const branchInput = matched
+      ? formatBranchDisplay(matched.name, matched.code)
+      : formatBranchDisplay(`Branch ${branchId}`, branchId);
+    return { branchId, branchInput };
+  }, [warehousesQuery.data, branchesQuery.data, defaultWarehouseCode]);
+
   return {
+    branchId: branchDisplay.branchId,
+    branchInput: branchDisplay.branchInput,
+    branchesLoading: branchesQuery.isLoading || warehousesQuery.isLoading,
     canConvert,
     canEditLines,
     canSubmit,
@@ -269,12 +313,14 @@ export function useRequestForQuotationForm(rfqId: number) {
     header,
     isDirty,
     isSubmitting,
+    lineFieldErrors,
     openProductPopup,
     prefetchProducts,
     productRowDrafts,
     productRows,
     removeProductRow,
     setProductRowDraft,
+    showBranch: true,
     totals,
     updateProductRow,
   };
