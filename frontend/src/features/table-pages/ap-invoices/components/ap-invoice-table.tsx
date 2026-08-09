@@ -403,7 +403,7 @@ export function APInvoiceTable() {
   }
 
   return (
-    <div className="h-full w-full overflow-hidden bg-white flex flex-col">
+    <div className="h-full w-full overflow-hidden bg-surface flex flex-col">
       <APInvoiceLookupLayer tableId={TABLE_ID} table={table} onReset={handleResetTable} />
 
       <div className="flex-1 overflow-auto w-full px-1.5">

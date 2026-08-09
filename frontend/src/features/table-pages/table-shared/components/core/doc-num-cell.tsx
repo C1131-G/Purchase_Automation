@@ -28,7 +28,7 @@ interface DocNumCellProps {
 export function DocNumCell({ value, docEntry, docType, onHover, onDoubleClick }: DocNumCellProps) {
   const content = (
     <span
-      className="block cursor-pointer truncate transition-colors hover:text-blue-600"
+      className="block cursor-pointer truncate transition-colors hover:text-teal-700"
       onMouseEnter={() => onHover?.(value)}
       onFocus={() => onHover?.(value)}
       onDoubleClick={() => onDoubleClick?.(value)}

@@ -86,17 +86,17 @@ export function ProductWarehouseStockModal({
       panelClassName="max-w-xl"
       onAfterClose={onAfterClose}
     >
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-linen-100 px-4 py-3">
         <div className="min-w-0 flex-1 pr-4">
-          <h3 className="truncate text-sm font-semibold text-zinc-900">Stock by Warehouse</h3>
-          <p className="truncate text-xs text-zinc-500">
+          <h3 className="truncate text-sm font-semibold text-ink-900">Stock by Warehouse</h3>
+          <p className="truncate text-xs text-neutral-500">
             {product ? `${product.code} - ${product.name}` : "-"}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="shrink-0 cursor-pointer rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100"
+          className="shrink-0 cursor-pointer rounded-full border border-linen-200 px-3 py-1 text-xs font-medium text-neutral-500 transition hover:bg-linen-100"
         >
           Close
         </button>
@@ -104,7 +104,7 @@ export function ProductWarehouseStockModal({
 
       <div className="p-4">
         <input
-          className="mb-3 h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+          className="mb-3 h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
           placeholder="Search warehouse code or name"
           value={warehouseSearch}
           onChange={(event) => {
@@ -117,13 +117,13 @@ export function ProductWarehouseStockModal({
         />
 
         {loading && filteredStocks.length === 0 ? (
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-2xl border border-linen-200 bg-surface">
             {SKELETON_ROW_KEYS.map((slot) => (
               <div
                 key={`stock-skeleton-${slot}`}
-                className="border-b border-zinc-100 px-3 py-2 last:border-0"
+                className="border-b border-linen-100 px-3 py-2 last:border-0"
               >
-                <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
+                <div className="h-8 w-full animate-pulse rounded-lg bg-linen-100" />
               </div>
             ))}
           </div>

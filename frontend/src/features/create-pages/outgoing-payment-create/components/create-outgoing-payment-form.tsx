@@ -443,13 +443,13 @@ export function CreateOutgoingPaymentForm() {
             nameInputRef={nameInputRef}
           />
 
-          <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-sm font-bold text-zinc-900">Payment Details</h2>
+          <div className="rounded-2xl border border-linen-100 bg-surface p-5 shadow-sm">
+            <h2 className="mb-4 text-sm font-bold text-ink-900">Payment Details</h2>
             <div className="space-y-4">
               <div ref={docDateContainerRef} className="relative">
                 <label
                   htmlFor="postingDate"
-                  className="mb-1.5 block text-xs font-bold text-zinc-600"
+                  className="mb-1.5 block text-xs font-bold text-neutral-500"
                 >
                   Posting Date
                 </label>
@@ -459,10 +459,10 @@ export function CreateOutgoingPaymentForm() {
                   onClick={() =>
                     setActiveDatePicker((prev) => (prev === "posting" ? null : "posting"))
                   }
-                  className="relative flex h-10 w-full items-center justify-start rounded-xl border border-zinc-200 bg-zinc-50 pl-3 pr-10 text-sm text-zinc-800 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                  className="relative flex h-10 w-full items-center justify-start rounded-xl border border-linen-200 bg-linen-50 pl-3 pr-10 text-sm text-ink-900 outline-none transition hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 >
                   <span>{toDisplayDate(docDate)}</span>
-                  <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100">
+                  <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition hover:bg-linen-100">
                     <CalendarIcon className="h-3 w-3" />
                   </div>
                 </button>
@@ -484,7 +484,10 @@ export function CreateOutgoingPaymentForm() {
                 )}
               </div>
               <div>
-                <label htmlFor="remarks" className="mb-1.5 block text-xs font-bold text-zinc-600">
+                <label
+                  htmlFor="remarks"
+                  className="mb-1.5 block text-xs font-bold text-neutral-500"
+                >
                   Remarks
                 </label>
                 <textarea
@@ -493,7 +496,7 @@ export function CreateOutgoingPaymentForm() {
                   onChange={(e) => setRemarks(e.target.value)}
                   placeholder="Enter payment remarks..."
                   rows={2}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  className="w-full rounded-xl border border-linen-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-900 outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
                 />
               </div>
             </div>
@@ -502,8 +505,8 @@ export function CreateOutgoingPaymentForm() {
 
         {lookups.codeInput && (
           <div className="mt-4 flex gap-4 items-start">
-            <div className="flex-1 rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
-              <div className="flex items-center justify-end gap-2 border-b border-zinc-100 bg-zinc-50 px-5 py-3 flex-wrap">
+            <div className="flex-1 rounded-2xl border border-linen-100 bg-surface shadow-sm overflow-hidden">
+              <div className="flex items-center justify-end gap-2 border-b border-linen-100 bg-linen-50 px-5 py-3 flex-wrap">
                 <OutgoingPaymentCreateActiveFilter
                   value={tableFilters}
                   onChange={setTableFilters}
@@ -525,54 +528,54 @@ export function CreateOutgoingPaymentForm() {
               <div ref={docsScrollRef} className="max-h-[400px] min-h-[300px] overflow-auto">
                 {isLoadingInvoices || isLoadingCreditMemos ? (
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-white sticky top-0">
+                    <thead className="bg-surface sticky top-0">
                       <tr>
                         <th className="w-12 px-5 py-3">
-                          <div className="h-3 w-5 rounded bg-zinc-200 animate-pulse" />
+                          <div className="h-3 w-5 rounded bg-linen-100 animate-pulse" />
                         </th>
                         <th className="px-5 py-3">
-                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
+                          <div className="h-3 w-16 rounded bg-linen-100 animate-pulse" />
                         </th>
                         <th className="px-5 py-3">
-                          <div className="h-3 w-20 rounded bg-zinc-200 animate-pulse" />
+                          <div className="h-3 w-20 rounded bg-linen-100 animate-pulse" />
                         </th>
                         <th className="px-5 py-3">
-                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
+                          <div className="h-3 w-16 rounded bg-linen-100 animate-pulse" />
                         </th>
                         <th className="px-5 py-3 text-right">
-                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse ml-auto" />
+                          <div className="h-3 w-16 rounded bg-linen-100 animate-pulse ml-auto" />
                         </th>
                         <th className="px-5 py-3 text-right">
-                          <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse ml-auto" />
+                          <div className="h-3 w-16 rounded bg-linen-100 animate-pulse ml-auto" />
                         </th>
                         <th className="px-5 py-3 text-right">
-                          <div className="h-3 w-20 rounded bg-zinc-200 animate-pulse ml-auto" />
+                          <div className="h-3 w-20 rounded bg-linen-100 animate-pulse ml-auto" />
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-50">
+                    <tbody className="divide-y divide-linen-50">
                       {[1, 2, 3, 4, 5, 6].map((i) => (
                         <tr key={`skel-row-${i}`}>
                           <td className="px-5 py-3">
-                            <div className="h-4 w-5 rounded bg-zinc-100 animate-pulse" />
+                            <div className="h-4 w-5 rounded bg-linen-100 animate-pulse" />
                           </td>
                           <td className="px-5 py-3">
-                            <div className="h-4 w-20 rounded bg-zinc-100 animate-pulse" />
+                            <div className="h-4 w-20 rounded bg-linen-100 animate-pulse" />
                           </td>
                           <td className="px-5 py-3">
-                            <div className="h-4 w-14 rounded bg-zinc-100 animate-pulse" />
+                            <div className="h-4 w-14 rounded bg-linen-100 animate-pulse" />
                           </td>
                           <td className="px-5 py-3">
-                            <div className="h-4 w-22 rounded bg-zinc-100 animate-pulse" />
+                            <div className="h-4 w-22 rounded bg-linen-100 animate-pulse" />
                           </td>
                           <td className="px-5 py-3 text-right">
-                            <div className="h-4 w-18 rounded bg-zinc-100 animate-pulse ml-auto" />
+                            <div className="h-4 w-18 rounded bg-linen-100 animate-pulse ml-auto" />
                           </td>
                           <td className="px-5 py-3 text-right">
-                            <div className="h-4 w-18 rounded bg-zinc-100 animate-pulse ml-auto" />
+                            <div className="h-4 w-18 rounded bg-linen-100 animate-pulse ml-auto" />
                           </td>
                           <td className="px-5 py-3 text-right">
-                            <div className="h-4 w-24 rounded bg-zinc-100 animate-pulse ml-auto" />
+                            <div className="h-4 w-24 rounded bg-linen-100 animate-pulse ml-auto" />
                           </td>
                         </tr>
                       ))}
@@ -580,9 +583,9 @@ export function CreateOutgoingPaymentForm() {
                   </table>
                 ) : (
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-white sticky top-0 z-10">
+                    <thead className="bg-surface sticky top-0 z-10">
                       <tr>
-                        <th className="w-12 px-5 py-3 font-bold text-zinc-600">
+                        <th className="w-12 px-5 py-3 font-bold text-neutral-500">
                           <label className="relative flex cursor-pointer items-center justify-center">
                             <input
                               ref={selectAllCheckboxRef}
@@ -595,8 +598,8 @@ export function CreateOutgoingPaymentForm() {
                             <div
                               className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
                                 allSelected || (someSelected && !allSelected)
-                                  ? "border-blue-600 bg-blue-600 text-white"
-                                  : "border-zinc-300 bg-white text-transparent"
+                                  ? "border-teal-600 bg-teal-600 text-surface"
+                                  : "border-linen-200 bg-surface text-transparent"
                               }`}
                             >
                               {someSelected && !allSelected ? (
@@ -607,26 +610,26 @@ export function CreateOutgoingPaymentForm() {
                             </div>
                           </label>
                         </th>
-                        <th className="px-5 py-3 font-medium text-zinc-600">DOC TYPE</th>
-                        <th className="px-5 py-3 font-medium text-zinc-600">DOC NUMBER</th>
-                        <th className="px-5 py-3 font-medium text-zinc-600">DOC DATE</th>
-                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                        <th className="px-5 py-3 font-medium text-neutral-500">DOC TYPE</th>
+                        <th className="px-5 py-3 font-medium text-neutral-500">DOC NUMBER</th>
+                        <th className="px-5 py-3 font-medium text-neutral-500">DOC DATE</th>
+                        <th className="px-5 py-3 font-medium text-neutral-500 text-right">
                           DOC TOTAL
                         </th>
-                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                        <th className="px-5 py-3 font-medium text-neutral-500 text-right">
                           BALANCE DUE
                         </th>
-                        <th className="px-5 py-3 font-medium text-zinc-600 text-right">
+                        <th className="px-5 py-3 font-medium text-neutral-500 text-right">
                           TOTAL PAYMENT
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-50">
+                    <tbody className="divide-y divide-linen-50">
                       {displayedDocuments.length === 0 &&
                       !isLoadingInvoices &&
                       !isLoadingCreditMemos ? (
                         <tr>
-                          <td colSpan={7} className="px-5 py-8 text-center text-zinc-500">
+                          <td colSpan={7} className="px-5 py-8 text-center text-neutral-500">
                             No open documents found.
                           </td>
                         </tr>
@@ -651,15 +654,15 @@ export function CreateOutgoingPaymentForm() {
                                 key={`${doc.type}-${doc.id}`}
                                 onClick={() => handleToggleDoc(doc.id, doc.type, doc.balanceDue)}
                                 className={`cursor-pointer transition-colors ${
-                                  selected ? "bg-blue-50/50" : "hover:bg-zinc-50"
+                                  selected ? "bg-teal-50/50" : "hover:bg-linen-50"
                                 }`}
                               >
                                 <td className="px-5 py-3">
                                   <div
                                     className={`flex h-5 w-5 items-center justify-center rounded border ${
                                       selected
-                                        ? "bg-blue-600 border-blue-600 text-white"
-                                        : "border-zinc-300 bg-white text-transparent"
+                                        ? "bg-teal-600 border-teal-600 text-surface"
+                                        : "border-linen-200 bg-surface text-transparent"
                                     }`}
                                   >
                                     <Check className="h-3.5 w-3.5" />
@@ -669,21 +672,21 @@ export function CreateOutgoingPaymentForm() {
                                   <span
                                     className={`text-sm ${
                                       doc.type === "it_PurchaseInvoice"
-                                        ? "text-blue-700"
+                                        ? "text-teal-700"
                                         : "text-orange-700"
                                     }`}
                                   >
                                     {doc.label}
                                   </span>
                                 </td>
-                                <td className="px-5 py-3 text-zinc-600">{doc.docNum}</td>
-                                <td className="px-5 py-3 text-zinc-600">
+                                <td className="px-5 py-3 text-neutral-500">{doc.docNum}</td>
+                                <td className="px-5 py-3 text-neutral-500">
                                   {toDisplayDate(doc.date)}
                                 </td>
-                                <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                                <td className="px-5 py-3 text-right font-medium text-ink-900">
                                   {doc.docTotal.toFixed(2)}
                                 </td>
-                                <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                                <td className="px-5 py-3 text-right font-medium text-ink-900">
                                   {doc.balanceDue.toFixed(2)}
                                 </td>
                                 <td className="px-5 py-3 text-right">
@@ -764,9 +767,9 @@ export function CreateOutgoingPaymentForm() {
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     disabled={!selected}
-                                    className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold text-zinc-900 outline-none transition-all ${
+                                    className={`w-28 rounded-lg border px-3 py-1.5 text-right text-sm font-bold text-ink-900 outline-none transition-all ${
                                       selected
-                                        ? "border-zinc-200 bg-white"
+                                        ? "border-linen-200 bg-surface"
                                         : "border-transparent bg-transparent"
                                     }`}
                                   />
@@ -790,38 +793,38 @@ export function CreateOutgoingPaymentForm() {
               </div>
             </div>
 
-            <div className="w-80 rounded-2xl border border-zinc-100 bg-white shadow-sm p-5 sticky top-4">
+            <div className="w-80 rounded-2xl border border-linen-100 bg-surface shadow-sm p-5 sticky top-4">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-bold text-zinc-900">Payment Summary</h2>
+                <h2 className="text-sm font-bold text-ink-900">Payment Summary</h2>
               </div>
-              <div className="mb-4 rounded-lg bg-blue-50/50 p-3 border border-blue-100/50">
+              <div className="mb-4 rounded-lg bg-teal-50/50 p-3 border border-teal-100/50">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isPaymentOnAccount}
                     onChange={(e) => setIsPaymentOnAccount(e.target.checked)}
-                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600/20"
+                    className="w-4 h-4 rounded border-linen-200 text-teal-600 focus:ring-teal-600/20"
                   />
-                  <span className="text-sm font-bold text-blue-900">Payment on Account</span>
+                  <span className="text-sm font-bold text-teal-900">Payment on Account</span>
                 </label>
               </div>
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-600">Selected Invoices</span>
-                  <span className="font-medium text-zinc-900">
+                  <span className="text-neutral-500">Selected Invoices</span>
+                  <span className="font-medium text-ink-900">
                     + {formatCurrency(totalInvoices, currencyCode)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-600">Applied Credit Memos</span>
+                  <span className="text-neutral-500">Applied Credit Memos</span>
                   <span className="font-medium text-orange-600">
                     - {formatCurrency(totalCreditMemos, currencyCode)}
                   </span>
                 </div>
-                <div className="border-t border-zinc-100 pt-3 flex justify-between">
-                  <span className="font-bold text-zinc-900">Balance Due</span>
-                  <span className="text-lg font-black text-blue-600">
+                <div className="border-t border-linen-100 pt-3 flex justify-between">
+                  <span className="font-bold text-ink-900">Balance Due</span>
+                  <span className="text-lg font-black text-teal-600">
                     {formatCurrency(Math.max(0, balanceDue), currencyCode)}
                   </span>
                 </div>
@@ -832,7 +835,7 @@ export function CreateOutgoingPaymentForm() {
                 disabled={
                   (!isPaymentOnAccount && balanceDue <= 0) || createPaymentMutation.isPending
                 }
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-green-200 transition-all hover:bg-green-700 active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-surface shadow-lg shadow-green-200 transition-all hover:bg-green-700 active:scale-95 disabled:bg-linen-100 disabled:text-neutral-400 disabled:shadow-none disabled:cursor-not-allowed"
               >
                 <HandCoins className="h-5 w-5" />
                 {createPaymentMutation.isPending ? "Processing..." : "Payment Method"}

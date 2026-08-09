@@ -390,7 +390,7 @@ export function IcRetryTable() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-white">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-surface">
       <IcRetryToolbar
         tableId={TABLE_ID}
         table={table}
@@ -450,8 +450,8 @@ export function IcRetryTable() {
                   className="h-28 text-center"
                 >
                   <div className="mx-auto max-w-sm space-y-1 py-4">
-                    <p className="text-sm font-semibold text-zinc-900">No retries match</p>
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm font-semibold text-ink-900">No retries match</p>
+                    <p className="text-sm text-neutral-500">
                       Clear filters or wait for failed intercompany posts for this company.
                     </p>
                   </div>

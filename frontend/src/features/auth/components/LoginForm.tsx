@@ -74,10 +74,8 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-100 mx-auto space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 font-sans">
-          Access Gateway
-        </h1>
-        <p className="text-[0.9375rem] text-zinc-500 font-medium">
+        <h1 className="text-3xl font-bold tracking-tight text-ink-900 font-sans">Access Gateway</h1>
+        <p className="text-[0.9375rem] text-neutral-500 font-medium">
           Enter your credentials to access your secure portal.
         </p>
       </div>
@@ -118,9 +116,9 @@ export function LoginForm() {
                 }
                 autoComplete="off"
               >
-                <Select.Trigger className="border-zinc-200 bg-white hover:bg-white hover:border-zinc-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white">
+                <Select.Trigger className="border-linen-200 bg-surface hover:bg-surface hover:border-linen-300 focus:ring-4 focus:ring-teal-500/12 focus:border-teal-500 focus:bg-surface">
                   <div className="flex items-center gap-3 overflow-hidden flex-1">
-                    <Building2 className="size-4 text-zinc-400 shrink-0" />
+                    <Building2 className="size-4 text-neutral-400 shrink-0" />
                     <div className="truncate text-left">
                       <Select.Value placeholder="Select Database..." labelMap={orgLabelMap} />
                     </div>
@@ -141,17 +139,17 @@ export function LoginForm() {
                               label={org.companyName}
                             >
                               <div className="flex flex-col gap-0.5 py-1">
-                                <span className="font-bold text-[13px] text-zinc-900">
+                                <span className="font-bold text-[13px] text-ink-900">
                                   {org.companyName}
                                 </span>
-                                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-tight">
+                                <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-tight">
                                   db: {org.dbName}
                                 </span>
                               </div>
                             </Select.Item>
                           ))
                         ) : (
-                          <div className="px-3 py-2 text-xs text-zinc-500 font-medium">
+                          <div className="px-3 py-2 text-xs text-neutral-500 font-medium">
                             {isLoadingOrgs || isOrganizationsFetching
                               ? "Loading databases..."
                               : "No databases available."}
@@ -171,13 +169,13 @@ export function LoginForm() {
         <Field error={errors.username?.message || ""}>
           <Field.Label>Username</Field.Label>
           <div className="relative group">
-            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
+            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-neutral-400 group-focus-within:text-teal-600 transition-colors" />
             <Input
               {...register("username")}
               placeholder="Enter your username"
               autoComplete="off"
               disabled={isLoggingIn}
-              className="pl-11 border border-zinc-200 bg-white shadow-sm outline-none transition-all placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white disabled:pointer-events-none disabled:opacity-60"
+              className="pl-11 border border-linen-200 bg-surface shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/12 focus:bg-surface disabled:pointer-events-none disabled:opacity-60"
             />
           </div>
           <Field.Error />
@@ -187,19 +185,19 @@ export function LoginForm() {
         <Field error={errors.password?.message || ""}>
           <Field.Label>Password</Field.Label>
           <div className="relative group">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-neutral-400 group-focus-within:text-teal-600 transition-colors" />
             <Input
               {...register("password")}
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               autoComplete="new-password"
               disabled={isLoggingIn}
-              className="pl-11 pr-12 border border-zinc-200 bg-white shadow-sm outline-none transition-all placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white disabled:pointer-events-none disabled:opacity-60"
+              className="pl-11 pr-12 border border-linen-200 bg-surface shadow-sm outline-none transition-all placeholder:text-neutral-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/12 focus:bg-surface disabled:pointer-events-none disabled:opacity-60"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 focus:outline-none transition-colors hover:cursor-pointer border-none bg-transparent"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 focus:outline-none transition-colors hover:cursor-pointer border-none bg-transparent"
               disabled={isLoggingIn}
             >
               {showPassword ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
@@ -211,7 +209,7 @@ export function LoginForm() {
         {/* --- Error + Submit --- */}
         <div className="space-y-2 pt-1">
           {authError ? (
-            <p className="text-red-600 text-[11px] font-semibold text-center leading-tight">
+            <p className="text-danger text-[11px] font-semibold text-center leading-tight">
               {authError}
             </p>
           ) : null}
@@ -220,7 +218,7 @@ export function LoginForm() {
             isLoading={isLoggingIn}
             loadingText="Authenticating..."
             disabled={isLoadingOrgs}
-            className="h-11 w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-950 text-sm font-semibold tracking-normal text-white shadow-xl shadow-zinc-950/10 transition-all hover:bg-zinc-800 hover:shadow-zinc-950/20 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 active:scale-[0.98] border-none"
+            className="h-11 w-full flex items-center justify-center gap-2 rounded-xl bg-ink-950 text-sm font-semibold tracking-normal text-surface shadow-xl shadow-ink-950/10 transition-all hover:bg-ink-800 hover:shadow-ink-950/20 focus:outline-none focus:ring-2 focus:ring-ink-950 focus:ring-offset-2 active:scale-[0.98] border-none"
           >
             {!isLoggingIn && <LogIn className="h-4 w-4" />}
             Sign In

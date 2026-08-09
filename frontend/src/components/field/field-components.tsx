@@ -45,7 +45,7 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps) {
     <label
       htmlFor={id}
       className={cn(
-        "text-[11px] text-zinc-950 font-bold uppercase tracking-widest mb-1.5 block px-1 select-none",
+        "text-[11px] text-ink-900 font-bold uppercase tracking-widest mb-1.5 block px-1 select-none",
         className,
       )}
       {...props}
@@ -83,7 +83,7 @@ export function FieldDescription({ className, ...props }: FieldDescriptionProps)
   return (
     <p
       id={descriptionId}
-      className={cn("text-[10px] text-zinc-400 font-medium px-1", className)}
+      className={cn("text-[10px] text-neutral-400 font-medium px-1", className)}
       {...props}
     />
   );

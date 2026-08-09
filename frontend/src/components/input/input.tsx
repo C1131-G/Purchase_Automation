@@ -20,9 +20,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         name={resolvedName}
         autoComplete="off"
         className={cn(
-          "flex h-12 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 text-sm text-zinc-900 transition-all font-outfit",
-          "placeholder:text-zinc-300",
-          "focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent focus:bg-white",
+          "flex h-12 w-full rounded-xl border border-linen-200 bg-linen-50/50 px-4 text-sm text-ink-900 transition-all font-outfit",
+          "placeholder:text-neutral-300",
+          "focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent focus:bg-surface",
           "disabled:cursor-not-allowed disabled:opacity-50",
           "ring-offset-1",
           className,

@@ -177,15 +177,15 @@ function SortableItem({ id, title, isVisible, onToggleVisibility }: SortableItem
       className={cn(
         "group flex items-center justify-between rounded-md px-2 py-1 text-[12px] select-none border border-transparent transition-colors",
         isDragging
-          ? "bg-white shadow-md border-zinc-200 ring-1 ring-blue-100"
-          : "hover:bg-zinc-50 text-zinc-900",
+          ? "bg-surface shadow-md border-linen-200 ring-1 ring-teal-100"
+          : "hover:bg-linen-50 text-ink-900",
       )}
     >
       <div className="flex items-center gap-3 flex-1 overflow-hidden">
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1.5 -ml-1 text-zinc-300 hover:text-blue-500 transition-colors rounded-md active:bg-zinc-100"
+          className="cursor-grab active:cursor-grabbing p-1.5 -ml-1 text-neutral-300 hover:text-teal-600 transition-colors rounded-md active:bg-linen-100"
         >
           <GripVertical className="size-3.5" />
         </div>
@@ -194,7 +194,9 @@ function SortableItem({ id, title, isVisible, onToggleVisibility }: SortableItem
           onClick={handleToggleVisibility}
           className={cn(
             "truncate font-medium transition-colors cursor-pointer text-left flex-1",
-            isVisible ? "text-zinc-700 hover:text-blue-600" : "text-zinc-400 hover:text-blue-400",
+            isVisible
+              ? "text-neutral-600 hover:text-teal-700"
+              : "text-neutral-400 hover:text-teal-600",
           )}
         >
           {title}
@@ -207,8 +209,8 @@ function SortableItem({ id, title, isVisible, onToggleVisibility }: SortableItem
         className={cn(
           "ml-2 flex items-center justify-center size-4 rounded border transition-all cursor-pointer shrink-0",
           isVisible
-            ? "bg-blue-500 border-blue-500 text-white shadow-sm"
-            : "border-zinc-300 bg-white text-transparent hover:border-blue-400 hover:bg-blue-50/50",
+            ? "bg-teal-600 border-teal-600 text-surface shadow-sm"
+            : "border-linen-200 bg-surface text-transparent hover:border-teal-300 hover:bg-teal-50",
         )}
       >
         <Check className="size-2.5" strokeWidth={3} />

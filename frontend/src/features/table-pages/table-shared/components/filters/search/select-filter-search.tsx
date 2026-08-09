@@ -32,11 +32,11 @@ export function SelectFilterSearch<TData>({
   return (
     <div className={cn("relative w-full", className)}>
       <Select value={selectValue} onValueChange={onSearchChange}>
-        <Select.Trigger className="w-full h-11 bg-zinc-50/50 border-zinc-200 hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all rounded-xl text-[13px] font-normal">
+        <Select.Trigger className="w-full h-11 bg-linen-50 border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all rounded-xl text-[13px] font-normal">
           <Select.Value placeholder="Select…" labelMap={labelMap} />
           <Select.Icon>
             <svg
-              className="size-4 text-zinc-400"
+              className="size-4 text-neutral-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -74,7 +74,7 @@ export function SelectFilterSearch<TData>({
                         icon = <div className="size-2 rounded-full bg-emerald-500" />;
                       }
                       if (labelText === "Closed") {
-                        icon = <div className="size-2 rounded-full bg-zinc-400" />;
+                        icon = <div className="size-2 rounded-full bg-neutral-400" />;
                       }
                       if (labelText === "Draft") {
                         icon = <div className="size-2 rounded-full bg-amber-500" />;
@@ -82,7 +82,7 @@ export function SelectFilterSearch<TData>({
                       if (labelText === "Yes (Canceled)") {
                         icon = (
                           <svg
-                            className="size-4 text-emerald-600"
+                            className="size-4 text-teal-600"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -99,7 +99,7 @@ export function SelectFilterSearch<TData>({
                       if (labelText === "No (Active)") {
                         icon = (
                           <svg
-                            className="size-4 text-zinc-400"
+                            className="size-4 text-neutral-400"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"

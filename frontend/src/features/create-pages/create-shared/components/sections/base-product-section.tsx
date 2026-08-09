@@ -24,7 +24,7 @@ import { SearchAndImportMenu } from "./search-and-import-menu";
 import type { ProductRow } from "@/features/create-pages/create-shared/utils/create-order.types";
 
 function Pulse({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />;
+  return <div className={`animate-pulse rounded bg-linen-100 ${className}`} />;
 }
 
 const getTargetLabel = (target: string) => {
@@ -69,16 +69,16 @@ const getTargetIcon = (target: string) => {
     case "GRPO":
     case "Sales Order":
       return (
-        <Truck className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+        <Truck className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
       );
     case "AP Invoice":
     case "A/R Invoice":
       return (
-        <StickyNote className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+        <StickyNote className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
       );
     default:
       return (
-        <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+        <FileText className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
       );
   }
 };
@@ -114,15 +114,15 @@ export function ActionsPopoverContent({
 
   if (menuView === "download") {
     return (
-      <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-white">
+      <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-surface">
         <button
           type="button"
           onClick={() => setMenuView("main")}
-          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-600 transition-all cursor-pointer border-none"
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-neutral-500 transition-all cursor-pointer border-none"
         >
           ← Back to Actions
         </button>
-        <div className="border-t border-zinc-100 my-1" />
+        <div className="border-t border-linen-100 my-1" />
         {onDownload && (
           <>
             <button
@@ -131,9 +131,9 @@ export function ActionsPopoverContent({
                 onDownload("pdf");
                 setOpen(false);
               }}
-              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
-              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <FileText className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
               Download PDF
             </button>
             <button
@@ -142,9 +142,9 @@ export function ActionsPopoverContent({
                 onDownload("excel");
                 setOpen(false);
               }}
-              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
-              <FileSpreadsheet className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <FileSpreadsheet className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
               Download Excel
             </button>
             <button
@@ -153,9 +153,9 @@ export function ActionsPopoverContent({
                 onDownload("word");
                 setOpen(false);
               }}
-              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
-              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <FileText className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
               Download Word
             </button>
           </>
@@ -166,22 +166,22 @@ export function ActionsPopoverContent({
 
   if (menuView === "copy-to") {
     return (
-      <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-white">
+      <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-surface">
         <button
           type="button"
           onClick={() => setMenuView("main")}
-          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-600 transition-all cursor-pointer border-none"
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-neutral-500 transition-all cursor-pointer border-none"
         >
           ← Back to Actions
         </button>
-        <div className="border-t border-zinc-100 my-1" />
+        <div className="border-t border-linen-100 my-1" />
         {effectiveTargets.map((target) => (
           <Link
             key={target}
             to={getTargetRoute(target)}
             search={{ sourceDocNum: copyToDocNum, sourceDocType: copyToSourceDocType as any }}
             onClick={() => setOpen(false)}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none no-underline"
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none no-underline"
           >
             {getTargetIcon(target)}
             {getTargetLabel(target)}
@@ -192,11 +192,11 @@ export function ActionsPopoverContent({
   }
 
   return (
-    <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-white">
-      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+    <div className="flex flex-col gap-0.5 p-1.5 w-[180px] bg-surface">
+      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
         Document Actions
       </div>
-      <div className="border-t border-zinc-100 my-1" />
+      <div className="border-t border-linen-100 my-1" />
 
       {/* Option 1: Update */}
       <button
@@ -206,11 +206,11 @@ export function ActionsPopoverContent({
           setOpen(false);
         }}
         disabled={submitDisabled || Boolean(disabledReason) || isSubmitting}
-        className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border-none"
+        className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border-none"
       >
         <span className="flex items-center gap-2.5">
           <RefreshCw
-            className={`h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 ${isSubmitting ? "animate-spin text-blue-600" : ""}`}
+            className={`h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600 ${isSubmitting ? "animate-spin text-teal-600" : ""}`}
           />
           <span>Update</span>
         </span>
@@ -221,13 +221,13 @@ export function ActionsPopoverContent({
         <button
           type="button"
           onClick={() => setMenuView("download")}
-          className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+          className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
         >
           <span className="flex items-center gap-2.5">
-            <Download className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <Download className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
             <span>Download</span>
           </span>
-          <span className="text-xs font-bold text-zinc-300 transition-all group-hover:text-blue-600">
+          <span className="text-xs font-bold text-neutral-300 transition-all group-hover:text-teal-600">
             ➔
           </span>
         </button>
@@ -238,13 +238,13 @@ export function ActionsPopoverContent({
         <button
           type="button"
           onClick={() => setMenuView("copy-to")}
-          className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+          className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
         >
           <span className="flex items-center gap-2.5">
-            <Truck className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <Truck className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
             <span>Copy To</span>
           </span>
-          <span className="text-xs font-bold text-zinc-300 transition-all group-hover:text-blue-600">
+          <span className="text-xs font-bold text-neutral-300 transition-all group-hover:text-teal-600">
             ➔
           </span>
         </button>
@@ -288,15 +288,15 @@ function AddPopoverContent({
 
   if (menuView === "download") {
     return (
-      <div className="flex flex-col gap-0.5 p-1.5 w-52 bg-white">
+      <div className="flex flex-col gap-0.5 p-1.5 w-52 bg-surface">
         <button
           type="button"
           onClick={() => setMenuView("main")}
-          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-600 transition-all cursor-pointer border-none"
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-neutral-500 transition-all cursor-pointer border-none"
         >
           ← Back to Actions
         </button>
-        <div className="border-t border-zinc-100 my-1" />
+        <div className="border-t border-linen-100 my-1" />
         {onDownload && (
           <>
             <button
@@ -305,9 +305,9 @@ function AddPopoverContent({
                 onDownload("pdf");
                 setOpen(false);
               }}
-              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
-              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <FileText className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
               Download PDF
             </button>
             <button
@@ -316,9 +316,9 @@ function AddPopoverContent({
                 onDownload("excel");
                 setOpen(false);
               }}
-              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
-              <FileSpreadsheet className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <FileSpreadsheet className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
               Download Excel
             </button>
             <button
@@ -327,9 +327,9 @@ function AddPopoverContent({
                 onDownload("word");
                 setOpen(false);
               }}
-              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
-              <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <FileText className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
               Download Word
             </button>
           </>
@@ -339,11 +339,11 @@ function AddPopoverContent({
   }
 
   return (
-    <div className="flex flex-col gap-0.5 p-1.5 w-52 bg-white">
-      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+    <div className="flex flex-col gap-0.5 p-1.5 w-52 bg-surface">
+      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
         Document Actions
       </div>
-      <div className="border-t border-zinc-100 my-1" />
+      <div className="border-t border-linen-100 my-1" />
 
       {!isSaved ? (
         <>
@@ -359,9 +359,9 @@ function AddPopoverContent({
               setOpen(false);
             }}
             disabled={isSubmitting || isModeDisabled("save-new")}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-zinc-700 border-none"
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-ink-900 border-none"
           >
-            <Plus className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 group-disabled:group-hover:text-zinc-400" />
+            <Plus className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600 group-disabled:group-hover:text-neutral-400" />
             <span>Save & New</span>
           </button>
 
@@ -377,9 +377,9 @@ function AddPopoverContent({
               setOpen(false);
             }}
             disabled={isSubmitting || isModeDisabled("view")}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-zinc-700 border-none"
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-ink-900 border-none"
           >
-            <Eye className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 group-disabled:group-hover:text-zinc-400" />
+            <Eye className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600 group-disabled:group-hover:text-neutral-400" />
             <span>Save & View</span>
           </button>
 
@@ -395,9 +395,9 @@ function AddPopoverContent({
               setOpen(false);
             }}
             disabled={isSubmitting || isModeDisabled("close")}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-zinc-700 border-none"
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-ink-900 border-none"
           >
-            <CheckSquare className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600 group-disabled:group-hover:text-zinc-400" />
+            <CheckSquare className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600 group-disabled:group-hover:text-neutral-400" />
             <span>Save & Close</span>
           </button>
 
@@ -413,9 +413,9 @@ function AddPopoverContent({
               setOpen(false);
             }}
             disabled={isSubmitting || isModeDisabled("draft") || (isDraftConversion && !isDirty)}
-            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
           >
-            <FileText className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+            <FileText className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
             <span>{isDraftConversion ? "Update & Draft" : "Save & Draft"}</span>
           </button>
         </>
@@ -426,13 +426,13 @@ function AddPopoverContent({
             <button
               type="button"
               onClick={() => setMenuView("download")}
-              className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
               <span className="flex items-center gap-2.5">
-                <Download className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+                <Download className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
                 <span>Download</span>
               </span>
-              <span className="text-xs font-bold text-zinc-300 transition-all group-hover:text-blue-600">
+              <span className="text-xs font-bold text-neutral-300 transition-all group-hover:text-teal-600">
                 ➔
               </span>
             </button>
@@ -446,9 +446,9 @@ function AddPopoverContent({
                 onReset();
                 setOpen(false);
               }}
-              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-zinc-700 hover:text-blue-600 transition-all cursor-pointer border-none"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink-900 hover:text-teal-600 transition-all cursor-pointer border-none"
             >
-              <RefreshCw className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-blue-600" />
+              <RefreshCw className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-teal-600" />
               <span>New Document</span>
             </button>
           )}
@@ -633,19 +633,19 @@ export function BaseProductSection({
   // Show skeleton when loading (edit hydration)
   if (loading) {
     return (
-      <section id={sectionId} className="mt-3 rounded-2xl border border-zinc-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
-          <h3 className="whitespace-nowrap text-sm font-medium text-zinc-800">
+      <section id={sectionId} className="mt-3 rounded-2xl border border-linen-200 bg-surface">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-linen-100 px-4 py-3">
+          <h3 className="whitespace-nowrap text-sm font-medium text-ink-900">
             <span className="inline-flex items-center gap-2">
               <span>{title}</span>
-              {isReadOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+              {isReadOnly ? <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" /> : null}
             </span>
           </h3>
           {!effectiveHideSearch && <Pulse className="h-11 w-40 rounded-xl" />}
         </div>
         <div className="overflow-x-auto px-2 py-2">
-          <table className="min-w-245 w-full text-left text-sm text-zinc-700">
-            <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+          <table className="min-w-245 w-full text-left text-sm text-ink-900">
+            <thead className="bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
               <tr>
                 {[
                   "Product",
@@ -666,7 +666,7 @@ export function BaseProductSection({
             </thead>
             <tbody>
               {["row-1", "row-2", "row-3"].map((rowKey) => (
-                <tr key={rowKey} className="border-b border-zinc-100 last:border-b-0">
+                <tr key={rowKey} className="border-b border-linen-100 last:border-b-0">
                   <td className="px-3 py-2">
                     <Pulse className="h-4 w-56" />
                   </td>
@@ -699,15 +699,15 @@ export function BaseProductSection({
             </tbody>
           </table>
         </div>
-        <div className="border-t border-zinc-100 px-4 py-3">
+        <div className="border-t border-linen-100 px-4 py-3">
           <div className="ml-auto w-full max-w-sm">
             <div className="space-y-1">
-              <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
+              <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
                 <Pulse className="h-3 w-16" />
                 <Pulse className="h-3 w-10" />
                 <Pulse className="h-4 w-20" />
               </div>
-              <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
+              <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
                 <Pulse className="h-3 w-16" />
                 <Pulse className="h-3 w-10" />
                 <Pulse className="h-4 w-20" />
@@ -731,12 +731,12 @@ export function BaseProductSection({
   }
 
   return (
-    <section id={sectionId} className="mt-3 rounded-2xl border border-zinc-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
-        <h3 className="whitespace-nowrap text-sm font-medium text-zinc-800">
+    <section id={sectionId} className="mt-3 rounded-2xl border border-linen-200 bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-linen-100 px-4 py-3">
+        <h3 className="whitespace-nowrap text-sm font-medium text-ink-900">
           <span className="inline-flex items-center gap-2">
             <span>{title}</span>
-            {isReadOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+            {isReadOnly ? <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" /> : null}
           </span>
         </h3>
         <div className="flex items-center gap-2">
@@ -748,10 +748,10 @@ export function BaseProductSection({
               content={`Required fields: ${missingSearchFields.map((field) => requiredFieldLabels[field] ?? field).join(", ")}`}
               className="block w-auto max-w-none"
             >
-              <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+              <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-linen-200 bg-surface px-3 py-1 text-xs font-medium text-neutral-500">
                 <span>Required fields</span>
                 <span
-                  className="inline-block size-3 rounded-full border border-zinc-300"
+                  className="inline-block size-3 rounded-full border border-linen-200"
                   style={{
                     background: `conic-gradient(#2563eb ${searchCompletionPercent}%, #e4e4e7 ${searchCompletionPercent}% 100%)`,
                   }}
@@ -782,7 +782,7 @@ export function BaseProductSection({
                   onClick={onSearchProducts}
                   onMouseEnter={onPrefetchProducts}
                   onFocus={onPrefetchProducts}
-                  className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600"
+                  className="group inline-flex h-11 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600"
                 >
                   <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
                   {searchLabel}
@@ -793,45 +793,45 @@ export function BaseProductSection({
 
       <div>{children}</div>
 
-      <div className="border-t border-zinc-100 px-4 py-3">
+      <div className="border-t border-linen-100 px-4 py-3">
         <div className="ml-auto w-full max-w-sm">
           <div className="space-y-1">
-            <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
-              <span className="text-xs font-medium uppercase tracking-[0.08em] text-zinc-500">
+            <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
+              <span className="text-xs font-medium uppercase tracking-[0.08em] text-neutral-500">
                 Tax Total
               </span>
               {currencyLabel ? (
-                <span className="text-xs font-semibold uppercase tracking-[0.06em] text-zinc-400">
+                <span className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-400">
                   {currencyLabel}
                 </span>
               ) : null}
-              <span className="min-w-20 text-right text-base font-semibold text-zinc-800">
+              <span className="min-w-20 text-right text-base font-semibold text-ink-900">
                 {totals.taxTotal.toFixed(2)}
               </span>
             </div>
-            <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
-              <span className="text-xs font-medium uppercase tracking-[0.08em] text-zinc-500">
+            <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
+              <span className="text-xs font-medium uppercase tracking-[0.08em] text-neutral-500">
                 Net Total
               </span>
               {currencyLabel ? (
-                <span className="text-xs font-semibold uppercase tracking-[0.06em] text-zinc-400">
+                <span className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-400">
                   {currencyLabel}
                 </span>
               ) : null}
-              <span className="min-w-20 text-right text-base font-semibold text-zinc-800">
+              <span className="min-w-20 text-right text-base font-semibold text-ink-900">
                 {totals.netTotal.toFixed(2)}
               </span>
             </div>
             <div className="flex items-center justify-end gap-3 py-1">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-600">
+              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">
                 Grand Total
               </span>
               {currencyLabel ? (
-                <span className="text-xs font-semibold uppercase tracking-[0.06em] text-zinc-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-500">
                   {currencyLabel}
                 </span>
               ) : null}
-              <span className="min-w-20 text-right text-lg font-bold text-zinc-900">
+              <span className="min-w-20 text-right text-lg font-bold text-ink-900">
                 {totals.grandTotal.toFixed(2)}
               </span>
             </div>
@@ -850,7 +850,7 @@ export function BaseProductSection({
                     type="button"
                     size="md"
                     variant="outline"
-                    className="group h-11 w-56 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer"
+                    className="group h-11 w-56 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
                     Go Back
@@ -865,19 +865,19 @@ export function BaseProductSection({
                           to: "/dashboard",
                         });
                       }}
-                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
+                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-linen-50 transition-all text-left cursor-pointer"
                     >
-                      <LayoutDashboard className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
+                      <LayoutDashboard className="mt-0.5 h-4 w-4 text-neutral-400 group-hover:text-neutral-500 transition-colors" />
                       <span className="flex flex-col">
-                        <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
+                        <span className="text-[13px] font-bold text-ink-900 group-hover:text-ink-900 transition-colors">
                           Back to Dashboard
                         </span>
-                        <span className="text-[10px] text-zinc-400 mt-0.5">
+                        <span className="text-[10px] text-neutral-400 mt-0.5">
                           Go to main dashboard
                         </span>
                       </span>
                     </button>
-                    <div className="border-t border-zinc-100" />
+                    <div className="border-t border-linen-100" />
                     <button
                       type="button"
                       onClick={() => {
@@ -886,14 +886,14 @@ export function BaseProductSection({
                           search: { limit: 10, page: 1 },
                         });
                       }}
-                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-zinc-50 transition-all text-left cursor-pointer"
+                      className="group flex w-full items-start gap-3 px-3 py-2.5 hover:bg-linen-50 transition-all text-left cursor-pointer"
                     >
-                      <Table className="mt-0.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-655 transition-colors" />
+                      <Table className="mt-0.5 h-4 w-4 text-neutral-400 group-hover:text-ink-900 transition-colors" />
                       <span className="flex flex-col">
-                        <span className="text-[13px] font-bold text-zinc-700 group-hover:text-zinc-900 transition-colors">
+                        <span className="text-[13px] font-bold text-ink-900 group-hover:text-ink-900 transition-colors">
                           Back to Table
                         </span>
-                        <span className="text-[10px] text-zinc-400 mt-0.5">
+                        <span className="text-[10px] text-neutral-400 mt-0.5">
                           Go to document table
                         </span>
                       </span>
@@ -907,7 +907,7 @@ export function BaseProductSection({
                 size="md"
                 variant="outline"
                 onClick={() => navigate({ search: { limit: 10, page: 1 }, to: backToUrl })}
-                className="group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
+                className="group h-11 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none"
               >
                 <span className="inline-flex items-center gap-2">
                   <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
@@ -924,7 +924,7 @@ export function BaseProductSection({
               <>
                 {!isReadOnly && disabledReason && !isSubmitting && (
                   <Tooltip content={disabledReason} className="block w-auto max-w-none">
-                    <span className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 shadow-xs">
+                    <span className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-linen-200 bg-surface px-3 py-1 text-xs font-medium text-neutral-500 shadow-xs">
                       <span className="inline-block size-2 rounded-full bg-amber-500 animate-pulse" />
                       <span>Validation Warning</span>
                     </span>
@@ -937,15 +937,15 @@ export function BaseProductSection({
                       type="button"
                       size="md"
                       variant="outline"
-                      className="group h-11 w-[180px] rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none flex items-center justify-between cursor-pointer normal-case tracking-normal"
+                      className="group h-11 w-[180px] rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900 focus:outline-none flex items-center justify-between cursor-pointer normal-case tracking-normal"
                     >
                       <span className="inline-flex items-center gap-2">
-                        <span className="h-4 w-4 flex items-center justify-center text-zinc-400 group-hover:text-zinc-500 font-bold">
+                        <span className="h-4 w-4 flex items-center justify-center text-neutral-400 group-hover:text-neutral-500 font-bold">
                           ⚙
                         </span>
                         <span>Actions</span>
                       </span>
-                      <ChevronDown className="ml-2 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200" />
+                      <ChevronDown className="ml-2 h-4 w-4 text-neutral-400 group-hover:text-neutral-500 transition-transform duration-200" />
                     </Button>
                   </Popover.Trigger>
                   <Popover.Content
@@ -954,7 +954,7 @@ export function BaseProductSection({
                     unstyled
                     className="w-[180px] z-[1001] -translate-x-3"
                   >
-                    <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-50">
+                    <div className="overflow-hidden rounded-xl border border-linen-100 bg-surface text-ink-900 shadow-xl ring-1 ring-ink-900/5 min-w-50">
                       <ActionsPopoverContent
                         onSubmit={onSubmit}
                         onDownload={onDownload}
@@ -979,10 +979,10 @@ export function BaseProductSection({
                         content={`Required fields: ${missingMandatoryFields.map((field) => requiredFieldLabels[field] ?? field).join(", ")}`}
                         className="block w-auto max-w-none"
                       >
-                        <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                        <span className="inline-flex cursor-help items-center gap-2 rounded-full border border-linen-200 bg-surface px-3 py-1 text-xs font-medium text-neutral-500">
                           <span>Required fields</span>
                           <span
-                            className="inline-block size-3 rounded-full border border-zinc-300"
+                            className="inline-block size-3 rounded-full border border-linen-200"
                             style={{
                               background: `conic-gradient(#2563eb ${mandatoryCompletionPercent}%, #e4e4e7 ${mandatoryCompletionPercent}% 100%)`,
                             }}
@@ -994,7 +994,7 @@ export function BaseProductSection({
                         </span>
                       </Tooltip>
                     ) : (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-linen-200 bg-surface px-3 py-1 text-xs font-medium text-neutral-500">
                         <span className="inline-block size-2 rounded-full bg-amber-500" />
                         <span>Pick 1 product</span>
                       </span>
@@ -1012,12 +1012,12 @@ export function BaseProductSection({
                         isLoading={!isSaved && isSubmitting}
                         loadingText={getSubmitButtonLabel()}
                         disabled={!isSaved && (Boolean(disabledReason) || isSubmitting)}
-                        className="group h-11 w-52 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none flex items-center justify-between cursor-pointer normal-case tracking-normal"
+                        className="group h-11 w-52 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900 focus:outline-none flex items-center justify-between cursor-pointer normal-case tracking-normal"
                       >
                         <span className="inline-flex items-center gap-2">
                           {isSaved ? (
                             <>
-                              <span className="h-4 w-4 flex items-center justify-center text-zinc-400 group-hover:text-zinc-500 font-bold">
+                              <span className="h-4 w-4 flex items-center justify-center text-neutral-400 group-hover:text-neutral-500 font-bold">
                                 ⚙
                               </span>
                               <span>Actions</span>
@@ -1026,7 +1026,7 @@ export function BaseProductSection({
                             <span>{getSubmitButtonLabel()}</span>
                           )}
                         </span>
-                        <ChevronDown className="ml-2 h-4 w-4 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200" />
+                        <ChevronDown className="ml-2 h-4 w-4 text-neutral-400 group-hover:text-neutral-500 transition-transform duration-200" />
                       </Button>
                     </Popover.Trigger>
                     <Popover.Content
@@ -1035,7 +1035,7 @@ export function BaseProductSection({
                       unstyled
                       className="w-52 z-[1001] translate-x-0"
                     >
-                      <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-50">
+                      <div className="overflow-hidden rounded-xl border border-linen-100 bg-surface text-ink-900 shadow-xl ring-1 ring-ink-900/5 min-w-50">
                         <AddPopoverContent
                           onSubmitMode={onSubmitMode}
                           isSaved={isSaved}

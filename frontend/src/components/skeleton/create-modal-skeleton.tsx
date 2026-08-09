@@ -33,19 +33,21 @@ export function CreateModalSkeleton({
 
   return (
     <AnimatedModalShell open onClose={() => {}} panelClassName={panelClassName}>
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-linen-100 px-4 py-3">
         <div className="space-y-1">
-          <div className="h-4 w-32 rounded bg-zinc-200 animate-pulse" />
-          {subtitle ? <div className="h-3 w-40 rounded bg-zinc-100 animate-pulse" /> : null}
+          <div className="h-4 w-32 rounded bg-linen-100 animate-pulse [animation-duration:1.1s]" />
+          {subtitle ? (
+            <div className="h-3 w-40 rounded bg-linen-100 animate-pulse [animation-duration:1.1s]" />
+          ) : null}
           <span className="sr-only">{title}</span>
         </div>
-        <div className="h-7 w-16 rounded-full border border-zinc-100 bg-zinc-50 animate-pulse" />
+        <div className="h-7 w-16 rounded-full border border-linen-100 bg-linen-50 animate-pulse" />
       </div>
 
       <div className="p-4">
-        <div className="mb-3 h-10 w-full rounded-xl border border-zinc-100 bg-zinc-50 animate-pulse" />
-        <div className="overflow-hidden rounded-xl border border-zinc-200">
-          <div className="border-b border-zinc-100 bg-zinc-50 px-3 py-2">
+        <div className="mb-3 h-10 w-full rounded-xl border border-linen-100 bg-linen-50 animate-pulse" />
+        <div className="overflow-hidden rounded-xl border border-linen-200">
+          <div className="border-b border-linen-100 bg-linen-50 px-3 py-2">
             <div
               className="grid gap-3"
               style={{
@@ -53,13 +55,13 @@ export function CreateModalSkeleton({
               }}
             >
               {headerKeys.map((headerKey) => (
-                <div key={headerKey} className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
+                <div key={headerKey} className="h-3 w-16 rounded bg-linen-100 animate-pulse" />
               ))}
             </div>
           </div>
           <div className="max-h-80 overflow-auto p-3 space-y-2">
             {rowKeys.map((rowKey) => (
-              <div key={rowKey} className="h-8 w-full rounded-lg bg-zinc-100 animate-pulse" />
+              <div key={rowKey} className="h-8 w-full rounded-lg bg-linen-100 animate-pulse" />
             ))}
           </div>
         </div>

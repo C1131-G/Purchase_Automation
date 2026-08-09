@@ -92,8 +92,8 @@ function ModalEmptyRow({ colSpan, message }: ModalStateRowProps) {
   return (
     <tr>
       <td colSpan={colSpan} className="px-3 py-4">
-        <div className="flex flex-col items-center gap-1 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-5 text-center">
-          <p className="text-xs font-medium text-zinc-500">{message}</p>
+        <div className="flex flex-col items-center gap-1 rounded-xl border border-linen-100 bg-linen-50 px-4 py-5 text-center">
+          <p className="text-xs font-medium text-neutral-500">{message}</p>
         </div>
       </td>
     </tr>
@@ -217,12 +217,12 @@ export function LookupPopup({
 
   return (
     <AnimatedModalShell open={open} onClose={onClose} panelClassName="max-w-xl">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+      <div className="flex items-center justify-between border-b border-linen-100 px-4 py-3">
+        <h3 className="text-sm font-semibold text-ink-900">{title}</h3>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100"
+          className="rounded-full border border-linen-200 px-3 py-1 text-xs font-medium text-neutral-500 transition hover:bg-linen-100"
         >
           Close
         </button>
@@ -230,17 +230,17 @@ export function LookupPopup({
 
       <div className="p-4">
         <input
-          className="mb-3 h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+          className="mb-3 h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
           placeholder={placeholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           autoComplete="off"
         />
 
-        <div className="overflow-hidden rounded-xl border border-zinc-200">
+        <div className="overflow-hidden rounded-xl border border-linen-200">
           <div ref={listRef} className="max-h-64 overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-zinc-50 text-zinc-600 z-10 block">
+              <thead className="sticky top-0 bg-linen-50 text-neutral-500 z-10 block">
                 <tr className="flex w-full">
                   {showNameOnly ? null : (
                     <th className={`px-3 py-2 text-left font-semibold ${cellWidthClass} block`}>
@@ -258,9 +258,9 @@ export function LookupPopup({
                 <tbody>
                   {loading ? (
                     LOOKUP_SKELETON_KEYS.map((slot) => (
-                      <tr key={`lookup-skeleton-${slot}`} className="border-t border-zinc-100">
+                      <tr key={`lookup-skeleton-${slot}`} className="border-t border-linen-100">
                         <td className="px-3 py-2" colSpan={showCodeOnly || showNameOnly ? 1 : 2}>
-                          <div className="h-8 w-full animate-pulse rounded-lg bg-zinc-100" />
+                          <div className="h-8 w-full animate-pulse rounded-lg bg-linen-100" />
                         </td>
                       </tr>
                     ))
@@ -293,7 +293,7 @@ export function LookupPopup({
                       <tr
                         key={virtualRow.key}
                         data-index={virtualRow.index}
-                        className="absolute left-0 right-0 flex cursor-pointer border-t border-zinc-100 transition hover:bg-zinc-50 items-center"
+                        className="absolute left-0 right-0 flex cursor-pointer border-t border-linen-100 transition hover:bg-linen-50 items-center"
                         style={{
                           transform: `translateY(${virtualRow.start}px)`,
                           height: `${virtualRow.size}px`,
@@ -302,15 +302,13 @@ export function LookupPopup({
                       >
                         {showNameOnly ? null : (
                           <td
-                            className={`px-3 py-2 font-medium text-zinc-800 ${cellWidthClass} truncate block`}
+                            className={`px-3 py-2 font-medium text-ink-900 ${cellWidthClass} truncate block`}
                           >
                             {item.code}
                           </td>
                         )}
                         {showCodeOnly ? null : (
-                          <td
-                            className={`px-3 py-2 text-zinc-700 ${cellWidthClass} truncate block`}
-                          >
+                          <td className={`px-3 py-2 text-ink-900 ${cellWidthClass} truncate block`}>
                             {item.name}
                           </td>
                         )}

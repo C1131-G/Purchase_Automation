@@ -73,25 +73,25 @@ const AGING_BUCKETS: {
   {
     key: "d0_30",
     label: "0–30",
-    tile: "border-zinc-200/90 bg-zinc-50/90",
-    labelColor: "text-zinc-600",
+    tile: "border-linen-200 bg-linen-50",
+    labelColor: "text-neutral-600",
   },
   {
     key: "d31_60",
     label: "31–60",
-    tile: "border-zinc-300/80 bg-zinc-100/70",
-    labelColor: "text-zinc-700",
+    tile: "border-linen-300 bg-linen-100",
+    labelColor: "text-neutral-600",
   },
   {
     key: "d61_90",
     label: "61–90",
-    tile: "border-amber-200/90 bg-amber-50/80",
+    tile: "border-amber-200/70 bg-amber-50/70",
     labelColor: "text-amber-800",
   },
   {
     key: "d90_plus",
     label: "90+",
-    tile: "border-rose-200/90 bg-rose-50/80",
+    tile: "border-rose-200/70 bg-rose-50/70",
     labelColor: "text-rose-800",
   },
 ];
@@ -119,7 +119,9 @@ function AgingTile({
   currency: string;
 }) {
   return (
-    <div className={cn("rounded-xl border px-3.5 py-3 shadow-sm shadow-white/40", tileClassName)}>
+    <div
+      className={cn("rounded-xl border px-3.5 py-3 shadow-sm shadow-linen-100/40", tileClassName)}
+    >
       <p className={cn("text-[11px] font-semibold", labelClassName)}>{label}</p>
       {sublabel ? (
         <p className={cn("mt-0.5 text-[10px] font-medium", labelClassName, "opacity-80")}>
@@ -129,7 +131,7 @@ function AgingTile({
       <p
         className={cn(
           "mt-1.5 text-sm font-semibold tabular-nums",
-          hasValue ? "text-zinc-900" : "text-zinc-400",
+          hasValue ? "text-ink-900" : "text-neutral-400",
         )}
       >
         {formatCurrency(value, currency, true)}
@@ -175,20 +177,30 @@ export function StatementShell({
     <section
       id="overview-statement"
       aria-label="Statement"
-      className="flex min-h-[200px] flex-col scroll-mt-4 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm shadow-zinc-100/60"
+      className="flex min-h-[200px] flex-col scroll-mt-4 overflow-hidden rounded-2xl border border-linen-200 bg-surface shadow-sm shadow-linen-100/60"
     >
-      <div className="border-b border-zinc-100 bg-gradient-to-r from-zinc-50/90 via-white to-white px-5 py-4">
+      <div className="border-b border-linen-100 bg-gradient-to-r from-linen-50/70 via-surface to-surface px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold tracking-tight text-zinc-900">Statement</h2>
-            <p className="mt-1 text-xs text-zinc-500">{caption}</p>
-            {asOfLabel ? <p className="mt-1 text-[11px] text-zinc-400">As of {asOfLabel}</p> : null}
+          <div className="min-w-0 space-y-1">
+            <h2 className="text-sm font-semibold tracking-tight text-ink-900">Statement</h2>
+            <p className="text-xs text-neutral-500">{caption}</p>
+            {asOfLabel ? (
+              <p className="text-[11px] font-medium tabular-nums text-neutral-400">
+                As of {asOfLabel}
+              </p>
+            ) : null}
+            {showPartnerBreakdown ? (
+              <p className="text-[11px] font-medium text-teal-700">
+                {statement.partners.length} partner{statement.partners.length > 1 ? "s" : ""} ·
+                click a partner to view open documents
+              </p>
+            ) : null}
           </div>
           {statement.partners.length > 0 ? (
             <button
               type="button"
               onClick={() => exportStatementCsv(statement, currency, asOf)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-teal-200/60 bg-teal-50/40 px-2.5 py-1.5 text-[11px] font-semibold text-teal-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800"
             >
               <Download className="size-3.5" aria-hidden />
               Export CSV
@@ -205,17 +217,17 @@ export function StatementShell({
         )}
       >
         {partnerCount === 0 ? (
-          <p className="text-center text-sm text-zinc-600">
+          <p className="text-center text-sm text-neutral-600">
             Connect intercompany partners to load balances and aging.
           </p>
         ) : showEmptyPartner ? (
-          <p className="text-center text-sm text-zinc-600">
+          <p className="text-center text-sm text-neutral-600">
             No statement row for this partner in the current company books.
           </p>
         ) : (
           <>
-            <div className="flex gap-2 rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3.5 py-3 text-xs leading-relaxed text-zinc-600">
-              <Info className="mt-0.5 size-3.5 shrink-0 text-blue-600" aria-hidden />
+            <div className="flex gap-2 rounded-xl border border-teal-100/60 bg-teal-50/40 px-3.5 py-3 text-xs leading-relaxed text-neutral-600">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-teal-600" aria-hidden />
               <p>
                 <b>Balance</b> is the SAP partner account total from{" "}
                 <code className="text-[11px]">OCRD</code>.<b> Aging</b> is unpaid open invoice
@@ -250,51 +262,53 @@ export function StatementShell({
                 label="Overdue"
                 labelClassName="text-rose-800"
                 sublabel="31+ days open"
-                tileClassName="border-rose-200/90 bg-rose-50/80"
+                tileClassName="border-rose-200/70 bg-rose-50/70"
                 value={overdueTotal}
               />
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100/90 bg-gradient-to-br from-blue-50/50 via-white to-zinc-50/40 px-4 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-900/10 bg-gradient-to-br from-ink-900 via-ink-800 to-teal-900 px-4 py-3.5">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-xs font-semibold text-zinc-900">{balanceCopy.title}</span>
-                <span className="text-[11px] text-zinc-500">{balanceCopy.hint}</span>
+                <span className="text-xs font-semibold text-surface">{balanceCopy.title}</span>
+                <span className="text-[11px] text-surface/70">{balanceCopy.hint}</span>
                 {selectedPartner?.isFrozen ? (
-                  <span className="mt-1 inline-flex w-fit rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-800">
+                  <span className="mt-1 inline-flex w-fit rounded-md bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-200 ring-1 ring-rose-300/20">
                     Partner frozen in SAP
                   </span>
                 ) : null}
                 {creditUsed != null ? (
-                  <span className="mt-1 text-[11px] text-zinc-500">
+                  <span className="mt-1 text-[11px] text-surface/60">
                     Credit used: {creditUsed}% of {formatCurrency(creditLine ?? 0, displayCurrency)}
                   </span>
                 ) : null}
               </div>
-              <span className="text-lg font-semibold tabular-nums tracking-tight text-blue-900">
+              <span className="text-lg font-semibold tabular-nums tracking-tight text-surface">
                 {formatCurrency(balance, displayCurrency)}
               </span>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-              <span className="text-xs font-medium text-zinc-500">Open invoice aging total</span>
-              <span className="text-sm font-semibold tabular-nums text-zinc-800">
+              <span className="text-xs font-medium text-neutral-500">Open invoice aging total</span>
+              <span className="text-sm font-semibold tabular-nums text-ink-900">
                 {formatCurrency(openAgingTotal, displayCurrency)}
               </span>
             </div>
 
             {showGapHint ? (
-              <p className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-[11px] leading-relaxed text-amber-900/85">
+              <p className="rounded-lg border border-amber-200/60 bg-amber-50/50 px-3 py-2 text-[11px] leading-relaxed text-amber-900">
                 Balance and aging total differ — common causes: unallocated payments, credit memos,
                 or journal postings not tied to open invoices.
               </p>
             ) : null}
 
             {showPartnerBreakdown ? (
-              <div className="overflow-hidden rounded-xl border border-zinc-100">
-                <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-2.5">
-                  <h3 className="text-xs font-semibold text-zinc-700">Partner breakdown</h3>
+              <div className="overflow-hidden rounded-xl border border-linen-200">
+                <div className="border-b border-linen-100 bg-linen-50 px-4 py-2.5">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-neutral-600">
+                    Partner breakdown
+                  </h3>
                 </div>
-                <ul className="divide-y divide-zinc-100" role="list">
+                <ul className="divide-y divide-linen-100" role="list">
                   {statement.partners.map((partner) => {
                     const role = partnerRoleFromCardType(partner.cardType);
                     const partnerCurrency = partner.currency?.trim() || currency;
@@ -312,26 +326,26 @@ export function StatementShell({
                         <Link
                           to={tableLink.to}
                           search={tableLink.search as never}
-                          className="min-w-0 flex-1 cursor-pointer text-left transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2"
+                          className="min-w-0 flex-1 cursor-pointer text-left transition-colors hover:text-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 focus-visible:ring-offset-2"
                           aria-label={`View ${openDocsLabel} for ${roleLabel} ${partner.cardName}`}
                         >
-                          <p className="truncate text-sm font-medium text-zinc-900">
+                          <p className="truncate text-sm font-medium text-ink-900">
                             {partner.cardName}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-zinc-500">
+                          <p className="mt-0.5 text-[11px] text-neutral-500">
                             {roleLabel} · {partner.cardCode}
                             {partner.isFrozen ? " · Frozen" : ""}
                           </p>
                         </Link>
                         <div className="flex flex-wrap items-center gap-4 text-right text-xs tabular-nums">
                           <div>
-                            <p className="text-[10px] font-medium text-zinc-400">Balance</p>
-                            <p className="font-semibold text-zinc-800">
+                            <p className="text-[10px] font-medium text-neutral-400">Balance</p>
+                            <p className="font-semibold text-ink-900">
                               {formatCurrency(partner.balance, partnerCurrency, true)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-medium text-zinc-400">Overdue</p>
+                            <p className="text-[10px] font-medium text-neutral-400">Overdue</p>
                             <p className="font-semibold text-rose-700">
                               {formatCurrency(partnerOverdue, partnerCurrency, true)}
                             </p>

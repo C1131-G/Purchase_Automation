@@ -23,11 +23,11 @@ export function ShellLayoutLogout({
   return (
     <SidebarFooter
       className={cn(
-        "border-t border-zinc-50 transition-all duration-300",
+        "border-t border-linen-100 bg-gradient-to-b from-surface to-linen-50/50 transition-all duration-300",
         isOpen ? "p-4" : "p-2.5 flex items-center justify-center",
       )}
     >
-      <SidebarMenu className="gap-2">
+      <SidebarMenu className="gap-3">
         <SidebarMenuItem className={cn(!isOpen && "flex justify-center w-full")}>
           {isOpen ? (
             <Button
@@ -38,9 +38,9 @@ export function ShellLayoutLogout({
               }}
               variant="outline"
               className={cn(
-                "h-11 w-full rounded-xl border border-zinc-200 bg-white text-zinc-700 normal-case tracking-normal hover:bg-zinc-50 focus:ring-zinc-100",
+                "h-11 w-full rounded-xl border border-linen-200 bg-surface text-neutral-600 normal-case tracking-normal hover:bg-linen-50 focus:ring-linen-200",
                 isFullscreen &&
-                  "border-blue-200 bg-blue-50/50 text-blue-600 hover:bg-blue-50 hover:border-blue-300",
+                  "border-teal-200 bg-teal-50/50 text-teal-700 hover:bg-teal-50 hover:border-teal-300",
               )}
             >
               <span className="flex items-center gap-3 w-full justify-start font-semibold">
@@ -56,9 +56,9 @@ export function ShellLayoutLogout({
                 onToggleFullscreen();
               }}
               className={cn(
-                "size-9 rounded-xl bg-zinc-50 text-zinc-600 hover:bg-zinc-100 flex items-center justify-center border border-zinc-200/50 cursor-pointer mx-auto transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-zinc-200/50",
+                "size-9 rounded-xl bg-linen-100 text-neutral-600 hover:bg-linen-200 flex items-center justify-center border border-linen-200/50 cursor-pointer mx-auto transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-linen-200/50",
                 isFullscreen &&
-                  "bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200/50 focus:ring-blue-300/40",
+                  "bg-teal-50 text-teal-700 hover:bg-teal-100 border-teal-200/50 focus:ring-teal-300/40",
               )}
               title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
@@ -69,19 +69,22 @@ export function ShellLayoutLogout({
 
         <SidebarMenuItem className={cn(!isOpen && "flex justify-center w-full")}>
           {isOpen ? (
-            <Button
+            <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onLogout();
               }}
-              isLoading={logoutBusy}
-              loadingText="Logging out..."
-              variant="danger"
-              className="h-11 w-full rounded-xl border border-red-200 bg-red-50 text-red-700 normal-case tracking-normal shadow-[0_4px_10px_rgba(248,113,113,0.18)] hover:bg-red-100 focus:ring-red-300/40"
+              disabled={logoutBusy}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-ink-900/10 bg-ink-900 px-4 text-[13px] font-semibold tracking-wide text-surface shadow-sm transition-colors hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 disabled:opacity-60"
             >
-              Log out
-            </Button>
+              {logoutBusy ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <LogOut className="size-4" />
+              )}
+              {logoutBusy ? "Logging out…" : "Log out"}
+            </button>
           ) : (
             <button
               type="button"
@@ -90,7 +93,7 @@ export function ShellLayoutLogout({
                 onLogout();
               }}
               disabled={logoutBusy}
-              className="size-9 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center border border-red-200/50 cursor-pointer mx-auto transition-colors duration-150 shadow-[0_2px_6px_rgba(248,113,113,0.1)] focus:outline-none focus:ring-2 focus:ring-red-300/40"
+              className="flex size-9 items-center justify-center rounded-xl border border-ink-900/10 bg-ink-900 text-surface shadow-sm transition-colors hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 disabled:opacity-60 mx-auto"
               title="Log out"
             >
               {logoutBusy ? (

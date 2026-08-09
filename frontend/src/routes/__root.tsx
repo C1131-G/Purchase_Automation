@@ -7,7 +7,7 @@ import { AppToaster } from "@/shared/ui/toast/toaster";
 
 /**
  * Root: Global application container.
- * THEME: Rigid Light-mode foundation (zinc-900 on white).
+ * THEME: Enterprise — Ink/Teal/Linen (light, surface on linen).
  * ARCHITECTURE: Context provider for QueryClient and TanStack Router Outlet.
  * TYPOGRAPHY: Enforces `font-outfit` as the industrial sans-serif baseline.
  * Toasts: single Sonner host for the whole app (see shared/ui/toast).
@@ -21,7 +21,7 @@ export const Route = createRootRouteWithContext<{
 
 function RootComponent() {
   return (
-    <div className="min-h-dvh h-dvh bg-white text-zinc-900 font-outfit selection:bg-blue-500/10 selection:text-blue-900 relative overflow-hidden flex flex-col">
+    <div className="min-h-dvh h-dvh bg-surface text-ink-900 font-outfit selection:bg-teal-500/15 selection:text-teal-900 relative overflow-hidden flex flex-col">
       <main className="relative z-10 flex-1 flex flex-col min-h-0 h-full w-full">
         <Outlet />
       </main>

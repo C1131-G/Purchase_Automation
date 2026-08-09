@@ -14,7 +14,7 @@ export function SearchLeftIcon({ visible }: SearchLeftIconProps) {
     return null;
   }
   return (
-    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-within:text-blue-600 transition-colors pointer-events-none">
+    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 group-within:text-teal-600 transition-colors pointer-events-none">
       <Search className="size-3.5" />
     </div>
   );
@@ -57,7 +57,7 @@ export function SearchActionButtons({
             event.preventDefault();
           }}
           onClick={onClearInput}
-          className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors"
+          className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors"
           tabIndex={-1}
         >
           <X className="size-3.5" />
@@ -73,7 +73,7 @@ export function SearchActionButtons({
             onMouseEnter={onPopupIntent}
             onFocus={onPopupIntent}
             onTouchStart={onPopupIntent}
-            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100"
+            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition hover:bg-linen-50"
             tabIndex={-1}
             title="Search popup"
           >
@@ -87,7 +87,7 @@ export function SearchActionButtons({
               onDocNumberSearch();
             }}
             onClick={onDocNumberSearch}
-            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400"
+            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-400"
             tabIndex={-1}
             title="Search"
           >
@@ -102,7 +102,7 @@ export function SearchActionButtons({
           onMouseEnter={onPopupIntent}
           onFocus={onPopupIntent}
           onTouchStart={onPopupIntent}
-          className="p-1 text-zinc-400 hover:text-blue-600 transition-colors"
+          className="p-1 text-neutral-400 hover:text-teal-600 transition-colors"
           tabIndex={-1}
           title="Search popup"
         >
@@ -149,7 +149,7 @@ export function SuggestionsDropdown({
   }
 
   return (
-    <div className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden py-1">
+    <div className="absolute z-50 mt-1 w-full rounded-xl border border-linen-200 bg-surface shadow-lg overflow-hidden py-1">
       <div ref={listRef} className="max-h-64 overflow-auto relative">
         <div
           style={{
@@ -174,7 +174,7 @@ export function SuggestionsDropdown({
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
-                className="group/item w-full cursor-pointer px-4 py-2 text-left transition hover:bg-zinc-50 flex items-center"
+                className="group/item w-full cursor-pointer px-4 py-2 text-left transition hover:bg-teal-50/50 flex items-center"
                 onMouseDown={(event) => {
                   event.preventDefault();
                 }}
@@ -183,8 +183,8 @@ export function SuggestionsDropdown({
                 <div className="flex items-baseline justify-between gap-3 overflow-hidden w-full">
                   <span
                     className={cn(
-                      "text-[13px] leading-5 transition-colors font-medium group-hover/item:text-blue-600 truncate",
-                      isCardName ? "text-zinc-800" : "text-zinc-600",
+                      "text-[13px] leading-5 transition-colors font-medium group-hover/item:text-teal-700 truncate",
+                      isCardName ? "text-ink-900" : "text-neutral-600",
                     )}
                   >
                     {isCardName ? item.name : item.code}
@@ -200,7 +200,7 @@ export function SuggestionsDropdown({
                     ].includes(activeColumnId) &&
                     item.name &&
                     item.name !== item.code && (
-                      <span className="text-[11px] text-zinc-400 group-hover/item:text-blue-400/80 truncate max-w-[60%] select-none">
+                      <span className="text-[11px] text-neutral-400 group-hover/item:text-teal-600 truncate max-w-[60%] select-none">
                         {item.name}
                       </span>
                     )}

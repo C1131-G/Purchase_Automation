@@ -1,10 +1,12 @@
 function Pulse({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />;
+  return (
+    <div className={`animate-pulse rounded bg-linen-100 [animation-duration:1.1s] ${className}`} />
+  );
 }
 
 function SectionShell({ titleWidth, children }: { titleWidth: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-linen-100 bg-surface p-5 shadow-sm">
       <div className="mb-4">
         <Pulse className={`h-3.5 ${titleWidth}`} />
       </div>
@@ -17,22 +19,22 @@ function FieldSkeleton() {
   return (
     <div className="space-y-1.5">
       <Pulse className="h-2.5 w-24" />
-      <Pulse className="h-10 w-full rounded-xl bg-zinc-50" />
+      <Pulse className="h-10 w-full rounded-xl bg-linen-50" />
     </div>
   );
 }
 
 export function OutgoingPaymentEditSkeleton() {
   return (
-    <div className="w-full bg-zinc-50 p-3 pb-20">
+    <div className="w-full bg-linen-50 p-3 pb-20">
       {/* Breadcrumb bar - matching CreatePageWrapper exactly */}
-      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
+      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-linen-200/60 bg-linen-50/50 px-3.5 py-1.5 text-xs font-medium text-neutral-500 transition-all duration-300 hover:border-linen-200/80 hover:bg-surface hover:shadow-xs">
         <Pulse className="h-3 w-16" />
-        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="size-3 rounded-sm bg-linen-100" />
         <Pulse className="h-3 w-20" />
-        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="size-3 rounded-sm bg-linen-100" />
         <Pulse className="h-3 w-36" />
-        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="size-3 rounded-sm bg-linen-100" />
         <Pulse className="h-3 w-28" />
       </div>
 
@@ -50,16 +52,16 @@ export function OutgoingPaymentEditSkeleton() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Pulse className="h-2.5 w-24" />
-                <Pulse className="h-10 w-full rounded-xl bg-zinc-50" />
+                <Pulse className="h-10 w-full rounded-xl bg-linen-50" />
               </div>
               <div className="space-y-1.5">
                 <Pulse className="h-2.5 w-28" />
-                <Pulse className="h-10 w-full rounded-xl bg-zinc-50" />
+                <Pulse className="h-10 w-full rounded-xl bg-linen-50" />
               </div>
             </div>
             <div className="space-y-1.5">
               <Pulse className="h-2.5 w-16" />
-              <Pulse className="h-16 w-full rounded-xl bg-zinc-50" />
+              <Pulse className="h-16 w-full rounded-xl bg-linen-50" />
             </div>
           </div>
         </SectionShell>
@@ -67,14 +69,14 @@ export function OutgoingPaymentEditSkeleton() {
 
       {/* Paid Documents + Summary */}
       <div className="mt-4 flex gap-4 items-start">
-        <div className="flex-1 rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
-          <div className="bg-zinc-50 px-5 py-4 border-b border-zinc-100">
+        <div className="flex-1 rounded-2xl border border-linen-100 bg-surface shadow-sm overflow-hidden">
+          <div className="bg-linen-50 px-5 py-4 border-b border-linen-100">
             <Pulse className="h-3.5 w-32" />
           </div>
 
           <div className="max-h-[400px] overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-white sticky top-0 shadow-sm">
+              <thead className="bg-surface sticky top-0 shadow-sm">
                 <tr>
                   <th className="px-5 py-3 w-12">
                     <Pulse className="h-3 w-5" />
@@ -90,11 +92,11 @@ export function OutgoingPaymentEditSkeleton() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-linen-50">
                 {[1, 2, 3].map((row) => (
                   <tr key={row}>
                     <td className="px-5 py-3">
-                      <Pulse className="h-5 w-5 rounded bg-blue-100" />
+                      <Pulse className="h-5 w-5 rounded bg-teal-100" />
                     </td>
                     <td className="px-5 py-3">
                       <Pulse className="h-5 w-20 rounded-md" />
@@ -113,7 +115,7 @@ export function OutgoingPaymentEditSkeleton() {
         </div>
 
         {/* Payment Summary */}
-        <div className="w-80 rounded-2xl border border-zinc-100 bg-white shadow-sm p-5 sticky top-4">
+        <div className="w-80 rounded-2xl border border-linen-100 bg-surface shadow-sm p-5 sticky top-4">
           <div className="mb-4 flex items-center justify-between">
             <Pulse className="h-3.5 w-32" />
           </div>
@@ -125,21 +127,21 @@ export function OutgoingPaymentEditSkeleton() {
                 <Pulse className="h-3 w-20" />
               </div>
             ))}
-            <div className="border-t border-zinc-100 pt-3 flex justify-between">
+            <div className="border-t border-linen-100 pt-3 flex justify-between">
               <Pulse className="h-3.5 w-20" />
               <Pulse className="h-5 w-24" />
             </div>
           </div>
 
-          <div className="mt-6 border-t border-zinc-100 pt-4">
+          <div className="mt-6 border-t border-linen-100 pt-4">
             <Pulse className="h-10 w-full rounded-xl" />
           </div>
 
-          <div className="mb-4 mt-8 flex items-center justify-between border-t border-zinc-100 pt-6">
+          <div className="mb-4 mt-8 flex items-center justify-between border-t border-linen-100 pt-6">
             <Pulse className="h-3.5 w-28" />
           </div>
           <div className="space-y-3">
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+            <div className="rounded-xl border border-linen-200 bg-linen-50 p-3">
               <div className="flex justify-between mb-2">
                 <Pulse className="h-3 w-24" />
                 <Pulse className="h-3 w-16" />

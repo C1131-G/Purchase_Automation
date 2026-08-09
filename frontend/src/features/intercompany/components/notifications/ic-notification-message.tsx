@@ -39,8 +39,8 @@ export function IcNotificationMessage({
       <button
         type="button"
         className={cn(
-          "block w-full whitespace-pre-wrap break-words text-left text-zinc-700",
-          canNavigate && "cursor-pointer hover:text-zinc-900",
+          "block w-full whitespace-pre-wrap break-words text-left text-ink-900",
+          canNavigate && "cursor-pointer hover:text-ink-900",
           className,
         )}
         disabled={!canNavigate}
@@ -101,7 +101,7 @@ export function IcNotificationMessage({
   }
 
   return (
-    <span className={cn("block whitespace-pre-wrap break-words text-zinc-700", className)}>
+    <span className={cn("block whitespace-pre-wrap break-words text-ink-900", className)}>
       {segments}
     </span>
   );

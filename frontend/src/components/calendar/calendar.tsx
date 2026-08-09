@@ -130,7 +130,7 @@ function Calendar({
   return (
     <div
       className={cn(
-        "relative w-68 bg-white text-zinc-900 rounded-2xl p-2.5 shadow-[0_14px_30px_-20px_rgba(59,130,246,0.35)] border border-blue-100 font-sans select-none overflow-hidden [-webkit-tap-highlight-color:transparent] [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus]:ring-0 [&_button:focus-visible]:ring-0 [&_button:focus]:shadow-none [&_button:focus-visible]:shadow-none",
+        "relative w-68 bg-surface text-ink-900 rounded-2xl p-2.5 shadow-[0_14px_30px_-20px_rgba(59,130,246,0.35)] border border-teal-100 font-sans select-none overflow-hidden [-webkit-tap-highlight-color:transparent] [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus]:ring-0 [&_button:focus-visible]:ring-0 [&_button:focus]:shadow-none [&_button:focus-visible]:shadow-none",
         className,
       )}
       {...props}
@@ -139,7 +139,7 @@ function Calendar({
         <button
           type="button"
           onClick={() => dispatch({ type: "PREV_MONTH" })}
-          className="p-2 rounded-full hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
+          className="p-2 rounded-full hover:bg-teal-50 transition-colors text-teal-300 hover:text-teal-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
           disabled={state.view === "picker" || !canGoPrevMonth}
         >
           <ChevronLeft
@@ -156,7 +156,7 @@ function Calendar({
               type: "TOGGLE_VIEW",
             })
           }
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-all text-sm font-semibold bg-blue-50 border border-blue-100 text-blue-700 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-teal-100 transition-all text-sm font-semibold bg-teal-50 border border-teal-100 text-teal-700 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
         >
           <span>
             {MONTHS[month]} {year}
@@ -171,7 +171,7 @@ function Calendar({
         <button
           type="button"
           onClick={() => dispatch({ type: "NEXT_MONTH" })}
-          className="p-2 rounded-lg hover:bg-blue-50 transition-colors text-blue-300 hover:text-blue-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
+          className="p-2 rounded-lg hover:bg-teal-50 transition-colors text-teal-300 hover:text-teal-600 cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0"
           disabled={state.view === "picker" || !canGoNextMonth}
         >
           <ChevronRight

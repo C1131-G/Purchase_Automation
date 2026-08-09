@@ -25,16 +25,16 @@ export function TableColumnVisibility({ table }: TableColumnVisibilityProps) {
 
   return (
     <div className="flex flex-col">
-      <div className="p-3 border-b border-zinc-50 relative group">
+      <div className="p-3 border-b border-linen-100 relative group">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
           <input
             type="text"
             placeholder="Search columns..."
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             autoComplete="off"
-            className="w-full pl-9 pr-3 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-linen-50 border border-linen-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all outline-none"
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 setSearchValue("");
@@ -53,7 +53,7 @@ export function TableColumnVisibility({ table }: TableColumnVisibilityProps) {
           return (
             <label
               key={column.id}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-50 cursor-pointer group transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-linen-50 cursor-pointer group transition-colors"
             >
               <div className="relative flex items-center">
                 <input
@@ -66,10 +66,10 @@ export function TableColumnVisibility({ table }: TableColumnVisibilityProps) {
                       e.preventDefault();
                     }
                   }}
-                  className="peer h-4 w-4 shrink-0 rounded border-zinc-300 text-blue-600 focus:ring-blue-500/20 transition-all cursor-pointer"
+                  className="peer h-4 w-4 shrink-0 rounded border-linen-200 text-teal-600 focus:ring-teal-500/20 transition-all cursor-pointer"
                 />
               </div>
-              <span className="text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors uppercase font-medium tracking-wider">
+              <span className="text-sm text-neutral-600 group-hover:text-ink-900 transition-colors uppercase font-medium tracking-wider">
                 {displayName}
               </span>
             </label>

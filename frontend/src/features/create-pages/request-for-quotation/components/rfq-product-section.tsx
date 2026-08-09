@@ -82,30 +82,30 @@ export function RfqProductSection({
         lineFieldErrors={lineFieldErrors}
       />
 
-      <div className="border-t border-zinc-100 px-4 py-3">
+      <div className="border-t border-linen-100 px-4 py-3">
         <div className="ml-auto w-full max-w-sm">
           <div className="space-y-1">
-            <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
-              <span className="text-xs font-medium uppercase tracking-[0.08em] text-zinc-500">
+            <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
+              <span className="text-xs font-medium uppercase tracking-[0.08em] text-neutral-500">
                 Tax Total
               </span>
-              <span className="min-w-20 text-right text-base font-semibold text-zinc-800">
+              <span className="min-w-20 text-right text-base font-semibold text-ink-900">
                 {totals.taxTotal.toFixed(2)}
               </span>
             </div>
-            <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
-              <span className="text-xs font-medium uppercase tracking-[0.08em] text-zinc-500">
+            <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
+              <span className="text-xs font-medium uppercase tracking-[0.08em] text-neutral-500">
                 Net Total
               </span>
-              <span className="min-w-20 text-right text-base font-semibold text-zinc-800">
+              <span className="min-w-20 text-right text-base font-semibold text-ink-900">
                 {totals.netTotal.toFixed(2)}
               </span>
             </div>
             <div className="flex items-center justify-end gap-3 py-1">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-600">
+              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">
                 Grand Total
               </span>
-              <span className="min-w-20 text-right text-lg font-bold text-zinc-900">
+              <span className="min-w-20 text-right text-lg font-bold text-ink-900">
                 {totals.grandTotal.toFixed(2)}
               </span>
             </div>
@@ -124,11 +124,11 @@ export function RfqProductSection({
               variant="outline"
               disabled={isSubmitting || productRows.length === 0}
               onClick={onSubmit}
-              className="group h-11 w-52 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer normal-case tracking-normal disabled:cursor-not-allowed disabled:opacity-60"
+              className="group h-11 w-52 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900 focus:outline-none focus:ring-0 ring-0 outline-none flex items-center justify-center gap-2 cursor-pointer normal-case tracking-normal disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+                  <Loader2 className="h-4 w-4 animate-spin text-neutral-500" />
                   <span>Submitting…</span>
                 </>
               ) : (

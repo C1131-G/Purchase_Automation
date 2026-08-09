@@ -31,7 +31,7 @@ const TONE_PLATE: Record<
     Icon: AlertCircle,
   },
   info: {
-    plate: "bg-gradient-to-br from-sky-50 to-blue-50 text-sky-600 ring-sky-100/80",
+    plate: "bg-gradient-to-br from-sky-50 to-teal-50 text-sky-600 ring-sky-100/80",
     glow: "bg-sky-500/10",
     Icon: Info,
   },
@@ -41,8 +41,8 @@ const TONE_PLATE: Record<
     Icon: AlertTriangle,
   },
   loading: {
-    plate: "bg-gradient-to-br from-zinc-50 to-zinc-100 text-zinc-500 ring-zinc-200/80",
-    glow: "bg-zinc-400/10",
+    plate: "bg-gradient-to-br from-linen-50 to-linen-100 text-neutral-500 ring-linen-200/80",
+    glow: "bg-linen-200/10",
     Icon: Loader2,
     spin: true,
   },
@@ -53,7 +53,7 @@ const TONE_SURFACE: Record<AppToastTone, string> = {
   error: "border-red-100/90 bg-red-50/35",
   warning: "border-amber-100/90 bg-amber-50/30",
   info: "border-sky-100/90",
-  loading: "border-zinc-200/90",
+  loading: "border-linen-200/90",
 };
 
 const TONE_PROGRESS: Record<AppToastTone, string> = {
@@ -61,7 +61,7 @@ const TONE_PROGRESS: Record<AppToastTone, string> = {
   error: "bg-red-500/70",
   warning: "bg-amber-500/70",
   info: "bg-sky-500/70",
-  loading: "bg-zinc-400/50",
+  loading: "bg-linen-200/50",
 };
 
 /** Snappy spring — occasional toast, not 100×/day chrome. */
@@ -107,9 +107,9 @@ export function AppToastItem({ id, tone, title, description, durationMs }: AppTo
       }
       className={cn(
         "pointer-events-auto relative flex w-[min(100vw-1.5rem,22.5rem)] items-start gap-3 overflow-hidden",
-        "rounded-2xl border bg-white/95 p-3.5 pr-10 backdrop-blur-md",
+        "rounded-2xl border bg-surface/95 p-3.5 pr-10 backdrop-blur-md",
         "shadow-[0_12px_40px_-12px_rgba(24,24,27,0.22),0_2px_8px_rgba(24,24,27,0.06)]",
-        "ring-1 ring-zinc-900/[0.04] font-outfit",
+        "ring-1 ring-ink-900/[0.04] font-outfit",
         TONE_SURFACE[tone],
       )}
     >
@@ -142,7 +142,7 @@ export function AppToastItem({ id, tone, title, description, durationMs }: AppTo
               ? { duration: 0 }
               : { delay: 0.06, duration: 0.2, ease: [0.23, 1, 0.32, 1] }
           }
-          className="text-[13px] font-semibold leading-snug tracking-tight text-zinc-900"
+          className="text-[13px] font-semibold leading-snug tracking-tight text-ink-900"
         >
           {title}
         </motion.p>
@@ -155,7 +155,7 @@ export function AppToastItem({ id, tone, title, description, durationMs }: AppTo
                 ? { duration: 0 }
                 : { delay: 0.1, duration: 0.22, ease: [0.23, 1, 0.32, 1] }
             }
-            className="mt-0.5 text-xs leading-relaxed text-zinc-500"
+            className="mt-0.5 text-xs leading-relaxed text-neutral-500"
           >
             {description}
           </motion.p>
@@ -172,17 +172,17 @@ export function AppToastItem({ id, tone, title, description, durationMs }: AppTo
         transition={{ duration: 0.12, ease: "easeOut" }}
         className={cn(
           "absolute right-2.5 top-2.5 flex size-6 items-center justify-center rounded-lg",
-          "border border-zinc-200/90 bg-white text-zinc-400 shadow-sm",
+          "border border-linen-200/90 bg-surface text-neutral-400 shadow-sm",
           "transition-colors duration-150 ease-out",
-          "hover:bg-zinc-50 hover:text-zinc-700",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10",
+          "hover:bg-linen-50 hover:text-ink-900",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-900/10",
         )}
       >
         <X className="size-3.5 stroke-[2]" aria-hidden />
       </motion.button>
 
       {showProgress ? (
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-zinc-100/80">
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-linen-100/80">
           <motion.span
             className={cn("block h-full origin-left rounded-full", TONE_PROGRESS[tone])}
             initial={{ scaleX: 1 }}

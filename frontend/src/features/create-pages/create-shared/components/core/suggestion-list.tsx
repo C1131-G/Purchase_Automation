@@ -108,35 +108,35 @@ export function SuggestionList({
   const outerClass =
     containerClassName ??
     (floating
-      ? "absolute left-0 right-0 top-full z-[60] mt-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg"
-      : "-mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white");
+      ? "absolute left-0 right-0 top-full z-[60] mt-2 overflow-hidden rounded-xl border border-linen-200 bg-surface shadow-lg"
+      : "-mt-3 overflow-hidden rounded-xl border border-linen-200 bg-surface");
 
   return (
     <div className={outerClass}>
       {visibleItems.length > 0 && (
         <div
-          className={`border-b border-zinc-100 bg-zinc-50 pl-3 py-1 ${scrollable ? "pr-[29px]" : "pr-3"}`}
+          className={`border-b border-linen-100 bg-linen-50 pl-3 py-1 ${scrollable ? "pr-[29px]" : "pr-3"}`}
         >
           {showCode ? (
             <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-2">
-              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-neutral-500">
                 {codeLabel}
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-neutral-500">
                 {nameLabel}
               </span>
             </div>
           ) : showStock ? (
             <div className="grid grid-cols-[minmax(0,1fr)_56px] gap-x-2">
-              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-neutral-500">
                 {codeOnly ? codeLabel : nameLabel}
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-neutral-500">
                 Stock
               </span>
             </div>
           ) : (
-            <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-neutral-500">
               {codeOnly ? codeLabel : nameLabel}
             </span>
           )}
@@ -148,7 +148,7 @@ export function SuggestionList({
         onScroll={scrollable ? handleScroll : undefined}
       >
         {visibleItems.length === 0 ? (
-          <div className="px-3 py-3 text-sm text-zinc-500">{emptyText}</div>
+          <div className="px-3 py-3 text-sm text-neutral-500">{emptyText}</div>
         ) : (
           <div
             style={{
@@ -172,7 +172,7 @@ export function SuggestionList({
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  className={`grid w-full cursor-pointer ${gridColumns} gap-x-2 items-center border-b border-zinc-100 px-3 py-2 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-50 disabled:hover:bg-transparent`}
+                  className={`grid w-full cursor-pointer ${gridColumns} gap-x-2 items-center border-b border-linen-100 px-3 py-2 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-linen-50 disabled:hover:bg-transparent`}
                   onMouseDown={(event) => {
                     if (item.disabled) {
                       return;
@@ -182,13 +182,13 @@ export function SuggestionList({
                   }}
                 >
                   {showCode && (
-                    <span className="text-[11px] text-zinc-500 truncate">{item.code}</span>
+                    <span className="text-[11px] text-neutral-500 truncate">{item.code}</span>
                   )}
-                  <span className="text-sm leading-tight text-zinc-800 transition-colors py-0.5 truncate">
+                  <span className="text-sm leading-tight text-ink-900 transition-colors py-0.5 truncate">
                     {codeOnly ? item.code : item.name}
                   </span>
                   {showStock && (
-                    <span className="text-[11px] text-zinc-600">
+                    <span className="text-[11px] text-neutral-500">
                       {typeof item.stock === "number" ? item.stock : "-"}
                     </span>
                   )}
@@ -198,7 +198,7 @@ export function SuggestionList({
           </div>
         )}
         {loadingMore ? (
-          <div className="flex items-center justify-center px-3 py-2 text-zinc-400">
+          <div className="flex items-center justify-center px-3 py-2 text-neutral-400">
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : null}

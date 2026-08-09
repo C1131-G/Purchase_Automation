@@ -35,7 +35,7 @@ export function CalendarGrid({
     <div className="flex flex-col h-full">
       <div className="grid grid-cols-7 mb-2">
         {DAYS.map((day) => (
-          <div key={day.id} className="text-center text-xs font-semibold text-blue-300 py-1">
+          <div key={day.id} className="text-center text-xs font-semibold text-teal-300 py-1">
             {day.label}
           </div>
         ))}
@@ -70,18 +70,18 @@ export function CalendarGrid({
                 className={cn(
                   "w-9 h-9 flex items-center justify-center rounded-xl text-sm appearance-none transition-colors duration-150 focus:outline-none focus-visible:outline-none focus:ring-0",
                   isDisabledDate
-                    ? "text-zinc-300 cursor-not-allowed"
-                    : "hover:bg-blue-50 hover:text-blue-700 active:scale-95 cursor-pointer",
-                  isToday && "ring-1 ring-blue-200",
+                    ? "text-neutral-300 cursor-not-allowed"
+                    : "hover:bg-teal-50 hover:text-teal-700 active:scale-95 cursor-pointer",
+                  isToday && "ring-1 ring-teal-200",
                   (isSelectedSingle || isRangeStartOnly || isRangeEdge) &&
-                    "bg-blue-50 ring-1 ring-blue-200 text-blue-700 font-bold shadow-sm",
-                  isRangeMiddle && "bg-blue-50/50 text-blue-500 font-semibold",
+                    "bg-teal-50 ring-1 ring-teal-200 text-teal-700 font-bold shadow-sm",
+                  isRangeMiddle && "bg-teal-50/50 text-teal-500 font-semibold",
                   !isDisabledDate &&
                     !isSelectedSingle &&
                     !isRangeStartOnly &&
                     !isRangeEdge &&
                     !isRangeMiddle &&
-                    "text-zinc-800 font-medium",
+                    "text-ink-900 font-medium",
                 )}
                 style={{
                   transitionDuration: `${MOTION_MS.calendarCell}ms`,

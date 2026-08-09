@@ -24,7 +24,7 @@ export const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b bg-zinc-50/50", className)} {...props} />
+  <thead ref={ref} className={cn("[&_tr]:border-b bg-linen-50", className)} {...props} />
 ));
 TableHeader.displayName = "TableHeader";
 
@@ -42,7 +42,7 @@ export const TableFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn("border-t bg-zinc-50/50 font-medium [&>tr]:last:border-b-0", className)}
+    className={cn("border-t bg-linen-50 font-medium [&>tr]:last:border-b-0", className)}
     {...props}
   />
 ));
@@ -55,7 +55,7 @@ export const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "group border-b border-zinc-100 transition-colors hover:bg-blue-50/50",
+      "group border-b border-linen-100 transition-colors hover:bg-teal-50/40",
       className,
     )}
     {...props}
@@ -71,7 +71,7 @@ export const TableHead = React.forwardRef<
     ref={ref}
     // CONTRACT: Upper-case tracking-wider style matching FieldLabel for visual cohesion
     className={cn(
-      "h-12 px-6 text-left align-middle font-bold text-zinc-500 font-sans text-[10px] uppercase tracking-wider border-b border-zinc-100 group transition-colors whitespace-normal break-words overflow-hidden",
+      "h-12 px-6 text-left align-middle font-bold text-neutral-500 font-sans text-[10px] uppercase tracking-wider border-b border-linen-100 group transition-colors whitespace-normal break-words overflow-hidden",
       className,
     )}
     {...props}
@@ -86,7 +86,7 @@ export const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      "px-8 py-4 align-middle text-left font-normal font-sans text-[13px] border-b border-zinc-50/50 last:border-b-0 transition-all duration-200 cursor-pointer whitespace-normal break-words",
+      "px-8 py-4 align-middle text-left font-normal font-sans text-[13px] border-b border-linen-100/60 last:border-b-0 transition-all duration-200 cursor-pointer whitespace-normal break-words",
       className,
     )}
     {...props}

@@ -47,9 +47,9 @@ export function IcNotificationToolbar({
           type="button"
           className={cn(
             // Match toolbar Create link sizing/shape so Mark all sits cleanly next to Filter.
-            "group flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all",
-            "hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]",
-            "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-zinc-900",
+            "group flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-linen-200 bg-surface px-3.5 py-2 text-sm font-semibold tracking-normal text-ink-900 shadow-sm transition-all",
+            "hover:bg-linen-50 hover:text-teal-600 focus:outline-none focus:ring-0 active:scale-[0.98]",
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface disabled:hover:text-ink-900",
           )}
           disabled={markAllDisabled}
           aria-label={
@@ -61,16 +61,16 @@ export function IcNotificationToolbar({
           onClick={onMarkAllRead}
         >
           {markAllPending ? (
-            <Loader2 className="size-4 shrink-0 animate-spin text-zinc-500" aria-hidden />
+            <Loader2 className="size-4 shrink-0 animate-spin text-neutral-500" aria-hidden />
           ) : (
             <CheckCheck
-              className="size-4 shrink-0 text-zinc-500 group-hover:text-blue-600"
+              className="size-4 shrink-0 text-neutral-500 group-hover:text-teal-600"
               aria-hidden
             />
           )}
           <span className="whitespace-nowrap">Mark all</span>
           {unreadCount > 0 ? (
-            <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-blue-700 ring-1 ring-inset ring-blue-100">
+            <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-md bg-teal-50 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-teal-700 ring-1 ring-inset ring-teal-100">
               {unreadCount}
             </span>
           ) : null}

@@ -124,11 +124,11 @@ export function CreateProductTable({
     <div className="px-2 py-2">
       <div ref={scrollParentRef} className={`${PRODUCT_TABLE_MAX_HEIGHT_CLASS} overflow-auto`}>
         <table
-          className={`w-full table-fixed text-left text-sm text-zinc-700 ${
+          className={`w-full table-fixed text-left text-sm text-ink-900 ${
             showPqLineDatesAndQtys ? "min-w-[1780px]" : "min-w-[1400px]"
           }`}
         >
-          <thead className="sticky top-0 z-10 bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+          <thead className="sticky top-0 z-10 bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
             <tr>
               {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
               <th className={`${showUom ? "w-[12%]" : "w-[16%]"} px-2 py-2`}>Product</th>
@@ -159,11 +159,11 @@ export function CreateProductTable({
             {productRows.length === 0 ? (
               <tr>
                 <td className="px-3 py-8" colSpan={emptyColSpan}>
-                  <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center">
-                    <div className="text-sm font-medium text-zinc-700">No products yet</div>
-                    <div className="text-xs text-zinc-500">
-                      Use <span className="font-semibold text-zinc-700">Search Products</span> to
-                      add items.
+                  <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-linen-200 bg-linen-50 px-4 py-6 text-center">
+                    <div className="text-sm font-medium text-ink-900">No products yet</div>
+                    <div className="text-xs text-neutral-500">
+                      Use <span className="font-semibold text-ink-900">Search Products</span> to add
+                      items.
                     </div>
                   </div>
                 </td>

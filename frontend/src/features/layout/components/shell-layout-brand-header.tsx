@@ -1,4 +1,4 @@
-import { Building2, Download, Menu } from "lucide-react";
+import { Building2, Download } from "lucide-react";
 import React from "react";
 
 import { SidebarHeader } from "@/components/sidebar";
@@ -42,7 +42,8 @@ export function ShellLayoutBrandHeader() {
     }
   };
 
-  const companyLabel = user?.companyName ?? "Vendor Portal";
+  const companyLabel = user?.companyName ?? "Purchase Automation";
+  const companyInitial = companyLabel.trim().charAt(0).toUpperCase() || "P";
 
   const toggleButton = (
     <button
@@ -50,17 +51,24 @@ export function ShellLayoutBrandHeader() {
         e.stopPropagation();
         setSidebarOpen(!isOpen);
       }}
-      className="size-9 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0 border-none bg-transparent outline-none"
+      className="size-9 flex items-center justify-center rounded-lg bg-ink-900 text-surface shadow-sm ring-1 ring-ink-900/10 transition-colors hover:bg-ink-800 cursor-pointer shrink-0 border-none outline-none"
       aria-label={companyLabel}
+      title={companyLabel}
     >
-      {isOpen ? <Building2 className="size-5" /> : <Menu className="size-5" />}
+      {isOpen ? (
+        <Building2 className="size-5 shrink-0" />
+      ) : companyInitial ? (
+        <span className="text-xs font-bold tracking-wide leading-none">{companyInitial}</span>
+      ) : (
+        <Building2 className="size-4 shrink-0" />
+      )}
     </button>
   );
 
   return (
     <SidebarHeader
       className={cn(
-        "relative border-b border-zinc-50 p-0 pt-[13px] pb-[11px] px-[26px] flex flex-row items-start justify-between",
+        "relative border-b border-linen-100 p-0 pt-[13px] pb-[11px] px-[26px] flex flex-row items-start justify-between",
         !isOpen && "px-2 justify-center",
       )}
     >
@@ -80,10 +88,13 @@ export function ShellLayoutBrandHeader() {
         {isOpen ? (
           <div className="flex min-w-0 flex-1 flex-col animate-in fade-in duration-300">
             <span
-              className="text-sm font-semibold leading-snug text-blue-600 text-pretty break-words"
+              className="text-sm font-bold leading-tight tracking-tight text-ink-900 text-pretty break-words"
               title={companyLabel}
             >
               {companyLabel}
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-widest text-neutral-400">
+              Purchase Automation
             </span>
           </div>
         ) : null}
@@ -94,13 +105,13 @@ export function ShellLayoutBrandHeader() {
           <Tooltip content="Install desktop app" className="w-auto block shrink-0">
             <button
               onClick={handleInstall}
-              className="size-8 rounded-lg flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200/60 bg-blue-50/20 shadow-[0_2px_8px_rgba(37,99,235,0.08)] cursor-pointer transition-all duration-200 relative group animate-in fade-in zoom-in duration-300 outline-none shrink-0"
+              className="size-8 rounded-lg flex items-center justify-center text-teal-700 hover:text-teal-800 hover:bg-teal-50 border border-teal-200/60 bg-teal-50/20 shadow-[0_2px_8px_rgba(15,118,110,0.08)] cursor-pointer transition-all duration-200 relative group animate-in fade-in zoom-in duration-300 outline-none shrink-0"
               aria-label="Install App"
             >
               <Download className="size-4 animate-bounce" style={{ animationDuration: "2s" }} />
               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
               </span>
             </button>
           </Tooltip>

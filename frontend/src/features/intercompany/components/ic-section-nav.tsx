@@ -37,26 +37,26 @@ export function IcSectionNav({ active, trailing, className }: IcSectionNavProps)
     <nav
       aria-label="Intercompany"
       className={cn(
-        "inline-flex min-w-0 flex-wrap items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600",
+        "inline-flex min-w-0 flex-wrap items-center gap-1.5 rounded-full border border-linen-200/60 bg-linen-50/50 px-3.5 py-1.5 text-xs font-medium text-neutral-500",
         className,
       )}
     >
-      <span className="text-zinc-500">Intercompany</span>
-      <ChevronRight className="size-3 shrink-0 text-zinc-300" aria-hidden />
+      <span className="text-neutral-500">Intercompany</span>
+      <ChevronRight className="size-3 shrink-0 text-neutral-300" aria-hidden />
       <Link
         to="/intercompany/notifications"
         search={NOTIFICATIONS_SEARCH}
         preload="intent"
         aria-current={active === "notifications" ? "page" : undefined}
         className={cn(
-          "inline-flex items-center gap-1.5 truncate transition-colors hover:text-blue-600",
-          active === "notifications" ? "font-semibold text-zinc-800" : "text-zinc-500",
+          "inline-flex items-center gap-1.5 truncate transition-colors hover:text-teal-600",
+          active === "notifications" ? "font-semibold text-ink-900" : "text-neutral-500",
         )}
       >
         Notifications
         {active === "notifications" ? null : <IcUnreadCountPill />}
       </Link>
-      <span className="text-zinc-300" aria-hidden>
+      <span className="text-neutral-300" aria-hidden>
         |
       </span>
       <Link
@@ -65,8 +65,8 @@ export function IcSectionNav({ active, trailing, className }: IcSectionNavProps)
         preload="intent"
         aria-current={active === "retries" ? "page" : undefined}
         className={cn(
-          "inline-flex items-center gap-1.5 truncate transition-colors hover:text-blue-600",
-          active === "retries" ? "font-semibold text-zinc-800" : "text-zinc-500",
+          "inline-flex items-center gap-1.5 truncate transition-colors hover:text-teal-600",
+          active === "retries" ? "font-semibold text-ink-900" : "text-neutral-500",
         )}
       >
         Retries
@@ -74,7 +74,7 @@ export function IcSectionNav({ active, trailing, className }: IcSectionNavProps)
       </Link>
       {trailing ? (
         <>
-          <ChevronRight className="size-3 shrink-0 text-zinc-300" aria-hidden />
+          <ChevronRight className="size-3 shrink-0 text-neutral-300" aria-hidden />
           {trailing}
         </>
       ) : null}

@@ -33,7 +33,7 @@ const priorityClassName = (priority: string): string => {
     return "bg-red-50 text-red-800 ring-red-200";
   }
   if (normalized === "LOW") {
-    return "bg-zinc-100 text-zinc-700 ring-zinc-200";
+    return "bg-linen-100 text-ink-900 ring-linen-200";
   }
   return "bg-sky-50 text-sky-800 ring-sky-200";
 };
@@ -52,7 +52,7 @@ export interface CreateIcNotificationColumnsOptions {
 export const createIcNotificationColumns = (options: CreateIcNotificationColumnsOptions) => [
   columnHelper.accessor("createdAt", {
     cell: (info) => (
-      <span className="whitespace-nowrap tabular-nums text-zinc-700">
+      <span className="whitespace-nowrap tabular-nums text-ink-900">
         {formatCreatedAt(info.getValue())}
       </span>
     ),
@@ -95,8 +95,8 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
           className={cn(
             "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset",
             isRead
-              ? "bg-zinc-50 text-zinc-500 ring-zinc-200"
-              : "bg-blue-50 text-blue-800 ring-blue-200",
+              ? "bg-linen-50 text-neutral-500 ring-linen-200"
+              : "bg-teal-50 text-teal-800 ring-teal-200",
           )}
         >
           {isRead ? "Read" : "Unread"}
@@ -189,7 +189,7 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
           // Left content + small right gap so the column edge doesn’t feel cramped.
           <div className="flex w-full items-center justify-start pr-3">
             <span
-              className="inline-flex h-6 items-center gap-0.5 text-[10px] font-medium text-zinc-400"
+              className="inline-flex h-6 items-center gap-0.5 text-[10px] font-medium text-neutral-400"
               title="Already read"
               aria-label="Already read"
             >
@@ -205,9 +205,9 @@ export const createIcNotificationColumns = (options: CreateIcNotificationColumns
           <button
             type="button"
             className={cn(
-              "inline-flex h-6 shrink-0 cursor-pointer items-center gap-0.5 rounded-md border border-zinc-200 bg-white px-1.5 text-[10px] font-semibold text-zinc-700 shadow-none transition-colors",
-              "hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300",
+              "inline-flex h-6 shrink-0 cursor-pointer items-center gap-0.5 rounded-md border border-linen-200 bg-surface px-1.5 text-[10px] font-semibold text-ink-900 shadow-none transition-colors",
+              "hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300",
               "disabled:cursor-not-allowed disabled:opacity-60",
             )}
             disabled={isPending}

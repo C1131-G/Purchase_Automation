@@ -103,7 +103,7 @@ function CopyFromPanel({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg ring-1 ring-black/[0.04]"
+      className="overflow-hidden rounded-lg border border-linen-200 bg-surface shadow-lg ring-1 ring-ink-900/[0.04]"
       style={{
         animation: "popover-enter 180ms ease-in-out both",
         width: panelWidth ?? undefined,
@@ -126,29 +126,29 @@ function CopyFromPanel({
               "group/row relative flex w-full items-start gap-2.5 px-2.5 py-2 text-left transition-all duration-150",
               option.disabled
                 ? "cursor-not-allowed opacity-50 pointer-events-auto"
-                : "hover:bg-zinc-50",
-              "focus-visible:outline-none focus-visible:bg-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-300",
-              index === 0 ? "mt-0" : "-mt-px border-t border-zinc-100/80",
+                : "hover:bg-linen-50",
+              "focus-visible:outline-none focus-visible:bg-linen-50 focus-visible:ring-1 focus-visible:ring-linen-200",
+              index === 0 ? "mt-0" : "-mt-px border-t border-linen-100/80",
             )}
           >
-            <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 transition-all duration-150 group-hover/row:bg-zinc-100 group-hover/row:text-zinc-600">
+            <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-linen-50 text-neutral-400 ring-1 ring-linen-100 transition-all duration-150 group-hover/row:bg-linen-100 group-hover/row:text-neutral-500">
               {option.icon}
             </span>
             <span className="flex min-w-0 flex-col justify-center">
-              <span className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-700 transition-colors group-hover/row:text-zinc-900">
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-900 transition-colors group-hover/row:text-ink-900">
                 {option.label}
-                {option.disabled && <Lock className="h-3 w-3 text-zinc-400" />}
+                {option.disabled && <Lock className="h-3 w-3 text-neutral-400" />}
               </span>
             </span>
           </button>
         ))}
       </div>
       {onReset && (
-        <div className="border-t border-zinc-100 bg-zinc-50/50">
+        <div className="border-t border-linen-100 bg-linen-50/50">
           <button
             type="button"
             onClick={onReset}
-            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/30 transition-all active:scale-[0.98] cursor-pointer"
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-teal-600 hover:text-teal-700 hover:bg-teal-50/30 transition-all active:scale-[0.98] cursor-pointer"
           >
             <RotateCcw className="size-3" />
             <span>Reset to Default</span>
@@ -261,25 +261,25 @@ function CopyFromDropdownInner({
         disabled={isDisabled}
         onClick={handleTriggerClick}
         className={cn(
-          "group h-8 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-semibold text-zinc-700 shadow-sm transition-all duration-200 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none disabled:cursor-not-allowed disabled:opacity-50",
+          "group h-8 rounded-lg border border-linen-200 bg-surface px-2.5 py-1 text-xs font-semibold text-ink-900 shadow-sm transition-all duration-200 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none disabled:cursor-not-allowed disabled:opacity-50",
           open
-            ? "border-zinc-300 bg-zinc-50 text-zinc-900 ring-1 ring-zinc-200"
-            : "hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900",
+            ? "border-linen-200 bg-linen-50 text-ink-900 ring-1 ring-linen-200"
+            : "hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900",
           className,
         )}
       >
         <span className="inline-flex items-center gap-1.5">
-          <ClipboardList className="h-3.5 w-3.5 text-zinc-400 group-hover:text-zinc-500 transition-colors" />
+          <ClipboardList className="h-3.5 w-3.5 text-neutral-400 group-hover:text-neutral-500 transition-colors" />
           <span>Copy From</span>
         </span>
-        <span className="mx-1.5 h-3.5 w-px bg-zinc-200" />
+        <span className="mx-1.5 h-3.5 w-px bg-linen-100" />
         <span className="flex items-center gap-1 transition-colors duration-200">
-          <span className="text-xs text-zinc-400 group-hover:text-zinc-600 transition-colors">
+          <span className="text-xs text-neutral-400 group-hover:text-neutral-500 transition-colors">
             Choose source
           </span>
           <ChevronRight
             className={cn(
-              "h-3 w-3 text-zinc-400 transition-transform duration-200",
+              "h-3 w-3 text-neutral-400 transition-transform duration-200",
               open && "translate-x-0.5",
             )}
           />

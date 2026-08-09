@@ -32,9 +32,9 @@ const statusClassName = (value: string): string => {
     return "bg-emerald-50 text-emerald-900 ring-emerald-200";
   }
   if (normalized === "CANCELLED") {
-    return "bg-zinc-100 text-zinc-600 ring-zinc-200";
+    return "bg-linen-100 text-neutral-600 ring-linen-200";
   }
-  return "bg-zinc-50 text-zinc-700 ring-zinc-200";
+  return "bg-linen-50 text-neutral-600 ring-linen-200";
 };
 
 export interface CreateRfqColumnsOptions {

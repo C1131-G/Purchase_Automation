@@ -179,13 +179,13 @@ export function LogisticsGrid({
           </div>
         ) : (
           <div>
-            <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+            <label className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
               <span className="inline-flex items-center gap-1.5">
                 <span>DOC NUMBER</span>
-                {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+                {readOnly ? <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" /> : null}
               </span>
             </label>
-            <div className="flex h-10 items-center justify-start rounded-xl border border-blue-200 bg-blue-50 pl-3 text-sm font-semibold text-blue-700">
+            <div className="flex h-10 items-center justify-start rounded-xl border border-teal-200 bg-teal-50 pl-3 text-sm font-semibold text-teal-700">
               Generated on Save
             </div>
           </div>

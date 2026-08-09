@@ -35,7 +35,7 @@ function PageTransition() {
   const skeletonPath = isLoading ? nextPathname || pathname : pathname;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-white">
+    <div className="relative h-full w-full overflow-hidden bg-surface">
       <NavigationProgress />
       <Suspense fallback={<RoutePendingFallback pathname={skeletonPath} />}>
         <div className="h-full w-full">
@@ -43,7 +43,7 @@ function PageTransition() {
         </div>
       </Suspense>
       {isLoading ? (
-        <div className="absolute inset-0 z-20 overflow-hidden bg-white">
+        <div className="absolute inset-0 z-20 overflow-hidden bg-surface">
           <RoutePendingFallback pathname={skeletonPath} />
         </div>
       ) : null}
@@ -203,9 +203,9 @@ export function ShellLayout() {
   );
 
   return (
-    <div ref={containerRef} className="h-dvh w-full bg-zinc-50 overflow-hidden flex flex-col">
+    <div ref={containerRef} className="h-dvh w-full bg-linen-50 overflow-hidden flex flex-col">
       <SidebarProvider className="h-full w-full overflow-hidden min-h-0!">
-        <Sidebar className={cn("border-r border-zinc-100 bg-white")} collapsible="icon">
+        <Sidebar className={cn("border-r border-linen-200 bg-surface")} collapsible="icon">
           <ShellLayoutBrandHeader />
           <ShellLayoutNavigation
             pathname={location.pathname}
@@ -223,7 +223,7 @@ export function ShellLayout() {
 
         <SidebarInset
           className={cn(
-            "bg-zinc-50 transition-[filter,opacity] duration-150 h-full overflow-hidden min-h-0!",
+            "bg-linen-50 transition-[filter,opacity] duration-150 h-full overflow-hidden min-h-0!",
             "md:pl-[5.5rem]",
             logoutBusy && "pointer-events-none opacity-80 blur-[2px]",
           )}

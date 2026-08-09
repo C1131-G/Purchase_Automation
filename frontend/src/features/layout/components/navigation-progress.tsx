@@ -20,7 +20,7 @@ export function NavigationProgress() {
     >
       <div
         className={cn(
-          "h-full w-full origin-left bg-gradient-to-r from-sky-500 via-blue-600 to-violet-500",
+          "h-full w-full origin-left bg-gradient-to-r from-teal-500 via-teal-600 to-teal-700",
           isLoading ? "animate-nav-progress" : "scale-x-0",
         )}
       />

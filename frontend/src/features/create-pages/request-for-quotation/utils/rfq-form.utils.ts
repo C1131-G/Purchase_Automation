@@ -390,13 +390,13 @@ export const rfqStatusBadgeClass = (status: string | undefined): string => {
     case "DRAFT":
       return "border-amber-200 bg-amber-50 text-amber-800";
     case "SUBMITTED":
-      return "border-blue-200 bg-blue-50 text-blue-800";
+      return "border-teal-200 bg-teal-50 text-teal-800";
     case "COMPLETED":
       return "border-emerald-200 bg-emerald-50 text-emerald-800";
     case "CANCELLED":
-      return "border-zinc-200 bg-zinc-100 text-zinc-600";
+      return "border-linen-200 bg-linen-100 text-neutral-500";
     default:
-      return "border-zinc-200 bg-zinc-50 text-zinc-700";
+      return "border-linen-200 bg-linen-50 text-ink-900";
   }
 };
 

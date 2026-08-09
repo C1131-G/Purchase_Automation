@@ -70,7 +70,7 @@ export const Tooltip = ({ children, content, className, contentClassName }: Tool
         ? createPortal(
             <span
               className={cn(
-                "pointer-events-none fixed z-999999 max-w-[320px] rounded-xl border border-zinc-200/80 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-zinc-700 shadow-[0_8px_24px_rgba(24,24,27,0.12)] backdrop-blur-md opacity-100",
+                "pointer-events-none fixed z-999999 max-w-[320px] rounded-xl border border-linen-200/80 bg-surface/95 px-3 py-1.5 text-[11px] font-medium text-ink-900 shadow-[0_8px_24px_rgba(24,24,27,0.12)] backdrop-blur-md opacity-100",
                 contentClassName,
               )}
               style={{ left: position.left, top: position.top }}

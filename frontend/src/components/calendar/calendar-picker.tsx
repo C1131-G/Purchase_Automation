@@ -100,7 +100,7 @@ export function CalendarPicker({
 
   return (
     <div className="flex h-full relative">
-      <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-10 bg-blue-50 rounded-xl mx-2 pointer-events-none z-0 border border-blue-100" />
+      <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-10 bg-teal-50 rounded-xl mx-2 pointer-events-none z-0 border border-teal-100" />
 
       <div
         ref={monthScrollRef}
@@ -164,8 +164,8 @@ export function CalendarPicker({
                 disabled={isMonthDisabled}
                 className={cn(
                   "h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0",
-                  isMonthDisabled && "text-zinc-300 cursor-not-allowed",
-                  index === month ? "text-blue-700 font-bold text-lg" : "text-blue-300",
+                  isMonthDisabled && "text-neutral-300 cursor-not-allowed",
+                  index === month ? "text-teal-700 font-bold text-lg" : "text-teal-300",
                 )}
                 style={{
                   transitionDuration: isPickerScrolling ? "0ms" : `${MOTION_MS.calendarList}ms`,
@@ -234,7 +234,7 @@ export function CalendarPicker({
               }}
               className={cn(
                 "h-10 w-full flex items-center justify-center z-10 transition-colors cursor-pointer focus:outline-none focus-visible:outline-none focus:ring-0",
-                y === year ? "text-blue-700 font-bold text-lg" : "text-blue-300",
+                y === year ? "text-teal-700 font-bold text-lg" : "text-teal-300",
               )}
               style={{
                 transitionDuration: isPickerScrolling ? "0ms" : `${MOTION_MS.calendarList}ms`,

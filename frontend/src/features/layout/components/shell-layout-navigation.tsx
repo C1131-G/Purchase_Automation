@@ -57,9 +57,9 @@ export function ShellLayoutNavigation({
                 startTransition
                 className={cn(
                   "flex w-full items-center gap-3 rounded-xl p-2.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 cursor-pointer",
-                  "hover:bg-blue-50 hover:text-blue-600 text-zinc-500",
+                  "hover:bg-teal-50 hover:text-teal-700 text-neutral-500",
                   pathname.startsWith("/dashboard") &&
-                    "bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)]",
+                    "bg-teal-600 text-surface shadow-[0_4px_12px_rgba(15,118,110,0.22)]",
                   "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto",
                 )}
                 aria-current={pathname.startsWith("/dashboard") ? "page" : undefined}

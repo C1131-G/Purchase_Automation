@@ -24,7 +24,7 @@ export function TableColumnSort<TData, TValue>({
     return (
       <div
         className={cn(
-          "inline-flex items-center justify-start px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-600 font-sans select-none",
+          "inline-flex items-center justify-start px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-600 font-sans select-none",
           className,
         )}
       >
@@ -45,8 +45,8 @@ export function TableColumnSort<TData, TValue>({
         }
       }}
       className={cn(
-        "group/sort inline-flex items-center justify-start gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer outline-none select-none py-1.5 rounded-lg px-2 hover:text-blue-600",
-        isSorted === "desc" ? "text-blue-600 bg-blue-50/30" : "text-zinc-600",
+        "group/sort inline-flex items-center justify-start gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer outline-none select-none py-1.5 rounded-lg px-2 hover:text-teal-700",
+        isSorted === "desc" ? "text-teal-700 bg-teal-50" : "text-neutral-600",
         className,
       )}
     >
@@ -54,7 +54,7 @@ export function TableColumnSort<TData, TValue>({
       <div className="flex items-center justify-center shrink-0">
         {isSorted === "desc" && <ArrowDown className="size-3.5 stroke-[2.5px]" />}
         {isSorted !== "desc" && (
-          <ChevronsUpDown className="size-3.5 text-zinc-300 group-hover/sort:text-blue-500 transition-colors stroke-[2px]" />
+          <ChevronsUpDown className="size-3.5 text-neutral-300 group-hover/sort:text-teal-600 transition-colors stroke-[2px]" />
         )}
       </div>
     </button>

@@ -546,22 +546,22 @@ export function CopyFromDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/50 p-4 pt-20">
-      <div className="flex h-full max-h-[calc(100svh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[1000] flex items-start justify-center bg-ink-900/50 p-4 pt-20">
+      <div className="flex h-full max-h-[calc(100svh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-linen-200 bg-surface shadow-2xl">
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-linen-100 px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-400">{DOC_TYPE_ICONS[sourceDocType]}</span>
+            <span className="text-neutral-400">{DOC_TYPE_ICONS[sourceDocType]}</span>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900">Select {label}</h3>
-              <p className="text-xs text-zinc-500">Open documents from {vendorName}</p>
+              <h3 className="text-sm font-semibold text-ink-900">Select {label}</h3>
+              <p className="text-xs text-neutral-500">Open documents from {vendorName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {selectedDocs.size > 0 && (
               <button
                 onClick={handleConfirm}
-                className="flex h-8 items-center rounded-full border border-blue-600 bg-blue-600 px-4 text-xs font-medium text-white transition hover:bg-blue-700"
+                className="flex h-8 items-center rounded-full border border-teal-600 bg-teal-600 px-4 text-xs font-medium text-surface transition hover:bg-teal-700"
               >
                 Confirm ({selectedDocs.size})
               </button>
@@ -575,7 +575,7 @@ export function CopyFromDialog({
             <button
               type="button"
               onClick={handleCancel}
-              className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+              className="flex h-8 items-center rounded-full border border-linen-200 bg-surface px-4 text-xs font-medium text-ink-900 transition hover:bg-linen-50"
             >
               Close
             </button>
@@ -583,7 +583,7 @@ export function CopyFromDialog({
         </div>
 
         {/* Search */}
-        <div className="shrink-0 border-b border-zinc-100 px-4 py-3">
+        <div className="shrink-0 border-b border-linen-100 px-4 py-3">
           <div className="relative">
             <input
               type="text"
@@ -591,7 +591,7 @@ export function CopyFromDialog({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by document number or name"
               autoComplete="off"
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+              className="h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
             />
           </div>
         </div>
@@ -606,29 +606,29 @@ export function CopyFromDialog({
                   {SKELETON_ROW_KEYS.map((slot) => (
                     <div
                       key={`doc-skeleton-${slot}`}
-                      className="flex items-center gap-3 border-t border-zinc-100 px-4 py-3"
+                      className="flex items-center gap-3 border-t border-linen-100 px-4 py-3"
                     >
-                      <div className="h-5 w-5 animate-pulse rounded-md bg-zinc-100" />
+                      <div className="h-5 w-5 animate-pulse rounded-md bg-linen-100" />
                       <div className="flex-1 space-y-2">
-                        <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
-                        <div className="h-3 w-1/4 animate-pulse rounded bg-zinc-100" />
+                        <div className="h-4 w-3/4 animate-pulse rounded bg-linen-100" />
+                        <div className="h-3 w-1/4 animate-pulse rounded bg-linen-100" />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : error && documents.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-8 text-center">
-                  <p className="text-sm font-medium text-zinc-600">{error}</p>
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-linen-100 bg-linen-50 px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-neutral-500">{error}</p>
                   <button
                     onClick={() => void fetchDocuments(false)}
-                    className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                    className="flex h-8 items-center rounded-full border border-linen-200 bg-surface px-4 text-xs font-medium text-ink-900 transition hover:bg-linen-50"
                   >
                     Retry
                   </button>
                 </div>
               ) : documents.length === 0 && !isLoading ? (
-                <div className="flex flex-col items-center gap-1 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-8 text-center">
-                  <p className="text-xs font-medium text-zinc-500">
+                <div className="flex flex-col items-center gap-1 rounded-xl border border-linen-100 bg-linen-50 px-4 py-8 text-center">
+                  <p className="text-xs font-medium text-neutral-500">
                     {isSearching
                       ? `No documents match "${search.trim()}".`
                       : includeClosed
@@ -668,29 +668,29 @@ export function CopyFromDialog({
                             transform: `translateY(${virtualRow.start}px)`,
                             width: "100%",
                           }}
-                          className={`relative flex w-full items-center border-t border-zinc-100 px-4 text-left transition cursor-pointer ${
-                            isSelected ? "bg-blue-50" : "bg-white hover:bg-zinc-50"
+                          className={`relative flex w-full items-center border-t border-linen-100 px-4 text-left transition cursor-pointer ${
+                            isSelected ? "bg-teal-50" : "bg-surface hover:bg-linen-50"
                           }`}
                         >
                           <span className="w-[160px] shrink-0 flex items-center gap-2">
                             <div
                               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
                                 isSelected
-                                  ? "border-blue-500 bg-blue-500 text-white"
-                                  : "border-zinc-300 bg-white"
+                                  ? "border-teal-500 bg-teal-500 text-surface"
+                                  : "border-linen-200 bg-surface"
                               }`}
                             >
                               {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                             </div>
-                            <span className="text-sm font-medium text-zinc-900 truncate">
+                            <span className="text-sm font-medium text-ink-900 truncate">
                               {doc.code}
                             </span>
                           </span>
-                          <span className="w-28 shrink-0 pl-3 text-sm text-zinc-500 tabular-nums">
+                          <span className="w-28 shrink-0 pl-3 text-sm text-neutral-500 tabular-nums">
                             {doc.docDate || "—"}
                           </span>
                           {isCommitted && isSelected && (
-                            <span className="ml-auto shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                            <span className="ml-auto shrink-0 rounded-full bg-linen-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
                               Added
                             </span>
                           )}
@@ -700,19 +700,19 @@ export function CopyFromDialog({
                   </div>
 
                   {isLoading && documents.length > 0 && (
-                    <div className="flex items-center justify-center gap-2 border-t border-zinc-100 py-3">
-                      <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
-                      <p className="text-xs text-zinc-500">Loading more...</p>
+                    <div className="flex items-center justify-center gap-2 border-t border-linen-100 py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
+                      <p className="text-xs text-neutral-500">Loading more...</p>
                     </div>
                   )}
                   {!hasMore && documents.length > 0 && !isSearching && (
-                    <div className="border-t border-zinc-100 px-4 py-2 text-center text-xs text-zinc-500">
+                    <div className="border-t border-linen-100 px-4 py-2 text-center text-xs text-neutral-500">
                       {loadedCount} document{loadedCount !== 1 ? "s" : ""} loaded
                       {loadedCount >= BROWSE_CAP && " (browse cap reached)"}
                     </div>
                   )}
                   {isSearching && documents.length > 0 && (
-                    <div className="border-t border-zinc-100 px-4 py-2 text-center text-xs text-zinc-500">
+                    <div className="border-t border-linen-100 px-4 py-2 text-center text-xs text-neutral-500">
                       {documents.length} result
                       {documents.length !== 1 ? "s" : ""} found
                     </div>
@@ -722,20 +722,20 @@ export function CopyFromDialog({
             </div>
 
             {/* Preview rail */}
-            <div className="w-80 shrink-0 border-l border-zinc-100 overflow-auto">
+            <div className="w-80 shrink-0 border-l border-linen-100 overflow-auto">
               {hoverDetailLoading ? (
                 <div className="flex flex-col gap-1.5 p-4 pt-3">
-                  <div className="h-3.5 w-2/5 animate-pulse rounded bg-zinc-100" />
+                  <div className="h-3.5 w-2/5 animate-pulse rounded bg-linen-100" />
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <div className="h-3 flex-1 animate-pulse rounded bg-zinc-100" />
-                      <div className="h-3 w-10 animate-pulse rounded bg-zinc-100" />
+                      <div className="h-3 flex-1 animate-pulse rounded bg-linen-100" />
+                      <div className="h-3 w-10 animate-pulse rounded bg-linen-100" />
                     </div>
                   ))}
                 </div>
               ) : hoverDetail ? (
                 <div className="flex flex-col">
-                  <div className="flex flex-col gap-0.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  <div className="flex flex-col gap-0.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
                     <div className="flex items-center gap-1.5">
                       {DOC_TYPE_ICONS[hoveredDoc?.docType ?? sourceDocType]}
                       <span>
@@ -753,7 +753,7 @@ export function CopyFromDialog({
                           })}
                         </span>
                         <span>┬╖</span>
-                        <span className="font-semibold text-blue-700">
+                        <span className="font-semibold text-teal-700">
                           {hoverDetail.docTotal?.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
@@ -766,20 +766,20 @@ export function CopyFromDialog({
                   {hoverDetail.lines.slice(0, VISIBLE_LINES).map((line, i) => (
                     <div
                       key={i}
-                      className="flex items-start justify-between gap-3 border-t border-zinc-100 px-4 py-2"
+                      className="flex items-start justify-between gap-3 border-t border-linen-100 px-4 py-2"
                     >
-                      <span className="flex-1 text-[13px] font-medium leading-snug text-zinc-900">
+                      <span className="flex-1 text-[13px] font-medium leading-snug text-ink-900">
                         {line.itemName}
                       </span>
-                      <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-blue-700">
+                      <span className="shrink-0 rounded bg-teal-50 px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-teal-700">
                         {line.openQty}
                       </span>
                     </div>
                   ))}
                   {hoverDetail.lines.length > VISIBLE_LINES && (
-                    <div className="border-t border-zinc-100 px-4 py-1.5 text-[11px] text-zinc-400">
+                    <div className="border-t border-linen-100 px-4 py-1.5 text-[11px] text-neutral-400">
                       +
-                      <span className="font-semibold text-blue-600">
+                      <span className="font-semibold text-teal-600">
                         {hoverDetail.lines.length - VISIBLE_LINES}
                       </span>{" "}
                       more
@@ -788,7 +788,7 @@ export function CopyFromDialog({
                 </div>
               ) : (
                 <div className="flex h-full items-center justify-center px-4 py-8 text-center">
-                  <p className="text-xs text-zinc-400">Hover a document to see details</p>
+                  <p className="text-xs text-neutral-400">Hover a document to see details</p>
                 </div>
               )}
             </div>
@@ -796,15 +796,15 @@ export function CopyFromDialog({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-2">
-          <span className="text-xs text-zinc-500">
+        <div className="shrink-0 flex items-center justify-between border-t border-linen-100 bg-linen-50 px-4 py-2">
+          <span className="text-xs text-neutral-500">
             {selectedDocs.size - committedSet.size > 0
               ? `${selectedDocs.size - committedSet.size} new`
               : "0"}{" "}
             of {documents.length} document
             {documents.length !== 1 ? "s" : ""} selected
             {committedSet.size > 0 && (
-              <span className="ml-1.5 text-zinc-400">┬╖ {committedSet.size} already added</span>
+              <span className="ml-1.5 text-neutral-400">┬╖ {committedSet.size} already added</span>
             )}
           </span>
         </div>

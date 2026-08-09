@@ -70,7 +70,7 @@
 .needs-attention-scroll {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgb(251 191 36 / 0.55) transparent;
+  scrollbar-color: rgb(245 158 11 / 0.45) transparent;
 }
 
 .needs-attention-scroll::-webkit-scrollbar {
@@ -79,7 +79,7 @@
 
 .needs-attention-scroll::-webkit-scrollbar-thumb {
   border-radius: 9999px;
-  background-color: rgb(251 191 36 / 0.55);
+  background-color: rgb(245 158 11 / 0.45);
 }
 
 .needs-attention-scroll::-webkit-scrollbar-track {

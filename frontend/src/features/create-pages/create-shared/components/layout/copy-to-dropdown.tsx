@@ -112,7 +112,7 @@ function CopyToPanel({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg ring-1 ring-black/[0.04]"
+      className="overflow-hidden rounded-lg border border-linen-200 bg-surface shadow-lg ring-1 ring-ink-900/[0.04]"
       style={{
         animation: "popover-enter 180ms ease-in-out both",
         width: panelWidth ?? undefined,
@@ -126,16 +126,16 @@ function CopyToPanel({
             search={{ sourceDocNum: docNum, sourceDocType: sourceDocType as any }}
             className={cn(
               "group/row relative flex items-start gap-3 px-3 py-2.5 transition-all duration-150",
-              "hover:bg-zinc-50",
-              "focus-visible:outline-none focus-visible:bg-zinc-50 focus-visible:ring-1 focus-visible:ring-zinc-300",
-              index === 0 ? "mt-0" : "-mt-px border-t border-zinc-100/80",
+              "hover:bg-linen-50",
+              "focus-visible:outline-none focus-visible:bg-linen-50 focus-visible:ring-1 focus-visible:ring-linen-200",
+              index === 0 ? "mt-0" : "-mt-px border-t border-linen-100/80",
             )}
           >
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100 transition-all duration-150 group-hover/row:bg-zinc-100 group-hover/row:text-zinc-600">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-linen-50 text-neutral-400 ring-1 ring-linen-100 transition-all duration-150 group-hover/row:bg-linen-100 group-hover/row:text-neutral-500">
               {option.icon}
             </span>
             <span className="flex min-w-0 flex-col justify-center">
-              <span className="text-[13px] font-medium text-zinc-700 transition-colors group-hover/row:text-zinc-900">
+              <span className="text-[13px] font-medium text-ink-900 transition-colors group-hover/row:text-ink-900">
                 {option.label}
               </span>
             </span>
@@ -196,39 +196,39 @@ function CopyToDropdownInner({
         variant="outline"
         onClick={handleTriggerClick}
         className={cn(
-          "group h-11 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition-all duration-200 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none disabled:cursor-not-allowed disabled:opacity-50",
+          "group h-11 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all duration-200 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none disabled:cursor-not-allowed disabled:opacity-50",
           open
-            ? "border-zinc-300 bg-zinc-50 text-zinc-900 ring-1 ring-zinc-200"
-            : "hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900",
+            ? "border-linen-200 bg-linen-50 text-ink-900 ring-1 ring-linen-200"
+            : "hover:border-linen-200 hover:bg-linen-50 hover:text-ink-900",
           className,
         )}
       >
         <span className="inline-flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-zinc-400 group-hover:text-zinc-500 transition-colors" />
+          <ClipboardList className="h-4 w-4 text-neutral-400 group-hover:text-neutral-500 transition-colors" />
           <span>Copy To</span>
         </span>
-        <span className="mx-2 h-4 w-px bg-zinc-200" />
+        <span className="mx-2 h-4 w-px bg-linen-100" />
         <span className="flex items-center gap-1.5 transition-colors duration-200">
           {options.length === 1 ? (
             <>
-              <span className="text-sm font-medium text-zinc-400 group-hover:text-zinc-600 transition-colors">
+              <span className="text-sm font-medium text-neutral-400 group-hover:text-neutral-500 transition-colors">
                 {options[0]!.label}
               </span>
               <ChevronRight
                 className={cn(
-                  "h-3.5 w-3.5 transition-transform duration-200 text-zinc-400",
+                  "h-3.5 w-3.5 transition-transform duration-200 text-neutral-400",
                   open && "translate-x-0.5",
                 )}
               />
             </>
           ) : (
             <>
-              <span className="text-sm text-zinc-400 group-hover:text-zinc-600 transition-colors">
+              <span className="text-sm text-neutral-400 group-hover:text-neutral-500 transition-colors">
                 Choose target
               </span>
               <ChevronRight
                 className={cn(
-                  "h-3.5 w-3.5 transition-transform duration-200 text-zinc-400",
+                  "h-3.5 w-3.5 transition-transform duration-200 text-neutral-400",
                   open && "translate-x-0.5",
                 )}
               />

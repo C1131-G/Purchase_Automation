@@ -40,7 +40,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   public override render() {
     if (this.state.hasError) {
       return (
-        <div className="fixed inset-0 z-[9999] bg-white">
+        <div className="fixed inset-0 z-[9999] bg-surface">
           <SectionErrorState
             title="Application Error"
             message={

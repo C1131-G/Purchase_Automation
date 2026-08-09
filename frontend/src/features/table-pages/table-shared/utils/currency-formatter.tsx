@@ -21,11 +21,11 @@ export function formatDocTotal(value: unknown, currency?: string) {
   return (
     <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
       {showCurrency ? (
-        <span className="text-[10px] font-light text-zinc-500 uppercase tracking-wider">
+        <span className="text-[10px] font-light text-neutral-500 uppercase tracking-wider">
           {displayCurrency}
         </span>
       ) : null}
-      <span className="font-semibold text-zinc-900">{formattedAmount}</span>
+      <span className="font-semibold text-ink-900">{formattedAmount}</span>
     </span>
   );
 }

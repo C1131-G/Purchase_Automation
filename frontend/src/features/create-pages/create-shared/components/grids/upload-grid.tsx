@@ -217,8 +217,8 @@ export function UploadGrid({
       case "docx":
         return {
           icon: FileText,
-          bgColor: "bg-blue-50/70 border border-blue-100/50",
-          iconColor: "text-blue-600",
+          bgColor: "bg-teal-50/70 border border-teal-100/50",
+          iconColor: "text-teal-600",
         };
       case "jpg":
       case "jpeg":
@@ -244,8 +244,8 @@ export function UploadGrid({
       default:
         return {
           icon: File,
-          bgColor: "bg-zinc-50 border border-zinc-200/50",
-          iconColor: "text-zinc-500",
+          bgColor: "bg-linen-50 border border-linen-200/50",
+          iconColor: "text-neutral-500",
         };
     }
   }
@@ -254,11 +254,11 @@ export function UploadGrid({
 
   return (
     <div className="flex flex-col h-full gap-2">
-      <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+      <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
         <span className="inline-flex items-center gap-1.5">
           <span>ATTACHMENTS</span>
           {readOnly && !loading ? (
-            <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+            <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
           ) : null}
         </span>
       </label>
@@ -273,10 +273,10 @@ export function UploadGrid({
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:h-[108px] items-stretch w-full">
-          <div className="md:col-span-4 h-[108px] animate-pulse rounded-xl border border-zinc-200 bg-zinc-100/80" />
+          <div className="md:col-span-4 h-[108px] animate-pulse rounded-xl border border-linen-200 bg-linen-100/80" />
           <div className="md:col-span-8 flex flex-col gap-2 h-full">
-            <div className="h-[50px] animate-pulse rounded-xl border border-zinc-150/60 bg-zinc-50/50" />
-            <div className="h-[50px] animate-pulse rounded-xl border border-zinc-150/60 bg-zinc-50/50" />
+            <div className="h-[50px] animate-pulse rounded-xl border border-linen-200/60 bg-linen-50/50" />
+            <div className="h-[50px] animate-pulse rounded-xl border border-linen-200/60 bg-linen-50/50" />
           </div>
         </div>
       ) : (
@@ -290,29 +290,29 @@ export function UploadGrid({
             }
           >
             {readOnly ? (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-4 text-center h-full w-full cursor-not-allowed opacity-75 select-none">
-                <Lock className="h-5 w-5 text-zinc-400 mb-1.5" />
-                <span className="text-xs font-semibold text-zinc-500 block">Upload Locked</span>
-                <span className="text-[9px] text-zinc-400 mt-0.5 block text-center">
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-linen-200 bg-linen-50/50 p-4 text-center h-full w-full cursor-not-allowed opacity-75 select-none">
+                <Lock className="h-5 w-5 text-neutral-400 mb-1.5" />
+                <span className="text-xs font-semibold text-neutral-500 block">Upload Locked</span>
+                <span className="text-[9px] text-neutral-400 mt-0.5 block text-center">
                   Document is closed
                 </span>
               </div>
             ) : (
               <div
                 onClick={handleContainerClick}
-                className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-linear-to-b from-zinc-50/50 to-zinc-100/50 hover:from-white hover:to-zinc-50 hover:border-blue-400 hover:shadow-xs transition duration-200 p-4 text-center h-full w-full group ${
+                className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-linen-200 bg-linear-to-b from-linen-50/50 to-linen-100/50 hover:from-surface hover:to-linen-50 hover:border-teal-400 hover:shadow-xs transition duration-200 p-4 text-center h-full w-full group ${
                   isUploading ? "cursor-not-allowed opacity-75" : "cursor-pointer"
                 }`}
               >
                 {isUploading ? (
-                  <Loader2 className="h-5 w-5 text-blue-500 animate-spin mb-1.5" />
+                  <Loader2 className="h-5 w-5 text-teal-500 animate-spin mb-1.5" />
                 ) : (
-                  <Upload className="h-5 w-5 text-zinc-400 group-hover:text-blue-500 transition-colors mb-1.5" />
+                  <Upload className="h-5 w-5 text-neutral-400 group-hover:text-teal-500 transition-colors mb-1.5" />
                 )}
-                <span className="text-xs font-semibold text-zinc-700 group-hover:text-zinc-900 transition-colors block">
+                <span className="text-xs font-semibold text-ink-900 group-hover:text-ink-900 transition-colors block">
                   {isUploading ? "Uploading..." : "Drag & drop or click"}
                 </span>
-                <span className="text-[9px] text-zinc-400 mt-0.5 block text-center">
+                <span className="text-[9px] text-neutral-400 mt-0.5 block text-center">
                   PDF, Word, Excel, Images (Max 25MB)
                 </span>
               </div>
@@ -329,7 +329,7 @@ export function UploadGrid({
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 rounded-xl border border-zinc-100/85 bg-white p-2.5 shadow-xs hover:border-zinc-200/90 hover:shadow-sm transition-all duration-200"
+                    className="flex items-center gap-3 rounded-xl border border-linen-100/85 bg-surface p-2.5 shadow-xs hover:border-linen-200/90 hover:shadow-sm transition-all duration-200"
                   >
                     {/* File Icon Badge */}
                     <div className={`p-2 rounded-lg shrink-0 ${iconInfo.bgColor}`}>
@@ -343,7 +343,7 @@ export function UploadGrid({
                           <button
                             type="button"
                             onClick={() => handlePreview(item)}
-                            className="text-left text-xs font-semibold text-zinc-700 hover:text-blue-600 truncate hover:underline cursor-pointer"
+                            className="text-left text-xs font-semibold text-ink-900 hover:text-teal-600 truncate hover:underline cursor-pointer"
                             title="Click to preview"
                           >
                             {item.fileName.substring(item.fileName.lastIndexOf("_") + 1)}
@@ -351,7 +351,7 @@ export function UploadGrid({
                           </button>
                         ) : (
                           <span
-                            className="text-left text-xs font-semibold text-zinc-700 truncate"
+                            className="text-left text-xs font-semibold text-ink-900 truncate"
                             title={`${item.fileName}${item.fileExtension ? `.${item.fileExtension}` : ""}`}
                           >
                             {item.fileName.substring(item.fileName.lastIndexOf("_") + 1)}
@@ -359,7 +359,7 @@ export function UploadGrid({
                           </span>
                         )}
                         {item.attachmentDate && (
-                          <span className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                          <span className="text-[9px] text-neutral-400 font-medium mt-0.5">
                             Uploaded:{" "}
                             {item.attachmentDate.includes("T")
                               ? item.attachmentDate.split("T")[0]
@@ -376,7 +376,7 @@ export function UploadGrid({
                           disabled={readOnly}
                           onChange={(e) => handleNoteChange(item.id, e.target.value)}
                           placeholder={readOnly ? "" : "Add remark / note..."}
-                          className="w-full h-8 rounded-lg border border-zinc-200/50 bg-zinc-50/70 px-3 text-[11px] text-zinc-700 placeholder:text-zinc-400 hover:bg-zinc-100/40 hover:border-zinc-300/80 focus:border-blue-400 focus:bg-white focus:shadow-xs outline-none transition duration-150 disabled:bg-transparent disabled:border-transparent disabled:text-zinc-500 disabled:cursor-not-allowed"
+                          className="w-full h-8 rounded-lg border border-linen-200/50 bg-linen-50/70 px-3 text-[11px] text-ink-900 placeholder:text-neutral-400 hover:bg-linen-100/40 hover:border-linen-200/80 focus:border-teal-400 focus:bg-surface focus:shadow-xs outline-none transition duration-150 disabled:bg-transparent disabled:border-transparent disabled:text-neutral-500 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -387,7 +387,7 @@ export function UploadGrid({
                         <button
                           type="button"
                           onClick={() => handlePreview(item)}
-                          className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 rounded-lg cursor-pointer transition-colors"
+                          className="p-1.5 text-neutral-400 hover:text-ink-900 hover:bg-linen-50 rounded-lg cursor-pointer transition-colors"
                           title="Preview file"
                         >
                           <Eye className="h-4.5 w-4.5" />
@@ -396,7 +396,7 @@ export function UploadGrid({
                       <button
                         type="button"
                         onClick={() => handleDownload(item)}
-                        className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 rounded-lg cursor-pointer transition-colors"
+                        className="p-1.5 text-neutral-400 hover:text-ink-900 hover:bg-linen-50 rounded-lg cursor-pointer transition-colors"
                         title="Download file"
                       >
                         <Download className="h-4 w-4" />
@@ -405,7 +405,7 @@ export function UploadGrid({
                         <button
                           type="button"
                           onClick={() => handleDelete(item.id)}
-                          className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                          className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
                           title="Delete file"
                         >
                           <Trash2 className="h-4 w-4" />

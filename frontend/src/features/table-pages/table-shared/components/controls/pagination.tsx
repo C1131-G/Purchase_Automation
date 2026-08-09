@@ -40,13 +40,13 @@ export function TablePagination<TData>({
   const getNextPageIndex = (currentIndex: number) => Math.min(currentIndex + 1, pageCount - 1);
 
   return (
-    <div className="flex items-center justify-end space-x-12 px-6 py-5 border-t border-zinc-100 bg-white">
+    <div className="flex items-center justify-end space-x-12 px-6 py-5 border-t border-linen-100 bg-linen-50/50">
       {/* Rows per page section */}
       <div className="flex items-center space-x-3">
         <p
           className={cn(
             "text-[13px] font-semibold font-sans",
-            !hasData ? "text-zinc-300" : "text-zinc-950",
+            !hasData ? "text-neutral-300" : "text-ink-900",
           )}
         >
           Rows per page
@@ -65,10 +65,10 @@ export function TablePagination<TData>({
               onPrefetchPageSize?.(nextPageSize);
             }}
           >
-            <Select.Trigger className="group h-9 px-3 py-1 rounded-lg border-zinc-200 bg-white text-[10px] font-bold uppercase tracking-[0.15em] hover:text-blue-600 hover:border-blue-600 transition-all focus:border-blue-600 focus:outline-none ring-offset-0">
+            <Select.Trigger className="group h-9 px-3 py-1 rounded-lg border-linen-200 bg-surface text-[10px] font-bold uppercase tracking-[0.15em] hover:text-teal-700 hover:border-teal-300 transition-all focus:border-teal-500 focus:outline-none ring-offset-0">
               <Select.Value />
               <Select.Icon>
-                <ChevronDown className="size-3.5 text-zinc-400 ml-1 transition-all duration-200 group-hover:translate-y-0.5 group-hover:text-blue-600 group-data-[state=open]:rotate-180" />
+                <ChevronDown className="size-3.5 text-neutral-400 ml-1 transition-all duration-200 group-hover:translate-y-0.5 group-hover:text-teal-600 group-data-[state=open]:rotate-180" />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
@@ -96,7 +96,7 @@ export function TablePagination<TData>({
       <div
         className={cn(
           "text-[13px] font-semibold font-sans",
-          !hasData ? "text-zinc-300" : "text-zinc-950",
+          !hasData ? "text-neutral-300" : "text-ink-900",
         )}
       >
         Page {safePageIndex + 1} of {pageCount}
@@ -107,7 +107,7 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-neutral-400 hover:bg-teal-50 hover:text-teal-700 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             table.setPageIndex(0);
             if (pageCount > 1) {
@@ -133,7 +133,7 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-neutral-400 hover:bg-teal-50 hover:text-teal-700 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             const nextPage = Math.max(safePageIndex - 1, 0);
             table.setPageIndex(nextPage);
@@ -160,7 +160,7 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-neutral-400 hover:bg-teal-50 hover:text-teal-700 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             const nextPage = Math.min(safePageIndex + 1, pageCount - 1);
             table.setPageIndex(nextPage);
@@ -187,7 +187,7 @@ export function TablePagination<TData>({
         <Button
           variant="ghost"
           size="sm"
-          className="group size-9 p-0 rounded-lg text-zinc-400 hover:bg-blue-50/30 hover:text-blue-600 focus:ring-0 transition-all disabled:opacity-30"
+          className="group size-9 p-0 rounded-lg text-neutral-400 hover:bg-teal-50 hover:text-teal-700 focus:ring-0 transition-all disabled:opacity-30"
           onClick={() => {
             const lastPage = pageCount - 1;
             table.setPageIndex(lastPage);

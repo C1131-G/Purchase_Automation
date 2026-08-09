@@ -144,7 +144,7 @@ export function Sidebar({
     return (
       <div
         className={cn(
-          "bg-white border-r border-zinc-100 flex h-full w-(--sidebar-width) flex-col",
+          "bg-surface border-r border-linen-200 flex h-full w-(--sidebar-width) flex-col",
           className,
         )}
         {...props}
@@ -164,7 +164,7 @@ export function Sidebar({
             transitionDuration: `${MOTION_MS.sidebarBackdrop}ms`,
             transitionTimingFunction: MOTION_EASING.smoothOut,
           }}
-          className="fixed inset-0 z-[110] bg-zinc-950/8 backdrop-blur-sm transition-opacity block border-none outline-none cursor-pointer"
+          className="fixed inset-0 z-[110] bg-ink-950/8 backdrop-blur-sm transition-opacity block border-none outline-none cursor-pointer"
           onClick={() => setOpen(false)}
         />
       ) : null}
@@ -179,7 +179,7 @@ export function Sidebar({
           } as React.CSSProperties
         }
         className={cn(
-          "group fixed left-0 top-0 h-dvh z-[120] overflow-hidden border-r border-zinc-100 bg-white transition-[width,border-color,box-shadow] will-change-[width]",
+          "group fixed left-0 top-0 h-dvh z-[120] overflow-hidden border-r border-linen-200 bg-surface transition-[width,border-color,box-shadow] will-change-[width]",
           open ? "block" : "hidden md:block",
           state === "collapsed" && collapsible === "offcanvas" && "border-r-0!",
           className,
@@ -226,7 +226,7 @@ export function SidebarTrigger({ className, onClick, children, ...props }: Sideb
   return (
     <button
       className={cn(
-        "group inline-flex items-center justify-center rounded-xl p-2.5 text-zinc-400 hover:text-blue-600 focus-visible:outline-none focus:ring-0 transition-colors duration-150 cursor-pointer border-none bg-transparent",
+        "group inline-flex items-center justify-center rounded-xl p-2.5 text-neutral-400 hover:text-teal-600 focus-visible:outline-none focus:ring-0 transition-colors duration-150 cursor-pointer border-none bg-transparent",
         className,
       )}
       onClick={(event) => {
@@ -245,7 +245,7 @@ export function SidebarInset({ className, ...props }: SidebarInsetProps) {
   return (
     <main
       className={cn(
-        "relative z-0 flex min-w-0 flex-1 flex-col bg-zinc-50 transition-[filter,opacity] duration-200",
+        "relative z-0 flex min-w-0 flex-1 flex-col bg-linen-50 transition-[filter,opacity] duration-200",
         className,
       )}
       {...props}
@@ -255,14 +255,17 @@ export function SidebarInset({ className, ...props }: SidebarInsetProps) {
 
 export function SidebarHeader({ className, ...props }: SidebarHeaderProps) {
   return (
-    <div className={cn("gap-2 p-4 flex flex-col border-b border-zinc-50", className)} {...props} />
+    <div
+      className={cn("gap-2 p-4 flex flex-col border-b border-linen-100", className)}
+      {...props}
+    />
   );
 }
 
 export function SidebarFooter({ className, ...props }: SidebarFooterProps) {
   return (
     <div
-      className={cn("gap-2 p-4 flex flex-col border-t border-zinc-50 mt-auto w-full", className)}
+      className={cn("gap-2 p-4 flex flex-col border-t border-linen-100 mt-auto w-full", className)}
       {...props}
     />
   );
@@ -316,8 +319,8 @@ export function SidebarMenuButton({
     <button
       className={cn(
         "flex w-full items-center gap-3 rounded-xl p-2.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-200 cursor-pointer",
-        "hover:bg-blue-50 hover:text-blue-600 text-zinc-500",
-        isActive && "bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)]",
+        "hover:bg-teal-50 hover:text-teal-700 text-neutral-500",
+        isActive && "bg-teal-600 text-surface shadow-[0_4px_12px_rgba(15,118,110,0.22)]",
         "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-11 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto",
         className,
       )}
@@ -346,10 +349,12 @@ export function SidebarMenuCollapsible({
         className="justify-between group/trigger"
       >
         <div className="flex min-w-0 items-center gap-3">
-          <span className="relative inline-flex shrink-0">
-            <Icon className="size-5" />
+          <span className="relative inline-flex shrink-0 isolate">
+            <Icon className="size-5 shrink-0" />
             {iconBadge ? (
-              <span className="pointer-events-none absolute -right-1.5 -top-1.5">{iconBadge}</span>
+              <span className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 translate-x-0">
+                {iconBadge}
+              </span>
             ) : null}
           </span>
           <span className="truncate group-data-[collapsible=icon]:hidden">{title}</span>
@@ -358,9 +363,9 @@ export function SidebarMenuCollapsible({
           {trailing}
           <ChevronRight
             className={cn(
-              "size-3.5 transition-transform duration-300 text-zinc-300 group-hover/trigger:text-blue-600",
+              "size-3.5 transition-transform duration-300 text-neutral-300 group-hover/trigger:text-teal-600",
               isOpen && "rotate-90",
-              isActive && "text-white group-hover/trigger:text-white",
+              isActive && "text-surface group-hover/trigger:text-surface",
             )}
           />
         </div>
@@ -383,7 +388,7 @@ export function SidebarMenuSub({ className, ...props }: SidebarMenuSubProps) {
   return (
     <ul
       className={cn(
-        "ml-8 space-y-1 border-l border-zinc-200 pl-4 group-data-[collapsible=icon]:hidden",
+        "ml-8 space-y-1 border-l border-linen-200 pl-4 group-data-[collapsible=icon]:hidden",
         className,
       )}
       {...props}
@@ -407,14 +412,14 @@ export function SidebarMenuSubButton({
       preloadDelay={0}
       startTransition
       className={cn(
-        "relative flex w-full items-center text-[13px] py-1.5 text-zinc-400 hover:text-blue-600 transition-colors duration-150 text-left cursor-pointer bg-transparent",
-        isActive && "text-blue-600 font-bold",
+        "relative flex w-full items-center text-[13px] py-1.5 text-neutral-400 hover:text-teal-600 transition-colors duration-150 text-left cursor-pointer bg-transparent",
+        isActive && "text-teal-700 font-bold",
         className,
       )}
       {...props}
     >
       {isActive ? (
-        <div className="absolute -left-4.25 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-full" />
+        <div className="absolute -left-4.25 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-teal-500 rounded-full" />
       ) : null}
       {children}
     </Link>

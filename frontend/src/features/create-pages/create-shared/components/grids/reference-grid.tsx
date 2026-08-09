@@ -23,7 +23,7 @@ interface ReferenceGridProps {
 }
 
 function Pulse({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />;
+  return <div className={`animate-pulse rounded bg-linen-100 ${className}`} />;
 }
 
 function ReferenceTextarea({
@@ -67,10 +67,10 @@ function ReferenceTextarea({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       style={{ height, maxHeight: height, overflowY: "auto" }}
-      className={`w-full resize-y rounded-xl border px-4 py-2 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 ${
+      className={`w-full resize-y rounded-xl border px-4 py-2 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 ${
         invalid
           ? invalidStyles
-          : "border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+          : "border-linen-200 bg-linen-50 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
       } ${disabled ? disabledStyles : ""}`}
     />
   );
@@ -99,12 +99,12 @@ export function ReferenceGrid({
       <div>
         <label
           htmlFor="po-customer-ref-no"
-          className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
+          className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500"
         >
           <span className="inline-flex items-center gap-1.5">
             <span>{referenceLabel || "CUSTOMER REF NO"}</span>
             {referenceNoDisabled ? (
-              <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+              <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
             ) : null}
           </span>
         </label>
@@ -120,11 +120,11 @@ export function ReferenceGrid({
             {...(onReferenceNoDisabledClick ? { onClick: onReferenceNoDisabledClick } : {})}
             {...(onReferenceNoDisabledClick ? { onFocus: onReferenceNoDisabledClick } : {})}
             {...(referenceNoInvalid !== undefined ? { invalid: referenceNoInvalid } : {})}
-            invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+            invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
             disabledStyles={
               uniformReadOnlyAppearance
-                ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800"
-                : "border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100"
+                ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
+                : "border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
             }
           />
         )}
@@ -136,12 +136,12 @@ export function ReferenceGrid({
       <div>
         <label
           htmlFor="po-remarks"
-          className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
+          className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500"
         >
           <span className="inline-flex items-center gap-1.5">
             <span>REMARKS</span>
             {commentsDisabled ? (
-              <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+              <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
             ) : null}
           </span>
         </label>
@@ -157,10 +157,10 @@ export function ReferenceGrid({
             {...(onCommentsDisabledClick ? { onClick: onCommentsDisabledClick } : {})}
             {...(onCommentsDisabledClick ? { onFocus: onCommentsDisabledClick } : {})}
             {...(commentsInvalid !== undefined ? { invalid: commentsInvalid } : {})}
-            invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+            invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
             disabledStyles={
               uniformReadOnlyAppearance
-                ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800"
+                ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
                 : "cursor-not-allowed opacity-70"
             }
           />

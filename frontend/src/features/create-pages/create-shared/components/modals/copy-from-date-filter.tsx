@@ -66,10 +66,10 @@ function CopyFromDateFilterButton({
         <button
           type="button"
           className={cn(
-            "flex h-8 items-center rounded-full border px-3 text-xs font-medium transition hover:bg-zinc-50",
+            "flex h-8 items-center rounded-full border px-3 text-xs font-medium transition hover:bg-linen-50",
             hasDateRange
-              ? "border-blue-300 bg-blue-50 text-blue-700"
-              : "border-zinc-200 bg-white text-zinc-700",
+              ? "border-teal-300 bg-teal-50 text-teal-700"
+              : "border-linen-200 bg-surface text-ink-900",
           )}
         >
           <LucideCalendar className="mr-1.5 size-3.5" />

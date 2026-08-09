@@ -95,11 +95,11 @@ export function AddressGrid({
           <div className="flex flex-col">
             <label
               htmlFor="po-bill-to-address"
-              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
+              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500"
             >
               <span className="inline-flex items-center gap-1.5">
                 <span>{displayBillToLabel}</span>
-                {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+                {readOnly ? <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" /> : null}
                 {!readOnly && editableHighlight ? (
                   <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
                 ) : null}
@@ -121,29 +121,29 @@ export function AddressGrid({
                 <Select.Trigger
                   className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
                     readOnly || billToOptions.length === 0
-                      ? "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
+                      ? "border-linen-200 bg-linen-100 text-neutral-400 cursor-not-allowed"
+                      : "border-linen-200 bg-surface text-ink-900 hover:bg-linen-50 hover:border-linen-200"
                   }`}
                 >
                   <Select.Value placeholder="Change Address" labelMap={billToLabelMap} />
                   <Select.Icon>
-                    <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                    <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />
                   </Select.Icon>
                 </Select.Trigger>
                 <Select.Portal>
                   <Select.Positioner className="z-50">
-                    <Select.Popup className="max-h-60 overflow-y-auto border border-zinc-200/80 bg-white shadow-lg p-1">
+                    <Select.Popup className="max-h-60 overflow-y-auto border border-linen-200/80 bg-surface shadow-lg p-1">
                       <Select.List className="p-0 space-y-0.5">
                         {billToOptions.map((opt) => (
                           <Select.Item key={opt.addressName} value={opt.addressName}>
-                            <div className="text-left text-[11px] text-zinc-700 whitespace-pre-line py-0.5 leading-relaxed">
+                            <div className="text-left text-[11px] text-ink-900 whitespace-pre-line py-0.5 leading-relaxed">
                               {opt.addressText}
                             </div>
                           </Select.Item>
                         ))}
                         {billToAddress.trim() && !matchedBillToOpt && (
                           <Select.Item value="custom">
-                            <span className="italic text-zinc-400 text-xs">Custom Address</span>
+                            <span className="italic text-neutral-400 text-xs">Custom Address</span>
                           </Select.Item>
                         )}
                       </Select.List>
@@ -154,7 +154,7 @@ export function AddressGrid({
             </div>
 
             {loading ? (
-              <div className="h-36 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+              <div className="h-36 animate-pulse rounded-xl border border-linen-200 bg-linen-100" />
             ) : (
               <textarea
                 id="po-bill-to-address"
@@ -162,17 +162,17 @@ export function AddressGrid({
                 readOnly={readOnly}
                 onChange={(event) => onBillToAddressChange(event.target.value)}
                 placeholder={`Enter ${displayBillToLabel}`}
-                className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
+                className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-neutral-400 ${
                   billToAddressInvalid
-                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                     : editableHighlight
-                      ? "border-emerald-300 bg-emerald-50/60 text-zinc-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200"
-                      : "border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                      ? "border-emerald-300 bg-emerald-50/60 text-ink-900 focus:border-emerald-400 focus:bg-surface focus:ring-2 focus:ring-emerald-200"
+                      : "border-linen-200 bg-linen-50 text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 } ${
                   readOnly
                     ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800"
-                      : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500"
+                      ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
+                      : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500"
                     : ""
                 }`}
               />
@@ -184,11 +184,11 @@ export function AddressGrid({
           <div className="flex flex-col">
             <label
               htmlFor="po-ship-to-address"
-              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
+              className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500"
             >
               <span className="inline-flex items-center gap-1.5">
                 <span>{displayShipToLabel}</span>
-                {readOnly ? <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" /> : null}
+                {readOnly ? <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" /> : null}
                 {!readOnly && editableHighlight ? (
                   <Pencil className="h-3 w-3 text-emerald-600" aria-hidden="true" />
                 ) : null}
@@ -210,29 +210,29 @@ export function AddressGrid({
                 <Select.Trigger
                   className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
                     readOnly || shipToOptions.length === 0
-                      ? "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300"
+                      ? "border-linen-200 bg-linen-100 text-neutral-400 cursor-not-allowed"
+                      : "border-linen-200 bg-surface text-ink-900 hover:bg-linen-50 hover:border-linen-200"
                   }`}
                 >
                   <Select.Value placeholder="Change Address" labelMap={shipToLabelMap} />
                   <Select.Icon>
-                    <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                    <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />
                   </Select.Icon>
                 </Select.Trigger>
                 <Select.Portal>
                   <Select.Positioner className="z-50">
                     <Select.Popup>
-                      <Select.List className="p-0 space-y-0.5 border border-zinc-200/80 bg-white shadow-lg p-1">
+                      <Select.List className="p-0 space-y-0.5 border border-linen-200/80 bg-surface shadow-lg p-1">
                         {shipToOptions.map((opt) => (
                           <Select.Item key={opt.addressName} value={opt.addressName}>
-                            <div className="text-left text-[11px] text-zinc-700 whitespace-pre-line py-0.5 leading-relaxed">
+                            <div className="text-left text-[11px] text-ink-900 whitespace-pre-line py-0.5 leading-relaxed">
                               {opt.addressText}
                             </div>
                           </Select.Item>
                         ))}
                         {shipToAddress.trim() && !matchedShipToOpt && (
                           <Select.Item value="custom">
-                            <span className="italic text-zinc-400 text-xs">Custom Address</span>
+                            <span className="italic text-neutral-400 text-xs">Custom Address</span>
                           </Select.Item>
                         )}
                       </Select.List>
@@ -243,7 +243,7 @@ export function AddressGrid({
             </div>
 
             {loading ? (
-              <div className="h-36 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+              <div className="h-36 animate-pulse rounded-xl border border-linen-200 bg-linen-100" />
             ) : (
               <textarea
                 id="po-ship-to-address"
@@ -251,17 +251,17 @@ export function AddressGrid({
                 readOnly={readOnly}
                 onChange={(event) => onShipToAddressChange(event.target.value)}
                 placeholder={`Enter ${displayShipToLabel}`}
-                className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-zinc-400 ${
+                className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-neutral-400 ${
                   shipToAddressInvalid
-                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                     : editableHighlight
-                      ? "border-emerald-300 bg-emerald-50/60 text-zinc-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-200"
-                      : "border-zinc-200 bg-zinc-50 text-zinc-800 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                      ? "border-emerald-300 bg-emerald-50/60 text-ink-900 focus:border-emerald-400 focus:bg-surface focus:ring-2 focus:ring-emerald-200"
+                      : "border-linen-200 bg-linen-50 text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 } ${
                   readOnly
                     ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800"
-                      : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500"
+                      ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
+                      : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500"
                     : ""
                 }`}
               />

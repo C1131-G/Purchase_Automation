@@ -42,7 +42,11 @@ const ROW_KEYS = [
 
 /** Pulsing pill used for a single skeleton cell value. */
 function CellPulse({ widthClass }: { widthClass: string }) {
-  return <div className={`h-4 rounded bg-zinc-100 animate-pulse ${widthClass}`} />;
+  return (
+    <div
+      className={`h-4 rounded bg-linen-100 animate-pulse [animation-duration:1.1s] ${widthClass}`}
+    />
+  );
 }
 
 export interface TableSkeletonToolbarOptions {
@@ -62,7 +66,7 @@ export interface TableSkeletonToolbarOptions {
 /**
  * Toolbar skeleton – mirrors TableToolbar.
  *
- * Single row, border-b border-zinc-100, px-6 py-3
+ * Single row, border-b border-linen-100, px-6 py-3
  * LEFT:  breadcrumb pill
  * RIGHT: [Filter] [View] [end actions…] [Create] — optional per flags
  */
@@ -75,50 +79,50 @@ function ToolbarSkeleton({
   const hasRightActions = showFilter || showView || endActionWidths.length > 0 || showCreate;
 
   return (
-    <div className="border-b border-zinc-100 bg-white">
+    <div className="border-b border-linen-100 bg-linen-50/50">
       <div className="flex items-center justify-between px-6 py-3">
         {/* Left: breadcrumb pill */}
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 shadow-xs">
-            <div className="h-3 w-14 rounded bg-zinc-200 animate-pulse" />
-            <div className="size-3 rounded bg-zinc-100 animate-pulse" />
-            <div className="h-3 w-16 rounded bg-zinc-200 animate-pulse" />
-            <div className="size-3 rounded bg-zinc-100 animate-pulse" />
-            <div className="h-3 w-36 rounded bg-zinc-300 animate-pulse" />
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-linen-200 bg-surface px-3.5 py-1.5 shadow-xs">
+            <div className="h-3 w-14 rounded bg-linen-200 animate-pulse [animation-duration:1.1s]" />
+            <div className="size-3 rounded bg-linen-100 animate-pulse [animation-duration:1.1s]" />
+            <div className="h-3 w-16 rounded bg-linen-200 animate-pulse [animation-duration:1.1s]" />
+            <div className="size-3 rounded bg-linen-100 animate-pulse [animation-duration:1.1s]" />
+            <div className="h-3 w-36 rounded bg-linen-200 animate-pulse [animation-duration:1.1s]" />
           </div>
         </div>
 
         {hasRightActions ? (
           <div className="flex flex-1 items-center justify-end gap-2 pl-4">
             {showFilter ? (
-              <div className="h-11 w-24 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+              <div className="h-11 w-24 rounded-xl border border-linen-200 bg-surface animate-pulse shadow-sm" />
             ) : null}
 
             {showFilter && (showView || endActionWidths.length > 0 || showCreate) ? (
-              <div className="mx-1 h-6 w-px bg-zinc-200" />
+              <div className="mx-1 h-6 w-px bg-linen-200" />
             ) : null}
 
             {showView ? (
-              <div className="h-11 w-20 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+              <div className="h-11 w-20 rounded-xl border border-linen-200 bg-surface animate-pulse shadow-sm" />
             ) : null}
 
             {showView && (endActionWidths.length > 0 || showCreate) ? (
-              <div className="mx-1 h-6 w-px bg-zinc-200" />
+              <div className="mx-1 h-6 w-px bg-linen-200" />
             ) : null}
 
             {endActionWidths.map((widthClass, index) => (
               <div
                 key={`sk-end-${widthClass}-${index}`}
-                className={`h-11 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm ${widthClass}`}
+                className={`h-11 rounded-xl border border-linen-200 bg-surface animate-pulse shadow-sm ${widthClass}`}
               />
             ))}
 
             {endActionWidths.length > 0 && showCreate ? (
-              <div className="mx-1 h-6 w-px bg-zinc-200" />
+              <div className="mx-1 h-6 w-px bg-linen-200" />
             ) : null}
 
             {showCreate ? (
-              <div className="h-11 w-28 rounded-xl border border-zinc-200 bg-white animate-pulse shadow-sm" />
+              <div className="h-11 w-28 rounded-xl border border-teal-200 bg-teal-600 animate-pulse shadow-sm" />
             ) : null}
           </div>
         ) : null}
@@ -130,17 +134,17 @@ function ToolbarSkeleton({
 /** Pagination footer skeleton – mirrors TablePagination chrome. */
 function PaginationSkeleton() {
   return (
-    <div className="flex items-center justify-end space-x-12 px-6 py-5 border-t border-zinc-100 bg-white">
+    <div className="flex items-center justify-end space-x-12 px-6 py-5 border-t border-linen-100 bg-linen-50/50">
       <div className="flex items-center space-x-3">
-        <div className="h-4 w-24 rounded bg-zinc-200 animate-pulse" />
-        <div className="h-9 w-20 rounded-lg border border-zinc-100 bg-zinc-50 animate-pulse" />
+        <div className="h-4 w-24 rounded bg-linen-200 animate-pulse" />
+        <div className="h-9 w-20 rounded-lg border border-linen-100 bg-linen-50 animate-pulse" />
       </div>
-      <div className="h-4 w-24 rounded bg-zinc-200 animate-pulse" />
+      <div className="h-4 w-24 rounded bg-linen-200 animate-pulse" />
       <div className="flex items-center space-x-1.5">
-        <div className="size-9 rounded-lg bg-zinc-100 animate-pulse" />
-        <div className="size-9 rounded-lg bg-zinc-100 animate-pulse" />
-        <div className="size-9 rounded-lg bg-zinc-100 animate-pulse" />
-        <div className="size-9 rounded-lg bg-zinc-100 animate-pulse" />
+        <div className="size-9 rounded-lg bg-linen-100 animate-pulse" />
+        <div className="size-9 rounded-lg bg-linen-100 animate-pulse" />
+        <div className="size-9 rounded-lg bg-linen-100 animate-pulse" />
+        <div className="size-9 rounded-lg bg-linen-100 animate-pulse" />
       </div>
     </div>
   );
@@ -173,7 +177,7 @@ export function TableSkeleton({
   const colCount = columnWidths.length;
 
   return (
-    <div className="h-full w-full overflow-hidden bg-white flex flex-col">
+    <div className="h-full w-full overflow-hidden bg-surface flex flex-col">
       <ToolbarSkeleton {...toolbar} />
 
       <div className="flex-1 overflow-auto w-full px-1.5">
@@ -187,7 +191,7 @@ export function TableSkeleton({
                   style={{ width }}
                 >
                   <div
-                    className={`h-3 rounded bg-zinc-200 animate-pulse ${
+                    className={`h-3 rounded bg-linen-200 animate-pulse ${
                       i === colCount - 1 && columnClassNames?.[i]?.includes("text-left")
                         ? "ml-0 w-10"
                         : "ml-2 w-20"

@@ -403,7 +403,7 @@ export function RfqTable() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-white">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-surface">
       <RfqLookupLayer tableId={TABLE_ID} table={table} onReset={handleResetTable} allRows={rows} />
 
       <div className="w-full flex-1 overflow-auto px-1.5">

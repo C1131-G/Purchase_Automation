@@ -22,7 +22,7 @@ const statusClassName = (status: string): string => {
   if (normalized === "SUCCESS") {
     return "bg-emerald-50 text-emerald-800 ring-emerald-200";
   }
-  return "bg-zinc-100 text-zinc-700 ring-zinc-200";
+  return "bg-linen-100 text-ink-900 ring-linen-200";
 };
 
 const canRunRetry = (status: string): boolean => {
@@ -85,7 +85,7 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
     cell: (info) => {
       const value = info.getValue();
       return value ? (
-        <span className="font-mono text-xs whitespace-normal break-all text-zinc-800">{value}</span>
+        <span className="font-mono text-xs whitespace-normal break-all text-ink-900">{value}</span>
       ) : (
         "—"
       );
@@ -104,7 +104,7 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
     cell: (info) => {
       const value = info.getValue();
       return value ? (
-        <span className="font-mono text-xs whitespace-normal break-all text-zinc-800">{value}</span>
+        <span className="font-mono text-xs whitespace-normal break-all text-ink-900">{value}</span>
       ) : (
         "—"
       );
@@ -124,9 +124,9 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
       const count = info.getValue();
       const max = info.row.original.maxRetry;
       return (
-        <span className="tabular-nums text-zinc-700">
+        <span className="tabular-nums text-ink-900">
           {count}
-          <span className="text-zinc-400"> / {max}</span>
+          <span className="text-neutral-400"> / {max}</span>
         </span>
       );
     },
@@ -144,7 +144,9 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
       if (!value) {
         return "—";
       }
-      return <span className="block whitespace-pre-wrap break-words text-zinc-600">{value}</span>;
+      return (
+        <span className="block whitespace-pre-wrap break-words text-neutral-500">{value}</span>
+      );
     },
     enableSorting: true,
     filterFn: "includesString",
@@ -161,7 +163,9 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
       const { retryId, status } = row.original;
       if (!canRunRetry(String(status))) {
         return (
-          <span className="inline-block min-w-[7.5rem] text-center text-xs text-zinc-400">—</span>
+          <span className="inline-block min-w-[7.5rem] text-center text-xs text-neutral-400">
+            —
+          </span>
         );
       }
       const isPending = options.runPendingId === retryId;

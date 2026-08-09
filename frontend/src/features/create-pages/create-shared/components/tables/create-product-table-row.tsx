@@ -129,26 +129,26 @@ function ReturnReasonDropdown({ value, disabled, onSelect }: ReturnReasonDropdow
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
         onMouseDown={(e) => e.preventDefault()}
-        className={`flex h-10 w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 text-xs font-medium outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-200 ${
-          disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-zinc-300"
-        } ${selectedLabel ? "text-zinc-700" : "text-zinc-400"} min-w-[140px]`}
+        className={`flex h-10 w-full items-center justify-between rounded-xl border border-linen-200 bg-surface px-3 text-xs font-medium outline-none transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-200 ${
+          disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-linen-200"
+        } ${selectedLabel ? "text-ink-900" : "text-neutral-400"} min-w-[140px]`}
       >
         <span className="truncate">{selectedLabel || "Select reason"}</span>
-        <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" />
+        <ChevronDown className="h-4 w-4 text-neutral-400 shrink-0" />
       </button>
       {open &&
         ReactDOM.createPortal(
           <div
             ref={popupRef}
             style={dropdownStyle ?? undefined}
-            className="overflow-hidden rounded-xl border border-zinc-100 bg-white shadow-xl ring-1 ring-black/5"
+            className="overflow-hidden rounded-xl border border-linen-100 bg-surface shadow-xl ring-1 ring-ink-900/5"
           >
             {RETURN_REASON_PRESETS.map((reason) => (
               <button
                 key={reason}
                 type="button"
                 onMouseDown={(e) => handleSelect(reason, e)}
-                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-medium text-ink-900 transition hover:bg-linen-50"
               >
                 <span>{reason}</span>
               </button>
@@ -230,11 +230,11 @@ export function CreateProductTableRow({
   lineFieldInvalid,
 }: CreateProductTableRowProps) {
   const invalidFieldClass =
-    "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200";
+    "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200";
   const normalFieldClass =
-    "border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200";
+    "border-linen-200 bg-linen-50 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200";
   const normalTransparentFieldClass =
-    "border-transparent bg-zinc-50 hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200";
+    "border-transparent bg-linen-50 hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200";
   const [warehouseInput, setWarehouseInput] = React.useState("");
   const [warehouseLookupInitialSearch, setWarehouseLookupInitialSearch] = React.useState("");
   const [warehouseFocused, setWarehouseFocused] = React.useState(false);
@@ -619,8 +619,8 @@ export function CreateProductTableRow({
   const quantityMessage =
     row.stock > 0 ? (
       <span className="flex items-center gap-1.5">
-        <span className="font-normal text-zinc-600">Max allowed limit: </span>
-        <span className="font-bold text-blue-600">{maxAllowed}</span>
+        <span className="font-normal text-neutral-500">Max allowed limit: </span>
+        <span className="font-bold text-teal-600">{maxAllowed}</span>
       </span>
     ) : (
       <span className="font-bold text-rose-500">Item is out of stock</span>
@@ -710,7 +710,7 @@ export function CreateProductTableRow({
             checked={row.selected ?? false}
             disabled={disableInputs}
             onChange={(e) => updateProductRow(row.id, { selected: e.target.checked })}
-            className={`h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 ${disableInputs ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+            className={`h-4 w-4 rounded border-linen-200 text-teal-600 focus:ring-teal-500 ${disableInputs ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
           />
         </td>
       )}
@@ -732,10 +732,10 @@ export function CreateProductTableRow({
               }}
               onMouseEnter={() => prefetchProducts(row.warehouseCode)}
               onFocus={() => prefetchProducts(row.warehouseCode)}
-              className={`block w-full rounded-lg px-2 py-1.5 text-left text-sm text-zinc-800 transition-all duration-150 ${
+              className={`block w-full rounded-lg px-2 py-1.5 text-left text-sm text-ink-900 transition-all duration-150 ${
                 snapshotLocked
                   ? "cursor-not-allowed opacity-70"
-                  : "cursor-pointer text-zinc-800 hover:bg-blue-50/50 hover:text-blue-700 active:bg-blue-100/60 active:text-blue-900"
+                  : "cursor-pointer text-ink-900 hover:bg-teal-50/50 hover:text-teal-700 active:bg-teal-100/60 active:text-teal-900"
               }`}
             >
               <span className="block truncate">
@@ -764,10 +764,10 @@ export function CreateProductTableRow({
             }}
             disabled={warehousesLoading || effectiveDisableInputs}
             placeholder="Select Warehouse"
-            className={`h-9 w-full rounded-lg border px-2 pr-10 text-xs text-zinc-800 outline-none ${
+            className={`h-9 w-full rounded-lg border px-2 pr-10 text-xs text-ink-900 outline-none ${
               warehouseError
-                ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
-                : "border-zinc-200 bg-zinc-50 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
+                : "border-linen-200 bg-linen-50 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
             } ${disableInputs ? "cursor-not-allowed opacity-70" : "cursor-text"}`}
           />
           <button
@@ -782,10 +782,10 @@ export function CreateProductTableRow({
               setWarehouseFocused(false);
               setLookupOpen(true);
             }}
-            className={`absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+            className={`absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
               effectiveDisableInputs
                 ? "cursor-not-allowed opacity-40"
-                : "cursor-pointer hover:bg-zinc-100"
+                : "cursor-pointer hover:bg-linen-100"
             }`}
           >
             <Search className="h-3 w-3" />
@@ -803,7 +803,7 @@ export function CreateProductTableRow({
                     }
                     selectWarehouseInRow(item);
                   }}
-                  containerClassName="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl"
+                  containerClassName="overflow-hidden rounded-2xl border border-linen-200 bg-surface shadow-xl"
                   showStock
                   query={warehouseInput}
                 />
@@ -855,13 +855,13 @@ export function CreateProductTableRow({
                     blurTimerRef.current = setTimeout(() => setBinFocused(false), 150);
                   }}
                   placeholder="Select Bin"
-                  className="h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 pr-8 text-xs text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 cursor-pointer"
+                  className="h-9 w-full rounded-lg border border-linen-200 bg-linen-50 px-2 pr-8 text-xs text-ink-900 outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 cursor-pointer"
                 />
                 <button
                   type="button"
                   disabled={effectiveDisableInputs}
                   onClick={() => setBinLookupOpen(true)}
-                  className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+                  className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 hover:bg-linen-100 hover:text-neutral-500 transition"
                 >
                   <Search className="h-3 w-3" />
                 </button>
@@ -910,7 +910,7 @@ export function CreateProductTableRow({
               type="text"
               value=""
               disabled={true}
-              className="h-9 w-full rounded-lg border border-transparent bg-zinc-100 px-2 text-xs text-zinc-400 outline-none cursor-not-allowed"
+              className="h-9 w-full rounded-lg border border-transparent bg-linen-100 px-2 text-xs text-neutral-400 outline-none cursor-not-allowed"
               placeholder="N/A"
             />
           )}
@@ -933,9 +933,9 @@ export function CreateProductTableRow({
               }}
               disabled={effectiveDisableInputs}
               placeholder="UoM"
-              className={`h-9 w-full rounded-lg border pl-2.5 pr-8 text-xs text-zinc-800 outline-none cursor-pointer ${
-                row.uomCode ? "border-zinc-200 bg-zinc-50" : "border-red-300 bg-rose-50/50"
-              } focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-all duration-150 ${
+              className={`h-9 w-full rounded-lg border pl-2.5 pr-8 text-xs text-ink-900 outline-none cursor-pointer ${
+                row.uomCode ? "border-linen-200 bg-linen-50" : "border-red-300 bg-rose-50/50"
+              } focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 transition-all duration-150 ${
                 disableInputs ? "cursor-not-allowed opacity-70" : "cursor-pointer"
               }`}
             />
@@ -949,10 +949,10 @@ export function CreateProductTableRow({
                 setUomLookupInitialSearch("");
                 setUomLookupOpen(true);
               }}
-              className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
+              className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
                 effectiveDisableInputs
                   ? "cursor-not-allowed opacity-40"
-                  : "cursor-pointer hover:bg-zinc-100"
+                  : "cursor-pointer hover:bg-linen-100"
               }`}
             >
               <Search className="h-3 w-3" />
@@ -989,15 +989,15 @@ export function CreateProductTableRow({
                 }}
                 className={`relative flex h-9 w-full items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs outline-none transition ${
                   snapshotLocked
-                    ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-500 opacity-70"
-                    : "cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                    ? "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-70"
+                    : "cursor-pointer border-linen-200 bg-linen-50 text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
               >
-                <span className={row.requiredDate ? "text-zinc-800" : "text-zinc-400"}>
+                <span className={row.requiredDate ? "text-ink-900" : "text-neutral-400"}>
                   {row.requiredDate ? toDisplayDate(row.requiredDate) : "Select date"}
                 </span>
                 <span
-                  className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 ${
+                  className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 ${
                     snapshotLocked ? "opacity-50" : ""
                   }`}
                 >
@@ -1009,7 +1009,7 @@ export function CreateProductTableRow({
                     <div
                       ref={lineCalendarPortalRef}
                       style={lineCalendarStyle}
-                      className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"
+                      className="rounded-2xl border border-linen-200 bg-surface p-1 shadow-2xl ring-1 ring-ink-900/5"
                       onMouseDown={(event) => {
                         // Keep focus/click inside portal from bubbling to table handlers.
                         event.stopPropagation();
@@ -1044,14 +1044,14 @@ export function CreateProductTableRow({
                       setLineDatePicker((prev) => (prev === "quoted" ? null : "quoted"));
                     }}
                     aria-invalid={lineFieldInvalid?.quotedDate === true}
-                    className={`relative flex h-9 w-full cursor-pointer items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs text-zinc-800 outline-none transition hover:bg-white ${
+                    className={`relative flex h-9 w-full cursor-pointer items-center justify-start rounded-lg border pl-2 pr-8 text-left text-xs text-ink-900 outline-none transition hover:bg-surface ${
                       lineFieldInvalid?.quotedDate ? invalidFieldClass : normalFieldClass
                     }`}
                   >
-                    <span className={row.quotedDate ? "text-zinc-800" : "text-zinc-400"}>
+                    <span className={row.quotedDate ? "text-ink-900" : "text-neutral-400"}>
                       {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
                     </span>
-                    <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500">
+                    <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500">
                       <CalendarIcon className="h-3 w-3" aria-hidden />
                     </span>
                   </button>
@@ -1060,7 +1060,7 @@ export function CreateProductTableRow({
                         <div
                           ref={lineCalendarPortalRef}
                           style={lineCalendarStyle}
-                          className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-2xl ring-1 ring-black/5"
+                          className="rounded-2xl border border-linen-200 bg-surface p-1 shadow-2xl ring-1 ring-ink-900/5"
                           onMouseDown={(event) => {
                             event.stopPropagation();
                           }}
@@ -1091,12 +1091,12 @@ export function CreateProductTableRow({
                       ? "Quoted date is read-only for this status"
                       : "Quoted date is not editable"
                   }
-                  className="relative flex h-9 w-full cursor-not-allowed items-center justify-start rounded-lg border border-zinc-200 bg-zinc-100 pl-2 pr-8 text-left text-xs text-zinc-500 outline-none opacity-80"
+                  className="relative flex h-9 w-full cursor-not-allowed items-center justify-start rounded-lg border border-linen-200 bg-linen-100 pl-2 pr-8 text-left text-xs text-neutral-500 outline-none opacity-80"
                 >
-                  <span className={row.quotedDate ? "text-zinc-600" : "text-zinc-400"}>
+                  <span className={row.quotedDate ? "text-neutral-500" : "text-neutral-400"}>
                     {row.quotedDate ? toDisplayDate(row.quotedDate) : "Select date"}
                   </span>
-                  <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 opacity-60">
+                  <span className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-400 opacity-60">
                     <CalendarIcon className="h-3 w-3" aria-hidden />
                   </span>
                 </button>
@@ -1134,7 +1134,7 @@ export function CreateProductTableRow({
                 updateProductRow(row.id, { requiredQuantity: next });
                 clearProductRowDraft(row.id, "requiredQuantity");
               }}
-              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${snapshotLocked ? "cursor-not-allowed opacity-70" : ""}`}
+              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-linen-50 px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${snapshotLocked ? "cursor-not-allowed opacity-70" : ""}`}
             />
           </td>
           {/* Quoted Qty — locked on PQ; editable on RFQ seller fill. */}
@@ -1168,7 +1168,7 @@ export function CreateProductTableRow({
                   });
                   clearProductRowDraft(row.id, "quantity");
                 }}
-                className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-zinc-800 outline-none transition ${
+                className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
                   lineFieldInvalid?.quantity ? invalidFieldClass : normalTransparentFieldClass
                 }`}
               />
@@ -1188,7 +1188,7 @@ export function CreateProductTableRow({
                     ? "Quoted quantity is read-only for this status"
                     : "Quoted quantity is not editable"
                 }
-                className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80 placeholder:text-zinc-400"
+                className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80 placeholder:text-neutral-400"
               />
             )}
           </td>
@@ -1264,7 +1264,7 @@ export function CreateProductTableRow({
                   });
                   clearProductRowDraft(row.id, "quantity");
                 }}
-                className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+                className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-linen-50 px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
               />
             </Tooltip>
           ) : (
@@ -1331,7 +1331,7 @@ export function CreateProductTableRow({
                   discountAmount: newDiscountAmount,
                 });
               }}
-              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-left text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+              className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-linen-50 px-2 text-left text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${effectiveDisableInputs ? "cursor-not-allowed opacity-70" : ""}`}
             />
           )}
         </td>
@@ -1348,7 +1348,7 @@ export function CreateProductTableRow({
             tabIndex={-1}
             aria-readonly="true"
             title="Price is not editable"
-            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
           />
         ) : showPqLineDatesAndQtys && sellerFieldEditable ? (
           <input
@@ -1387,12 +1387,12 @@ export function CreateProductTableRow({
               });
               clearProductRowDraft(row.id, "price");
             }}
-            className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-zinc-800 outline-none transition ${
+            className={`h-9 w-full min-w-0 rounded-lg border px-2 text-left text-xs text-ink-900 outline-none transition ${
               lineFieldInvalid?.price ? invalidFieldClass : normalTransparentFieldClass
             }`}
           />
         ) : (
-          <span className="whitespace-nowrap text-left text-sm text-zinc-700">
+          <span className="whitespace-nowrap text-left text-sm text-ink-900">
             {Number(row.price).toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 6,
@@ -1411,7 +1411,7 @@ export function CreateProductTableRow({
             tabIndex={-1}
             aria-readonly="true"
             title="Discount % is not editable"
-            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
           />
         ) : (
           <input
@@ -1464,7 +1464,7 @@ export function CreateProductTableRow({
               });
               clearProductRowDraft(row.id, "discountPercent");
             }}
-            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
+            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-linen-50 px-2 text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
               (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs)
                 ? "cursor-not-allowed opacity-70"
                 : ""
@@ -1483,7 +1483,7 @@ export function CreateProductTableRow({
             tabIndex={-1}
             aria-readonly="true"
             title="Discount amount is not editable"
-            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-2 text-left text-xs text-zinc-500 outline-none opacity-80"
+            className="h-9 w-full min-w-0 cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-left text-xs text-neutral-500 outline-none opacity-80"
           />
         ) : (
           <input
@@ -1543,7 +1543,7 @@ export function CreateProductTableRow({
               });
               clearProductRowDraft(row.id, "discountAmount");
             }}
-            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-zinc-50 px-2 text-xs text-zinc-800 outline-none transition hover:border-zinc-200 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200 ${
+            className={`h-9 w-full min-w-0 rounded-lg border border-transparent bg-linen-50 px-2 text-xs text-ink-900 outline-none transition hover:border-linen-200 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200 ${
               (showPqLineDatesAndQtys ? sellerFieldLocked : effectiveDisableInputs)
                 ? "cursor-not-allowed opacity-70"
                 : ""
@@ -1551,10 +1551,10 @@ export function CreateProductTableRow({
           />
         )}
       </td>
-      <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-zinc-700">
+      <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-ink-900">
         {unitNetPrice.toFixed(2)}
       </td>
-      <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm font-medium text-zinc-900">
+      <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm font-medium text-ink-900">
         {lineTotal.toFixed(2)}
       </td>
       {showGLAccount && (
@@ -1574,13 +1574,13 @@ export function CreateProductTableRow({
                 blurTimerRef.current = setTimeout(() => setAccountFocused(false), 150);
               }}
               placeholder="G/L Account"
-              className="h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 pr-8 text-xs text-zinc-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+              className="h-9 w-full rounded-lg border border-linen-200 bg-linen-50 px-2 pr-8 text-xs text-ink-900 outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
             />
             <button
               type="button"
               disabled={effectiveDisableInputs}
               onClick={() => setAccountLookupOpen(true)}
-              className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+              className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 hover:bg-linen-100 hover:text-neutral-500 transition"
             >
               <Search className="h-3 w-3" />
             </button>
@@ -1635,11 +1635,11 @@ export function CreateProductTableRow({
               onChange={(e) => {
                 updateProductRow(row.id, { returnReason: e.target.value });
               }}
-              className={`h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-xs font-medium outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-200 ${
+              className={`h-10 w-full rounded-xl border border-linen-200 bg-surface px-3 text-xs font-medium outline-none transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-200 ${
                 effectiveDisableInputs
                   ? "cursor-not-allowed opacity-70"
-                  : "cursor-pointer hover:border-zinc-300"
-              } ${row.returnReason ? "text-zinc-700" : "text-zinc-400"}`}
+                  : "cursor-pointer hover:border-linen-200"
+              } ${row.returnReason ? "text-ink-900" : "text-neutral-400"}`}
             >
               <option value="">Select reason</option>
               {RETURN_REASON_PRESETS.map((reason) => (
@@ -1671,10 +1671,10 @@ export function CreateProductTableRow({
               }
               removeProductRow(row.id);
             }}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 transition ${
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linen-200 text-ink-900 transition ${
               snapshotLocked
-                ? "cursor-not-allowed bg-zinc-50 opacity-40"
-                : "cursor-pointer bg-white hover:bg-zinc-50 hover:text-blue-600"
+                ? "cursor-not-allowed bg-linen-50 opacity-40"
+                : "cursor-pointer bg-surface hover:bg-linen-50 hover:text-teal-600"
             }`}
             aria-label="Remove product row"
           >

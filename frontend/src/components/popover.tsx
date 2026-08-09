@@ -151,7 +151,7 @@ export function PopoverContent({
       {unstyled ? (
         children
       ) : (
-        <div className="overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5 min-w-50">
+        <div className="overflow-hidden rounded-xl border border-linen-100 bg-surface text-ink-900 shadow-xl ring-1 ring-ink-900/5 min-w-50">
           {children}
         </div>
       )}

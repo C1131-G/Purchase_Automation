@@ -31,7 +31,9 @@ const PQ_PRODUCT_HEADER_KEYS = [
 ] as const;
 
 function Pulse({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded bg-zinc-100 ${className}`} />;
+  return (
+    <div className={`animate-pulse rounded bg-linen-100 [animation-duration:1.1s] ${className}`} />
+  );
 }
 
 /** Skeleton replica of a FieldBlock: label + h-10 input with search button icon placeholder */
@@ -81,12 +83,12 @@ function InputSkeleton({ height = "h-[74px]" }: { height?: string }) {
 /** Skeleton for the CopyFromDropdown trigger button in the page wrapper's topActions slot. */
 function CopyFromButtonSkeleton() {
   return (
-    <div className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 shadow-sm">
-      <Pulse className="size-3.5 rounded-sm bg-zinc-100" />
+    <div className="flex h-8 items-center gap-1.5 rounded-lg border border-linen-200 bg-surface px-2.5 shadow-sm">
+      <Pulse className="size-3.5 rounded-sm bg-linen-100" />
       <Pulse className="h-3 w-16" />
-      <div className="mx-1.5 h-3.5 w-px bg-zinc-200" />
+      <div className="mx-1.5 h-3.5 w-px bg-linen-100" />
       <Pulse className="h-3 w-20" />
-      <Pulse className="size-3 rounded-sm bg-zinc-200" />
+      <Pulse className="size-3 rounded-sm bg-linen-100" />
     </div>
   );
 }
@@ -102,12 +104,12 @@ function SectionShell({
 }) {
   return (
     <section
-      className={`h-full overflow-visible rounded-2xl border border-zinc-200 bg-white ${className}`.trim()}
+      className={`h-full overflow-visible rounded-2xl border border-linen-200 bg-surface ${className}`.trim()}
     >
-      <div className="rounded-t-2xl border-b border-zinc-100 px-4 py-2.5">
+      <div className="rounded-t-2xl border-b border-linen-100 px-4 py-2.5">
         <Pulse className={`h-3.5 ${titleWidth}`} />
       </div>
-      <div className="space-y-3 rounded-b-2xl bg-white px-4 py-3">{children}</div>
+      <div className="space-y-3 rounded-b-2xl bg-surface px-4 py-3">{children}</div>
     </section>
   );
 }
@@ -126,7 +128,7 @@ export function CreatePageRouteSkeleton() {
 
   return (
     <div
-      className="relative w-full bg-zinc-50 p-3 pb-20"
+      className="relative w-full bg-linen-50 p-3 pb-20"
       aria-busy="true"
       aria-label="Loading form"
     >
@@ -138,47 +140,47 @@ export function CreatePageRouteSkeleton() {
       )}
 
       {/* Breadcrumb bar */}
-      <div className="mb-3 inline-flex flex-wrap items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
+      <div className="mb-3 inline-flex flex-wrap items-center gap-1.5 rounded-full border border-linen-200/60 bg-linen-50/50 px-3.5 py-1.5 text-xs font-medium text-neutral-500 transition-all duration-300 hover:border-linen-200/80 hover:bg-surface hover:shadow-xs">
         <Pulse className="h-3 w-16" />
-        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="size-3 rounded-sm bg-linen-100" />
         <Pulse className="h-3 w-20" />
-        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="size-3 rounded-sm bg-linen-100" />
         <Pulse className="h-3 w-36" />
-        <Pulse className="size-3 rounded-sm bg-zinc-200" />
+        <Pulse className="size-3 rounded-sm bg-linen-100" />
         <Pulse className="h-3 w-28" />
       </div>
 
       {/* Relationship Map Placeholder for Edit Pages */}
       {isEdit && (
         <div className="mb-4 mt-2 w-full overflow-hidden">
-          <div className="w-full min-w-[400px] rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+          <div className="w-full min-w-[400px] rounded-xl border border-linen-200 bg-surface px-4 py-3 shadow-sm">
             <Pulse className="mb-3 h-3 w-40" />
             <div className="flex items-center justify-between gap-1">
               <div className="flex flex-col items-center gap-1">
                 <Pulse className="size-7 rounded-full" />
                 <Pulse className="h-2 w-16" />
               </div>
-              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="h-[2px] flex-1 bg-linen-100" />
               <div className="flex flex-col items-center gap-1">
                 <Pulse className="size-7 rounded-full" />
                 <Pulse className="h-2 w-16" />
               </div>
-              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="h-[2px] flex-1 bg-linen-100" />
               <div className="flex flex-col items-center gap-1">
                 <Pulse className="size-7 rounded-full" />
                 <Pulse className="h-2 w-16" />
               </div>
-              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="h-[2px] flex-1 bg-linen-100" />
               <div className="flex flex-col items-center gap-1">
                 <Pulse className="size-7 rounded-full" />
                 <Pulse className="h-2 w-16" />
               </div>
-              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="h-[2px] flex-1 bg-linen-100" />
               <div className="flex flex-col items-center gap-1">
                 <Pulse className="size-7 rounded-full" />
                 <Pulse className="h-2 w-16" />
               </div>
-              <div className="h-[2px] flex-1 bg-zinc-100" />
+              <div className="h-[2px] flex-1 bg-linen-100" />
               <div className="flex flex-col items-center gap-1">
                 <Pulse className="size-7 rounded-full" />
                 <Pulse className="h-2 w-16" />
@@ -253,9 +255,9 @@ export function CreatePageRouteSkeleton() {
       </div>
 
       {/* Product Details Section */}
-      <section className="mt-3 rounded-2xl border border-zinc-200 bg-white">
+      <section className="mt-3 rounded-2xl border border-linen-200 bg-surface">
         {/* Section header: title + search button (hidden on RFQ seller fill) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-linen-100 px-4 py-3">
           <Pulse className="h-4 w-32" />
           {!isRfq ? <Pulse className="h-11 w-40 rounded-xl" /> : null}
         </div>
@@ -263,11 +265,11 @@ export function CreatePageRouteSkeleton() {
         {/* Table */}
         <div className="overflow-x-auto px-2 py-2">
           <table
-            className={`w-full text-left text-sm text-zinc-700 ${
+            className={`w-full text-left text-sm text-ink-900 ${
               isPqStyle ? "min-w-[1680px]" : "min-w-245"
             }`}
           >
-            <thead className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+            <thead className="bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
               <tr>
                 {productHeaders.map((key) => (
                   <th key={key} className="whitespace-nowrap px-3 py-2">
@@ -278,7 +280,7 @@ export function CreatePageRouteSkeleton() {
             </thead>
             <tbody>
               {PRODUCT_ROW_KEYS.map((rowKey) => (
-                <tr key={rowKey} className="border-b border-zinc-100 last:border-b-0">
+                <tr key={rowKey} className="border-b border-linen-100 last:border-b-0">
                   {isPqStyle ? (
                     <>
                       <td className="px-3 py-2">
@@ -359,16 +361,16 @@ export function CreatePageRouteSkeleton() {
         </div>
 
         {/* Footer: totals + action buttons */}
-        <div className="border-t border-zinc-100 px-4 py-3">
+        <div className="border-t border-linen-100 px-4 py-3">
           {/* Totals */}
           <div className="ml-auto w-full max-w-sm">
             <div className="space-y-1">
-              <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
+              <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
                 <Pulse className="h-3 w-16" />
                 <Pulse className="h-3 w-10" />
                 <Pulse className="h-4 w-20" />
               </div>
-              <div className="flex items-center justify-end gap-3 border-b border-zinc-200/80 py-1">
+              <div className="flex items-center justify-end gap-3 border-b border-linen-200/80 py-1">
                 <Pulse className="h-3 w-16" />
                 <Pulse className="h-3 w-10" />
                 <Pulse className="h-4 w-20" />

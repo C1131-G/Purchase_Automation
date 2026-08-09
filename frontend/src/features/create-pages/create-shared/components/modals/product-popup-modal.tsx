@@ -53,8 +53,8 @@ const ProductPopupRow = memo(function ProductPopupRow({
   return (
     <div
       style={style}
-      className={`grid grid-cols-[40px_140px_1fr_80px_100px] items-center border-b border-zinc-100 px-3 py-2 cursor-pointer transition-all text-sm ${
-        selected ? "bg-blue-50/60 hover:bg-blue-100/70" : "hover:bg-blue-50/40"
+      className={`grid grid-cols-[40px_140px_1fr_80px_100px] items-center border-b border-linen-100 px-3 py-2 cursor-pointer transition-all text-sm ${
+        selected ? "bg-teal-50/60 hover:bg-teal-100/70" : "hover:bg-teal-50/40"
       }`}
       onClick={(e) => {
         e.preventDefault();
@@ -65,17 +65,17 @@ const ProductPopupRow = memo(function ProductPopupRow({
         <div
           className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-150 ${
             selected
-              ? "border-blue-500 bg-blue-500 text-white shadow-sm shadow-blue-500/20"
-              : "border-zinc-300 bg-white"
+              ? "border-teal-500 bg-teal-500 text-surface shadow-sm shadow-teal-500/20"
+              : "border-linen-200 bg-surface"
           }`}
         >
           {selected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
         </div>
       </div>
-      <div className="text-zinc-700 truncate pr-3">{product.code}</div>
-      <div className="text-zinc-700 truncate pr-3">{product.name}</div>
-      <div className="text-zinc-700 truncate">{product.stock}</div>
-      <div className="text-zinc-700 truncate">{product.price.toFixed(2)}</div>
+      <div className="text-ink-900 truncate pr-3">{product.code}</div>
+      <div className="text-ink-900 truncate pr-3">{product.name}</div>
+      <div className="text-ink-900 truncate">{product.stock}</div>
+      <div className="text-ink-900 truncate">{product.price.toFixed(2)}</div>
     </div>
   );
 });
@@ -211,13 +211,13 @@ export function ProductPopupModal({
 
   return (
     <AnimatedModalShell open={open} onClose={handleInternalClose} panelClassName="max-w-4xl">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h3 className="text-sm font-semibold text-zinc-900">Search Products</h3>
+      <div className="flex items-center justify-between border-b border-linen-100 px-4 py-3">
+        <h3 className="text-sm font-semibold text-ink-900">Search Products</h3>
         <div className="flex items-center gap-2">
           {selectedCodes.size > 0 && onSelectMultiple && (
             <button
               onClick={handleAddSelected}
-              className="flex h-8 items-center rounded-full border border-blue-600 bg-blue-600 px-4 text-xs font-medium text-white transition hover:bg-blue-700"
+              className="flex h-8 items-center rounded-full border border-teal-600 bg-teal-600 px-4 text-xs font-medium text-surface transition hover:bg-teal-700"
             >
               Confirm ({selectedCodes.size})
             </button>
@@ -225,7 +225,7 @@ export function ProductPopupModal({
           <button
             type="button"
             onClick={handleInternalClose}
-            className="flex h-8 items-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+            className="flex h-8 items-center rounded-full border border-linen-200 bg-surface px-4 text-xs font-medium text-ink-900 transition hover:bg-linen-50"
           >
             Close
           </button>
@@ -236,22 +236,22 @@ export function ProductPopupModal({
         <div className="mb-3 flex items-center gap-3">
           <div className="relative w-full">
             <input
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+              className="h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               placeholder="Search product code or name"
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               autoComplete="off"
             />
           </div>
-          {backgroundLoading ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
+          {backgroundLoading ? <Loader2 className="h-4 w-4 animate-spin text-neutral-400" /> : null}
         </div>
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="overflow-hidden rounded-xl border border-linen-200 bg-surface">
           {loading && safeResults.length === 0 ? (
             <div className="p-4 space-y-2">
               {SKELETON_ROW_KEYS.map((slot) => (
                 <div
                   key={`product-skeleton-${slot}`}
-                  className="h-8 w-full animate-pulse rounded-lg bg-zinc-100"
+                  className="h-8 w-full animate-pulse rounded-lg bg-linen-100"
                 />
               ))}
             </div>
@@ -264,19 +264,19 @@ export function ProductPopupModal({
               {onRetry && (
                 <button
                   onClick={onRetry}
-                  className="mt-2 rounded-full border border-red-200 bg-white px-4 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50"
+                  className="mt-2 rounded-full border border-red-200 bg-surface px-4 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50"
                 >
                   Retry
                 </button>
               )}
             </div>
           ) : safeResults.length === 0 && !loading ? (
-            <div className="flex flex-col items-center gap-1 bg-zinc-50 px-4 py-8 text-center">
-              <p className="text-xs font-medium text-zinc-500">{emptyMessage}</p>
+            <div className="flex flex-col items-center gap-1 bg-linen-50 px-4 py-8 text-center">
+              <p className="text-xs font-medium text-neutral-500">{emptyMessage}</p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-[40px_140px_1fr_80px_100px] items-center border-b border-zinc-200 bg-zinc-50 pl-3 pr-[29px] py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 sticky top-0 z-10">
+              <div className="grid grid-cols-[40px_140px_1fr_80px_100px] items-center border-b border-linen-200 bg-linen-50 pl-3 pr-[29px] py-2 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 sticky top-0 z-10">
                 <div />
                 <div>Code</div>
                 <div>Name</div>

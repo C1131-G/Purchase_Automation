@@ -55,10 +55,10 @@ export function TableFilterOptions<TData>({ tableId, table }: TableFilterOptions
           type="button"
           aria-label="Open table filters"
           aria-controls={popoverId}
-          className="flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition-all active:scale-[0.98] normal-case tracking-normal group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:border-blue-300 cursor-pointer hover:bg-zinc-50 hover:text-blue-600"
+          className="flex h-11 items-center gap-2 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-medium text-ink-900 shadow-sm transition-all active:scale-[0.98] normal-case tracking-normal group focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-200 focus-visible:border-teal-300 cursor-pointer hover:bg-linen-50 hover:text-teal-700"
         >
           <span>Filter</span>
-          <Filter className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1 text-zinc-400 group-hover:text-blue-500" />
+          <Filter className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1 text-neutral-400 group-hover:text-teal-600" />
         </button>
       </Popover.Trigger>
       <FilterContent
@@ -143,10 +143,10 @@ function FilterContent<TData>({
   return (
     <Popover.Content
       id={popoverId}
-      className="w-57.5 p-0 overflow-hidden border border-zinc-200 rounded-xl shadow-xl"
+      className="w-57.5 p-0 overflow-hidden border border-linen-200 rounded-xl shadow-xl"
       align="end"
     >
-      <div className="flex flex-col bg-white/95 backdrop-blur-xl">
+      <div className="flex flex-col bg-surface/95 backdrop-blur-xl">
         {/* Columns List */}
         <div className="px-1.5 py-1.5">
           <div className="flex flex-col gap-px">
@@ -162,7 +162,7 @@ function FilterContent<TData>({
               return (
                 <div
                   key={columnId}
-                  className="group flex items-center justify-between rounded-md px-2 py-2 text-[12px] select-none border border-transparent transition-colors hover:bg-zinc-50 text-zinc-900"
+                  className="group flex items-center justify-between rounded-md px-2 py-2 text-[12px] select-none border border-transparent transition-colors hover:bg-linen-50 text-ink-900"
                 >
                   <button
                     type="button"
@@ -172,8 +172,8 @@ function FilterContent<TData>({
                     className={cn(
                       "truncate transition-colors cursor-pointer text-left flex-1",
                       isActive
-                        ? "text-blue-500 font-medium"
-                        : "text-zinc-700 font-medium hover:text-blue-600",
+                        ? "text-teal-600 font-medium"
+                        : "text-neutral-600 font-medium hover:text-teal-700",
                     )}
                   >
                     {columnName}
@@ -187,8 +187,8 @@ function FilterContent<TData>({
                     className={cn(
                       "ml-2 flex items-center justify-center size-4 rounded border transition-all cursor-pointer shrink-0",
                       isChecked
-                        ? "bg-blue-500 border-blue-500 text-white shadow-sm"
-                        : "border-zinc-300 bg-white text-transparent hover:border-blue-400 hover:bg-blue-50/50",
+                        ? "bg-teal-600 border-teal-600 text-surface shadow-sm"
+                        : "border-linen-200 bg-surface text-transparent hover:border-teal-300 hover:bg-teal-50",
                     )}
                   >
                     <Check className="size-2.5" strokeWidth={3} />
@@ -199,11 +199,11 @@ function FilterContent<TData>({
           </div>
         </div>
 
-        <div className="border-t border-zinc-100/80 bg-zinc-50/30">
+        <div className="border-t border-linen-100 bg-linen-50/40">
           <button
             type="button"
             onClick={resetToDefault}
-            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 transition-all active:scale-[0.98] cursor-pointer"
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-teal-700 hover:text-teal-800 hover:bg-teal-50 transition-all active:scale-[0.98] cursor-pointer"
           >
             <RotateCcw className="size-3" />
             <span>Reset to Default</span>

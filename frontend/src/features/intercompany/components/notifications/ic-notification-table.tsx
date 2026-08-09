@@ -502,7 +502,7 @@ export function IcNotificationTable() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-white">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-surface">
       <IcNotificationToolbar
         tableId={TABLE_ID}
         table={table}
@@ -545,7 +545,7 @@ export function IcNotificationTable() {
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={row.original.isRead ? undefined : "bg-blue-50/30"}
+                  className={row.original.isRead ? undefined : "bg-teal-50/30"}
                   data-unread={!row.original.isRead ? "true" : undefined}
                 >
                   {row.getVisibleCells().map((cell) => {
@@ -574,8 +574,8 @@ export function IcNotificationTable() {
                   className="h-28 text-center"
                 >
                   <div className="mx-auto max-w-sm space-y-1 py-4">
-                    <p className="text-sm font-semibold text-zinc-900">No notifications match</p>
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm font-semibold text-ink-900">No notifications match</p>
+                    <p className="text-sm text-neutral-500">
                       Clear filters or wait for intercompany activity for this company.
                     </p>
                   </div>

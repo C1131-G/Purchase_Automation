@@ -74,11 +74,14 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
         pageTitle={`Update Outgoing Payment ${docNum}`}
       >
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-sm font-bold text-zinc-900">Vendor Info</h2>
+          <div className="rounded-2xl border border-linen-100 bg-surface p-5 shadow-sm">
+            <h2 className="mb-4 text-sm font-bold text-ink-900">Vendor Info</h2>
             <div className="space-y-4">
               <div>
-                <label htmlFor="cardName" className="mb-1.5 block text-xs font-bold text-zinc-600">
+                <label
+                  htmlFor="cardName"
+                  className="mb-1.5 block text-xs font-bold text-neutral-500"
+                >
                   Vendor Name
                 </label>
                 <input
@@ -86,11 +89,14 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   type="text"
                   readOnly
                   value={paymentDetail.CardName || ""}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-900"
+                  className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
                 />
               </div>
               <div>
-                <label htmlFor="cardCode" className="mb-1.5 block text-xs font-bold text-zinc-600">
+                <label
+                  htmlFor="cardCode"
+                  className="mb-1.5 block text-xs font-bold text-neutral-500"
+                >
                   Vendor Code
                 </label>
                 <input
@@ -98,18 +104,21 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   type="text"
                   readOnly
                   value={paymentDetail.CardCode || ""}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-900"
+                  className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
                 />
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-sm font-bold text-zinc-900">Payment Details</h2>
+          <div className="rounded-2xl border border-linen-100 bg-surface p-5 shadow-sm">
+            <h2 className="mb-4 text-sm font-bold text-ink-900">Payment Details</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="docDate" className="mb-1.5 block text-xs font-bold text-zinc-600">
+                  <label
+                    htmlFor="docDate"
+                    className="mb-1.5 block text-xs font-bold text-neutral-500"
+                  >
                     Posting Date
                   </label>
                   <input
@@ -121,13 +130,13 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         ? new Date(paymentDetail.DocDate).toLocaleDateString("en-GB")
                         : ""
                     }
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-900"
+                    className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
                   />
                 </div>
                 <div>
                   <label
                     htmlFor="paymentMode"
-                    className="mb-1.5 block text-xs font-bold text-zinc-600"
+                    className="mb-1.5 block text-xs font-bold text-neutral-500"
                   >
                     Payment Mode
                   </label>
@@ -136,12 +145,15 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                     type="text"
                     readOnly
                     value={paymentDetail.PaymentMode || "N/A"}
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-900"
+                    className="w-full rounded-xl border border-linen-200 bg-linen-50 px-4 py-2.5 text-sm font-medium text-ink-900"
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="remarks" className="mb-1.5 block text-xs font-bold text-zinc-600">
+                <label
+                  htmlFor="remarks"
+                  className="mb-1.5 block text-xs font-bold text-neutral-500"
+                >
                   Remarks
                 </label>
                 <textarea
@@ -149,7 +161,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   rows={2}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                  className="w-full rounded-xl border border-linen-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all"
                 />
               </div>
             </div>
@@ -157,25 +169,25 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
         </div>
 
         <div className="mt-4 flex gap-4 items-start">
-          <div className="flex-1 rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
-            <div className="bg-zinc-50 px-5 py-4 border-b border-zinc-100">
-              <h2 className="text-sm font-bold text-zinc-900">Paid Documents</h2>
+          <div className="flex-1 rounded-2xl border border-linen-100 bg-surface shadow-sm overflow-hidden">
+            <div className="bg-linen-50 px-5 py-4 border-b border-linen-100">
+              <h2 className="text-sm font-bold text-ink-900">Paid Documents</h2>
             </div>
 
             <div className="max-h-[400px] overflow-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-white sticky top-0 shadow-sm">
+                <thead className="bg-surface sticky top-0 shadow-sm">
                   <tr>
-                    <th className="px-5 py-3 font-bold text-zinc-600 w-12"></th>
-                    <th className="px-5 py-3 font-bold text-zinc-600">Type</th>
-                    <th className="px-5 py-3 font-bold text-zinc-600">Doc No.</th>
-                    <th className="px-5 py-3 font-bold text-zinc-600 text-right">Sum Applied</th>
+                    <th className="px-5 py-3 font-bold text-neutral-500 w-12"></th>
+                    <th className="px-5 py-3 font-bold text-neutral-500">Type</th>
+                    <th className="px-5 py-3 font-bold text-neutral-500">Doc No.</th>
+                    <th className="px-5 py-3 font-bold text-neutral-500 text-right">Sum Applied</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50">
+                <tbody className="divide-y divide-linen-50">
                   {isPaymentOnAccount ? (
                     <tr>
-                      <td colSpan={4} className="px-5 py-8 text-center text-zinc-500">
+                      <td colSpan={4} className="px-5 py-8 text-center text-neutral-500">
                         This payment was made on account (no specific documents applied).
                       </td>
                     </tr>
@@ -190,17 +202,17 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         },
                         idx: number,
                       ) => (
-                        <tr key={idx} className="hover:bg-zinc-50">
+                        <tr key={idx} className="hover:bg-linen-50">
                           <td className="px-5 py-3">
-                            <div className="flex h-5 w-5 items-center justify-center rounded border border-blue-600 bg-blue-600 text-white">
+                            <div className="flex h-5 w-5 items-center justify-center rounded border border-teal-600 bg-teal-600 text-surface">
                               <Check className="h-3.5 w-3.5" />
                             </div>
                           </td>
-                          <td className="px-5 py-3 font-medium text-zinc-900">
+                          <td className="px-5 py-3 font-medium text-ink-900">
                             <span
                               className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
                                 inv.InvoiceType === "it_PurchaseInvoice"
-                                  ? "bg-blue-50 text-blue-700 ring-blue-700/10"
+                                  ? "bg-teal-50 text-teal-700 ring-teal-700/10"
                                   : "bg-orange-50 text-orange-700 ring-orange-700/10"
                               }`}
                             >
@@ -209,8 +221,10 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                                 : "A/P Credit Memo"}
                             </span>
                           </td>
-                          <td className="px-5 py-3 text-zinc-600">{inv.DocNum || inv.DocEntry}</td>
-                          <td className="px-5 py-3 text-right font-medium text-zinc-900">
+                          <td className="px-5 py-3 text-neutral-500">
+                            {inv.DocNum || inv.DocEntry}
+                          </td>
+                          <td className="px-5 py-3 text-right font-medium text-ink-900">
                             {formatCurrency(Number(inv.SumApplied), currencyCode)}
                           </td>
                         </tr>
@@ -222,21 +236,21 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
             </div>
           </div>
 
-          <div className="w-80 rounded-2xl border border-zinc-100 bg-white shadow-sm p-5 sticky top-4">
+          <div className="w-80 rounded-2xl border border-linen-100 bg-surface shadow-sm p-5 sticky top-4">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-zinc-900">Payment Summary</h2>
+              <h2 className="text-sm font-bold text-ink-900">Payment Summary</h2>
             </div>
 
             {isPaymentOnAccount && (
-              <div className="mb-4 rounded-lg bg-blue-50/50 p-3 border border-blue-100/50">
-                <span className="text-sm font-bold text-blue-900">Payment on Account</span>
+              <div className="mb-4 rounded-lg bg-teal-50/50 p-3 border border-teal-100/50">
+                <span className="text-sm font-bold text-teal-900">Payment on Account</span>
               </div>
             )}
 
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-600">Cash Sum</span>
-                <span className="font-medium text-zinc-900">
+                <span className="text-neutral-500">Cash Sum</span>
+                <span className="font-medium text-ink-900">
                   {formatCurrency(
                     Number(paymentDetail.CashSum || 0) +
                       (paymentDetail.PaymentChecks?.filter(
@@ -250,8 +264,8 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-600">Check Sum</span>
-                <span className="font-medium text-zinc-900">
+                <span className="text-neutral-500">Check Sum</span>
+                <span className="font-medium text-ink-900">
                   {formatCurrency(
                     Number(paymentDetail.CheckSum || 0) ||
                       paymentDetail.PaymentChecks?.filter(
@@ -266,14 +280,14 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-600">Transfer Sum</span>
-                <span className="font-medium text-zinc-900">
+                <span className="text-neutral-500">Transfer Sum</span>
+                <span className="font-medium text-ink-900">
                   {formatCurrency(Number(paymentDetail.TrsfrSum || 0), currencyCode)}
                 </span>
               </div>
-              <div className="border-t border-zinc-100 pt-3 flex justify-between">
-                <span className="font-bold text-zinc-900">Doc Total</span>
-                <span className="text-lg font-black text-blue-600">
+              <div className="border-t border-linen-100 pt-3 flex justify-between">
+                <span className="font-bold text-ink-900">Doc Total</span>
+                <span className="text-lg font-black text-teal-600">
                   {formatCurrency(
                     Number(paymentDetail.DocTotal || 0) ||
                       Number(paymentDetail.CashSum || 0) +
@@ -288,17 +302,17 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               </div>
             </div>
 
-            <div className="mt-6 border-t border-zinc-100 pt-4">
+            <div className="mt-6 border-t border-linen-100 pt-4">
               <Button
                 type="button"
                 onClick={() => updateMutation.mutate()}
                 disabled={updateMutation.isPending || (paymentDetail?.Remarks || "") === remarks}
-                className="group h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
+                className="group h-11 w-full rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-semibold text-ink-900 shadow-sm transition-all hover:bg-linen-50 hover:text-teal-600 normal-case tracking-normal focus:outline-none focus:ring-0 ring-0 outline-none cursor-pointer"
                 size="md"
                 variant="outline"
               >
                 <span className="inline-flex items-center justify-center gap-2 w-full">
-                  <RefreshCw className="h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-blue-600" />
+                  <RefreshCw className="h-4 w-4 transition-all duration-300 group-hover:rotate-180 group-hover:text-teal-600" />
                   {updateMutation.isPending ? "Updating..." : "Update Payment"}
                 </span>
               </Button>
@@ -308,24 +322,24 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
               Number(paymentDetail.TrsfrSum || 0) > 0 ||
               paymentDetail.PaymentChecks?.length > 0) && (
               <>
-                <div className="mb-4 mt-8 flex items-center justify-between border-t border-zinc-100 pt-6">
-                  <h2 className="text-sm font-bold text-zinc-900">Method Details</h2>
+                <div className="mb-4 mt-8 flex items-center justify-between border-t border-linen-100 pt-6">
+                  <h2 className="text-sm font-bold text-ink-900">Method Details</h2>
                 </div>
                 <div className="space-y-3">
                   {/* Cash Card */}
                   {Number(paymentDetail.CashSum || 0) > 0 && (
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">
-                      <div className="font-bold text-zinc-800 mb-2 flex justify-between">
+                    <div className="rounded-xl border border-linen-200 bg-linen-50 p-3 text-xs">
+                      <div className="font-bold text-ink-900 mb-2 flex justify-between">
                         <span>Cash Payment</span>
                         <span>
                           {formatCurrency(Number(paymentDetail.CashSum || 0), currencyCode)}
                         </span>
                       </div>
                       {paymentDetail.CashAccount && (
-                        <div className="space-y-1.5 text-zinc-600">
+                        <div className="space-y-1.5 text-neutral-500">
                           <div className="flex justify-between">
                             <span>Cash Account</span>
-                            <span className="font-medium text-zinc-900">
+                            <span className="font-medium text-ink-900">
                               {paymentDetail.CashAccount}
                             </span>
                           </div>
@@ -339,18 +353,18 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                     paymentDetail.TransferDate ||
                     paymentDetail.TransferAccount ||
                     paymentDetail.TransferReference) && (
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">
-                      <div className="font-bold text-zinc-800 mb-2 flex justify-between">
+                    <div className="rounded-xl border border-linen-200 bg-linen-50 p-3 text-xs">
+                      <div className="font-bold text-ink-900 mb-2 flex justify-between">
                         <span>Bank Transfer</span>
                         <span>
                           {formatCurrency(Number(paymentDetail.TrsfrSum || 0), currencyCode)}
                         </span>
                       </div>
-                      <div className="space-y-1.5 text-zinc-600">
+                      <div className="space-y-1.5 text-neutral-500">
                         {paymentDetail.TransferDate && (
                           <div className="flex justify-between">
                             <span>Transfer Date</span>
-                            <span className="font-medium text-zinc-900">
+                            <span className="font-medium text-ink-900">
                               {new Date(paymentDetail.TransferDate).toLocaleDateString("en-GB")}
                             </span>
                           </div>
@@ -358,7 +372,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         {paymentDetail.TransferAccount && (
                           <div className="flex justify-between">
                             <span>Transfer Account</span>
-                            <span className="font-medium text-zinc-900">
+                            <span className="font-medium text-ink-900">
                               {paymentDetail.TransferAccount}
                             </span>
                           </div>
@@ -366,7 +380,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         {paymentDetail.TransferReference && (
                           <div className="flex justify-between">
                             <span>Transfer Reference</span>
-                            <span className="font-medium text-zinc-900">
+                            <span className="font-medium text-ink-900">
                               {paymentDetail.TransferReference}
                             </span>
                           </div>
@@ -393,29 +407,29 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                         return (
                           <div
                             key={`chk-${idx}`}
-                            className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs"
+                            className="rounded-xl border border-linen-200 bg-linen-50 p-3 text-xs"
                           >
-                            <div className="font-bold text-zinc-800 mb-2 flex justify-between">
+                            <div className="font-bold text-ink-900 mb-2 flex justify-between">
                               <span>Check Payment</span>
                               <span>{formatCurrency(Number(chk.CheckSum || 0), currencyCode)}</span>
                             </div>
-                            <div className="space-y-1.5 text-zinc-600">
+                            <div className="space-y-1.5 text-neutral-500">
                               <div className="flex justify-between">
                                 <span>Bank Code</span>
-                                <span className="font-medium text-zinc-900">
+                                <span className="font-medium text-ink-900">
                                   {chk.BankCode || "N/A"}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span>Check Number</span>
-                                <span className="font-medium text-zinc-900">
+                                <span className="font-medium text-ink-900">
                                   {chk.CheckNumber || "N/A"}
                                 </span>
                               </div>
                               {chk.DueDate && (
                                 <div className="flex justify-between">
                                   <span>Due Date</span>
-                                  <span className="font-medium text-zinc-900">
+                                  <span className="font-medium text-ink-900">
                                     {new Date(chk.DueDate).toLocaleDateString("en-GB")}
                                   </span>
                                 </div>
@@ -423,7 +437,7 @@ export function OutgoingPaymentEdit({ docNum }: { docNum: string }) {
                               {countryCode && (
                                 <div className="flex justify-between">
                                   <span>Country Code</span>
-                                  <span className="font-medium text-zinc-900">{countryCode}</span>
+                                  <span className="font-medium text-ink-900">{countryCode}</span>
                                 </div>
                               )}
                             </div>

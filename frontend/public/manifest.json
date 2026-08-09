@@ -1,7 +1,7 @@
 {
-  "short_name": "ERP PORTAL",
-  "name": "ERP PORTAL",
-  "description": "Vendor Portal - ERP management system.",
+  "short_name": "Purchase Automation",
+  "name": "Purchase Automation",
+  "description": "Purchase Automation - ERP management system.",
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -23,8 +23,8 @@
     }
   ],
   "start_url": "/",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#faf9f6",
+  "theme_color": "#0f766e",
   "display": "standalone",
   "orientation": "portrait"
 }

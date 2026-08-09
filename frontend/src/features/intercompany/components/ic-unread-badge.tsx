@@ -28,7 +28,7 @@ export function IcUnreadCountPill({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-blue-700 tabular-nums",
+        "inline-flex items-center gap-1 rounded-full bg-teal-600 px-2 py-0.5 text-[11px] font-bold leading-none text-surface tabular-nums shadow-sm ring-1 ring-teal-600",
         className,
       )}
       aria-label={`${count} unread notifications`}
@@ -52,7 +52,7 @@ export function IcUnreadIconBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-bold leading-none text-white tabular-nums shadow-sm ring-2 ring-white",
+        "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-600 px-1.5 text-[10px] font-bold leading-none text-surface tabular-nums shadow-md ring-2 ring-surface isolate",
         className,
       )}
       aria-label={`${count} unread notifications`}
@@ -75,7 +75,7 @@ export function IcRetryCountPill({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-800 tabular-nums",
+        "inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold leading-none text-surface tabular-nums shadow-sm ring-1 ring-amber-500",
         className,
       )}
       aria-label={`${count} pending ${count === 1 ? "retry" : "retries"}`}

@@ -121,26 +121,26 @@ export function TableToolbar<TData>({
   }, [createLink, onCreateClick, router]);
 
   return (
-    <div className="border-b border-zinc-100 bg-white">
+    <div className="border-b border-linen-100 bg-linen-50/50">
       <div className="flex items-center justify-between px-6 py-3">
         {/* Left Side: Breadcrumb */}
         <div className="flex items-center gap-2">
           {breadcrumb ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
-              <span className="text-zinc-500">{breadcrumb.section}</span>
-              <ChevronRight className="size-3 text-zinc-300" />
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-linen-200 bg-surface px-3.5 py-1.5 text-xs font-medium text-neutral-600 transition-all duration-300 hover:border-linen-300 hover:shadow-xs">
+              <span className="text-neutral-500">{breadcrumb.section}</span>
+              <ChevronRight className="size-3 text-neutral-300" />
               <Link
                 to="/dashboard"
                 preload="intent"
-                className="text-zinc-400 transition-colors hover:text-blue-600"
+                className="text-neutral-400 transition-colors hover:text-teal-700"
               >
                 Dashboard
               </Link>
-              <ChevronRight className="size-3 text-zinc-300" />
+              <ChevronRight className="size-3 text-neutral-300" />
               <Link
                 to={breadcrumb.href}
                 preload="intent"
-                className="font-semibold text-zinc-800 transition-colors hover:text-blue-600"
+                className="font-semibold text-ink-900 transition-colors hover:text-teal-700"
               >
                 {breadcrumb.page}
               </Link>
@@ -193,7 +193,7 @@ export function TableToolbar<TData>({
                 onClick={() => {
                   triggerCreatePrefetch();
                 }}
-                className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold tracking-normal text-zinc-900 shadow-sm transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-0 active:scale-[0.98]"
+                className="group flex h-11 items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-600 px-4 py-2 text-sm font-semibold tracking-normal text-surface shadow-sm transition-all hover:bg-teal-700 focus:outline-none focus:ring-0 active:scale-[0.98]"
               >
                 {createLabel}
                 <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />

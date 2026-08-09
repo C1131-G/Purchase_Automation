@@ -66,7 +66,7 @@ export function CreatePageWrapper({
 }: CreatePageWrapperProps) {
   if (editError) {
     return (
-      <div className="w-full bg-zinc-50 p-3 pb-20">
+      <div className="w-full bg-linen-50 p-3 pb-20">
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {editError}
         </p>
@@ -84,27 +84,27 @@ export function CreatePageWrapper({
   }
 
   return (
-    <div className="relative h-full w-full bg-zinc-50 p-3 pb-20 overflow-y-auto">
+    <div className="relative h-full w-full bg-linen-50 p-3 pb-20 overflow-y-auto">
       {/* Top Actions - Positioned absolute top-right */}
       {topActions && <div className="absolute right-3 top-3 z-10">{topActions}</div>}
 
-      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/50 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-all duration-300 hover:border-zinc-300/80 hover:bg-white hover:shadow-xs">
-        <span className="text-zinc-500">{section}</span>
-        <ChevronRight className="size-3 text-zinc-300" />
-        <Link to={dashboardUrl} className="text-zinc-400 transition-colors hover:text-blue-600">
+      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-linen-200/60 bg-linen-50/50 px-3.5 py-1.5 text-xs font-medium text-neutral-500 transition-all duration-300 hover:border-linen-200/80 hover:bg-surface hover:shadow-xs">
+        <span className="text-neutral-500">{section}</span>
+        <ChevronRight className="size-3 text-neutral-300" />
+        <Link to={dashboardUrl} className="text-neutral-400 transition-colors hover:text-teal-600">
           Dashboard
         </Link>
-        <ChevronRight className="size-3 text-zinc-300" />
+        <ChevronRight className="size-3 text-neutral-300" />
         <Link
           to={breadcrumbParent.to}
           search={breadcrumbParent.search || { limit: 10, page: 1 }}
-          className="text-zinc-400 transition-colors hover:text-blue-600"
+          className="text-neutral-400 transition-colors hover:text-teal-600"
           onMouseEnter={breadcrumbParent.onMouseEnter}
         >
           {breadcrumbParent.label}
         </Link>
-        <ChevronRight className="size-3 text-zinc-300" />
-        <span className="font-semibold text-zinc-800">
+        <ChevronRight className="size-3 text-neutral-300" />
+        <span className="font-semibold text-ink-900">
           {renderHighlightedTitle(pageTitle, highlightDocRef)}
         </span>
       </div>

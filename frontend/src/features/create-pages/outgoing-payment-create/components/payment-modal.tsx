@@ -461,16 +461,16 @@ export function PaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh] overflow-hidden cursor-pointer">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 backdrop-blur-sm">
+      <div className="w-full max-w-4xl rounded-2xl bg-surface shadow-xl flex flex-col max-h-[90vh] overflow-hidden cursor-pointer">
         <div className="p-4 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-slate-800"></h2>
             <div className="flex gap-3 text-sm">
               {balanceDue > 0 && (
                 <div className="flex gap-1.5">
-                  <span className="text-blue-400 font-medium">Invoice:</span>
-                  <span className="font-bold text-blue-400">
+                  <span className="text-teal-400 font-medium">Invoice:</span>
+                  <span className="font-bold text-teal-400">
                     {formatCurrency(balanceDue, currencyCode)}
                   </span>
                 </div>
@@ -501,8 +501,8 @@ export function PaymentModal({
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === tab
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                    ? "bg-teal-600 text-surface"
+                    : "bg-surface text-slate-500 border border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 {tab}
@@ -522,7 +522,7 @@ export function PaymentModal({
                     className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-xs font-semibold mb-2 shadow-sm transition-all cursor-pointer ${
                       isTabFull("Cash")
                         ? "bg-rose-500 hover:bg-rose-600"
-                        : "bg-blue-600 hover:bg-blue-700"
+                        : "bg-teal-600 hover:bg-teal-700"
                     } ${isPayFullDisabled("Cash") ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {isTabFull("Cash") ? "Reset" : "PAY FULL"}
@@ -543,7 +543,7 @@ export function PaymentModal({
                         }
                       }}
                       placeholder="Enter amount"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-surface focus:border-teal-300 focus:ring-2 focus:ring-teal-200"
                     />
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -552,7 +552,7 @@ export function PaymentModal({
                         <button
                           key="back"
                           onClick={handleBackspace}
-                          className="bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center py-3 rounded-lg"
+                          className="bg-rose-500 hover:bg-rose-600 text-surface flex items-center justify-center py-3 rounded-lg"
                         >
                           <Delete className="w-5 h-5" />
                         </button>
@@ -628,7 +628,7 @@ export function PaymentModal({
                       }
                     }}
                     placeholder="Enter amount"
-                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none w-40 bg-white"
+                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none w-40 bg-surface"
                   />
                   <button
                     onClick={handleAction}
@@ -636,7 +636,7 @@ export function PaymentModal({
                     className={`flex items-center justify-center gap-1.5 min-w-[130px] px-5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer ${
                       isTabFull("Cheque")
                         ? "bg-rose-500 hover:bg-rose-600"
-                        : "bg-blue-600 hover:bg-blue-700"
+                        : "bg-teal-600 hover:bg-teal-700"
                     } ${isPayFullDisabled("Cheque") ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {isTabFull("Cheque") ? "Reset" : "PAY FULL"}
@@ -716,7 +716,7 @@ export function PaymentModal({
                     )}
                   </div>
                   <div>
-                    <label className="block text-[10px] mb-1 font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    <label className="block text-[10px] mb-1 font-semibold uppercase tracking-[0.12em] text-neutral-500">
                       Branch
                     </label>
                     <input
@@ -724,7 +724,7 @@ export function PaymentModal({
                       value={chequeBranch}
                       onChange={(e) => setChequeBranch(e.target.value)}
                       placeholder="Enter branch"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none bg-surface"
                     />
                   </div>
                   <div className="relative">
@@ -754,7 +754,7 @@ export function PaymentModal({
                           setChequeGLAccount(item.code);
                           setChequeAccountFocused(false);
                         }}
-                        containerClassName="absolute left-0 right-0 bottom-full z-30 mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg"
+                        containerClassName="absolute left-0 right-0 bottom-full z-30 mb-2 overflow-hidden rounded-xl border border-linen-200 bg-surface shadow-lg"
                         nameLabel="Account"
                         emptyText="No accounts found"
                         maxHeight="max-h-[150px]"
@@ -765,7 +765,7 @@ export function PaymentModal({
                   </div>
                   <div className="flex gap-4">
                     <div className="w-[196.54px]">
-                      <label className="flex items-center gap-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                      <label className="flex items-center gap-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
                         <input
                           type="checkbox"
                           checked={manualCheckNo}
@@ -773,7 +773,7 @@ export function PaymentModal({
                             setManualCheckNo(e.target.checked);
                             if (!e.target.checked) setChequeNo("");
                           }}
-                          className="w-3 h-3 text-blue-500 rounded border-slate-300"
+                          className="w-3 h-3 text-teal-500 rounded border-slate-300"
                         />
                         Cheque Number
                       </label>
@@ -783,11 +783,11 @@ export function PaymentModal({
                         onChange={(e) => setChequeNo(e.target.value)}
                         placeholder="Enter cheque number"
                         disabled={!manualCheckNo}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none bg-surface disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-[10px] mb-1 font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                      <label className="block text-[10px] mb-1 font-semibold uppercase tracking-[0.12em] text-neutral-500">
                         Issued By
                       </label>
                       <input
@@ -795,7 +795,7 @@ export function PaymentModal({
                         value={chequeIssuedBy}
                         onChange={(e) => setChequeIssuedBy(e.target.value)}
                         placeholder="Enter issued by"
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none bg-surface"
                       />
                     </div>
                   </div>
@@ -825,7 +825,7 @@ export function PaymentModal({
                           setChequeGLAccount(item.code);
                           setChequeGLAccountFocused(false);
                         }}
-                        containerClassName="absolute left-0 right-0 bottom-full z-30 mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg"
+                        containerClassName="absolute left-0 right-0 bottom-full z-30 mb-2 overflow-hidden rounded-xl border border-linen-200 bg-surface shadow-lg"
                         nameLabel="GLAccount"
                         emptyText="No accounts found"
                         maxHeight="max-h-[150px]"
@@ -852,7 +852,7 @@ export function PaymentModal({
                         }
                       }
                     }}
-                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none w-40 bg-white"
+                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none w-40 bg-surface"
                     placeholder="Transfer amount"
                   />
                   <button
@@ -861,7 +861,7 @@ export function PaymentModal({
                     className={`flex items-center justify-center gap-1.5 min-w-[130px] px-5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer ${
                       isTabFull("Bank Transfer")
                         ? "bg-rose-500 hover:bg-rose-600"
-                        : "bg-blue-600 hover:bg-blue-700"
+                        : "bg-teal-600 hover:bg-teal-700"
                     } ${isPayFullDisabled("Bank Transfer") ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {isTabFull("Bank Transfer") ? "Reset" : "PAY FULL"}
@@ -873,7 +873,7 @@ export function PaymentModal({
                   <div>
                     <label
                       htmlFor="transferDate"
-                      className="mb-1.5 block text-xs font-bold text-zinc-600"
+                      className="mb-1.5 block text-xs font-bold text-neutral-500"
                     >
                       Transfer Date
                     </label>
@@ -884,10 +884,10 @@ export function PaymentModal({
                         onClick={() =>
                           setTransferDatePickerOpen((prev) => (prev === true ? false : true))
                         }
-                        className="relative flex h-10 w-full items-center justify-start rounded-xl border border-zinc-200 bg-zinc-50 pl-3 pr-10 text-sm text-zinc-800 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                        className="relative flex h-10 w-full items-center justify-start rounded-xl border border-linen-200 bg-linen-50 pl-3 pr-10 text-sm text-ink-900 outline-none transition hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                       >
                         <span>{toDisplayDate(transferDate)}</span>
-                        <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100">
+                        <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition hover:bg-linen-100">
                           <CalendarIcon className="h-3 w-3" />
                         </div>
                       </button>
@@ -896,7 +896,7 @@ export function PaymentModal({
                           <div
                             ref={popoverRef}
                             style={popoverStyle}
-                            className="bg-white rounded-xl border border-zinc-200 shadow-xl p-1.5 animate-in fade-in zoom-in-95 duration-100"
+                            className="bg-surface rounded-xl border border-linen-200 shadow-xl p-1.5 animate-in fade-in zoom-in-95 duration-100"
                           >
                             <TransferCalendar
                               mode="single"
@@ -917,14 +917,14 @@ export function PaymentModal({
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-zinc-600">
+                    <label className="mb-1.5 block text-xs font-bold text-neutral-500">
                       GL Account (Transfer)
                     </label>
-                    <div className="flex h-10 w-full items-center rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm text-zinc-500">
+                    <div className="flex h-10 w-full items-center rounded-xl border border-linen-200 bg-linen-100 px-3 text-sm text-neutral-500">
                       {isLoadingTransferAccount ? (
                         <span className="animate-pulse">Resolving...</span>
                       ) : resolvedTransferAccount ? (
-                        <span className="font-medium text-zinc-800">{resolvedTransferAccount}</span>
+                        <span className="font-medium text-ink-900">{resolvedTransferAccount}</span>
                       ) : (
                         <span>Select date to resolve</span>
                       )}
@@ -935,7 +935,7 @@ export function PaymentModal({
                 <div className="mt-3">
                   <label
                     htmlFor="transferReference"
-                    className="mb-1.5 block text-xs font-bold text-zinc-600"
+                    className="mb-1.5 block text-xs font-bold text-neutral-500"
                   >
                     Reference
                   </label>
@@ -945,7 +945,7 @@ export function PaymentModal({
                     value={transferReference}
                     onChange={(e) => setTransferReference(e.target.value)}
                     placeholder="Enter transfer reference"
-                    className="w-full max-w-[280px] rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                    className="w-full max-w-[280px] rounded-xl border border-linen-200 bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-200"
                   />
                 </div>
               </div>
@@ -990,7 +990,7 @@ export function PaymentModal({
               }
               return false;
             })()}
-            className="bg-blue-600 text-white px-10 py-2 rounded-lg text-sm font-semibold shadow-md hover:bg-blue-700 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed cursor-pointer"
+            className="bg-teal-600 text-surface px-10 py-2 rounded-lg text-sm font-semibold shadow-md hover:bg-teal-700 transition-all active:scale-95 disabled:bg-slate-300 disabled:shadow-none disabled:text-slate-500 disabled:cursor-not-allowed cursor-pointer"
           >
             SUBMIT PAYMENT
           </button>

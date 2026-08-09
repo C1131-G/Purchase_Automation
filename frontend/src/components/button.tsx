@@ -12,17 +12,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants = {
       // BRAND: High-contrast primary action
-      primary: "bg-zinc-950 text-white hover:bg-black shadow-sm focus:ring-zinc-950/20",
+      primary: "bg-ink-900 text-surface hover:bg-ink-800 shadow-sm focus:ring-ink-900/20",
       // NEUTRAL: Subtle secondary actions
-      secondary: "bg-zinc-100 text-zinc-900 hover:bg-zinc-200 focus:ring-zinc-200/50",
+      secondary: "bg-linen-100 text-ink-900 hover:bg-linen-200 focus:ring-linen-200/50",
       // SURGICAL: Interactive borders for clean layouts
       outline:
-        "border border-zinc-200 bg-transparent text-zinc-900 hover:bg-zinc-50 focus:ring-zinc-100",
+        "border border-linen-200 bg-transparent text-ink-900 hover:bg-linen-50 focus:ring-linen-100",
       // MINIMAL: Background-less utility actions
       ghost:
-        "bg-transparent text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 focus:ring-zinc-100",
+        "bg-transparent text-neutral-500 hover:bg-linen-50 hover:text-ink-900 focus:ring-linen-100",
       // DESTRUCTIVE: Critical warnings/deletions
-      danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-600/20",
+      danger: "bg-red-600 text-surface hover:bg-red-700 focus:ring-red-600/20",
     };
 
     const sizes = {

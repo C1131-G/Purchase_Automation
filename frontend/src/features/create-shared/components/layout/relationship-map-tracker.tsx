@@ -61,21 +61,21 @@ const NodeIcon = ({
       <div
         className={`${compact ? "w-7 h-7" : "w-12 h-12"} rounded-full flex items-center justify-center transition-all ${
           active
-            ? "bg-blue-100 text-blue-600 ring-4 ring-blue-50 shadow-sm group-hover:scale-105"
-            : "bg-slate-100 text-slate-400"
+            ? "bg-teal-50 text-teal-600 ring-4 ring-teal-50 shadow-sm group-hover:scale-105"
+            : "bg-linen-100 text-neutral-400"
         }`}
       >
         <Icon className={compact ? "w-3.5 h-3.5" : "w-6 h-6"} />
       </div>
       <div className="flex flex-col items-center">
         <span
-          className={`${compact ? "text-[10px]" : "text-xs"} font-medium whitespace-nowrap ${active ? "text-slate-700" : "text-slate-400"}`}
+          className={`${compact ? "text-[10px]" : "text-xs"} font-medium whitespace-nowrap ${active ? "text-ink-900" : "text-neutral-400"}`}
         >
           {label}
         </span>
         {isSingle && items && items.length > 0 && (
           <span
-            className={`${compact ? "text-[9px]" : "text-[10px]"} font-bold text-blue-600 mt-0.5`}
+            className={`${compact ? "text-[9px]" : "text-[10px]"} font-bold text-teal-600 mt-0.5`}
           >
             #{items[0]?.docNum}
           </span>
@@ -85,12 +85,12 @@ const NodeIcon = ({
       {/* Dropdown for links */}
       {active && items && items.length > 1 && (
         <div className="absolute top-full pt-2 hidden group-hover:flex flex-col z-50 min-w-[120px] items-center">
-          <div className="bg-white border border-slate-200 rounded-lg shadow-lg overflow-y-auto max-h-60 flex flex-col w-full">
+          <div className="bg-surface border border-linen-200 rounded-lg shadow-lg overflow-y-auto max-h-60 flex flex-col w-full">
             {items.map((item) => (
               <Link
                 key={item.docEntry}
                 to={resolveLink(item) as any}
-                className="px-4 py-2 text-xs hover:bg-slate-50 text-slate-700 font-medium whitespace-nowrap text-center block"
+                className="px-4 py-2 text-xs hover:bg-linen-50 text-ink-900 font-medium whitespace-nowrap text-center block"
               >
                 #{item.docNum}
               </Link>
@@ -118,7 +118,7 @@ const NodeIcon = ({
 const ConnectingLine = ({ active, compact }: { active: boolean; compact?: boolean }) => (
   <div
     className={`h-[3px] flex-1 min-w-[32px] mx-1 rounded-full transition-colors duration-500 ${
-      active ? "bg-blue-500" : "bg-slate-200"
+      active ? "bg-teal-500" : "bg-linen-200"
     } ${compact ? "mt-3.5" : "mt-6"}`}
   />
 );
@@ -146,7 +146,7 @@ export function RelationshipMapTracker({
     const nodeCount = isAP ? 6 : isIcSalesDoc ? 2 : 5;
     return (
       <div
-        className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${
+        className={`bg-surface rounded-xl shadow-sm border border-linen-100 w-full ${
           compact
             ? isIcSalesDoc
               ? "min-w-[280px] px-4 py-1.5"
@@ -157,7 +157,7 @@ export function RelationshipMapTracker({
         }`}
       >
         <h3
-          className={`font-semibold text-slate-800 ${compact ? "text-[11px] mb-1.5" : "text-sm mb-6"}`}
+          className={`font-semibold text-ink-900 ${compact ? "text-[11px] mb-1.5" : "text-sm mb-6"}`}
         >
           Document Relationship Map
         </h3>
@@ -174,7 +174,7 @@ export function RelationshipMapTracker({
                 <div
                   className={`${
                     compact ? "w-7 h-7" : "w-12 h-12"
-                  } rounded-full bg-zinc-200 animate-pulse`}
+                  } rounded-full bg-linen-100 animate-pulse`}
                 />
                 <div className="flex flex-col items-center">
                   <div className="relative">
@@ -186,7 +186,7 @@ export function RelationshipMapTracker({
                     <div
                       className={`absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 ${
                         compact ? "h-2 w-12" : "h-2.5 w-16"
-                      } bg-zinc-200 animate-pulse rounded`}
+                      } bg-linen-100 animate-pulse rounded`}
                     />
                   </div>
                   <div className="relative mt-0">
@@ -198,7 +198,7 @@ export function RelationshipMapTracker({
                     <div
                       className={`absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 ${
                         compact ? "h-2 w-8" : "h-2.5 w-12"
-                      } bg-zinc-200 animate-pulse rounded`}
+                      } bg-linen-100 animate-pulse rounded`}
                     />
                   </div>
                 </div>
@@ -341,11 +341,9 @@ export function RelationshipMapTracker({
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border border-slate-100 w-full ${mapMinWidth} ${compact ? "px-4 py-2.5" : "p-6"}`}
+      className={`bg-surface rounded-xl shadow-sm border border-linen-100 w-full ${mapMinWidth} ${compact ? "px-4 py-2.5" : "p-6"}`}
     >
-      <h3
-        className={`font-semibold text-slate-800 ${compact ? "text-[11px] mb-2" : "text-sm mb-6"}`}
-      >
+      <h3 className={`font-semibold text-ink-900 ${compact ? "text-[11px] mb-2" : "text-sm mb-6"}`}>
         Document Relationship Map
       </h3>
 

@@ -104,12 +104,14 @@ export function DateFilterSearch<TData>({
     <div className={cn("w-full", className)}>
       <Popover.Root>
         <Popover.Trigger asChild className="w-full">
-          <button className="w-full h-11 bg-zinc-50/50 border border-zinc-200 hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all duration-200 ease-out rounded-xl text-[13px] font-normal pl-4 pr-10 text-left flex items-center justify-between active:scale-[0.99] cursor-pointer group relative">
-            <span className={cn("truncate", previewRange.from ? "text-zinc-900" : "text-zinc-400")}>
+          <button className="w-full h-11 bg-linen-50 border border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all duration-200 ease-out rounded-xl text-[13px] font-normal pl-4 pr-10 text-left flex items-center justify-between active:scale-[0.99] cursor-pointer group relative">
+            <span
+              className={cn("truncate", previewRange.from ? "text-ink-900" : "text-neutral-400")}
+            >
               {label === "Pick a date" ? "Select Date..." : label}
             </span>
             <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-              <LucideCalendar className="size-3.5 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
+              <LucideCalendar className="size-3.5 text-neutral-400 group-hover:text-neutral-600 transition-colors" />
             </div>
           </button>
         </Popover.Trigger>

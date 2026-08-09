@@ -120,10 +120,10 @@ export function SelectTrigger({
       disabled={disabled}
       onClick={() => setOpen(!open)}
       className={cn(
-        "flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 py-2 text-sm text-zinc-900 select-none transition-all font-outfit ring-offset-1 cursor-pointer",
-        "hover:bg-white hover:border-zinc-300",
+        "flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-linen-200 bg-linen-50/50 px-4 py-2 text-sm text-ink-900 select-none transition-all font-outfit ring-offset-1 cursor-pointer",
+        "hover:bg-surface hover:border-teal-200",
         "focus:outline-none",
-        open && "border-zinc-300 bg-white",
+        open && "border-teal-200 bg-surface",
         disabled && "opacity-50 cursor-not-allowed",
         className,
       )}
@@ -145,8 +145,8 @@ export function SelectValue({
   return (
     <span
       className={cn(
-        "block truncate text-left w-full font-medium text-zinc-300 font-outfit",
-        value && "text-zinc-900",
+        "block truncate text-left w-full font-medium text-neutral-300 font-outfit",
+        value && "text-ink-900",
         className,
       )}
     >
@@ -160,7 +160,7 @@ export function SelectIcon({ children, className, rotate = 90 }: SelectIconProps
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center text-zinc-500 transition-transform duration-300",
+        "flex shrink-0 items-center justify-center text-neutral-500 transition-transform duration-300",
         open && (rotate === 180 ? "rotate-180" : "rotate-90"),
         className,
       )}
@@ -199,7 +199,7 @@ export function SelectPopup({ children, className }: SelectPopupProps) {
     <div
       data-select-popup
       className={cn(
-        "overflow-hidden rounded-xl border border-zinc-100 bg-white text-zinc-900 shadow-xl ring-1 ring-black/5",
+        "overflow-hidden rounded-xl border border-linen-100 bg-surface text-ink-900 shadow-xl ring-1 ring-ink-900/5",
         className,
       )}
     >
@@ -249,16 +249,16 @@ export function SelectItem({ value, label, children, className, onMouseEnter }: 
       }}
       className={cn(
         "relative flex w-full cursor-pointer select-none items-center rounded-lg pl-7 pr-3 py-2 text-sm transition-all duration-200",
-        "hover:bg-blue-50/50 hover:text-blue-600",
-        isSelected ? "bg-blue-50/50 text-blue-700 font-semibold" : "text-zinc-700",
+        "hover:bg-teal-50 hover:text-teal-700",
+        isSelected ? "bg-teal-50 text-teal-700 font-semibold" : "text-ink-900",
         className,
       )}
     >
       <div className="flex-1 overflow-hidden">{children}</div>
       {isSelected && (
         <>
-          <div className="absolute left-2 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-blue-600 rounded-full animate-in slide-in-from-left-1 duration-200" />
-          <Check className="size-3.5 text-blue-600 shrink-0 ml-2 animate-in fade-in duration-200" />
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 w-[3px] h-4 bg-teal-500 rounded-full animate-in slide-in-from-left-1 duration-200" />
+          <Check className="size-3.5 text-teal-600 shrink-0 ml-2 animate-in fade-in duration-200" />
         </>
       )}
     </div>

@@ -157,7 +157,7 @@ function ComparisonField({
   return (
     <div className="space-y-1.5">
       {showLabel ? (
-        <div className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        <div className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
           {label}
         </div>
       ) : null}
@@ -172,13 +172,13 @@ function ComparisonField({
               }
             }}
           >
-            <Select.Trigger className="h-11 w-full rounded-xl border-zinc-200 bg-zinc-50/50 text-[13px] font-normal transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100">
-              <span className="truncate text-zinc-900 font-normal">
+            <Select.Trigger className="h-11 w-full rounded-xl border-linen-200 bg-linen-50/50 text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100">
+              <span className="truncate text-ink-900 font-normal">
                 {value.operator === "eq" ? "=" : value.operator === "lt" ? "<" : ">"}
               </span>
               <Select.Icon>
                 <svg
-                  className="size-3.5 text-zinc-400"
+                  className="size-3.5 text-neutral-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -217,7 +217,7 @@ function ComparisonField({
             })
           }
           placeholder={placeholder}
-          className="h-11 w-full rounded-xl border-zinc-200 bg-zinc-50/50 text-[13px] font-normal transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
+          className="h-11 w-full rounded-xl border-linen-200 bg-linen-50/50 text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100"
         />
       </div>
     </div>
@@ -280,7 +280,7 @@ function DocDateField({
   return (
     <div ref={containerRef} className="relative">
       {showLabel ? (
-        <div className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        <div className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
           Doc Date
         </div>
       ) : null}
@@ -288,19 +288,19 @@ function DocDateField({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          "relative flex h-11 w-full items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/50 text-[13px] font-normal text-zinc-800 outline-none transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100",
+          "relative flex h-11 w-full items-center justify-between rounded-xl border border-linen-200 bg-linen-50/50 text-[13px] font-normal text-ink-900 outline-none transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100",
           showLabel ? "pl-4 pr-10" : "pl-4 pr-10",
         )}
       >
         <span
-          className={cn("truncate", value.from || value.to ? "text-zinc-900" : "text-zinc-400")}
+          className={cn("truncate", value.from || value.to ? "text-ink-900" : "text-neutral-400")}
         >
           {label}
         </span>
       </button>
       <div
         className={cn(
-          "pointer-events-none absolute right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500",
+          "pointer-events-none absolute right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500",
           showLabel ? "top-[31px]" : "top-1/2 -translate-y-1/2",
         )}
       >
@@ -489,7 +489,7 @@ function DocNumberField({
   return (
     <div className="relative">
       {showLabel ? (
-        <div className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+        <div className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
           Doc Number
         </div>
       ) : null}
@@ -519,7 +519,7 @@ function DocNumberField({
           inputMode="numeric"
           pattern="[0-9]*"
           maxLength={10}
-          className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/50 pl-3 pr-10 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+          className="h-11 w-full rounded-xl border border-linen-200 bg-linen-50/50 pl-3 pr-10 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <button
@@ -531,7 +531,7 @@ function DocNumberField({
             onPointerEnter={handlePopupIntent}
             onMouseEnter={handlePopupIntent}
             onFocus={handlePopupIntent}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition hover:bg-zinc-100"
+            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-400 transition hover:bg-linen-100"
             tabIndex={-1}
             title="Search popup"
           >
@@ -587,10 +587,10 @@ export function OutgoingPaymentCreateFilters({
         <button
           type="button"
           aria-label="Open outgoing payment filters"
-          className="flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm transition-all active:scale-[0.98] normal-case tracking-normal group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:border-blue-300 cursor-pointer hover:bg-zinc-50 hover:text-blue-600"
+          className="flex h-11 items-center gap-2 rounded-xl border border-linen-200 bg-surface px-4 py-2 text-sm font-medium text-ink-900 shadow-sm transition-all active:scale-[0.98] normal-case tracking-normal group focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-200 focus-visible:border-teal-300 cursor-pointer hover:bg-linen-50 hover:text-teal-600"
         >
           <span>Filter</span>
-          <Filter className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1 text-zinc-400 group-hover:text-blue-500" />
+          <Filter className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1 text-neutral-400 group-hover:text-teal-500" />
         </button>
       </Popover.Trigger>
 
@@ -664,16 +664,16 @@ function OutgoingPaymentCreateFiltersContent({
   return (
     <Popover.Content
       align="end"
-      className="w-57.5 p-0 overflow-hidden border border-zinc-200 rounded-xl shadow-xl"
+      className="w-57.5 p-0 overflow-hidden border border-linen-200 rounded-xl shadow-xl"
       unstyled
     >
-      <div className="flex flex-col bg-white/95 backdrop-blur-xl">
+      <div className="flex flex-col bg-surface/95 backdrop-blur-xl">
         <div className="px-1.5 py-1.5">
           <div className="flex flex-col gap-px">
             {filterSections.map((section) => (
               <div
                 key={section.key}
-                className="group flex items-center justify-between rounded-md px-2 py-2 text-[12px] select-none border border-transparent transition-colors hover:bg-zinc-50 text-zinc-900"
+                className="group flex items-center justify-between rounded-md px-2 py-2 text-[12px] select-none border border-transparent transition-colors hover:bg-linen-50 text-ink-900"
               >
                 <button
                   type="button"
@@ -694,8 +694,8 @@ function OutgoingPaymentCreateFiltersContent({
                   className={cn(
                     "truncate transition-colors cursor-pointer text-left flex-1",
                     section.isActive
-                      ? "text-blue-500 font-medium"
-                      : "text-zinc-700 font-medium hover:text-blue-600",
+                      ? "text-teal-500 font-medium"
+                      : "text-ink-900 font-medium hover:text-teal-600",
                   )}
                 >
                   {section.label}
@@ -720,8 +720,8 @@ function OutgoingPaymentCreateFiltersContent({
                   className={cn(
                     "ml-2 flex items-center justify-center size-4 rounded border transition-all cursor-pointer shrink-0",
                     section.isActive || section.hasValue
-                      ? "bg-blue-500 border-blue-500 text-white shadow-sm"
-                      : "border-zinc-300 bg-white text-transparent hover:border-blue-400 hover:bg-blue-50/50",
+                      ? "bg-teal-500 border-teal-500 text-surface shadow-sm"
+                      : "border-linen-200 bg-surface text-transparent hover:border-teal-400 hover:bg-teal-50/50",
                   )}
                 >
                   <Check className="size-2.5" strokeWidth={3} />
@@ -731,14 +731,14 @@ function OutgoingPaymentCreateFiltersContent({
           </div>
         </div>
 
-        <div className="border-t border-zinc-100/80 bg-zinc-50/30">
+        <div className="border-t border-linen-100/80 bg-linen-50/30">
           <button
             type="button"
             onClick={() => {
               onReset();
               setOpen(false);
             }}
-            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 transition-all active:scale-[0.98] cursor-pointer"
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-[11px] font-medium text-teal-600 hover:text-teal-700 hover:bg-teal-50/50 transition-all active:scale-[0.98] cursor-pointer"
           >
             <RotateCcw className="size-3" />
             <span>Reset to Default</span>
@@ -778,11 +778,11 @@ export function OutgoingPaymentCreateActiveFilter({
             onChange({ ...value, docType });
           }}
         >
-          <Select.Trigger className="h-11 w-full rounded-xl border-zinc-200 bg-zinc-50/50 text-[13px] font-normal transition-all hover:border-zinc-300 focus:bg-white focus:ring-2 focus:ring-blue-100">
+          <Select.Trigger className="h-11 w-full rounded-xl border-linen-200 bg-linen-50/50 text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100">
             <Select.Value placeholder="All" />
             <Select.Icon>
               <svg
-                className="size-4 text-zinc-400"
+                className="size-4 text-neutral-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

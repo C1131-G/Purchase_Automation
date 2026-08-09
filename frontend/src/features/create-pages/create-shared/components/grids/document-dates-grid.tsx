@@ -104,17 +104,17 @@ export function DocumentDatesGrid({
         <div ref={docDateContainerRef} className="relative">
           <label
             htmlFor="po-doc-date"
-            className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
+            className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500"
           >
             <span className="inline-flex items-center gap-1.5">
               <span>DOC DATE</span>
               {docDateReadOnly ? (
-                <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+                <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
               ) : null}
             </span>
           </label>
           {loading ? (
-            <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+            <div className="h-10 animate-pulse rounded-xl border border-linen-200 bg-linen-100" />
           ) : (
             <button
               id="po-doc-date"
@@ -124,15 +124,15 @@ export function DocumentDatesGrid({
               className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDateReadOnly
                   ? uniformReadOnlyAppearance
-                    ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800 opacity-100"
-                    : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100"
-                  : "cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                    ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900 opacity-100"
+                    : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
+                  : "cursor-pointer border-linen-200 bg-linen-50 text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               }`}
             >
               <span>{toDisplayDate(docDate)}</span>
               <div
-                className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
-                  docDateReadOnly ? "opacity-60" : "hover:bg-zinc-100"
+                className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
+                  docDateReadOnly ? "opacity-60" : "hover:bg-linen-100"
                 }`}
               >
                 <CalendarIcon className="h-3 w-3" />
@@ -160,17 +160,17 @@ export function DocumentDatesGrid({
         <div ref={deliveryDateContainerRef} className="relative">
           <label
             htmlFor="po-due-date"
-            className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
+            className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500"
           >
             <span className="inline-flex items-center gap-1.5">
               <span>{docDueDateLabel}</span>
               {docDueDateReadOnly ? (
-                <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+                <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
               ) : null}
             </span>
           </label>
           {loading ? (
-            <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+            <div className="h-10 animate-pulse rounded-xl border border-linen-200 bg-linen-100" />
           ) : (
             <button
               id="po-due-date"
@@ -181,20 +181,20 @@ export function DocumentDatesGrid({
               }
               className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDueDateInvalid
-                  ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+                  ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                   : docDueDateReadOnly
                     ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800 opacity-100"
-                      : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100"
-                    : "border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                      ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900 opacity-100"
+                      : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
+                    : "border-linen-200 bg-linen-50 text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               }`}
             >
-              <span className={docDueDate ? "text-zinc-800" : "text-zinc-400"}>
+              <span className={docDueDate ? "text-ink-900" : "text-neutral-400"}>
                 {docDueDate ? toDisplayDate(docDueDate) : docDueDatePlaceholder}
               </span>
               <div
-                className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
-                  docDueDateReadOnly ? "opacity-60" : "hover:bg-zinc-100"
+                className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
+                  docDueDateReadOnly ? "opacity-60" : "hover:bg-linen-100"
                 }`}
               >
                 <CalendarIcon className="h-3 w-3" />
@@ -226,17 +226,17 @@ export function DocumentDatesGrid({
           <div ref={requiredDateContainerRef} className="relative">
             <label
               htmlFor="pq-required-date"
-              className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500"
+              className="mb-1.5 block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500"
             >
               <span className="inline-flex items-center gap-1.5">
                 <span>{requiredDateLabel}</span>
                 {requiredDateReadOnly ? (
-                  <Lock className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+                  <Lock className="h-3 w-3 text-neutral-400" aria-hidden="true" />
                 ) : null}
               </span>
             </label>
             {loading ? (
-              <div className="h-10 animate-pulse rounded-xl border border-zinc-200 bg-zinc-100" />
+              <div className="h-10 animate-pulse rounded-xl border border-linen-200 bg-linen-100" />
             ) : (
               <button
                 id="pq-required-date"
@@ -247,20 +247,20 @@ export function DocumentDatesGrid({
                 }
                 className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                   requiredDateInvalid
-                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-200"
+                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                     : requiredDateReadOnly
                       ? uniformReadOnlyAppearance
-                        ? "cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-800 opacity-100"
-                        : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-500 opacity-100"
-                      : "cursor-pointer border-zinc-200 bg-zinc-50 text-zinc-800 hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-200"
+                        ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900 opacity-100"
+                        : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
+                      : "cursor-pointer border-linen-200 bg-linen-50 text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
               >
-                <span className={requiredDate ? "text-zinc-800" : "text-zinc-400"}>
+                <span className={requiredDate ? "text-ink-900" : "text-neutral-400"}>
                   {requiredDate ? toDisplayDate(requiredDate) : requiredDatePlaceholder}
                 </span>
                 <div
-                  className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition ${
-                    requiredDateReadOnly ? "opacity-60" : "hover:bg-zinc-100"
+                  className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
+                    requiredDateReadOnly ? "opacity-60" : "hover:bg-linen-100"
                   }`}
                 >
                   <CalendarIcon className="h-3 w-3" />
