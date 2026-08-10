@@ -86,18 +86,9 @@ export async function loadOscnMatchedItemCodes(
     return { oscnByItemCode: new Map(), itemCodes: [] };
   }
 
-  let oscnRows = await loadOscnForCardCode(dbName, cardCode, options?.itemCodes);
+  const oscnRows = await loadOscnForCardCode(dbName, cardCode, options?.itemCodes);
   if (oscnRows.length === 0) {
     return { oscnByItemCode: new Map(), itemCodes: [] };
-  }
-
-  const search = toTrimmed(options?.search).toLowerCase();
-  if (search) {
-    const words = search.split(/\s+/).filter(Boolean);
-    oscnRows = oscnRows.filter((row) => {
-      const hay = `${row.ItemCode} ${row.Substitute} ${row.Descriptio}`.toLowerCase();
-      return words.every((word) => hay.includes(word));
-    });
   }
 
   const candidateCodes = [...new Set(oscnRows.map((row) => row.ItemCode))];
@@ -106,9 +97,10 @@ export async function loadOscnMatchedItemCodes(
   }
 
   const itemRepository = await getTenantRepository(dbName, ItemSchema);
+  // Select ItemName so search can match tenant item master (not only OSCN.Descriptio).
   const query = itemRepository
     .createQueryBuilder("item")
-    .select(["item.ItemCode"])
+    .select(["item.ItemCode", "item.ItemName"])
     .where("item.ItemCode IN (:...itemCodes)", { itemCodes: candidateCodes })
     .andWhere("item.frozenFor = :active", { active: "N" });
 
@@ -119,12 +111,27 @@ export async function loadOscnMatchedItemCodes(
   }
 
   query.orderBy("item.ItemCode", "ASC");
-  const limit = options?.limit;
-  if (typeof limit === "number" && Number.isFinite(limit) && limit > 0) {
-    query.take(Math.floor(limit));
+
+  let items = await query.getMany();
+  const oscnByCode = new Map(oscnRows.map((row) => [row.ItemCode, row]));
+
+  const search = toTrimmed(options?.search).toLowerCase();
+  if (search) {
+    const words = search.split(/\s+/).filter(Boolean);
+    items = items.filter((item) => {
+      const code = toTrimmed(item.ItemCode);
+      const oscn = oscnByCode.get(code);
+      const hay =
+        `${code} ${toTrimmed(item.ItemName)} ${oscn?.Substitute ?? ""} ${oscn?.Descriptio ?? ""}`.toLowerCase();
+      return words.every((word) => hay.includes(word));
+    });
   }
 
-  const items = await query.getMany();
+  const limit = options?.limit;
+  if (typeof limit === "number" && Number.isFinite(limit) && limit > 0) {
+    items = items.slice(0, Math.floor(limit));
+  }
+
   const matchedCodes = items.map((item) => toTrimmed(item.ItemCode)).filter(Boolean);
   const matchedSet = new Set(matchedCodes);
 
@@ -143,16 +150,32 @@ export async function filterExistingTargetItemCodes(
   targetDbName: string,
   partnerItemCodes: string[],
 ): Promise<Set<string>> {
-  const codes = [...new Set(partnerItemCodes.map((code) => toTrimmed(code)).filter(Boolean))];
+  const names = await loadItemNamesByCodes(targetDbName, partnerItemCodes);
+  return new Set(names.keys());
+}
+
+/** Active OITM.ItemCode → ItemName on a tenant (for display / IC partner lines). */
+export async function loadItemNamesByCodes(
+  dbName: string,
+  itemCodes: string[],
+): Promise<Map<string, string>> {
+  const codes = [...new Set(itemCodes.map((code) => toTrimmed(code)).filter(Boolean))];
   if (codes.length === 0) {
-    return new Set();
+    return new Map();
   }
-  const itemRepository = await getTenantRepository(targetDbName, ItemSchema);
+  const itemRepository = await getTenantRepository(dbName, ItemSchema);
   const items = await itemRepository
     .createQueryBuilder("item")
-    .select(["item.ItemCode"])
+    .select(["item.ItemCode", "item.ItemName"])
     .where("item.ItemCode IN (:...itemCodes)", { itemCodes: codes })
     .andWhere("item.frozenFor = :active", { active: "N" })
     .getMany();
-  return new Set(items.map((item) => toTrimmed(item.ItemCode)).filter(Boolean));
+  const map = new Map<string, string>();
+  for (const item of items) {
+    const code = toTrimmed(item.ItemCode);
+    if (code) {
+      map.set(code, toTrimmed(item.ItemName));
+    }
+  }
+  return map;
 }

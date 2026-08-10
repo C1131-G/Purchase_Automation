@@ -5,10 +5,7 @@
  * Substitute = partner company ItemCode; must exist on target OITM.
  * Missing OSCN row, empty Substitute, or missing target OITM → hard fail (IC retry).
  */
-import {
-  filterExistingTargetItemCodes,
-  loadOscnForCardCode,
-} from "@/modules/master-data/master-data.oscn";
+import { loadItemNamesByCodes, loadOscnForCardCode } from "@/modules/master-data/master-data.oscn";
 import { toTrimmed } from "@/modules/master-data/master-data.lookup-cache";
 
 export class IcItemCodeMappingError extends Error {
@@ -105,8 +102,9 @@ export async function mapSourceItemsToPartnerItems(
   }
 
   const partnerCodes = pending.map((row) => row.partnerItemCode);
-  const existingOnTarget = await filterExistingTargetItemCodes(targetDbName, partnerCodes);
-  const missingSubstituteCodes = partnerCodes.filter((code) => !existingOnTarget.has(code));
+  // Partner company OITM names (e.g. RCM ItemName when mapping AJAX → RCM Substitute).
+  const partnerNames = await loadItemNamesByCodes(targetDbName, partnerCodes);
+  const missingSubstituteCodes = partnerCodes.filter((code) => !partnerNames.has(code));
 
   if (missingSubstituteCodes.length > 0) {
     throw new IcItemCodeMappingError({
@@ -117,7 +115,13 @@ export async function mapSourceItemsToPartnerItems(
 
   const result = new Map<string, PartnerItemMapEntry>();
   for (const row of pending) {
-    result.set(row.sourceItemCode, row);
+    const partnerItemName = partnerNames.get(row.partnerItemCode) ?? "";
+    result.set(row.sourceItemCode, {
+      sourceItemCode: row.sourceItemCode,
+      partnerItemCode: row.partnerItemCode,
+      // Prefer partner item master name; fall back to OSCN catalog text only if empty.
+      description: partnerItemName || row.description,
+    });
   }
   return result;
 }

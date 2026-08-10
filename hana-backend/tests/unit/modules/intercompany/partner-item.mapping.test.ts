@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadOscnForCardCode = vi.fn();
-const filterExistingTargetItemCodes = vi.fn();
+const loadItemNamesByCodes = vi.fn();
 
 vi.mock("@/modules/master-data/master-data.oscn", () => ({
   loadOscnForCardCode: (...args: unknown[]) => loadOscnForCardCode(...args),
-  filterExistingTargetItemCodes: (...args: unknown[]) => filterExistingTargetItemCodes(...args),
+  loadItemNamesByCodes: (...args: unknown[]) => loadItemNamesByCodes(...args),
+  filterExistingTargetItemCodes: async (db: string, codes: string[]) => {
+    const names = await loadItemNamesByCodes(db, codes);
+    return new Set((names as Map<string, string>).keys());
+  },
 }));
 
 import {
@@ -17,19 +21,19 @@ import {
 describe("partner-item.mapping (OSCN Substitute)", () => {
   beforeEach(() => {
     loadOscnForCardCode.mockReset();
-    filterExistingTargetItemCodes.mockReset();
+    loadItemNamesByCodes.mockReset();
   });
 
-  it("maps buyer ItemCode → Substitute when OSCN and partner OITM match", async () => {
+  it("maps buyer ItemCode → Substitute and partner OITM ItemName", async () => {
     loadOscnForCardCode.mockResolvedValue([
       {
         ItemCode: "AJAX-SKU-1",
         CardCode: "V-RCM",
         Substitute: "RCM-SKU-1",
-        Descriptio: "Partner desc",
+        Descriptio: "OSCN catalog text",
       },
     ]);
-    filterExistingTargetItemCodes.mockResolvedValue(new Set(["RCM-SKU-1"]));
+    loadItemNamesByCodes.mockResolvedValue(new Map([["RCM-SKU-1", "RCM Master Name"]]));
 
     const map = await mapSourceItemsToPartnerItems({
       sourceDbName: "AJAX_DB",
@@ -41,15 +45,15 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     expect(map.get("AJAX-SKU-1")).toEqual({
       sourceItemCode: "AJAX-SKU-1",
       partnerItemCode: "RCM-SKU-1",
-      description: "Partner desc",
+      description: "RCM Master Name",
     });
     expect(loadOscnForCardCode).toHaveBeenCalledWith("AJAX_DB", "V-RCM", ["AJAX-SKU-1"]);
-    expect(filterExistingTargetItemCodes).toHaveBeenCalledWith("RCM_DB", ["RCM-SKU-1"]);
+    expect(loadItemNamesByCodes).toHaveBeenCalledWith("RCM_DB", ["RCM-SKU-1"]);
   });
 
   it("fails when OSCN row is missing for a line item", async () => {
     loadOscnForCardCode.mockResolvedValue([]);
-    filterExistingTargetItemCodes.mockResolvedValue(new Set());
+    loadItemNamesByCodes.mockResolvedValue(new Map());
 
     await expect(
       mapSourceItemsToPartnerItems({
@@ -80,7 +84,7 @@ describe("partner-item.mapping (OSCN Substitute)", () => {
     loadOscnForCardCode.mockResolvedValue([
       { ItemCode: "A1", CardCode: "V-RCM", Substitute: "R1", Descriptio: "" },
     ]);
-    filterExistingTargetItemCodes.mockResolvedValue(new Set());
+    loadItemNamesByCodes.mockResolvedValue(new Map());
 
     await expect(
       mapSourceItemsToPartnerItems({

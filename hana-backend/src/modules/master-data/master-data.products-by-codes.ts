@@ -45,7 +45,7 @@ export const getProductsByCodes = async (
   const typeToken = type || "default";
   const priceListToken = priceList !== undefined ? String(priceList) : "default";
   const codesKey = [...itemCodes].sort().join("|");
-  const cacheKey = `master:${dbName}:ProductsByCodes:v2:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
+  const cacheKey = `master:${dbName}:ProductsByCodes:v3:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
 
   return getCachedData(
     cacheKey,
@@ -165,12 +165,13 @@ async function loadProductsByCodesForTenant(
     return [];
   }
 
+  // OSCN gates ItemCodes for the BP; description always from tenant OITM.ItemName.
   const itemsWithCatalog = items.map((item) => {
     const code = toTrimmed(item.ItemCode);
     const oscn = oscnByItemCode.get(code);
     return {
       ...item,
-      ItemName: oscn?.Descriptio || item.ItemName,
+      ItemName: item.ItemName,
       CardCode: oscn?.CardCode ?? normalizedCardCode,
       Substitute: oscn?.Substitute ?? "",
     };

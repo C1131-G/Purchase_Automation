@@ -139,13 +139,14 @@ export async function loadProductsForTenant(
     return [];
   }
 
-  // Prefer OSCN description when present; attach substitute for IC (UI may hide).
+  // OSCN only filters which ItemCodes apply to the BP. Name/UoM/tax/price stay
+  // current-company OITM (login AJAX → AJAX item master; login RCM → RCM OITM).
   const itemsWithCatalog = items.map((item) => {
     const code = toTrimmed(item.ItemCode);
     const oscn = oscnByItemCode.get(code);
     return {
       ...item,
-      ItemName: oscn?.Descriptio || item.ItemName,
+      ItemName: item.ItemName,
       CardCode: oscn?.CardCode ?? normalizedCardCode,
       Substitute: oscn?.Substitute ?? "",
     };
