@@ -184,18 +184,21 @@ export const createSharedQueries = {
     type?: "sales" | "purchase",
     priceList?: string,
     warehouseCode?: string,
+    cardCode?: string,
   ) => {
     const normalizedCodes = [...new Set(codes.map((code) => String(code).trim()).filter(Boolean))];
     const codesKey = batchCodesKey(normalizedCodes);
+    const partnerCode = cardCode?.trim() || "";
     return queryOptions({
       gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
       queryFn: async () => {
-        if (normalizedCodes.length === 0) {
+        if (normalizedCodes.length === 0 || !partnerCode) {
           return [] as ProductLookupItem[];
         }
         return unwrapMasterData(
           await masterDataAPI.getProductsByCodes({
             codes: normalizedCodes,
+            cardCode: partnerCode,
             ...(type ? { type } : {}),
             ...(priceList !== undefined && priceList !== "" ? { priceList } : {}),
             ...(warehouseCode ? { warehouseCode } : {}),
@@ -210,6 +213,7 @@ export const createSharedQueries = {
         type ?? "default",
         priceList ?? "default",
         warehouseCode ?? "",
+        partnerCode,
       ],
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     });
@@ -220,18 +224,25 @@ export const createSharedQueries = {
     limit?: number,
     type?: "sales" | "purchase",
     priceList?: string,
+    cardCode?: string,
   ) =>
     queryOptions({
       gcTime: QUERY_CACHE_POLICY.createDynamicLookup.gcTime,
       placeholderData: keepPreviousData,
       queryFn: async () => {
+        const partnerCode = cardCode?.trim() || "";
+        // Strict: no BP → no product list (do not load full item master).
+        if (!partnerCode) {
+          return [] as ProductLookupItem[];
+        }
         const params: {
           warehouseCode?: string;
           search?: string;
           limit?: number;
           type?: "sales" | "purchase";
           priceList?: string;
-        } = {};
+          cardCode?: string;
+        } = { cardCode: partnerCode };
         if (warehouseCode) params.warehouseCode = warehouseCode;
         if (search) params.search = search;
         if (typeof limit === "number") params.limit = limit;
@@ -249,6 +260,7 @@ export const createSharedQueries = {
         limit,
         type ?? "default",
         priceList ?? "default",
+        cardCode?.trim() || "",
       ],
       staleTime: QUERY_CACHE_POLICY.createDynamicLookup.staleTime,
     }),

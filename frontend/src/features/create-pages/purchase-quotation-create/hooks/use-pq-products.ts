@@ -20,6 +20,8 @@ import type { ProductSearchFieldError } from "@/features/create-pages/purchase-q
 interface usePqProductsProps {
   effectiveWarehouseCode: string | null;
   vendorLookupToken: string;
+  /** Vendor CardCode — scopes product browse to OSCN ∩ OITM. */
+  vendorCardCode?: string | undefined;
   productPopupOpen: boolean;
   setProductPopupOpen: (open: boolean) => void;
   productSearch: string;
@@ -34,6 +36,7 @@ interface usePqProductsProps {
 export function usePqProducts({
   effectiveWarehouseCode,
   vendorLookupToken,
+  vendorCardCode,
   productPopupOpen,
   setProductPopupOpen,
   productSearch,
@@ -43,6 +46,7 @@ export function usePqProducts({
   defaultLineRequiredDate = "",
   defaultLineQuotedDate: _defaultLineQuotedDate = "",
 }: usePqProductsProps) {
+  const partnerCardCode = vendorCardCode?.trim() || undefined;
   const queryClient = useQueryClient();
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
@@ -71,13 +75,14 @@ export function usePqProducts({
 
   const productsQuery = useQuery({
     ...purchaseQuotationCreateQueries.products(
-      undefined, // Pass undefined to keep search warehouse-agnostic
+      undefined,
       normalizedProductSearch || undefined,
-      // Always send a cap: browse uses progressive limit; search uses warm page size.
       normalizedProductSearch ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "purchase",
+      undefined,
+      partnerCardCode,
     ),
-    enabled: productPopupOpen && vendorSelected,
+    enabled: productPopupOpen && vendorSelected && Boolean(partnerCardCode),
   });
 
   const products = useMemo(
@@ -91,29 +96,30 @@ export function usePqProducts({
   });
 
   const prefetchProducts = useCallback(() => {
-    if (!vendorSelected) {
+    if (!vendorSelected || !partnerCardCode) {
       return;
     }
     void queryClient.prefetchQuery(
       purchaseQuotationCreateQueries.products(
-        undefined, // Pass undefined to keep search warehouse-agnostic
+        undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
+        undefined,
+        partnerCardCode,
       ),
     );
-  }, [vendorSelected, normalizedProductSearch, queryClient]);
+  }, [vendorSelected, partnerCardCode, normalizedProductSearch, queryClient]);
 
   useEffect(() => {
-    if (!vendorSelected) {
+    if (!vendorSelected || !partnerCardCode) {
       return;
     }
     prefetchProducts();
-  }, [vendorLookupToken, vendorSelected, prefetchProducts]);
+  }, [vendorLookupToken, vendorSelected, partnerCardCode, prefetchProducts]);
 
-  // After the quick first page settles, warm the full browse page so scroll load-more is instant.
   useEffect(() => {
-    if (!productPopupOpen || !vendorSelected) {
+    if (!productPopupOpen || !vendorSelected || !partnerCardCode) {
       return;
     }
     if (normalizedProductSearch) {
@@ -134,11 +140,14 @@ export function usePqProducts({
         undefined,
         BROWSE_PRODUCT_LIMIT,
         "purchase",
+        undefined,
+        partnerCardCode,
       ),
     );
   }, [
     productPopupOpen,
     vendorSelected,
+    partnerCardCode,
     normalizedProductSearch,
     productsQuery.isFetching,
     productsQuery.isError,

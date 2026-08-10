@@ -15,6 +15,8 @@ export const MasterDataQuerySchema = z.object({
   type: z.enum(["sales", "purchase"]).optional(),
   country: z.string().trim().optional(),
   priceList: z.coerce.number().optional(),
+  /** BP CardCode — required for product catalog (OSCN ∩ OITM). */
+  cardCode: z.string().trim().optional(),
 });
 
 export type MasterDataQuery = z.infer<typeof MasterDataQuerySchema>;

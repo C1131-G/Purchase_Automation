@@ -11,6 +11,11 @@ import { createNotificationService } from "@/modules/intercompany/domain/notific
 import type { RetryService } from "@/modules/intercompany/domain/retry/retry.service";
 import { createRetryService } from "@/modules/intercompany/domain/retry/retry.service";
 
+import {
+  mapSourceItemsToPartnerItems,
+  type MapSourceItemsToPartnerInput,
+  type PartnerItemMapEntry,
+} from "@/modules/intercompany/config/item-mapping/partner-item.mapping";
 import type { ResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import {
@@ -141,11 +146,14 @@ export const createFlow2Orchestrator = (deps?: {
   resolvePartner?: ResolvePartnerService;
   notifications?: NotificationService;
   documents?: IcSlDocuments;
+  /** Injectable OSCN item map (default: real HANA OSCN → partner OITM). */
+  mapItems?: (input: MapSourceItemsToPartnerInput) => Promise<Map<string, PartnerItemMapEntry>>;
 }): Flow2Orchestrator => {
   const documentMap = deps?.documentMap ?? createDocumentMapService();
   const retry = deps?.retry ?? createRetryService();
   const history = deps?.history ?? createHistoryService();
   const configuration = deps?.configuration ?? createConfigurationService();
+  const mapItems = deps?.mapItems ?? mapSourceItemsToPartnerItems;
 
   const capture =
     deps?.capture ??
@@ -441,6 +449,29 @@ export const createFlow2Orchestrator = (deps?: {
             sourceDocEntry: captured.sourceDocEntry,
             sourceDocNum: captured.sourceDocNum,
           },
+        });
+
+        // Validate PO ItemCodes map via OSCN.Substitute → seller OITM (fail → retry queue).
+        // AR draft converts from seller SQ (already partner codes); this gates master-data completeness.
+        const partnerItemMap = await mapItems({
+          itemCodes: lineSnap.itemCodes,
+          partnerCardCode: captured.partner.vendorCode,
+          sourceDbName: captured.partner.buyerCompany.sapDbName,
+          targetDbName: captured.partner.sellerCompany.sapDbName,
+        });
+        logFlowStep(LOG_SCOPE, {
+          ...FLOW2_STEPS.BUILD,
+          check: "oscn_item_map_ok",
+          ctx: logCtx,
+          detail: {
+            mappedCount: partnerItemMap.size,
+            mappings: [...partnerItemMap.values()].map((entry) => ({
+              partnerItemCode: entry.partnerItemCode,
+              sourceItemCode: entry.sourceItemCode,
+            })),
+            phase: "oscn_item_map",
+          },
+          title: "Flow 2 OSCN item map (buyer → seller) — ok",
         });
 
         logFlowStep(LOG_SCOPE, {

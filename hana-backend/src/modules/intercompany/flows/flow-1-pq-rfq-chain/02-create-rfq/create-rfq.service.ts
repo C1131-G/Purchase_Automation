@@ -8,6 +8,11 @@ import { buildFlow1RfqRemarks } from "@/modules/intercompany/infrastructure/ic-r
 import { IC_LOG_SCOPE } from "@/modules/intercompany/infrastructure/ic-logger";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
 
+import {
+  mapSourceItemsToPartnerItems,
+  type PartnerItemMapEntry,
+} from "@/modules/intercompany/config/item-mapping/partner-item.mapping";
+
 import { buildRfqNumber, mapDraftLinesToRfqLines } from "./build-rfq-from-pq";
 import type { CreateRfqFromCaptureInput, CreateRfqFromCaptureResult } from "./create-rfq.types";
 
@@ -20,9 +25,17 @@ export type CreateRfqService = {
 export const createCreateRfqService = (deps?: {
   rfq?: RfqService;
   documentMap?: DocumentMapService;
+  /** Injectable for unit tests — defaults to OSCN Substitute map on buyer → seller OITM. */
+  mapItems?: (input: {
+    sourceDbName: string;
+    partnerCardCode: string;
+    itemCodes: string[];
+    targetDbName: string;
+  }) => Promise<Map<string, PartnerItemMapEntry>>;
 }): CreateRfqService => {
   const rfq = deps?.rfq ?? createRfqService();
   const documentMap = deps?.documentMap ?? createDocumentMapService();
+  const mapItems = deps?.mapItems ?? mapSourceItemsToPartnerItems;
 
   return {
     create: async (input) => {
@@ -66,7 +79,29 @@ export const createCreateRfqService = (deps?: {
         };
       }
 
-      const lines = mapDraftLinesToRfqLines(input.lines);
+      const sourceItemCodes = (input.lines ?? []).map((line) =>
+        String(line.ItemCode ?? (line as { itemCode?: unknown }).itemCode ?? "").trim(),
+      );
+      const partnerItemMap = await mapItems({
+        sourceDbName: input.partner.buyerCompany.sapDbName,
+        partnerCardCode: input.partner.vendorCode,
+        itemCodes: sourceItemCodes,
+        targetDbName: input.partner.sellerCompany.sapDbName,
+      });
+
+      const lines = mapDraftLinesToRfqLines(input.lines).map((line) => {
+        const mapped = partnerItemMap.get(line.itemCode);
+        if (!mapped) {
+          throw new Error(
+            `IC OSCN mapping missing for buyer ItemCode=${line.itemCode} CardCode=${input.partner.vendorCode}`,
+          );
+        }
+        return {
+          ...line,
+          itemCode: mapped.partnerItemCode,
+          description: line.description || mapped.description || null,
+        };
+      });
       const rfqNumber = buildRfqNumber(Number(input.sourceDocEntry), input.sourceDocNum);
       logFlowStep(SCOPE, {
         step: 5,

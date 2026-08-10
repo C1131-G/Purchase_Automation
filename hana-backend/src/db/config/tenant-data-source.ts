@@ -19,6 +19,7 @@ import { GRPOHeaderSchema } from "@/db/schemas/grpoheader.schema";
 import { ItemPriceSchema } from "@/db/schemas/item-price.schema";
 import { ItemWarehouseStockSchema } from "@/db/schemas/item-warehouse-stock.schema";
 import { ItemSchema } from "@/db/schemas/item.schema";
+import { OscnSchema } from "@/db/schemas/oscn.schema";
 import { OrganizationSchema } from "@/db/schemas/organization.schema";
 import { OutgoingPaymentSchema } from "@/db/schemas/outgoing-payment.schema";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
@@ -51,6 +52,7 @@ const TENANT_ENTITIES = [
   ItemSchema,
   ItemPriceSchema,
   ItemWarehouseStockSchema,
+  OscnSchema,
   BusinessPartnerSchema,
   BusinessPartnerAddressSchema,
   GlAccountSchema,

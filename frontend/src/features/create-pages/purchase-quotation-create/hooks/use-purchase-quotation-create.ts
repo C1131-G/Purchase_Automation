@@ -286,6 +286,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
     setProductPopupOpen: modals.setProductPopupOpen,
     setProductSearch: modals.setProductSearch,
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
+    vendorCardCode: header.vendorCode || lookups.codeInput.trim() || undefined,
     vendorLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
   });
@@ -409,11 +410,12 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
-        // Fast hydrate: only line item codes (no FULL warehouse catalog / blocking stocks).
+        // Fast hydrate: OSCN ∩ OITM for document vendor only (no full item master).
         const productByCode = await resolveHydrateProductMeta(
           queryClient,
           uniqueItemCodes,
           "purchase",
+          { cardCode: vendorCode || undefined },
         );
         const stockByItemCode = new Map<string, number>();
 

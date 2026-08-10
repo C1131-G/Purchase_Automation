@@ -25,6 +25,11 @@ import type { IcPqDraftHookInput } from "@/modules/intercompany/flows/shared/flo
 import { skipResult, type IcHookResult } from "@/modules/intercompany/flows/shared/flow-result";
 
 import { createPqCaptureService, type PqCaptureService } from "./01-pq-capture/pq-capture.service";
+import type {
+  MapSourceItemsToPartnerInput,
+  PartnerItemMapEntry,
+} from "@/modules/intercompany/config/item-mapping/partner-item.mapping";
+
 import { createCreateRfqService, type CreateRfqService } from "./02-create-rfq/create-rfq.service";
 import {
   createNotifySellerService,
@@ -51,6 +56,8 @@ export const createFlow1Orchestrator = (deps?: {
   rfq?: RfqService;
   notifications?: NotificationService;
   history?: HistoryService;
+  /** Injectable OSCN map for create RFQ (see createCreateRfqService). */
+  mapItems?: (input: MapSourceItemsToPartnerInput) => Promise<Map<string, PartnerItemMapEntry>>;
 }): Flow1Orchestrator => {
   const documentMap = deps?.documentMap ?? createDocumentMapService();
   const rfq = deps?.rfq ?? createRfqService();
@@ -72,6 +79,7 @@ export const createFlow1Orchestrator = (deps?: {
     createCreateRfqService({
       documentMap,
       rfq,
+      mapItems: deps?.mapItems,
     });
 
   const notify =

@@ -1,4 +1,4 @@
-import { Brackets, In } from "typeorm";
+import { In } from "typeorm";
 
 import { getCachedData } from "@/core/utils/cache";
 import { getTenantRepository, executeTenantQuery } from "@/db/tenant-query";
@@ -11,6 +11,7 @@ import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
 
 import { toTrimmed } from "./master-data.lookup-cache";
+import { loadOscnMatchedItemCodes } from "./master-data.oscn";
 import { mapProductResults } from "./master-data.products-map";
 
 export async function loadProductsForTenant(
@@ -21,7 +22,14 @@ export async function loadProductsForTenant(
   defaultListLimit: number,
   type: "sales" | "purchase" | undefined,
   priceList: number | undefined,
+  cardCode?: string,
 ) {
+  // Strict catalog: no CardCode → no full OITM browse (empty list).
+  const normalizedCardCode = toTrimmed(cardCode);
+  if (!normalizedCardCode) {
+    return [];
+  }
+
   // Step 1: Pre-fetch setup data with independent caches so product search misses don't re-fetch static lookups.
   const [adminSettings, taxGroups, uoms, ugpLines] = await Promise.all([
     getCachedData(
@@ -57,8 +65,6 @@ export async function loadProductsForTenant(
       },
       1000 * 60 * 60,
     ),
-    // Fetch all UoM Group lines (UGP1 joined with OUOM) so each product
-    // can expose its full set of valid UoMs, matching what SAP B1 shows.
     getCachedData(
       `master:${dbName}:UgpLines`,
       async () => {
@@ -84,9 +90,31 @@ export async function loadProductsForTenant(
     ),
   ]);
 
-  // Step 2: Fetch Item headers based on search and limit.
+  // Step 2: OSCN for BP → ItemCodes, then OITM for those codes only (no full item master).
+  const rowLimit =
+    typeof resolvedLimit === "number" && Number.isFinite(resolvedLimit) && resolvedLimit > 0
+      ? Math.floor(resolvedLimit)
+      : defaultListLimit;
+
+  const { oscnByItemCode, itemCodes: matchedCodes } = await loadOscnMatchedItemCodes(
+    dbName,
+    normalizedCardCode,
+    type,
+    {
+      search: normalizedSearch,
+      // Load a wider OSCN∩OITM page then map; search may filter in-memory on OSCN fields.
+      limit: Math.max(rowLimit, defaultListLimit),
+    },
+  );
+
+  if (matchedCodes.length === 0) {
+    return [];
+  }
+
+  const limitedCodes = matchedCodes.slice(0, rowLimit);
+
   const repository = await getTenantRepository(dbName, ItemSchema);
-  const query = repository
+  const items = await repository
     .createQueryBuilder("item")
     .select([
       "item.ItemCode",
@@ -102,51 +130,30 @@ export async function loadProductsForTenant(
       "item.DfltWH",
       "item.UgpEntry",
     ])
-    .where("item.frozenFor = :active", { active: "N" });
+    .where("item.ItemCode IN (:...itemCodes)", { itemCodes: limitedCodes })
+    .andWhere("item.frozenFor = :active", { active: "N" })
+    .orderBy("item.ItemCode", "ASC")
+    .getMany();
 
-  // Filter by item type: sales items only show SellItem='Y', purchase items only show PrchseItem='Y'
-  if (type === "sales") {
-    query.andWhere("item.SellItem = :sellItem", { sellItem: "Y" });
-  } else if (type === "purchase") {
-    query.andWhere("item.PrchseItem = :prchseItem", { prchseItem: "Y" });
-  }
-
-  if (normalizedSearch) {
-    const words = normalizedSearch.split(/\s+/).filter(Boolean);
-    words.forEach((word, index) => {
-      const lowerWord = word.toLowerCase();
-      query.andWhere(
-        new Brackets((queryBuilder) => {
-          queryBuilder
-            .where("LOWER(item.ItemCode) LIKE :word_" + index, {
-              ["word_" + index]: `%${lowerWord}%`,
-            })
-            .orWhere("LOWER(item.ItemName) LIKE :word_" + index, {
-              ["word_" + index]: `%${lowerWord}%`,
-            });
-        }),
-      );
-    });
-  }
-
-  // Default sorting: if no search, sort by ItemCode.
-  // Always apply a row cap (browse and search) so product popup never scans full OITM.
-  query.orderBy("item.ItemCode", "ASC");
-  if (resolvedLimit !== undefined) {
-    query.take(resolvedLimit);
-  } else {
-    query.take(defaultListLimit);
-  }
-
-  const items = await query.getMany();
   if (items.length === 0) {
     return [];
   }
 
-  const itemCodes = items.map((item) => toTrimmed(item.ItemCode)).filter(Boolean);
+  // Prefer OSCN description when present; attach substitute for IC (UI may hide).
+  const itemsWithCatalog = items.map((item) => {
+    const code = toTrimmed(item.ItemCode);
+    const oscn = oscnByItemCode.get(code);
+    return {
+      ...item,
+      ItemName: oscn?.Descriptio || item.ItemName,
+      CardCode: oscn?.CardCode ?? normalizedCardCode,
+      Substitute: oscn?.Substitute ?? "",
+    };
+  });
 
-  // Step 3: Fetch related Stock and Price data ONLY for the identified items.
-  // This is the CRITICAL optimization that prevents full table scans of OITW and ITM1.
+  const itemCodes = itemsWithCatalog.map((item) => toTrimmed(item.ItemCode)).filter(Boolean);
+
+  // Step 3: Stock and price only for catalog items.
   const [itemStocks, itemPrices] = await Promise.all([
     (async () => {
       const stockRepository = await getTenantRepository(dbName, ItemWarehouseStockSchema);
@@ -168,11 +175,7 @@ export async function loadProductsForTenant(
       }>();
     })(),
     (async () => {
-      // Special SAP price lists: -1 = Last Purchase Price, -2 = Last Evaluated (AvgPrice).
-      // These are not in ITM1 — they come from OITM fields.
-      // For any regular price list, filter ITM1 by that PriceList number.
       if (priceList === -1 || priceList === -2) {
-        // Will be resolved from item.LastPurPrc or item.AvgPrice directly — no ITM1 query needed.
         return [];
       }
       const priceRepository = await getTenantRepository(dbName, ItemPriceSchema);
@@ -189,14 +192,13 @@ export async function loadProductsForTenant(
     })(),
   ]);
 
-  // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
   const defaultCurrency = resolveCurrencyCode(
     adminSettings?.MainCurncy,
     await getDisplayCurrency(dbName),
   );
 
   return mapProductResults({
-    items,
+    items: itemsWithCatalog,
     itemStocks,
     itemPrices,
     priceList,

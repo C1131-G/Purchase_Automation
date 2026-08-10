@@ -49,6 +49,7 @@ const restoreQueryCache = () => {
 restoreQueryCache();
 
 function DefaultPendingComponent() {
+  // Content-only: parent ShellLayout (or ShellPendingFallback on `/_layout`) keeps the sidebar.
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/dashboard";
   return <RoutePendingFallback pathname={pathname} />;
 }

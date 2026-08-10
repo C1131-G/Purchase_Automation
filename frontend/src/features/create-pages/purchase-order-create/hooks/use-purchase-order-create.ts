@@ -190,6 +190,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
     setProductPopupOpen: modals.setProductPopupOpen,
     setProductSearch: modals.setProductSearch,
     stockPreviewProductCode: modals.stockPreviewProduct?.code,
+    vendorCardCode: header.vendorCode || lookups.codeInput.trim() || undefined,
     vendorLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     vendorSelected: Boolean(lookups.codeInput || lookups.nameInput),
     productRows,
@@ -307,10 +308,12 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
+        const vendorCode = String(detail.CardCode ?? "").trim();
         const productByCode = await resolveHydrateProductMeta(
           queryClient,
           uniqueItemCodes,
           "purchase",
+          { cardCode: vendorCode || undefined },
         );
         const stockByItemCode = new Map<string, number>();
 
@@ -567,6 +570,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
           queryClient,
           uniqueItemCodes,
           "purchase",
+          { cardCode: vendorCode || undefined },
         );
         const stockByItemCode = new Map<string, number>();
 

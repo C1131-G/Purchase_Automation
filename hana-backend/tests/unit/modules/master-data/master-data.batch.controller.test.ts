@@ -75,6 +75,7 @@ describe("master-data batch controllers", () => {
       "purchase",
       undefined,
       undefined,
+      undefined,
     );
     const body = res.body as { success: boolean; data: unknown[] };
     expect(body.success).toBe(true);
@@ -91,6 +92,7 @@ describe("master-data batch controllers", () => {
     expect(getProductsByCodes).toHaveBeenCalledWith(
       "TEST_COMPANY",
       [],
+      undefined,
       undefined,
       undefined,
       undefined,

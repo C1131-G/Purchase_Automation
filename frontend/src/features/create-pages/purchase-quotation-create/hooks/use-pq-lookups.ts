@@ -1,5 +1,5 @@
 /** usePqLookups: Orchestrates Vendor and logistics lookups for Purchase Quotations. */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createSharedQueries as purchaseQuotationCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -8,7 +8,6 @@ import { formatAddressForDisplay } from "@/features/create-pages/create-shared/u
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
-import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/purchase-quotation-create/utils/pq-create.utils";
 import type { PQHeaderState } from "@/store/create/pq-create.store";
 
@@ -36,7 +35,6 @@ export function usePqLookups({
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
-  const queryClient = useQueryClient();
   // Master Data Queries: Backing lookups for vendors, warehouses, and Buyers.
   // Errors here are surface-propagated to the orchestrator for UI-level display.
   const vendorsQuery = useQuery(purchaseQuotationCreateQueries.vendors());
@@ -156,14 +154,7 @@ export function usePqLookups({
     setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
-    void queryClient.prefetchQuery(
-      purchaseQuotationCreateQueries.products(
-        item.code,
-        undefined,
-        QUICK_PRODUCT_LIMIT,
-        "purchase",
-      ),
-    );
+    // Products load only after vendor CardCode (OSCN ∩ OITM) — no full OITM prefetch.
     setWarehouseFocused(false);
     onWarehouseSelected?.(item.code);
     closeModal();

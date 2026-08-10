@@ -164,6 +164,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
   });
 
   const productsHook = useSqProducts({
+    customerCardCode: header.vendorCode || lookups.codeInput.trim() || undefined,
     customerLookupToken: `${lookups.codeInput.trim().toLowerCase()}::${lookups.nameInput.trim().toLowerCase()}`,
     customerSelected: Boolean(lookups.codeInput || lookups.nameInput),
     effectiveWarehouseCode: lookups.effectiveWarehouseCode,
@@ -346,10 +347,12 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
           ...new Set(detailLines.map((line) => String(line.ItemCode ?? "").trim())),
         ].filter(Boolean);
 
+        const customerCode = String(detail.CardCode ?? "").trim();
         const productByCode = await resolveHydrateProductMeta(
           queryClient,
           uniqueItemCodes,
           "sales",
+          { cardCode: customerCode || undefined },
         );
         const stockByItemCode = new Map<string, number>();
 

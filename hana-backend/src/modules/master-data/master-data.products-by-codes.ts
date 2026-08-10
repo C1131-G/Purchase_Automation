@@ -1,6 +1,6 @@
 /**
  * Batch product meta by exact ItemCode list (document hydrate / copy-from).
- * One HANA load for many line items instead of N search(limit=1) calls.
+ * Requires CardCode: only OSCN ∩ OITM codes for that BP are returned.
  */
 import { In } from "typeorm";
 
@@ -15,6 +15,7 @@ import { TaxGroupSchema } from "@/db/schemas/tax-group.schema";
 import { UnitOfMeasurementSchema } from "@/db/schemas/unit-of-measurement.schema";
 
 import { toTrimmed } from "./master-data.lookup-cache";
+import { loadOscnMatchedItemCodes } from "./master-data.oscn";
 import { mapProductResults } from "./master-data.products-map";
 import { MAX_MASTER_DATA_BATCH_CODES, parseItemCodesParam } from "./master-data.batch-utils";
 
@@ -28,26 +29,35 @@ export const getProductsByCodes = async (
   type?: "sales" | "purchase",
   priceList?: number,
   warehouseCode?: string,
+  cardCode?: string,
 ) => {
   const itemCodes = [...new Set(codes.map((code) => toTrimmed(code)).filter(Boolean))].slice(
     0,
     MAX_MASTER_DATA_BATCH_CODES,
   );
+  const normalizedCardCode = toTrimmed(cardCode);
 
-  if (itemCodes.length === 0) {
+  if (itemCodes.length === 0 || !normalizedCardCode) {
     return [];
   }
 
   const normalizedWarehouseCode = toTrimmed(warehouseCode);
   const typeToken = type || "default";
   const priceListToken = priceList !== undefined ? String(priceList) : "default";
-  // Stable cache key: sorted codes so order of query does not thrash cache.
   const codesKey = [...itemCodes].sort().join("|");
-  const cacheKey = `master:${dbName}:ProductsByCodes:v1:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:${codesKey}`;
+  const cacheKey = `master:${dbName}:ProductsByCodes:v2:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
 
   return getCachedData(
     cacheKey,
-    () => loadProductsByCodesForTenant(dbName, itemCodes, type, priceList, normalizedWarehouseCode),
+    () =>
+      loadProductsByCodesForTenant(
+        dbName,
+        itemCodes,
+        type,
+        priceList,
+        normalizedWarehouseCode,
+        normalizedCardCode,
+      ),
     PRODUCTS_BY_CODES_TTL_MS,
   );
 };
@@ -58,6 +68,7 @@ async function loadProductsByCodesForTenant(
   type: "sales" | "purchase" | undefined,
   priceList: number | undefined,
   normalizedWarehouseCode: string,
+  normalizedCardCode: string,
 ) {
   const [adminSettings, taxGroups, uoms, ugpLines] = await Promise.all([
     getCachedData(
@@ -118,8 +129,19 @@ async function loadProductsByCodesForTenant(
     ),
   ]);
 
+  const { oscnByItemCode, itemCodes: matchedCodes } = await loadOscnMatchedItemCodes(
+    dbName,
+    normalizedCardCode,
+    type,
+    { itemCodes },
+  );
+
+  if (matchedCodes.length === 0) {
+    return [];
+  }
+
   const repository = await getTenantRepository(dbName, ItemSchema);
-  const query = repository
+  const items = await repository
     .createQueryBuilder("item")
     .select([
       "item.ItemCode",
@@ -135,21 +157,26 @@ async function loadProductsByCodesForTenant(
       "item.DfltWH",
       "item.UgpEntry",
     ])
-    .where("item.ItemCode IN (:...itemCodes)", { itemCodes })
-    .andWhere("item.frozenFor = :active", { active: "N" });
+    .where("item.ItemCode IN (:...itemCodes)", { itemCodes: matchedCodes })
+    .andWhere("item.frozenFor = :active", { active: "N" })
+    .getMany();
 
-  if (type === "sales") {
-    query.andWhere("item.SellItem = :sellItem", { sellItem: "Y" });
-  } else if (type === "purchase") {
-    query.andWhere("item.PrchseItem = :prchseItem", { prchseItem: "Y" });
-  }
-
-  const items = await query.getMany();
   if (items.length === 0) {
     return [];
   }
 
-  const foundCodes = items.map((item) => toTrimmed(item.ItemCode)).filter(Boolean);
+  const itemsWithCatalog = items.map((item) => {
+    const code = toTrimmed(item.ItemCode);
+    const oscn = oscnByItemCode.get(code);
+    return {
+      ...item,
+      ItemName: oscn?.Descriptio || item.ItemName,
+      CardCode: oscn?.CardCode ?? normalizedCardCode,
+      Substitute: oscn?.Substitute ?? "",
+    };
+  });
+
+  const foundCodes = itemsWithCatalog.map((item) => toTrimmed(item.ItemCode)).filter(Boolean);
 
   const [itemStocks, itemPrices] = await Promise.all([
     (async () => {
@@ -195,7 +222,7 @@ async function loadProductsByCodesForTenant(
   );
 
   return mapProductResults({
-    items,
+    items: itemsWithCatalog,
     itemStocks,
     itemPrices,
     priceList,

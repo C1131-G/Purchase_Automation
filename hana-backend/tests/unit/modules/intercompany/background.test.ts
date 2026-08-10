@@ -81,10 +81,24 @@ const createBackgroundStack = () => {
     queries: createRfqQueries(sql),
   });
   const scheduler = createSchedulerService(sql);
+  // Identity map: unit tests must not hit HANA OSCN (same as flow-1.test.ts).
   const flow1 = createFlow1Orchestrator({
     configuration,
     documentMap,
     history,
+    mapItems: async (input) => {
+      const map = new Map();
+      for (const code of input.itemCodes) {
+        const sourceItemCode = String(code ?? "").trim();
+        if (!sourceItemCode) continue;
+        map.set(sourceItemCode, {
+          description: "",
+          partnerItemCode: sourceItemCode,
+          sourceItemCode,
+        });
+      }
+      return map;
+    },
     notifications,
     resolvePartner,
     rfq,

@@ -25,6 +25,23 @@ describe("uniqueHydrateItemCodes", () => {
 });
 
 describe("resolveHydrateProductMeta", () => {
+  const partnerCard = "V-TEST";
+
+  it("returns empty when cardCode is missing", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const fetchQuery = vi.spyOn(queryClient, "fetchQuery");
+
+    const map = await resolveHydrateProductMeta(queryClient, ["SKU-1"], "purchase");
+
+    expect(map.size).toBe(0);
+    expect(fetchQuery).not.toHaveBeenCalled();
+
+    fetchQuery.mockRestore();
+    queryClient.clear();
+  });
+
   it("uses one products-by-codes batch call for multiple line items", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -42,6 +59,7 @@ describe("resolveHydrateProductMeta", () => {
       queryClient,
       ["SKU-1", "SKU-2", "SKU-1"],
       "purchase",
+      { cardCode: partnerCard },
     );
 
     expect(map.get("SKU-1")?.code).toBe("SKU-1");
@@ -69,12 +87,15 @@ describe("resolveHydrateProductMeta", () => {
     const { createSharedQueries } =
       await import("@/features/create-pages/create-shared/api/create-shared.queries");
     queryClient.setQueryData(
-      createSharedQueries.products(undefined, "CACHED", 1, "purchase").queryKey,
+      createSharedQueries.products(undefined, "CACHED", 1, "purchase", undefined, partnerCard)
+        .queryKey,
       [product("CACHED", 15)],
     );
     const fetchQuery = vi.spyOn(queryClient, "fetchQuery");
 
-    const map = await resolveHydrateProductMeta(queryClient, ["CACHED"], "purchase");
+    const map = await resolveHydrateProductMeta(queryClient, ["CACHED"], "purchase", {
+      cardCode: partnerCard,
+    });
 
     expect(map.get("CACHED")?.taxRate).toBe(15);
     expect(fetchQuery).not.toHaveBeenCalled();
@@ -92,12 +113,17 @@ describe("resolveHydrateProductMeta", () => {
       if (key.includes("products-by-codes")) {
         throw new Error("batch unavailable");
       }
-      // products key shape: [..., warehouse, search, limit, type, priceList]
-      const search = String(key[key.length - 4] ?? "");
-      return [product(search || "X")];
+      // products key includes search near warehouse / limit / type / cardCode
+      if (key.includes("products-v2")) {
+        const search = String(key[3] ?? "");
+        return [product(search || "X")];
+      }
+      return [];
     });
 
-    const map = await resolveHydrateProductMeta(queryClient, ["SKU-1", "SKU-2"], "purchase");
+    const map = await resolveHydrateProductMeta(queryClient, ["SKU-1", "SKU-2"], "purchase", {
+      cardCode: partnerCard,
+    });
 
     expect(map.get("SKU-1")?.code).toBe("SKU-1");
     expect(map.get("SKU-2")?.code).toBe("SKU-2");

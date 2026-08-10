@@ -3,6 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { authKeys } from "@/features/auth/api/auth.queries";
 import { authAPI } from "@/features/auth/api/auth.service";
 import { ShellLayout } from "@/features/layout/components/ShellLayout";
+import { ShellPendingFallback } from "@/features/layout/components/shell-pending-fallback";
 import { ApiError } from "@/shared/api/client";
 import { useAuthStore } from "@/store/auth/auth.store";
 
@@ -30,5 +31,7 @@ export const Route = createFileRoute("/_layout")({
       throw error;
     }
   },
+  // Keep sidebar visible while session hydrate / first paint — not content-only skeleton.
+  pendingComponent: ShellPendingFallback,
   component: ShellLayout,
 });

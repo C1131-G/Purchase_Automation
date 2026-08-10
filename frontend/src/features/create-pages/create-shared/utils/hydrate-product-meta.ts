@@ -3,6 +3,7 @@
  *
  * Never loads a full warehouse product catalog (FULL_PRODUCT_LIMIT).
  * Prefers one batch master-data call for all line item codes (Phase 2).
+ * Requires partner cardCode so only OSCN ∩ OITM items resolve.
  * Warehouse stock is optional and must not block first paint (batch stocks).
  */
 import type { QueryClient } from "@tanstack/react-query";
@@ -44,9 +45,18 @@ const seedPerCodeProductCache = (
   queryClient: QueryClient,
   productByCode: Map<string, ProductLookupItem>,
   type: ProductItemType,
+  cardCode?: string,
 ): void => {
+  const partnerCode = cardCode?.trim() || undefined;
   for (const [itemCode, product] of productByCode) {
-    const singleOptions = createSharedQueries.products(undefined, itemCode, 1, type);
+    const singleOptions = createSharedQueries.products(
+      undefined,
+      itemCode,
+      1,
+      type,
+      undefined,
+      partnerCode,
+    );
     if (!queryClient.getQueryData(singleOptions.queryKey)) {
       queryClient.setQueryData(singleOptions.queryKey, [product]);
     }
@@ -57,23 +67,32 @@ const seedPerCodeProductCache = (
  * Resolve product master for hydrate without FULL warehouse browse.
  * Uses batch products-by-codes (O(1) network per chunk of 100).
  * Falls back to concurrent limit-1 searches if batch fails.
+ * Optional cardCode attaches BP catalog (OSCN) scope — required for non-empty results.
  */
 export async function resolveHydrateProductMeta(
   queryClient: QueryClient,
   itemCodes: Iterable<string | null | undefined>,
   type: ProductItemType = "purchase",
-  options?: { concurrency?: number },
+  options?: { concurrency?: number | undefined; cardCode?: string | undefined },
 ): Promise<Map<string, ProductLookupItem>> {
   const productByCode = new Map<string, ProductLookupItem>();
   const codes = uniqueHydrateItemCodes(itemCodes);
-  if (codes.length === 0) {
+  const partnerCode = options?.cardCode?.trim() || undefined;
+  if (codes.length === 0 || !partnerCode) {
     return productByCode;
   }
 
   // Satisfy from existing limit-1 cache first.
   const missing: string[] = [];
   for (const itemCode of codes) {
-    const singleOptions = createSharedQueries.products(undefined, itemCode, 1, type);
+    const singleOptions = createSharedQueries.products(
+      undefined,
+      itemCode,
+      1,
+      type,
+      undefined,
+      partnerCode,
+    );
     const cached = queryClient.getQueryData<ProductLookupItem[]>(singleOptions.queryKey);
     if (cached?.length) {
       const matched = matchProductForCode(cached, itemCode);
@@ -96,7 +115,6 @@ export async function resolveHydrateProductMeta(
         productByCode.set(code, product);
       }
     }
-    // Also match requested codes that map by exact code after normalize.
     for (const itemCode of missing) {
       if (productByCode.has(itemCode)) {
         continue;
@@ -111,20 +129,26 @@ export async function resolveHydrateProductMeta(
   try {
     for (const chunk of chunkCodes(missing, BATCH_CODE_CHUNK)) {
       const products = await queryClient.fetchQuery(
-        createSharedQueries.productsByCodes(chunk, type),
+        createSharedQueries.productsByCodes(chunk, type, undefined, undefined, partnerCode),
       );
       applyProducts(products);
     }
-    seedPerCodeProductCache(queryClient, productByCode, type);
+    seedPerCodeProductCache(queryClient, productByCode, type, partnerCode);
     return productByCode;
   } catch {
-    // Fallback: concurrent limit-1 (Phase 1 path) if batch endpoint unavailable.
     const concurrency = Math.max(1, options?.concurrency ?? DEFAULT_CONCURRENCY);
     let nextIndex = 0;
     const stillMissing = missing.filter((code) => !productByCode.has(code));
 
     const runOne = async (itemCode: string) => {
-      const queryOptions = createSharedQueries.products(undefined, itemCode, 1, type);
+      const queryOptions = createSharedQueries.products(
+        undefined,
+        itemCode,
+        1,
+        type,
+        undefined,
+        partnerCode,
+      );
       const products = await queryClient
         .fetchQuery(queryOptions)
         .catch((): ProductLookupItem[] => []);
@@ -149,7 +173,7 @@ export async function resolveHydrateProductMeta(
     await Promise.all(
       Array.from({ length: Math.min(concurrency, stillMissing.length) }, () => worker()),
     );
-    seedPerCodeProductCache(queryClient, productByCode, type);
+    seedPerCodeProductCache(queryClient, productByCode, type, partnerCode);
     return productByCode;
   }
 }
@@ -175,7 +199,6 @@ export function scheduleHydrateWarehouseStocks(
     const stockByItemCode = new Map<string, number>();
 
     const applyBatchRows = (rows: Array<{ itemCode: string; code: string; stock?: number }>) => {
-      // Accumulate per item (sum if multi-WH; single-WH when warehouse filtered).
       const sums = new Map<string, number>();
       for (const row of rows) {
         const itemCode = String(row.itemCode ?? "").trim();
@@ -199,7 +222,6 @@ export function scheduleHydrateWarehouseStocks(
         );
         applyBatchRows(rows);
 
-        // Seed single-item stock caches for popup/hover.
         for (const itemCode of chunk) {
           const perItem = rows
             .filter((row) => String(row.itemCode).trim() === itemCode)
@@ -217,7 +239,6 @@ export function scheduleHydrateWarehouseStocks(
         }
       }
     } catch {
-      // Fallback: N concurrent single-item stock calls.
       await Promise.all(
         codes.map(async (itemCode) => {
           const warehouseStocks = await queryClient
@@ -236,7 +257,6 @@ export function scheduleHydrateWarehouseStocks(
       );
     }
 
-    // Ensure every requested code has an entry (0 if unknown).
     for (const itemCode of codes) {
       if (!stockByItemCode.has(itemCode)) {
         stockByItemCode.set(itemCode, 0);

@@ -122,6 +122,20 @@ const createFlow1TestStack = (opts?: {
     configuration,
     documentMap,
     history,
+    // Unit tests: identity map (no HANA OSCN). Production uses real OSCN Substitute map.
+    mapItems: async (input) => {
+      const map = new Map();
+      for (const code of input.itemCodes) {
+        const sourceItemCode = String(code ?? "").trim();
+        if (!sourceItemCode) continue;
+        map.set(sourceItemCode, {
+          description: "",
+          partnerItemCode: sourceItemCode,
+          sourceItemCode,
+        });
+      }
+      return map;
+    },
     notifications,
     resolvePartner,
     rfq,

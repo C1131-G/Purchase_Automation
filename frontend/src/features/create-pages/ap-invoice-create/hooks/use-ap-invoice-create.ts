@@ -471,6 +471,7 @@ export function useAPInvoiceCreate({
           queryClient,
           uniqueItemCodes,
           "purchase",
+          { cardCode: String(detail.CardCode ?? "").trim() || undefined },
         );
         const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
 
@@ -681,6 +682,7 @@ export function useAPInvoiceCreate({
           queryClient,
           productCodes,
           "purchase",
+          { cardCode: String(detail.CardCode ?? "").trim() || undefined },
         );
         const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
 
@@ -923,6 +925,9 @@ export function useAPInvoiceCreate({
         queryClient,
         uniqueItemCodes,
         "purchase",
+        {
+          cardCode: String(primaryDetail.CardCode ?? header.vendorCode ?? "").trim() || undefined,
+        },
       );
 
       const baseType =

@@ -20,6 +20,8 @@ import type { ProductSearchFieldError } from "@/features/create-pages/sales-quot
 interface useSQProductsProps {
   effectiveWarehouseCode: string | null;
   customerLookupToken: string;
+  /** Customer CardCode — scopes product browse to OSCN ∩ OITM. */
+  customerCardCode?: string | undefined;
   productPopupOpen: boolean;
   setProductPopupOpen: (open: boolean) => void;
   productSearch: string;
@@ -31,6 +33,7 @@ interface useSQProductsProps {
 export function useSqProducts({
   effectiveWarehouseCode,
   customerLookupToken,
+  customerCardCode,
   productPopupOpen,
   setProductPopupOpen,
   productSearch,
@@ -38,6 +41,7 @@ export function useSqProducts({
   stockPreviewProductCode,
   customerSelected,
 }: useSQProductsProps) {
+  const partnerCardCode = customerCardCode?.trim() || undefined;
   const queryClient = useQueryClient();
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
@@ -71,17 +75,17 @@ export function useSqProducts({
     return effectiveWarehouseCode || undefined;
   }, [activeProductRowId, productRows, effectiveWarehouseCode]);
 
-  // Product Discovery Query: Reactively fetches products based on search term and warehouse context.
-  // Enabled only when the popup is open and a warehouse is selected to minimize redundant traffic.
+  // Product Discovery Query: OSCN ∩ OITM for selected customer only.
   const productsQuery = useQuery({
     ...salesQuotationCreateQueries.products(
-      undefined, // Pass undefined to keep search warehouse-agnostic
+      undefined,
       normalizedProductSearch || undefined,
-      // Always send a cap: browse uses progressive limit; search uses warm page size.
       normalizedProductSearch ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "sales",
+      undefined,
+      partnerCardCode,
     ),
-    enabled: productPopupOpen && customerSelected,
+    enabled: productPopupOpen && customerSelected && Boolean(partnerCardCode),
   });
 
   const products = useMemo(
@@ -95,10 +99,9 @@ export function useSqProducts({
   });
 
   const prefetchProducts = useCallback(() => {
-    if (!customerSelected) {
+    if (!customerSelected || !partnerCardCode) {
       return;
     }
-    // Same cache keys as the live popup query (warehouse-agnostic + type "sales").
     const search = normalizedProductSearch || undefined;
     void queryClient.prefetchQuery(
       salesQuotationCreateQueries.products(
@@ -106,26 +109,33 @@ export function useSqProducts({
         search,
         search ? BROWSE_PRODUCT_LIMIT : QUICK_PRODUCT_LIMIT,
         "sales",
+        undefined,
+        partnerCardCode,
       ),
     );
-    // Warm browse page as soon as customer is selected so open + scroll are cache hits.
     if (!search) {
       void queryClient.prefetchQuery(
-        salesQuotationCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "sales"),
+        salesQuotationCreateQueries.products(
+          undefined,
+          undefined,
+          BROWSE_PRODUCT_LIMIT,
+          "sales",
+          undefined,
+          partnerCardCode,
+        ),
       );
     }
-  }, [customerSelected, normalizedProductSearch, queryClient]);
+  }, [customerSelected, partnerCardCode, normalizedProductSearch, queryClient]);
 
   useEffect(() => {
-    if (!customerSelected) {
+    if (!customerSelected || !partnerCardCode) {
       return;
     }
     prefetchProducts();
-  }, [customerLookupToken, customerSelected, prefetchProducts]);
+  }, [customerLookupToken, customerSelected, partnerCardCode, prefetchProducts]);
 
-  // While the popup is open, ensure browse warm stays ahead of scroll load-more.
   useEffect(() => {
-    if (!productPopupOpen || !customerSelected) {
+    if (!productPopupOpen || !customerSelected || !partnerCardCode) {
       return;
     }
     if (normalizedProductSearch) {
@@ -141,11 +151,19 @@ export function useSqProducts({
       return;
     }
     void queryClient.prefetchQuery(
-      salesQuotationCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "sales"),
+      salesQuotationCreateQueries.products(
+        undefined,
+        undefined,
+        BROWSE_PRODUCT_LIMIT,
+        "sales",
+        undefined,
+        partnerCardCode,
+      ),
     );
   }, [
     productPopupOpen,
     customerSelected,
+    partnerCardCode,
     normalizedProductSearch,
     productsQuery.isFetching,
     productsQuery.isError,

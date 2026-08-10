@@ -133,6 +133,9 @@ export function mapProductResults(args: {
       }
     }
 
+    const substitute = toTrimmed(item.Substitute);
+    const cardCode = toTrimmed(item.CardCode);
+
     return {
       Currency: resolvedCurrency,
       ItemCode: normalizedItemCode,
@@ -151,6 +154,8 @@ export function mapProductResults(args: {
       Uom: salesUomText,
       UomList: uomList,
       Warehouse: normalizedWarehouseCode || item.DfltWH || "",
+      ...(cardCode ? { CardCode: cardCode } : {}),
+      ...(substitute ? { Substitute: substitute } : {}),
       id: normalizedItemCode,
       productCode: normalizedItemCode,
       productName: item.ItemName,

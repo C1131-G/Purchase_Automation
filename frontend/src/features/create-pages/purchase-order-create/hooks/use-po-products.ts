@@ -22,6 +22,8 @@ import type { ProductSearchFieldError } from "@/features/create-pages/purchase-o
 interface UsePoProductsProps {
   effectiveWarehouseCode: string | null;
   vendorLookupToken: string;
+  /** Vendor CardCode — scopes product browse/search to OSCN ∩ OITM. */
+  vendorCardCode?: string | undefined;
   productPopupOpen: boolean;
   setProductPopupOpen: (open: boolean) => void;
   productSearch: string;
@@ -36,6 +38,7 @@ interface UsePoProductsProps {
 export function usePoProducts({
   effectiveWarehouseCode,
   vendorLookupToken,
+  vendorCardCode,
   productPopupOpen,
   setProductPopupOpen,
   productSearch,
@@ -46,6 +49,7 @@ export function usePoProducts({
   productRows,
   setProductRows,
 }: UsePoProductsProps) {
+  const partnerCardCode = vendorCardCode?.trim() || undefined;
   const queryClient = useQueryClient();
   const [productRowDrafts, setProductRowDrafts] = useState<Record<string, ProductRowDraft>>({});
   const [activeProductRowId, setActiveProductRowId] = useState<string | null>(null);
@@ -83,8 +87,10 @@ export function usePoProducts({
       // Always send a cap: browse uses progressive limit; search uses warm page size.
       normalizedProductSearch ? BROWSE_PRODUCT_LIMIT : productQueryLimit,
       "purchase",
+      undefined,
+      partnerCardCode,
     ),
-    enabled: productPopupOpen && vendorSelected,
+    enabled: productPopupOpen && vendorSelected && Boolean(partnerCardCode),
   });
 
   const products = useMemo(
@@ -97,30 +103,33 @@ export function usePoProducts({
     enabled: Boolean(stockPreviewProductCode),
   });
 
+  // Prefetch only OSCN-scoped catalog for the selected vendor (never full OITM).
   const prefetchProducts = useCallback(() => {
-    if (!vendorSelected) {
+    if (!vendorSelected || !partnerCardCode) {
       return;
     }
     void queryClient.prefetchQuery(
       purchaseOrderCreateQueries.products(
-        undefined, // Pass undefined to keep search warehouse-agnostic
+        undefined,
         normalizedProductSearch || undefined,
         QUICK_PRODUCT_LIMIT,
         "purchase",
+        undefined,
+        partnerCardCode,
       ),
     );
-  }, [vendorSelected, normalizedProductSearch, queryClient]);
+  }, [vendorSelected, partnerCardCode, normalizedProductSearch, queryClient]);
 
   useEffect(() => {
-    if (!vendorSelected) {
+    if (!vendorSelected || !partnerCardCode) {
       return;
     }
     prefetchProducts();
-  }, [vendorLookupToken, vendorSelected, prefetchProducts]);
+  }, [vendorLookupToken, vendorSelected, partnerCardCode, prefetchProducts]);
 
   // After the quick first page settles, warm the full browse page so scroll load-more is instant.
   useEffect(() => {
-    if (!productPopupOpen || !vendorSelected) {
+    if (!productPopupOpen || !vendorSelected || !partnerCardCode) {
       return;
     }
     if (normalizedProductSearch) {
@@ -136,11 +145,19 @@ export function usePoProducts({
       return;
     }
     void queryClient.prefetchQuery(
-      purchaseOrderCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "purchase"),
+      purchaseOrderCreateQueries.products(
+        undefined,
+        undefined,
+        BROWSE_PRODUCT_LIMIT,
+        "purchase",
+        undefined,
+        partnerCardCode,
+      ),
     );
   }, [
     productPopupOpen,
     vendorSelected,
+    partnerCardCode,
     normalizedProductSearch,
     productsQuery.isFetching,
     productsQuery.isError,

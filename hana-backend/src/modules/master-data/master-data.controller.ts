@@ -29,6 +29,7 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
         : typeof req.query.priceList === "string" && req.query.priceList.trim() !== ""
           ? Number(req.query.priceList)
           : undefined;
+    const cardCode = typeof req.query.cardCode === "string" ? req.query.cardCode : undefined;
     const productsResult = await masterDataService.getProducts(
       dbName,
       warehouseCode,
@@ -36,6 +37,7 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
       limit,
       type,
       priceList,
+      cardCode,
     );
     res.status(200).json({ data: productsResult, success: true });
   } catch (error) {
@@ -76,12 +78,14 @@ export const getProductsByCodes = async (req: Request, res: Response, next: Next
         : typeof req.query.priceList === "string" && req.query.priceList.trim() !== ""
           ? Number(req.query.priceList)
           : undefined;
+    const cardCode = typeof req.query.cardCode === "string" ? req.query.cardCode : undefined;
     const productsResult = await masterDataService.getProductsByCodes(
       dbName,
       codes,
       type,
       priceList,
       warehouseCode,
+      cardCode,
     );
     res.status(200).json({ data: productsResult, success: true });
   } catch (error) {

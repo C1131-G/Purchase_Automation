@@ -1,5 +1,5 @@
 /** usePOLookups: Manages specialized vendor and product lookups for the PO flow. */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createSharedQueries as purchaseOrderCreateQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
@@ -8,7 +8,6 @@ import { formatAddressForDisplay } from "@/features/create-pages/create-shared/u
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
-import { QUICK_PRODUCT_LIMIT } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/purchase-order-create/utils/po-create.utils";
 import type { POHeaderState } from "@/store/create/po-create.store";
 
@@ -44,7 +43,6 @@ export function usePoLookups({
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
-  const queryClient = useQueryClient();
   // Master Data Queries: Backing lookups for vendors, warehouses, and sales employees.
   // Errors here are surface-propagated to the orchestrator for UI-level display.
   const vendorsQuery = useQuery(purchaseOrderCreateQueries.vendors());
@@ -199,9 +197,7 @@ export function usePoLookups({
     setWarehouseInput(formatWarehouseDisplay(item.name, item.code));
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
-    void queryClient.prefetchQuery(
-      purchaseOrderCreateQueries.products(item.code, undefined, QUICK_PRODUCT_LIMIT),
-    );
+    // Do not prefetch full OITM — products load only after vendor CardCode (OSCN).
     setWarehouseFocused(false);
     onWarehouseSelected?.(item.code);
     closeModal();

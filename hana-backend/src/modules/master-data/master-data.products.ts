@@ -4,7 +4,7 @@ import { toTrimmed } from "./master-data.lookup-cache";
 import { loadProductsForTenant } from "./master-data.products-load";
 
 const PRODUCTS_TTL_MS = 1000 * 60 * 10;
-/** Cap unbounded search so LOWER(LIKE) scans cannot return entire OITM. */
+/** Cap unbounded search so catalog search cannot return entire OSCN. */
 const SEARCH_RESULT_CAP = 100;
 /** Browse list default when client omits limit. */
 const DEFAULT_BROWSE_LIMIT = 100;
@@ -22,8 +22,9 @@ const buildProductsCacheKey = (
   limitToken: string,
   type: string,
   priceListToken: string,
+  cardCodeToken: string,
 ) =>
-  `master:${dbName}:Products:v12:${warehouseCode || "default"}:${searchKey}:${limitToken}:${type}:pl${priceListToken}`;
+  `master:${dbName}:Products:v15:${warehouseCode || "default"}:${searchKey}:${limitToken}:${type}:pl${priceListToken}:bp${cardCodeToken || "none"}`;
 
 export const getProducts = async (
   dbName: string,
@@ -32,9 +33,16 @@ export const getProducts = async (
   limit?: number,
   type?: "sales" | "purchase",
   priceList?: number,
+  cardCode?: string,
 ) => {
   const normalizedWarehouseCode = toTrimmed(warehouseCode);
   const normalizedSearch = toTrimmed(search);
+  const normalizedCardCode = toTrimmed(cardCode);
+  // Strict: products only for a selected vendor/customer BP catalog.
+  if (!normalizedCardCode) {
+    return [];
+  }
+
   const cacheSearchKey = normalizedSearch ? normalizedSearch.toLowerCase() : "all";
   const typeToken = type || "default";
   const priceListToken = priceList !== undefined ? String(priceList) : "default";
@@ -44,7 +52,7 @@ export const getProducts = async (
       ? Math.max(1, Math.min(500, limit))
       : undefined;
 
-  // ── Search path: always cap results; cache per search term + limit ──
+  // ── Search path: always cap results; cache per search term + limit + cardCode ──
   if (normalizedSearch) {
     const searchLimit = Math.min(resolvedLimit ?? SEARCH_RESULT_CAP, SEARCH_RESULT_CAP);
     const cacheKey = buildProductsCacheKey(
@@ -54,6 +62,7 @@ export const getProducts = async (
       String(searchLimit),
       typeToken,
       priceListToken,
+      normalizedCardCode,
     );
     return getCachedData(
       cacheKey,
@@ -66,6 +75,7 @@ export const getProducts = async (
           DEFAULT_BROWSE_LIMIT,
           type,
           priceList,
+          normalizedCardCode,
         ),
       PRODUCTS_TTL_MS,
     );
@@ -82,13 +92,13 @@ export const getProducts = async (
       String(limitToken),
       typeToken,
       priceListToken,
+      normalizedCardCode,
     );
 
-  // Prefer an exact or larger already-cached browse page, then slice.
   const candidateLimits = [
     ...new Set(
       [requestedLimit, BROWSE_WARM_LIMIT, DEFAULT_BROWSE_LIMIT, ...BROWSE_SEED_LIMITS].filter(
-        (limit) => limit >= requestedLimit,
+        (limitValue) => limitValue >= requestedLimit,
       ),
     ),
   ].sort((left, right) => left - right);
@@ -100,8 +110,6 @@ export const getProducts = async (
     }
   }
 
-  // First paint (quick limit): fetch only what was asked so popup opens fast.
-  // Expansion (limit > quick): warm BROWSE_WARM_LIMIT once and seed smaller pages.
   const quickLimit = BROWSE_SEED_LIMITS[0];
   const fetchLimit =
     requestedLimit <= quickLimit ? requestedLimit : Math.max(requestedLimit, BROWSE_WARM_LIMIT);
@@ -117,11 +125,11 @@ export const getProducts = async (
         DEFAULT_BROWSE_LIMIT,
         type,
         priceList,
+        normalizedCardCode,
       ),
     PRODUCTS_TTL_MS,
   );
 
-  // Seed smaller progressive limits from the warm page (no extra HANA work).
   if (Array.isArray(rows) && fetchLimit >= BROWSE_WARM_LIMIT) {
     for (const seed of BROWSE_SEED_LIMITS) {
       if (seed < fetchLimit) {

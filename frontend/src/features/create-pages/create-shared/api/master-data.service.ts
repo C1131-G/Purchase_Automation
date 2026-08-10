@@ -17,6 +17,8 @@ interface MasterDataQuery {
   itemCodes?: string[] | string;
   type?: "sales" | "purchase";
   priceList?: string; // price list code (e.g. "1", "-1", "-2")
+  /** BP CardCode — scopes product list to OSCN ∩ OITM for that partner. */
+  cardCode?: string;
 }
 
 const joinCodes = (codes: string[] | string | undefined): string => {
@@ -51,12 +53,13 @@ export const masterDataAPI = {
       `/api/v1/master-data/product-warehouse-stocks?${query.toString()}`,
     );
   },
-  /** Batch product meta by exact ItemCodes (document hydrate). */
+  /** Batch product meta by exact ItemCodes (document hydrate). Requires cardCode (OSCN). */
   getProductsByCodes: async (params: {
     codes: string[] | string;
     type?: "sales" | "purchase";
     priceList?: string;
     warehouseCode?: string;
+    cardCode?: string;
   }) => {
     const query = new URLSearchParams();
     const codes = joinCodes(params.codes);
@@ -71,6 +74,9 @@ export const masterDataAPI = {
     }
     if (params.warehouseCode) {
       query.set("warehouseCode", params.warehouseCode);
+    }
+    if (params.cardCode) {
+      query.set("cardCode", params.cardCode);
     }
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/products-by-codes?${query.toString()}`,
@@ -110,6 +116,9 @@ export const masterDataAPI = {
     }
     if (params?.priceList !== undefined && params.priceList !== "") {
       query.set("priceList", params.priceList);
+    }
+    if (params?.cardCode) {
+      query.set("cardCode", params.cardCode);
     }
     return apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/products?${query.toString()}`,

@@ -1,5 +1,5 @@
 /** useSqLookups: Orchestrates customer and logistics lookups for Sales Quotations. */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { formatAddressForDisplay } from "@/features/create-pages/create-shared/utils/address.utils";
@@ -8,10 +8,6 @@ import type { ProductLookupItem } from "@/features/create-pages/create-shared/ap
 import type { LookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
 import { formatWarehouseDisplay } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import { rankAndLimitLookupOptions } from "@/features/create-pages/create-shared/utils/rank-lookup-options";
-import {
-  BROWSE_PRODUCT_LIMIT,
-  QUICK_PRODUCT_LIMIT,
-} from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
 import type { ProductSearchFieldError } from "@/features/create-pages/sales-quotation-create/utils/sq-create.utils";
 import type { SQHeaderState } from "@/store/create/sq-create.store";
 
@@ -39,7 +35,6 @@ export function useSqLookups({
     return Number.isFinite(parsed) ? String(Math.trunc(parsed)) : raw.toLowerCase();
   };
 
-  const queryClient = useQueryClient();
   // Master Data Queries: Backing lookups for customers, warehouses, and sales employees.
   // Errors here are surface-propagated to the orchestrator for UI-level display.
   const vendorsQuery = useQuery(salesQuotationCreateQueries.customers());
@@ -158,12 +153,7 @@ export function useSqLookups({
     setHeader({ warehouseCode: item.code });
     clearFieldError("warehouseCode");
     // Match product popup keys: warehouse-agnostic + type "sales" (not warehouse-scoped).
-    void queryClient.prefetchQuery(
-      salesQuotationCreateQueries.products(undefined, undefined, QUICK_PRODUCT_LIMIT, "sales"),
-    );
-    void queryClient.prefetchQuery(
-      salesQuotationCreateQueries.products(undefined, undefined, BROWSE_PRODUCT_LIMIT, "sales"),
-    );
+    // Products load only after customer CardCode (OSCN ∩ OITM) — no full OITM prefetch.
     setWarehouseFocused(false);
     onWarehouseSelected?.(item.code);
     closeModal();

@@ -511,6 +511,7 @@ export function useGRPOCreate({
           queryClient,
           uniqueItemCodes,
           "purchase",
+          { cardCode: String(detail.CardCode ?? "").trim() || undefined },
         );
         const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
         const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
@@ -747,6 +748,7 @@ export function useGRPOCreate({
           queryClient,
           uniqueItemCodes,
           "purchase",
+          { cardCode: String(detail.CardCode ?? "").trim() || undefined },
         );
         const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
         const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
@@ -1030,6 +1032,9 @@ export function useGRPOCreate({
           queryClient,
           uniqueItemCodes,
           "purchase",
+          {
+            cardCode: String(primaryDetail.CardCode ?? "").trim() || undefined,
+          },
         );
         const stockByItemCode = new Map<string, { code: string; stock: number }[]>();
         const taxRateByItemCode = taxRatesFromProductMeta(productByCode);

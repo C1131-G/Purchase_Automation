@@ -496,6 +496,7 @@ export function useAPCreditMemoCreate({
           queryClient,
           uniqueItemCodes,
           "purchase",
+          { cardCode: String(detail.CardCode ?? "").trim() || undefined },
         );
         const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
         const resolvedHeaderDiscountPercent = Number(
@@ -702,6 +703,7 @@ export function useAPCreditMemoCreate({
           queryClient,
           productCodes,
           "purchase",
+          { cardCode: String(detail.CardCode ?? "").trim() || undefined },
         );
         const taxRateByItemCode = taxRatesFromProductMeta(productByCode);
 
@@ -947,6 +949,9 @@ export function useAPCreditMemoCreate({
           queryClient,
           uniqueItemCodes,
           "purchase",
+          {
+            cardCode: String(primaryDetail.CardCode ?? "").trim() || undefined,
+          },
         );
 
         const baseType = 18; // AP Invoice BaseType
