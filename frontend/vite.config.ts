@@ -9,27 +9,19 @@ import { defineConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Ensure PWA PNG icons are in public/icons
-const copyPwaIcons = () => {
-  const sourcePath =
-    "C:/Users/Administrator/.gemini/antigravity/brain/7fca5bc5-da8c-472e-8d44-3423dea37e72/vendor_portal_pwa_icon_1782100287329.png";
+// Ensure PWA PNG icons directory exists in public/icons
+const ensurePwaIconsDir = () => {
   const targetDir = path.join(__dirname, "public", "icons");
-
   try {
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
-
-    if (fs.existsSync(sourcePath)) {
-      fs.copyFileSync(sourcePath, path.join(targetDir, "icon-512.png"));
-      fs.copyFileSync(sourcePath, path.join(targetDir, "icon-192.png"));
-    }
   } catch (error) {
-    console.error("Failed to copy PWA icons:", error);
+    console.error("Failed to create PWA icons directory:", error);
   }
 };
 
-copyPwaIcons();
+ensurePwaIconsDir();
 
 // https://vite.dev/config/
 export default defineConfig({

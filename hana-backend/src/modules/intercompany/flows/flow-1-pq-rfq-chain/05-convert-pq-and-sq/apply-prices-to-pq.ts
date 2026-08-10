@@ -7,61 +7,39 @@ const toFinite = (value: unknown, fallback = 0): number => {
 };
 
 /**
- * Map RFQ seller-filled commercial fields onto SAP DocumentLines shape for the buyer PQ.
- * Must include qty / price / disc% / tax so SL PATCH (replace collection) does not zero totals.
+ * Map RFQ seller-filled commercial fields onto SAP DocumentLines for the buyer PQ PATCH.
+ *
+ * Only commercial fields (matched by LineNum onto existing PQ lines):
+ *   Quantity, UnitPrice, DiscountPercent, ReqDate (required date).
+ *
+ * Never send ItemCode, ItemDescription, tax, WH, UoM — buyer PQ keeps original
+ * item master code/description (and other non-commercial line data) from GET.
+ * RFQ ItemCode may be partner OSCN.Substitute; overwriting causes SL 404 -2028.
+ * Disc amount in SAP follows DiscountPercent on the line (no separate RFQ field).
  */
 export const buildRfqCommercialDocumentLines = (lines: IcRfqLine[]): Record<string, unknown>[] =>
   lines.map((line) => {
     const quantity = toFinite(line.quantity, 0);
     const unitPrice = line.unitPrice == null ? 0 : toFinite(line.unitPrice, 0);
     const discount = line.discount == null ? 0 : toFinite(line.discount, 0);
-    const requiredQtyRaw =
-      line.requiredQuantity != null && Number(line.requiredQuantity) > 0
-        ? toFinite(line.requiredQuantity, quantity)
-        : quantity;
 
     const docLine: Record<string, unknown> = {
       DiscountPercent: discount,
-      ItemCode: line.itemCode,
       LineNum: line.lineNum,
       Quantity: quantity,
-      RequiredQuantity: requiredQtyRaw,
       UnitPrice: unitPrice,
     };
 
-    const tax = line.taxCode?.trim();
-    if (tax) {
-      // Buyer PQ keeps buyer purchase tax (RFQ tax snapshot from original PQ).
-      docLine.VatGroup = tax;
-    }
-
-    if (line.warehouse?.trim()) {
-      docLine.WarehouseCode = line.warehouse.trim();
-    }
-
-    if (line.uomCode?.trim()) {
-      docLine.UoMCode = line.uomCode.trim();
-      docLine.UseBaseUnit = "tNO";
-    }
-
-    if (line.deliveryDate) {
-      docLine.ShipDate = line.deliveryDate;
-    }
-
-    if (line.requiredDate) {
-      docLine.ReqDate = line.requiredDate;
-    } else if (line.deliveryDate) {
-      docLine.ReqDate = line.deliveryDate;
-    }
-
-    if (line.description?.trim()) {
-      docLine.ItemDescription = line.description.trim();
+    // Required date only (not ShipDate / delivery) — retain other PQ line dates if unset.
+    const requiredDate = line.requiredDate?.trim() || line.deliveryDate?.trim() || "";
+    if (requiredDate) {
+      docLine.ReqDate = requiredDate;
     }
 
     return docLine;
   });
 
-/** Patch buyer PQ lines with RFQ qty / price / disc / tax / delivery (update existing PQ). */
+/** Patch buyer PQ lines with RFQ qty / price / disc% / required date only. */
 export const applyPricesToPq = async (params: {
   documents: IcSlDocuments;
   buyerCompanyId: number;

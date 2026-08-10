@@ -433,14 +433,15 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(converted).toBe(false);
     expect(appliedDocEntry).toBe(70);
     expect(sqCreated).toBe(true);
-    // Seller-filled qty/price/disc% (+ tax from RFQ snapshot) must reach SL.
+    // Seller-filled qty/price/disc% only — ItemCode/description/tax stay on buyer PQ via merge.
     expect(appliedLines[0]).toMatchObject({
       DiscountPercent: 10,
-      ItemCode: "ITEM1",
       Quantity: 3,
       UnitPrice: 40,
-      VatGroup: "IN-12.5",
     });
+    expect(appliedLines[0]?.ItemCode).toBeUndefined();
+    expect(appliedLines[0]?.ItemDescription).toBeUndefined();
+    expect(appliedLines[0]?.VatGroup).toBeUndefined();
     // Parent remarks (one path): patch apply keeps parent text + PQ/RFQ after submit.
     expect(sqCommentsOnPatch).toContain("Parent typed on PQ");
     expect(sqCommentsOnPatch).toContain("PQ 70");
@@ -470,16 +471,17 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     );
   });
 
-  it("T6.5b commercial line map + merge keeps tax/qty/price/disc", () => {
+  it("T6.5b commercial line map patches only qty/price/disc/reqDate", () => {
     const built = buildRfqCommercialDocumentLines([
       {
         deliveryDate: "2026-06-01",
-        description: "Widget",
+        description: "RFQ partner name (must not land on PQ)",
         discount: 12.5,
-        itemCode: "W1",
+        itemCode: "PARTNER-W1",
         lineNum: 0,
         quantity: 4,
         remarks: null,
+        requiredDate: "2026-06-15",
         requiredQuantity: 5,
         rfqId: 1,
         rfqLineId: 1,
@@ -491,22 +493,25 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     ]);
     expect(built[0]).toMatchObject({
       DiscountPercent: 12.5,
-      ItemCode: "W1",
       Quantity: 4,
-      RequiredQuantity: 5,
+      ReqDate: "2026-06-15",
       UnitPrice: 100,
-      VatGroup: "IN-12.5",
-      WarehouseCode: "WH01",
     });
+    // Do not push partner item / description / tax / WH onto buyer PQ.
+    expect(built[0]?.ItemCode).toBeUndefined();
+    expect(built[0]?.ItemDescription).toBeUndefined();
+    expect(built[0]?.VatGroup).toBeUndefined();
+    expect(built[0]?.WarehouseCode).toBeUndefined();
 
     const merged = mergeDocumentLinesByLineNum(
       [
         {
-          ItemCode: "W1",
+          ItemCode: "BUYER-W1",
+          ItemDescription: "Original PQ description",
           LineNum: 0,
           Quantity: 1,
           UnitPrice: 0,
-          VatGroup: "OLD-TAX",
+          VatGroup: "IN-12.5",
           WarehouseCode: "WH01",
         },
       ],
@@ -514,7 +519,10 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     );
     expect(merged[0]).toMatchObject({
       DiscountPercent: 12.5,
+      ItemCode: "BUYER-W1",
+      ItemDescription: "Original PQ description",
       Quantity: 4,
+      ReqDate: "2026-06-15",
       UnitPrice: 100,
       VatGroup: "IN-12.5",
       WarehouseCode: "WH01",
