@@ -223,16 +223,16 @@ export function OpenWorkStripSkeleton() {
         <div
           key={tone.card}
           className={cn(
-            "flex animate-pulse flex-col gap-3 rounded-2xl border px-5 py-5 shadow-sm shadow-linen-100/60",
+            "flex min-h-[132px] animate-pulse flex-col gap-3 rounded-2xl border px-5 py-5 shadow-sm shadow-linen-100/60 [animation-duration:1.1s]",
             tone.card,
           )}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="h-3.5 w-20 rounded-md bg-surface/70" />
+            <div className="h-3.5 w-20 rounded-md bg-linen-200" />
             <div className={cn("size-9 rounded-xl", tone.well)} />
           </div>
-          <div className="h-8 w-14 rounded-md bg-surface/75" />
-          <div className="h-3 w-24 rounded-md bg-surface/55" />
+          <div className="h-8 w-14 rounded-md bg-linen-200" />
+          <div className="h-3 w-24 rounded-md bg-linen-200" />
           <span className="sr-only">Loading KPI chip {index + 1}</span>
         </div>
       ))}

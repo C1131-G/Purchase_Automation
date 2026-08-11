@@ -18,8 +18,8 @@ export interface IcRetryToolbarProps {
 }
 
 /**
- * Breadcrumb + search only.
- * No Create / View / Filter — retries are system-queued with a fixed column set.
+ * Breadcrumb + search + filter (Status / Next Retry date).
+ * No Create / View — retries are system-queued with a fixed column set.
  */
 export function IcRetryToolbar({ tableId, table, onReset }: IcRetryToolbarProps) {
   return (
@@ -29,7 +29,6 @@ export function IcRetryToolbar({ tableId, table, onReset }: IcRetryToolbarProps)
       onReset={onReset}
       hideCreate
       hideView
-      hideFilter
       breadcrumb={IC_RETRY_BREADCRUMB}
     />
   );

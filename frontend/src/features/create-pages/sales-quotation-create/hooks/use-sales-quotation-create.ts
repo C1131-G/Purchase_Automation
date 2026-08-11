@@ -28,7 +28,10 @@ import {
   resolveLineUomCode,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
 import {
+  dismissDocumentHydrating,
   notifyCreateApiError,
+  notifyDocumentHydrateError,
+  notifyDocumentHydrating,
   notifyEditRestrictedField,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import { useDocumentSaveActions } from "@/features/create-pages/create-shared/hooks/use-document-save-actions";
@@ -340,6 +343,12 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         (detail as Record<string, unknown>).address2 ??
         "",
     ).trim();
+
+    notifyDocumentHydrating(
+      "sales-quotation",
+      isEditMode ? "Loading sales quotation…" : "Loading sales quotation draft…",
+    );
+
     void (async () => {
       try {
         const detailLines = detail.DocumentLines ?? [];
@@ -501,7 +510,14 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
 
         hydratedDocNumRef.current = hydrationKey;
         setHydratedDocNum(hydrationKey);
-      } finally {
+        dismissDocumentHydrating("sales-quotation");
+      } catch (error) {
+        notifyDocumentHydrateError(
+          "sales-quotation",
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : "Could not load the sales quotation.",
+        );
       }
     })();
   }, [

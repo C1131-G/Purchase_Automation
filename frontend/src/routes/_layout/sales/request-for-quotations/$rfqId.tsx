@@ -23,6 +23,7 @@ export const Route = createFileRoute("/_layout/sales/request-for-quotations/$rfq
     if (!Number.isFinite(rfqId) || rfqId <= 0) {
       return;
     }
+    // The form hook owns the loading toast (SQ flow) — no toast here.
     return Promise.all([
       context.queryClient.ensureQueryData(icRfqQueries.detail(rfqId)),
       context.queryClient.ensureQueryData(

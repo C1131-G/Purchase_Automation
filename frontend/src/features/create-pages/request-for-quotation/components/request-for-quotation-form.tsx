@@ -199,37 +199,36 @@ export function RequestForQuotationForm({
               </div>
             </div>
 
-            <div
-              className="h-full cursor-not-allowed"
-              onClickCapture={restrictedClick("Document Dates")}
-            >
-              <div className="pointer-events-none h-full">
-                <DocumentDatesGrid
-                  loading={false}
-                  docDate={header.docDate?.slice(0, 10) || todayIso}
-                  docDueDate={header.docDueDate?.slice(0, 10) || ""}
-                  today={today}
-                  activeDatePicker={activeDatePicker}
-                  docDateContainerRef={docDateContainerRef}
-                  deliveryDateContainerRef={deliveryDateContainerRef}
-                  requiredDateContainerRef={requiredDateContainerRef}
-                  toDisplayDate={toDisplayDate}
-                  parseISODate={parseISODate}
-                  toISODate={toISODate}
-                  docDateReadOnly
-                  docDueDateReadOnly
-                  uniformReadOnlyAppearance
-                  onSetActiveDatePicker={setActiveDatePicker}
-                  onDocDateChange={noopStr}
-                  onDocDueDateChange={noopStr}
-                  docDueDateLabel="VALID UNTIL"
-                  docDueDatePlaceholder="—"
-                  showRequiredDate
-                  requiredDate={header.requiredDate?.slice(0, 10) || ""}
-                  requiredDateReadOnly
-                  onRequiredDateChange={noopStr}
-                />
-              </div>
+            <div className="h-full">
+              <DocumentDatesGrid
+                loading={false}
+                docDate={header.docDate?.slice(0, 10) || todayIso}
+                docDueDate={header.docDueDate?.slice(0, 10) || ""}
+                today={today}
+                activeDatePicker={activeDatePicker}
+                docDateContainerRef={docDateContainerRef}
+                deliveryDateContainerRef={deliveryDateContainerRef}
+                requiredDateContainerRef={requiredDateContainerRef}
+                toDisplayDate={toDisplayDate}
+                parseISODate={parseISODate}
+                toISODate={toISODate}
+                docDateReadOnly
+                docDueDateReadOnly
+                uniformReadOnlyAppearance
+                onSetActiveDatePicker={setActiveDatePicker}
+                onDocDateChange={noopStr}
+                onDocDueDateChange={noopStr}
+                docDueDateLabel="VALID UNTIL"
+                docDueDatePlaceholder="—"
+                showRequiredDate
+                requiredDateLabel="QUOTED DATE"
+                requiredDate={state.batchQuotedDate}
+                requiredDateReadOnly={!state.canEditLines}
+                requiredDateFutureOnly={false}
+                onRequiredDateChange={(value) => {
+                  state.setAllQuotedDate(value);
+                }}
+              />
             </div>
           </div>
 

@@ -3,9 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import {
+  dismissDocumentHydrating,
   notifyActionError,
   notifyActionSuccess,
   notifyCreateApiError,
+  notifyDocumentHydrating,
 } from "@/features/create-pages/create-shared/utils/create-feedback-toast";
 import type {
   ProductRow,
@@ -52,9 +54,27 @@ export function useRequestForQuotationForm(rfqId: number) {
   /** After submit click: show red borders on missing quote fields (no letter). */
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const requiredQtyByIdRef = useRef<Record<string, number>>({});
+  const lastBatchQuotedDateRef = useRef<string | null>(null);
+  /** Header-level Quoted Date display (Document Dates) — batch-fills all lines. */
+  const [batchQuotedDate, setBatchQuotedDate] = useState("");
 
   const submitMutation = useSubmitIcRfq();
   const convertMutation = useConvertIcRfq();
+
+  // Loading toast only during initial hydrate (once per doc), like SQ/PO/GRPO.
+  // Background refetches (`isFetching`) must NOT re-show it.
+  const hydratingDocRef = useRef(false);
+  useEffect(() => {
+    if (detailQuery.isLoading) {
+      hydratingDocRef.current = true;
+      notifyDocumentHydrating("request-for-quotation", "Loading request for quotation…");
+      return;
+    }
+    if (!detailQuery.isPending && hydratingDocRef.current) {
+      hydratingDocRef.current = false;
+      dismissDocumentHydrating("request-for-quotation");
+    }
+  }, [detailQuery.isLoading, detailQuery.isPending]);
 
   const canEditLines = isRfqDraft(header?.status);
   const canSubmit = canEditLines;
@@ -101,6 +121,11 @@ export function useRequestForQuotationForm(rfqId: number) {
     requiredQtyByIdRef.current = requiredMap;
     setProductRows(rows);
     setProductRowDrafts({});
+    // Seed header Quoted Date display: only when every line shares one date.
+    const lineDates = rows.map((row) => (row.quotedDate ?? "").trim().slice(0, 10)).filter(Boolean);
+    const commonDate =
+      lineDates.length === rows.length && new Set(lineDates).size <= 1 ? (lineDates[0] ?? "") : "";
+    setBatchQuotedDate(commonDate);
     setHydratedKey(fingerprint);
     setFormError(null);
     setSubmitAttempted(false);
@@ -194,6 +219,39 @@ export function useRequestForQuotationForm(rfqId: number) {
   const removeProductRow = useCallback((_id: string) => {
     // Seller cannot remove lines.
   }, []);
+
+  /**
+   * Batch fill Quoted Date from the product-section header control.
+   * Only rows still empty or still matching the previous batch value get
+   * overwritten (mirrors PQ header Required Date sync); user can override per row.
+   */
+  const setAllQuotedDate = useCallback(
+    (value: string) => {
+      if (!canEditLines) {
+        return;
+      }
+      const nextDate = value.trim().slice(0, 10);
+      if (!nextDate) {
+        return;
+      }
+      const prevBatchDate = lastBatchQuotedDateRef.current;
+      lastBatchQuotedDateRef.current = nextDate;
+      setBatchQuotedDate(nextDate);
+      setProductRows((prev) =>
+        prev.map((row) => {
+          const lineDate = (row.quotedDate ?? "").trim().slice(0, 10);
+          const stillMatchesPrevious =
+            !lineDate || (prevBatchDate !== null && lineDate === prevBatchDate);
+          if (!stillMatchesPrevious) {
+            return row;
+          }
+          return { ...row, quotedDate: nextDate };
+        }),
+      );
+      setFormError(null);
+    },
+    [canEditLines],
+  );
 
   const openProductPopup = useCallback((_rowId: string | null) => {
     // Product search locked on RFQ seller fill.
@@ -298,6 +356,7 @@ export function useRequestForQuotationForm(rfqId: number) {
   }, [warehousesQuery.data, branchesQuery.data, defaultWarehouseCode]);
 
   return {
+    batchQuotedDate,
     branchId: branchDisplay.branchId,
     branchInput: branchDisplay.branchInput,
     branchesLoading: branchesQuery.isLoading || warehousesQuery.isLoading,
@@ -320,6 +379,7 @@ export function useRequestForQuotationForm(rfqId: number) {
     productRows,
     removeProductRow,
     setProductRowDraft,
+    setAllQuotedDate,
     showBranch: true,
     totals,
     updateProductRow,

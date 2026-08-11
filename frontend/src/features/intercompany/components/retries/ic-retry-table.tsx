@@ -242,12 +242,17 @@ export function IcRetryTable() {
           ? statusVal
           : "all";
 
+      // Keep all supported filters (Status, Error text, Next Retry date) in columnFilters.
+      const allowedFilters = nextSearchColumnFilters.filter(
+        (f) => f.id === "status" || f.id === "errorMessage" || f.id === "nextRetryAt",
+      );
+
       void navigate({
         replace: true,
         search: (prev: IcRetrySearch) => ({
           ...prev,
           actionCode: undefined,
-          columnFilters: nextSearchColumnFilters,
+          columnFilters: allowedFilters,
           page: 1,
           q: errorVal,
           status: statusEnum,

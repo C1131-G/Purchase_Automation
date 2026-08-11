@@ -11,10 +11,7 @@ import { OpenWorkStripSkeleton } from "./OpenWorkStrip";
 function Pulse({ className }: { className: string }) {
   return (
     <div
-      className={cn(
-        "animate-pulse rounded-md bg-linen-200/80 [animation-duration:1.1s]",
-        className,
-      )}
+      className={cn("animate-pulse rounded-md bg-linen-200 [animation-duration:1.1s]", className)}
       aria-hidden
     />
   );
@@ -25,7 +22,7 @@ export function NeedsAttentionSkeleton() {
     <section
       aria-label="Open AR drafts"
       aria-busy="true"
-      className="flex w-full flex-col overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/30 shadow-sm"
+      className="flex min-h-[320px] w-full flex-col overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/30 shadow-sm"
     >
       <div className="border-b border-amber-200 bg-amber-50 px-5 py-4">
         <div className="flex items-start justify-between gap-2">
@@ -125,7 +122,7 @@ export function StatementSkeleton() {
     <section
       aria-label="Statement"
       aria-busy="true"
-      className="flex min-h-[200px] flex-col overflow-hidden rounded-2xl border border-linen-200 bg-surface shadow-sm shadow-linen-100/60"
+      className="flex min-h-[260px] flex-col overflow-hidden rounded-2xl border border-linen-200 bg-surface shadow-sm shadow-linen-100/60"
     >
       <div className="border-b border-linen-100 bg-gradient-to-r from-linen-50/80 via-surface to-surface px-5 py-4">
         <div className="flex items-start justify-between gap-3">

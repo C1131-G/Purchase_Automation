@@ -4,9 +4,27 @@ import { Play } from "lucide-react";
 import { Button } from "@/components/button";
 import type { IcRetryQueueItem } from "@/features/intercompany/schemas/intercompany-api.schema";
 import { TableColumnSort } from "@/features/table-pages/table-shared/components/core/table-column-sort";
+import { matchesDateRange } from "@/features/table-pages/table-shared/utils/table-filter-values";
 import { cn } from "@/shared/utils/cn";
 
 const columnHelper = createColumnHelper<IcRetryQueueItem>();
+
+const formatNextRetryAt = (value: string | null | undefined): string => {
+  if (!value) {
+    return "—";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
 const statusClassName = (status: string): string => {
   const normalized = status.trim().toUpperCase();
@@ -40,6 +58,23 @@ export interface CreateIcRetryColumnsOptions {
  * Ops-focused: status, docs, attempts, error, run.
  */
 export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
+  columnHelper.accessor("nextRetryAt", {
+    cell: (info) => (
+      <span className="whitespace-nowrap tabular-nums text-ink-900">
+        {formatNextRetryAt(info.getValue())}
+      </span>
+    ),
+    enableColumnFilter: true,
+    enableSorting: true,
+    filterFn: (row, columnId, filterValue) => matchesDateRange(row.getValue(columnId), filterValue),
+    header: ({ column, table }) => (
+      <TableColumnSort column={column} sortingState={table.getState().sorting} title="Next Retry" />
+    ),
+    id: "nextRetryAt",
+    meta: { filterType: "date" },
+    minSize: 12,
+    size: 13,
+  }),
   columnHelper.accessor("status", {
     cell: (info) => {
       const value = info.getValue() || "—";
@@ -156,7 +191,7 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
     id: "errorMessage",
     meta: { filterType: "text" },
     minSize: 20,
-    size: 26,
+    size: 24,
   }),
   columnHelper.display({
     cell: ({ row }) => {
@@ -193,11 +228,12 @@ export const createIcRetryColumns = (options: CreateIcRetryColumnsOptions) => [
     ),
     id: "actions",
     minSize: 12,
-    size: 14,
+    size: 13,
   }),
 ];
 
 export const IC_RETRY_DEFAULT_COLUMN_ORDER = [
+  "nextRetryAt",
   "status",
   "sourceDocument",
   "targetDocument",
