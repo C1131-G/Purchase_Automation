@@ -10,7 +10,7 @@ const toFinite = (value: unknown, fallback = 0): number => {
  * Map RFQ seller-filled commercial fields onto SAP DocumentLines for the buyer PQ PATCH.
  *
  * Only commercial fields (matched by LineNum onto existing PQ lines):
- *   Quantity, UnitPrice, DiscountPercent, ReqDate (required date).
+ *   Quantity, UnitPrice, DiscountPercent, ShipDate (quoted date), ReqDate (required date).
  *
  * Never send ItemCode, ItemDescription, tax, WH, UoM — buyer PQ keeps original
  * item master code/description (and other non-commercial line data) from GET.
@@ -30,7 +30,12 @@ export const buildRfqCommercialDocumentLines = (lines: IcRfqLine[]): Record<stri
       UnitPrice: unitPrice,
     };
 
-    // Required date only (not ShipDate / delivery) — retain other PQ line dates if unset.
+    const quotedDate = line.deliveryDate?.trim() || "";
+    if (quotedDate) {
+      docLine.ShipDate = quotedDate;
+    }
+
+    // Retain the existing PQ required date when neither RFQ date is available.
     const requiredDate = line.requiredDate?.trim() || line.deliveryDate?.trim() || "";
     if (requiredDate) {
       docLine.ReqDate = requiredDate;
@@ -39,7 +44,7 @@ export const buildRfqCommercialDocumentLines = (lines: IcRfqLine[]): Record<stri
     return docLine;
   });
 
-/** Patch buyer PQ lines with RFQ qty / price / disc% / required date only. */
+/** Patch buyer PQ lines with RFQ qty / price / disc% / quoted date / required date only. */
 export const applyPricesToPq = async (params: {
   documents: IcSlDocuments;
   buyerCompanyId: number;

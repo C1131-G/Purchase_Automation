@@ -471,7 +471,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     );
   });
 
-  it("T6.5b commercial line map patches only qty/price/disc/reqDate", () => {
+  it("T6.5b commercial line map patches only qty/price/disc/quoted date/reqDate", () => {
     const built = buildRfqCommercialDocumentLines([
       {
         deliveryDate: "2026-06-01",
@@ -495,6 +495,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       DiscountPercent: 12.5,
       Quantity: 4,
       ReqDate: "2026-06-15",
+      ShipDate: "2026-06-01",
       UnitPrice: 100,
     });
     // Do not push partner item / description / tax / WH onto buyer PQ.
@@ -523,6 +524,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
       ItemDescription: "Original PQ description",
       Quantity: 4,
       ReqDate: "2026-06-15",
+      ShipDate: "2026-06-01",
       UnitPrice: 100,
       VatGroup: "IN-12.5",
       WarehouseCode: "WH01",

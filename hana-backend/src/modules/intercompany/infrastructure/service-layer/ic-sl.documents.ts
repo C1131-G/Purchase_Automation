@@ -97,7 +97,13 @@ export const mergeDocumentLinesByLineNum = (
 
   // Buyer PQ PATCH: only commercial overlays. Never ItemCode / ItemDescription /
   // VatGroup / WH / UoM — those stay from the existing SAP line (GET base).
-  const commercialKeys = ["Quantity", "UnitPrice", "DiscountPercent", "ReqDate"] as const;
+  const commercialKeys = [
+    "Quantity",
+    "UnitPrice",
+    "DiscountPercent",
+    "ShipDate",
+    "ReqDate",
+  ] as const;
 
   const merged: Record<string, unknown>[] = [];
   for (let i = 0; i < overrides.length; i++) {
