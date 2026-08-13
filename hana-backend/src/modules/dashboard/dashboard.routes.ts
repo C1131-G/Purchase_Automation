@@ -10,6 +10,8 @@ const router = express.Router();
 router.use(validateSession);
 
 router.get("/overview", dashboardController.getOverviewDashboard);
+router.get("/overview/work", dashboardController.getOverviewWork);
+router.get("/overview/relationships", dashboardController.getOverviewRelationships);
 router.get("/ar-invoice-drafts", dashboardController.getArInvoiceDrafts);
 
 export const dashboardRoutes = router;

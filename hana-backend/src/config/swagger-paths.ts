@@ -182,6 +182,24 @@ export const registerAllPaths = () => {
     tags: ["Dashboard"],
     responses: jsonResponses({ successDescription: "Overview dashboard payload." }),
   });
+  registerPath("/dashboard/overview/work", "get", {
+    security: cookieSecurity,
+    operationId: "getDashboardOverviewWork",
+    summary: "Overview work metrics",
+    description:
+      "Fast dashboard section: currency, open PQ/SQ/PO metrics, and A/R invoice drafts. Independent queries run in parallel.",
+    tags: ["Dashboard"],
+    responses: jsonResponses({ successDescription: "Overview work payload." }),
+  });
+  registerPath("/dashboard/overview/relationships", "get", {
+    security: cookieSecurity,
+    operationId: "getDashboardOverviewRelationships",
+    summary: "Overview partner relationships",
+    description:
+      "Connected intercompany partners and statement balance/aging, cached independently from work metrics.",
+    tags: ["Dashboard"],
+    responses: jsonResponses({ successDescription: "Overview relationships payload." }),
+  });
 
   // --- Health ---
   registerPath("/health", "get", {

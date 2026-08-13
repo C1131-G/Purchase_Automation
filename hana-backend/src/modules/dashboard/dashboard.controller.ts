@@ -19,6 +19,26 @@ export const getOverviewDashboard = async (req: Request, res: Response, next: Ne
   }
 };
 
+export const getOverviewWork = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const data = await dashboardService.getOverviewWork(authReq.user.dbName);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOverviewRelationships = async (req: Request, res: Response, next: NextFunction) => {
+  const authReq = req as unknown as AuthenticatedRequest;
+  try {
+    const data = await dashboardService.getOverviewRelationships(authReq.user.dbName);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getArInvoiceDrafts = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as unknown as AuthenticatedRequest;
   try {
@@ -37,5 +57,7 @@ export const getArInvoiceDrafts = async (req: Request, res: Response, next: Next
 
 export const dashboardController = {
   getOverviewDashboard,
+  getOverviewWork,
+  getOverviewRelationships,
   getArInvoiceDrafts,
 };

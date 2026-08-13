@@ -12,6 +12,8 @@ import { QUERY_CACHE_POLICY } from "@/shared/constants/query.constants";
 import type {
   OverviewArDraftsPageResponse,
   OverviewDashboardResponse,
+  OverviewRelationshipsResponse,
+  OverviewWorkResponse,
 } from "../utils/overview.types";
 import { dashboardKeys } from "./queryKeys";
 
@@ -29,6 +31,37 @@ export const overviewDashboardQueryOptions = () =>
 export function useOverviewDashboard() {
   return useQuery({
     ...overviewDashboardQueryOptions(),
+    select: (response) => response.data,
+  });
+}
+
+export const overviewWorkQueryOptions = () =>
+  queryOptions({
+    queryKey: dashboardKeys.overviewWork(),
+    queryFn: () => apiClient<OverviewWorkResponse>("/api/v1/dashboard/overview/work"),
+    staleTime: QUERY_CACHE_POLICY.overview.staleTime,
+    gcTime: QUERY_CACHE_POLICY.overview.gcTime,
+  });
+
+export function useOverviewWork() {
+  return useQuery({
+    ...overviewWorkQueryOptions(),
+    select: (response) => response.data,
+  });
+}
+
+export const overviewRelationshipsQueryOptions = () =>
+  queryOptions({
+    queryKey: dashboardKeys.overviewRelationships(),
+    queryFn: () =>
+      apiClient<OverviewRelationshipsResponse>("/api/v1/dashboard/overview/relationships"),
+    staleTime: QUERY_CACHE_POLICY.overview.staleTime,
+    gcTime: QUERY_CACHE_POLICY.overview.gcTime,
+  });
+
+export function useOverviewRelationships() {
+  return useQuery({
+    ...overviewRelationshipsQueryOptions(),
     select: (response) => response.data,
   });
 }

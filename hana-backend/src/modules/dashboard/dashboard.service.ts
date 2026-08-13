@@ -2,6 +2,8 @@ import { timedDashboardSection } from "@/core/observability/dashboard";
 import { loadArInvoiceDraftsPage } from "./dashboard.ar-approval.queries";
 import {
   getOverviewDashboard as getOverviewDashboardRaw,
+  getOverviewRelationships as getOverviewRelationshipsRaw,
+  getOverviewWork as getOverviewWorkRaw,
   warmOverviewDashboard as warmOverviewDashboardRaw,
 } from "./dashboard.queries";
 
@@ -13,6 +15,11 @@ function instrumentSection<T extends AnyFn>(section: string, run: T): T {
 }
 
 export const getOverviewDashboard = instrumentSection("overview", getOverviewDashboardRaw);
+export const getOverviewWork = instrumentSection("overview-work", getOverviewWorkRaw);
+export const getOverviewRelationships = instrumentSection(
+  "overview-relationships",
+  getOverviewRelationshipsRaw,
+);
 
 export const warmOverviewDashboard = warmOverviewDashboardRaw;
 
@@ -24,6 +31,8 @@ export const getArInvoiceDraftsPage = instrumentSection(
 
 export const dashboardService = {
   getOverviewDashboard,
+  getOverviewWork,
+  getOverviewRelationships,
   warmOverviewDashboard,
   getArInvoiceDraftsPage,
 };

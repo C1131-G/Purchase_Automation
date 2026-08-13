@@ -74,6 +74,16 @@ export type OverviewDashboard = {
   statement: OverviewStatement;
 };
 
+export type OverviewWork = Pick<
+  OverviewDashboard,
+  "currency" | "asOf" | "kpis" | "arApprovalPending"
+>;
+
+export type OverviewRelationships = Pick<
+  OverviewDashboard,
+  "asOf" | "sessionCompanyId" | "connectedPartners" | "statement"
+>;
+
 export type OverviewAging = {
   d0_30: number;
   d31_60: number;
@@ -107,6 +117,16 @@ export type OverviewStatement = {
 export type OverviewDashboardResponse = {
   success: boolean;
   data: OverviewDashboard;
+};
+
+export type OverviewWorkResponse = {
+  success: boolean;
+  data: OverviewWork;
+};
+
+export type OverviewRelationshipsResponse = {
+  success: boolean;
+  data: OverviewRelationships;
 };
 
 /** Client selection key for statement filter shell (P2). */
