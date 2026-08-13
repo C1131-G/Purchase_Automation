@@ -591,7 +591,7 @@ export function CopyFromDialog({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by document number or name"
               autoComplete="off"
-              className="h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+              className="h-10 w-full rounded-xl border border-linen-200 bg-field-silver px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
             />
           </div>
         </div>

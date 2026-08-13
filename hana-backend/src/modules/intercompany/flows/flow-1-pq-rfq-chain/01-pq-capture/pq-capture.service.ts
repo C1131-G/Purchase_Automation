@@ -126,8 +126,8 @@ export const createPqCaptureService = (deps?: {
         logFlowStep(SCOPE, {
           step: 3,
           total: 18,
-          title: "Flow 1 gate — RFQ already exists for this PQ",
-          check: "already_rfq_exists",
+          title: "Flow 1 gate — existing RFQ evaluated for PQ update",
+          check: "existing_rfq",
           ctx: base,
           detail: {
             reason: "already_rfq_exists",
@@ -135,49 +135,54 @@ export const createPqCaptureService = (deps?: {
             rfqNumber: existingRfq.rfqNumber,
             rfqStatus: existingRfq.status,
           },
-          outcome: "skip",
+          outcome: existingRfq.status === "DRAFT" ? "pass" : "skip",
         });
+        if (existingRfq.status === "DRAFT") {
+          return {
+            input,
+            kind: "proceed_update",
+            partner,
+            remarksTag: compactPqDraftTag(input.docNum, input.docEntry),
+            rfqId: existingRfq.rfqId,
+            sourceDocEntry,
+            sourceDocNum:
+              input.docNum != null && Number.isFinite(input.docNum) ? String(input.docNum) : null,
+          };
+        }
         return {
-          check: "already_rfq_exists",
+          check: "rfq_not_editable",
           detail: `rfqId=${existingRfq.rfqId}`,
           kind: "skip",
-          reason: "already_rfq_exists",
+          reason: "rfq_not_editable",
         };
       }
 
-      const existingMap =
-        (await documentMap.findBySource({
-          sourceCompanyId: partner.buyerCompany.companyId,
-          sourceDocEntry,
-          sourceObject: IC_OBJECT.PQ,
-          targetObject: IC_OBJECT.RFQ,
-        })) ??
-        (await documentMap.findBySource({
-          sourceCompanyId: partner.buyerCompany.companyId,
-          sourceDocEntry,
-          sourceObject: IC_OBJECT.PQ_DRAFT,
-          targetObject: IC_OBJECT.RFQ,
-        }));
+      const existingMap = await documentMap.findBySource({
+        sourceCompanyId: partner.buyerCompany.companyId,
+        sourceDocEntry,
+        sourceObject: IC_OBJECT.PQ,
+        targetObject: IC_OBJECT.PO,
+      });
 
       if (existingMap && existingMap.status === IC_DOC_MAP_STATUS.SUCCESS) {
         logFlowStep(SCOPE, {
           step: 3,
           total: 18,
-          title: "Flow 1 gate — document map already SUCCESS",
-          check: "already_mapped_success",
+          title: "Flow 1 gate — PQ already converted to PO",
+          check: "pq_already_converted",
           ctx: base,
           detail: {
             mappingId: existingMap.mappingId,
-            reason: "already_mapped_success",
+            reason: "pq_already_converted",
             status: existingMap.status,
           },
           outcome: "skip",
         });
         return {
-          check: "already_mapped_success",
+          check: "pq_already_converted",
           detail: `mappingId=${existingMap.mappingId}`,
           kind: "skip",
-          reason: "already_mapped_success",
+          reason: "pq_already_converted",
         };
       }
 

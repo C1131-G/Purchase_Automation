@@ -21,52 +21,35 @@ class AtomicFileStore extends session.Store {
     this.sessionPath = options.path;
     this.ttl = options.ttl || 60 * 60 * 24 * 30; // 30 days default
 
-    this.loadSessionsFromDisk();
+    this.clearSessionsFromDisk();
     this.startReapTimer();
   }
 
-  private loadSessionsFromDisk(): void {
+  private clearSessionsFromDisk(): void {
     try {
       if (!nodeFs.existsSync(this.sessionPath)) {
         nodeFs.mkdirSync(this.sessionPath, { recursive: true });
         return;
       }
       const files = nodeFs.readdirSync(this.sessionPath);
+      let clearedCount = 0;
       for (const file of files) {
         const filePath = path.join(this.sessionPath, file);
-        if (file.endsWith(".tmp")) {
+        if (file.endsWith(".tmp") || file.endsWith(".json")) {
           try {
             nodeFs.unlinkSync(filePath);
+            clearedCount += 1;
           } catch {}
-          continue;
-        }
-        if (file.endsWith(".json")) {
-          const sid = file.slice(0, -5);
-          try {
-            const stat = nodeFs.statSync(filePath);
-            const content = nodeFs.readFileSync(filePath, "utf8");
-            if (content && !content.includes("\u0000")) {
-              JSON.parse(content); // Validate JSON format
-              this.sessions.set(sid, content);
-              this.lastAccess.set(sid, stat.mtimeMs);
-            } else {
-              nodeFs.unlinkSync(filePath);
-            }
-          } catch {
-            try {
-              nodeFs.unlinkSync(filePath);
-            } catch {}
-          }
         }
       }
       logger.info({
-        event: "sessions_loaded",
-        count: this.sessions.size,
-        msg: "Loaded active sessions from disk to memory store",
+        event: "stale_sessions_cleared",
+        count: clearedCount,
+        msg: "Cleared persisted sessions on startup",
       });
     } catch (err) {
       logger.error({
-        event: "sessions_load_failed",
+        event: "stale_sessions_clear_failed",
         err: err as Error,
       });
     }

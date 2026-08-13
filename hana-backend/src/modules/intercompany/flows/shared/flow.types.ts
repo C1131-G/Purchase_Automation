@@ -56,6 +56,9 @@ export type IcPoHookInput = {
   docDate?: unknown;
   docDueDate?: unknown;
   numAtCard?: unknown;
+  address?: string | null;
+  address2?: string | null;
+  salesPersonCode?: number | string | null;
   lines?: IcDocumentLineInput[];
   totals?: unknown;
   currency?: string;

@@ -3,6 +3,13 @@
  */
 
 export { afterPoCreated } from "./api/hooks/after-po-created.hook";
+export { afterPoUpdated } from "./api/hooks/after-po-updated.hook";
+export {
+  assertIcPoEditable,
+  assertIcPqEditable,
+  assertIcSqEditable,
+  recordIcPqToPoLink,
+} from "./api/ic-edit-lifecycle";
 export {
   afterPqSaved,
   /** @deprecated Prefer `afterPqSaved`. */

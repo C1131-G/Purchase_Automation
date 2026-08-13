@@ -1,9 +1,16 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { lazy, Suspense } from "react";
 
 import { NotFound } from "@/components/not-found";
 import { AppToaster } from "@/shared/ui/toast/toaster";
+
+const TanStackRouterDevtools = import.meta.env.DEV
+  ? lazy(async () => {
+      const module = await import("@tanstack/react-router-devtools");
+      return { default: module.TanStackRouterDevtools };
+    })
+  : undefined;
 
 /**
  * Root: Global application container.
@@ -26,7 +33,11 @@ function RootComponent() {
         <Outlet />
       </main>
       <AppToaster />
-      <TanStackRouterDevtools position="bottom-left" />
+      {TanStackRouterDevtools ? (
+        <Suspense fallback={null}>
+          <TanStackRouterDevtools position="bottom-left" />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

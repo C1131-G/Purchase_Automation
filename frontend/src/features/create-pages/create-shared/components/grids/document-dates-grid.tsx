@@ -124,9 +124,9 @@ export function DocumentDatesGrid({
               className={`relative flex h-10 w-full items-center justify-start rounded-xl border pl-3 pr-10 text-sm outline-none transition ${
                 docDateReadOnly
                   ? uniformReadOnlyAppearance
-                    ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900 opacity-100"
+                    ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
                     : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
-                  : "cursor-pointer border-linen-200 bg-linen-50 text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                  : "cursor-pointer border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               }`}
             >
               <span>{toDisplayDate(docDate)}</span>
@@ -184,9 +184,9 @@ export function DocumentDatesGrid({
                   ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                   : docDueDateReadOnly
                     ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900 opacity-100"
+                      ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
                       : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
-                    : "border-linen-200 bg-linen-50 text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                    : "border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               }`}
             >
               <span className={docDueDate ? "text-ink-900" : "text-neutral-400"}>
@@ -250,9 +250,9 @@ export function DocumentDatesGrid({
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                     : requiredDateReadOnly
                       ? uniformReadOnlyAppearance
-                        ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900 opacity-100"
+                        ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900 opacity-100"
                         : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
-                      : "cursor-pointer border-linen-200 bg-linen-50 text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                      : "cursor-pointer border-linen-200 bg-field-silver text-ink-900 hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 }`}
               >
                 <span className={requiredDate ? "text-ink-900" : "text-neutral-400"}>

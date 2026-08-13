@@ -1,19 +1,12 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Building2 } from "lucide-react";
 import { useEffect } from "react";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
-import { authKeys } from "@/features/auth/api/auth.queries";
-import { authAPI } from "@/features/auth/api/auth.service";
-import type { User } from "@/features/auth/api/auth.service";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { toast } from "@/shared/ui/toast/toast";
 import { useAuthStore } from "@/store/auth/auth.store";
-
-const USER_CHECK_SKIP_MS = 15_000;
-const USER_CHECK_ATTEMPT_SKIP_MS = 5 * 60 * 1000;
 
 /**
  * LoginRoute: Public entry point for authentication.
@@ -44,8 +37,6 @@ export const Route = createFileRoute("/login")({
 
 function LoginComponent() {
   useDocumentTitle("Access Gateway | Purchase Automation");
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -56,89 +47,6 @@ function LoginComponent() {
       });
     }
   }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    let checkTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    let idleCallbackId: ReturnType<typeof requestIdleCallback> | null = null;
-    const params = new URLSearchParams(window.location.search);
-    const reason = params.get("reason");
-    const isSessionEndedReason = reason === "session_ended";
-    const isExplicitLogoutReason = reason === "logged_out";
-    const lastFailRaw = window.sessionStorage.getItem("auth:me:check:last-fail-at");
-    const lastFailAt = lastFailRaw ? Number(lastFailRaw) : 0;
-    const lastAttemptRaw = window.sessionStorage.getItem("auth:me:check:last-attempt-at");
-    const lastAttemptAt = lastAttemptRaw ? Number(lastAttemptRaw) : 0;
-    const shouldSkipByRecentFailure =
-      Number.isFinite(lastFailAt) && Date.now() - lastFailAt < USER_CHECK_SKIP_MS;
-    const shouldSkipByRecentAttempt =
-      Number.isFinite(lastAttemptAt) && Date.now() - lastAttemptAt < USER_CHECK_ATTEMPT_SKIP_MS;
-    const cachedUser = queryClient.getQueryData<User>(authKeys.user());
-
-    if (isSessionEndedReason || isExplicitLogoutReason || shouldSkipByRecentFailure) {
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    if (cachedUser) {
-      useAuthStore.getState().login(cachedUser);
-      navigate({
-        replace: true,
-        to: "/dashboard",
-      });
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    if (shouldSkipByRecentAttempt) {
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    const probeSession = () => {
-      window.sessionStorage.setItem("auth:me:check:last-attempt-at", String(Date.now()));
-      void authAPI
-        .getMe()
-        .then((response) => {
-          if (!isMounted) {
-            return;
-          }
-          const user = response.data.user;
-          queryClient.setQueryData(authKeys.user(), user);
-          window.sessionStorage.removeItem("auth:me:check:last-fail-at");
-          useAuthStore.getState().login(user);
-          navigate({
-            replace: true,
-            to: "/dashboard",
-          });
-        })
-        .catch(() => {
-          window.sessionStorage.setItem("auth:me:check:last-fail-at", String(Date.now()));
-        });
-    };
-
-    const runProbeSession = () => void probeSession();
-    if ("requestIdleCallback" in window) {
-      idleCallbackId = window.requestIdleCallback(runProbeSession, {
-        timeout: 1200,
-      });
-    } else {
-      checkTimeoutId = globalThis.setTimeout(runProbeSession, 300);
-    }
-
-    return () => {
-      isMounted = false;
-      if (checkTimeoutId !== null) {
-        window.clearTimeout(checkTimeoutId);
-      }
-      if (idleCallbackId !== null && "cancelIdleCallback" in window) {
-        window.cancelIdleCallback(idleCallbackId);
-      }
-    };
-  }, [navigate, queryClient]);
 
   return (
     <div className="flex h-svh overflow-hidden">

@@ -8,11 +8,12 @@ import { createRetryService } from "@/modules/intercompany/domain/retry/retry.se
 import { enrichRfqFromPqDraft } from "@/modules/intercompany/domain/rfq/enrich-rfq-from-pq-draft";
 import { withRfqCustomerDisplayList } from "@/modules/intercompany/domain/rfq/resolve-rfq-customer-display";
 import { createRfqService } from "@/modules/intercompany/domain/rfq/rfq.service";
+import { createPromoteArDraftService } from "@/modules/intercompany/domain/document-map/promote-ar-draft.service";
 import { createSellerFillRfqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/04-seller-fill-rfq/seller-fill-rfq.service";
 import { createConvertPqAndSqService } from "@/modules/intercompany/flows/flow-1-pq-rfq-chain/05-convert-pq-and-sq/convert-pq-and-sq.service";
 import { IC_RETRY_STATUS } from "@/modules/intercompany/infrastructure/constants";
 
-import { SubmitRfqBodySchema, UpdateRfqBodySchema } from "./ic.schema";
+import { ConfirmArInvoiceBodySchema, SubmitRfqBodySchema, UpdateRfqBodySchema } from "./ic.schema";
 
 const resolveSessionDbName = (req: Request): string => {
   const session = req.session as { dbName?: string; user?: { dbName?: string } } | undefined;
@@ -54,6 +55,26 @@ export const getIcHealth = (_req: Request, res: Response): void => {
     },
     success: true,
   });
+};
+
+export const confirmArInvoice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const sellerCompanyId = await resolveActorCompanyId(req);
+    const poDocEntry = parseIdParam(String(req.params.poDocEntry));
+    const body = ConfirmArInvoiceBodySchema.parse(req.body);
+    const data = await createPromoteArDraftService().promote({
+      arInvoiceDocEntry: body.arInvoiceDocEntry,
+      poDocEntry,
+      sellerCompanyId,
+    });
+    res.status(200).json({ data, success: true });
+  } catch (error) {
+    next(error);
+  }
 };
 
 /** GET /rfqs — seller inbox only (TARGET company). Buyer does not list RFQs. */

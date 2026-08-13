@@ -459,7 +459,7 @@ export function CreateOutgoingPaymentForm() {
                   onClick={() =>
                     setActiveDatePicker((prev) => (prev === "posting" ? null : "posting"))
                   }
-                  className="relative flex h-10 w-full items-center justify-start rounded-xl border border-linen-200 bg-linen-50 pl-3 pr-10 text-sm text-ink-900 outline-none transition hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                  className="relative flex h-10 w-full items-center justify-start rounded-xl border border-linen-200 bg-field-silver pl-3 pr-10 text-sm text-ink-900 outline-none transition hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 >
                   <span>{toDisplayDate(docDate)}</span>
                   <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition hover:bg-linen-100">
@@ -496,7 +496,7 @@ export function CreateOutgoingPaymentForm() {
                   onChange={(e) => setRemarks(e.target.value)}
                   placeholder="Enter payment remarks..."
                   rows={2}
-                  className="w-full rounded-xl border border-linen-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-900 outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+                  className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900 outline-none focus:border-teal-500 focus:bg-surface focus:ring-4 focus:ring-teal-500/10"
                 />
               </div>
             </div>

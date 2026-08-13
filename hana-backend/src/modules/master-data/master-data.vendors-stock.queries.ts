@@ -178,31 +178,29 @@ export const getProductWarehouseStocksBatch = async (
 // OCRD.SlpCode refers to Sales Employee (for customers) or Buyer (for vendors), both joining to OSLP.
 
 export const getVendors = async (dbName: string) => {
-  const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
-  const settingsRows = await adminSettingsRepo.find({
-    select: ["MainCurncy"],
-    take: 1,
-  });
+  const [settingsRows, displayCurrency, results] = await Promise.all([
+    (async () => {
+      const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
+      return adminSettingsRepo.find({ select: ["MainCurncy"], take: 1 });
+    })(),
+    getDisplayCurrency(dbName),
+    fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
+      order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
+      select: [
+        "CardCode",
+        "CardName",
+        "Address",
+        "Currency",
+        "SlpCode",
+        "BillToDef",
+        "ShipToDef",
+      ] as const,
+      where: { CardType: "S", frozenFor: "N" } as Record<string, unknown>,
+    }),
+  ]);
   const adminSettings = settingsRows[0] ?? null;
   // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
-  const defaultCurrency = resolveCurrencyCode(
-    adminSettings?.MainCurncy,
-    await getDisplayCurrency(dbName),
-  );
-
-  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Vendors:v3", {
-    order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: [
-      "CardCode",
-      "CardName",
-      "Address",
-      "Currency",
-      "SlpCode",
-      "BillToDef",
-      "ShipToDef",
-    ] as const,
-    where: { CardType: "S", frozenFor: "N" } as Record<string, unknown>,
-  });
+  const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
   const vendorCodes = results.map((item) => item.CardCode).filter(Boolean);
   const salesEmployeeCodes = [
     ...new Set(

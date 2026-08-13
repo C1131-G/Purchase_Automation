@@ -32,7 +32,7 @@ export function SelectFilterSearch<TData>({
   return (
     <div className={cn("relative w-full", className)}>
       <Select value={selectValue} onValueChange={onSearchChange}>
-        <Select.Trigger className="w-full h-11 bg-linen-50 border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all rounded-xl text-[13px] font-normal">
+        <Select.Trigger className="w-full h-11 bg-field-silver border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all rounded-xl text-[13px] font-normal">
           <Select.Value placeholder="Select…" labelMap={labelMap} />
           <Select.Icon>
             <svg

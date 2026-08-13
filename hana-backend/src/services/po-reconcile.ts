@@ -24,6 +24,7 @@ export async function reconcilePOAfterCopyTo(
 ): Promise<void> {
   // Collect unique PO DocEntries from lines that reference a PO
   const poDocEntries = new Set<number>();
+  const grpoDocEntries = new Set<number>();
 
   for (const line of documentLines) {
     const baseType = Number(line.BaseType);
@@ -36,12 +37,14 @@ export async function reconcilePOAfterCopyTo(
     if (baseType === BASE_TYPE_PURCHASE_ORDER) {
       poDocEntries.add(baseEntry);
     } else if (baseType === BASE_TYPE_GRPO) {
-      // AP Invoice copy-from GRPO: walk back through GRPO to find the PO
-      const poEntry = await findPOFromGRPO(dbName, baseEntry);
-      if (poEntry !== null) {
-        poDocEntries.add(poEntry);
-      }
+      grpoDocEntries.add(baseEntry);
     }
+  }
+
+  // AP Invoice copy-from GRPO: resolve every originating PO in one HANA query.
+  const grpoPurchaseOrderEntries = await findPOsFromGRPOs(dbName, [...grpoDocEntries]);
+  for (const poEntry of grpoPurchaseOrderEntries) {
+    poDocEntries.add(poEntry);
   }
 
   if (poDocEntries.size === 0) {
@@ -57,27 +60,34 @@ export async function reconcilePOAfterCopyTo(
  * Walks back from a GRPO to find the originating PO DocEntry.
  * Queries PDN1 for the GRPO's lines and extracts the baseEntry (PO DocEntry).
  */
-async function findPOFromGRPO(dbName: string, grpoDocEntry: number): Promise<number | null> {
+async function findPOsFromGRPOs(dbName: string, grpoDocEntries: number[]): Promise<number[]> {
+  if (grpoDocEntries.length === 0) {
+    return [];
+  }
+
   try {
     const pdn1Repo = await getTenantRepository(dbName, GRPOHeaderSchema);
-    const pdn1Line = await pdn1Repo
+    const pdn1Lines = await pdn1Repo
       .createQueryBuilder("pdn1")
       .select("pdn1.baseEntry", "baseEntry")
-      .where("pdn1.docEntry = :docEntry", { docEntry: grpoDocEntry })
+      .distinct(true)
+      .where("pdn1.docEntry IN (:...docEntries)", { docEntries: grpoDocEntries })
       .andWhere("pdn1.baseType = :baseType", {
         baseType: BASE_TYPE_PURCHASE_ORDER,
       })
-      .getRawOne<{ baseEntry: number }>();
+      .getRawMany<{ baseEntry: number | string }>();
 
-    return pdn1Line?.baseEntry ?? null;
+    return pdn1Lines
+      .map((line) => Number(line.baseEntry))
+      .filter((baseEntry) => Number.isFinite(baseEntry));
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
     logger.warn({
       err: caughtError,
-      grpoDocEntry,
-      msg: "Failed to find PO from GRPO during reconciliation",
+      grpoDocEntries,
+      msg: "Failed to find POs from GRPOs during reconciliation",
     });
-    return null;
+    return [];
   }
 }
 

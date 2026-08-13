@@ -70,7 +70,7 @@ function ReferenceTextarea({
       className={`w-full resize-y rounded-xl border px-4 py-2 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 ${
         invalid
           ? invalidStyles
-          : "border-linen-200 bg-linen-50 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+          : "border-linen-200 bg-field-silver focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
       } ${disabled ? disabledStyles : ""}`}
     />
   );
@@ -123,7 +123,7 @@ export function ReferenceGrid({
             invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
             disabledStyles={
               uniformReadOnlyAppearance
-                ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
+                ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
                 : "border-linen-200 bg-linen-100 text-neutral-500 opacity-100"
             }
           />
@@ -160,7 +160,7 @@ export function ReferenceGrid({
             invalidStyles="border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
             disabledStyles={
               uniformReadOnlyAppearance
-                ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
+                ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
                 : "cursor-not-allowed opacity-70"
             }
           />

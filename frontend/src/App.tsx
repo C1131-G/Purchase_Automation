@@ -1,10 +1,8 @@
 import { dehydrate, hydrate, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 
 import { GlobalErrorBoundary } from "@/components/error-boundary";
-import { RoutePendingFallback } from "@/features/layout/components/route-pending-fallback";
 import { routeTree } from "@/routeTree.gen";
 import {
   CLEAR_QUERY_CACHE_EVENT,
@@ -15,6 +13,13 @@ import {
 import { type BeforeInstallPromptEvent, usePwaActions } from "@/store/pwa/pwa.store";
 
 const QUERY_CACHE_MAX_AGE = 30 * 60 * 1000;
+
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(async () => {
+      const module = await import("@tanstack/react-query-devtools");
+      return { default: module.ReactQueryDevtools };
+    })
+  : undefined;
 
 // 1. Create a persistent QueryClient instance
 const queryClient = new QueryClient({
@@ -49,9 +54,16 @@ const restoreQueryCache = () => {
 restoreQueryCache();
 
 function DefaultPendingComponent() {
-  // Content-only: parent ShellLayout (or ShellPendingFallback on `/_layout`) keeps the sidebar.
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "/dashboard";
-  return <RoutePendingFallback pathname={pathname} />;
+  return (
+    <div
+      className="flex h-dvh w-full items-center justify-center bg-linen-50"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <span className="sr-only">Loading page</span>
+      <div className="size-5 animate-spin rounded-full border-2 border-linen-300 border-t-teal-600" />
+    </div>
+  );
 }
 
 // 2. Create the router and inject the queryClient into its context
@@ -60,8 +72,10 @@ const router = createRouter({
     queryClient,
   },
   routeTree,
-  // Skeletons immediately — never a blank white frame while a route loads.
-  defaultPendingMs: 0,
+  // Cached back/forward navigation can briefly wait on route bookkeeping. Keep
+  // the current page visible and reserve a full skeleton for genuinely cold loads.
+  defaultPendingMs: 1000,
+  defaultPendingMinMs: 300,
   defaultPendingComponent: DefaultPendingComponent,
   // View Transitions caused white intermediate frames on heavy pages.
   defaultViewTransition: false,
@@ -164,7 +178,11 @@ function App() {
       <GlobalErrorBoundary>
         <RouterProvider router={router} />
       </GlobalErrorBoundary>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {ReactQueryDevtools ? (
+        <Suspense fallback={null}>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </Suspense>
+      ) : null}
     </QueryClientProvider>
   );
 }

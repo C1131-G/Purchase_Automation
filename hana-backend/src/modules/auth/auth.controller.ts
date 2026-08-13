@@ -16,7 +16,12 @@ export const login: RequestHandler = async (req, res, next) => {
     // Never log password — only username / tenant identifiers.
     logger.info({ dbName: companyDB, username }, "Login attempt");
 
-    const loginResponse: LoginResponse = await authService.login(username, password, companyDB);
+    const loginResponse: LoginResponse = await authService.login(
+      username,
+      password,
+      companyDB,
+      () => warmOverviewDashboard(companyDB),
+    );
 
     // companyName is already resolved during login (credential cache) — no second HANA hit.
     const companyName = loginResponse.user.companyName ?? companyDB;
@@ -31,10 +36,6 @@ export const login: RequestHandler = async (req, res, next) => {
       session.dbName = companyDB;
       session.user = { ...loginResponse.user, companyName };
       session.userAgent = req.headers["user-agent"];
-      session.slCompanyDB = companyDB;
-      session.slUsername = loginResponse.slUsername ?? "";
-      session.slPassword = loginResponse.slPassword ?? "";
-
       if (req.log) {
         req.log = req.log.child({ userId: loginResponse.user.userName, dbName: companyDB });
         bindRequestLogger(req.log);
@@ -48,9 +49,6 @@ export const login: RequestHandler = async (req, res, next) => {
         },
         success: true,
       });
-
-      // Warm overview cache after the login response is queued so /dashboard/overview is fast.
-      warmOverviewDashboard(companyDB);
     });
   } catch (error) {
     next(error);

@@ -120,7 +120,7 @@ export function SelectTrigger({
       disabled={disabled}
       onClick={() => setOpen(!open)}
       className={cn(
-        "flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-linen-200 bg-linen-50/50 px-4 py-2 text-sm text-ink-900 select-none transition-all font-outfit ring-offset-1 cursor-pointer",
+        "flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-linen-200 bg-field-silver px-4 py-2 text-sm text-ink-900 select-none transition-all font-outfit ring-offset-1 cursor-pointer",
         "hover:bg-surface hover:border-teal-200",
         "focus:outline-none",
         open && "border-teal-200 bg-surface",

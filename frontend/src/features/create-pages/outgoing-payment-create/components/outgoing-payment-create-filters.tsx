@@ -172,7 +172,7 @@ function ComparisonField({
               }
             }}
           >
-            <Select.Trigger className="h-11 w-full rounded-xl border-linen-200 bg-linen-50/50 text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100">
+            <Select.Trigger className="h-11 w-full rounded-xl border-linen-200 bg-field-silver text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100">
               <span className="truncate text-ink-900 font-normal">
                 {value.operator === "eq" ? "=" : value.operator === "lt" ? "<" : ">"}
               </span>
@@ -217,7 +217,7 @@ function ComparisonField({
             })
           }
           placeholder={placeholder}
-          className="h-11 w-full rounded-xl border-linen-200 bg-linen-50/50 text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100"
+          className="h-11 w-full rounded-xl border-linen-200 bg-field-silver text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100"
         />
       </div>
     </div>
@@ -288,7 +288,7 @@ function DocDateField({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          "relative flex h-11 w-full items-center justify-between rounded-xl border border-linen-200 bg-linen-50/50 text-[13px] font-normal text-ink-900 outline-none transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100",
+          "relative flex h-11 w-full items-center justify-between rounded-xl border border-linen-200 bg-field-silver text-[13px] font-normal text-ink-900 outline-none transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100",
           showLabel ? "pl-4 pr-10" : "pl-4 pr-10",
         )}
       >
@@ -519,7 +519,7 @@ function DocNumberField({
           inputMode="numeric"
           pattern="[0-9]*"
           maxLength={10}
-          className="h-11 w-full rounded-xl border border-linen-200 bg-linen-50/50 pl-3 pr-10 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+          className="h-11 w-full rounded-xl border border-linen-200 bg-field-silver pl-3 pr-10 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <button
@@ -778,7 +778,7 @@ export function OutgoingPaymentCreateActiveFilter({
             onChange({ ...value, docType });
           }}
         >
-          <Select.Trigger className="h-11 w-full rounded-xl border-linen-200 bg-linen-50/50 text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100">
+          <Select.Trigger className="h-11 w-full rounded-xl border-linen-200 bg-field-silver text-[13px] font-normal transition-all hover:border-linen-200 focus:bg-surface focus:ring-2 focus:ring-teal-100">
             <Select.Value placeholder="All" />
             <Select.Icon>
               <svg

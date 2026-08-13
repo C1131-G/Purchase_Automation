@@ -30,6 +30,10 @@ export const UpdateRfqBodySchema = z.object({
 
 export type UpdateRfqBody = z.infer<typeof UpdateRfqBodySchema>;
 
+export const ConfirmArInvoiceBodySchema = z
+  .object({ arInvoiceDocEntry: z.coerce.number().int().positive() })
+  .strict();
+
 /**
  * Seller submit DRAFT → SUBMITTED.
  * Optional `lines` saves fill in the same request (avoids PUT then POST).

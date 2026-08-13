@@ -8,6 +8,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { afterPoUpdated, assertIcPoEditable } from "@/modules/intercompany";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const updatePurchaseOrder = async (
@@ -18,6 +19,11 @@ export const updatePurchaseOrder = async (
   try {
     const isDraft = payload.isDraft === true;
     const sapPayload: Record<string, unknown> = {};
+    const sessionBeforePatch = serviceLayerClient.getSession(sessionId);
+    const companyDb = sessionBeforePatch?.companyDB?.trim();
+    if (!isDraft && companyDb) {
+      await assertIcPoEditable(companyDb, Number(id));
+    }
 
     if (payload.attachments !== undefined) {
       const session = serviceLayerClient.getSession(sessionId);
@@ -154,6 +160,28 @@ export const updatePurchaseOrder = async (
     const session = serviceLayerClient.getSession(sessionId);
     if (session?.companyDB) {
       purgeCache(`dashboard:overview:${session.companyDB}`);
+    }
+
+    if (!isDraft && companyDb) {
+      await afterPoUpdated({
+        address: typeof sapPayload.Address === "string" ? sapPayload.Address : null,
+        address2: typeof sapPayload.Address2 === "string" ? sapPayload.Address2 : null,
+        cardCode: String(payload.CardCode ?? sapPayload.CardCode ?? ""),
+        dbName: companyDb,
+        docDate: sapPayload.DocDate,
+        docDueDate: sapPayload.DocDueDate,
+        docEntry: Number(id),
+        lines: Array.isArray(sapPayload.DocumentLines)
+          ? (sapPayload.DocumentLines as Record<string, unknown>[])
+          : [],
+        numAtCard: sapPayload.NumAtCard,
+        remarks: typeof sapPayload.Comments === "string" ? sapPayload.Comments : undefined,
+        salesPersonCode:
+          typeof sapPayload.SalesPersonCode === "number" ||
+          typeof sapPayload.SalesPersonCode === "string"
+            ? sapPayload.SalesPersonCode
+            : null,
+      });
     }
 
     return {

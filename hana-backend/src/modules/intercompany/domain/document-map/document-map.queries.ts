@@ -54,6 +54,11 @@ export type DocumentMapQueries = {
     targetDocEntry: string;
     sourceObject?: string | null;
   }) => Promise<IcDocumentMap | null>;
+  findBySourceForTargetCompany: (params: {
+    sourceObject: string;
+    sourceDocEntry: string;
+    targetCompanyId: number;
+  }) => Promise<IcDocumentMap | null>;
   findById: (mappingId: number) => Promise<IcDocumentMap | null>;
 };
 
@@ -119,6 +124,20 @@ export const createDocumentMapQueries = (
           AND "TARGET_DOC_ENTRY" = ?
         ORDER BY "MAPPING_ID" DESC`,
       [targetCompanyId, targetObject, targetDocEntry],
+    );
+    return rows[0] ? mapDocumentMapRow(rows[0]) : null;
+  },
+
+  findBySourceForTargetCompany: async ({ sourceObject, sourceDocEntry, targetCompanyId }) => {
+    const rows = await sql.query(
+      `SELECT * FROM "IC_DOCUMENT_MAPPING"
+        WHERE "SOURCE_OBJECT" = ?
+          AND "SOURCE_DOC_ENTRY" = ?
+          AND "TARGET_COMPANY_ID" = ?
+        ORDER BY
+          CASE WHEN "TARGET_OBJECT" = 'AR_INVOICE' AND "STATUS" = 'SUCCESS' THEN 0 ELSE 1 END,
+          "MAPPING_ID" DESC`,
+      [sourceObject, sourceDocEntry, targetCompanyId],
     );
     return rows[0] ? mapDocumentMapRow(rows[0]) : null;
   },

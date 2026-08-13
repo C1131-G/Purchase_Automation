@@ -103,7 +103,7 @@ export function DocumentLookupModal({
             <Search className="h-4 w-4 text-neutral-400" />
           </div>
           <input
-            className="h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 pl-10 pr-10 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+            className="h-10 w-full rounded-xl border border-linen-200 bg-field-silver px-3 pl-10 pr-10 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
             placeholder="Search by Doc No. or Type..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}

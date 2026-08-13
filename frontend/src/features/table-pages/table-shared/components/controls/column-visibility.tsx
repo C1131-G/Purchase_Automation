@@ -34,7 +34,7 @@ export function TableColumnVisibility({ table }: TableColumnVisibilityProps) {
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             autoComplete="off"
-            className="w-full pl-9 pr-3 py-2 text-sm bg-linen-50 border border-linen-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all outline-none"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-field-silver border border-linen-200 rounded-lg focus:bg-surface focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all outline-none"
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 setSearchValue("");

@@ -5,29 +5,22 @@
  * queries. This helper:
  * - debounces hover so quick row skims do not start work
  * - tracks a generation so stale detail completions skip product/stock warm-up
- * - coalesces product catalog prefetches (latest warehouse wins)
- * - uses smaller warehouse-scoped product limits + batched stock fetch
+ * - preloads the edit route immediately, in parallel with detail data
+ * - warms exact document products + batched stock fetch
  * - reuses runSmartPrefetch for master-data / product / stock queries
  * - skips heavy product/stock work on slow networks or when Save-Data is on
  */
 import type { QueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 
-import { createSharedKeys } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { runSmartPrefetch } from "@/features/table-pages/table-shared/hooks/prefetch-orchestrator";
-
-/** Align with create browse limit — enough to warm edit, not a full catalog. */
-export const EDIT_PRODUCTS_PREFETCH_LIMIT = 50;
 
 /** Cap stock warm-up so multi-line docs do not fan out dozens of requests. */
 export const EDIT_STOCK_PREFETCH_MAX_ITEMS = 8;
 
 /** Ignore hover intents shorter than this (ms). Immediate navigate still works via flush. */
 const HOVER_DEBOUNCE_MS = 140;
-
-/** Coalesce product catalog prefetches so rapid row hops share one latest request. */
-const PRODUCT_PREFETCH_COALESCE_MS = 350;
 
 export type EditRoutePartnerKind = "vendors" | "customers" | "none";
 export type EditRouteProductKind = "purchase" | "sales";
@@ -38,6 +31,7 @@ export interface DocumentLineLike {
 }
 
 export interface EditRouteDetailLike {
+  CardCode?: string | null;
   DocumentLines?: DocumentLineLike[] | null;
 }
 
@@ -62,7 +56,6 @@ export interface UseEditRoutePrefetchOptions {
     kind: EditRouteProductKind;
     allowWithoutWarehouse?: boolean;
   };
-  productLimit?: number;
   maxStockItems?: number;
 }
 
@@ -107,62 +100,12 @@ const extractDetail = <TDetail extends EditRouteDetailLike>(
 
 const collectLineMeta = (detail: EditRouteDetailLike | undefined) => {
   const lines = detail?.DocumentLines ?? [];
+  const cardCode = String(detail?.CardCode ?? "").trim();
   const warehouseCode = String(lines[0]?.WarehouseCode ?? "").trim();
   const itemCodes = [
     ...new Set(lines.map((line) => String(line.ItemCode ?? "").trim()).filter(Boolean)),
   ];
-  return { itemCodes, warehouseCode };
-};
-
-let productPrefetchTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingProductPrefetch: {
-  queryClient: QueryClient;
-  warehouseCode: string | undefined;
-  kind: EditRouteProductKind;
-  limit: number;
-  generation: number;
-  isCurrent: () => boolean;
-} | null = null;
-
-const cancelInFlightProductPrefetches = (queryClient: QueryClient) => {
-  void queryClient.cancelQueries({ queryKey: createSharedKeys.products() });
-};
-
-const flushProductPrefetch = () => {
-  productPrefetchTimer = null;
-  const pending = pendingProductPrefetch;
-  pendingProductPrefetch = null;
-  if (!pending || !pending.isCurrent()) {
-    return;
-  }
-  if (!isPrefetchEnvironmentOk()) {
-    return;
-  }
-
-  const { queryClient, warehouseCode, kind, limit } = pending;
-  const options =
-    kind === "sales"
-      ? createSharedQueries.products(warehouseCode, undefined, limit, "sales")
-      : createSharedQueries.products(warehouseCode, undefined, limit);
-
-  void runSmartPrefetch(queryClient, options);
-};
-
-const scheduleProductPrefetch = (args: {
-  queryClient: QueryClient;
-  warehouseCode: string | undefined;
-  kind: EditRouteProductKind;
-  limit: number;
-  generation: number;
-  isCurrent: () => boolean;
-}) => {
-  // Latest intent wins — drop older product catalog work.
-  cancelInFlightProductPrefetches(args.queryClient);
-  pendingProductPrefetch = args;
-  if (productPrefetchTimer) {
-    clearTimeout(productPrefetchTimer);
-  }
-  productPrefetchTimer = setTimeout(flushProductPrefetch, PRODUCT_PREFETCH_COALESCE_MS);
+  return { cardCode, itemCodes, warehouseCode };
 };
 
 const warmMasterData = (
@@ -194,9 +137,7 @@ const warmDetailSideEffects = (
   detail: EditRouteDetailLike | undefined,
   options: {
     products?: UseEditRoutePrefetchOptions["products"];
-    productLimit: number;
     maxStockItems: number;
-    generation: number;
     isCurrent: () => boolean;
   },
 ) => {
@@ -204,21 +145,14 @@ const warmDetailSideEffects = (
     return;
   }
 
-  const { itemCodes, warehouseCode } = collectLineMeta(detail);
+  const { cardCode, itemCodes, warehouseCode } = collectLineMeta(detail);
   const products = options.products;
 
-  if (products) {
-    const canPrefetchProducts = Boolean(warehouseCode) || Boolean(products.allowWithoutWarehouse);
-    if (canPrefetchProducts) {
-      scheduleProductPrefetch({
-        generation: options.generation,
-        isCurrent: options.isCurrent,
-        kind: products.kind,
-        limit: options.productLimit,
-        queryClient,
-        warehouseCode: warehouseCode || undefined,
-      });
-    }
+  if (products && cardCode && itemCodes.length > 0) {
+    void runSmartPrefetch(
+      queryClient,
+      createSharedQueries.productsByCodes(itemCodes, products.kind, undefined, undefined, cardCode),
+    );
   }
 
   if (itemCodes.length === 0) {
@@ -244,7 +178,6 @@ export function useEditRoutePrefetch({
   includeWarehouses = true,
   includeSalesEmployees = true,
   products,
-  productLimit = EDIT_PRODUCTS_PREFETCH_LIMIT,
   maxStockItems = EDIT_STOCK_PREFETCH_MAX_ITEMS,
 }: UseEditRoutePrefetchOptions) {
   const startedDocNumsRef = useRef<Set<string>>(new Set());
@@ -279,6 +212,7 @@ export function useEditRoutePrefetch({
       generationRef.current += 1;
       const generation = generationRef.current;
       latestDocNumRef.current = normalizedDocNum;
+      preloadEditRoute(normalizedDocNum);
 
       const isCurrent = () =>
         generationRef.current === generation && latestDocNumRef.current === normalizedDocNum;
@@ -296,16 +230,12 @@ export function useEditRoutePrefetch({
             return;
           }
 
-          preloadEditRoute(normalizedDocNum);
-
           const detail = extractDetail(
             response as { data?: EditRouteDetailLike } | EditRouteDetailLike | undefined,
           );
           warmDetailSideEffects(queryClient, detail, {
-            generation,
             isCurrent,
             maxStockItems,
-            productLimit,
             products,
           });
         })
@@ -323,7 +253,6 @@ export function useEditRoutePrefetch({
       maxStockItems,
       partner,
       preloadEditRoute,
-      productLimit,
       products,
       queryClient,
     ],

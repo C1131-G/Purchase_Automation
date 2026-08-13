@@ -36,6 +36,10 @@ import {
   type NotifySellerService,
 } from "./03-notify-seller/notify-seller.service";
 import type { Flow1CaptureResult } from "./flow-1.types";
+import {
+  createUpdateRfqFromPqService,
+  type UpdateRfqFromPqService,
+} from "./01-pq-capture/update-rfq-from-pq.service";
 
 const LOG_SCOPE = FLOW1_SCOPE;
 
@@ -49,6 +53,7 @@ export type Flow1Orchestrator = {
 export const createFlow1Orchestrator = (deps?: {
   capture?: PqCaptureService;
   createRfq?: CreateRfqService;
+  updateRfq?: UpdateRfqFromPqService;
   notify?: NotifySellerService;
   configuration?: ConfigurationService;
   resolvePartner?: ResolvePartnerService;
@@ -88,6 +93,7 @@ export const createFlow1Orchestrator = (deps?: {
       history,
       notifications,
     });
+  const updateRfq = deps?.updateRfq ?? createUpdateRfqFromPqService({ rfq });
 
   return {
     run: async (input) => {
@@ -162,6 +168,14 @@ export const createFlow1Orchestrator = (deps?: {
             title: "Flow 1 complete — skipped",
           });
           return skipFromCapture(captured);
+        }
+
+        if (captured.kind === "proceed_update") {
+          await updateRfq.update({ purchaseQuotation: input, rfqId: captured.rfqId });
+          return {
+            status: "success",
+            targetDoc: { entry: captured.rfqId, type: IC_OBJECT.RFQ },
+          };
         }
 
         const partnerSnap = summarizePartner(captured.partner);

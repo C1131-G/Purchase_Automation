@@ -63,29 +63,24 @@ export const getAPRelationshipMap = async (
       if (currentPOs.length > 0) {
         // Down to GRPO
         const qGRPO = `SELECT DISTINCT "DocEntry" FROM "PDN1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${currentPOs.join(",")})`;
-        const grpos = await manager.query(qGRPO);
-        currentGRPOs = extractIds(grpos, "DocEntry");
-
-        // Down to Inv (can skip GRPO)
         const qInv = `SELECT DISTINCT "DocEntry" FROM "PCH1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${currentPOs.join(",")})`;
-        const invs = await manager.query(qInv);
+        const [grpos, invs] = await Promise.all([manager.query(qGRPO), manager.query(qInv)]);
+        currentGRPOs = extractIds(grpos, "DocEntry");
         currentInvs = extractIds(invs, "DocEntry");
       }
     } else if (docType === "purchase-order") {
       currentPOs = [docEntry];
       // Up to PQ
       const qUp = `SELECT DISTINCT "BaseEntry" FROM "POR1" WHERE "BaseType" = 540000006 AND "DocEntry" IN (${docEntry})`;
-      const pqs = await manager.query(qUp);
-      currentPQs = extractIds(pqs, "BaseEntry");
-
-      // Down to GRPO
       const qGRPO = `SELECT DISTINCT "DocEntry" FROM "PDN1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${docEntry})`;
-      const grpos = await manager.query(qGRPO);
-      currentGRPOs = extractIds(grpos, "DocEntry");
-
-      // Down to Inv (can skip GRPO)
       const qInv = `SELECT DISTINCT "DocEntry" FROM "PCH1" WHERE "BaseType" = 22 AND "BaseEntry" IN (${docEntry})`;
-      const invs = await manager.query(qInv);
+      const [pqs, grpos, invs] = await Promise.all([
+        manager.query(qUp),
+        manager.query(qGRPO),
+        manager.query(qInv),
+      ]);
+      currentPQs = extractIds(pqs, "BaseEntry");
+      currentGRPOs = extractIds(grpos, "DocEntry");
       currentInvs = extractIds(invs, "DocEntry");
     } else if (docType === "grpo") {
       currentGRPOs = [docEntry];
@@ -201,20 +196,16 @@ export const getAPRelationshipMap = async (
 
     if (currentInvs.length > 0 && docType !== "ap-credit-memo") {
       const qCM = `SELECT DISTINCT "DocEntry" FROM "RPC1" WHERE "BaseType" = 18 AND "BaseEntry" IN (${currentInvs.join(",")})`;
-      const cms = await manager.query(qCM);
-      currentCMs = extractIds(cms, "DocEntry");
-
       const qOP = `SELECT DISTINCT "DocNum" FROM "VPM2" WHERE "InvType" = 18 AND "DocEntry" IN (${currentInvs.join(",")})`;
-      const ops = await manager.query(qOP);
+      const [cms, ops] = await Promise.all([manager.query(qCM), manager.query(qOP)]);
+      currentCMs = extractIds(cms, "DocEntry");
       currentOPs = extractIds(ops, "DocNum");
     } else if (currentInvs.length > 0 && docType === "ap-credit-memo") {
       const qCM = `SELECT DISTINCT "DocEntry" FROM "RPC1" WHERE "BaseType" = 18 AND "BaseEntry" IN (${currentInvs.join(",")})`;
-      const cms = await manager.query(qCM);
+      const qOP = `SELECT DISTINCT "DocNum" FROM "VPM2" WHERE "InvType" = 18 AND "DocEntry" IN (${currentInvs.join(",")})`;
+      const [cms, ops] = await Promise.all([manager.query(qCM), manager.query(qOP)]);
       const newCMs = extractIds(cms, "DocEntry");
       currentCMs = [...new Set([...currentCMs, ...newCMs])];
-
-      const qOP = `SELECT DISTINCT "DocNum" FROM "VPM2" WHERE "InvType" = 18 AND "DocEntry" IN (${currentInvs.join(",")})`;
-      const ops = await manager.query(qOP);
       currentOPs = extractIds(ops, "DocNum");
     }
 

@@ -10,10 +10,10 @@ import { toast as sonnerToast, type ExternalToast } from "sonner";
 
 import { AppToastItem, type AppToastTone } from "@/shared/ui/toast/toast-item";
 
-const SUCCESS_MS = 2800;
-const INFO_MS = 3200;
-const WARNING_MS = 4500;
-const ERROR_MS = 6000;
+const SUCCESS_MS = 1800;
+const INFO_MS = 2200;
+const WARNING_MS = 3500;
+const ERROR_MS = 5000;
 
 export type ToastOptions = ExternalToast;
 

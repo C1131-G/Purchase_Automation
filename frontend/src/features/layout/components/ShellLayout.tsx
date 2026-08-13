@@ -1,11 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Outlet,
-  useLocation,
-  useNavigate,
-  useRouter,
-  useRouterState,
-} from "@tanstack/react-router";
+import { Outlet, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import React, { Suspense } from "react";
 
 import { Sidebar, SidebarInset, SidebarProvider } from "@/components/sidebar";
@@ -25,28 +19,20 @@ import { ShellLayoutLogout } from "./shell-layout-logout";
 import { ShellLayoutNavigation } from "./shell-layout-navigation";
 
 /**
- * Always paint a skeleton during route load / React.lazy Suspense.
- * Never leave a white empty shell.
+ * Keep the current route visible while loaders run. Suspense remains the fallback
+ * for a genuinely unloaded lazy chunk.
  */
 function PageTransition() {
   const pathname = useLocation({ select: (loc) => loc.pathname });
-  const isLoading = useRouterState({ select: (state) => state.isLoading });
-  const nextPathname = useRouterState({ select: (state) => state.location.pathname });
-  const skeletonPath = isLoading ? nextPathname || pathname : pathname;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-surface">
       <NavigationProgress />
-      <Suspense fallback={<RoutePendingFallback pathname={skeletonPath} />}>
+      <Suspense fallback={<RoutePendingFallback pathname={pathname} />}>
         <div className="h-full w-full">
           <Outlet />
         </div>
       </Suspense>
-      {isLoading ? (
-        <div className="absolute inset-0 z-20 overflow-hidden bg-surface">
-          <RoutePendingFallback pathname={skeletonPath} />
-        </div>
-      ) : null}
     </div>
   );
 }

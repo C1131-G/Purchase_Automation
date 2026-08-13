@@ -122,7 +122,7 @@ export function AddressGrid({
                   className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
                     readOnly || billToOptions.length === 0
                       ? "border-linen-200 bg-linen-100 text-neutral-400 cursor-not-allowed"
-                      : "border-linen-200 bg-surface text-ink-900 hover:bg-linen-50 hover:border-linen-200"
+                      : "border-linen-200 bg-field-silver text-ink-900 hover:bg-surface hover:border-linen-200"
                   }`}
                 >
                   <Select.Value placeholder="Change Address" labelMap={billToLabelMap} />
@@ -167,11 +167,11 @@ export function AddressGrid({
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                     : editableHighlight
                       ? "border-emerald-300 bg-emerald-50/60 text-ink-900 focus:border-emerald-400 focus:bg-surface focus:ring-2 focus:ring-emerald-200"
-                      : "border-linen-200 bg-linen-50 text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                      : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 } ${
                   readOnly
                     ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
+                      ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
                       : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500"
                     : ""
                 }`}
@@ -211,7 +211,7 @@ export function AddressGrid({
                   className={`h-8.5 w-full rounded-lg border px-3 py-1 text-xs focus:outline-none transition-all ${
                     readOnly || shipToOptions.length === 0
                       ? "border-linen-200 bg-linen-100 text-neutral-400 cursor-not-allowed"
-                      : "border-linen-200 bg-surface text-ink-900 hover:bg-linen-50 hover:border-linen-200"
+                      : "border-linen-200 bg-field-silver text-ink-900 hover:bg-surface hover:border-linen-200"
                   }`}
                 >
                   <Select.Value placeholder="Change Address" labelMap={shipToLabelMap} />
@@ -256,11 +256,11 @@ export function AddressGrid({
                     ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
                     : editableHighlight
                       ? "border-emerald-300 bg-emerald-50/60 text-ink-900 focus:border-emerald-400 focus:bg-surface focus:ring-2 focus:ring-emerald-200"
-                      : "border-linen-200 bg-linen-50 text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                      : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                 } ${
                   readOnly
                     ? uniformReadOnlyAppearance
-                      ? "cursor-not-allowed border-linen-200 bg-linen-50 text-ink-900"
+                      ? "cursor-not-allowed border-linen-200 bg-field-silver text-ink-900"
                       : "cursor-not-allowed border-linen-200 bg-linen-100 text-neutral-500"
                     : ""
                 }`}

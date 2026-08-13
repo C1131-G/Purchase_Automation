@@ -105,7 +105,7 @@ export function NumberFilterSearch<TData>({
             }
           }}
         >
-          <Select.Trigger className="w-full h-11 bg-linen-50 border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all rounded-xl text-[13px] font-normal">
+          <Select.Trigger className="w-full h-11 bg-field-silver border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all rounded-xl text-[13px] font-normal">
             <span className="truncate text-ink-900 font-normal">
               {draftNumberFilter.operator === "eq"
                 ? "="
@@ -156,7 +156,7 @@ export function NumberFilterSearch<TData>({
           }
         }}
         placeholder="Value..."
-        className="flex-1 h-11 w-full bg-linen-50 border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all rounded-xl text-[13px] font-normal"
+        className="flex-1 h-11 w-full bg-field-silver border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all rounded-xl text-[13px] font-normal"
       />
     </div>
   );

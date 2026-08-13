@@ -236,7 +236,7 @@ export function ProductPopupModal({
         <div className="mb-3 flex items-center gap-3">
           <div className="relative w-full">
             <input
-              className="h-10 w-full rounded-xl border border-linen-200 bg-linen-50 px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+              className="h-10 w-full rounded-xl border border-linen-200 bg-field-silver px-3 text-sm outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
               placeholder="Search product code or name"
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}

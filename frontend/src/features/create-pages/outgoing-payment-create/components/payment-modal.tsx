@@ -543,7 +543,7 @@ export function PaymentModal({
                         }
                       }}
                       placeholder="Enter amount"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-surface focus:border-teal-300 focus:ring-2 focus:ring-teal-200"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-base text-slate-700 outline-none bg-field-silver focus:bg-surface focus:border-teal-300 focus:ring-2 focus:ring-teal-200"
                     />
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -628,7 +628,7 @@ export function PaymentModal({
                       }
                     }}
                     placeholder="Enter amount"
-                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none w-40 bg-surface"
+                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none w-40 bg-field-silver"
                   />
                   <button
                     onClick={handleAction}
@@ -724,7 +724,7 @@ export function PaymentModal({
                       value={chequeBranch}
                       onChange={(e) => setChequeBranch(e.target.value)}
                       placeholder="Enter branch"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none bg-surface"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver"
                     />
                   </div>
                   <div className="relative">
@@ -783,7 +783,7 @@ export function PaymentModal({
                         onChange={(e) => setChequeNo(e.target.value)}
                         placeholder="Enter cheque number"
                         disabled={!manualCheckNo}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none bg-surface disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div className="flex-1">
@@ -795,7 +795,7 @@ export function PaymentModal({
                         value={chequeIssuedBy}
                         onChange={(e) => setChequeIssuedBy(e.target.value)}
                         placeholder="Enter issued by"
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none bg-surface"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver"
                       />
                     </div>
                   </div>
@@ -852,7 +852,7 @@ export function PaymentModal({
                         }
                       }
                     }}
-                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-200 outline-none w-40 bg-surface"
+                    className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none w-40 bg-field-silver"
                     placeholder="Transfer amount"
                   />
                   <button
@@ -884,7 +884,7 @@ export function PaymentModal({
                         onClick={() =>
                           setTransferDatePickerOpen((prev) => (prev === true ? false : true))
                         }
-                        className="relative flex h-10 w-full items-center justify-start rounded-xl border border-linen-200 bg-linen-50 pl-3 pr-10 text-sm text-ink-900 outline-none transition hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                        className="relative flex h-10 w-full items-center justify-start rounded-xl border border-linen-200 bg-field-silver pl-3 pr-10 text-sm text-ink-900 outline-none transition hover:bg-surface focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                       >
                         <span>{toDisplayDate(transferDate)}</span>
                         <div className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition hover:bg-linen-100">
@@ -945,7 +945,7 @@ export function PaymentModal({
                     value={transferReference}
                     onChange={(e) => setTransferReference(e.target.value)}
                     placeholder="Enter transfer reference"
-                    className="w-full max-w-[280px] rounded-xl border border-linen-200 bg-surface px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-200"
+                    className="w-full max-w-[280px] rounded-xl border border-linen-200 bg-field-silver px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                   />
                 </div>
               </div>

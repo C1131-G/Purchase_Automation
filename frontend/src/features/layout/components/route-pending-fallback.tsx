@@ -4,7 +4,7 @@ import { CreatePageRouteSkeleton } from "@/components/skeleton/create-page-route
 import { CreateOutgoingPaymentSkeleton } from "@/components/skeleton/create-outgoing-payment-skeleton";
 import { OutgoingPaymentEditSkeleton } from "@/components/skeleton/outgoing-payment-edit-skeleton";
 import { TableSkeleton } from "@/components/skeleton/Table-skeleton";
-import { OverviewDashboardContentSkeleton } from "@/features/dashboard/components/overview/OverviewSectionSkeletons";
+import { OverviewDashboardSkeleton } from "@/features/dashboard/components/overview/OverviewSectionSkeletons";
 
 /**
  * Route-aware skeleton while the next screen loads.
@@ -14,21 +14,7 @@ export function routePendingFallbackForPath(pathname: string): ReactNode {
   const path = pathname.toLowerCase();
 
   if (path.startsWith("/dashboard") || path === "/" || path === "") {
-    return (
-      <div className="flex h-full w-full flex-col overflow-hidden bg-linen-50">
-        <div className="shrink-0 border-b border-teal-100/60 bg-gradient-to-r from-teal-50/90 via-surface to-teal-50/40 px-6 py-5 sm:px-8">
-          <div className="mx-auto max-w-7xl space-y-2">
-            <div className="h-7 w-40 animate-pulse rounded-md bg-linen-200" />
-            <div className="h-4 w-72 max-w-full animate-pulse rounded-md bg-linen-100" />
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-teal-50/20 via-surface to-linen-50/40 px-6 py-8 sm:px-8">
-          <div className="mx-auto max-w-7xl">
-            <OverviewDashboardContentSkeleton />
-          </div>
-        </div>
-      </div>
-    );
+    return <OverviewDashboardSkeleton />;
   }
 
   if (path.includes("outgoing-payment") && (path.includes("create") || path.includes("update"))) {

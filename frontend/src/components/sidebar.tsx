@@ -164,7 +164,7 @@ export function Sidebar({
             transitionDuration: `${MOTION_MS.sidebarBackdrop}ms`,
             transitionTimingFunction: MOTION_EASING.smoothOut,
           }}
-          className="fixed inset-0 z-[110] bg-ink-950/8 backdrop-blur-sm transition-opacity block border-none outline-none cursor-pointer"
+          className="fixed inset-0 z-[110] block cursor-pointer border-none bg-ink-950/8 outline-none transition-opacity"
           onClick={() => setOpen(false)}
         />
       ) : null}

@@ -23,6 +23,7 @@ export const login = async (
   username: string,
   password: string,
   dbName: string,
+  onPortalAuthenticated?: () => void,
 ): Promise<LoginResponse> => {
   const loginStartedAt = process.hrtime.bigint();
   try {
@@ -82,6 +83,10 @@ export const login = async (
       });
     }
 
+    // Dashboard HANA queries do not depend on the Service Layer session. Start
+    // their warm-up now so it overlaps the usually slower SAP login below.
+    onPortalAuthenticated?.();
+
     // Stage 2: Service Layer login (reuses live session for same service account when possible).
     const slStartedAt = process.hrtime.bigint();
     const sessionInfo = await serviceLayerClient.login(
@@ -107,9 +112,6 @@ export const login = async (
     return {
       sessionId: sessionInfo.sessionId,
       sessionTimeout: sessionInfo.sessionTimeout,
-      // Pass back the actual SL credentials used so the session can auto-reconnect on restart
-      slUsername: dbInfo.serviceLayerUsername || username,
-      slPassword: dbInfo.serviceLayerPassword || password,
       user: {
         companyName: dbInfo.companyName || dbName,
         dbName,

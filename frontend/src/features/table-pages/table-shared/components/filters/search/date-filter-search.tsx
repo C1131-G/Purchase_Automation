@@ -104,7 +104,7 @@ export function DateFilterSearch<TData>({
     <div className={cn("w-full", className)}>
       <Popover.Root>
         <Popover.Trigger asChild className="w-full">
-          <button className="w-full h-11 bg-linen-50 border border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all duration-200 ease-out rounded-xl text-[13px] font-normal pl-4 pr-10 text-left flex items-center justify-between active:scale-[0.99] cursor-pointer group relative">
+          <button className="w-full h-11 bg-field-silver border border-linen-200 hover:border-linen-300 focus:bg-surface focus:ring-2 focus:ring-teal-100 transition-all duration-200 ease-out rounded-xl text-[13px] font-normal pl-4 pr-10 text-left flex items-center justify-between active:scale-[0.99] cursor-pointer group relative">
             <span
               className={cn("truncate", previewRange.from ? "text-ink-900" : "text-neutral-400")}
             >

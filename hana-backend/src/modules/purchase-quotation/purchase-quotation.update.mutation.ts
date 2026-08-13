@@ -6,7 +6,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { afterPqSaved } from "@/modules/intercompany";
+import { afterPqSaved, assertIcPqEditable } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
 const normalizeSapDateValue = (value: unknown) => {
   const raw = String(value ?? "").trim();
@@ -29,6 +29,13 @@ export const updatePurchaseQuotation = async (
   try {
     const isDraft = payload.isDraft === true;
     const sapPayload: Record<string, unknown> = {};
+
+    if (!isDraft) {
+      const companyDb = serviceLayerClient.getSession(sessionId)?.companyDB?.trim();
+      if (companyDb) {
+        await assertIcPqEditable(companyDb, Number(id));
+      }
+    }
 
     if (payload.attachments !== undefined) {
       const session = serviceLayerClient.getSession(sessionId);

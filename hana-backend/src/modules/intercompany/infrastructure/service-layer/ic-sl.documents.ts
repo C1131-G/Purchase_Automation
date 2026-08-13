@@ -70,6 +70,15 @@ export type IcSlDocumentResult = {
   docNum?: number;
 };
 
+export type PatchArInvoiceDraftInput = {
+  companyId: number;
+  draftEntry: number;
+  patch: Record<string, unknown>;
+};
+
+export type IcPostedArInvoice = IcSlDocumentResult;
+export type IcArInvoiceDraftSnapshot = Record<string, unknown>;
+
 const safeJson = (value: unknown): string | null => {
   try {
     return JSON.stringify(value);
@@ -222,6 +231,17 @@ export type FindSalesQuotationByIcChainInput = {
 export type IcSlDocuments = {
   /** Create A/R Invoice Draft on seller (`POST /Drafts`, DocObjectCode 13). */
   createArInvoiceDraft: (input: CreateArInvoiceDraftInput) => Promise<IcSlDocumentResult>;
+  /** Full merged Drafts PATCH for an editable seller A/R Invoice Draft. */
+  patchArInvoiceDraft: (input: PatchArInvoiceDraftInput) => Promise<void>;
+  getArInvoiceDraft: (input: {
+    companyId: number;
+    draftEntry: number;
+  }) => Promise<IcArInvoiceDraftSnapshot>;
+  /** Verify a posted seller A/R Invoice before promoting its document map. */
+  getPostedArInvoice: (input: {
+    companyId: number;
+    docEntry: number;
+  }) => Promise<IcPostedArInvoice>;
   createSalesQuotation: (input: CreateSalesQuotationInput) => Promise<IcSlDocumentResult>;
   /**
    * GET seller Sales Quotation for Flow 2 convert (BaseType 23).
@@ -365,6 +385,74 @@ export const createIcSlDocuments = (deps?: {
   };
 
   return {
+    getArInvoiceDraft: async (input) => {
+      const { connection, session: slSession } = await withCompanySession(input.companyId);
+      const endpoint = `/Drafts(${input.draftEntry})`;
+      logSlRequest({ companyId: input.companyId, endpoint, method: "GET" });
+      try {
+        const response = await client.request<Record<string, unknown>>({
+          connection,
+          endpoint,
+          method: "GET",
+          session: slSession,
+        });
+        return response.data ?? {};
+      } catch (err: unknown) {
+        logSlFailure({ companyId: input.companyId, endpoint, err, method: "GET" });
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+
+    patchArInvoiceDraft: async (input) => {
+      const { connection, session: slSession } = await withCompanySession(input.companyId);
+      const endpoint = `/Drafts(${input.draftEntry})`;
+      logSlRequest({
+        companyId: input.companyId,
+        endpoint,
+        lineCount: Array.isArray(input.patch.DocumentLines) ? input.patch.DocumentLines.length : 0,
+        method: "PATCH",
+      });
+      try {
+        const response = await client.request<Record<string, unknown>>({
+          body: input.patch,
+          connection,
+          endpoint,
+          method: "PATCH",
+          session: slSession,
+          headers: { "B1S-ReplaceCollectionsOnPatch": "true" },
+        });
+        await apiLog.write({
+          companyId: input.companyId,
+          endpoint,
+          method: "PATCH",
+          requestJson: safeJson(input.patch),
+          responseJson: safeJson(response.data),
+          statusCode: response.status,
+        });
+      } catch (err: unknown) {
+        logSlFailure({ companyId: input.companyId, endpoint, err, method: "PATCH" });
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+
+    getPostedArInvoice: async (input) => {
+      const { connection, session: slSession } = await withCompanySession(input.companyId);
+      const endpoint = `/Invoices(${input.docEntry})`;
+      logSlRequest({ companyId: input.companyId, endpoint, method: "GET" });
+      try {
+        const response = await client.request<{ DocEntry?: number; DocNum?: number }>({
+          connection,
+          endpoint,
+          method: "GET",
+          session: slSession,
+        });
+        return parseDocResult(response.data);
+      } catch (err: unknown) {
+        logSlFailure({ companyId: input.companyId, endpoint, err, method: "GET" });
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+
     getDraftHeaderFields,
     getDraftComments: async (input) => {
       const fields = await getDraftHeaderFields(input);

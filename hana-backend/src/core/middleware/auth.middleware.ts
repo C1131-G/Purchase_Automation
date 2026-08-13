@@ -41,67 +41,22 @@ export const validateSession: RequestHandler = async (
   }
   const authedLog = req.log || log;
 
-  // Double Check: Verifies if the SAP Service Layer session mapped to this Express session is still active in the backend memory.
-  // This handles backend restarts — the Express session (cookie) survives, but the in-memory SAP session map is wiped.
+  // Never restore a missing SAP session. Backend restarts and SAP session loss
+  // require a fresh user login instead of silently reusing stored credentials.
   if (!serviceLayerClient.isSessionValid(session.sessionId)) {
-    // Attempt silent re-login using the credentials stored in the Express session.
-    const { slCompanyDB, slUsername, slPassword } = session;
+    authedLog.warn({
+      event: "session_expired_in_sap",
+      reason: "service_layer_session_missing",
+      username: session.user.userName,
+    });
 
-    if (slCompanyDB && slUsername && slPassword) {
-      try {
-        authedLog.info({
-          event: "sap_session_auto_reconnect",
-          reason: "in_memory_session_lost",
-          username: session.user.userName,
-        });
+    session.destroy(() => {});
+    res.clearCookie("vendorportal.sid");
 
-        const newSession = await serviceLayerClient.login(slCompanyDB, slUsername, slPassword);
-
-        // Update the Express session with the new SAP session ID
-        session.sessionId = newSession.sessionId;
-        await new Promise<void>((resolve, reject) =>
-          session.save((err) => (err ? reject(err) : resolve())),
-        );
-
-        authedLog.info({
-          event: "sap_session_reconnected",
-          username: session.user.userName,
-        });
-      } catch (reconnectErr: unknown) {
-        authedLog.warn(
-          {
-            err: reconnectErr instanceof Error ? reconnectErr : new Error(String(reconnectErr)),
-            event: "sap_session_reconnect_failed",
-            username: session.user.userName,
-          },
-          "SAP session reconnect failed",
-        );
-
-        // Re-login failed — destroy the session and force the user to login again.
-        session.destroy(() => {});
-        res.clearCookie("vendorportal.sid");
-
-        return res.status(401).json({
-          message: "Session has expired. Please login again.",
-          success: false,
-        });
-      }
-    } else {
-      // No stored credentials — can't reconnect. Force re-login.
-      authedLog.warn({
-        event: "session_expired_in_sap",
-        reason: "no_stored_sl_credentials",
-        username: session.user.userName,
-      });
-
-      session.destroy(() => {});
-      res.clearCookie("vendorportal.sid");
-
-      return res.status(401).json({
-        message: "Session has expired",
-        success: false,
-      });
-    }
+    return res.status(401).json({
+      message: "Session has expired. Please login again.",
+      success: false,
+    });
   }
 
   // Hydrate the Request object with user metadata for downstream business logic (permission checks, tenant identification).

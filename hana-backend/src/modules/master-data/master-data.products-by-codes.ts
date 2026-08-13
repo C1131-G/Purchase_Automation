@@ -70,7 +70,7 @@ async function loadProductsByCodesForTenant(
   normalizedWarehouseCode: string,
   normalizedCardCode: string,
 ) {
-  const [adminSettings, taxGroups, uoms, ugpLines] = await Promise.all([
+  const [adminSettings, taxGroups, uoms, ugpLines, displayCurrency, catalog] = await Promise.all([
     getCachedData(
       `master:${dbName}:AdminSettings`,
       async () => {
@@ -127,14 +127,11 @@ async function loadProductsByCodesForTenant(
       },
       1000 * 60 * 60,
     ),
+    getDisplayCurrency(dbName),
+    loadOscnMatchedItemCodes(dbName, normalizedCardCode, type, { itemCodes }),
   ]);
 
-  const { oscnByItemCode, itemCodes: matchedCodes } = await loadOscnMatchedItemCodes(
-    dbName,
-    normalizedCardCode,
-    type,
-    { itemCodes },
-  );
+  const { oscnByItemCode, itemCodes: matchedCodes } = catalog;
 
   if (matchedCodes.length === 0) {
     return [];
@@ -217,10 +214,7 @@ async function loadProductsByCodesForTenant(
     })(),
   ]);
 
-  const defaultCurrency = resolveCurrencyCode(
-    adminSettings?.MainCurncy,
-    await getDisplayCurrency(dbName),
-  );
+  const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
 
   return mapProductResults({
     items: itemsWithCatalog,

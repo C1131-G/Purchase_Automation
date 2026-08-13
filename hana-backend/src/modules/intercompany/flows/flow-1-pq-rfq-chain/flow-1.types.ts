@@ -7,8 +7,8 @@ export type Flow1SkipReason =
   | "flow1_disabled"
   | "invalid_input"
   | "non_ic_vendor"
-  | "already_rfq_exists"
-  | "already_mapped_success";
+  | "pq_already_converted"
+  | "rfq_not_editable";
 
 export type Flow1CaptureResult =
   | { kind: "skip"; reason: Flow1SkipReason; detail?: string; check?: string }
@@ -16,6 +16,15 @@ export type Flow1CaptureResult =
       kind: "proceed";
       input: IcPqDraftHookInput;
       partner: ResolvePartnerResult;
+      sourceDocEntry: string;
+      sourceDocNum: string | null;
+      remarksTag: string;
+    }
+  | {
+      kind: "proceed_update";
+      input: IcPqDraftHookInput;
+      partner: ResolvePartnerResult;
+      rfqId: number;
       sourceDocEntry: string;
       sourceDocNum: string | null;
       remarksTag: string;

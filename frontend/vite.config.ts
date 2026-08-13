@@ -28,6 +28,17 @@ export default defineConfig({
   plugins: [
     TanStackRouterVite({
       autoCodeSplitting: true,
+      codeSplittingOptions: {
+        // Keep protected route loaders and their query dependencies out of the
+        // public login entry bundle. They load only when their route is visited.
+        defaultBehavior: [
+          ["loader"],
+          ["component"],
+          ["pendingComponent"],
+          ["errorComponent"],
+          ["notFoundComponent"],
+        ],
+      },
       generatedRouteTree: "./src/routeTree.gen.ts",
       routeFileIgnorePattern: "^_require-active-session\\.ts$",
       routesDirectory: "./src/routes",

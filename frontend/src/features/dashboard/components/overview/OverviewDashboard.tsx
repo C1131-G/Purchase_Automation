@@ -15,7 +15,7 @@ import { partnerSelectionKey } from "../../utils/overview.types";
 import { overviewMotionClass } from "../../utils/overview.motion";
 import { ConnectedPartners } from "./ConnectedPartners";
 import { NeedsAttention } from "./NeedsAttention";
-import { OverviewDashboardContentSkeleton } from "./OverviewSectionSkeletons";
+import { OverviewDashboardSkeleton } from "./OverviewSectionSkeletons";
 import { OpenWorkStrip } from "./OpenWorkStrip";
 import { StatementShell } from "./StatementShell";
 
@@ -99,6 +99,10 @@ export function OverviewDashboard() {
       ? error.message
       : "Check your session and try again.";
 
+  if (isLoading || (!data && !isError)) {
+    return <OverviewDashboardSkeleton />;
+  }
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-surface">
       <header className="shrink-0 border-b border-teal-100/50 bg-gradient-to-r from-teal-50/60 via-surface to-linen-50/60 px-6 py-5 sm:px-8">
@@ -154,9 +158,7 @@ export function OverviewDashboard() {
               onRetry={refreshOverview}
               className="min-h-[280px] rounded-2xl border border-rose-200/80 bg-surface shadow-sm"
             />
-          ) : isLoading || !data ? (
-            <OverviewDashboardContentSkeleton />
-          ) : (
+          ) : data ? (
             <>
               <div className={overviewMotionClass.enter}>
                 <OpenWorkStrip
@@ -204,7 +206,7 @@ export function OverviewDashboard() {
                 />
               </div>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

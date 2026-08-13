@@ -30,8 +30,14 @@ export async function loadProductsForTenant(
     return [];
   }
 
-  // Step 1: Pre-fetch setup data with independent caches so product search misses don't re-fetch static lookups.
-  const [adminSettings, taxGroups, uoms, ugpLines] = await Promise.all([
+  const rowLimit =
+    typeof resolvedLimit === "number" && Number.isFinite(resolvedLimit) && resolvedLimit > 0
+      ? Math.floor(resolvedLimit)
+      : defaultListLimit;
+
+  // Product catalog, currency, and setup lookups are independent. Start them together
+  // so an uncached product request pays for one parallel batch instead of a waterfall.
+  const [adminSettings, taxGroups, uoms, ugpLines, displayCurrency, catalog] = await Promise.all([
     getCachedData(
       `master:${dbName}:AdminSettings`,
       async () => {
@@ -88,24 +94,16 @@ export async function loadProductsForTenant(
       },
       1000 * 60 * 60,
     ),
-  ]);
-
-  // Step 2: OSCN for BP → ItemCodes, then OITM for those codes only (no full item master).
-  const rowLimit =
-    typeof resolvedLimit === "number" && Number.isFinite(resolvedLimit) && resolvedLimit > 0
-      ? Math.floor(resolvedLimit)
-      : defaultListLimit;
-
-  const { oscnByItemCode, itemCodes: matchedCodes } = await loadOscnMatchedItemCodes(
-    dbName,
-    normalizedCardCode,
-    type,
-    {
+    getDisplayCurrency(dbName),
+    loadOscnMatchedItemCodes(dbName, normalizedCardCode, type, {
       search: normalizedSearch,
       // Load a wider OSCN∩OITM page then map; search may filter in-memory on OSCN fields.
       limit: Math.max(rowLimit, defaultListLimit),
-    },
-  );
+    }),
+  ]);
+
+  // OSCN for BP → ItemCodes, then OITM for those codes only (no full item master).
+  const { oscnByItemCode, itemCodes: matchedCodes } = catalog;
 
   if (matchedCodes.length === 0) {
     return [];
@@ -193,10 +191,7 @@ export async function loadProductsForTenant(
     })(),
   ]);
 
-  const defaultCurrency = resolveCurrencyCode(
-    adminSettings?.MainCurncy,
-    await getDisplayCurrency(dbName),
-  );
+  const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
 
   return mapProductResults({
     items: itemsWithCatalog,

@@ -98,6 +98,8 @@ const createFlow1TestStack = (opts?: {
     createArInvoiceDraft: async () => {
       throw new Error("not used in flow1");
     },
+    getArInvoiceDraft: async () => ({}),
+    getPostedArInvoice: async () => ({ docEntry: 1 }),
     createSalesQuotation:
       opts?.documents?.createSalesQuotation ??
       (async () => ({
@@ -116,6 +118,7 @@ const createFlow1TestStack = (opts?: {
     getSalesQuotation: async () => {
       throw new Error("not used in flow1");
     },
+    patchArInvoiceDraft: async () => undefined,
   };
 
   const orchestrator = createFlow1Orchestrator({
@@ -295,10 +298,7 @@ describe("Flow 1 PQ Draft → RFQ chain (P6)", () => {
     expect(storedRemarks).not.toMatch(/Flow\s*[12]/i);
 
     const second = await orchestrator.run(input);
-    expect(second.status).toBe("skipped");
-    if (second.status === "skipped") {
-      expect(second.reason.startsWith("already_rfq_exists")).toBe(true);
-    }
+    expect(second.status).toBe("success");
     expect(db.tables.IC_RFQ_HEADER).toHaveLength(1);
 
     const header = await rfq.findBySourceDraft(1, 55);

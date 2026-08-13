@@ -1,6 +1,6 @@
 /** useLogin: Orchestrates the login flow, including validation and session establishment. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 
 import { authKeys } from "@/features/auth/api/auth.queries";
 import { authAPI } from "@/features/auth/api/auth.service";
@@ -18,6 +18,7 @@ import { useSetSidebarAction } from "@/store/sidebar/sidebar.store";
 // useLogin: Custom hook bridging UI, backend auth API, and global store state.
 export function useLogin() {
   const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   // Using individual atomic selectors as requested
@@ -33,6 +34,9 @@ export function useLogin() {
     // onMutate: Resets local/global errors before new attempt.
     onMutate: () => {
       clearError();
+      // Load dashboard code while authentication is in flight. The dashboard
+      // has no auth loader, so this does not issue protected data requests early.
+      void router.preloadRoute({ to: "/dashboard" });
     },
 
     // onSuccess: Synchronizes global store, cache, and navigation on success.
@@ -45,14 +49,10 @@ export function useLogin() {
         // Sync the Query Cache (Blueprint)
         queryClient.setQueryData(authKeys.user(), response.data.user);
 
-        // Navigate immediately — overview prefetch races in parallel (session cookie ready).
-        void navigate({
-          replace: true,
-          to: "/dashboard",
-        });
-
-        // Priority: warm Overview React Query cache so first paint is instant when ready.
+        // Start overview data first, then navigate without waiting. Route code was
+        // already preloaded during login, so both paths converge on the same query.
         void prefetchOverviewAfterLogin(queryClient);
+        void navigate({ replace: true, to: "/dashboard" });
 
         // Create master (vendors/WH/SE) — shorter idle so open-create after login is warm.
         scheduleIdlePrefetch(async () => {

@@ -85,16 +85,17 @@ export const getPayments = async (dbName: string, filters: PaymentFilters) => {
       ? ({ [requestedSortField]: requestedSortOrder } as Record<string, "ASC" | "DESC">)
       : ({ "p.docDate": "DESC", "p.docNum": "DESC" } as Record<string, "ASC" | "DESC">);
 
-    const result = await PageService.getPagedData<OutgoingPayment>({
-      dbName,
-      entityName: "OutgoingPayments",
-      limit: Number(filters.limit) || 10,
-      page: Number(filters.page) || 1,
-      query: queryBuilder,
-      sort,
-    });
-
-    const displayCurrency = await getDisplayCurrency(dbName);
+    const [result, displayCurrency] = await Promise.all([
+      PageService.getPagedData<OutgoingPayment>({
+        dbName,
+        entityName: "OutgoingPayments",
+        limit: Number(filters.limit) || 10,
+        page: Number(filters.page) || 1,
+        query: queryBuilder,
+        sort,
+      }),
+      getDisplayCurrency(dbName),
+    ]);
     return {
       ...result,
       data: result.data.map((data) => ({

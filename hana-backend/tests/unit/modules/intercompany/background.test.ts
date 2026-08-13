@@ -248,8 +248,8 @@ describe("P7 background worker jobs", () => {
 
     const second = await job.run();
     expect(second.processed).toBe(1);
-    expect(second.skipped).toBe(1);
-    expect(second.created).toBe(0);
+    expect(second.skipped).toBe(0);
+    expect(second.created).toBe(1);
     expect(stack.db.tables.IC_RFQ_HEADER).toHaveLength(1);
   });
 

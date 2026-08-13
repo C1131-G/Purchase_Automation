@@ -6,6 +6,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { assertIcSqEditable } from "@/modules/intercompany";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
@@ -19,6 +20,13 @@ export const updateSalesQuotation = async (
   try {
     const sapPayload: Record<string, unknown> = {};
     const isDraft = payload.isDraft === true;
+
+    if (!isDraft) {
+      const dbName = serviceLayerClient.getSession(sessionId)?.companyDB?.trim();
+      if (dbName) {
+        await assertIcSqEditable(dbName, Number(id));
+      }
+    }
 
     if (payload.attachments !== undefined) {
       const session = serviceLayerClient.getSession(sessionId);

@@ -13,7 +13,7 @@ export function AppToaster() {
       position="top-right"
       expand
       gap={10}
-      visibleToasts={4}
+      visibleToasts={3}
       offset={{ top: 16, right: 16 }}
       mobileOffset={{ top: 12, right: 12, left: 12 }}
       toastOptions={{

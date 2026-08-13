@@ -45,8 +45,10 @@ export const getARRelationshipMap = async (
 
     // Seller SQ map: RFQ → SQ only (no downstream SAP chain).
     if (docType === "sales-quotation") {
-      const requestForQuotation = await resolveIcRfqForSalesQuotation(dbName, docEntry);
-      const salesQuotation = await getDocNums("OQUT", [docEntry]);
+      const [requestForQuotation, salesQuotation] = await Promise.all([
+        resolveIcRfqForSalesQuotation(dbName, docEntry),
+        getDocNums("OQUT", [docEntry]),
+      ]);
       result.salesQuotation = salesQuotation;
       if (requestForQuotation.length > 0) {
         result.requestForQuotation = requestForQuotation;
@@ -59,12 +61,9 @@ export const getARRelationshipMap = async (
       currentSOs = [docEntry];
       // Up to SQ
       const qUp = `SELECT DISTINCT "BaseEntry" FROM "RDR1" WHERE "BaseType" = 23 AND "DocEntry" IN (${docEntry})`;
-      const sqs = await manager.query(qUp);
-      currentSQs = extractIds(sqs, "BaseEntry");
-
-      // Down to Inv
       const qDown = `SELECT DISTINCT "DocEntry" FROM "INV1" WHERE "BaseType" = 17 AND "BaseEntry" IN (${docEntry})`;
-      const invs = await manager.query(qDown);
+      const [sqs, invs] = await Promise.all([manager.query(qUp), manager.query(qDown)]);
+      currentSQs = extractIds(sqs, "BaseEntry");
       currentInvs = extractIds(invs, "DocEntry");
     } else if (docType === "ar-invoice") {
       currentInvs = [docEntry];
@@ -120,22 +119,17 @@ export const getARRelationshipMap = async (
     if (currentInvs.length > 0 && docType !== "ar-credit-memo") {
       // Find CMs
       const qCM = `SELECT DISTINCT "DocEntry" FROM "RIN1" WHERE "BaseType" = 13 AND "BaseEntry" IN (${currentInvs.join(",")})`;
-      const cms = await manager.query(qCM);
-      currentCMs = extractIds(cms, "DocEntry");
-
-      // Find IPs
       const qIP = `SELECT DISTINCT "DocNum" FROM "RCT2" WHERE "InvType" = 13 AND "DocEntry" IN (${currentInvs.join(",")})`;
-      const ips = await manager.query(qIP);
+      const [cms, ips] = await Promise.all([manager.query(qCM), manager.query(qIP)]);
+      currentCMs = extractIds(cms, "DocEntry");
       currentIPs = extractIds(ips, "DocNum");
     } else if (currentInvs.length > 0 && docType === "ar-credit-memo") {
       // We still want to find other CMs and IPs linked to the base invoice
       const qCM = `SELECT DISTINCT "DocEntry" FROM "RIN1" WHERE "BaseType" = 13 AND "BaseEntry" IN (${currentInvs.join(",")})`;
-      const cms = await manager.query(qCM);
+      const qIP = `SELECT DISTINCT "DocNum" FROM "RCT2" WHERE "InvType" = 13 AND "DocEntry" IN (${currentInvs.join(",")})`;
+      const [cms, ips] = await Promise.all([manager.query(qCM), manager.query(qIP)]);
       const newCMs = extractIds(cms, "DocEntry");
       currentCMs = [...new Set([...currentCMs, ...newCMs])];
-
-      const qIP = `SELECT DISTINCT "DocNum" FROM "RCT2" WHERE "InvType" = 13 AND "DocEntry" IN (${currentInvs.join(",")})`;
-      const ips = await manager.query(qIP);
       currentIPs = extractIds(ips, "DocNum");
     }
 

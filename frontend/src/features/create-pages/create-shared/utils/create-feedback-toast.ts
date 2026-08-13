@@ -49,7 +49,7 @@ export const notifyDocumentHydrating = (
   documentKey: string,
   message = "Loading document…",
 ): void => {
-  toast.loading(message, { id: hydrateId(documentKey) });
+  toast.loading(message, { duration: 1800, id: hydrateId(documentKey) });
 };
 
 export const dismissDocumentHydrating = (documentKey: string): void => {

@@ -114,12 +114,12 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
               ? "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200"
               : editableHighlight
                 ? "border-emerald-300 bg-emerald-50/60 text-ink-900 focus:border-emerald-400 focus:bg-surface focus:ring-2 focus:ring-emerald-200"
-                : "border-linen-200 bg-linen-50 text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+                : "border-linen-200 bg-field-silver text-ink-900 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
           } ${
             disabled
               ? `cursor-not-allowed opacity-100 ${
                   uniformReadOnlyAppearance
-                    ? "border-linen-200 bg-linen-50 text-ink-900"
+                    ? "border-linen-200 bg-field-silver text-ink-900"
                     : "border-linen-200 bg-linen-100 text-neutral-500"
                 }`
               : ""

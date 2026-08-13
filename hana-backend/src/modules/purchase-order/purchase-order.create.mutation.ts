@@ -9,7 +9,7 @@ import { config } from "@/config/env";
 import { resolveCurrencyCode } from "@/services/currency-format";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
-import { afterPoCreated } from "@/modules/intercompany";
+import { afterPoCreated, recordIcPqToPoLink } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
@@ -277,6 +277,20 @@ export const createPurchaseOrder = async (
     // Flow 2 IC: schedule only — main PO create does not wait for AR invoice draft / notifications.
     let intercompany: IcHookResult | undefined;
     if (!isDraft && result.DocEntry) {
+      try {
+        await recordIcPqToPoLink({
+          dbName: resolvedDbNameFromRes || resolvedDbName,
+          lines: documentLines,
+          poDocEntry: Number(result.DocEntry),
+          poDocNum: result.DocNum == null ? null : Number(result.DocNum),
+        });
+      } catch (linkError: unknown) {
+        logger.error({
+          err: linkError instanceof Error ? linkError : new Error(String(linkError)),
+          msg: "PQ to PO IC linkage failed; Flow 2 will still be scheduled",
+        });
+      }
+
       try {
         // Pass normalized documentLines (not raw client payload) so ItemDescription / UoM reach Flow 2.
         intercompany = await afterPoCreated({

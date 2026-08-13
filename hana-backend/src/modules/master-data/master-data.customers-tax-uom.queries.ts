@@ -12,31 +12,29 @@ import {
   fetchSalesEmployeeNames,
 } from "./master-data.partner-lookup";
 export const getCustomers = async (dbName: string) => {
-  const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
-  const settingsRows = await adminSettingsRepo.find({
-    select: ["MainCurncy"],
-    take: 1,
-  });
+  const [settingsRows, displayCurrency, results] = await Promise.all([
+    (async () => {
+      const adminSettingsRepo = await getTenantRepository(dbName, AdminSettingsSchema);
+      return adminSettingsRepo.find({ select: ["MainCurncy"], take: 1 });
+    })(),
+    getDisplayCurrency(dbName),
+    fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
+      order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
+      select: [
+        "CardCode",
+        "CardName",
+        "Address",
+        "Currency",
+        "SlpCode",
+        "BillToDef",
+        "ShipToDef",
+      ] as const,
+      where: { CardType: "C", frozenFor: "N" } as Record<string, unknown>,
+    }),
+  ]);
   const adminSettings = settingsRows[0] ?? null;
   // OADM first; env DEFAULT_CURRENCY_CODE if admin missing/"$" / fails.
-  const defaultCurrency = resolveCurrencyCode(
-    adminSettings?.MainCurncy,
-    await getDisplayCurrency(dbName),
-  );
-
-  const results = await fetchLookup(dbName, BusinessPartnerSchema, "Customers:v3", {
-    order: { CardCode: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: [
-      "CardCode",
-      "CardName",
-      "Address",
-      "Currency",
-      "SlpCode",
-      "BillToDef",
-      "ShipToDef",
-    ] as const,
-    where: { CardType: "C", frozenFor: "N" } as Record<string, unknown>,
-  });
+  const defaultCurrency = resolveCurrencyCode(adminSettings?.MainCurncy, displayCurrency);
   const customerCodes = results.map((item) => item.CardCode).filter(Boolean);
   const salesEmployeeCodes = [
     ...new Set(

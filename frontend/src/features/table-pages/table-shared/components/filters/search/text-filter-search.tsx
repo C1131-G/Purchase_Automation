@@ -376,8 +376,8 @@ export function TextFilterSearch<TData>({
         }
         className={
           isDocLookupStyleColumn
-            ? "h-11 w-full rounded-xl border border-linen-200 bg-linen-50 pl-3 pr-10 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
-            : "h-11 w-full rounded-xl border border-linen-200 bg-linen-50 pl-11 pr-10 text-[13px] font-normal text-ink-900 outline-none transition placeholder:text-neutral-400 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
+            ? "h-11 w-full rounded-xl border border-linen-200 bg-field-silver pl-3 pr-10 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
+            : "h-11 w-full rounded-xl border border-linen-200 bg-field-silver pl-11 pr-10 text-[13px] font-normal text-ink-900 outline-none transition placeholder:text-neutral-400 focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-100"
         }
       />
       <SearchActionButtons
