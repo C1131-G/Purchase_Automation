@@ -40,29 +40,6 @@ export function IcUnreadCountPill({ className }: { className?: string }) {
 }
 
 /**
- * Tiny count dot for Intercompany section icon (icon-collapsed sidebar).
- * Renders nothing when count is 0.
- */
-export function IcUnreadIconBadge({ className }: { className?: string }) {
-  const unreadQuery = useIcUnreadCount(true);
-  const count = unreadQuery.data?.data.count ?? 0;
-  if (count <= 0) {
-    return null;
-  }
-  return (
-    <span
-      className={cn(
-        "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-600 px-1.5 text-[10px] font-bold leading-none text-surface tabular-nums shadow-md ring-2 ring-surface isolate",
-        className,
-      )}
-      aria-label={`${count} unread notifications`}
-    >
-      {formatCountBadge(count)}
-    </span>
-  );
-}
-
-/**
  * Compact pending-retry indicator for Intercompany sidebar.
  * Renders nothing when count is 0.
  */
@@ -82,27 +59,6 @@ export function IcRetryCountPill({ className }: { className?: string }) {
     >
       <RotateCcw className="size-3 shrink-0" aria-hidden />
       <span>{formatCountBadge(count)}</span>
-    </span>
-  );
-}
-
-/**
- * Section-header badges for expanded Intercompany nav (notifications + retries).
- */
-export function IcIntercompanySectionBadges({ className }: { className?: string }) {
-  const unreadQuery = useIcUnreadCount(true);
-  const retryQuery = useIcPendingRetryCount(true);
-  const unreadCount = unreadQuery.data?.data.count ?? 0;
-  const retryCount = retryQuery.data ?? 0;
-
-  if (unreadCount <= 0 && retryCount <= 0) {
-    return null;
-  }
-
-  return (
-    <span className={cn("inline-flex items-center gap-1", className)}>
-      {unreadCount > 0 ? <IcUnreadCountPill /> : null}
-      {retryCount > 0 ? <IcRetryCountPill /> : null}
     </span>
   );
 }

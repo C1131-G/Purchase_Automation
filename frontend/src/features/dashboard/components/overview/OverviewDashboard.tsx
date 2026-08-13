@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 
 import { SectionErrorState } from "@/components/section-error-state";
+import { IcDashboardStatusActions } from "@/features/intercompany/components/ic-dashboard-status-actions";
 import { cn } from "@/shared/utils/cn";
 
 import { useOverviewDashboard } from "../../queries/queries";
@@ -20,18 +21,6 @@ import { OpenWorkStrip } from "./OpenWorkStrip";
 import { StatementShell } from "./StatementShell";
 
 import "./overview.css";
-
-function formatAsOf(iso: string | undefined): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 export function OverviewDashboard() {
   const queryClient = useQueryClient();
@@ -93,7 +82,6 @@ export function OverviewDashboard() {
     scrollToStatement();
   };
 
-  const asOfLabel = formatAsOf(data?.asOf);
   const errorMessage =
     error instanceof Error && error.message.trim()
       ? error.message
@@ -106,16 +94,13 @@ export function OverviewDashboard() {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-surface">
       <header className="shrink-0 border-b border-teal-100/50 bg-gradient-to-r from-teal-50/60 via-surface to-linen-50/60 px-6 py-5 sm:px-8">
-        <div className="mx-auto flex max-w-7xl items-start justify-between gap-4">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-balance text-ink-900">
               Dashboard
             </h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              Open documents, approvals, and partner balances for this company.
-            </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5 pt-1 text-xs text-neutral-500">
+          <div className="flex w-full items-center justify-between gap-2.5 text-xs text-neutral-500 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-1">
             {isLoading ? (
               <span
                 className="h-7 w-28 animate-pulse rounded-full bg-linen-100 ring-1 ring-linen-200"
@@ -125,11 +110,8 @@ export function OverviewDashboard() {
               <span className="rounded-full bg-teal-50 px-2.5 py-1 font-medium text-teal-700 ring-1 ring-teal-100">
                 Updating…
               </span>
-            ) : asOfLabel && !isError ? (
-              <span className="rounded-full bg-surface px-2.5 py-1 font-medium text-neutral-600 ring-1 ring-linen-200">
-                As of {asOfLabel}
-              </span>
             ) : null}
+            <IcDashboardStatusActions />
             <button
               type="button"
               onClick={refreshOverview}
@@ -138,12 +120,15 @@ export function OverviewDashboard() {
                 "inline-flex size-9 cursor-pointer items-center justify-center rounded-xl border border-teal-200/60 bg-surface text-teal-700 shadow-sm",
                 "transition-[transform,background-color,color] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
                 "hover:bg-teal-50 hover:text-teal-900 active:scale-[0.97]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/40",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500",
                 "disabled:cursor-not-allowed disabled:opacity-60",
               )}
               aria-label="Refresh overview"
             >
-              <RefreshCcw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+              <RefreshCcw
+                className={`size-3.5 ${isFetching ? "motion-safe:animate-spin" : ""}`}
+                aria-hidden
+              />
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Building2 } from "lucide-react";
 import { useEffect } from "react";
 
+import { LoginIntercompanyShowcase } from "@/features/auth/components/login-intercompany-showcase";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 import { LoginForm } from "@/features/auth/components/LoginForm";
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/login")({
 function LoginComponent() {
   useDocumentTitle("Access Gateway | Purchase Automation");
 
-  useEffect(() => {
+  useEffect(function showSessionEndedNotice() {
     const params = new URLSearchParams(window.location.search);
     const reason = params.get("reason");
     if (reason === "session_ended") {
@@ -49,47 +49,14 @@ function LoginComponent() {
   }, []);
 
   return (
-    <div className="flex h-svh overflow-hidden">
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-ink-950 p-12 lg:flex lg:w-[55%] border-r border-surface/10">
-        <div
-          aria-hidden
-          className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-teal-500/18 blur-3xl opacity-40"
-        />
-        <div
-          aria-hidden
-          className="absolute bottom-0 right-0 h-80 w-80 translate-x-1/4 translate-y-1/4 rounded-full bg-teal-700/14 blur-3xl opacity-35"
-        />
+    <main className="flex h-svh overflow-hidden">
+      <LoginIntercompanyShowcase />
 
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500 shadow-lg shadow-teal-600/20 ring-1 ring-surface/15 border border-surface/10">
-            <Building2 className="h-6 w-6 text-surface" />
-          </div>
-          <span className="text-xl font-bold tracking-wider text-surface uppercase">
-            Purchase Automation
-          </span>
-        </div>
-
-        <div className="relative z-10 space-y-6">
-          <h2 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-surface lg:text-5xl">
-            Enterprise operations,
-            <span className="block text-teal-200 mt-2">one unified view.</span>
-          </h2>
-          <p className="max-w-md text-base leading-relaxed text-neutral-400 font-normal">
-            Manage orders, invoices, and payments across every entity — all from a single, connected
-            workspace.
-          </p>
-        </div>
-
-        <p className="relative z-10 text-xs font-medium text-neutral-500/70">
-          © {new Date().getFullYear()} Vedhasoft. All rights reserved.
-        </p>
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center bg-linen-50 px-6 py-8">
+      <div className="flex h-svh flex-1 flex-col items-center justify-center overflow-hidden bg-linen-50 px-6 py-6">
         <div className="w-full max-w-100">
           <LoginForm />
         </div>
       </div>
-    </div>
+    </main>
   );
 }

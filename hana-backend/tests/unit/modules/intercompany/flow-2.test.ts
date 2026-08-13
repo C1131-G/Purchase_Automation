@@ -27,7 +27,10 @@ import { createBuildArInvoiceService } from "@/modules/intercompany/flows/flow-2
 import { createFlow2Orchestrator } from "@/modules/intercompany/flows/flow-2-po-to-ar-invoice/flow-2.orchestrator";
 import { IC_CONFIG_KEY, IC_DOC_MAP_STATUS } from "@/modules/intercompany/infrastructure/constants";
 import { IC_OBJECT } from "@/modules/intercompany/infrastructure/object-codes";
-import { SAP_OBJ_SALES_QUOTATION } from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
+import {
+  SAP_OBJ_SALES_QUOTATION,
+  stripIcAttachmentFields,
+} from "@/modules/intercompany/infrastructure/service-layer/ic-sl.documents";
 import { createResolvePartnerService } from "@/modules/intercompany/routing/resolve-partner/resolve-partner.service";
 import {
   createMemoryDb,
@@ -167,6 +170,25 @@ const createFlow2TestStack = (opts?: {
 };
 
 describe("Flow 2 PO → convert seller SQ → AR Invoice Draft", () => {
+  it("removes attachment fields from IC partner payloads", () => {
+    const payload = {
+      AttachmentEntry: 91,
+      attachmentEntry: 92,
+      Attachments: [{ name: "legacy.pdf" }],
+      attachments: [{ fileName: "invoice.pdf" }],
+      Attachments2_Lines: [{ FileName: "sap-file" }],
+      CardCode: "C-A-ON-B",
+      DocumentLines: [{ BaseEntry: 810 }],
+    };
+
+    const sanitized = stripIcAttachmentFields(payload);
+
+    expect(sanitized).toEqual({
+      CardCode: "C-A-ON-B",
+      DocumentLines: [{ BaseEntry: 810 }],
+    });
+  });
+
   it("T5.1 draft PO → skip", async () => {
     const { orchestrator } = createFlow2TestStack();
     const result = await orchestrator.run({

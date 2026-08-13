@@ -12,12 +12,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/sidebar";
-import {
-  IcIntercompanySectionBadges,
-  IcRetryCountPill,
-  IcUnreadCountPill,
-  IcUnreadIconBadge,
-} from "@/features/intercompany/components/ic-unread-badge";
 import type { TableRoutePath } from "@/features/table-pages/table-shared/hooks/sidebar-intent-prefetch";
 import { cn } from "@/shared/utils/cn";
 import { markSidebarNavigation } from "@/shared/utils/route-transition";
@@ -212,8 +206,6 @@ export function ShellLayoutNavigation({
               isOpen={isSectionOpen("intercompany")}
               onToggle={() => onToggleSection("intercompany")}
               isActive={pathname.startsWith("/intercompany")}
-              trailing={<IcIntercompanySectionBadges />}
-              iconBadge={<IcUnreadIconBadge />}
             >
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
@@ -224,10 +216,8 @@ export function ShellLayoutNavigation({
                     pathname === "/intercompany" ||
                     pathname === "/intercompany/"
                   }
-                  className="justify-between gap-2 pr-1"
                 >
-                  <span>Notifications</span>
-                  <IcUnreadCountPill />
+                  Notifications
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
               <SidebarMenuSubItem>
@@ -235,10 +225,8 @@ export function ShellLayoutNavigation({
                   to="/intercompany/retries"
                   search={{ limit: 10, page: 1, status: "all" } as any}
                   isActive={pathname === "/intercompany/retries"}
-                  className="justify-between gap-2 pr-1"
                 >
-                  <span>Retries</span>
-                  <IcRetryCountPill />
+                  Retries
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             </SidebarMenuCollapsible>

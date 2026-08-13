@@ -1,4 +1,5 @@
 import { cn } from "@/shared/utils/cn";
+import { IcDashboardStatusActions } from "@/features/intercompany/components/ic-dashboard-status-actions";
 
 import {
   OVERVIEW_AR_ROW_HEIGHT_REM,
@@ -235,12 +236,14 @@ export function OverviewDashboardSkeleton() {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-surface" aria-busy="true">
       <header className="shrink-0 border-b border-teal-100/50 bg-gradient-to-r from-teal-50/60 via-surface to-linen-50/60 px-6 py-5 sm:px-8">
-        <div className="mx-auto flex max-w-7xl items-start justify-between gap-4">
-          <div className="min-w-0 flex-1 space-y-2">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
             <Pulse className="h-7 w-40" />
-            <Pulse className="h-4 w-80 max-w-full bg-linen-100" />
           </div>
-          <Pulse className="h-9 w-28 shrink-0 rounded-xl bg-linen-100" />
+          <div className="flex w-full items-center justify-between gap-2.5 sm:w-auto sm:shrink-0 sm:justify-end sm:pt-1">
+            <IcDashboardStatusActions />
+            <Pulse className="size-9 shrink-0 rounded-xl bg-linen-100" />
+          </div>
         </div>
       </header>
 

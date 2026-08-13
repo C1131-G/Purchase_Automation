@@ -87,6 +87,25 @@ const safeJson = (value: unknown): string | null => {
   }
 };
 
+const IC_ATTACHMENT_FIELDS = [
+  "AttachmentEntry",
+  "attachmentEntry",
+  "Attachments",
+  "attachments",
+  "Attachments2_Lines",
+] as const;
+
+/** IC partner documents never inherit attachment references or upload collections. */
+export const stripIcAttachmentFields = (
+  payload: Record<string, unknown>,
+): Record<string, unknown> => {
+  const sanitizedPayload = { ...payload };
+  for (const field of IC_ATTACHMENT_FIELDS) {
+    delete sanitizedPayload[field];
+  }
+  return sanitizedPayload;
+};
+
 /** Overlay commercial fields from RFQ onto draft DocumentLines by LineNum (fallback by index). */
 export const mergeDocumentLinesByLineNum = (
   existing: Record<string, unknown>[],
@@ -406,15 +425,16 @@ export const createIcSlDocuments = (deps?: {
     patchArInvoiceDraft: async (input) => {
       const { connection, session: slSession } = await withCompanySession(input.companyId);
       const endpoint = `/Drafts(${input.draftEntry})`;
+      const patch = stripIcAttachmentFields(input.patch);
       logSlRequest({
         companyId: input.companyId,
         endpoint,
-        lineCount: Array.isArray(input.patch.DocumentLines) ? input.patch.DocumentLines.length : 0,
+        lineCount: Array.isArray(patch.DocumentLines) ? patch.DocumentLines.length : 0,
         method: "PATCH",
       });
       try {
         const response = await client.request<Record<string, unknown>>({
-          body: input.patch,
+          body: patch,
           connection,
           endpoint,
           method: "PATCH",
@@ -425,7 +445,7 @@ export const createIcSlDocuments = (deps?: {
           companyId: input.companyId,
           endpoint,
           method: "PATCH",
-          requestJson: safeJson(input.patch),
+          requestJson: safeJson(patch),
           responseJson: safeJson(response.data),
           statusCode: response.status,
         });
@@ -944,7 +964,7 @@ export const createIcSlDocuments = (deps?: {
       // Not a real posted invoice: human posts from draft in SAP / portal later.
       const endpoint = "/Drafts";
       const invoiceBody: Record<string, unknown> = {
-        ...input.draftPayload,
+        ...stripIcAttachmentFields(input.draftPayload),
         // SAP draft object type for A/R Invoice Draft (ODRF ObjType 13 / oInvoices).
         DocObjectCode: SAP_OBJECT_TYPE_AR_INVOICE,
       };
@@ -1038,7 +1058,7 @@ export const createIcSlDocuments = (deps?: {
             companyId: input.companyId,
             endpoint,
             method: "POST",
-            requestJson: safeJson(input.draftPayload),
+            requestJson: safeJson(invoiceBody),
             responseJson: safeJson({ error: message }),
             statusCode: null,
           });

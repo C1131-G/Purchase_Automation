@@ -1,0 +1,71 @@
+@keyframes login-document-sync-right {
+  0% {
+    opacity: 0;
+    transform: translateX(-2.75rem) scale(0.94);
+  }
+
+  16% {
+    opacity: 1;
+    transform: translateX(-2.75rem) scale(1);
+  }
+
+  82% {
+    opacity: 1;
+    transform: translateX(2.75rem) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(2.75rem) scale(0.94);
+  }
+}
+
+@keyframes login-document-sync-left {
+  0% {
+    opacity: 0;
+    transform: translateX(2.75rem) scale(0.94);
+  }
+
+  16% {
+    opacity: 1;
+    transform: translateX(2.75rem) scale(1);
+  }
+
+  82% {
+    opacity: 1;
+    transform: translateX(-2.75rem) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-2.75rem) scale(0.94);
+  }
+}
+
+@keyframes login-document-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.login-flow-packet--first {
+  animation: login-document-sync-right 1.1s cubic-bezier(0.77, 0, 0.175, 1) 0.35s both;
+}
+
+.login-flow-packet--second {
+  animation: login-document-sync-left 1.1s cubic-bezier(0.77, 0, 0.175, 1) 1.65s both;
+}
+
+.login-flow-packet--third {
+  animation: login-document-sync-right 1.1s cubic-bezier(0.77, 0, 0.175, 1) 2.95s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-flow-packet {
+    animation: login-document-fade 0.2s cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+}
