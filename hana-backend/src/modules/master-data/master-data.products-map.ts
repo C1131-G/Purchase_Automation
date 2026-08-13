@@ -135,11 +135,15 @@ export function mapProductResults(args: {
 
     const substitute = toTrimmed(item.Substitute);
     const cardCode = toTrimmed(item.CardCode);
+    const manBtchNum = toTrimmed(item.ManBtchNum).toUpperCase() === "Y" ? "Y" : "N";
+    const manSerNum = toTrimmed(item.ManSerNum).toUpperCase() === "Y" ? "Y" : "N";
 
     return {
       Currency: resolvedCurrency,
       ItemCode: normalizedItemCode,
       ItemName: item.ItemName,
+      ManBtchNum: manBtchNum,
+      ManSerNum: manSerNum,
       OnHand: resolvedStock,
       Price: resolvedPrice,
       PurchaseUoMCode: resolvedPurchaseUomCode,
@@ -157,6 +161,8 @@ export function mapProductResults(args: {
       ...(cardCode ? { CardCode: cardCode } : {}),
       ...(substitute ? { Substitute: substitute } : {}),
       id: normalizedItemCode,
+      manBtchNum,
+      manSerNum,
       productCode: normalizedItemCode,
       productName: item.ItemName,
       stock: resolvedStock,

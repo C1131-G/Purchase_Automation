@@ -116,6 +116,22 @@ export const registerAllPaths = () => {
     tags: ["Master Data"],
     responses: jsonResponses({ successDescription: "Product rows for requested codes." }),
   });
+  registerPath("/master-data/item-batches", "get", {
+    security: cookieSecurity,
+    operationId: "listItemBatches",
+    summary: "Item batches on hand",
+    description: "Existing batches (OBTN + OBTQ) for itemCode + warehouseCode.",
+    tags: ["Master Data"],
+    responses: jsonResponses({ successDescription: "Batch rows for the item and warehouse." }),
+  });
+  registerPath("/master-data/item-serials", "get", {
+    security: cookieSecurity,
+    operationId: "listItemSerials",
+    summary: "Item serials on hand",
+    description: "Available serials (OSRQ/OSRN or OSRI) for itemCode + warehouseCode.",
+    tags: ["Master Data"],
+    responses: jsonResponses({ successDescription: "Serial rows for the item and warehouse." }),
+  });
   registerPath("/master-data/product-warehouse-stocks-batch", "get", {
     security: cookieSecurity,
     operationId: "listProductWarehouseStocksBatch",

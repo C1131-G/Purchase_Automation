@@ -224,6 +224,7 @@ describe("IC edit lifecycle", () => {
       QUANTITY: 1,
       RFQ_ID: 1,
       RFQ_LINE_ID: 1,
+      TAX_CODE: "IN-12.5",
       UNIT_PRICE: 5,
     });
 
@@ -238,6 +239,7 @@ describe("IC edit lifecycle", () => {
             Quantity: 3,
             ShipDate: "2026-09-10",
             UnitPrice: 12,
+            VatGroup: "IN-18",
           },
         ],
       },
@@ -250,8 +252,33 @@ describe("IC edit lifecycle", () => {
       DISCOUNT: 7,
       ITEM_CODE: "SELLER-ITEM",
       QUANTITY: 3,
+      TAX_CODE: "IN-18",
       UNIT_PRICE: 12,
     });
+  });
+
+  it("keeps RFQ TAX_CODE when PQ update omits VatGroup", async () => {
+    const stack = createStack();
+    addRfq(stack.db, "DRAFT");
+    stack.db.tables.IC_RFQ_LINE.push({
+      ITEM_CODE: "SELLER-ITEM",
+      LINE_NUM: 0,
+      QUANTITY: 1,
+      RFQ_ID: 1,
+      RFQ_LINE_ID: 1,
+      TAX_CODE: "IN-12.5",
+      UNIT_PRICE: 5,
+    });
+
+    await createUpdateRfqFromPqService({ rfq: stack.rfq }).update({
+      purchaseQuotation: {
+        ...captureInput,
+        lines: [{ ItemCode: "BUYER-ITEM", LineNum: 0, Quantity: 2, UnitPrice: 9 }],
+      },
+      rfqId: 1,
+    });
+
+    expect(stack.db.tables.IC_RFQ_LINE[0]?.TAX_CODE).toBe("IN-12.5");
   });
 });
 

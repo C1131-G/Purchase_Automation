@@ -4,6 +4,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { APInvoiceSchema } from "@/db/schemas/ap-invoice.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 // Retrieves a paginated list of A/P Invoices from the tenant's HANA database.
 // Uses raw UNION ALL queries to combine real documents and ODRF drafts.
 
@@ -134,6 +135,7 @@ export const updateInvoice = async (
           docLine.BaseLine = item.BaseLine;
         }
 
+        attachSapLotCollections(docLine, item);
         return docLine;
       });
     }

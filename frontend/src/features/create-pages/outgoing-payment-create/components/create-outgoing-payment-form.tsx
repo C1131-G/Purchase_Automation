@@ -493,7 +493,8 @@ export function CreateOutgoingPaymentForm() {
                 <textarea
                   id="remarks"
                   value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
+                  maxLength={254}
+                  onChange={(e) => setRemarks(e.target.value.slice(0, 254))}
                   placeholder="Enter payment remarks..."
                   rows={2}
                   className="w-full rounded-xl border border-linen-200 bg-field-silver px-4 py-2.5 text-sm font-medium text-ink-900 outline-none focus:border-teal-500 focus:bg-surface focus:ring-4 focus:ring-teal-500/10"

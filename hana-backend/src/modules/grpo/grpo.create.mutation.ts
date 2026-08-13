@@ -6,6 +6,7 @@ import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { resolveBaseLineQuantities } from "@/services/base-qty-validation";
 import { reconcilePOAfterCopyTo } from "@/services/po-reconcile";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
@@ -93,6 +94,7 @@ export const createGRPO = async (
           line.BaseLine = item.BaseLine;
         }
 
+        attachSapLotCollections(line, item);
         return line;
       }),
       NumAtCard: payload.NumAtCard ?? draftNumAtCard,

@@ -7,6 +7,7 @@ import { getDisplayCurrency, isUnresolvedCurrency } from "@/services/currency-fo
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPqSaved } from "@/modules/intercompany";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 const normalizeSapDateValue = (value: unknown) => {
@@ -124,6 +125,7 @@ export const createPurchaseQuotation = async (
           docLine.BaseLine = line.BaseLine;
         }
 
+        attachSapLotCollections(docLine, line);
         return docLine;
       }),
       SalesPersonCode: payload.SalesPersonCode,

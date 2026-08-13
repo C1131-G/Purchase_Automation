@@ -105,4 +105,9 @@ export type UpdateRfqLineInput = {
   quantity?: number | null;
   deliveryDate?: string | null;
   discount?: number | null;
+  /**
+   * Buyer PQ VatGroup snapshot. Seller fill must omit this.
+   * COALESCE on UPDATE — null leaves IC_RFQ_LINE.TAX_CODE unchanged.
+   */
+  taxCode?: string | null;
 };

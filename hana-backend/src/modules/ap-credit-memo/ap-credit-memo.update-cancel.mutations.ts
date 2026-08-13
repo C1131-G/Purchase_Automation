@@ -6,6 +6,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { APCreditMemoSchema } from "@/db/schemas/ap-credit-memo.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
@@ -147,6 +148,7 @@ export const updateCreditNote = async (
           line.BaseEntry = item.BaseEntry as number;
           line.BaseLine = item.BaseLine as number;
         }
+        attachSapLotCollections(line, item);
         return line;
       });
     }

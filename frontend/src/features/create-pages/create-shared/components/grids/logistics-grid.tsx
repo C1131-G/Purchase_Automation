@@ -4,6 +4,7 @@ import { FieldBlock } from "@/features/create-pages/create-shared/components/cor
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
 import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { SAP_FIELD_MAX } from "@/features/create-pages/create-shared/utils/sap-document-fields";
 
 interface LogisticsGridProps {
   salesEmployeeInput: string;
@@ -161,6 +162,7 @@ export function LogisticsGrid({
               onFocus={onWarehouseFocus}
               onBlur={onWarehouseBlur}
               onOpenPopup={onOpenWarehousePopup}
+              maxLength={SAP_FIELD_MAX.warehouseCode}
               loading={warehousesLoading}
               invalid={warehouseInvalid}
               errorText={warehouseErrorText}
@@ -200,6 +202,7 @@ export function LogisticsGrid({
             onFocus={onSalesEmployeeFocus}
             onBlur={onSalesEmployeeBlur}
             onOpenPopup={onOpenSalesEmployeePopup}
+            maxLength={SAP_FIELD_MAX.salesEmployeeName}
             loading={salesEmployeesLoading}
             invalid={salesEmployeeInvalid}
             errorText={salesEmployeeErrorText}

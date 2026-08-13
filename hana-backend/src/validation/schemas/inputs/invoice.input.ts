@@ -2,6 +2,13 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
+import {
+  SAP_FIELD_MAX,
+  sapOptionalCode,
+  sapOptionalText,
+  sapRequiredText,
+} from "@/validation/schemas/inputs/sap-document-fields";
 import { AttachmentInputSchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
 
 extendZodWithOpenApi(z);
@@ -97,24 +104,25 @@ const InvoiceLineItemSchema = z.object({
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
   BaseType: z.number().int().optional(),
-  DiscountPercent: z.number().optional(),
-  ItemCode: z.string().min(1),
+  DiscountPercent: z.number().min(0).max(100).optional(),
+  ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
   Price: z.number().nonnegative().optional(), // SAP 'Price' field vs 'UnitPrice'.
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(),
-  UoMCode: z.union([z.string(), z.number()]).optional(),
+  UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
-  VatGroup: z.string().optional(),
-  WarehouseCode: z.string().optional(),
+  VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
+  WarehouseCode: sapOptionalCode(SAP_FIELD_MAX.warehouseCode),
   LineNum: z.number().int().optional(),
+  ...sapLotCollectionsFields,
 });
 
 // CreateInvoiceInputSchema: Validates new invoice submissions.
 export const CreateInvoiceInputSchema = z.object({
-  Address: z.string().optional().openapi({ description: "Bill To Address" }),
-  Address2: z.string().optional().openapi({ description: "Ship To Address" }),
-  CardCode: z.string().min(1),
-  Comments: z.string().optional(),
+  Address: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Bill To Address" }),
+  Address2: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Ship To Address" }),
+  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -124,7 +132,7 @@ export const CreateInvoiceInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
   DocumentLines: z.array(InvoiceLineItemSchema).min(1),
-  NumAtCard: z.string().optional(), // Customer/Vendor reference number (BP Ref No).
+  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard), // Customer/Vendor reference number (BP Ref No).
   SalesPersonCode: z.coerce.number().int().optional(),
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(), // Sales Employee code (OINV.SlpCode).
@@ -136,9 +144,9 @@ export const CreateInvoiceInputSchema = z.object({
 // UpdateInvoiceInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
 export const UpdateInvoiceInputSchema = z
   .object({
-    Address: z.string().optional(),
-    Address2: z.string().optional(),
-    Comments: z.string().optional(),
+    Address: sapOptionalText(SAP_FIELD_MAX.address),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address),
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
     DocDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -148,12 +156,12 @@ export const UpdateInvoiceInputSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
     DocumentLines: z.array(InvoiceLineItemSchema).optional(),
-    NumAtCard: z.string().optional(),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
     SalesPersonCode: z.coerce.number().int().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
     isDraft: z.boolean().optional(),
-    CardCode: z.string().optional(),
-    CardName: z.string().optional(),
+    CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
+    CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
     draftDocEntry: z.coerce.number().optional(),
   })
   .strict();

@@ -16,10 +16,12 @@ import {
   resolveHydrateProductMeta,
   scheduleHydrateWarehouseStocks,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
+import { sapLotFieldsFromRow } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type {
   ActiveDatePicker,
   PopupMode,
+  ProductRow,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
   formatWarehouseDisplay,
@@ -130,6 +132,10 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       uomEntry?: number | undefined;
       vatGroup: string;
       warehouseCode: string;
+      manBtchNum?: string | undefined;
+      manSerNum?: string | undefined;
+      batchNumbers?: ProductRow["batchNumbers"];
+      serialNumbers?: ProductRow["serialNumbers"];
     },
     fallbackRequiredDate: string,
     fallbackWarehouse: string,
@@ -160,6 +166,7 @@ export function usePurchaseQuotationCreate(options?: UsePurchaseQuotationCreateO
       UoMEntry: row.uomEntry ?? undefined,
       VatGroup: row.vatGroup || undefined,
       WarehouseCode: row.warehouseCode || fallbackWarehouse || undefined,
+      ...sapLotFieldsFromRow(row),
     };
   };
 

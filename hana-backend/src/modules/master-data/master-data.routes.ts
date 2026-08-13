@@ -71,4 +71,18 @@ router.get("/warehouses/:code/bins", masterDataController.getWarehouseBins);
 // GET /branches: List of branches (DistributionRules) from Service Layer
 router.get("/branches", masterDataController.getBranches);
 
+// GET /item-batches: On-hand batches (OBTN + OBTQ) for item + warehouse.
+router.get(
+  "/item-batches",
+  validateQuery(MasterDataQuerySchema),
+  masterDataController.getItemBatches,
+);
+
+// GET /item-serials: Available serials (OSRQ/OSRN or OSRI) for item + warehouse.
+router.get(
+  "/item-serials",
+  validateQuery(MasterDataQuerySchema),
+  masterDataController.getItemSerials,
+);
+
 export const masterDataRoutes = router;

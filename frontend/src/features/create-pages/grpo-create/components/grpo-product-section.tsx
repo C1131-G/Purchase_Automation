@@ -187,6 +187,7 @@ export function GRPOProductSection({
           showExplicitZeroDiscount={true}
           showTaxCode
           taxSide="purchase"
+          lotRequired
           warehouseErrors={warehouseErrors}
           showUom={true}
         />

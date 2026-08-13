@@ -5,6 +5,7 @@ import { FieldBlock } from "@/features/create-pages/create-shared/components/cor
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { SuggestionList } from "@/features/create-pages/create-shared/components/core/suggestion-list";
 import type { CreateLookupOption } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { SAP_FIELD_MAX } from "@/features/create-pages/create-shared/utils/sap-document-fields";
 
 interface VendorCustomerGridProps {
   loading: boolean;
@@ -97,6 +98,7 @@ export function VendorCustomerGrid({
             onFocus={onNameFocus}
             onBlur={onNameBlur}
             onOpenPopup={onOpenNamePopup}
+            maxLength={SAP_FIELD_MAX.cardName}
             loading={loading}
             invalid={vendorNameInvalid}
             errorText={vendorNameErrorText}
@@ -124,6 +126,7 @@ export function VendorCustomerGrid({
             onFocus={onCodeFocus}
             onBlur={onCodeBlur}
             onOpenPopup={onOpenCodePopup}
+            maxLength={SAP_FIELD_MAX.cardCode}
             loading={loading}
             invalid={vendorCodeInvalid}
             errorText={vendorCodeErrorText}

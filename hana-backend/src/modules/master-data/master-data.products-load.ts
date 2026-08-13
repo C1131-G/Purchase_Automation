@@ -127,6 +127,8 @@ export async function loadProductsForTenant(
       "item.VatGroupSa",
       "item.DfltWH",
       "item.UgpEntry",
+      "item.ManBtchNum",
+      "item.ManSerNum",
     ])
     .where("item.ItemCode IN (:...itemCodes)", { itemCodes: limitedCodes })
     .andWhere("item.frozenFor = :active", { active: "N" })

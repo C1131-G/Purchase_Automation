@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, ChevronDown, Search, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, Layers, Search, Trash2 } from "lucide-react";
 import React, { type ComponentProps, type ReactElement } from "react";
 import ReactDOM from "react-dom";
 
@@ -19,8 +19,11 @@ import type {
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
-  applyTaxCodeToRow,
-  filterTaxCodesForSide,
+  isLotManaged,
+  lotAllocationError,
+  lotButtonLabel,
+} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
+import {
   formatTaxCodeLabel,
   taxRateForCode,
   type TaxDocumentSide,
@@ -206,6 +209,8 @@ interface CreateProductTableRowProps {
   showTaxCode?: boolean;
   taxCodes?: CreateLookupOption[];
   taxSide?: TaxDocumentSide;
+  lotRequired?: boolean;
+  onOpenLotAllocation?: () => void;
 }
 
 export function CreateProductTableRow({
@@ -240,7 +245,9 @@ export function CreateProductTableRow({
   lineFieldInvalid,
   showTaxCode = true,
   taxCodes: taxCodesProp = [],
-  taxSide = "purchase",
+  taxSide: _taxSide = "purchase",
+  lotRequired = false,
+  onOpenLotAllocation,
 }: CreateProductTableRowProps) {
   const invalidFieldClass =
     "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200";
@@ -326,10 +333,6 @@ export function CreateProductTableRow({
     enabled: showTaxCode && taxCodesProp.length === 0,
   });
   const taxCodes = taxCodesProp.length > 0 ? taxCodesProp : (taxCodesQuery.data ?? []);
-  const [taxInput, setTaxInput] = React.useState(row.vatGroup ?? "");
-  const [taxFocused, setTaxFocused] = React.useState(false);
-  const [taxLookupOpen, setTaxLookupOpen] = React.useState(false);
-  const taxInputRef = React.useRef<HTMLInputElement>(null);
 
   /** PQ/RFQ line date pickers — portaled to document.body so table overflow never clips them. */
   const [lineDatePicker, setLineDatePicker] = React.useState<"required" | "quoted" | null>(null);
@@ -654,10 +657,6 @@ export function CreateProductTableRow({
   }, [row.uomCode]);
 
   React.useEffect(() => {
-    setTaxInput(row.vatGroup ?? "");
-  }, [row.vatGroup]);
-
-  React.useEffect(() => {
     const code = String(row.vatGroup ?? "").trim();
     if (!code || taxCodes.length === 0) {
       return;
@@ -706,43 +705,16 @@ export function CreateProductTableRow({
     });
   };
 
-  const sideTaxCodes = React.useMemo(
-    () => filterTaxCodesForSide(taxCodes, taxSide, row.vatGroup),
-    [taxCodes, taxSide, row.vatGroup],
-  );
-  const taxSuggestions = React.useMemo(() => {
-    const query = taxInput.trim().toLowerCase();
-    if (!query) {
-      return sideTaxCodes;
+  const selectedTax = React.useMemo(() => {
+    const code = String(row.vatGroup ?? "").trim();
+    if (!code) {
+      return undefined;
     }
-    return sideTaxCodes.filter((item) => {
-      const code = item.code.toLowerCase();
-      const name = String(item.name ?? "").toLowerCase();
-      return code.includes(query) || name.includes(query);
-    });
-  }, [sideTaxCodes, taxInput]);
-
-  const selectTaxInRow = (item: CreateLookupOption) => {
-    const next = applyTaxCodeToRow(taxCodes, item.code);
-    setTaxInput(next.vatGroup);
-    updateProductRow(row.id, next);
-    setTaxFocused(false);
-    setTaxLookupOpen(false);
-  };
-
-  const taxLookupResults = React.useMemo(
-    () =>
-      sideTaxCodes.map((item) => {
-        const rate = Number(item.rate ?? 0);
-        const rateLabel = Number.isFinite(rate) ? `${rate}%` : "0%";
-        const name = String(item.name ?? "").trim();
-        return {
-          code: item.code,
-          name: name && name !== item.code ? `${name} (${rateLabel})` : rateLabel,
-        };
-      }),
-    [sideTaxCodes],
-  );
+    return taxCodes.find((item) => String(item.code).trim() === code);
+  }, [row.vatGroup, taxCodes]);
+  const taxDisplay = selectedTax
+    ? formatTaxCodeLabel(selectedTax)
+    : String(row.vatGroup ?? "").trim();
 
   // Use centralized line math for consistency with SAP totals
   const lineTotals = calculateLineTotals(row);
@@ -774,9 +746,6 @@ export function CreateProductTableRow({
   const snapshotLocked = effectiveDisableInputs;
   const sellerFieldEditable = rfqSellerFill && !baseDisabled;
   const sellerFieldLocked = !sellerFieldEditable;
-  const taxLocked = rfqSellerFill ? sellerFieldLocked : effectiveDisableInputs;
-  const selectedTax = sideTaxCodes.find((item) => item.code === row.vatGroup);
-
   return (
     <tr
       className={`transition-opacity duration-200 ${!isRowActive ? "opacity-50" : "opacity-100"}`}
@@ -832,7 +801,8 @@ export function CreateProductTableRow({
             type="text"
             value={warehouseInput}
             readOnly={effectiveDisableInputs}
-            onChange={(e) => handleWarehouseChange(e.target.value)}
+            maxLength={8}
+            onChange={(e) => handleWarehouseChange(e.target.value.slice(0, 8))}
             onFocus={handleWarehouseFocus}
             onBlur={handleWarehouseBlur}
             onClick={() => {
@@ -1631,108 +1601,15 @@ export function CreateProductTableRow({
       </td>
       {showTaxCode && (
         <td className="relative min-w-0 px-2 py-2">
-          <div className="relative">
-            <input
-              ref={taxInputRef}
-              type="text"
-              value={
-                taxFocused ? taxInput : selectedTax ? formatTaxCodeLabel(selectedTax) : taxInput
-              }
-              placeholder="Select tax"
-              title={selectedTax ? formatTaxCodeLabel(selectedTax) : row.vatGroup || "Select tax"}
-              readOnly={taxLocked}
-              disabled={taxLocked}
-              onChange={(event) => {
-                if (taxLocked) {
-                  return;
-                }
-                setTaxInput(event.target.value);
-                setTaxFocused(true);
-              }}
-              onFocus={() => {
-                if (taxLocked) {
-                  return;
-                }
-                setTaxInput(row.vatGroup ?? "");
-                setTaxFocused(true);
-              }}
-              onClick={() => {
-                if (taxLocked) {
-                  onInputRestrictedClick?.();
-                }
-              }}
-              onBlur={() => {
-                blurTimerRef.current = setTimeout(() => {
-                  setTaxFocused(false);
-                  setTaxInput(row.vatGroup ?? "");
-                }, 150);
-              }}
-              className={`h-9 w-full rounded-lg border px-2 pr-8 text-xs text-ink-900 outline-none ${
-                taxLocked
-                  ? "cursor-not-allowed border-linen-200 bg-linen-100 opacity-70"
-                  : "cursor-text border-linen-200 bg-field-silver focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
-              }`}
-            />
-            <button
-              type="button"
-              disabled={taxLocked}
-              onClick={() => {
-                if (taxLocked) {
-                  onInputRestrictedClick?.();
-                  return;
-                }
-                setTaxInput("");
-                setTaxFocused(false);
-                setTaxLookupOpen(true);
-              }}
-              className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
-                taxLocked ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-linen-100"
-              }`}
-              aria-label="Search tax codes"
-            >
-              <Search className="h-3 w-3" />
-            </button>
-            <FixedDropdown
-              anchorRef={taxInputRef}
-              visible={!taxLocked && taxFocused && !taxLookupOpen}
-            >
-              <SuggestionList
-                items={taxSuggestions}
-                onSelect={(item) => {
-                  if (blurTimerRef.current) {
-                    clearTimeout(blurTimerRef.current);
-                  }
-                  selectTaxInRow(item);
-                }}
-                emptyText="No tax codes"
-                query={taxInput}
-                showCode
-                codeLabel="Tax"
-                nameLabel="Name"
-              />
-            </FixedDropdown>
-          </div>
-          <LookupPopup
-            open={taxLookupOpen}
-            search={taxInput}
-            results={taxLookupResults}
-            loading={taxCodesProp.length === 0 && taxCodesQuery.isLoading}
-            error={taxCodesQuery.isError ? (taxCodesQuery.error as Error).message : null}
-            title="Select Tax Code"
-            searchPlaceholder="Search tax code or name..."
-            codeLabel="Tax"
-            nameLabel="Name"
-            showBothColumns
-            onSearchChange={(value) => {
-              setTaxInput(value);
-            }}
-            onClose={() => {
-              setTaxLookupOpen(false);
-              setTaxInput(row.vatGroup ?? "");
-            }}
-            onSelect={(item) => {
-              selectTaxInRow(item);
-            }}
+          <input
+            type="text"
+            readOnly
+            disabled
+            value={taxDisplay}
+            placeholder="Item tax"
+            title={taxDisplay || "Tax code comes from the item"}
+            aria-label="Tax code from item"
+            className="h-9 w-full cursor-not-allowed rounded-lg border border-linen-200 bg-linen-100 px-2 text-xs text-ink-900 opacity-70 outline-none"
           />
         </td>
       )}
@@ -1845,27 +1722,56 @@ export function CreateProductTableRow({
         </td>
       )}
       <td className="min-w-0 px-2 py-2 text-right">
-        <Tooltip content="Remove row" className="block w-auto max-w-none">
-          <button
-            type="button"
-            disabled={snapshotLocked}
-            onClick={() => {
-              if (snapshotLocked) {
-                onInputRestrictedClick?.();
-                return;
-              }
-              removeProductRow(row.id);
-            }}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linen-200 text-ink-900 transition ${
-              snapshotLocked
-                ? "cursor-not-allowed bg-linen-50 opacity-40"
-                : "cursor-pointer bg-surface hover:bg-linen-50 hover:text-teal-600"
-            }`}
-            aria-label="Remove product row"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </Tooltip>
+        <div className="flex items-center justify-end gap-1">
+          {isLotManaged(row) && onOpenLotAllocation ? (
+            <Tooltip
+              content={lotAllocationError(row, lotRequired) || lotButtonLabel(row)}
+              className="block w-auto max-w-none"
+            >
+              <button
+                type="button"
+                disabled={effectiveDisableInputs}
+                onClick={() => {
+                  if (effectiveDisableInputs) {
+                    onInputRestrictedClick?.();
+                    return;
+                  }
+                  onOpenLotAllocation();
+                }}
+                className={`inline-flex h-9 items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition ${
+                  lotAllocationError(row, lotRequired)
+                    ? "border-red-300 bg-red-50 text-red-700"
+                    : "border-linen-200 bg-surface text-ink-900 hover:bg-linen-50"
+                } ${effectiveDisableInputs ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
+                aria-label={`${lotButtonLabel(row)} numbers`}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                {lotButtonLabel(row)}
+              </button>
+            </Tooltip>
+          ) : null}
+          <Tooltip content="Remove row" className="block w-auto max-w-none">
+            <button
+              type="button"
+              disabled={snapshotLocked}
+              onClick={() => {
+                if (snapshotLocked) {
+                  onInputRestrictedClick?.();
+                  return;
+                }
+                removeProductRow(row.id);
+              }}
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-linen-200 text-ink-900 transition ${
+                snapshotLocked
+                  ? "cursor-not-allowed bg-linen-50 opacity-40"
+                  : "cursor-pointer bg-surface hover:bg-linen-50 hover:text-teal-600"
+              }`}
+              aria-label="Remove product row"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </div>
       </td>
     </tr>
   );

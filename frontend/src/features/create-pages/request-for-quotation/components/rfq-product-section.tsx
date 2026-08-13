@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/button";
+import { createSharedQueries } from "@/features/create-pages/create-shared/api/create-shared.queries";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
 import { CreateProductTable } from "@/features/create-pages/create-shared/components/tables/create-product-table";
 import type {
@@ -51,6 +53,7 @@ export function RfqProductSection({
   lineFieldErrors,
   onSubmit,
 }: RfqProductSectionProps) {
+  const taxCodesQuery = useQuery(createSharedQueries.taxCodes());
   const restricted = () => {
     notifyEditRestrictedField("Product line");
   };
@@ -75,6 +78,7 @@ export function RfqProductSection({
         showExplicitZeroDiscount
         showUom
         showTaxCode
+        taxCodes={taxCodesQuery.data ?? []}
         taxSide="sales"
         uoms={[]}
         showPqLineDatesAndQtys

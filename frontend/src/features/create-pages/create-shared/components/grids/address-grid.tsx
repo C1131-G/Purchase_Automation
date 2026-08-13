@@ -3,6 +3,10 @@ import { ChevronDown, Lock, Pencil } from "lucide-react";
 
 import { Select } from "@/components/select/select";
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import {
+  clipSapText,
+  SAP_FIELD_MAX,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
 
 interface AddressGridProps {
   billToAddress: string;
@@ -160,7 +164,10 @@ export function AddressGrid({
                 id="po-bill-to-address"
                 value={billToAddress}
                 readOnly={readOnly}
-                onChange={(event) => onBillToAddressChange(event.target.value)}
+                onChange={(event) =>
+                  onBillToAddressChange(clipSapText(event.target.value, SAP_FIELD_MAX.address))
+                }
+                maxLength={SAP_FIELD_MAX.address}
                 placeholder={`Enter ${displayBillToLabel}`}
                 className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-neutral-400 ${
                   billToAddressInvalid
@@ -249,7 +256,10 @@ export function AddressGrid({
                 id="po-ship-to-address"
                 value={shipToAddress}
                 readOnly={readOnly}
-                onChange={(event) => onShipToAddressChange(event.target.value)}
+                onChange={(event) =>
+                  onShipToAddressChange(clipSapText(event.target.value, SAP_FIELD_MAX.address))
+                }
+                maxLength={SAP_FIELD_MAX.address}
                 placeholder={`Enter ${displayShipToLabel}`}
                 className={`h-36 w-full rounded-xl border px-3 py-2 text-sm outline-none transition placeholder:text-neutral-400 ${
                   shipToAddressInvalid

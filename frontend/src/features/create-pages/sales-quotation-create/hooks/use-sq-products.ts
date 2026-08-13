@@ -10,6 +10,7 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
+import { lotFieldsFromProduct } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import {
   BROWSE_PRODUCT_LIMIT,
   QUICK_PRODUCT_LIMIT,
@@ -302,6 +303,7 @@ export function useSqProducts({
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
           vatGroup: product.vatGroup,
+          ...lotFieldsFromProduct(product),
           warehouseCode: targetWhs,
         });
       }
@@ -333,6 +335,7 @@ export function useSqProducts({
           uomCode: product.uomCode,
           uomEntry: product.uomEntry,
           vatGroup: product.vatGroup,
+          ...lotFieldsFromProduct(product),
           warehouseCode: targetWhs,
         };
       });

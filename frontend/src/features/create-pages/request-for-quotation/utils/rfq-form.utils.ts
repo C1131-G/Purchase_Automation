@@ -29,16 +29,10 @@ export type RfqSellerEditableFields = Pick<
   "unitPrice" | "quantity" | "discount" | "deliveryDate"
 >;
 
-/** ProductRow patches allowed on RFQ seller fill. Tax is on-screen only (not PUT). */
+/** ProductRow patches allowed on RFQ seller fill. Tax is item-based and not editable. */
 export type RfqSellerProductPatch = Pick<
   ProductRow,
-  | "price"
-  | "quantity"
-  | "discountPercent"
-  | "discountAmount"
-  | "quotedDate"
-  | "vatGroup"
-  | "taxRate"
+  "price" | "quantity" | "discountPercent" | "discountAmount" | "quotedDate" | "taxRate"
 >;
 
 export const isRfqDraft = (status: string | undefined): boolean =>
@@ -315,7 +309,7 @@ export const buildUpdateRfqLinesPayloadFromProductRows = (
       quantity,
       unitPrice,
     });
-    // Do not write vatGroup/taxCode — seller picker is on-screen totals only.
+    // Do not write vatGroup/taxCode — tax is item-based on the buyer snapshot.
   }
 
   if (!requireAllPrices && payload.length === 0 && rows.length > 0) {

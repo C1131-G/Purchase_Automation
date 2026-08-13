@@ -9,12 +9,12 @@ export const paymentInvoiceSchema = z.object({
 });
 
 export const outgoingPaymentSchema = z.object({
-  CardCode: z.string().min(1, "Vendor is required"),
+  CardCode: z.string().min(1, "Vendor is required").max(15),
   CashSum: z.number().min(0).optional(),
   CheckSum: z.number().min(0).optional(),
   DocDate: z.string().refine((val) => parseISODate(val) !== null, "Invalid Date"),
   PaymentInvoices: z.array(paymentInvoiceSchema).optional(),
-  Remarks: z.string().optional(),
+  Remarks: z.string().max(254).optional(),
   TrsfrSum: z.number().min(0).optional(),
 });
 

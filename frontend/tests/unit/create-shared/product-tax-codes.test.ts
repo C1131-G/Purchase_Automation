@@ -77,6 +77,14 @@ describe("product lookup prefers resolved TaxCode", () => {
     expect(mapped.vatGroup).toBe("OUT-18");
     expect(mapped.taxRate).toBe(18);
   });
+
+  it("applies item tax to the row without a user-selected code", () => {
+    const fromItem = applyTaxCodeToRow(codes, "IN-18");
+    expect(fromItem).toEqual({ taxRate: 18, vatGroup: "IN-18" });
+    const otherItem = applyTaxCodeToRow(codes, "OUT-5");
+    expect(otherItem.vatGroup).toBe("OUT-5");
+    expect(otherItem.taxRate).toBe(5);
+  });
 });
 
 describe("formatTaxCodeLabel", () => {

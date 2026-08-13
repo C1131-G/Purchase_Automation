@@ -29,6 +29,8 @@ export const createUpdateRfqFromPqService = (deps?: {
         if (!target) {
           return [];
         }
+        const taxRaw = line.VatGroup ?? line.TaxCode ?? line.taxCode ?? null;
+        const taxCode = taxRaw == null ? null : String(taxRaw).trim() || null;
         return [
           {
             deliveryDate:
@@ -36,6 +38,7 @@ export const createUpdateRfqFromPqService = (deps?: {
             discount: numberOr(line.DiscountPercent, target.discount ?? 0),
             lineNum,
             quantity: numberOr(line.Quantity, target.quantity),
+            taxCode,
             unitPrice: numberOr(line.UnitPrice ?? line.Price, target.unitPrice ?? 0),
           },
         ];

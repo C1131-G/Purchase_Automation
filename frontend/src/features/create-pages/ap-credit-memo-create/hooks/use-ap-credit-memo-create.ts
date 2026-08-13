@@ -42,6 +42,11 @@ import type {
   StockPreviewProduct,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
+  firstRequiredLotError,
+  lotFieldsFromProduct,
+  sapLotFieldsFromRow,
+} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
+import {
   formatWarehouseDisplay,
   normalizeCreateOrderErrorMessage,
 } from "@/features/create-pages/create-shared/utils/create-order.utils";
@@ -1458,6 +1463,7 @@ export function useAPCreditMemoCreate({
             ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
             ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
             ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),
+            ...sapLotFieldsFromRow(row),
             ...(row.returnReason ? { U_ReturnReason: row.returnReason } : {}),
           };
 
@@ -1561,6 +1567,7 @@ export function useAPCreditMemoCreate({
                 uomCode: String(product.purchaseUomCode ?? product.uomCode ?? "").trim(),
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
                 warehouseCode: targetWhs,
+                ...lotFieldsFromProduct(product),
               }
             : row,
         );
@@ -1593,6 +1600,7 @@ export function useAPCreditMemoCreate({
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
           warehouseCode: targetWhs,
+          ...lotFieldsFromProduct(product),
         },
       ];
     });
@@ -1634,6 +1642,7 @@ export function useAPCreditMemoCreate({
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
           warehouseCode: targetWhs,
+          ...lotFieldsFromProduct(product),
         };
       }),
     ]);
@@ -1690,6 +1699,12 @@ export function useAPCreditMemoCreate({
       return;
     }
 
+    const lotError = firstRequiredLotError(filteredRows);
+    if (lotError) {
+      setCreateError(lotError);
+      return;
+    }
+
     const buildDocumentLines = (): CreateAPCreditMemoInput["DocumentLines"] => {
       const lines: CreateAPCreditMemoInput["DocumentLines"] = [];
       for (const row of filteredRows) {
@@ -1711,6 +1726,7 @@ export function useAPCreditMemoCreate({
           ...(row.uomCode ? { UoMCode: row.uomCode } : {}),
           ...(row.warehouseCode ? { WarehouseCode: row.warehouseCode } : {}),
           ...(row.vatGroup ? { VatGroup: row.vatGroup } : {}),
+          ...sapLotFieldsFromRow(row),
           ...(row.returnReason ? { U_ReturnReason: row.returnReason } : {}),
         };
 

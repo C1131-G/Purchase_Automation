@@ -4,17 +4,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getProductsByCodes = vi.fn();
 const getProductWarehouseStocksBatch = vi.fn();
 const getBusinessPartnerAddresses = vi.fn();
+const getItemBatches = vi.fn();
+const getItemSerials = vi.fn();
 
 vi.mock("@/modules/master-data/master-data.service", () => ({
   masterDataService: {
     getProductsByCodes: (...args: unknown[]) => getProductsByCodes(...args),
     getProductWarehouseStocksBatch: (...args: unknown[]) => getProductWarehouseStocksBatch(...args),
     getBusinessPartnerAddresses: (...args: unknown[]) => getBusinessPartnerAddresses(...args),
+    getItemBatches: (...args: unknown[]) => getItemBatches(...args),
+    getItemSerials: (...args: unknown[]) => getItemSerials(...args),
   },
 }));
 
 import {
   getBusinessPartnerAddresses as getBusinessPartnerAddressesController,
+  getItemBatches as getItemBatchesController,
+  getItemSerials as getItemSerialsController,
   getProductsByCodes as getProductsByCodesController,
   getProductWarehouseStocksBatch as getProductWarehouseStocksBatchController,
 } from "@/modules/master-data/master-data.controller";
@@ -51,6 +57,8 @@ describe("master-data batch controllers", () => {
     getProductsByCodes.mockReset();
     getProductWarehouseStocksBatch.mockReset();
     getBusinessPartnerAddresses.mockReset();
+    getItemBatches.mockReset();
+    getItemSerials.mockReset();
   });
 
   it("products-by-codes returns known codes envelope", async () => {
@@ -161,5 +169,37 @@ describe("master-data batch controllers", () => {
     expect(body.success).toBe(true);
     expect(body.data.cardCode).toBe("V001");
     expect(body.data.addresses).toHaveLength(2);
+  });
+
+  it("item-batches forwards item and warehouse", async () => {
+    getItemBatches.mockResolvedValue([{ batchNumber: "B01", quantity: 4 }]);
+    const res = mockRes();
+    const next = vi.fn() as unknown as NextFunction;
+
+    await getItemBatchesController(
+      authReq({ query: { itemCode: "SKU-1", warehouseCode: "01" } }),
+      res,
+      next,
+    );
+
+    expect(next).not.toHaveBeenCalled();
+    expect(getItemBatches).toHaveBeenCalledWith("TEST_COMPANY", "SKU-1", "01");
+    expect((res.body as { success: boolean; data: unknown[] }).data).toHaveLength(1);
+  });
+
+  it("item-serials forwards item and warehouse", async () => {
+    getItemSerials.mockResolvedValue([{ internalSerialNumber: "S1" }]);
+    const res = mockRes();
+    const next = vi.fn() as unknown as NextFunction;
+
+    await getItemSerialsController(
+      authReq({ query: { itemCode: "SKU-1", warehouseCode: "01" } }),
+      res,
+      next,
+    );
+
+    expect(next).not.toHaveBeenCalled();
+    expect(getItemSerials).toHaveBeenCalledWith("TEST_COMPANY", "SKU-1", "01");
+    expect((res.body as { success: boolean; data: unknown[] }).data).toHaveLength(1);
   });
 });

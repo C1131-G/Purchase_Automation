@@ -650,7 +650,8 @@ export function PaymentModal({
                       label="Country Code"
                       placeholder="Search country code..."
                       value={bankCountryCode}
-                      onChange={(v) => setBankCountryCode(v)}
+                      maxLength={3}
+                      onChange={(v) => setBankCountryCode(v.slice(0, 3))}
                       onFocus={() => setBankCountryCodeFocused(true)}
                       onBlur={() => {
                         bankCountryFocusTimeoutRef.current = setTimeout(
@@ -722,7 +723,8 @@ export function PaymentModal({
                     <input
                       type="text"
                       value={chequeBranch}
-                      onChange={(e) => setChequeBranch(e.target.value)}
+                      maxLength={50}
+                      onChange={(e) => setChequeBranch(e.target.value.slice(0, 50))}
                       placeholder="Enter branch"
                       className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver"
                     />
@@ -780,7 +782,11 @@ export function PaymentModal({
                       <input
                         type="text"
                         value={chequeNo}
-                        onChange={(e) => setChequeNo(e.target.value)}
+                        inputMode="numeric"
+                        maxLength={10}
+                        onChange={(e) =>
+                          setChequeNo(e.target.value.replaceAll(/\D/g, "").slice(0, 10))
+                        }
                         placeholder="Enter cheque number"
                         disabled={!manualCheckNo}
                         className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
@@ -793,7 +799,8 @@ export function PaymentModal({
                       <input
                         type="text"
                         value={chequeIssuedBy}
-                        onChange={(e) => setChequeIssuedBy(e.target.value)}
+                        maxLength={100}
+                        onChange={(e) => setChequeIssuedBy(e.target.value.slice(0, 100))}
                         placeholder="Enter issued by"
                         className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:border-teal-300 focus:bg-surface focus:ring-2 focus:ring-teal-200 outline-none bg-field-silver"
                       />
@@ -804,7 +811,8 @@ export function PaymentModal({
                       label="GL Account"
                       placeholder="Search GL account..."
                       value={chequeGLAccount}
-                      onChange={(v) => setChequeGLAccount(v)}
+                      maxLength={15}
+                      onChange={(v) => setChequeGLAccount(v.slice(0, 15))}
                       onFocus={() => setChequeGLAccountFocused(true)}
                       onBlur={() => {
                         chequeGLAccountFocusTimeoutRef.current = setTimeout(
@@ -943,7 +951,8 @@ export function PaymentModal({
                     id="transferReference"
                     type="text"
                     value={transferReference}
-                    onChange={(e) => setTransferReference(e.target.value)}
+                    maxLength={27}
+                    onChange={(e) => setTransferReference(e.target.value.slice(0, 27))}
                     placeholder="Enter transfer reference"
                     className="w-full max-w-[280px] rounded-xl border border-linen-200 bg-field-silver px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
                   />

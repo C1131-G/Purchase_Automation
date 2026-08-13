@@ -8,6 +8,7 @@ import {
   resolveHydrateProductMeta,
   scheduleHydrateWarehouseStocks,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
+import { sapLotFieldsFromRow } from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import { parseDocumentHeaderNotes } from "@/features/create-pages/create-shared/utils/parse-header-notes";
 import type { ProductLookupItem } from "@/features/create-pages/create-shared/api/create-shared.types";
 import {
@@ -253,6 +254,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
             UoMCode: row.uomCode || undefined,
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
+            ...sapLotFieldsFromRow(row),
             WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
           })),
         SalesPersonCode: resolvedSalesEmployeeCode,
@@ -806,6 +808,7 @@ export function useSalesQuotationCreate(options?: UseSalesQuotationCreateOptions
         Quantity: row.quantity,
         UoMEntry: row.uomEntry ?? undefined,
         VatGroup: row.vatGroup || undefined,
+        ...sapLotFieldsFromRow(row),
         WarehouseCode: row.warehouseCode || lookups.effectiveWarehouseCode.trim() || undefined,
       }));
 

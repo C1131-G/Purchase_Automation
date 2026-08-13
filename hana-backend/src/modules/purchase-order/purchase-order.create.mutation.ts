@@ -13,6 +13,7 @@ import { afterPoCreated, recordIcPqToPoLink } from "@/modules/intercompany";
 import type { IcHookResult } from "@/modules/intercompany";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { assignDocumentBranch } from "@/modules/master-data/document-branch";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const createPurchaseOrder = async (
@@ -119,6 +120,7 @@ export const createPurchaseOrder = async (
         docLine.BaseLine = item.BaseLine;
       }
 
+      attachSapLotCollections(docLine, item);
       return docLine;
     });
 

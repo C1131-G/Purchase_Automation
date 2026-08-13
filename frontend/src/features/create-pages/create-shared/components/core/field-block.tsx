@@ -19,6 +19,8 @@ interface FieldBlockProps {
   /** Visual-only override: disabled fields render with the same background as editable fields. */
   uniformReadOnlyAppearance?: boolean | undefined;
   badge?: string | undefined;
+  /** SAP / Service Layer field length. Extra characters are clipped. */
+  maxLength?: number | undefined;
 }
 
 function Pulse({ className }: { className: string }) {
@@ -42,6 +44,7 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
     editableHighlight,
     uniformReadOnlyAppearance,
     badge,
+    maxLength,
   },
   ref,
 ) {
@@ -126,13 +129,14 @@ export const FieldBlock = forwardRef<HTMLInputElement, FieldBlockProps>(function
           }`}
           placeholder={placeholder}
           value={value}
+          maxLength={maxLength}
           readOnly={disabled}
           onChange={(event) => {
             if (disabled) {
               return;
             }
-            // Interaction Layer: Syncs local field changes with global form state.
-            onChange(event.target.value);
+            const next = event.target.value;
+            onChange(maxLength !== undefined ? next.slice(0, maxLength) : next);
           }}
           onClick={() => {
             if (!disabled) {

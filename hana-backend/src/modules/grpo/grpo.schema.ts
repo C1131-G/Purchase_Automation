@@ -2,6 +2,13 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
+import {
+  SAP_FIELD_MAX,
+  sapOptionalCode,
+  sapOptionalText,
+  sapRequiredText,
+} from "@/validation/schemas/inputs/sap-document-fields";
 import { AttachmentInputSchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
 
 extendZodWithOpenApi(z);
@@ -118,22 +125,23 @@ const GRPOLineItemSchema = z.object({
   BaseEntry: z.number().optional(), // docEntry of the originating PO.
   BaseLine: z.number().optional(), // LineNum of the item in the base PO.
   BaseType: z.number().optional(), // SAP Object Type (e.g., 22 for PO).
-  DiscountPercent: z.number().optional(),
-  ItemCode: z.string().min(1),
+  DiscountPercent: z.number().min(0).max(100).optional(),
+  ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(),
-  UoMCode: z.union([z.string(), z.number()]).optional(),
+  UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
-  VatGroup: z.string().optional(),
-  WarehouseCode: z.string().optional(),
+  VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
+  WarehouseCode: sapOptionalCode(SAP_FIELD_MAX.warehouseCode),
+  ...sapLotCollectionsFields,
 });
 
 // CreateGRPOInputSchema: Validates a new receipt document.
 export const CreateGRPOInputSchema = z.object({
-  Address: z.string().optional().openapi({ description: "Bill To Address" }),
-  Address2: z.string().optional().openapi({ description: "Ship To Address" }),
-  CardCode: z.string().min(1),
-  Comments: z.string().optional(),
+  Address: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Bill To Address" }),
+  Address2: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Ship To Address" }),
+  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -143,7 +151,7 @@ export const CreateGRPOInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
   DocumentLines: z.array(GRPOLineItemSchema).min(1),
-  NumAtCard: z.string().optional(),
+  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
   SalesPersonCode: z.coerce.number().int().optional(),
   attachments: z.array(AttachmentInputSchema).optional(),
   isDraft: z.boolean().optional(),
@@ -153,9 +161,9 @@ export const CreateGRPOInputSchema = z.object({
 // UpdateGRPOInputSchema: Edit flow accepts only delivery date and remarks/comments updates.
 export const UpdateGRPOInputSchema = z
   .object({
-    Address: z.string().optional(),
-    Address2: z.string().optional(),
-    Comments: z.string().optional(),
+    Address: sapOptionalText(SAP_FIELD_MAX.address),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address),
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
     DocDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -165,12 +173,12 @@ export const UpdateGRPOInputSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
       .optional(),
     DocumentLines: z.array(GRPOLineItemSchema).min(1).optional(),
-    NumAtCard: z.string().optional(),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
     SalesPersonCode: z.coerce.number().int().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
     isDraft: z.boolean().optional(),
-    CardCode: z.string().optional(),
-    CardName: z.string().optional(),
+    CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
+    CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
     draftDocEntry: z.coerce.number().optional(),
   })
   .strict();

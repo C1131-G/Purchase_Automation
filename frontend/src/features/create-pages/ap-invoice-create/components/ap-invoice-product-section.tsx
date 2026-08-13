@@ -193,6 +193,7 @@ export function APInvoiceProductSection({
           showExplicitZeroDiscount={true}
           showTaxCode
           taxSide="purchase"
+          lotRequired
           warehouseErrors={warehouseErrors}
           showUom={true}
         />

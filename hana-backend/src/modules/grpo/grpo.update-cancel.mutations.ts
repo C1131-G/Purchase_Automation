@@ -5,6 +5,7 @@ import { getTenantRepository } from "@/db/tenant-query";
 import { GRPOSchema } from "@/db/schemas/grpo.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 
 // Fetches a paginated list of GRPOs from the HANA database with dynamic search filters.
 
@@ -71,6 +72,7 @@ export const updateGRPO = async (
           docLine.BaseLine = item.BaseLine;
         }
 
+        attachSapLotCollections(docLine, item);
         return docLine;
       });
     }

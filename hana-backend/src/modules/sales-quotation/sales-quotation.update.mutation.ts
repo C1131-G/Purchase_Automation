@@ -7,6 +7,7 @@ import { SalesQuotationSchema } from "@/db/schemas/sales-quotation.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { assertIcSqEditable } from "@/modules/intercompany";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 
 // Fetches a filtered and paginated list of Sales Quotations from the tenant-specific HANA database.
 // Uses a UNION ALL pattern to combine final documents (OQUT) with drafts (ODRF, ObjType='23'),
@@ -157,6 +158,7 @@ export const updateSalesQuotation = async (
           docLine.BaseLine = line.BaseLine;
         }
 
+        attachSapLotCollections(docLine, line);
         return docLine;
       });
     }

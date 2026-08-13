@@ -2,6 +2,13 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
+import {
+  SAP_FIELD_MAX,
+  sapOptionalCode,
+  sapOptionalText,
+  sapRequiredText,
+} from "@/validation/schemas/inputs/sap-document-fields";
 import { AttachmentInputSchema } from "@/modules/purchase-quotation/purchase-quotation.schema";
 
 extendZodWithOpenApi(z);
@@ -123,33 +130,37 @@ export const PurchaseOrderDocNumLookupQuerySchema = z.object({
 // PurchaseOrderLineItemSchema: Validates individual rows in the document.
 // Quantities and Prices must be non-negative to ensure data integrity in SAP.
 const PurchaseOrderLineItemSchema = z.object({
-  DiscountPercent: z.number().optional(),
-  ItemCode: z.string().min(1),
+  DiscountPercent: z.number().min(0).max(100).optional(),
+  ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
   LineNum: z.number().int().optional(),
   Quantity: z.number().positive(),
   UnitPrice: z.number().nonnegative().optional(), // SAP can auto-fetch if omitted
-  UoMCode: z.union([z.string(), z.number()]).optional(),
+  UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
-  VatGroup: z.string().optional(),
-  WarehouseCode: z.string().optional(),
+  VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
+  WarehouseCode: sapOptionalCode(SAP_FIELD_MAX.warehouseCode),
   BaseType: z.number().int().optional(),
   BaseEntry: z.number().int().optional(),
   BaseLine: z.number().int().optional(),
+  ...sapLotCollectionsFields,
 });
 
 // CreatePurchaseOrderInputSchema: Validates the full payload for a new procurement document.
 export const CreatePurchaseOrderInputSchema = z.object({
-  Address: z.string().optional().openapi({ description: "Bill To Address" }),
-  Address2: z.string().optional().openapi({ description: "Ship To Address" }),
-  CardCode: z.string().min(1).openapi({ description: "Vendor Card Code", example: "V1000" }),
-  Comments: z
-    .string()
-    .optional()
-    .openapi({ description: "Comments", example: "Urgent delivery required" }),
-  NumAtCard: z
-    .string()
-    .optional()
-    .openapi({ description: "Vendor Reference Number (NumAtCard)", example: "REF-12345" }),
+  Address: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Bill To Address" }),
+  Address2: sapOptionalText(SAP_FIELD_MAX.address).openapi({ description: "Ship To Address" }),
+  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode).openapi({
+    description: "Vendor Card Code",
+    example: "V1000",
+  }),
+  Comments: sapOptionalText(SAP_FIELD_MAX.comments).openapi({
+    description: "Comments",
+    example: "Urgent delivery required",
+  }),
+  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard).openapi({
+    description: "Vendor Reference Number (NumAtCard)",
+    example: "REF-12345",
+  }),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -183,10 +194,10 @@ export const CreatePurchaseOrderInputSchema = z.object({
 // UpdatePurchaseOrderInputSchema: Edit flow blocks vendor updates (CardCode).
 export const UpdatePurchaseOrderInputSchema = z
   .object({
-    Address: z.string().optional(),
-    Address2: z.string().optional(),
-    Comments: z.string().optional(),
-    NumAtCard: z.string().optional(),
+    Address: sapOptionalText(SAP_FIELD_MAX.address),
+    Address2: sapOptionalText(SAP_FIELD_MAX.address),
+    Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+    NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
     DocDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -201,8 +212,8 @@ export const UpdatePurchaseOrderInputSchema = z
     RoundingDiffAmount: z.number().optional(),
     attachments: z.array(AttachmentInputSchema).optional(),
     isDraft: z.boolean().optional(),
-    CardCode: z.string().optional(),
-    CardName: z.string().optional(),
+    CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
+    CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
     draftDocEntry: z.coerce.number().optional(),
   })
   .strict();

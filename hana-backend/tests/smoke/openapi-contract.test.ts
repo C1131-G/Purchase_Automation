@@ -22,6 +22,8 @@ const REQUIRED_PATH_PREFIXES = [
   "/master-data/products",
   "/master-data/products-by-codes",
   "/master-data/product-warehouse-stocks-batch",
+  "/master-data/item-batches",
+  "/master-data/item-serials",
   "/master-data/business-partners/{cardCode}/addresses",
   "/dashboard/overview",
   "/dashboard/overview/work",

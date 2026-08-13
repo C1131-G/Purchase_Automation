@@ -13,3 +13,19 @@ export interface MasterDataResponse<T> {
   success: boolean;
   data: T[];
 }
+
+export interface ItemBatchLookup {
+  admissionDate: string;
+  batchNumber: string;
+  expiryDate: string;
+  manufacturingDate: string;
+  notes: string;
+  quantity: number;
+}
+
+export interface ItemSerialLookup {
+  expiryDate: string;
+  internalSerialNumber: string;
+  manufacturerSerialNumber: string;
+  manufacturingDate: string;
+}

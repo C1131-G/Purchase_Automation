@@ -6,6 +6,7 @@ import { assignDocumentBranch } from "@/modules/master-data/document-branch";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import type { SAPDocumentResponse } from "@/services/types/sap.types";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 // Fetches a paginated list of A/P Credit Memos from HANA.
 // Uses TypeORM's query builder to construct dynamic filters based on user search criteria.
 
@@ -89,6 +90,7 @@ export const createCreditNote = async (
           line.BaseEntry = item.BaseEntry as number;
           line.BaseLine = item.BaseLine as number;
         }
+        attachSapLotCollections(line, item);
         return line;
       }),
       SalesPersonCode: payload.SalesPersonCode,

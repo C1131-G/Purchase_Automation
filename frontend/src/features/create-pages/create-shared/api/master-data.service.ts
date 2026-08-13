@@ -198,4 +198,28 @@ export const masterDataAPI = {
     apiClient<MasterDataResponse<MasterDataItem> | MasterDataItem[]>(
       `/api/v1/master-data/branches`,
     ),
+  getItemBatches: async (itemCode: string, warehouseCode: string) => {
+    const query = new URLSearchParams();
+    if (itemCode.trim()) {
+      query.set("itemCode", itemCode.trim());
+    }
+    if (warehouseCode.trim()) {
+      query.set("warehouseCode", warehouseCode.trim());
+    }
+    return apiClient<MasterDataResponse<Record<string, unknown>> | Record<string, unknown>[]>(
+      `/api/v1/master-data/item-batches?${query.toString()}`,
+    );
+  },
+  getItemSerials: async (itemCode: string, warehouseCode: string) => {
+    const query = new URLSearchParams();
+    if (itemCode.trim()) {
+      query.set("itemCode", itemCode.trim());
+    }
+    if (warehouseCode.trim()) {
+      query.set("warehouseCode", warehouseCode.trim());
+    }
+    return apiClient<MasterDataResponse<Record<string, unknown>> | Record<string, unknown>[]>(
+      `/api/v1/master-data/item-serials?${query.toString()}`,
+    );
+  },
 };

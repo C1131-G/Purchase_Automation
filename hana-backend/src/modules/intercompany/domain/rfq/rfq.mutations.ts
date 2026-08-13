@@ -112,6 +112,7 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
                 "DELIVERY_DATE" = COALESCE(?, "DELIVERY_DATE"),
                 "DISCOUNT" = COALESCE(?, "DISCOUNT"),
                 "QUANTITY" = COALESCE(?, "QUANTITY"),
+                "TAX_CODE" = COALESCE(?, "TAX_CODE"),
                 "UPDATED_AT" = CURRENT_TIMESTAMP
           WHERE "RFQ_ID" = ? AND "LINE_NUM" = ?`,
         [
@@ -119,6 +120,7 @@ export const createRfqMutations = (sql: IcSqlClient = getIcSqlClient()): RfqMuta
           line.deliveryDate ?? null,
           line.discount ?? null,
           line.quantity ?? null,
+          line.taxCode ?? null,
           rfqId,
           line.lineNum,
         ],

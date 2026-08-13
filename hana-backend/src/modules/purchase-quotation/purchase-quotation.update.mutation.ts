@@ -7,6 +7,7 @@ import { PurchaseQuotationSchema } from "@/db/schemas/purchase-quotation.schema"
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPqSaved, assertIcPqEditable } from "@/modules/intercompany";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 import type { IcHookResult } from "@/modules/intercompany";
 const normalizeSapDateValue = (value: unknown) => {
   const raw = String(value ?? "").trim();
@@ -189,6 +190,7 @@ export const updatePurchaseQuotation = async (
           docLine.BaseLine = line.BaseLine;
         }
 
+        attachSapLotCollections(docLine, line);
         return docLine;
       });
     }

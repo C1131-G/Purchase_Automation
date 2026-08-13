@@ -67,6 +67,27 @@ export interface ProductGridRow {
   returnReason?: string | undefined;
   binLocationAllocation?: number | undefined;
   accountCode?: string | undefined;
+  /** OITM.ManBtchNum — Y when the item is batch-managed. */
+  manBtchNum?: string | undefined;
+  /** OITM.ManSerNum — Y when the item is serial-managed. */
+  manSerNum?: string | undefined;
+  batchNumbers?: ProductBatchAllocation[] | undefined;
+  serialNumbers?: ProductSerialAllocation[] | undefined;
+}
+
+export interface ProductBatchAllocation {
+  admissionDate?: string | undefined;
+  batchNumber: string;
+  expiryDate?: string | undefined;
+  manufacturingDate?: string | undefined;
+  notes?: string | undefined;
+  quantity: number;
+}
+
+export interface ProductSerialAllocation {
+  expiryDate?: string | undefined;
+  internalSerialNumber: string;
+  manufacturerSerialNumber?: string | undefined;
 }
 
 export interface ProductGridRowDraft {

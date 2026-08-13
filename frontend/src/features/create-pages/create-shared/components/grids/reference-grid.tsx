@@ -2,6 +2,10 @@ import { Lock } from "lucide-react";
 
 // ReferenceGrid: Capture and display document-level remarks and attachments.
 import { SectionCard } from "@/features/create-pages/create-shared/components/core/section-card";
+import {
+  clipSapText,
+  SAP_FIELD_MAX,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
 
 interface ReferenceGridProps {
   referenceNo: string;
@@ -37,6 +41,7 @@ function ReferenceTextarea({
   invalid,
   invalidStyles,
   disabledStyles,
+  maxLength,
 }: {
   value: string;
   disabled: boolean;
@@ -48,6 +53,7 @@ function ReferenceTextarea({
   invalid?: boolean;
   invalidStyles: string;
   disabledStyles: string;
+  maxLength?: number;
 }) {
   return (
     <textarea
@@ -64,7 +70,12 @@ function ReferenceTextarea({
           onFocus?.();
         }
       }}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) =>
+        onChange(
+          maxLength !== undefined ? clipSapText(event.target.value, maxLength) : event.target.value,
+        )
+      }
+      maxLength={maxLength}
       placeholder={placeholder}
       style={{ height, maxHeight: height, overflowY: "auto" }}
       className={`w-full resize-y rounded-xl border px-4 py-2 text-sm text-ink-900 outline-none transition placeholder:text-neutral-400 ${
@@ -116,6 +127,7 @@ export function ReferenceGrid({
             disabled={referenceNoDisabled}
             placeholder="Reference"
             height={fieldHeight}
+            maxLength={SAP_FIELD_MAX.numAtCard}
             onChange={onReferenceNoChange}
             {...(onReferenceNoDisabledClick ? { onClick: onReferenceNoDisabledClick } : {})}
             {...(onReferenceNoDisabledClick ? { onFocus: onReferenceNoDisabledClick } : {})}
@@ -153,6 +165,7 @@ export function ReferenceGrid({
             disabled={commentsDisabled}
             placeholder="Transaction Remarks"
             height={fieldHeight}
+            maxLength={SAP_FIELD_MAX.comments}
             onChange={onCommentsChange}
             {...(onCommentsDisabledClick ? { onClick: onCommentsDisabledClick } : {})}
             {...(onCommentsDisabledClick ? { onFocus: onCommentsDisabledClick } : {})}

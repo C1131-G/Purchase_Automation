@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { ProductLotAllocationModal } from "@/features/create-pages/create-shared/components/modals/product-lot-allocation-modal";
 import { CreateProductTableRow } from "@/features/create-pages/create-shared/components/tables/create-product-table-row";
 import type { calculateOrderTotals } from "@/features/create-pages/create-shared/utils/create-order.calculations";
 import type {
@@ -8,6 +9,10 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
+import {
+  hasLotAllocations,
+  isLotManaged,
+} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import type { TaxDocumentSide } from "@/features/create-pages/create-shared/utils/product-tax-codes";
 
 // CreateProductTable: Specialized data grid for building document line items.
@@ -67,6 +72,8 @@ interface CreateProductTableProps {
   showTaxCode?: boolean;
   taxCodes?: CreateLookupOption[];
   taxSide?: TaxDocumentSide;
+  /** GRPO / AP Invoice / AP Credit Memo require lots on managed items. */
+  lotRequired?: boolean;
 }
 
 export function CreateProductTable({
@@ -102,7 +109,36 @@ export function CreateProductTable({
   showTaxCode = true,
   taxCodes = [],
   taxSide = "purchase",
+  lotRequired = false,
 }: CreateProductTableProps) {
+  const lotMode = taxSide === "sales" ? "select" : "enter";
+  const [lotRowId, setLotRowId] = useState<string | null>(null);
+  const promptedLotsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    const liveIds = new Set(productRows.map((row) => `${row.id}:${row.productCode}`));
+    for (const key of promptedLotsRef.current) {
+      if (!liveIds.has(key)) {
+        promptedLotsRef.current.delete(key);
+      }
+    }
+    if (lotRowId) {
+      return;
+    }
+    for (const row of productRows) {
+      const key = `${row.id}:${row.productCode}`;
+      if (!isLotManaged(row) || promptedLotsRef.current.has(key)) {
+        continue;
+      }
+      promptedLotsRef.current.add(key);
+      if (!hasLotAllocations(row)) {
+        setLotRowId(row.id);
+        break;
+      }
+    }
+  }, [lotRowId, productRows]);
+
+  const lotRow = lotRowId ? (productRows.find((row) => row.id === lotRowId) ?? null) : null;
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   const emptyColSpan =
     9 +
@@ -130,114 +166,134 @@ export function CreateProductTable({
     virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end ?? 0) : 0;
 
   return (
-    <div className="px-2 py-2">
-      <div ref={scrollParentRef} className={`${PRODUCT_TABLE_MAX_HEIGHT_CLASS} overflow-auto`}>
-        <table
-          className={`w-full table-fixed text-left text-sm text-ink-900 ${
-            showPqLineDatesAndQtys ? "min-w-[1900px]" : "min-w-[1520px]"
-          }`}
-        >
-          <thead className="sticky top-0 z-10 bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-            <tr>
-              {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
-              <th className={`${showUom ? "w-[12%]" : "w-[16%]"} px-2 py-2`}>Product</th>
-              <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Warehouse</th>
-              {showBinLocation && <th className="w-[10%] px-2 py-2 text-left">Bin Location</th>}
-              {showUom && <th className="w-[7%] px-2 py-2 text-left">UoM</th>}
-              {showPqLineDatesAndQtys ? (
-                <>
-                  <th className="w-[8%] px-2 py-2 text-left">Required Date</th>
-                  <th className="w-[8%] px-2 py-2 text-left">Quoted Date</th>
-                  <th className="w-[7%] px-2 py-2 text-left">Required Qty</th>
-                  <th className="w-[7%] px-2 py-2 text-left">Quoted Qty</th>
-                </>
-              ) : (
-                <th className="w-[7%] px-2 py-2 text-left">Quantity</th>
-              )}
-              <th className="w-[7%] px-2 py-2 text-left">Price</th>
-              <th className="w-[7%] px-2 py-2 text-left">Disc %</th>
-              <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
-              {showTaxCode && <th className="w-[8%] px-2 py-2 text-left">Tax Code</th>}
-              <th className="w-[7%] px-2 py-2 text-left text-wrap">Net Price</th>
-              <th className="w-[7%] px-2 py-2 text-left">Total</th>
-              {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
-              {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
-              <th className="w-[7%] px-2 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {productRows.length === 0 ? (
+    <>
+      <div className="px-2 py-2">
+        <div ref={scrollParentRef} className={`${PRODUCT_TABLE_MAX_HEIGHT_CLASS} overflow-auto`}>
+          <table
+            className={`w-full table-fixed text-left text-sm text-ink-900 ${
+              showPqLineDatesAndQtys ? "min-w-[1900px]" : "min-w-[1520px]"
+            }`}
+          >
+            <thead className="sticky top-0 z-10 bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
               <tr>
-                <td className="px-3 py-8" colSpan={emptyColSpan}>
-                  <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-linen-200 bg-linen-50 px-4 py-6 text-center">
-                    <div className="text-sm font-medium text-ink-900">No products yet</div>
-                    <div className="text-xs text-neutral-500">
-                      Use <span className="font-semibold text-ink-900">Search Products</span> to add
-                      items.
+                {showSelection && <th className="w-[4%] px-2 py-2 text-center" />}
+                <th className={`${showUom ? "w-[12%]" : "w-[16%]"} px-2 py-2`}>Product</th>
+                <th className={`${showUom ? "w-[15%]" : "w-[18%]"} px-2 py-2`}>Warehouse</th>
+                {showBinLocation && <th className="w-[10%] px-2 py-2 text-left">Bin Location</th>}
+                {showUom && <th className="w-[7%] px-2 py-2 text-left">UoM</th>}
+                {showPqLineDatesAndQtys ? (
+                  <>
+                    <th className="w-[8%] px-2 py-2 text-left">Required Date</th>
+                    <th className="w-[8%] px-2 py-2 text-left">Quoted Date</th>
+                    <th className="w-[7%] px-2 py-2 text-left">Required Qty</th>
+                    <th className="w-[7%] px-2 py-2 text-left">Quoted Qty</th>
+                  </>
+                ) : (
+                  <th className="w-[7%] px-2 py-2 text-left">Quantity</th>
+                )}
+                <th className="w-[7%] px-2 py-2 text-left">Price</th>
+                <th className="w-[7%] px-2 py-2 text-left">Disc %</th>
+                <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
+                {showTaxCode && <th className="w-[8%] px-2 py-2 text-left">Tax Code</th>}
+                <th className="w-[7%] px-2 py-2 text-left text-wrap">Net Price</th>
+                <th className="w-[7%] px-2 py-2 text-left">Total</th>
+                {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
+                {showReturnReason && <th className="w-[10%] px-2 py-2 text-left">Return Reason</th>}
+                <th className="w-[7%] px-2 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productRows.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-8" colSpan={emptyColSpan}>
+                    <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-linen-200 bg-linen-50 px-4 py-6 text-center">
+                      <div className="text-sm font-medium text-ink-900">No products yet</div>
+                      <div className="text-xs text-neutral-500">
+                        Use <span className="font-semibold text-ink-900">Search Products</span> to
+                        add items.
+                      </div>
                     </div>
-                  </div>
-                </td>
-              </tr>
-            ) : null}
-            {paddingTop > 0 ? (
-              <tr aria-hidden="true">
-                <td colSpan={emptyColSpan} style={{ height: paddingTop, padding: 0, border: 0 }} />
-              </tr>
-            ) : null}
-            {virtualRows.map((virtualRow) => {
-              const row = productRows[virtualRow.index];
-              if (!row) {
-                return null;
-              }
-              return (
-                <CreateProductTableRow
-                  key={row.id}
-                  row={row}
-                  rowDraft={productRowDrafts[row.id]}
-                  enforceStockLimit={enforceStockLimit}
-                  {...(maxQuantity !== undefined && { maxQuantity })}
-                  {...(linkedRow !== undefined && { linkedRow })}
-                  openProductPopup={openProductPopup}
-                  updateProductRow={updateProductRow}
-                  removeProductRow={removeProductRow}
-                  setProductRowDraft={setProductRowDraft}
-                  clearProductRowDraft={clearProductRowDraft}
-                  prefetchProducts={prefetchProducts}
-                  warehouses={warehouses}
-                  warehousesLoading={warehousesLoading}
-                  disableInputs={disableLineInputs}
-                  onInputRestrictedClick={onLineInputRestrictedClick}
-                  stockLimitReserve={stockLimitReserve}
-                  minStockToSelectWarehouse={minStockToSelectWarehouse}
-                  showExplicitZeroDiscount={showExplicitZeroDiscount}
-                  showSelection={showSelection}
-                  showReturnReason={showReturnReason}
-                  nativeReturnReason={nativeReturnReason}
-                  warehouseError={warehouseErrors?.[row.id]}
-                  showUom={showUom}
-                  uoms={uoms}
-                  showBinLocation={showBinLocation}
-                  showGLAccount={showGLAccount}
-                  showPqLineDatesAndQtys={showPqLineDatesAndQtys}
-                  rfqSellerFill={rfqSellerFill}
-                  lineFieldInvalid={lineFieldErrors?.[row.id]}
-                  showTaxCode={showTaxCode}
-                  taxCodes={taxCodes}
-                  taxSide={taxSide}
-                />
-              );
-            })}
-            {paddingBottom > 0 ? (
-              <tr aria-hidden="true">
-                <td
-                  colSpan={emptyColSpan}
-                  style={{ height: paddingBottom, padding: 0, border: 0 }}
-                />
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                  </td>
+                </tr>
+              ) : null}
+              {paddingTop > 0 ? (
+                <tr aria-hidden="true">
+                  <td
+                    colSpan={emptyColSpan}
+                    style={{ height: paddingTop, padding: 0, border: 0 }}
+                  />
+                </tr>
+              ) : null}
+              {virtualRows.map((virtualRow) => {
+                const row = productRows[virtualRow.index];
+                if (!row) {
+                  return null;
+                }
+                return (
+                  <CreateProductTableRow
+                    key={row.id}
+                    row={row}
+                    rowDraft={productRowDrafts[row.id]}
+                    enforceStockLimit={enforceStockLimit}
+                    {...(maxQuantity !== undefined && { maxQuantity })}
+                    {...(linkedRow !== undefined && { linkedRow })}
+                    openProductPopup={openProductPopup}
+                    updateProductRow={updateProductRow}
+                    removeProductRow={removeProductRow}
+                    setProductRowDraft={setProductRowDraft}
+                    clearProductRowDraft={clearProductRowDraft}
+                    prefetchProducts={prefetchProducts}
+                    warehouses={warehouses}
+                    warehousesLoading={warehousesLoading}
+                    disableInputs={disableLineInputs}
+                    onInputRestrictedClick={onLineInputRestrictedClick}
+                    stockLimitReserve={stockLimitReserve}
+                    minStockToSelectWarehouse={minStockToSelectWarehouse}
+                    showExplicitZeroDiscount={showExplicitZeroDiscount}
+                    showSelection={showSelection}
+                    showReturnReason={showReturnReason}
+                    nativeReturnReason={nativeReturnReason}
+                    warehouseError={warehouseErrors?.[row.id]}
+                    showUom={showUom}
+                    uoms={uoms}
+                    showBinLocation={showBinLocation}
+                    showGLAccount={showGLAccount}
+                    showPqLineDatesAndQtys={showPqLineDatesAndQtys}
+                    rfqSellerFill={rfqSellerFill}
+                    lineFieldInvalid={lineFieldErrors?.[row.id]}
+                    showTaxCode={showTaxCode}
+                    taxCodes={taxCodes}
+                    taxSide={taxSide}
+                    lotRequired={lotRequired}
+                    onOpenLotAllocation={() => setLotRowId(row.id)}
+                  />
+                );
+              })}
+              {paddingBottom > 0 ? (
+                <tr aria-hidden="true">
+                  <td
+                    colSpan={emptyColSpan}
+                    style={{ height: paddingBottom, padding: 0, border: 0 }}
+                  />
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+      <ProductLotAllocationModal
+        mode={lotMode}
+        open={Boolean(lotRow)}
+        required={lotRequired}
+        row={lotRow}
+        onClose={() => setLotRowId(null)}
+        onSave={(patch) => {
+          if (!lotRow) {
+            return;
+          }
+          updateProductRow(lotRow.id, patch);
+        }}
+      />
+    </>
   );
 }

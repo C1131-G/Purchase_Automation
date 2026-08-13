@@ -2,6 +2,13 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import { sapLotCollectionsFields } from "@/validation/schemas/inputs/sap-lot-collections.schema";
+import {
+  SAP_FIELD_MAX,
+  sapOptionalCode,
+  sapOptionalText,
+  sapRequiredText,
+} from "@/validation/schemas/inputs/sap-document-fields";
 
 extendZodWithOpenApi(z);
 
@@ -83,8 +90,8 @@ export const PurchaseQuotationDocNumLookupQuerySchema = z.object({
 
 // PurchaseQuotationLineItemSchema: Individual items requested in the quotation.
 const PurchaseQuotationLineItemSchema = z.object({
-  DiscountPercent: z.number().optional(),
-  ItemCode: z.string().min(1),
+  DiscountPercent: z.number().min(0).max(100).optional(),
+  ItemCode: sapRequiredText(SAP_FIELD_MAX.itemCode),
   /** Quoted quantity — PQT1.Quantity / DocTotal (0 when not yet quoted). */
   Quantity: z.number().nonnegative(),
   /** Required quantity — PQT1.PQTReqQty (Service Layer RequiredQuantity). */
@@ -99,28 +106,29 @@ const PurchaseQuotationLineItemSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
   UnitPrice: z.number().nonnegative().optional(),
-  UoMCode: z.union([z.string(), z.number()]).optional(),
+  UoMCode: z.union([z.string().max(SAP_FIELD_MAX.uomCode), z.number()]).optional(),
   UoMEntry: z.coerce.number().int().optional(),
-  VatGroup: z.string().optional(),
-  WarehouseCode: z.string().optional(),
+  VatGroup: sapOptionalCode(SAP_FIELD_MAX.vatGroup),
+  WarehouseCode: sapOptionalCode(SAP_FIELD_MAX.warehouseCode),
   LineNum: z.number().int().optional(),
+  ...sapLotCollectionsFields,
 });
 
 export const AttachmentInputSchema = z.object({
   sourcePath: z.string(),
   fileName: z.string(),
   fileExtension: z.string(),
-  freeText: z.string().optional(),
+  freeText: sapOptionalText(SAP_FIELD_MAX.attachmentFreeText),
   attachmentDate: z.string().optional(),
 });
 
 // CreatePurchaseQuotationInputSchema: Validates a new purchase quotation submission.
 export const CreatePurchaseQuotationInputSchema = z.object({
-  Address: z.string().optional(),
-  Address2: z.string().optional(),
-  CardCode: z.string().min(1),
-  Comments: z.string().optional(),
-  NumAtCard: z.string().optional(),
+  Address: sapOptionalText(SAP_FIELD_MAX.address),
+  Address2: sapOptionalText(SAP_FIELD_MAX.address),
+  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
+  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -137,7 +145,7 @@ export const CreatePurchaseQuotationInputSchema = z.object({
   SalesPersonCode: z.coerce.number().int().optional(),
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
-  DocCurrency: z.string().optional(),
+  DocCurrency: sapOptionalText(SAP_FIELD_MAX.docCurrency),
   attachments: z.array(AttachmentInputSchema).optional(),
   isDraft: z.boolean().optional(),
   draftDocEntry: z.coerce.number().optional(),
@@ -145,10 +153,10 @@ export const CreatePurchaseQuotationInputSchema = z.object({
 
 // UpdatePurchaseQuotationInputSchema: Edit flow blocks vendor updates (CardCode/CardName).
 export const UpdatePurchaseQuotationInputSchema = z.object({
-  Address: z.string().optional(),
-  Address2: z.string().optional(),
-  Comments: z.string().optional(),
-  NumAtCard: z.string().optional(),
+  Address: sapOptionalText(SAP_FIELD_MAX.address),
+  Address2: sapOptionalText(SAP_FIELD_MAX.address),
+  Comments: sapOptionalText(SAP_FIELD_MAX.comments),
+  NumAtCard: sapOptionalText(SAP_FIELD_MAX.numAtCard),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
@@ -165,11 +173,11 @@ export const UpdatePurchaseQuotationInputSchema = z.object({
   SalesPersonCode: z.coerce.number().int().optional(),
   Rounding: z.enum(["tYES", "tNO"]).optional(),
   RoundingDiffAmount: z.number().optional(),
-  DocCurrency: z.string().optional(),
+  DocCurrency: sapOptionalText(SAP_FIELD_MAX.docCurrency),
   attachments: z.array(AttachmentInputSchema).optional(),
   isDraft: z.boolean().optional(),
-  CardCode: z.string().optional(),
-  CardName: z.string().optional(),
+  CardCode: sapOptionalText(SAP_FIELD_MAX.cardCode),
+  CardName: sapOptionalText(SAP_FIELD_MAX.cardName),
   draftDocEntry: z.coerce.number().optional(),
 });
 

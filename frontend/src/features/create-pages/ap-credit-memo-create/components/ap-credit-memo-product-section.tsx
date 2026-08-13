@@ -189,6 +189,7 @@ export function APCreditMemoProductSection({
           showExplicitZeroDiscount={true}
           showTaxCode
           taxSide="purchase"
+          lotRequired
           showSelection={true}
           showReturnReason={true}
           warehouseErrors={warehouseErrors}

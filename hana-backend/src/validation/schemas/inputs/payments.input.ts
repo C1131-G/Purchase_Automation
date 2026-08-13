@@ -2,6 +2,11 @@
 
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
+import {
+  SAP_FIELD_MAX,
+  sapOptionalText,
+  sapRequiredText,
+} from "@/validation/schemas/inputs/sap-document-fields";
 
 extendZodWithOpenApi(z);
 
@@ -84,13 +89,13 @@ export const PaymentDocNumLookupQuerySchema = z.object({
 // CreatePaymentInputSchema: Validates the complex payload for recording a payment.
 // It supports cash and transfer sums, along with a list of invoices being settled.
 export const BaseCreatePaymentInputSchema = z.object({
-  CardCode: z.string().min(1),
+  CardCode: sapRequiredText(SAP_FIELD_MAX.cardCode),
   DocDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
-  Reference: z.string().optional(),
-  Remarks: z.string().optional(),
+  Reference: sapOptionalText(SAP_FIELD_MAX.numAtCard),
+  Remarks: sapOptionalText(SAP_FIELD_MAX.comments),
   PaymentMode: z
     .enum(["M-Pesa", "My Cash", "EFTPOS", "Direct Pay", "CASH"])
     .optional()
@@ -103,23 +108,23 @@ export const BaseCreatePaymentInputSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (YYYY-MM-DD)")
     .optional(),
-  TransferAccount: z.string().optional(),
-  TransferReference: z.string().optional(),
+  TransferAccount: sapOptionalText(SAP_FIELD_MAX.glAccount),
+  TransferReference: sapOptionalText(SAP_FIELD_MAX.transferReference),
   SurchargeTotal: z.number().optional(),
   // PaymentChecks: Array of checks.
   PaymentChecks: z
     .array(
       z.object({
-        BankCode: z.string(),
-        Branch: z.string().optional(),
+        BankCode: z.string().max(SAP_FIELD_MAX.bankCode),
+        Branch: sapOptionalText(SAP_FIELD_MAX.bankBranch),
         CheckNumber: z.number(),
         CheckSum: z.number(),
         DueDate: z.string().optional(),
         Endorse: z.string().optional(),
-        OriginallyIssuedBy: z.string().optional(),
-        CountryCode: z.string().optional(),
+        OriginallyIssuedBy: sapOptionalText(SAP_FIELD_MAX.issuedBy),
+        CountryCode: sapOptionalText(SAP_FIELD_MAX.countryCode),
         BankName: z.string().optional(),
-        GLAccount: z.string().optional(),
+        GLAccount: sapOptionalText(SAP_FIELD_MAX.glAccount),
       }),
     )
     .optional(),

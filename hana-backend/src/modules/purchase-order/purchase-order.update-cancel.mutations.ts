@@ -9,6 +9,7 @@ import { PurchaseOrderSchema } from "@/db/schemas/purchase-order.schema";
 import { serviceLayerClient } from "@/services/service-layer.service";
 import { attachmentsService } from "@/modules/attachments/attachments.service";
 import { afterPoUpdated, assertIcPoEditable } from "@/modules/intercompany";
+import { attachSapLotCollections } from "@/services/sap-line-lots";
 // Retrieves a paginated list of Purchase Orders from the HANA database.
 
 export const updatePurchaseOrder = async (
@@ -143,6 +144,7 @@ export const updatePurchaseOrder = async (
           docLine.BaseLine = item.BaseLine;
         }
 
+        attachSapLotCollections(docLine, item);
         return docLine;
       });
     }

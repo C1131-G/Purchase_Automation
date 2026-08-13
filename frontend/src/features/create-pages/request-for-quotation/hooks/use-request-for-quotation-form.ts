@@ -164,9 +164,6 @@ export function useRequestForQuotationForm(rfqId: number) {
         if (patch.quotedDate !== undefined) {
           allowed.quotedDate = patch.quotedDate;
         }
-        if (patch.vatGroup !== undefined) {
-          allowed.vatGroup = patch.vatGroup;
-        }
       }
       if (Object.keys(allowed).length === 0) {
         return;

@@ -12,6 +12,10 @@ import {
   File,
   Eye,
 } from "lucide-react";
+import {
+  clipSapText,
+  SAP_FIELD_MAX,
+} from "@/features/create-pages/create-shared/utils/sap-document-fields";
 import { apiClient } from "@/shared/api/client";
 export interface AttachmentItem {
   id: string;
@@ -374,7 +378,13 @@ export function UploadGrid({
                           type="text"
                           value={item.freeText}
                           disabled={readOnly}
-                          onChange={(e) => handleNoteChange(item.id, e.target.value)}
+                          onChange={(e) =>
+                            handleNoteChange(
+                              item.id,
+                              clipSapText(e.target.value, SAP_FIELD_MAX.attachmentFreeText),
+                            )
+                          }
+                          maxLength={SAP_FIELD_MAX.attachmentFreeText}
                           placeholder={readOnly ? "" : "Add remark / note..."}
                           className="w-full h-8 rounded-lg border border-linen-200/50 bg-field-silver px-3 text-[11px] text-ink-900 placeholder:text-neutral-400 hover:border-linen-200/80 focus:border-teal-400 focus:bg-surface focus:shadow-xs outline-none transition duration-150 disabled:bg-transparent disabled:border-transparent disabled:text-neutral-500 disabled:cursor-not-allowed"
                         />

@@ -45,7 +45,7 @@ export const getProductsByCodes = async (
   const typeToken = type || "default";
   const priceListToken = priceList !== undefined ? String(priceList) : "default";
   const codesKey = [...itemCodes].sort().join("|");
-  const cacheKey = `master:${dbName}:ProductsByCodes:v3:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
+  const cacheKey = `master:${dbName}:ProductsByCodes:v4:${typeToken}:pl${priceListToken}:wh${normalizedWarehouseCode || "default"}:bp${normalizedCardCode}:${codesKey}`;
 
   return getCachedData(
     cacheKey,
@@ -153,6 +153,8 @@ async function loadProductsByCodesForTenant(
       "item.VatGroupSa",
       "item.DfltWH",
       "item.UgpEntry",
+      "item.ManBtchNum",
+      "item.ManSerNum",
     ])
     .where("item.ItemCode IN (:...itemCodes)", { itemCodes: matchedCodes })
     .andWhere("item.frozenFor = :active", { active: "N" })

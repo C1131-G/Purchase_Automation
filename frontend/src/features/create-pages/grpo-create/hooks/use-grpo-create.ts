@@ -38,6 +38,11 @@ import {
   scheduleHydrateWarehouseStocks,
   taxRatesFromProductMeta,
 } from "@/features/create-pages/create-shared/utils/hydrate-product-meta";
+import {
+  firstRequiredLotError,
+  lotFieldsFromProduct,
+  sapLotFieldsFromRow,
+} from "@/features/create-pages/create-shared/utils/product-lot-allocations";
 import { resolveDocumentLineDiscount } from "@/features/create-pages/create-shared/utils/resolve-document-line-discount";
 import {
   useCreateGRPO,
@@ -601,7 +606,12 @@ export function useGRPOCreate({
             selected: false,
           };
         });
-        setLines(mappedLines);
+        setLines(
+          mappedLines.map((row) => {
+            const meta = productByCode.get(row.productCode);
+            return meta ? { ...row, ...lotFieldsFromProduct(meta) } : row;
+          }),
+        );
         scheduleHydrateWarehouseStocks(
           queryClient,
           uniqueItemCodes,
@@ -837,7 +847,12 @@ export function useGRPOCreate({
             selected: false,
           };
         });
-        setLines(mappedLines);
+        setLines(
+          mappedLines.map((row) => {
+            const meta = productByCode.get(row.productCode);
+            return meta ? { ...row, ...lotFieldsFromProduct(meta) } : row;
+          }),
+        );
         scheduleHydrateWarehouseStocks(
           queryClient,
           uniqueItemCodes,
@@ -1163,7 +1178,12 @@ export function useGRPOCreate({
           referenceNo: sourceNumAtCard,
           remarks: remarksParts,
         });
-        setLines(mappedLines);
+        setLines(
+          mappedLines.map((row) => {
+            const meta = productByCode.get(row.productCode);
+            return meta ? { ...row, ...lotFieldsFromProduct(meta) } : row;
+          }),
+        );
         scheduleHydrateWarehouseStocks(
           queryClient,
           uniqueItemCodes,
@@ -1696,6 +1716,7 @@ export function useGRPOCreate({
                 uomEntry: product.purchaseUomEntry ?? product.uomEntry,
                 vatGroup: String(product.vatGroup ?? ""),
                 warehouseCode: targetWhs,
+                ...lotFieldsFromProduct(product),
               }
             : row,
         );
@@ -1731,6 +1752,7 @@ export function useGRPOCreate({
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
           warehouseCode: targetWhs,
+          ...lotFieldsFromProduct(product),
         },
       ];
     });
@@ -1775,6 +1797,7 @@ export function useGRPOCreate({
           uomEntry: product.purchaseUomEntry ?? product.uomEntry,
           vatGroup: String(product.vatGroup ?? ""),
           warehouseCode: targetWhs,
+          ...lotFieldsFromProduct(product),
         };
       });
       return [...prev, ...nextRows];
@@ -1982,6 +2005,7 @@ export function useGRPOCreate({
                   UoMEntry: row.uomEntry ?? undefined,
                   VatGroup: row.vatGroup || undefined,
                   WarehouseCode: row.warehouseCode || undefined,
+                  ...sapLotFieldsFromRow(row),
                 });
                 continue;
               }
@@ -2000,6 +2024,7 @@ export function useGRPOCreate({
                   UoMEntry: row.uomEntry ?? undefined,
                   VatGroup: row.vatGroup || undefined,
                   WarehouseCode: row.warehouseCode || undefined,
+                  ...sapLotFieldsFromRow(row),
                 });
               }
               const excessQty = row.quantity - baseQty;
@@ -2013,6 +2038,7 @@ export function useGRPOCreate({
                   UoMEntry: row.uomEntry ?? undefined,
                   VatGroup: row.vatGroup || undefined,
                   WarehouseCode: row.warehouseCode || undefined,
+                  ...sapLotFieldsFromRow(row),
                 });
               }
             }
@@ -2086,6 +2112,12 @@ export function useGRPOCreate({
         return;
       }
 
+      const lotError = firstRequiredLotError(filteredRows);
+      if (lotError) {
+        setCreateError(lotError);
+        return;
+      }
+
       if (isEditMode && !isDirty) {
         const noChangeMessage = "Change at least one field before update.";
         setCreateError(noChangeMessage);
@@ -2116,6 +2148,7 @@ export function useGRPOCreate({
             UoMEntry: row.uomEntry ?? undefined,
             VatGroup: row.vatGroup || undefined,
             WarehouseCode: row.warehouseCode || undefined,
+            ...sapLotFieldsFromRow(row),
           })),
           SalesPersonCode: resolvedSalesEmployeeCode,
           attachments: attachments.map((att) => ({

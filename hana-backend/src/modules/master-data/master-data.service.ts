@@ -18,6 +18,8 @@ import {
   resolveDocumentSeries,
   resolveItemSalesUom,
   getBusinessPartnerAddresses,
+  getItemBatches,
+  getItemSerials,
 } from "./master-data.queries";
 
 export {
@@ -40,6 +42,8 @@ export {
   resolveDocumentSeries,
   resolveItemSalesUom,
   getBusinessPartnerAddresses,
+  getItemBatches,
+  getItemSerials,
 };
 
 export const masterDataService = {
@@ -62,4 +66,6 @@ export const masterDataService = {
   resolveDocumentSeries,
   resolveItemSalesUom,
   getBusinessPartnerAddresses,
+  getItemBatches,
+  getItemSerials,
 };

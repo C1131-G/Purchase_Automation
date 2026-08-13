@@ -67,6 +67,7 @@ export const formatTaxCodeLabel = (
   return `${code} — ${name} (${rateLabel})`;
 };
 
+/** Fill row tax from the item master code. The UI does not let users change it. */
 export const applyTaxCodeToRow = (
   codes: Array<Pick<CreateLookupOption, "code" | "rate">>,
   vatGroup: string,
