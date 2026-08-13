@@ -570,7 +570,11 @@ export function useAPCreditMemoCreate({
               salesUomCode: productMeta?.uomCode,
               salesUomEntry: productMeta?.uomEntry,
               uomList: productMeta?.uomList,
-              vatGroup: String(line.TaxCode ?? "").trim(),
+              vatGroup: String(
+                (line as { VatGroup?: string; TaxCode?: string }).VatGroup ??
+                  (line as { TaxCode?: string }).TaxCode ??
+                  "",
+              ).trim(),
               warehouseCode: String(line.WarehouseCode ?? "").trim(),
             };
           },
@@ -738,7 +742,11 @@ export function useAPCreditMemoCreate({
             productName: String(line.ItemDescription ?? productMeta?.name ?? itemCode).trim(),
             stock: 0,
             currency: String(productMeta?.currency ?? "").trim(),
-            vatGroup: String(line.TaxCode ?? "").trim(),
+            vatGroup: String(
+              (line as { VatGroup?: string; TaxCode?: string }).VatGroup ??
+                (line as { TaxCode?: string }).TaxCode ??
+                "",
+            ).trim(),
             taxRate:
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
@@ -1035,7 +1043,11 @@ export function useAPCreditMemoCreate({
               salesUomCode: productMeta?.uomCode,
               salesUomEntry: productMeta?.uomEntry,
               uomList: productMeta?.uomList,
-              vatGroup: String(line.TaxCode ?? "").trim(),
+              vatGroup: String(
+                (line as { VatGroup?: string; TaxCode?: string }).VatGroup ??
+                  (line as { TaxCode?: string }).TaxCode ??
+                  "",
+              ).trim(),
               warehouseCode: String(line.WarehouseCode ?? warehouseCode).trim(),
             };
           });

@@ -191,6 +191,8 @@ export function APInvoiceProductSection({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
+          showTaxCode
+          taxSide="purchase"
           warehouseErrors={warehouseErrors}
           showUom={true}
         />

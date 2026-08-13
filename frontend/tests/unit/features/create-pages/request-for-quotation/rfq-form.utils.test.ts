@@ -38,6 +38,48 @@ describe("rfq-form.utils", () => {
     expect(mapped[0]?.unitPrice).toBe("");
     expect(mapped[0]?.discount).toBe("5");
     expect(mapped[0]?.deliveryDate).toBe("2026-08-01");
+    expect(mapped[0]?.taxCode).toBe("VAT");
+  });
+
+  it("populates product-row vatGroup from buyer taxCode and omits tax from PUT", () => {
+    const lines: IcRfqLine[] = [
+      {
+        deliveryDate: "2026-08-01T00:00:00.000Z",
+        description: "Widget",
+        discount: 5,
+        itemCode: "A-1",
+        lineNum: 1,
+        quantity: 10,
+        remarks: null,
+        rfqId: 1,
+        rfqLineId: 9,
+        taxCode: "IN-18",
+        unitPrice: 20,
+        uomCode: "EA",
+        warehouse: "01",
+      },
+    ];
+
+    const rows = mapRfqLinesToProductRows(lines);
+    expect(rows[0]?.vatGroup).toBe("IN-18");
+    expect(rows[0]?.taxRate).toBe(0);
+
+    const quoted: ProductRow[] = [
+      {
+        ...rows[0]!,
+        price: 20,
+        quantity: 10,
+        quotedDate: "2026-08-20",
+        vatGroup: "OUT-5",
+        taxRate: 5,
+      },
+    ];
+    const payload = buildUpdateRfqLinesPayloadFromProductRows(quoted, { requireAllPrices: true });
+    expect(payload.errors).toHaveLength(0);
+    expect(payload.lines).toHaveLength(1);
+    expect(payload.lines[0]).not.toHaveProperty("taxCode");
+    expect(payload.lines[0]).not.toHaveProperty("vatGroup");
+    expect(payload.lines[0]).not.toHaveProperty("VatGroup");
   });
 
   it("keeps quoted qty/date empty and does not copy required fields", () => {

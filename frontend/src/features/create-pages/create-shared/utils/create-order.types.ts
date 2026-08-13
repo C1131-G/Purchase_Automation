@@ -17,6 +17,8 @@ export type CreateLookupOption = Pick<
   | "salesEmployeeCode"
   | "salesEmployeeName"
   | "uomEntry"
+  | "rate"
+  | "category"
 > & {
   stock?: number | undefined;
   disabled?: boolean;

@@ -372,6 +372,7 @@ export function PurchaseQuotationCreate({
           warehouses={state.warehouses}
           warehousesLoading={state.warehousesQuery.isLoading}
           uoms={state.uoms}
+          taxCodes={state.taxCodes}
           updateProductRow={state.updateProductRow}
           removeProductRow={state.removeProductRow}
           setProductRowDraft={state.setProductRowDraft}

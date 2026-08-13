@@ -157,6 +157,8 @@ export function PurchaseOrderProductSection({
         warehousesLoading={warehousesLoading}
         disableLineInputs={isClosed}
         showExplicitZeroDiscount={true}
+        showTaxCode
+        taxSide="purchase"
         warehouseErrors={warehouseErrors}
       />
     </BaseProductSection>

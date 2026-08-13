@@ -41,6 +41,7 @@ export function usePqLookups({
   const warehousesQuery = useQuery(purchaseQuotationCreateQueries.warehouses());
   const salesEmployeesQuery = useQuery(purchaseQuotationCreateQueries.salesEmployees());
   const uomsQuery = useQuery(purchaseQuotationCreateQueries.uoms());
+  const taxCodesQuery = useQuery(purchaseQuotationCreateQueries.taxCodes());
 
   const [nameInput, setNameInput] = useState("");
   const [codeInput, setCodeInput] = useState("");
@@ -66,6 +67,7 @@ export function usePqLookups({
   const warehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
   const salesEmployees = useMemo(() => salesEmployeesQuery.data ?? [], [salesEmployeesQuery.data]);
   const uoms = useMemo(() => uomsQuery.data ?? [], [uomsQuery.data]);
+  const taxCodes = useMemo(() => taxCodesQuery.data ?? [], [taxCodesQuery.data]);
 
   const findVendorByCode = (value: string) =>
     (vendors as ProductLookupItem[]).find(
@@ -330,5 +332,7 @@ export function usePqLookups({
     resetWarehouse,
     uoms,
     uomsQuery,
+    taxCodes,
+    taxCodesQuery,
   };
 }

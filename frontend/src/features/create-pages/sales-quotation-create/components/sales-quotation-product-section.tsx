@@ -145,6 +145,8 @@ export function SalesQuotationProductSection({
         stockLimitReserve={1}
         minStockToSelectWarehouse={2}
         showUom={true}
+        showTaxCode
+        taxSide="sales"
         showExplicitZeroDiscount={true}
       />
     </BaseProductSection>

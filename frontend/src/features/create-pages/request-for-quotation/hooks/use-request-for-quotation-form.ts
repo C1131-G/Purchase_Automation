@@ -143,25 +143,30 @@ export function useRequestForQuotationForm(rfqId: number) {
 
   const updateProductRow = useCallback(
     (id: string, patch: Partial<ProductRow>) => {
-      if (!canEditLines) {
-        return;
-      }
-      // Only seller-editable fields may be patched.
+      // taxRate from OVTG is display-only and must apply on submitted RFQs too.
       const allowed: Partial<RfqSellerProductPatch> = {};
-      if (patch.price !== undefined) {
-        allowed.price = patch.price;
+      if (patch.taxRate !== undefined) {
+        allowed.taxRate = patch.taxRate;
       }
-      if (patch.quantity !== undefined) {
-        allowed.quantity = patch.quantity;
-      }
-      if (patch.discountPercent !== undefined) {
-        allowed.discountPercent = patch.discountPercent;
-      }
-      if (patch.discountAmount !== undefined) {
-        allowed.discountAmount = patch.discountAmount;
-      }
-      if (patch.quotedDate !== undefined) {
-        allowed.quotedDate = patch.quotedDate;
+      if (canEditLines) {
+        if (patch.price !== undefined) {
+          allowed.price = patch.price;
+        }
+        if (patch.quantity !== undefined) {
+          allowed.quantity = patch.quantity;
+        }
+        if (patch.discountPercent !== undefined) {
+          allowed.discountPercent = patch.discountPercent;
+        }
+        if (patch.discountAmount !== undefined) {
+          allowed.discountAmount = patch.discountAmount;
+        }
+        if (patch.quotedDate !== undefined) {
+          allowed.quotedDate = patch.quotedDate;
+        }
+        if (patch.vatGroup !== undefined) {
+          allowed.vatGroup = patch.vatGroup;
+        }
       }
       if (Object.keys(allowed).length === 0) {
         return;
@@ -179,7 +184,9 @@ export function useRequestForQuotationForm(rfqId: number) {
           };
         }),
       );
-      setFormError(null);
+      if (canEditLines) {
+        setFormError(null);
+      }
     },
     [canEditLines],
   );

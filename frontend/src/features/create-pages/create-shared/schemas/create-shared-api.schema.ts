@@ -11,6 +11,8 @@ export const lookupItemSchema = z.object({
   code: z.string(),
   name: z.string(),
   rate: z.number().optional(),
+  /** OVTG.Category — I = purchase input, O = sales output. */
+  category: z.string().optional(),
   salesEmployeeCode: z.union([z.string(), z.number()]).optional(),
   salesEmployeeName: z.string().optional(),
   shipToAddress: z.string().optional(),

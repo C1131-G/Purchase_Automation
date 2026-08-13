@@ -29,10 +29,16 @@ export type RfqSellerEditableFields = Pick<
   "unitPrice" | "quantity" | "discount" | "deliveryDate"
 >;
 
-/** ProductRow patches allowed on RFQ seller fill. */
+/** ProductRow patches allowed on RFQ seller fill. Tax is on-screen only (not PUT). */
 export type RfqSellerProductPatch = Pick<
   ProductRow,
-  "price" | "quantity" | "discountPercent" | "discountAmount" | "quotedDate"
+  | "price"
+  | "quantity"
+  | "discountPercent"
+  | "discountAmount"
+  | "quotedDate"
+  | "vatGroup"
+  | "taxRate"
 >;
 
 export const isRfqDraft = (status: string | undefined): boolean =>
@@ -137,7 +143,8 @@ export const mapRfqLinesToProductRows = (lines: IcRfqLine[] | undefined): Produc
         stock: 0,
         taxRate: 0,
         uomCode: String(line.uomCode ?? "").trim() || undefined,
-        vatGroup: "",
+        // Buyer snapshot TAX_CODE (purchase VatGroup). Rate fills from OVTG in the row.
+        vatGroup: String(line.taxCode ?? "").trim(),
         warehouseCode: String(line.warehouse ?? "").trim(),
       } satisfies ProductRow;
     });
@@ -253,6 +260,7 @@ export const buildUpdateRfqLinesPayload = (
       quantity,
       unitPrice,
     });
+    // Intentionally omit taxCode — IC_RFQ_LINE.TAX_CODE stays the buyer purchase snapshot.
   }
 
   if (!requireAllPrices && payload.length === 0 && lines.length > 0) {
@@ -307,6 +315,7 @@ export const buildUpdateRfqLinesPayloadFromProductRows = (
       quantity,
       unitPrice,
     });
+    // Do not write vatGroup/taxCode — seller picker is on-screen totals only.
   }
 
   if (!requireAllPrices && payload.length === 0 && rows.length > 0) {

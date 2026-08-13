@@ -496,7 +496,7 @@ export function useAPInvoiceCreate({
             ).trim(),
             stock: 0, // In edit mode, stock is less relevant for invoices
             currency: String(detail.DocCurr ?? productMeta?.currency ?? "").trim(),
-            vatGroup: String(line.TaxCode ?? "").trim(),
+            vatGroup: String(lineData.VatGroup ?? line.TaxCode ?? "").trim(),
             // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
@@ -711,7 +711,7 @@ export function useAPInvoiceCreate({
             productName: String(line.ItemDescription ?? productMeta?.name ?? itemCode).trim(),
             stock: 0,
             currency: String(productMeta?.currency ?? "").trim(),
-            vatGroup: String(line.TaxCode ?? "").trim(),
+            vatGroup: String(lineData.VatGroup ?? line.TaxCode ?? "").trim(),
             taxRate:
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||
               taxRateByItemCode.get(itemCode) ||
@@ -981,7 +981,7 @@ export function useAPInvoiceCreate({
             ).trim(),
             stock: 0,
             currency: currency || String(productMeta?.currency ?? "").trim(),
-            vatGroup: String(line.TaxCode ?? "").trim(),
+            vatGroup: String(lineData.VatGroup ?? line.TaxCode ?? "").trim(),
             // SAP line tax is authoritative; fall back to product master only when missing
             taxRate:
               (typeof line.VatPrcnt === "number" ? line.VatPrcnt : Number(line.VatPrcnt) || 0) ||

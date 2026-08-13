@@ -8,6 +8,7 @@ import type {
   ProductRow,
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
+import type { TaxDocumentSide } from "@/features/create-pages/create-shared/utils/product-tax-codes";
 
 // CreateProductTable: Specialized data grid for building document line items.
 // Rows are windowed with TanStack Virtual so large copy-from / multi-line docs stay responsive.
@@ -62,6 +63,10 @@ interface CreateProductTableProps {
    * RFQ submit validation: red borders on missing quoted qty / date / price per row id.
    */
   lineFieldErrors?: Record<string, { price?: boolean; quantity?: boolean; quotedDate?: boolean }>;
+  /** Line tax group (OVTG). Default on — create and edit share this table. */
+  showTaxCode?: boolean;
+  taxCodes?: CreateLookupOption[];
+  taxSide?: TaxDocumentSide;
 }
 
 export function CreateProductTable({
@@ -94,6 +99,9 @@ export function CreateProductTable({
   showPqLineDatesAndQtys = false,
   rfqSellerFill = false,
   lineFieldErrors,
+  showTaxCode = true,
+  taxCodes = [],
+  taxSide = "purchase",
 }: CreateProductTableProps) {
   const pqExtraCols = showPqLineDatesAndQtys ? 3 : 0; // +req date, quoted date, req qty (quoted replaces Quantity)
   const emptyColSpan =
@@ -103,7 +111,8 @@ export function CreateProductTable({
     (showReturnReason ? 1 : 0) +
     (showUom ? 1 : 0) +
     (showBinLocation ? 1 : 0) +
-    (showGLAccount ? 1 : 0);
+    (showGLAccount ? 1 : 0) +
+    (showTaxCode ? 1 : 0);
 
   const scrollParentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -125,7 +134,7 @@ export function CreateProductTable({
       <div ref={scrollParentRef} className={`${PRODUCT_TABLE_MAX_HEIGHT_CLASS} overflow-auto`}>
         <table
           className={`w-full table-fixed text-left text-sm text-ink-900 ${
-            showPqLineDatesAndQtys ? "min-w-[1780px]" : "min-w-[1400px]"
+            showPqLineDatesAndQtys ? "min-w-[1900px]" : "min-w-[1520px]"
           }`}
         >
           <thead className="sticky top-0 z-10 bg-linen-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
@@ -148,6 +157,7 @@ export function CreateProductTable({
               <th className="w-[7%] px-2 py-2 text-left">Price</th>
               <th className="w-[7%] px-2 py-2 text-left">Disc %</th>
               <th className="w-[7%] px-2 py-2 text-left text-wrap">Disc Amt</th>
+              {showTaxCode && <th className="w-[8%] px-2 py-2 text-left">Tax Code</th>}
               <th className="w-[7%] px-2 py-2 text-left text-wrap">Net Price</th>
               <th className="w-[7%] px-2 py-2 text-left">Total</th>
               {showGLAccount && <th className="w-[12%] px-2 py-2 text-left">G/L Account</th>}
@@ -211,6 +221,9 @@ export function CreateProductTable({
                   showPqLineDatesAndQtys={showPqLineDatesAndQtys}
                   rfqSellerFill={rfqSellerFill}
                   lineFieldInvalid={lineFieldErrors?.[row.id]}
+                  showTaxCode={showTaxCode}
+                  taxCodes={taxCodes}
+                  taxSide={taxSide}
                 />
               );
             })}

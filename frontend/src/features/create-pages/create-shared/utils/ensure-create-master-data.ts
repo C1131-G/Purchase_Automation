@@ -20,6 +20,7 @@ export const ensureCreateMasterData = async (
       queryClient.ensureQueryData(createSharedQueries.customers()),
       queryClient.ensureQueryData(createSharedQueries.warehouses()),
       queryClient.ensureQueryData(createSharedQueries.salesEmployees()),
+      queryClient.ensureQueryData(createSharedQueries.taxCodes()),
     ]);
     return;
   }
@@ -28,6 +29,7 @@ export const ensureCreateMasterData = async (
     queryClient.ensureQueryData(createSharedQueries.vendors()),
     queryClient.ensureQueryData(createSharedQueries.warehouses()),
     queryClient.ensureQueryData(createSharedQueries.salesEmployees()),
+    queryClient.ensureQueryData(createSharedQueries.taxCodes()),
   ]);
 };
 
@@ -43,4 +45,5 @@ export const prefetchCreateMasterData = (
   }
   void queryClient.prefetchQuery(createSharedQueries.warehouses());
   void queryClient.prefetchQuery(createSharedQueries.salesEmployees());
+  void queryClient.prefetchQuery(createSharedQueries.taxCodes());
 };

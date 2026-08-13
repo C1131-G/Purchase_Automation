@@ -29,6 +29,7 @@ interface PurchaseQuotationProductSectionProps {
   warehouses: PurchaseQuotationState["warehouses"];
   warehousesLoading: PurchaseQuotationState["warehousesQuery"]["isLoading"];
   uoms: PurchaseQuotationState["uoms"];
+  taxCodes: PurchaseQuotationState["taxCodes"];
   missingMandatoryFields: PurchaseQuotationState["missingMandatoryFields"];
   requiredCompletionPercent: PurchaseQuotationState["requiredCompletionPercent"];
   handleCreateOrder: PurchaseQuotationState["handleCreateOrder"];
@@ -80,6 +81,7 @@ export function PurchaseQuotationProductSection({
   warehouses,
   warehousesLoading,
   uoms,
+  taxCodes,
   handleCreateOrder,
   submitLabel = "Add",
   submitLoadingText = "Creating...",
@@ -161,6 +163,9 @@ export function PurchaseQuotationProductSection({
         warehouseErrors={warehouseErrors}
         showUom={true}
         uoms={uoms}
+        showTaxCode
+        taxCodes={taxCodes}
+        taxSide="purchase"
         showPqLineDatesAndQtys
       />
     </BaseProductSection>

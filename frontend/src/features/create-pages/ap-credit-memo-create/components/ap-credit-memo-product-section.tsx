@@ -187,6 +187,8 @@ export function APCreditMemoProductSection({
           warehouses={warehouses}
           warehousesLoading={warehousesLoading}
           showExplicitZeroDiscount={true}
+          showTaxCode
+          taxSide="purchase"
           showSelection={true}
           showReturnReason={true}
           warehouseErrors={warehouseErrors}

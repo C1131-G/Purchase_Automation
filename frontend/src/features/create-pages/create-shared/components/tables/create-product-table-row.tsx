@@ -19,6 +19,13 @@ import type {
   ProductRowDraft,
 } from "@/features/create-pages/create-shared/utils/create-order.types";
 import {
+  applyTaxCodeToRow,
+  filterTaxCodesForSide,
+  formatTaxCodeLabel,
+  taxRateForCode,
+  type TaxDocumentSide,
+} from "@/features/create-pages/create-shared/utils/product-tax-codes";
+import {
   parseISODate,
   toDisplayDate,
   toISODate,
@@ -196,6 +203,9 @@ interface CreateProductTableRowProps {
   rfqSellerFill?: boolean;
   /** RFQ submit: highlight missing quoted qty / date / price (vendor-style red border). */
   lineFieldInvalid?: { price?: boolean; quantity?: boolean; quotedDate?: boolean } | undefined;
+  showTaxCode?: boolean;
+  taxCodes?: CreateLookupOption[];
+  taxSide?: TaxDocumentSide;
 }
 
 export function CreateProductTableRow({
@@ -228,6 +238,9 @@ export function CreateProductTableRow({
   showPqLineDatesAndQtys = false,
   rfqSellerFill = false,
   lineFieldInvalid,
+  showTaxCode = true,
+  taxCodes: taxCodesProp = [],
+  taxSide = "purchase",
 }: CreateProductTableRowProps) {
   const invalidFieldClass =
     "border-red-300 bg-red-50 focus:border-red-400 focus:bg-surface focus:ring-2 focus:ring-red-200";
@@ -307,6 +320,16 @@ export function CreateProductTableRow({
   const [uomInput, setUomInput] = React.useState("");
   const [uomLookupOpen, setUomLookupOpen] = React.useState(false);
   const [uomLookupInitialSearch, setUomLookupInitialSearch] = React.useState("");
+
+  const taxCodesQuery = useQuery({
+    ...createSharedQueries.taxCodes(),
+    enabled: showTaxCode && taxCodesProp.length === 0,
+  });
+  const taxCodes = taxCodesProp.length > 0 ? taxCodesProp : (taxCodesQuery.data ?? []);
+  const [taxInput, setTaxInput] = React.useState(row.vatGroup ?? "");
+  const [taxFocused, setTaxFocused] = React.useState(false);
+  const [taxLookupOpen, setTaxLookupOpen] = React.useState(false);
+  const taxInputRef = React.useRef<HTMLInputElement>(null);
 
   /** PQ/RFQ line date pickers — portaled to document.body so table overflow never clips them. */
   const [lineDatePicker, setLineDatePicker] = React.useState<"required" | "quoted" | null>(null);
@@ -630,6 +653,21 @@ export function CreateProductTableRow({
     setUomInput(row.uomCode ?? "");
   }, [row.uomCode]);
 
+  React.useEffect(() => {
+    setTaxInput(row.vatGroup ?? "");
+  }, [row.vatGroup]);
+
+  React.useEffect(() => {
+    const code = String(row.vatGroup ?? "").trim();
+    if (!code || taxCodes.length === 0) {
+      return;
+    }
+    const resolvedRate = taxRateForCode(taxCodes, code);
+    if (resolvedRate > 0 && (!Number.isFinite(row.taxRate) || row.taxRate === 0)) {
+      updateProductRow(row.id, { taxRate: resolvedRate });
+    }
+  }, [row.id, row.vatGroup, row.taxRate, taxCodes, updateProductRow]);
+
   const selectedWarehouse = React.useMemo(() => {
     return warehouses.find((w) => w.code === row.warehouseCode);
   }, [warehouses, row.warehouseCode]);
@@ -668,6 +706,44 @@ export function CreateProductTableRow({
     });
   };
 
+  const sideTaxCodes = React.useMemo(
+    () => filterTaxCodesForSide(taxCodes, taxSide, row.vatGroup),
+    [taxCodes, taxSide, row.vatGroup],
+  );
+  const taxSuggestions = React.useMemo(() => {
+    const query = taxInput.trim().toLowerCase();
+    if (!query) {
+      return sideTaxCodes;
+    }
+    return sideTaxCodes.filter((item) => {
+      const code = item.code.toLowerCase();
+      const name = String(item.name ?? "").toLowerCase();
+      return code.includes(query) || name.includes(query);
+    });
+  }, [sideTaxCodes, taxInput]);
+
+  const selectTaxInRow = (item: CreateLookupOption) => {
+    const next = applyTaxCodeToRow(taxCodes, item.code);
+    setTaxInput(next.vatGroup);
+    updateProductRow(row.id, next);
+    setTaxFocused(false);
+    setTaxLookupOpen(false);
+  };
+
+  const taxLookupResults = React.useMemo(
+    () =>
+      sideTaxCodes.map((item) => {
+        const rate = Number(item.rate ?? 0);
+        const rateLabel = Number.isFinite(rate) ? `${rate}%` : "0%";
+        const name = String(item.name ?? "").trim();
+        return {
+          code: item.code,
+          name: name && name !== item.code ? `${name} (${rateLabel})` : rateLabel,
+        };
+      }),
+    [sideTaxCodes],
+  );
+
   // Use centralized line math for consistency with SAP totals
   const lineTotals = calculateLineTotals(row);
   const { gross: grossAmount, discount: clampedDiscountAmount, lineNet, lineTotal } = lineTotals;
@@ -698,6 +774,8 @@ export function CreateProductTableRow({
   const snapshotLocked = effectiveDisableInputs;
   const sellerFieldEditable = rfqSellerFill && !baseDisabled;
   const sellerFieldLocked = !sellerFieldEditable;
+  const taxLocked = rfqSellerFill ? sellerFieldLocked : effectiveDisableInputs;
+  const selectedTax = sideTaxCodes.find((item) => item.code === row.vatGroup);
 
   return (
     <tr
@@ -1551,6 +1629,113 @@ export function CreateProductTableRow({
           />
         )}
       </td>
+      {showTaxCode && (
+        <td className="relative min-w-0 px-2 py-2">
+          <div className="relative">
+            <input
+              ref={taxInputRef}
+              type="text"
+              value={
+                taxFocused ? taxInput : selectedTax ? formatTaxCodeLabel(selectedTax) : taxInput
+              }
+              placeholder="Select tax"
+              title={selectedTax ? formatTaxCodeLabel(selectedTax) : row.vatGroup || "Select tax"}
+              readOnly={taxLocked}
+              disabled={taxLocked}
+              onChange={(event) => {
+                if (taxLocked) {
+                  return;
+                }
+                setTaxInput(event.target.value);
+                setTaxFocused(true);
+              }}
+              onFocus={() => {
+                if (taxLocked) {
+                  return;
+                }
+                setTaxInput(row.vatGroup ?? "");
+                setTaxFocused(true);
+              }}
+              onClick={() => {
+                if (taxLocked) {
+                  onInputRestrictedClick?.();
+                }
+              }}
+              onBlur={() => {
+                blurTimerRef.current = setTimeout(() => {
+                  setTaxFocused(false);
+                  setTaxInput(row.vatGroup ?? "");
+                }, 150);
+              }}
+              className={`h-9 w-full rounded-lg border px-2 pr-8 text-xs text-ink-900 outline-none ${
+                taxLocked
+                  ? "cursor-not-allowed border-linen-200 bg-linen-100 opacity-70"
+                  : "cursor-text border-linen-200 bg-field-silver focus:border-teal-400 focus:bg-surface focus:ring-2 focus:ring-teal-200"
+              }`}
+            />
+            <button
+              type="button"
+              disabled={taxLocked}
+              onClick={() => {
+                if (taxLocked) {
+                  onInputRestrictedClick?.();
+                  return;
+                }
+                setTaxInput("");
+                setTaxFocused(false);
+                setTaxLookupOpen(true);
+              }}
+              className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-linen-200 bg-surface text-neutral-500 transition ${
+                taxLocked ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-linen-100"
+              }`}
+              aria-label="Search tax codes"
+            >
+              <Search className="h-3 w-3" />
+            </button>
+            <FixedDropdown
+              anchorRef={taxInputRef}
+              visible={!taxLocked && taxFocused && !taxLookupOpen}
+            >
+              <SuggestionList
+                items={taxSuggestions}
+                onSelect={(item) => {
+                  if (blurTimerRef.current) {
+                    clearTimeout(blurTimerRef.current);
+                  }
+                  selectTaxInRow(item);
+                }}
+                emptyText="No tax codes"
+                query={taxInput}
+                showCode
+                codeLabel="Tax"
+                nameLabel="Name"
+              />
+            </FixedDropdown>
+          </div>
+          <LookupPopup
+            open={taxLookupOpen}
+            search={taxInput}
+            results={taxLookupResults}
+            loading={taxCodesProp.length === 0 && taxCodesQuery.isLoading}
+            error={taxCodesQuery.isError ? (taxCodesQuery.error as Error).message : null}
+            title="Select Tax Code"
+            searchPlaceholder="Search tax code or name..."
+            codeLabel="Tax"
+            nameLabel="Name"
+            showBothColumns
+            onSearchChange={(value) => {
+              setTaxInput(value);
+            }}
+            onClose={() => {
+              setTaxLookupOpen(false);
+              setTaxInput(row.vatGroup ?? "");
+            }}
+            onSelect={(item) => {
+              selectTaxInRow(item);
+            }}
+          />
+        </td>
+      )}
       <td className="whitespace-nowrap min-w-0 px-2 py-2 text-left text-sm text-ink-900">
         {unitNetPrice.toFixed(2)}
       </td>

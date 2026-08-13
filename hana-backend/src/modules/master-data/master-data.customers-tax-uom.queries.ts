@@ -92,18 +92,37 @@ export const getCustomers = async (dbName: string) => {
 export const getTaxCodes = async (dbName: string) => {
   const results = await fetchLookup(dbName, TaxGroupSchema, "Tax Codes", {
     order: { Code: "ASC" } as Record<string, "ASC" | "DESC">,
-    select: ["Code", "Name", "Rate"] as const,
+    select: ["Code", "Name", "Rate", "Category"] as const,
     where: { Inactive: "N" } as Record<string, unknown>,
   });
 
-  return results.map((item) => ({
-    Code: item.Code,
-    Name: item.Name,
-    Rate: item.Rate,
-    code: item.Code,
-    id: item.Code,
-    name: item.Name,
-  }));
+  return results.map((item) => mapTaxCodeLookup(item));
+};
+
+/** Map an OVTG row to the portal tax-code lookup shape (code, name, rate, category). */
+export const mapTaxCodeLookup = (item: {
+  Code?: string;
+  Name?: string;
+  Rate?: number;
+  Category?: string | null;
+}) => {
+  const code = String(item.Code ?? "").trim();
+  const name = String(item.Name ?? "").trim() || code;
+  const rate = Number(item.Rate ?? 0);
+  const category = String(item.Category ?? "")
+    .trim()
+    .toUpperCase();
+  return {
+    Category: category,
+    Code: code,
+    Name: name,
+    Rate: Number.isFinite(rate) ? rate : 0,
+    category,
+    code,
+    id: code,
+    name,
+    rate: Number.isFinite(rate) ? rate : 0,
+  };
 };
 
 // Fetches the global list of Units of Measurement (UoM).

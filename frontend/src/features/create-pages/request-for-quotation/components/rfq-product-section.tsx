@@ -74,6 +74,8 @@ export function RfqProductSection({
         enforceStockLimit={false}
         showExplicitZeroDiscount
         showUom
+        showTaxCode
+        taxSide="sales"
         uoms={[]}
         showPqLineDatesAndQtys
         rfqSellerFill

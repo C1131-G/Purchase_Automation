@@ -376,7 +376,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
             salesUomCode: productMeta?.uomCode,
             salesUomEntry: productMeta?.uomEntry,
             uomList: productMeta?.uomList,
-            vatGroup: String(line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
+            vatGroup: String(line.VatGroup ?? line.TaxCode ?? productMeta?.vatGroup ?? "").trim(),
             warehouseCode: String(line.WarehouseCode ?? "").trim(),
           };
         });
@@ -1437,7 +1437,7 @@ export function usePurchaseOrderCreate(options?: UsePurchaseOrderCreateOptions) 
                 lineData.UoMCode ?? lineData.uomCode ?? lineData.UomCode ?? "",
               ).trim(),
               uomEntry: Number(lineData.UoMEntry ?? lineData.uomEntry ?? lineData.UomEntry),
-              vatGroup: String(line.TaxCode ?? "").trim(),
+              vatGroup: String(line.VatGroup ?? line.TaxCode ?? "").trim(),
               warehouseCode: String(line.WarehouseCode ?? "").trim(),
             };
           });

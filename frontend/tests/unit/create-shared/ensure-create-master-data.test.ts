@@ -15,13 +15,14 @@ describe("ensureCreateMasterData", () => {
 
     await ensureCreateMasterData(queryClient, "vendors");
 
-    expect(ensureQueryData).toHaveBeenCalledTimes(3);
+    expect(ensureQueryData).toHaveBeenCalledTimes(4);
     const keys = ensureQueryData.mock.calls.map(
       (call) => (call[0] as { queryKey: unknown[] }).queryKey,
     );
     expect(keys.some((key) => key.includes("vendors-v4"))).toBe(true);
     expect(keys.some((key) => key.includes("warehouses"))).toBe(true);
     expect(keys.some((key) => key.includes("sales-employees"))).toBe(true);
+    expect(keys.some((key) => key.includes("tax-codes"))).toBe(true);
   });
 
   it("uses customers query key for sales create", async () => {
@@ -49,6 +50,6 @@ describe("prefetchCreateMasterData", () => {
 
     prefetchCreateMasterData(queryClient, "vendors");
 
-    expect(prefetchQuery).toHaveBeenCalledTimes(3);
+    expect(prefetchQuery).toHaveBeenCalledTimes(4);
   });
 });

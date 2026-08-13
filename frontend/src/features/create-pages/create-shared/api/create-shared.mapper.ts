@@ -40,10 +40,14 @@ export const mapLookup = (item: unknown): LookupItem => {
     const num = Number(rawBranch);
     branchId = Number.isFinite(num) && num > 0 ? Math.trunc(num) : null;
   }
+  const category = String(record.category ?? record.Category ?? "")
+    .trim()
+    .toUpperCase();
   return {
     code: String(record.code ?? record.Code ?? record.CardCode ?? record.ItemCode ?? ""),
     name: String(record.name ?? record.Name ?? record.CardName ?? record.ItemName ?? ""),
     rate: Number(record.rate ?? record.Rate ?? 0),
+    ...(category ? { category } : {}),
     ...(branchId !== undefined ? { branchId } : {}),
   };
 };
@@ -200,12 +204,15 @@ export const mapProductLookup = (item: unknown): ProductLookupItem => {
       return mapped.length > 0 ? mapped : undefined;
     })(),
     vatGroup: String(
-      record.VatGroupPu ||
-        record.vatGroupPu ||
-        record.VatGourpPu ||
-        record.vatGourpPu ||
-        record.TaxCode ||
-        record.taxCode ||
+      record.vatGroup ??
+        record.TaxCode ??
+        record.taxCode ??
+        record.VatGroupPu ??
+        record.vatGroupPu ??
+        record.VatGroupSa ??
+        record.vatGroupSa ??
+        record.VatGourpPu ??
+        record.vatGourpPu ??
         "",
     ).trim(),
     manSerNum: String(record.manSerNum ?? record.ManSerNum ?? "N").trim() || "N",

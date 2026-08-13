@@ -65,6 +65,7 @@ export const apInvoiceDetailSchema = z.object({
       UnitPrice: z.number().optional(),
       UoMCode: z.string().nullable().optional(),
       UoMEntry: z.number().nullable().optional(),
+      VatGroup: z.string().optional(),
       VatPrcnt: z.number().optional(),
       WarehouseCode: z.string(),
     }),
